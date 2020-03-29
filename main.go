@@ -13,7 +13,7 @@ func emitExpr(expr ast.Expr) {
 	case *ast.CallExpr:
 		arg0 := e.Args[0]
 		fun := e.Fun
-		fmt.Printf("# funcall=%T\n", fun)
+		fmt.Printf("  # funcall=%T\n", fun)
 		switch fn := fun.(type) {
 		case *ast.SelectorExpr:
 			emitExpr(arg0)
@@ -25,14 +25,14 @@ func emitExpr(expr ast.Expr) {
 	case *ast.ParenExpr:
 		emitExpr(e.X)
 	case *ast.BasicLit:
-		fmt.Printf("# start %T\n", e)
+		fmt.Printf("  # start %T\n", e)
 		val := e.Value
 		ival, _ := strconv.Atoi(val)
 		fmt.Printf("  movq $%d, %%rax\n", ival)
 		fmt.Printf("  pushq %%rax\n")
-		fmt.Printf("# end %T\n", e)
+		fmt.Printf("  # end %T\n", e)
 	case *ast.BinaryExpr:
-		fmt.Printf("# start %T\n", e)
+		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X) // left
 		emitExpr(e.Y) // right
 		if e.Op.String() == "+" {
@@ -53,7 +53,7 @@ func emitExpr(expr ast.Expr) {
 		} else {
 			panic(fmt.Sprintf("Unexpected binary operator %s", e.Op))
 		}
-		fmt.Printf("# end %T\n", e)
+		fmt.Printf("  # end %T\n", e)
 	default:
 		panic(fmt.Sprintf("Unexpected expr type %T", expr))
 	}
