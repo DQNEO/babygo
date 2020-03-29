@@ -1,0 +1,21 @@
+#!/bin/bash
+# Usage:
+#    ./docker-run   enter into container with bash
+#    ./docker-run <command> run a command in the container
+
+if [[ $# -eq 1 ]]; then
+  cmd="bash"
+else
+  cmd="$@"
+fi
+
+docker run \
+    -it\
+    --rm\
+    --cap-add=SYS_PTRACE\
+    --security-opt='seccomp=unconfined'\
+    -w /root/go/src/github.com/DQNEO/babygo\
+    -v `pwd`:/root/go/src/github.com/DQNEO/babygo\
+    --env PATH=/usr/lib/go-1.14/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\
+    --tmpfs=/tmp/tmpfs:rw,size=500m,mode=1777\
+     dqneo/ubuntu-build-essential:go $cmd
