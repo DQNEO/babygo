@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/token"
 	"strconv"
 )
 
@@ -12,7 +13,7 @@ func emitExpr(expr ast.Expr) {
 	case *ast.CallExpr:
 		arg0 := e.Args[0]
 		fun := e.Fun
-		fmt.Printf("# fun=%T\n", fun)
+		fmt.Printf("# funcall=%T\n", fun)
 		switch fn := fun.(type) {
 		case *ast.SelectorExpr:
 			emitExpr(arg0)
@@ -58,15 +59,45 @@ func emitExpr(expr ast.Expr) {
 	}
 }
 
+func emitFuncDecl(pkgPrefix string, funcDecl *ast.FuncDecl) {
+
+	fmt.Printf(".text\n")
+	fmt.Printf("%s.%s:\n", pkgPrefix, funcDecl.Name)
+
+	for _, stmt := range funcDecl.Body.List {
+		switch stmt.(type) {
+		case *ast.ExprStmt:
+			expr := stmt.(*ast.ExprStmt).X
+			emitExpr(expr)
+		default:
+			panic("Unexpected stmt type")
+		}
+	}
+
+	fmt.Printf("  ret\n")
+}
+
+func generateCode(f *ast.File) {
+	for _, decl := range f.Decls {
+		switch decl.(type) {
+		case *ast.GenDecl:
+			continue
+		case *ast.FuncDecl:
+			funcDecl := decl.(*ast.FuncDecl)
+			fmt.Printf("# funcDecl %s\n", funcDecl.Name)
+			emitFuncDecl("main", funcDecl)
+		default:
+			panic("unexpected decl type")
+		}
+	}
+
+}
+
 func main() {
-	source := "os.Exit((20 + 1) * 2)"
-	expr, err := parser.ParseExpr(source)
+	fset := &token.FileSet{}
+	f, err := parser.ParseFile(fset, "./t/source.go", nil, 0)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf(".text\n")
-	fmt.Printf(".global main.main\n")
-	fmt.Printf("main.main:\n")
-	emitExpr(expr)
-	fmt.Printf("  ret\n")
+	generateCode(f)
 }

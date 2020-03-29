@@ -2,7 +2,7 @@
 
 all: a.out
 
-main.s: main.go
+main.s: main.go t/source.go
 	go run main.go > main.s
 
 a.o: main.s runtime.s
