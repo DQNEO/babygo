@@ -9,6 +9,18 @@ import (
 
 func emitExpr(expr ast.Expr) {
 	switch e := expr.(type) {
+	case *ast.CallExpr:
+		arg0 := e.Args[0]
+		fun := e.Fun
+		fmt.Printf("# fun=%T\n", fun)
+		switch fn := fun.(type) {
+		case *ast.SelectorExpr:
+			emitExpr(arg0)
+			fmt.Printf("  popq %%rax\n")
+			fmt.Printf("  pushq %%rax\n")
+			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
+			fmt.Printf("  call %s\n", symbol)
+		}
 	case *ast.ParenExpr:
 		emitExpr(e.X)
 	case *ast.BasicLit:
@@ -47,7 +59,7 @@ func emitExpr(expr ast.Expr) {
 }
 
 func main() {
-	source := "(20 + 1) * 2"
+	source := "os.Exit((20 + 1) * 2)"
 	expr, err := parser.ParseExpr(source)
 	if err != nil {
 		panic(err)
@@ -56,8 +68,5 @@ func main() {
 	fmt.Printf(".global main.main\n")
 	fmt.Printf("main.main:\n")
 	emitExpr(expr)
-	fmt.Printf("  popq %%rax\n")
-	fmt.Printf("  pushq %%rax\n")
-	fmt.Printf("  callq os.Exit\n")
 	fmt.Printf("  ret\n")
 }
