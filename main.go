@@ -20,15 +20,14 @@ func emitExpr(expr ast.Expr) {
 				// builtin print
 				emitExpr(e.Args[0]) // push ptr, push len
 				symbol := fmt.Sprintf("runtime.printstring")
-				fmt.Printf("  call %s\n", symbol)
-				fmt.Printf("  addq $8, %%rsp\n")
+				fmt.Printf("  callq %s\n", symbol)
 			} else {
 				panic("Unexpected fn.Name:" + fn.Name)
 			}
 		case *ast.SelectorExpr:
 			emitExpr(e.Args[0])
 			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
-			fmt.Printf("  call %s\n", symbol)
+			fmt.Printf("  callq %s\n", symbol)
 		default:
 			panic(fmt.Sprintf("Unexpected expr type %T", fun))
 		}
@@ -84,7 +83,8 @@ func emitFuncDecl(pkgPrefix string, funcDecl *ast.FuncDecl) {
 
 	fmt.Printf(".text\n")
 	fmt.Printf("%s.%s:\n", pkgPrefix, funcDecl.Name)
-
+	fmt.Printf("push %%rbp\n")
+	fmt.Printf("movq %%rsp, %%rbp\n")
 	for _, stmt := range funcDecl.Body.List {
 		switch stmt.(type) {
 		case *ast.ExprStmt:
@@ -95,6 +95,7 @@ func emitFuncDecl(pkgPrefix string, funcDecl *ast.FuncDecl) {
 		}
 	}
 
+	fmt.Printf("  leave\n")
 	fmt.Printf("  ret\n")
 }
 

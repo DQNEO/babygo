@@ -1,9 +1,15 @@
 # runtime
 .text
 
+# Start of program
 .global _start
 _start:
   callq main.main
+  # exit(0)
+  movq $0, %rdi # arg1
+  movq $60, %rax
+  syscall
+# End of program
 
 runtime.printstring:
   movq $2, %rdi # stderr
@@ -17,4 +23,3 @@ os.Exit:
   movq 8(%rsp), %rdi # arg1
   movq $60, %rax
   syscall
-# End of program
