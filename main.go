@@ -45,7 +45,7 @@ func emitExpr(expr ast.Expr) {
 }
 
 func main() {
-	source := "14 * 3"
+	source := "2 + 20 * 2"
 	expr, err := parser.ParseExpr(source)
 	if err != nil {
 		panic(err)
