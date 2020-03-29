@@ -11,14 +11,11 @@ import (
 func emitExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.CallExpr:
-		arg0 := e.Args[0]
 		fun := e.Fun
 		fmt.Printf("  # funcall=%T\n", fun)
 		switch fn := fun.(type) {
 		case *ast.SelectorExpr:
-			emitExpr(arg0)
-			fmt.Printf("  popq %%rax\n")
-			fmt.Printf("  pushq %%rax\n")
+			emitExpr(e.Args[0])
 			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
 			fmt.Printf("  call %s\n", symbol)
 		}
