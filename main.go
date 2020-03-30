@@ -113,8 +113,6 @@ func emitExpr(expr ast.Expr) {
 }
 
 func emitFuncDecl(pkgPrefix string, funcDecl *ast.FuncDecl) {
-
-	fmt.Printf(".text\n")
 	fmt.Printf("%s.%s:\n", pkgPrefix, funcDecl.Name)
 	fmt.Printf("push %%rbp\n")
 	fmt.Printf("movq %%rsp, %%rbp\n")
@@ -127,7 +125,6 @@ func emitFuncDecl(pkgPrefix string, funcDecl *ast.FuncDecl) {
 			panic("Unexpected stmt type")
 		}
 	}
-
 	fmt.Printf("  leave\n")
 	fmt.Printf("  ret\n")
 }
@@ -299,7 +296,7 @@ func getPrimType(expr ast.Expr) *ast.Object {
 	}
 }
 
-func generateCode(f *ast.File) {
+func emitData() {
 	fmt.Printf(".data\n")
 	for i, sl := range stringLiterals {
 		fmt.Printf("# string literals\n")
@@ -331,12 +328,19 @@ func generateCode(f *ast.File) {
 			panic("Only BasicLit is allowed in Global var's value")
 		}
 	}
+}
 
+func emitText() {
+	fmt.Printf(".text\n")
 	for _, funcDecl := range globalFuncs {
 		fmt.Printf("# funcDecl %s\n", funcDecl.Name)
 		emitFuncDecl("main", funcDecl)
 	}
+}
 
+func generateCode(f *ast.File) {
+	emitData()
+	emitText()
 }
 
 func main() {
