@@ -3,14 +3,47 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"strconv"
 	"strings"
 )
 
+func emitVariable(ident *ast.Object) {
+	if ident.Kind != ast.Var {
+		panic("ident should be ast.Var")
+	}
+	valSpec,ok := ident.Decl.(*ast.ValueSpec)
+	if !ok {
+		panic("Unexpected case")
+	}
+
+	fmt.Printf("  # emitVariable string ident.Decl.Type=%#v\n", valSpec.Type)
+	if getPrimType(valSpec.Type) == gString {
+		fmt.Printf("  movq %s+0(%%rip), %%rax\n", ident.Name)
+		fmt.Printf("  pushq %%rax # ptr\n")
+		fmt.Printf("  mov %s+8(%%rip), %%rax\n", ident.Name)
+		fmt.Printf("  pushq %%rax # len\n")
+	} else if getPrimType(valSpec.Type) == gInt {
+		fmt.Printf("  movq %s+0(%%rip), %%rax\n", ident.Name)
+		fmt.Printf("  pushq %%rax # ptr\n")
+	} else {
+		panic("Unexpected type")
+	}
+}
+
 func emitExpr(expr ast.Expr) {
 	switch e := expr.(type) {
+	case *ast.Ident:
+		fmt.Printf("# ident kind=%v\n", e.Obj.Kind)
+		fmt.Printf("# Obj=%v\n", e.Obj)
+		if e.Obj.Kind == ast.Var {
+			emitVariable(e.Obj)
+		} else {
+			panic("Unexpected ident kind")
+		}
 	case *ast.CallExpr:
 		fun := e.Fun
 		fmt.Printf("  # funcall=%T\n", fun)
@@ -102,8 +135,18 @@ func emitFuncDecl(pkgPrefix string, funcDecl *ast.FuncDecl) {
 var stringLiterals []string
 var stringIndex int
 
+func registerStringLiteral(s string) string {
+	rawStringLiteal := s
+	stringLiterals = append(stringLiterals, rawStringLiteal)
+	r := fmt.Sprintf(".S%d:%d", stringIndex, len(rawStringLiteal) - 2 -1) // \n is counted as 2 ?
+	stringIndex++
+	return r
+}
+
 func walkExpr(expr ast.Expr) {
 	switch e := expr.(type) {
+	case *ast.Ident:
+		// what to do ?
 	case *ast.CallExpr:
 		for _, arg := range e.Args {
 			walkExpr(arg)
@@ -113,10 +156,7 @@ func walkExpr(expr ast.Expr) {
 	case *ast.BasicLit:
 		if e.Kind.String() == "INT" {
 		} else if e.Kind.String() == "STRING" {
-			rawStringLiteal := e.Value
-			stringLiterals = append(stringLiterals, rawStringLiteal)
-			e.Value = fmt.Sprintf(".S%d:%d", stringIndex, len(rawStringLiteal) - 2 -1) // \n is counted as 2 ?
-			stringIndex++
+			e.Value = registerStringLiteral(e.Value)
 		} else {
 			panic("Unexpected literal kind:" + e.Kind.String())
 		}
@@ -128,11 +168,109 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
-func semanticAnalyze(f *ast.File) {
+var gString = &ast.Object{
+	Kind: ast.Typ,
+	Name: "string",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gInt = &ast.Object{
+	Kind: ast.Typ,
+	Name: "int",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var globalVars []*ast.ValueSpec
+var globalFuncs []*ast.FuncDecl
+
+func semanticAnalyze(fset *token.FileSet, f *ast.File) {
+	// https://github.com/golang/example/tree/master/gotypes#an-example
+	// Type check
+	// A Config controls various options of the type checker.
+	// The defaults work fine except for one setting:
+	// we must specify how to deal with imports.
+	conf := types.Config{Importer: importer.Default()}
+
+	// Type-check the package containing only file f.
+	// Check returns a *types.Package.
+	pkg, err := conf.Check("./t", fset, []*ast.File{f}, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("# Package  %q\n", pkg.Path())
+	universe := &ast.Scope{
+		Outer:   nil,
+		Objects: make(map[string]*ast.Object),
+	}
+
+	universe.Insert(gString)
+	universe.Insert(gInt)
+	universe.Insert(&ast.Object{
+		Kind: ast.Fun,
+		Name: "print",
+		Decl: nil,
+		Data: nil,
+		Type: nil,
+	})
+
+	universe.Insert(&ast.Object{
+		Kind: ast.Pkg,
+		Name: "os", // why ???
+		Decl: nil,
+		Data: nil,
+		Type: nil,
+	})
+	//fmt.Printf("Universer:    %v\n", types.Universe)
+	ap, _ := ast.NewPackage(fset, map[string]*ast.File{"":f}, nil, universe)
+
+	var unresolved []*ast.Ident
+	for _, ident := range f.Unresolved {
+		if obj := universe.Lookup(ident.Name); obj != nil {
+			ident.Obj = obj
+		} else {
+			unresolved = append(unresolved, ident)
+		}
+	}
+
+	fmt.Printf("# Name:    %s\n", pkg.Name())
+	fmt.Printf("# Unresolved: %v\n", unresolved)
+	fmt.Printf("# Package:   %s\n", ap.Name)
+
+
 	for _, decl := range f.Decls {
-		switch decl.(type) {
+		switch dcl := decl.(type) {
 		case *ast.GenDecl:
-			continue
+			switch dcl.Tok {
+			case token.VAR:
+				spec := dcl.Specs[0]
+				valSpec := spec.(*ast.ValueSpec)
+				fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
+				typeIdent , ok := valSpec.Type.(*ast.Ident)
+				if !ok {
+					panic("Unexpected case")
+				}
+				if typeIdent.Obj == gString {
+					fmt.Printf("# spec.Name=%v, Value=%v\n", valSpec.Names[0], valSpec.Values[0])
+					lit,ok := valSpec.Values[0].(*ast.BasicLit)
+					if !ok {
+						panic("Unexpected type")
+					}
+					lit.Value = registerStringLiteral(lit.Value)
+				} else if typeIdent.Obj == gInt {
+					_,ok := valSpec.Values[0].(*ast.BasicLit)
+					if !ok {
+						panic("Unexpected type")
+					}
+				} else {
+					panic("Unexpected global ident")
+				}
+				globalVars = append(globalVars, valSpec)
+			}
 		case *ast.FuncDecl:
 			funcDecl := decl.(*ast.FuncDecl)
 			for _, stmt := range funcDecl.Body.List {
@@ -144,31 +282,59 @@ func semanticAnalyze(f *ast.File) {
 					panic("Unexpected stmt type")
 				}
 			}
+			globalFuncs = append(globalFuncs, funcDecl)
 		default:
 			panic("unexpected decl type")
 		}
 	}
 }
 
+
+func getPrimType(expr ast.Expr) *ast.Object {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e.Obj
+	default:
+		panic("Unexpected expr type")
+	}
+}
+
 func generateCode(f *ast.File) {
 	fmt.Printf(".data\n")
 	for i, sl := range stringLiterals {
+		fmt.Printf("# string literals\n")
 		fmt.Printf(".S%d:\n", i)
 		fmt.Printf("  .string %s\n", sl)
 	}
-	fmt.Printf("\n")
 
-	for _, decl := range f.Decls {
-		switch decl.(type) {
-		case *ast.GenDecl:
-			continue
-		case *ast.FuncDecl:
-			funcDecl := decl.(*ast.FuncDecl)
-			fmt.Printf("# funcDecl %s\n", funcDecl.Name)
-			emitFuncDecl("main", funcDecl)
+	fmt.Printf("# Global Variables\n")
+	for _, valSpec := range globalVars {
+		name := valSpec.Names[0]
+		val := valSpec.Values[0]
+		var strval string
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			if getPrimType(valSpec.Type) == gString {
+				strval = vl.Value
+				splitted := strings.Split(strval,":")
+				fmt.Printf("%s:  #\n", name)
+				fmt.Printf("  .quad %s\n", splitted[0])
+				fmt.Printf("  .quad %s\n", splitted[1])
+			} else if getPrimType(valSpec.Type) == gInt {
+				fmt.Printf("%s:  #\n", name)
+				fmt.Printf("  .quad %s\n", vl.Value)
+			} else {
+				panic("Unexpected case")
+			}
+
 		default:
-			panic("unexpected decl type")
+			panic("Only BasicLit is allowed in Global var's value")
 		}
+	}
+
+	for _, funcDecl := range globalFuncs {
+		fmt.Printf("# funcDecl %s\n", funcDecl.Name)
+		emitFuncDecl("main", funcDecl)
 	}
 
 }
@@ -179,6 +345,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	semanticAnalyze(f)
+
+	semanticAnalyze(fset, f)
 	generateCode(f)
 }
