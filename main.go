@@ -11,34 +11,122 @@ import (
 	"strings"
 )
 
-func emitVariable(ident *ast.Object) {
-	if ident.Kind != ast.Var {
-		panic("ident should be ast.Var")
+func isGlobalVar(obj *ast.Object) bool {
+	return getObjData(obj) == -1
+}
+
+func setObjData(obj *ast.Object, i int) {
+	obj.Data = i
+}
+
+func getObjData(obj *ast.Object) int {
+	objData, ok := obj.Data.(int)
+	if !ok {
+		panic("Unexpected")
 	}
-	valSpec,ok := ident.Decl.(*ast.ValueSpec)
+	return objData
+}
+
+func emitVariable(obj *ast.Object) {
+	// precondition
+	if obj.Kind != ast.Var {
+		panic("obj should be ast.Var")
+	}
+	varSpec,ok := obj.Decl.(*ast.ValueSpec)
 	if !ok {
 		panic("Unexpected case")
 	}
 
-	fmt.Printf("  # emitVariable string ident.Decl.Type=%#v\n", valSpec.Type)
-	if getPrimType(valSpec.Type) == gString {
-		fmt.Printf("  movq %s+0(%%rip), %%rax\n", ident.Name)
+	fmt.Printf("  # emitVariable\n")
+	fmt.Printf("  # obj.Data=%d\n", obj.Data)
+
+	if getPrimType(varSpec.Type) == gString {
+		if isGlobalVar(obj) {
+			fmt.Printf("  # global\n")
+			fmt.Printf("  movq %s+0(%%rip), %%rax\n", obj.Name)
+			fmt.Printf("  movq %s+8(%%rip), %%rcx\n", obj.Name)
+		} else {
+			fmt.Printf("  # local\n")
+			localOffset := (getObjData(obj))
+			fmt.Printf("  movq -%d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
+			fmt.Printf("  movq -%d(%%rbp), %%rcx # len %s \n", localOffset - 8, obj.Name)
+		}
 		fmt.Printf("  pushq %%rax # ptr\n")
-		fmt.Printf("  mov %s+8(%%rip), %%rax\n", ident.Name)
-		fmt.Printf("  pushq %%rax # len\n")
-	} else if getPrimType(valSpec.Type) == gInt {
-		fmt.Printf("  movq %s+0(%%rip), %%rax\n", ident.Name)
-		fmt.Printf("  pushq %%rax # ptr\n")
+		fmt.Printf("  pushq %%rcx # len\n")
+	} else if getPrimType(varSpec.Type) == gInt {
+		if isGlobalVar(obj) {
+			fmt.Printf("  # global\n")
+			fmt.Printf("  movq %s+0(%%rip), %%rax\n", obj.Name)
+		} else {
+			fmt.Printf("  # local\n")
+			localOffset := (getObjData(obj))
+			fmt.Printf("  movq -%d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
+		}
+		fmt.Printf("  pushq %%rax # int val\n")
 	} else {
 		panic("Unexpected type")
+	}
+}
+
+func emitVariableAddr(obj *ast.Object) {
+	// precondition
+	if obj.Kind != ast.Var {
+		panic("obj should be ast.Var")
+	}
+	decl,ok := obj.Decl.(*ast.ValueSpec)
+	if !ok {
+		panic("Unexpected case")
+	}
+
+	fmt.Printf("  # emitVariable\n")
+	fmt.Printf("  # obj.Data=%d\n", obj.Data)
+
+	if getPrimType(decl.Type) == gString {
+		if isGlobalVar(obj) {
+			fmt.Printf("  # global\n")
+			fmt.Printf("  leaq %s+0(%%rip), %%rax # ptr\n", obj.Name)
+			fmt.Printf("  leaq %s+8(%%rip), %%rcx # len\n", obj.Name)
+		} else {
+			fmt.Printf("  # local\n")
+			localOffset := (getObjData(obj))
+			fmt.Printf("  leaq -%d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
+			fmt.Printf("  leaq -%d(%%rbp), %%rcx # len %s \n", localOffset - 8, obj.Name)
+		}
+		fmt.Printf("  pushq %%rax # ptr\n")
+		fmt.Printf("  pushq %%rcx # len\n")
+	} else if getPrimType(decl.Type) == gInt {
+		if isGlobalVar(obj) {
+			fmt.Printf("  # global\n")
+			fmt.Printf("  leaq %s+0(%%rip), %%rax\n", obj.Name)
+		} else {
+			fmt.Printf("  # local\n")
+			localOffset := (getObjData(obj))
+			fmt.Printf("  leaq -%d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
+		}
+		fmt.Printf("  pushq %%rax # int var\n")
+	} else {
+		panic("Unexpected type")
+	}
+}
+
+func emitAddr(expr ast.Expr) {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		fmt.Printf("  # ident kind=%v\n", e.Obj.Kind)
+		fmt.Printf("  # Obj=%v\n", e.Obj)
+		if e.Obj.Kind == ast.Var {
+			emitVariableAddr(e.Obj)
+		} else {
+			panic("Unexpected ident kind")
+		}
 	}
 }
 
 func emitExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
-		fmt.Printf("# ident kind=%v\n", e.Obj.Kind)
-		fmt.Printf("# Obj=%v\n", e.Obj)
+		fmt.Printf("  # ident kind=%v\n", e.Obj.Kind)
+		fmt.Printf("  # Obj=%v\n", e.Obj)
 		if e.Obj.Kind == ast.Var {
 			emitVariable(e.Obj)
 		} else {
@@ -112,17 +200,41 @@ func emitExpr(expr ast.Expr) {
 	}
 }
 
-func emitFuncDecl(pkgPrefix string, funcDecl *ast.FuncDecl) {
+func emitFuncDecl(pkgPrefix string, fnc *Func) {
+	funcDecl := fnc.decl
 	fmt.Printf("%s.%s:\n", pkgPrefix, funcDecl.Name)
-	fmt.Printf("push %%rbp\n")
-	fmt.Printf("movq %%rsp, %%rbp\n")
+	fmt.Printf("  pushq %%rbp\n")
+	fmt.Printf("  movq %%rsp, %%rbp\n")
+	if len(fnc.localvars) > 0 {
+		fmt.Printf("  subq $%d, %%rsp # local area\n", fnc.localoffset)
+	}
 	for _, stmt := range funcDecl.Body.List {
-		switch stmt.(type) {
+		switch s := stmt.(type) {
 		case *ast.ExprStmt:
-			expr := stmt.(*ast.ExprStmt).X
+			expr := s.X
 			emitExpr(expr)
+		case *ast.DeclStmt:
+			continue
+		case *ast.AssignStmt:
+			fmt.Printf("  # *ast.AssignStmt\n")
+			lhs := s.Lhs[0]
+			rhs := s.Rhs[0]
+			emitAddr(lhs)
+			emitExpr(rhs)
+			if getPrimType(lhs) == gString {
+				fmt.Printf("  popq %%rcx # rhs len\n")
+				fmt.Printf("  popq %%rax # rhs ptr\n")
+				fmt.Printf("  popq %%rdx # lhs len addr\n")
+				fmt.Printf("  popq %%rsi # lhs ptr addr\n")
+				fmt.Printf("  movq %%rcx, (%%rdx) # len to len\n")
+				fmt.Printf("  movq %%rax, (%%rsi) # ptr to ptr\n")
+			} else {
+				fmt.Printf("  popq %%rdi # rhs evaluated\n")
+				fmt.Printf("  popq %%rax # lhs addr\n")
+				fmt.Printf("  movq %%rdi, (%%rax)")
+			}
 		default:
-			panic("Unexpected stmt type")
+			panic(fmt.Sprintf("Unexpected stmt type %T", stmt))
 		}
 	}
 	fmt.Printf("  leave\n")
@@ -182,9 +294,9 @@ var gInt = &ast.Object{
 }
 
 var globalVars []*ast.ValueSpec
-var globalFuncs []*ast.FuncDecl
+var globalFuncs []*Func
 
-func semanticAnalyze(fset *token.FileSet, f *ast.File) {
+func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 	// https://github.com/golang/example/tree/master/gotypes#an-example
 	// Type check
 	// A Config controls various options of the type checker.
@@ -192,9 +304,9 @@ func semanticAnalyze(fset *token.FileSet, f *ast.File) {
 	// we must specify how to deal with imports.
 	conf := types.Config{Importer: importer.Default()}
 
-	// Type-check the package containing only file f.
+	// Type-check the package containing only file fiile.
 	// Check returns a *types.Package.
-	pkg, err := conf.Check("./t", fset, []*ast.File{f}, nil)
+	pkg, err := conf.Check("./t", fset, []*ast.File{fiile}, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -223,10 +335,10 @@ func semanticAnalyze(fset *token.FileSet, f *ast.File) {
 		Type: nil,
 	})
 	//fmt.Printf("Universer:    %v\n", types.Universe)
-	ap, _ := ast.NewPackage(fset, map[string]*ast.File{"":f}, nil, universe)
+	ap, _ := ast.NewPackage(fset, map[string]*ast.File{"": fiile}, nil, universe)
 
 	var unresolved []*ast.Ident
-	for _, ident := range f.Unresolved {
+	for _, ident := range fiile.Unresolved {
 		if obj := universe.Lookup(ident.Name); obj != nil {
 			ident.Obj = obj
 		} else {
@@ -239,7 +351,7 @@ func semanticAnalyze(fset *token.FileSet, f *ast.File) {
 	fmt.Printf("# Package:   %s\n", ap.Name)
 
 
-	for _, decl := range f.Decls {
+	for _, decl := range fiile.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
 			switch dcl.Tok {
@@ -251,8 +363,11 @@ func semanticAnalyze(fset *token.FileSet, f *ast.File) {
 				if !ok {
 					panic("Unexpected case")
 				}
+				nameIdent := valSpec.Names[0]
+				fmt.Printf("# spec.Name=%s, Value=%v\n", nameIdent, valSpec.Values[0])
+				fmt.Printf("# nameIdent.Obj=%v\n", nameIdent.Obj)
+				nameIdent.Obj.Data = -1 // mark as global
 				if typeIdent.Obj == gString {
-					fmt.Printf("# spec.Name=%v, Value=%v\n", valSpec.Names[0], valSpec.Values[0])
 					lit,ok := valSpec.Values[0].(*ast.BasicLit)
 					if !ok {
 						panic("Unexpected type")
@@ -270,30 +385,76 @@ func semanticAnalyze(fset *token.FileSet, f *ast.File) {
 			}
 		case *ast.FuncDecl:
 			funcDecl := decl.(*ast.FuncDecl)
+			var localvars []*ast.ValueSpec = nil
+			var localoffset int
 			for _, stmt := range funcDecl.Body.List {
-				switch stmt.(type) {
+				switch s := stmt.(type) {
 				case *ast.ExprStmt:
-					expr := stmt.(*ast.ExprStmt).X
+					expr := s.X
 					walkExpr(expr)
+				case *ast.DeclStmt:
+					decl := s.Decl
+					switch dcl := decl.(type) {
+					case *ast.GenDecl:
+						declSpec := dcl.Specs[0]
+						switch ds := declSpec.(type) {
+						case *ast.ValueSpec:
+							varSpec := ds
+							obj := varSpec.Names[0].Obj
+							var varSize int
+							if getPrimType(varSpec.Type) == gString {
+								varSize = 16
+							} else {
+								varSize = 8
+							}
+
+							localoffset += varSize
+							setObjData(obj, localoffset)
+							localvars = append(localvars, ds)
+						}
+					default:
+						panic(fmt.Sprintf("Unexpected type:%T", decl))
+					}
+				case *ast.AssignStmt:
+					//lhs := s.Lhs[0]
+					rhs := s.Rhs[0]
+					walkExpr(rhs)
 				default:
-					panic("Unexpected stmt type")
+					panic(fmt.Sprintf("Unexpected stmt type:%T", stmt))
 				}
 			}
-			globalFuncs = append(globalFuncs, funcDecl)
+			fnc := &Func{
+				decl: funcDecl,
+				localvars:localvars,
+				localoffset: localoffset,
+			}
+			globalFuncs = append(globalFuncs, fnc)
 		default:
 			panic("unexpected decl type")
 		}
 	}
 }
 
+type Func struct {
+	decl        *ast.FuncDecl
+	localvars   []*ast.ValueSpec
+	localoffset int
+}
 
-func getPrimType(expr ast.Expr) *ast.Object {
-	switch e := expr.(type) {
+func getPrimType(typeExpr ast.Expr) *ast.Object {
+	switch e := typeExpr.(type) {
 	case *ast.Ident:
-		return e.Obj
+			fmt.Printf("  # ident kind=%v\n", e.Obj.Kind)
+			if e.Obj.Kind == ast.Var {
+				return getPrimType(e.Obj.Decl.(*ast.ValueSpec).Type)
+			} else if e.Obj.Kind == ast.Typ {
+				return e.Obj
+			}
 	default:
-		panic("Unexpected expr type")
+		panic("Unexpected typeExpr type")
 	}
+
+	return nil
 }
 
 func emitData() {
@@ -332,9 +493,9 @@ func emitData() {
 
 func emitText() {
 	fmt.Printf(".text\n")
-	for _, funcDecl := range globalFuncs {
-		fmt.Printf("# funcDecl %s\n", funcDecl.Name)
-		emitFuncDecl("main", funcDecl)
+	for _, fnc := range globalFuncs {
+		fmt.Printf("# funcDecl %s\n", fnc.decl.Name)
+		emitFuncDecl("main", fnc)
 	}
 }
 
