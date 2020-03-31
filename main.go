@@ -436,6 +436,9 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 				paramoffset += varSize
 				fmt.Printf("# field.Names[0].Obj=%#v\n", obj)
 			}
+			if funcDecl.Body == nil {
+				break
+			}
 			for _, stmt := range funcDecl.Body.List {
 				switch s := stmt.(type) {
 				case *ast.ExprStmt:
