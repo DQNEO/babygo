@@ -253,7 +253,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 			} else {
 				fmt.Printf("  popq %%rdi # rhs evaluated\n")
 				fmt.Printf("  popq %%rax # lhs addr\n")
-				fmt.Printf("  movq %%rdi, (%%rax)")
+				fmt.Printf("  movq %%rdi, (%%rax)\n")
 			}
 		case *ast.ReturnStmt:
 			emitExpr(s.Results[0])
