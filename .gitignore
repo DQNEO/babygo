@@ -1,4 +1,4 @@
-a.o
-a.out
-/main.s
+/a.o
+/a.out
+/a.s
 sample.o

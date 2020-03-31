@@ -2,11 +2,11 @@
 
 all: a.out
 
-main.s: main.go t/source.go
-	go run main.go > main.s
+a.s: main.go t/source.go
+	go run main.go > a.s
 
-a.o: main.s runtime.s
-	as -o a.o main.s runtime.s
+a.o: a.s runtime.s
+	as -o a.o a.s runtime.s
 
 a.out: a.o
 	ld -o a.out a.o
