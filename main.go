@@ -509,10 +509,9 @@ func getExprSize(valueExpr ast.Expr) int {
 	return 0
 }
 
-func getPrimType(typeExpr ast.Expr) *ast.Object {
-	switch e := typeExpr.(type) {
+func getPrimType(expr ast.Expr) *ast.Object {
+	switch e := expr.(type) {
 	case *ast.Ident:
-			fmt.Printf("  # ident kind=%v\n", e.Obj.Kind)
 			if e.Obj.Kind == ast.Var {
 				return getPrimType(e.Obj.Decl.(*ast.ValueSpec).Type)
 			} else if e.Obj.Kind == ast.Typ {
@@ -526,7 +525,7 @@ func getPrimType(typeExpr ast.Expr) *ast.Object {
 			return gInt
 		}
 	default:
-		panic(fmt.Sprintf("Unexpected typeExpr type:%T", typeExpr))
+		panic(fmt.Sprintf("Unexpected expr type:%T", expr))
 	}
 
 	return nil
