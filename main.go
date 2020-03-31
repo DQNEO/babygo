@@ -22,7 +22,7 @@ func setObjData(obj *ast.Object, i int) {
 func getObjData(obj *ast.Object) int {
 	objData, ok := obj.Data.(int)
 	if !ok {
-		panic("Unexpected")
+		panic("obj.Data is not int")
 	}
 	return objData
 }
@@ -32,35 +32,46 @@ func emitVariable(obj *ast.Object) {
 	if obj.Kind != ast.Var {
 		panic("obj should be ast.Var")
 	}
-	varSpec,ok := obj.Decl.(*ast.ValueSpec)
-	if !ok {
-		panic("Unexpected case")
+	fmt.Printf("  # obj=%#v\n", obj)
+
+	var typ ast.Expr
+	var localOffset int
+	switch dcl := obj.Decl.(type) {
+	case *ast.ValueSpec:
+		typ = dcl.Type
+		localOffset = getObjData(obj) * -1
+	case *ast.Field:
+		typ = dcl.Type
+		localOffset = getObjData(obj) // param offset
+		fmt.Printf("  # dcl.Names[0].Obj=%#v\n", dcl.Names[0].Obj)
+		fmt.Printf("  # param offset=%d\n", localOffset)
+	default:
+		panic("unexpected")
 	}
 
 	fmt.Printf("  # emitVariable\n")
+	fmt.Printf("  # Type=%#v\n", typ)
 	fmt.Printf("  # obj.Data=%d\n", obj.Data)
 
-	if getPrimType(varSpec.Type) == gString {
+	if getPrimType(typ) == gString {
 		if isGlobalVar(obj) {
 			fmt.Printf("  # global\n")
 			fmt.Printf("  movq %s+0(%%rip), %%rax\n", obj.Name)
 			fmt.Printf("  movq %s+8(%%rip), %%rcx\n", obj.Name)
 		} else {
 			fmt.Printf("  # local\n")
-			localOffset := (getObjData(obj))
-			fmt.Printf("  movq -%d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
-			fmt.Printf("  movq -%d(%%rbp), %%rcx # len %s \n", localOffset - 8, obj.Name)
+			fmt.Printf("  movq %d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
+			fmt.Printf("  movq %d(%%rbp), %%rcx # len %s \n", (localOffset + 8), obj.Name)
 		}
 		fmt.Printf("  pushq %%rax # ptr\n")
 		fmt.Printf("  pushq %%rcx # len\n")
-	} else if getPrimType(varSpec.Type) == gInt {
+	} else if getPrimType(typ) == gInt {
 		if isGlobalVar(obj) {
 			fmt.Printf("  # global\n")
 			fmt.Printf("  movq %s+0(%%rip), %%rax\n", obj.Name)
 		} else {
 			fmt.Printf("  # local\n")
-			localOffset := (getObjData(obj))
-			fmt.Printf("  movq -%d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
+			fmt.Printf("  movq %d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
 		}
 		fmt.Printf("  pushq %%rax # int val\n")
 	} else {
@@ -142,8 +153,13 @@ func emitExpr(expr ast.Expr) {
 				emitExpr(e.Args[0]) // push ptr, push len
 				symbol := fmt.Sprintf("runtime.printstring")
 				fmt.Printf("  callq %s\n", symbol)
+				fmt.Printf("  addq $16, %%rsp # revert\n")
 			} else {
-				panic("Unexpected fn.Name:" + fn.Name)
+				emitExpr(e.Args[0])
+				symbol := "main." + fn.Name
+				fmt.Printf("  callq %s\n", symbol)
+				fmt.Printf("  addq $8, %%rsp # revert\n")
+				fmt.Printf("  push %%rax\n")
 			}
 		case *ast.SelectorExpr:
 			emitExpr(e.Args[0])
@@ -202,11 +218,12 @@ func emitExpr(expr ast.Expr) {
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	funcDecl := fnc.decl
-	fmt.Printf("%s.%s:\n", pkgPrefix, funcDecl.Name)
+	fmt.Printf("%s.%s: # args %d, locals %d\n",
+		pkgPrefix, funcDecl.Name, fnc.argsarea, fnc.localarea)
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
 	if len(fnc.localvars) > 0 {
-		fmt.Printf("  subq $%d, %%rsp # local area\n", fnc.localoffset)
+		fmt.Printf("  subq $%d, %%rsp # local area\n", fnc.localarea)
 	}
 	for _, stmt := range funcDecl.Body.List {
 		switch s := stmt.(type) {
@@ -233,6 +250,9 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 				fmt.Printf("  popq %%rax # lhs addr\n")
 				fmt.Printf("  movq %%rdi, (%%rax)")
 			}
+		case *ast.ReturnStmt:
+			emitExpr(s.Results[0])
+			fmt.Printf("  popq %%rax # return\n")
 		default:
 			panic(fmt.Sprintf("Unexpected stmt type %T", stmt))
 		}
@@ -387,6 +407,19 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 			funcDecl := decl.(*ast.FuncDecl)
 			var localvars []*ast.ValueSpec = nil
 			var localoffset int
+			var paramoffset int = 16
+			for _, field := range funcDecl.Type.Params.List {
+				obj :=field.Names[0].Obj
+				var varSize int
+				if getPrimType(field.Type) == gString {
+					varSize = 16
+				} else {
+					varSize = 8
+				}
+				setObjData(obj, paramoffset)
+				paramoffset += varSize
+				fmt.Printf("# field.Names[0].Obj=%#v\n", obj)
+			}
 			for _, stmt := range funcDecl.Body.List {
 				switch s := stmt.(type) {
 				case *ast.ExprStmt:
@@ -408,7 +441,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 								varSize = 8
 							}
 
-							localoffset += varSize
+							localoffset -= varSize
 							setObjData(obj, localoffset)
 							localvars = append(localvars, ds)
 						}
@@ -419,14 +452,19 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 					//lhs := s.Lhs[0]
 					rhs := s.Rhs[0]
 					walkExpr(rhs)
+				case *ast.ReturnStmt:
+					for _, r := range s.Results {
+						walkExpr(r)
+					}
 				default:
 					panic(fmt.Sprintf("Unexpected stmt type:%T", stmt))
 				}
 			}
 			fnc := &Func{
-				decl: funcDecl,
-				localvars:localvars,
-				localoffset: localoffset,
+				decl:      funcDecl,
+				localvars: localvars,
+				localarea: -localoffset,
+				argsarea: paramoffset,
 			}
 			globalFuncs = append(globalFuncs, fnc)
 		default:
@@ -436,9 +474,10 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 }
 
 type Func struct {
-	decl        *ast.FuncDecl
-	localvars   []*ast.ValueSpec
-	localoffset int
+	decl      *ast.FuncDecl
+	localvars []*ast.ValueSpec
+	localarea int
+	argsarea  int
 }
 
 func getPrimType(typeExpr ast.Expr) *ast.Object {
@@ -494,7 +533,6 @@ func emitData() {
 func emitText() {
 	fmt.Printf(".text\n")
 	for _, fnc := range globalFuncs {
-		fmt.Printf("# funcDecl %s\n", fnc.decl.Name)
 		emitFuncDecl("main", fnc)
 	}
 }
