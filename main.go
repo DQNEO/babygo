@@ -155,10 +155,15 @@ func emitExpr(expr ast.Expr) {
 				fmt.Printf("  callq %s\n", symbol)
 				fmt.Printf("  addq $16, %%rsp # revert\n")
 			} else {
-				emitExpr(e.Args[0])
+				//
+				var n int
+				for _, arg := range e.Args {
+					emitExpr(arg)
+					n++ // @FIXME calculate exact offet
+				}
 				symbol := "main." + fn.Name
 				fmt.Printf("  callq %s\n", symbol)
-				fmt.Printf("  addq $8, %%rsp # revert\n")
+				fmt.Printf("  addq $%d, %%rsp # revert\n", n*8)
 				fmt.Printf("  push %%rax\n")
 			}
 		case *ast.SelectorExpr:

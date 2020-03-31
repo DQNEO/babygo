@@ -11,8 +11,12 @@ func f1(x int) int {
 	return x + 1
 }
 
+func sum(x int, y int) int {
+	return x + y
+}
+
 func main() {
-	globalint2 = f1(1)
+	globalint2 = sum(1, 2)
 
 	print(globalstring)
 
@@ -27,7 +31,6 @@ func main() {
 	globalstring = "globalstring changed\n"
 	print(globalstring)
 	var locali3 int
-	locali3 = 10
-
-	os.Exit( globalint + globalint2 + locali3)
+	locali3 = 9
+	os.Exit( sum(globalint , globalint2) + locali3)
 }
