@@ -25,6 +25,10 @@ func print2(a string, b string) {
 	print(b)
 }
 
+func returnstring() string {
+	return "i am a local 1\n"
+}
+
 func main() {
 	globalint2 = sum(1, 2)
 
@@ -34,7 +38,7 @@ func main() {
 	var localstring2 string
 
 	print1("hello string literal\n")
-	localstring1 = "i am a local 1\n"
+	localstring1 = returnstring()
 	localstring2 = "i m local2\n"
 	print2(localstring1, localstring2)
 	globalstring = "globalstring changed\n"
