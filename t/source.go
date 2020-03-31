@@ -7,7 +7,7 @@ var globalstring string = "hello stderr\n"
 var globalint int = 30
 var globalint2 int = 0
 
-func f1(x int) int {
+func add1(x int) int {
 	return x + 1
 }
 
@@ -40,6 +40,6 @@ func main() {
 	globalstring = "globalstring changed\n"
 	print(globalstring)
 	var locali3 int
-	locali3 = 9
+	locali3 = add1(8)
 	os.Exit( sum(globalint , globalint2) + locali3)
 }
