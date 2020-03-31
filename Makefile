@@ -14,5 +14,11 @@ a.out: a.o
 test: a.out
 	./test.sh
 
+# to learn Go's assembly
+sample/sample.s: sample/sample.go
+	go tool compile -N -S sample/sample.go > sample/sample.s
+
+
 clean:
 	rm -f a.o a.out main.s
+
