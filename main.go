@@ -55,16 +55,16 @@ func emitVariable(obj *ast.Object) {
 
 	if getPrimType(typ) == gString {
 		if isGlobalVar(obj) {
-			fmt.Printf("  # global\n")
+			fmt.Printf("  # global variable %s\n", obj.Name)
 			fmt.Printf("  movq %s+0(%%rip), %%rax\n", obj.Name)
 			fmt.Printf("  movq %s+8(%%rip), %%rcx\n", obj.Name)
 		} else {
-			fmt.Printf("  # local\n")
-			fmt.Printf("  movq %d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
-			fmt.Printf("  movq %d(%%rbp), %%rcx # len %s \n", (localOffset + 8), obj.Name)
+			fmt.Printf("  # local variable %s\n", obj.Name)
+			fmt.Printf("  movq %d(%%rbp), %%rax # ptr\n", localOffset)
+			fmt.Printf("  movq %d(%%rbp), %%rcx # len\n", (localOffset + 8))
 		}
-		fmt.Printf("  pushq %%rax # ptr\n")
 		fmt.Printf("  pushq %%rcx # len\n")
+		fmt.Printf("  pushq %%rax # ptr\n")
 	} else if getPrimType(typ) == gInt {
 		if isGlobalVar(obj) {
 			fmt.Printf("  # global\n")
@@ -103,8 +103,8 @@ func emitVariableAddr(obj *ast.Object) {
 			fmt.Printf("  leaq -%d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
 			fmt.Printf("  leaq -%d(%%rbp), %%rcx # len %s \n", localOffset - 8, obj.Name)
 		}
-		fmt.Printf("  pushq %%rax # ptr\n")
 		fmt.Printf("  pushq %%rcx # len\n")
+		fmt.Printf("  pushq %%rax # ptr\n")
 	} else if getPrimType(decl.Type) == gInt {
 		if isGlobalVar(obj) {
 			fmt.Printf("  # global\n")
@@ -153,17 +153,19 @@ func emitExpr(expr ast.Expr) {
 				emitExpr(e.Args[0]) // push ptr, push len
 				symbol := fmt.Sprintf("runtime.printstring")
 				fmt.Printf("  callq %s\n", symbol)
-				fmt.Printf("  addq $16, %%rsp # revert\n")
+				fmt.Printf("  addq $16, %%rsp # revert for one string\n")
 			} else {
 				//
-				var n int
-				for _, arg := range e.Args {
+				var totalSize int = 0
+				for i:=len(e.Args) - 1;i>=0;i-- {
+					arg := e.Args[i]
 					emitExpr(arg)
-					n++ // @FIXME calculate exact offet
+					size := getExprSize(arg)
+					totalSize += size
 				}
 				symbol := "main." + fn.Name
 				fmt.Printf("  callq %s\n", symbol)
-				fmt.Printf("  addq $%d, %%rsp # revert\n", n*8)
+				fmt.Printf("  addq $%d, %%rsp # revert\n", totalSize)
 				fmt.Printf("  pushq %%rax\n")
 			}
 		case *ast.SelectorExpr:
@@ -187,8 +189,8 @@ func emitExpr(expr ast.Expr) {
 			// e.Value == ".S%d:%d"
 			splitted := strings.Split(e.Value, ":")
 			fmt.Printf("  leaq %s, %%rax\n", splitted[0]) // str.ptr
-			fmt.Printf("  pushq %%rax\n")
 			fmt.Printf("  pushq $%s\n", splitted[1]) // str.len
+			fmt.Printf("  pushq %%rax\n")
 		} else {
 			panic("Unexpected literal kind:" + e.Kind.String())
 		}
@@ -242,22 +244,31 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 			lhs := s.Lhs[0]
 			rhs := s.Rhs[0]
 			emitAddr(lhs)
-			emitExpr(rhs)
+			emitExpr(rhs) // push len, push ptr
 			if getPrimType(lhs) == gString {
-				fmt.Printf("  popq %%rcx # rhs len\n")
-				fmt.Printf("  popq %%rax # rhs ptr\n")
-				fmt.Printf("  popq %%rdx # lhs len addr\n")
-				fmt.Printf("  popq %%rsi # lhs ptr addr\n")
-				fmt.Printf("  movq %%rcx, (%%rdx) # len to len\n")
-				fmt.Printf("  movq %%rax, (%%rsi) # ptr to ptr\n")
+				fmt.Printf("  popq %%rcx # rhs ptr\n")
+				fmt.Printf("  popq %%rax # rhs len\n")
+				fmt.Printf("  popq %%rdx # lhs ptr addr\n")
+				fmt.Printf("  popq %%rsi # lhs len addr\n")
+				fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
+				fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
 			} else {
 				fmt.Printf("  popq %%rdi # rhs evaluated\n")
 				fmt.Printf("  popq %%rax # lhs addr\n")
 				fmt.Printf("  movq %%rdi, (%%rax)\n")
 			}
 		case *ast.ReturnStmt:
-			emitExpr(s.Results[0])
-			fmt.Printf("  popq %%rax # return\n")
+			if len(s.Results) == 1 {
+				emitExpr(s.Results[0])
+				fmt.Printf("  popq %%rax # return\n")
+				fmt.Printf("  leave\n")
+				fmt.Printf("  ret\n")
+			} else if len(s.Results) == 0 {
+				fmt.Printf("  leave\n")
+				fmt.Printf("  ret\n")
+			} else {
+				panic("TBI")
+			}
 		default:
 			panic(fmt.Sprintf("Unexpected stmt type %T", stmt))
 		}
@@ -485,6 +496,19 @@ type Func struct {
 	argsarea  int
 }
 
+func getExprSize(valueExpr ast.Expr) int {
+	obj := getPrimType(valueExpr)
+	switch obj {
+	case gString:
+		return 8*2
+	case gInt:
+		return 8
+	default:
+		panic("TBI")
+	}
+	return 0
+}
+
 func getPrimType(typeExpr ast.Expr) *ast.Object {
 	switch e := typeExpr.(type) {
 	case *ast.Ident:
@@ -494,8 +518,15 @@ func getPrimType(typeExpr ast.Expr) *ast.Object {
 			} else if e.Obj.Kind == ast.Typ {
 				return e.Obj
 			}
+	case *ast.BasicLit:
+		switch e.Kind.String() {
+		case "STRING":
+			return gString
+		case "INT":
+			return gInt
+		}
 	default:
-		panic("Unexpected typeExpr type")
+		panic(fmt.Sprintf("Unexpected typeExpr type:%T", typeExpr))
 	}
 
 	return nil

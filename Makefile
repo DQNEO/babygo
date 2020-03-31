@@ -20,5 +20,5 @@ sample/sample.s: sample/sample.go
 
 
 clean:
-	rm -f a.o a.out main.s
+	rm -f a.s a.o a.out
 
