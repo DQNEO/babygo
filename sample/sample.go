@@ -3,7 +3,17 @@
 package main
 
 func min() {
+}
 
+func char(a byte) byte {
+	b := a
+	b = 'A'
+	return b
+}
+
+func slice(a []byte) []byte {
+	var b []byte = a
+	return b
 }
 
 func arg1(x int) {
@@ -24,6 +34,8 @@ func concate(x string, y string) string {
 
 func main() {
 	min()
+	slice(nil)
+	slice([]byte{'a','b','c'})
 	arg1(1)
 	arg1ret1(2)
 	sum(2, 3)
