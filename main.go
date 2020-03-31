@@ -164,7 +164,7 @@ func emitExpr(expr ast.Expr) {
 				symbol := "main." + fn.Name
 				fmt.Printf("  callq %s\n", symbol)
 				fmt.Printf("  addq $%d, %%rsp # revert\n", n*8)
-				fmt.Printf("  push %%rax\n")
+				fmt.Printf("  pushq %%rax\n")
 			}
 		case *ast.SelectorExpr:
 			emitExpr(e.Args[0])
