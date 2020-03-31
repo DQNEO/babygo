@@ -11,7 +11,7 @@ func arg1(x int) {
 }
 
 func arg1ret1(x int) int {
-	return 7
+	return x
 }
 
 func main() {
