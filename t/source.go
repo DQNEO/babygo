@@ -44,6 +44,8 @@ func main() {
 	globalstring = "globalstring changed\n"
 	print(globalstring)
 	var locali3 int
-	locali3 = add1(8)
+	var eight int
+	eight = '9' - '1'
+	locali3 = add1(eight)
 	os.Exit( sum(globalint , globalint2) + locali3)
 }

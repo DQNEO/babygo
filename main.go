@@ -216,6 +216,11 @@ func emitExpr(expr ast.Expr) {
 		fmt.Printf("  # start %T\n", e)
 		fmt.Printf("  # kind=%s\n", e.Kind)
 		switch e.Kind.String() {
+		case "CHAR":
+			val := e.Value
+			char := val[1]
+			ival := int(char)
+			fmt.Printf("  pushq $%d # convert char literal to int\n", ival)
 		case "INT":
 			val := e.Value
 			ival, _ := strconv.Atoi(val)
@@ -349,6 +354,7 @@ func walkExpr(expr ast.Expr) {
 	case *ast.BasicLit:
 		switch e.Kind.String() {
 		case "INT":
+		case "CHAR":
 		case "STRING":
 			e.Value = registerStringLiteral(e.Value)
 		default:
