@@ -29,6 +29,8 @@ func returnstring() string {
 	return "i am a local 1\n"
 }
 
+var globalchars [10]uint8
+
 func main() {
 	globalint2 = sum(1, 2)
 

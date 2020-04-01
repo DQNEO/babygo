@@ -258,6 +258,8 @@ func emitExpr(expr ast.Expr) {
 			panic(fmt.Sprintf("Unexpected binary operator %s", e.Op))
 		}
 		fmt.Printf("  # end %T\n", e)
+	case *ast.CompositeLit:
+		panic("TBI")
 	default:
 		panic(fmt.Sprintf("Unexpected expr type %T", expr))
 	}
@@ -362,6 +364,8 @@ func walkExpr(expr ast.Expr) {
 	case *ast.BinaryExpr:
 		walkExpr(e.X) // left
 		walkExpr(e.Y) // right
+	case *ast.CompositeLit:
+		// what to do ?
 	default:
 		panic(fmt.Sprintf("Unexpected expr type %T", expr))
 	}
@@ -378,6 +382,14 @@ var gString = &ast.Object{
 var gInt = &ast.Object{
 	Kind: ast.Typ,
 	Name: "int",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gUint8 = &ast.Object{
+	Kind: ast.Typ,
+	Name: "uint8",
 	Decl: nil,
 	Data: nil,
 	Type: nil,
@@ -409,6 +421,8 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 
 	universe.Insert(gString)
 	universe.Insert(gInt)
+	universe.Insert(gUint8)
+
 	universe.Insert(&ast.Object{
 		Kind: ast.Fun,
 		Name: "print",
@@ -450,23 +464,25 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 				valSpec := spec.(*ast.ValueSpec)
 				fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
 				nameIdent := valSpec.Names[0]
-				fmt.Printf("# spec.Name=%s, Value=%v\n", nameIdent, valSpec.Values[0])
-				fmt.Printf("# nameIdent.Obj=%v\n", nameIdent.Obj)
 				nameIdent.Obj.Data = -1 // mark as global
-				switch getPrimType(valSpec.Type) {
-				case T_STRING:
-					lit,ok := valSpec.Values[0].(*ast.BasicLit)
-					if !ok {
-						panic("Unexpected type")
+				if len(valSpec.Values) > 0 {
+					fmt.Printf("# spec.Name=%s, Value=%v\n", nameIdent, valSpec.Values[0])
+					fmt.Printf("# nameIdent.Obj=%v\n", nameIdent.Obj)
+					switch getPrimType(valSpec.Type) {
+					case T_STRING:
+						lit,ok := valSpec.Values[0].(*ast.BasicLit)
+						if !ok {
+							panic("Unexpected type")
+						}
+						lit.Value = registerStringLiteral(lit.Value)
+					case T_INT:
+						_,ok := valSpec.Values[0].(*ast.BasicLit)
+						if !ok {
+							panic("Unexpected type")
+						}
+					default:
+						panic(fmt.Sprintf("Unexpected type:%T",valSpec.Type))
 					}
-					lit.Value = registerStringLiteral(lit.Value)
-				case T_INT:
-					_,ok := valSpec.Values[0].(*ast.BasicLit)
-					if !ok {
-						panic("Unexpected type")
-					}
-				default:
-					panic(fmt.Sprintf("Unexpected type:%T",valSpec.Type))
 				}
 				globalVars = append(globalVars, valSpec)
 			}
@@ -562,14 +578,18 @@ func getExprSize(valueExpr ast.Expr) int {
 		return 8*2
 	case T_INT:
 		return 8
+	case T_ARRAY:
+		panic(fmt.Sprintf("TBI: type %#v",(valueExpr) ))
+
 	default:
-		panic("TBI")
+		panic(fmt.Sprintf("TBI: type %#v",(valueExpr) ))
 	}
 	return 0
 }
 
 const T_STRING = "T_STRING"
 const T_INT = "T_INT"
+const T_ARRAY = "T_ARRAY"
 
 func getPrimType(expr ast.Expr) string {
 	switch e := expr.(type) {
@@ -599,9 +619,13 @@ func getPrimType(expr ast.Expr) string {
 			return T_STRING
 		case "INT":
 			return T_INT
+		default:
+			panic(fmt.Sprintf("%v", e.Kind))
 		}
 	case *ast.BinaryExpr:
 		return getPrimType(e.X)
+	case *ast.ArrayType:
+		return T_ARRAY
 	default:
 		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
 	}
@@ -617,31 +641,56 @@ func emitData() {
 		fmt.Printf("  .string %s\n", sl)
 	}
 
-	fmt.Printf("# Global Variables\n")
-	for _, valSpec := range globalVars {
-		name := valSpec.Names[0]
-		val := valSpec.Values[0]
-		var strval string
-		switch vl := val.(type) {
-		case *ast.BasicLit:
-			switch getPrimType(valSpec.Type) {
-			case T_STRING:
+	fmt.Printf("# ===== Global Variables =====\n")
+	for _, varDecl := range globalVars {
+		name := varDecl.Names[0]
+		var val ast.Expr
+		if len(varDecl.Values) > 0 {
+			val = varDecl.Values[0]
+		}
+
+		fmt.Printf("%s: # T %s\n", name, getPrimType(varDecl.Type))
+		switch getPrimType(varDecl.Type) {
+		case T_STRING:
+			switch vl := val.(type) {
+			case *ast.BasicLit:
+				var strval string
 				strval = vl.Value
-				splitted := strings.Split(strval,":")
-				fmt.Printf("%s:  #\n", name)
+				splitted := strings.Split(strval, ":")
 				fmt.Printf("  .quad %s\n", splitted[0])
 				fmt.Printf("  .quad %s\n", splitted[1])
-			case T_INT:
-				fmt.Printf("%s:  #\n", name)
+			default:
+				panic("Unexpected case")
+			}
+		case T_INT:
+			switch vl := val.(type) {
+			case *ast.BasicLit:
 				fmt.Printf("  .quad %s\n", vl.Value)
 			default:
 				panic("Unexpected case")
 			}
-
+		case T_ARRAY:
+			if val == nil {
+				arrayType,ok :=  varDecl.Type.(*ast.ArrayType)
+				if !ok {
+					panic("Unexpected")
+				}
+				basicLit, ok := arrayType.Len.(*ast.BasicLit)
+				length, err := strconv.Atoi(basicLit.Value)
+				if err != nil {
+					panic(fmt.Sprintf("%#v\n", basicLit.Value))
+				}
+				for i:=0;i<length;i++ {
+					fmt.Printf("  .byte %d\n", 0)
+				}
+			} else {
+				panic("TBI")
+			}
 		default:
-			panic("Only BasicLit is allowed in Global var's value")
+			panic(fmt.Sprintf("Unexpected type: %s", getPrimType(varDecl.Type)))
 		}
 	}
+	fmt.Printf("# ==============================\n")
 }
 
 func emitText() {
