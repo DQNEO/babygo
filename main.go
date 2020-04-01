@@ -449,27 +449,24 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 				spec := dcl.Specs[0]
 				valSpec := spec.(*ast.ValueSpec)
 				fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
-				typeIdent , ok := valSpec.Type.(*ast.Ident)
-				if !ok {
-					panic("Unexpected case")
-				}
 				nameIdent := valSpec.Names[0]
 				fmt.Printf("# spec.Name=%s, Value=%v\n", nameIdent, valSpec.Values[0])
 				fmt.Printf("# nameIdent.Obj=%v\n", nameIdent.Obj)
 				nameIdent.Obj.Data = -1 // mark as global
-				if typeIdent.Obj == gString {
+				switch getPrimType(valSpec.Type) {
+				case T_STRING:
 					lit,ok := valSpec.Values[0].(*ast.BasicLit)
 					if !ok {
 						panic("Unexpected type")
 					}
 					lit.Value = registerStringLiteral(lit.Value)
-				} else if typeIdent.Obj == gInt {
+				case T_INT:
 					_,ok := valSpec.Values[0].(*ast.BasicLit)
 					if !ok {
 						panic("Unexpected type")
 					}
-				} else {
-					panic("Unexpected global ident")
+				default:
+					panic(fmt.Sprintf("Unexpected type:%T",valSpec.Type))
 				}
 				globalVars = append(globalVars, valSpec)
 			}
