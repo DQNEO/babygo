@@ -224,8 +224,7 @@ func emitExpr(expr ast.Expr) {
 		case "INT":
 			val := e.Value
 			ival, _ := strconv.Atoi(val)
-			fmt.Printf("  movq $%d, %%rax\n", ival)
-			fmt.Printf("  pushq %%rax\n")
+			fmt.Printf("  pushq $%d # number literal\n", ival)
 		case "STRING":
 			// e.Value == ".S%d:%d"
 			splitted := strings.Split(e.Value, ":")
