@@ -39,7 +39,7 @@ func emitVariable(obj *ast.Object) {
 	switch dcl := obj.Decl.(type) {
 	case *ast.ValueSpec:
 		typ = dcl.Type
-		localOffset = getObjData(obj) * -1
+		localOffset = getObjData(obj)
 	case *ast.Field:
 		typ = dcl.Type
 		localOffset = getObjData(obj) // param offset
@@ -60,7 +60,7 @@ func emitVariable(obj *ast.Object) {
 			fmt.Printf("  movq %s+0(%%rip), %%rax\n", obj.Name)
 			fmt.Printf("  movq %s+8(%%rip), %%rcx\n", obj.Name)
 		} else {
-			fmt.Printf("  # local variable %s\n", obj.Name)
+			fmt.Printf("  # load local variable %s\n", obj.Name)
 			fmt.Printf("  movq %d(%%rbp), %%rax # ptr\n", localOffset)
 			fmt.Printf("  movq %d(%%rbp), %%rcx # len\n", (localOffset + 8))
 		}
@@ -102,8 +102,8 @@ func emitVariableAddr(obj *ast.Object) {
 		} else {
 			fmt.Printf("  # local\n")
 			localOffset := (getObjData(obj))
-			fmt.Printf("  leaq -%d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
-			fmt.Printf("  leaq -%d(%%rbp), %%rcx # len %s \n", localOffset - 8, obj.Name)
+			fmt.Printf("  leaq %d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
+			fmt.Printf("  leaq %d(%%rbp), %%rcx # len %s \n", localOffset + 8, obj.Name)
 		}
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
@@ -114,7 +114,7 @@ func emitVariableAddr(obj *ast.Object) {
 		} else {
 			fmt.Printf("  # local\n")
 			localOffset := (getObjData(obj))
-			fmt.Printf("  leaq -%d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
+			fmt.Printf("  leaq %d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
 		}
 		fmt.Printf("  pushq %%rax # int var\n")
 
