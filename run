@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -e
+make --silent a.out
+./a.out

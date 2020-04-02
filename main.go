@@ -54,11 +54,26 @@ func emitVariable(obj *ast.Object) {
 	fmt.Printf("  # obj.Data=%d\n", obj.Data)
 
 	switch getTypeKind(typ) {
+	case T_SLICE:
+		if isGlobalVar(obj) {
+			fmt.Printf("  # global variable %s\n", obj.Name)
+			fmt.Printf("  movq %s+%d(%%rip), %%rax\n", obj.Name, 0)
+			fmt.Printf("  movq %s+%d(%%rip), %%rcx\n", obj.Name, 8)
+			fmt.Printf("  movq %s+%d(%%rip), %%rdx\n", obj.Name, 16)
+		} else {
+			fmt.Printf("  # local variable %s\n", obj.Name)
+			fmt.Printf("  movq %d(%%rbp), %%rax # ptr\n", localOffset)
+			fmt.Printf("  movq %d(%%rbp), %%rcx # len\n", (localOffset + 8))
+			fmt.Printf("  movq %d(%%rbp), %%rdx # cap\n", (localOffset + 16))
+		}
+		fmt.Printf("  pushq %%rdx # cap\n")
+		fmt.Printf("  pushq %%rcx # len\n")
+		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_STRING:
 		if isGlobalVar(obj) {
 			fmt.Printf("  # global variable %s\n", obj.Name)
-			fmt.Printf("  movq %s+0(%%rip), %%rax\n", obj.Name)
-			fmt.Printf("  movq %s+8(%%rip), %%rcx\n", obj.Name)
+			fmt.Printf("  movq %s+%d(%%rip), %%rax\n", obj.Name, 0)
+			fmt.Printf("  movq %s+%d(%%rip), %%rcx\n", obj.Name, 8)
 		} else {
 			fmt.Printf("  # load local variable %s\n", obj.Name)
 			fmt.Printf("  movq %d(%%rbp), %%rax # ptr\n", localOffset)
@@ -94,11 +109,27 @@ func emitVariableAddr(obj *ast.Object) {
 	fmt.Printf("  # obj.Data=%d\n", obj.Data)
 
 	switch getTypeKind(decl.Type) {
+	case T_SLICE:
+		if isGlobalVar(obj) {
+			fmt.Printf("  # global\n")
+			fmt.Printf("  leaq %s+%d(%%rip), %%rax # ptr\n", obj.Name, 0)
+			fmt.Printf("  leaq %s+%d(%%rip), %%rcx # len\n", obj.Name, 8)
+			fmt.Printf("  leaq %s+%d(%%rip), %%rdx # cap\n", obj.Name, 16)
+		} else {
+			fmt.Printf("  # local\n")
+			localOffset := (getObjData(obj))
+			fmt.Printf("  leaq %d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
+			fmt.Printf("  leaq %d(%%rbp), %%rcx # len %s \n", localOffset + 8, obj.Name)
+			fmt.Printf("  leaq %d(%%rbp), %%rdx # cap %s \n", localOffset + 16, obj.Name)
+		}
+		fmt.Printf("  pushq %%rdx # cap\n")
+		fmt.Printf("  pushq %%rcx # len\n")
+		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_STRING:
 		if isGlobalVar(obj) {
 			fmt.Printf("  # global\n")
-			fmt.Printf("  leaq %s+0(%%rip), %%rax # ptr\n", obj.Name)
-			fmt.Printf("  leaq %s+8(%%rip), %%rcx # len\n", obj.Name)
+			fmt.Printf("  leaq %s+%d(%%rip), %%rax # ptr\n", obj.Name, 0)
+			fmt.Printf("  leaq %s+%d(%%rip), %%rcx # len\n", obj.Name, 8)
 		} else {
 			fmt.Printf("  # local\n")
 			localOffset := (getObjData(obj))
@@ -117,7 +148,17 @@ func emitVariableAddr(obj *ast.Object) {
 			fmt.Printf("  leaq %d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
 		}
 		fmt.Printf("  pushq %%rax # int var\n")
-
+	case T_ARRAY:
+		if isGlobalVar(obj) {
+			fmt.Printf("  # global\n")
+			fmt.Printf("  leaq %s+0(%%rip), %%rax\n", obj.Name)
+		} else {
+			panic("TBI")
+			fmt.Printf("  # local\n")
+			localOffset := (getObjData(obj))
+			fmt.Printf("  leaq %d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
+		}
+		fmt.Printf("  pushq %%rax # array head\n")
 	default:
 		throw(decl.Type)
 	}
@@ -125,6 +166,19 @@ func emitVariableAddr(obj *ast.Object) {
 
 func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
+}
+
+func getSizeOfType(typeExpr ast.Expr) int {
+	switch typ := typeExpr.(type) {
+	case *ast.Ident:
+		data,ok := typ.Obj.Data.(int)
+		if !ok {
+			throw(typ.Obj)
+		}
+		return data
+	}
+	panic("Unexpected")
+	return 0
 }
 
 func emitAddr(expr ast.Expr) {
@@ -137,6 +191,17 @@ func emitAddr(expr ast.Expr) {
 		} else {
 			panic("Unexpected ident kind")
 		}
+	case *ast.IndexExpr:
+		emitExpr(e.Index)
+		emitAddr(e.X)
+		elmType := getTypeOfExpr(e)
+		size := getSizeOfType(elmType)
+		fmt.Printf("  popq %%rax # collection addr\n")
+		fmt.Printf("  popq %%rcx # index\n")
+		fmt.Printf("  movq $%d, %%rdx # elm size\n", size)
+		fmt.Printf("  imulq %%rdx, %%rcx\n")
+		fmt.Printf("  addq %%rcx, %%rax\n")
+		fmt.Printf("  pushq %%rax # addr of element\n")
 	default:
 		throw(expr)
 	}
@@ -157,6 +222,28 @@ func emitExpr(expr ast.Expr) {
 		fmt.Printf("  # callExpr=%#v\n", fun)
 		switch fn := fun.(type) {
 		case *ast.Ident:
+			switch fn.Obj.Kind {
+			case ast.Typ:
+				// Conversion
+				fmt.Printf("# Conversion %s => %s\n", fn.Obj, getTypeOfExpr(e.Args[0]))
+				switch fn.Obj {
+				case gString: // string(e)
+					switch getTypeKind(getTypeOfExpr(e.Args[0])) {
+					case T_SLICE: // slice -> string
+						emitExpr(e.Args[0]) // slice
+						fmt.Printf("  popq %%rax # ptr\n")
+						fmt.Printf("  popq %%rcx # len\n")
+						fmt.Printf("  popq %%rdx # cap (to be abandoned)\n")
+						fmt.Printf("  pushq %%rcx # str len\n")
+						fmt.Printf("  pushq %%rax # str ptr\n")
+						return
+					}
+				default:
+					throw(fn.Obj)
+				}
+			case ast.Fun:
+
+			}
 			if fn.Name == "print" {
 				// builtin print
 				emitExpr(e.Args[0]) // push ptr, push len
@@ -266,6 +353,31 @@ func emitExpr(expr ast.Expr) {
 		fmt.Printf("  # end %T\n", e)
 	case *ast.CompositeLit:
 		panic("TBI")
+	case *ast.IndexExpr:
+		emitAddr(e) // emit addr of element
+		fmt.Printf("  popq %%rax # addr of element\n")
+		typ :=getTypeOfExpr(e)
+		size := getSizeOfType(typ)
+		switch size {
+		case 1:
+			fmt.Printf("  movb (%%rax), %%al # load 1 byte\n")
+		default:
+			panic("TBI")
+		}
+		fmt.Printf("  pushq %%rax #\n")
+	case *ast.SliceExpr:
+		//e.Index, e.X
+		emitAddr(e.X) // array head
+		emitExpr(e.Low) // intval
+		emitExpr(e.High) // intval
+		//emitExpr(e.Max) // @TODO
+		fmt.Printf("  popq %%rax # high\n")
+		fmt.Printf("  popq %%rcx # low\n")
+		fmt.Printf("  popq %%rdx # array\n")
+		fmt.Printf("  subq %%rcx, %%rax # high - low\n")
+		fmt.Printf("  pushq %%rax # cap\n")
+		fmt.Printf("  pushq %%rax # len\n")
+		fmt.Printf("  pushq %%rdx # array\n")
 	default:
 		throw(expr)
 	}
@@ -294,6 +406,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 			rhs := s.Rhs[0]
 			emitAddr(lhs)
 			emitExpr(rhs) // push len, push ptr
+			fmt.Printf("# %#v\n", lhs)
 			switch getTypeKind(getTypeOfExpr(lhs)) {
 			case T_STRING:
 				fmt.Printf("  popq %%rcx # rhs ptr\n")
@@ -302,10 +415,25 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 				fmt.Printf("  popq %%rsi # lhs len addr\n")
 				fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
 				fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
+			case T_SLICE:
+				fmt.Printf("  popq %%rcx # rhs ptr\n")
+				fmt.Printf("  popq %%rax # rhs len\n")
+				fmt.Printf("  popq %%r8 # rhs cap\n")
+				fmt.Printf("  popq %%rdx # lhs ptr addr\n")
+				fmt.Printf("  popq %%rsi # lhs len addr\n")
+				fmt.Printf("  popq %%r9 # lhs cap\n")
+				fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
+				fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
+				fmt.Printf("  movq %%r8, (%%r9) # cap to cap\n")
+
 			case T_INT:
 				fmt.Printf("  popq %%rdi # rhs evaluated\n")
 				fmt.Printf("  popq %%rax # lhs addr\n")
 				fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
+			case T_UINT8:
+				fmt.Printf("  popq %%rdi # rhs evaluated\n")
+				fmt.Printf("  popq %%rax # lhs addr\n")
+				fmt.Printf("  movb %%dil, (%%rax) # assign byte\n")
 			default:
 				panic("TBI")
 			}
@@ -374,16 +502,31 @@ func walkExpr(expr ast.Expr) {
 		walkExpr(e.Y) // right
 	case *ast.CompositeLit:
 		// what to do ?
+	case *ast.IndexExpr:
+		walkExpr(e.Index)
+	case *ast.SliceExpr:
+		if e.Low != nil {
+			walkExpr(e.Low)
+		}
+		if e.High != nil {
+			walkExpr(e.High)
+		}
+		if e.Max != nil {
+			walkExpr(e.Max)
+		}
+		walkExpr(e.X)
 	default:
 		throw(expr)
 	}
 }
 
+const sliceSize = 24
+
 var gString = &ast.Object{
 	Kind: ast.Typ,
 	Name: "string",
 	Decl: nil,
-	Data: nil,
+	Data: 16,
 	Type: nil,
 }
 
@@ -391,7 +534,7 @@ var gInt = &ast.Object{
 	Kind: ast.Typ,
 	Name: "int",
 	Decl: nil,
-	Data: nil,
+	Data: 8,
 	Type: nil,
 }
 
@@ -399,7 +542,7 @@ var gUint8 = &ast.Object{
 	Kind: ast.Typ,
 	Name: "uint8",
 	Decl: nil,
-	Data: nil,
+	Data: 1,
 	Type: nil,
 }
 
@@ -504,9 +647,9 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 				var varSize int
 				switch getTypeKind(field.Type) {
 				case T_STRING:
-					varSize = 16
+					varSize = gString.Data.(int)
 				case T_INT:
-					varSize = 8
+					varSize = gInt.Data.(int)
 				default:
 					panic("TBI")
 				}
@@ -533,10 +676,12 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 							obj := varSpec.Names[0].Obj
 							var varSize int
 							switch getTypeKind(varSpec.Type)  {
+							case T_SLICE:
+								varSize = sliceSize
 							case T_STRING:
-								varSize = 16
+								varSize = gString.Data.(int)
 							case T_INT:
-								varSize = 8
+								varSize = gInt.Data.(int)
 							default:
 								throw(varSpec.Type)
 							}
@@ -584,6 +729,8 @@ func getExprSize(valueExpr ast.Expr) int {
 	switch getTypeKind(getTypeOfExpr(valueExpr)) {
 	case T_STRING:
 		return 8*2
+	case T_SLICE:
+		return 8*3
 	case T_INT:
 		return 8
 	case T_ARRAY:
@@ -595,9 +742,10 @@ func getExprSize(valueExpr ast.Expr) int {
 }
 
 const T_STRING = "T_STRING"
+const T_SLICE = "T_SLICE"
 const T_INT = "T_INT"
+const T_UINT8 = "T_UINT8"
 const T_ARRAY = "T_ARRAY"
-
 
 func getTypeOfExpr(expr ast.Expr) ast.Expr {
 	switch e := expr.(type) {
@@ -633,6 +781,26 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 		}
 	case *ast.BinaryExpr:
 		return getTypeOfExpr(e.X)
+	case *ast.IndexExpr:
+		collection := e.X
+		typ := getTypeOfExpr(collection)
+		switch tp := typ.(type) {
+		case *ast.ArrayType:
+			return tp.Elt
+		default:
+			panic(fmt.Sprintf("Unexpected expr type:%#v", typ))
+		}
+	case *ast.CallExpr: // funcall or conversion
+		switch fn := e.Fun.(type) {
+		case *ast.Ident:
+			switch fn.Obj.Kind {
+			case ast.Typ:
+				return fn
+			}
+		}
+		panic("TBI")
+	default:
+		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
 	}
 	throw(expr)
 	return nil
@@ -649,12 +817,18 @@ func getTypeKind(typeExpr ast.Expr) string {
 				return T_INT
 			case gString:
 				return T_STRING
+			case gUint8:
+				return T_UINT8
 			default:
 				throw(e.Obj)
 			}
 		}
 	case *ast.ArrayType:
-		return T_ARRAY
+		if e.Len == nil {
+			return T_SLICE
+		} else {
+			return T_ARRAY
+		}
 	default:
 		throw(typeExpr)
 	}

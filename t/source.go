@@ -31,7 +31,23 @@ func returnstring() string {
 
 var globalchars [10]uint8
 
+func printchars() {
+	var chars []uint8
+	chars = globalchars[0:4]
+	print(string(chars))
+}
+
+// test global chars
+func f1() {
+	globalchars[0] = 'A'
+	globalchars[1] = 'B'
+	globalchars[2] = globalchars[0]
+	globalchars[3] = 10 // '\n'
+	printchars()
+}
+
 func main() {
+	f1()
 	globalint2 = sum(1, 2)
 
 	print(globalstring)
