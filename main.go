@@ -53,7 +53,7 @@ func emitVariable(obj *ast.Object) {
 	fmt.Printf("  # Type=%#v\n", typ)
 	fmt.Printf("  # obj.Data=%d\n", obj.Data)
 
-	switch getPrimType(typ) {
+	switch getTypeKind(typ) {
 	case T_STRING:
 		if isGlobalVar(obj) {
 			fmt.Printf("  # global variable %s\n", obj.Name)
@@ -76,7 +76,7 @@ func emitVariable(obj *ast.Object) {
 		}
 		fmt.Printf("  pushq %%rax # int val\n")
 	default:
-		panic(fmt.Sprintf("Unexpected type:%#v", getPrimType(typ)))
+		panic(fmt.Sprintf("Unexpected type:%#v", getTypeKind(typ)))
 	}
 }
 
@@ -93,7 +93,7 @@ func emitVariableAddr(obj *ast.Object) {
 	fmt.Printf("  # emitVariable\n")
 	fmt.Printf("  # obj.Data=%d\n", obj.Data)
 
-	switch getPrimType(decl.Type) {
+	switch getTypeKind(decl.Type) {
 	case T_STRING:
 		if isGlobalVar(obj) {
 			fmt.Printf("  # global\n")
@@ -119,7 +119,7 @@ func emitVariableAddr(obj *ast.Object) {
 		fmt.Printf("  pushq %%rax # int var\n")
 
 	default:
-		panic(fmt.Sprintf("Unexpected type:%s :%#v", getPrimType(decl.Type), decl.Type))
+		panic(fmt.Sprintf("Unexpected type:%s :%#v", getTypeKind(decl.Type), decl.Type))
 	}
 }
 
@@ -154,7 +154,7 @@ func emitExpr(expr ast.Expr) {
 			if fn.Name == "print" {
 				// builtin print
 				emitExpr(e.Args[0]) // push ptr, push len
-				switch getPrimType(e.Args[0])  {
+				switch getTypeKind(getTypeOfExpr(e.Args[0]))  {
 				case T_STRING:
 					symbol := fmt.Sprintf("runtime.printstring")
 					fmt.Printf("  callq %s\n", symbol)
@@ -189,7 +189,7 @@ func emitExpr(expr ast.Expr) {
 						panic("TBI")
 					} else if len(fndecl.Type.Results.List) == 1 {
 						retval0 := fndecl.Type.Results.List[0]
-						switch getPrimType(retval0.Type) {
+						switch getTypeKind(retval0.Type) {
 						case T_STRING:
 							fmt.Printf("  # fn.Obj=%#v\n", obj)
 							fmt.Printf("  pushq %%rsi # str len\n")
@@ -287,7 +287,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 			rhs := s.Rhs[0]
 			emitAddr(lhs)
 			emitExpr(rhs) // push len, push ptr
-			switch getPrimType(lhs) {
+			switch getTypeKind(getTypeOfExpr(lhs)) {
 			case T_STRING:
 				fmt.Printf("  popq %%rcx # rhs ptr\n")
 				fmt.Printf("  popq %%rax # rhs len\n")
@@ -304,7 +304,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 		case *ast.ReturnStmt:
 			if len(s.Results) == 1 {
 				emitExpr(s.Results[0])
-				switch getPrimType(s.Results[0]) {
+				switch getTypeKind(getTypeOfExpr(s.Results[0])) {
 				case T_INT:
 					fmt.Printf("  popq %%rax # return int\n")
 				case T_STRING:
@@ -468,7 +468,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 				if len(valSpec.Values) > 0 {
 					fmt.Printf("# spec.Name=%s, Value=%v\n", nameIdent, valSpec.Values[0])
 					fmt.Printf("# nameIdent.Obj=%v\n", nameIdent.Obj)
-					switch getPrimType(valSpec.Type) {
+					switch getTypeKind(valSpec.Type) {
 					case T_STRING:
 						lit,ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
@@ -494,7 +494,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 			for _, field := range funcDecl.Type.Params.List {
 				obj :=field.Names[0].Obj
 				var varSize int
-				switch getPrimType(field.Type) {
+				switch getTypeKind(field.Type) {
 				case T_STRING:
 					varSize = 16
 				case T_INT:
@@ -524,7 +524,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 							varSpec := ds
 							obj := varSpec.Names[0].Obj
 							var varSize int
-							switch getPrimType(varSpec.Type)  {
+							switch getTypeKind(varSpec.Type)  {
 							case T_STRING:
 								varSize = 16
 							case T_INT:
@@ -573,7 +573,7 @@ type Func struct {
 }
 
 func getExprSize(valueExpr ast.Expr) int {
-	switch getPrimType(valueExpr) {
+	switch getTypeKind(getTypeOfExpr(valueExpr)) {
 	case T_STRING:
 		return 8*2
 	case T_INT:
@@ -591,18 +591,51 @@ const T_STRING = "T_STRING"
 const T_INT = "T_INT"
 const T_ARRAY = "T_ARRAY"
 
-func getPrimType(expr ast.Expr) string {
+
+func getTypeOfExpr(expr ast.Expr) ast.Expr {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		if e.Obj.Kind == ast.Var {
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
-				return getPrimType(dcl.Type)
+				return dcl.Type
 			case *ast.Field:
-				return getPrimType(dcl.Type)
+				return dcl.Type
 			default:
 				panic(fmt.Sprintf("Unexpected type:%T", dcl))
 			}
+		} else {
+			panic(fmt.Sprintf("TBI:%#v", e.Obj))
+		}
+	case *ast.BasicLit:
+		switch e.Kind.String() {
+		case "STRING":
+			return &ast.Ident{
+				NamePos: 0,
+				Name:    "string",
+				Obj:     gString,
+			}
+		case "INT":
+			return &ast.Ident{
+				NamePos: 0,
+				Name:    "int",
+				Obj:     gInt,
+			}
+		default:
+			panic(fmt.Sprintf("%v", e.Kind))
+		}
+	case *ast.BinaryExpr:
+		return getTypeOfExpr(e.X)
+	default:
+		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
+	}
+}
+
+func getTypeKind(typeExpr ast.Expr) string {
+	switch e := typeExpr.(type) {
+	case *ast.Ident:
+		if e.Obj.Kind == ast.Var {
+			panic(fmt.Sprintf("Unexpected type:%#v", e.Obj))
 		} else if e.Obj.Kind == ast.Typ {
 			switch e.Obj {
 			case gInt:
@@ -613,23 +646,11 @@ func getPrimType(expr ast.Expr) string {
 				panic(fmt.Sprintf("TBI:%#v", e.Obj))
 			}
 		}
-	case *ast.BasicLit:
-		switch e.Kind.String() {
-		case "STRING":
-			return T_STRING
-		case "INT":
-			return T_INT
-		default:
-			panic(fmt.Sprintf("%v", e.Kind))
-		}
-	case *ast.BinaryExpr:
-		return getPrimType(e.X)
 	case *ast.ArrayType:
 		return T_ARRAY
 	default:
-		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
+		panic(fmt.Sprintf("Unexpected typeExpr type:%#v", typeExpr))
 	}
-
 	return ""
 }
 
@@ -649,8 +670,8 @@ func emitData() {
 			val = varDecl.Values[0]
 		}
 
-		fmt.Printf("%s: # T %s\n", name, getPrimType(varDecl.Type))
-		switch getPrimType(varDecl.Type) {
+		fmt.Printf("%s: # T %s\n", name, getTypeKind(varDecl.Type))
+		switch getTypeKind(varDecl.Type) {
 		case T_STRING:
 			switch vl := val.(type) {
 			case *ast.BasicLit:
@@ -687,7 +708,7 @@ func emitData() {
 				panic("TBI")
 			}
 		default:
-			panic(fmt.Sprintf("Unexpected type: %s", getPrimType(varDecl.Type)))
+			panic(fmt.Sprintf("Unexpected type: %s", getTypeKind(varDecl.Type)))
 		}
 	}
 	fmt.Printf("# ==============================\n")
