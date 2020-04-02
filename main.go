@@ -22,7 +22,7 @@ func setObjData(obj *ast.Object, i int) {
 func getObjData(obj *ast.Object) int {
 	objData, ok := obj.Data.(int)
 	if !ok {
-		panic("obj.Data is not int")
+		throw(obj.Data)
 	}
 	return objData
 }
@@ -46,7 +46,7 @@ func emitVariable(obj *ast.Object) {
 		fmt.Printf("  # dcl.Names[0].Obj=%#v\n", dcl.Names[0].Obj)
 		fmt.Printf("  # param offset=%d\n", localOffset)
 	default:
-		panic("unexpected")
+		throw(dcl)
 	}
 
 	fmt.Printf("  # emitVariable\n")
@@ -76,7 +76,7 @@ func emitVariable(obj *ast.Object) {
 		}
 		fmt.Printf("  pushq %%rax # int val\n")
 	default:
-		panic(fmt.Sprintf("Unexpected type:%#v", getTypeKind(typ)))
+		throw(typ)
 	}
 }
 
@@ -119,8 +119,12 @@ func emitVariableAddr(obj *ast.Object) {
 		fmt.Printf("  pushq %%rax # int var\n")
 
 	default:
-		panic(fmt.Sprintf("Unexpected type:%s :%#v", getTypeKind(decl.Type), decl.Type))
+		throw(decl.Type)
 	}
+}
+
+func throw(x interface{}) {
+	panic(fmt.Sprintf("%#v", x))
 }
 
 func emitAddr(expr ast.Expr) {
@@ -133,6 +137,8 @@ func emitAddr(expr ast.Expr) {
 		} else {
 			panic("Unexpected ident kind")
 		}
+	default:
+		throw(expr)
 	}
 }
 
@@ -148,7 +154,7 @@ func emitExpr(expr ast.Expr) {
 		}
 	case *ast.CallExpr:
 		fun := e.Fun
-		fmt.Printf("  # funcall=%T\n", fun)
+		fmt.Printf("  # callExpr=%#v\n", fun)
 		switch fn := fun.(type) {
 		case *ast.Ident:
 			if fn.Name == "print" {
@@ -182,7 +188,7 @@ func emitExpr(expr ast.Expr) {
 				obj := fn.Obj //.Kind == FN
 				fndecl,ok := obj.Decl.(*ast.FuncDecl)
 				if !ok {
-					panic("Unexpectred")
+					throw(fn.Obj)
 				}
 				if fndecl.Type.Results != nil {
 					if len(fndecl.Type.Results.List) > 2 {
@@ -198,7 +204,7 @@ func emitExpr(expr ast.Expr) {
 							fmt.Printf("  # fn.Obj=%#v\n", obj)
 							fmt.Printf("  pushq %%rax\n")
 						default:
-							panic("TBI")
+							throw(retval0.Type)
 						}
 					}
 				}
@@ -208,7 +214,7 @@ func emitExpr(expr ast.Expr) {
 			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
 			fmt.Printf("  callq %s\n", symbol)
 		default:
-			panic(fmt.Sprintf("Unexpected expr type %T", fun))
+			throw(fun)
 		}
 	case *ast.ParenExpr:
 		emitExpr(e.X)
@@ -255,13 +261,13 @@ func emitExpr(expr ast.Expr) {
 			fmt.Printf("  imulq %%rdi, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
 		} else {
-			panic(fmt.Sprintf("Unexpected binary operator %s", e.Op))
+			throw(e.Op)
 		}
 		fmt.Printf("  # end %T\n", e)
 	case *ast.CompositeLit:
 		panic("TBI")
 	default:
-		panic(fmt.Sprintf("Unexpected expr type %T", expr))
+		throw(expr)
 	}
 }
 
@@ -284,6 +290,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 		case *ast.AssignStmt:
 			fmt.Printf("  # *ast.AssignStmt\n")
 			lhs := s.Lhs[0]
+			fmt.Printf("# lhs=%#v\n", lhs)
 			rhs := s.Rhs[0]
 			emitAddr(lhs)
 			emitExpr(rhs) // push len, push ptr
@@ -298,8 +305,9 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 			case T_INT:
 				fmt.Printf("  popq %%rdi # rhs evaluated\n")
 				fmt.Printf("  popq %%rax # lhs addr\n")
-				fmt.Printf("  movq %%rdi, (%%rax)\n")
+				fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
 			default:
+				panic("TBI")
 			}
 		case *ast.ReturnStmt:
 			if len(s.Results) == 1 {
@@ -324,7 +332,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 				panic("TBI")
 			}
 		default:
-			panic(fmt.Sprintf("Unexpected stmt type %T", stmt))
+			throw(stmt)
 		}
 	}
 	fmt.Printf("  leave\n")
@@ -367,7 +375,7 @@ func walkExpr(expr ast.Expr) {
 	case *ast.CompositeLit:
 		// what to do ?
 	default:
-		panic(fmt.Sprintf("Unexpected expr type %T", expr))
+		throw(expr)
 	}
 }
 
@@ -472,16 +480,16 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 					case T_STRING:
 						lit,ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
-							panic("Unexpected type")
+							throw(valSpec.Type)
 						}
 						lit.Value = registerStringLiteral(lit.Value)
 					case T_INT:
 						_,ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
-							panic("Unexpected type")
+							throw(valSpec.Type)
 						}
 					default:
-						panic(fmt.Sprintf("Unexpected type:%T",valSpec.Type))
+						throw(valSpec.Type)
 					}
 				}
 				globalVars = append(globalVars, valSpec)
@@ -530,7 +538,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 							case T_INT:
 								varSize = 8
 							default:
-								panic("TBI")
+								throw(varSpec.Type)
 							}
 
 							localoffset -= varSize
@@ -538,7 +546,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 							localvars = append(localvars, ds)
 						}
 					default:
-						panic(fmt.Sprintf("Unexpected type:%T", decl))
+						throw(decl)
 					}
 				case *ast.AssignStmt:
 					//lhs := s.Lhs[0]
@@ -549,7 +557,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 						walkExpr(r)
 					}
 				default:
-					panic(fmt.Sprintf("Unexpected stmt type:%T", stmt))
+					throw(stmt)
 				}
 			}
 			fnc := &Func{
@@ -560,7 +568,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 			}
 			globalFuncs = append(globalFuncs, fnc)
 		default:
-			panic("unexpected decl type")
+			throw(decl)
 		}
 	}
 }
@@ -579,10 +587,9 @@ func getExprSize(valueExpr ast.Expr) int {
 	case T_INT:
 		return 8
 	case T_ARRAY:
-		panic(fmt.Sprintf("TBI: type %#v",(valueExpr) ))
-
+		panic("TBI")
 	default:
-		panic(fmt.Sprintf("TBI: type %#v",(valueExpr) ))
+		throw(valueExpr)
 	}
 	return 0
 }
@@ -602,10 +609,10 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 			case *ast.Field:
 				return dcl.Type
 			default:
-				panic(fmt.Sprintf("Unexpected type:%T", dcl))
+				throw(e.Obj)
 			}
 		} else {
-			panic(fmt.Sprintf("TBI:%#v", e.Obj))
+			throw(e.Obj)
 		}
 	case *ast.BasicLit:
 		switch e.Kind.String() {
@@ -622,20 +629,20 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 				Obj:     gInt,
 			}
 		default:
-			panic(fmt.Sprintf("%v", e.Kind))
+			throw(e)
 		}
 	case *ast.BinaryExpr:
 		return getTypeOfExpr(e.X)
-	default:
-		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
 	}
+	throw(expr)
+	return nil
 }
 
 func getTypeKind(typeExpr ast.Expr) string {
 	switch e := typeExpr.(type) {
 	case *ast.Ident:
 		if e.Obj.Kind == ast.Var {
-			panic(fmt.Sprintf("Unexpected type:%#v", e.Obj))
+			throw(e.Obj)
 		} else if e.Obj.Kind == ast.Typ {
 			switch e.Obj {
 			case gInt:
@@ -643,13 +650,13 @@ func getTypeKind(typeExpr ast.Expr) string {
 			case gString:
 				return T_STRING
 			default:
-				panic(fmt.Sprintf("TBI:%#v", e.Obj))
+				throw(e.Obj)
 			}
 		}
 	case *ast.ArrayType:
 		return T_ARRAY
 	default:
-		panic(fmt.Sprintf("Unexpected typeExpr type:%#v", typeExpr))
+		throw(typeExpr)
 	}
 	return ""
 }
@@ -708,7 +715,7 @@ func emitData() {
 				panic("TBI")
 			}
 		default:
-			panic(fmt.Sprintf("Unexpected type: %s", getTypeKind(varDecl.Type)))
+			throw(varDecl.Type)
 		}
 	}
 	fmt.Printf("# ==============================\n")
