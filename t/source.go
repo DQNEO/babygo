@@ -17,7 +17,7 @@ var globaluintptr uintptr
 func assign() {
 	globalint = 29
 	globaluint8 = 1
-	globaluint16 = 16
+	globaluint16 = 5
 	globaluintptr = 20
 }
 
@@ -78,10 +78,10 @@ func main() {
 	globalstring = "globalstring changed\n"
 	print(globalstring)
 	var locali3 int
-	var eight int
-	eight = '3' - '1'
-	eight = eight + 5
-	eight = eight + int(globaluint8)
-	locali3 = add1(eight)
+	var tmp int
+	tmp = '3' - '1'
+	tmp = tmp + int(globaluint16)
+	tmp = tmp + int(globaluint8)
+	locali3 = add1(tmp)
 	os.Exit( sum(globalint , globalint2) + locali3)
 }

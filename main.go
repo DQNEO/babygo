@@ -79,6 +79,9 @@ func emitVariable(obj *ast.Object) {
 	case T_INT:
 		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 0)
 		fmt.Printf("  pushq %%rdx # int value\n")
+	case T_UINT16:
+		fmt.Printf("  movw %d(%%rdx), %%dx\n", 0)
+		fmt.Printf("  pushq %%rdx # int value\n")
 	case T_UINT8:
 		fmt.Printf("  movb %d(%%rdx), %%dl\n", 0)
 		fmt.Printf("  pushq %%rdx # int value\n")
