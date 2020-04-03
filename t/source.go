@@ -14,6 +14,13 @@ var globalarray [10]uint8
 var globalslice []uint8
 var globaluintptr uintptr
 
+func assign() {
+	globalint = 30
+	globaluint8 = 1
+	globaluint16 = 16
+	globaluintptr = 20
+}
+
 func add1(x int) int {
 	return x + 1
 }
@@ -46,7 +53,7 @@ func printchars() {
 }
 
 // test global chars
-func f1() {
+func testChar() {
 	globalarray[0] = 'A'
 	globalarray[1] = 'B'
 	globalarray[2] = globalarray[0]
@@ -55,7 +62,8 @@ func f1() {
 }
 
 func main() {
-	f1()
+	assign()
+	testChar()
 	globalint2 = sum(1, 2)
 
 	print(globalstring)

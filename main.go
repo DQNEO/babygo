@@ -131,6 +131,12 @@ func emitVariableAddr(obj *ast.Object) {
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_INT:
 		fmt.Printf("  pushq %%r8\n")
+	case T_UINT8:
+		fmt.Printf("  pushq %%r8\n")
+	case T_UINT16:
+		fmt.Printf("  pushq %%r8\n")
+	case T_UINTPTR:
+		fmt.Printf("  pushq %%r8\n")
 	case T_ARRAY:
 		fmt.Printf("  pushq %%r8\n")
 	default:
@@ -387,8 +393,7 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
 			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
 			fmt.Printf("  movq %%r8, (%%r9) # cap to cap\n")
-
-		case T_INT:
+		case T_INT, T_UINTPTR:
 			fmt.Printf("  popq %%rdi # rhs evaluated\n")
 			fmt.Printf("  popq %%rax # lhs addr\n")
 			fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
@@ -396,8 +401,12 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  popq %%rdi # rhs evaluated\n")
 			fmt.Printf("  popq %%rax # lhs addr\n")
 			fmt.Printf("  movb %%dil, (%%rax) # assign byte\n")
+		case T_UINT16:
+			fmt.Printf("  popq %%rdi # rhs evaluated\n")
+			fmt.Printf("  popq %%rax # lhs addr\n")
+			fmt.Printf("  movw %%di, (%%rax) # assign word\n")
 		default:
-			panic("TBI")
+			panic("TBI:" + getTypeKind(getTypeOfExpr(lhs)))
 		}
 	case *ast.ReturnStmt:
 		if len(s.Results) == 1 {
