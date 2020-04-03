@@ -79,7 +79,8 @@ func main() {
 	print(globalstring)
 	var locali3 int
 	var eight int
-	eight = '9' - '1'
+	eight = '3' - '1'
+	eight = eight + 6
 	locali3 = add1(eight)
 	os.Exit( sum(globalint , globalint2) + locali3)
 }
