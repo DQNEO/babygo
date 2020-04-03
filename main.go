@@ -188,6 +188,27 @@ func emitAddr(expr ast.Expr) {
 	}
 }
 
+func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
+	fmt.Printf("# Conversion %s => %s\n", fn.Obj, getTypeOfExpr(arg0))
+	switch fn.Obj {
+	case gString: // string(e)
+		switch getTypeKind(getTypeOfExpr(arg0)) {
+		case T_SLICE: // slice -> string
+			emitExpr(arg0) // slice
+			fmt.Printf("  popq %%rax # ptr\n")
+			fmt.Printf("  popq %%rcx # len\n")
+			fmt.Printf("  popq %%rdx # cap (to be abandoned)\n")
+			fmt.Printf("  pushq %%rcx # str len\n")
+			fmt.Printf("  pushq %%rax # str ptr\n")
+		}
+	case gInt, gUint8, gUint16, gUintptr: // int(e)
+		emitExpr(arg0)
+	default:
+		throw(fn.Obj)
+	}
+	return
+}
+
 func emitExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -206,25 +227,8 @@ func emitExpr(expr ast.Expr) {
 			switch fn.Obj.Kind {
 			case ast.Typ:
 				// Conversion
-				fmt.Printf("# Conversion %s => %s\n", fn.Obj, getTypeOfExpr(e.Args[0]))
-				switch fn.Obj {
-				case gString: // string(e)
-					switch getTypeKind(getTypeOfExpr(e.Args[0])) {
-					case T_SLICE: // slice -> string
-						emitExpr(e.Args[0]) // slice
-						fmt.Printf("  popq %%rax # ptr\n")
-						fmt.Printf("  popq %%rcx # len\n")
-						fmt.Printf("  popq %%rdx # cap (to be abandoned)\n")
-						fmt.Printf("  pushq %%rcx # str len\n")
-						fmt.Printf("  pushq %%rax # str ptr\n")
-						return
-					}
-				case gInt, gUint8, gUint16, gUintptr: // int(e)
-					emitExpr(e.Args[0])
-					return
-				default:
-					throw(fn.Obj)
-				}
+				emitConversion(fn, e.Args[0])
+				return
 			case ast.Fun:
 
 			}
