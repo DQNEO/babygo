@@ -49,47 +49,39 @@ func emitVariable(obj *ast.Object) {
 		throw(dcl)
 	}
 
-	fmt.Printf("  # emitVariable\n")
-	fmt.Printf("  # Type=%#v\n", typ)
-	fmt.Printf("  # obj.Data=%d\n", obj.Data)
+	var scope_comment string
+	if isGlobalVar(obj) {
+		scope_comment = "global"
+	} else {
+		scope_comment = "local"
+	}
+	fmt.Printf("  # eval %s variable \"%s\" T=%T Data=%d\n", scope_comment, obj.Name, typ, obj.Data)
 
+	var addr string
+	if isGlobalVar(obj) {
+		addr = fmt.Sprintf("%s(%%rip)", obj.Name)
+	} else {
+		addr = fmt.Sprintf("%d(%%rbp)", localOffset)
+	}
 	switch getTypeKind(typ) {
 	case T_SLICE:
-		if isGlobalVar(obj) {
-			fmt.Printf("  # global variable %s\n", obj.Name)
-			fmt.Printf("  movq %s+%d(%%rip), %%rax\n", obj.Name, 0)
-			fmt.Printf("  movq %s+%d(%%rip), %%rcx\n", obj.Name, 8)
-			fmt.Printf("  movq %s+%d(%%rip), %%rdx\n", obj.Name, 16)
-		} else {
-			fmt.Printf("  # local variable %s\n", obj.Name)
-			fmt.Printf("  movq %d(%%rbp), %%rax # ptr\n", localOffset)
-			fmt.Printf("  movq %d(%%rbp), %%rcx # len\n", (localOffset + 8))
-			fmt.Printf("  movq %d(%%rbp), %%rdx # cap\n", (localOffset + 16))
-		}
+		fmt.Printf("  leaq %s, %%rdx # slice variable\n", addr)
+		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
+		fmt.Printf("  movq %d(%%rdx), %%rcx\n", 8)
+		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 16)
 		fmt.Printf("  pushq %%rdx # cap\n")
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		if isGlobalVar(obj) {
-			fmt.Printf("  # global variable %s\n", obj.Name)
-			fmt.Printf("  movq %s+%d(%%rip), %%rax\n", obj.Name, 0)
-			fmt.Printf("  movq %s+%d(%%rip), %%rcx\n", obj.Name, 8)
-		} else {
-			fmt.Printf("  # load local variable %s\n", obj.Name)
-			fmt.Printf("  movq %d(%%rbp), %%rax # ptr\n", localOffset)
-			fmt.Printf("  movq %d(%%rbp), %%rcx # len\n", (localOffset + 8))
-		}
+		fmt.Printf("  leaq %s, %%rdx # string variable\n", addr)
+		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
+		fmt.Printf("  movq %d(%%rdx), %%rcx\n", 8)
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_INT:
-		if isGlobalVar(obj) {
-			fmt.Printf("  # global\n")
-			fmt.Printf("  movq %s+0(%%rip), %%rax\n", obj.Name)
-		} else {
-			fmt.Printf("  # local\n")
-			fmt.Printf("  movq %d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
-		}
-		fmt.Printf("  pushq %%rax # int val\n")
+		fmt.Printf("  leaq %s, %%rdx # int variable\n", addr)
+		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
+		fmt.Printf("  pushq %%rax # int value\n")
 	default:
 		throw(typ)
 	}
