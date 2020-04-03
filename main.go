@@ -484,6 +484,56 @@ func registerStringLiteral(s string) string {
 	return r
 }
 
+var localvars []*ast.ValueSpec
+var localoffset int
+
+func walkStmt(stmt ast.Stmt) {
+	switch s := stmt.(type) {
+	case *ast.ExprStmt:
+		expr := s.X
+		walkExpr(expr)
+	case *ast.DeclStmt:
+		decl := s.Decl
+		switch dcl := decl.(type) {
+		case *ast.GenDecl:
+			declSpec := dcl.Specs[0]
+			switch ds := declSpec.(type) {
+			case *ast.ValueSpec:
+				varSpec := ds
+				obj := varSpec.Names[0].Obj
+				var varSize int
+				switch getTypeKind(varSpec.Type)  {
+				case T_SLICE:
+					varSize = sliceSize
+				case T_STRING:
+					varSize = gString.Data.(int)
+				case T_INT:
+					varSize = gInt.Data.(int)
+				default:
+					throw(varSpec.Type)
+				}
+
+				localoffset -= varSize
+				setObjData(obj, localoffset)
+				localvars = append(localvars, ds)
+			}
+		default:
+			throw(decl)
+		}
+	case *ast.AssignStmt:
+		//lhs := s.Lhs[0]
+		rhs := s.Rhs[0]
+		walkExpr(rhs)
+	case *ast.ReturnStmt:
+		for _, r := range s.Results {
+			walkExpr(r)
+		}
+	default:
+		throw(stmt)
+	}
+
+}
+
 func walkExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -663,8 +713,8 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 			}
 		case *ast.FuncDecl:
 			funcDecl := decl.(*ast.FuncDecl)
-			var localvars []*ast.ValueSpec = nil
-			var localoffset int
+			localvars = nil
+			localoffset  = 0
 			var paramoffset int = 16
 			for _, field := range funcDecl.Type.Params.List {
 				obj :=field.Names[0].Obj
@@ -685,49 +735,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 				break
 			}
 			for _, stmt := range funcDecl.Body.List {
-				switch s := stmt.(type) {
-				case *ast.ExprStmt:
-					expr := s.X
-					walkExpr(expr)
-				case *ast.DeclStmt:
-					decl := s.Decl
-					switch dcl := decl.(type) {
-					case *ast.GenDecl:
-						declSpec := dcl.Specs[0]
-						switch ds := declSpec.(type) {
-						case *ast.ValueSpec:
-							varSpec := ds
-							obj := varSpec.Names[0].Obj
-							var varSize int
-							switch getTypeKind(varSpec.Type)  {
-							case T_SLICE:
-								varSize = sliceSize
-							case T_STRING:
-								varSize = gString.Data.(int)
-							case T_INT:
-								varSize = gInt.Data.(int)
-							default:
-								throw(varSpec.Type)
-							}
-
-							localoffset -= varSize
-							setObjData(obj, localoffset)
-							localvars = append(localvars, ds)
-						}
-					default:
-						throw(decl)
-					}
-				case *ast.AssignStmt:
-					//lhs := s.Lhs[0]
-					rhs := s.Rhs[0]
-					walkExpr(rhs)
-				case *ast.ReturnStmt:
-					for _, r := range s.Results {
-						walkExpr(r)
-					}
-				default:
-					throw(stmt)
-				}
+				walkStmt(stmt)
 			}
 			fnc := &Func{
 				decl:      funcDecl,
