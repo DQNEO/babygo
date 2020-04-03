@@ -15,10 +15,10 @@ var globalslice []uint8
 var globaluintptr uintptr
 
 func assign() {
-	globalint = 29
+	globalint = 22
 	globaluint8 = 1
 	globaluint16 = 5
-	globaluintptr = 20
+	globaluintptr = 7
 }
 
 func add1(x int) int {
@@ -82,6 +82,7 @@ func main() {
 	tmp = '3' - '1'
 	tmp = tmp + int(globaluint16)
 	tmp = tmp + int(globaluint8)
+	tmp = tmp + int(globaluintptr)
 	locali3 = add1(tmp)
 	os.Exit( sum(globalint , globalint2) + locali3)
 }
