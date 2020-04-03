@@ -62,26 +62,26 @@ func emitVariable(obj *ast.Object) {
 	} else {
 		addr = fmt.Sprintf("%d(%%rbp)", localOffset)
 	}
-	fmt.Printf("  leaq %s, %%r8 # slice variable\n", addr)
+	fmt.Printf("  leaq %s, %%rdx # slice variable\n", addr)
 	switch getTypeKind(typ) {
 	case T_SLICE:
-		fmt.Printf("  movq %d(%%r8), %%rax\n", 0)
-		fmt.Printf("  movq %d(%%r8), %%rcx\n", 8)
-		fmt.Printf("  movq %d(%%r8), %%r8\n", 16)
-		fmt.Printf("  pushq %%r8 # cap\n")
+		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
+		fmt.Printf("  movq %d(%%rdx), %%rcx\n", 8)
+		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 16)
+		fmt.Printf("  pushq %%rdx # cap\n")
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		fmt.Printf("  movq %d(%%r8), %%rax\n", 0)
-		fmt.Printf("  movq %d(%%r8), %%r8\n", 8)
-		fmt.Printf("  pushq %%r8 # len\n")
+		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
+		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 8)
+		fmt.Printf("  pushq %%rdx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_INT:
-		fmt.Printf("  movq %d(%%r8), %%r8\n", 0)
-		fmt.Printf("  pushq %%r8 # int value\n")
+		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 0)
+		fmt.Printf("  pushq %%rdx # int value\n")
 	case T_UINT8:
-		fmt.Printf("  movb %d(%%r8), %%r8b\n", 0)
-		fmt.Printf("  pushq %%r8 # int value\n")
+		fmt.Printf("  movb %d(%%rdx), %%dl\n", 0)
+		fmt.Printf("  pushq %%rdx # int value\n")
 	default:
 		throw(typ)
 	}
