@@ -80,7 +80,8 @@ func main() {
 	var locali3 int
 	var eight int
 	eight = '3' - '1'
-	eight = eight + 6
+	eight = eight + 5
+	eight = eight + int(globaluint8)
 	locali3 = add1(eight)
 	os.Exit( sum(globalint , globalint2) + locali3)
 }

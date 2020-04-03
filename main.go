@@ -79,6 +79,9 @@ func emitVariable(obj *ast.Object) {
 	case T_INT:
 		fmt.Printf("  movq %d(%%r8), %%r8\n", 0)
 		fmt.Printf("  pushq %%r8 # int value\n")
+	case T_UINT8:
+		fmt.Printf("  movb %d(%%r8), %%r8b\n", 0)
+		fmt.Printf("  pushq %%r8 # int value\n")
 	default:
 		throw(typ)
 	}
@@ -216,6 +219,9 @@ func emitExpr(expr ast.Expr) {
 						fmt.Printf("  pushq %%rax # str ptr\n")
 						return
 					}
+				case gInt, gUint8, gUint16, gUintptr: // int(e)
+					emitExpr(e.Args[0])
+					return
 				default:
 					throw(fn.Obj)
 				}
@@ -735,6 +741,8 @@ func getExprSize(valueExpr ast.Expr) int {
 		return 8*3
 	case T_INT:
 		return 8
+	case T_UINT8:
+		return 1
 	case T_ARRAY:
 		panic("TBI")
 	default:
