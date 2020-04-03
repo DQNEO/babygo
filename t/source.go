@@ -15,7 +15,7 @@ var globalslice []uint8
 var globaluintptr uintptr
 
 func assign() {
-	globalint = 30
+	globalint = 29
 	globaluint8 = 1
 	globaluint16 = 16
 	globaluintptr = 20
@@ -64,7 +64,7 @@ func testChar() {
 func main() {
 	assign()
 	testChar()
-	globalint2 = sum(1, 2)
+	globalint2 = sum(1, 3)
 
 	print(globalstring)
 
