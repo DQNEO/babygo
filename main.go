@@ -295,8 +295,6 @@ func emitExpr(expr ast.Expr) {
 	case *ast.ParenExpr:
 		emitExpr(e.X)
 	case *ast.BasicLit:
-		fmt.Printf("  # start %T\n", e)
-		fmt.Printf("  # kind=%s\n", e.Kind)
 		switch e.Kind.String() {
 		case "CHAR":
 			val := e.Value
@@ -316,7 +314,6 @@ func emitExpr(expr ast.Expr) {
 		default:
 			panic("Unexpected literal kind:" + e.Kind.String())
 		}
-		fmt.Printf("  # end %T\n", e)
 	case *ast.BinaryExpr:
 		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X) // left
