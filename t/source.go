@@ -30,10 +30,13 @@ func returnstring() string {
 }
 
 var globalchars [10]uint8
+var globalslice []uint8
 
 func printchars() {
 	var chars []uint8
 	chars = globalchars[0:4]
+	print(string(chars))
+	globalslice = chars
 	print(string(chars))
 }
 

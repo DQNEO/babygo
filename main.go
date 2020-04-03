@@ -55,7 +55,7 @@ func emitVariable(obj *ast.Object) {
 	} else {
 		scope_comment = "local"
 	}
-	fmt.Printf("  # eval %s variable \"%s\" T=%T Data=%d\n", scope_comment, obj.Name, typ, obj.Data)
+	fmt.Printf("  # emitVariable %s \"%s\" T=%T Data=%d\n", scope_comment, obj.Name, typ, obj.Data)
 
 	var addr string
 	if isGlobalVar(obj) {
@@ -96,61 +96,46 @@ func emitVariableAddr(obj *ast.Object) {
 	if !ok {
 		panic("Unexpected case")
 	}
+	typ := decl.Type
+	localOffset := (getObjData(obj))
+	var scope_comment string
+	if isGlobalVar(obj) {
+		scope_comment = "global"
+	} else {
+		scope_comment = "local"
+	}
+	fmt.Printf("  # emitVariableAddr %s \"%s\" T=%T Data=%d\n", scope_comment, obj.Name, typ, obj.Data)
 
-	fmt.Printf("  # emitVariable\n")
-	fmt.Printf("  # obj.Data=%d\n", obj.Data)
 
+	var addr string
+	if isGlobalVar(obj) {
+		addr = fmt.Sprintf("%s(%%rip)", obj.Name)
+	} else {
+		addr = fmt.Sprintf("%d(%%rbp)", localOffset)
+	}
+
+	fmt.Printf("  leaq %s, %%r8 # addr\n", addr)
 	switch getTypeKind(decl.Type) {
 	case T_SLICE:
-		if isGlobalVar(obj) {
-			fmt.Printf("  # global\n")
-			fmt.Printf("  leaq %s+%d(%%rip), %%rax # ptr\n", obj.Name, 0)
-			fmt.Printf("  leaq %s+%d(%%rip), %%rcx # len\n", obj.Name, 8)
-			fmt.Printf("  leaq %s+%d(%%rip), %%rdx # cap\n", obj.Name, 16)
-		} else {
-			fmt.Printf("  # local\n")
-			localOffset := (getObjData(obj))
-			fmt.Printf("  leaq %d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
-			fmt.Printf("  leaq %d(%%rbp), %%rcx # len %s \n", localOffset + 8, obj.Name)
-			fmt.Printf("  leaq %d(%%rbp), %%rdx # cap %s \n", localOffset + 16, obj.Name)
-		}
-		fmt.Printf("  pushq %%rdx # cap\n")
+		fmt.Printf("  movq %%r8, %%rax\n")
+		fmt.Printf("  addq $8, %%r8\n")
+		fmt.Printf("  movq %%r8, %%rcx # len\n")
+		fmt.Printf("  addq $8, %%r8 # cap\n")
+
+		fmt.Printf("  pushq %%r8 # cap\n")
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		if isGlobalVar(obj) {
-			fmt.Printf("  # global\n")
-			fmt.Printf("  leaq %s+%d(%%rip), %%rax # ptr\n", obj.Name, 0)
-			fmt.Printf("  leaq %s+%d(%%rip), %%rcx # len\n", obj.Name, 8)
-		} else {
-			fmt.Printf("  # local\n")
-			localOffset := (getObjData(obj))
-			fmt.Printf("  leaq %d(%%rbp), %%rax # ptr %s \n", localOffset, obj.Name)
-			fmt.Printf("  leaq %d(%%rbp), %%rcx # len %s \n", localOffset + 8, obj.Name)
-		}
+		fmt.Printf("  movq %%r8, %%rax\n")
+		fmt.Printf("  addq $8, %%r8\n")
+		fmt.Printf("  movq %%r8, %%rcx # len\n")
+
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_INT:
-		if isGlobalVar(obj) {
-			fmt.Printf("  # global\n")
-			fmt.Printf("  leaq %s+0(%%rip), %%rax\n", obj.Name)
-		} else {
-			fmt.Printf("  # local\n")
-			localOffset := (getObjData(obj))
-			fmt.Printf("  leaq %d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
-		}
-		fmt.Printf("  pushq %%rax # int var\n")
+		fmt.Printf("  pushq %%r8\n")
 	case T_ARRAY:
-		if isGlobalVar(obj) {
-			fmt.Printf("  # global\n")
-			fmt.Printf("  leaq %s+0(%%rip), %%rax\n", obj.Name)
-		} else {
-			panic("TBI")
-			fmt.Printf("  # local\n")
-			localOffset := (getObjData(obj))
-			fmt.Printf("  leaq %d(%%rbp), %%rax # %s \n", localOffset, obj.Name)
-		}
-		fmt.Printf("  pushq %%rax # array head\n")
+		fmt.Printf("  pushq %%r8\n")
 	default:
 		throw(decl.Type)
 	}
@@ -863,6 +848,10 @@ func emitData() {
 			default:
 				panic("Unexpected case")
 			}
+		case T_SLICE:
+			fmt.Printf("  .quad 0 # ptr\n")
+			fmt.Printf("  .quad 0 # len\n")
+			fmt.Printf("  .quad 0 # cap\n")
 		case T_ARRAY:
 			if val == nil {
 				arrayType,ok :=  varDecl.Type.(*ast.ArrayType)
@@ -881,7 +870,7 @@ func emitData() {
 				panic("TBI")
 			}
 		default:
-			throw(varDecl.Type)
+			throw(getTypeKind(varDecl.Type))
 		}
 	}
 	fmt.Printf("# ==============================\n")
