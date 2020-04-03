@@ -32,7 +32,6 @@ func emitVariable(obj *ast.Object) {
 	if obj.Kind != ast.Var {
 		panic("obj should be ast.Var")
 	}
-	fmt.Printf("  # obj=%#v\n", obj)
 
 	var typ ast.Expr
 	var localOffset int
@@ -159,8 +158,6 @@ func getSizeOfType(typeExpr ast.Expr) int {
 func emitAddr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
-		fmt.Printf("  # ident kind=%v\n", e.Obj.Kind)
-		fmt.Printf("  # Obj=%v\n", e.Obj)
 		if e.Obj.Kind == ast.Var {
 			emitVariableAddr(e.Obj)
 		} else {
@@ -358,7 +355,78 @@ func emitExpr(expr ast.Expr) {
 	}
 }
 
+func emitStmt(stmt ast.Stmt) {
+	fmt.Printf("\n")
+	fmt.Printf("  # == Stmt %T ==\n", stmt)
+	switch s := stmt.(type) {
+	case *ast.ExprStmt:
+		expr := s.X
+		emitExpr(expr)
+	case *ast.DeclStmt:
+		return // do nothing
+	case *ast.AssignStmt:
+		lhs := s.Lhs[0]
+		rhs := s.Rhs[0]
+		emitAddr(lhs)
+		emitExpr(rhs) // push len, push ptr
+		switch getTypeKind(getTypeOfExpr(lhs)) {
+		case T_STRING:
+			fmt.Printf("  popq %%rcx # rhs ptr\n")
+			fmt.Printf("  popq %%rax # rhs len\n")
+			fmt.Printf("  popq %%rdx # lhs ptr addr\n")
+			fmt.Printf("  popq %%rsi # lhs len addr\n")
+			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
+			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
+		case T_SLICE:
+			fmt.Printf("  popq %%rcx # rhs ptr\n")
+			fmt.Printf("  popq %%rax # rhs len\n")
+			fmt.Printf("  popq %%r8 # rhs cap\n")
+			fmt.Printf("  popq %%rdx # lhs ptr addr\n")
+			fmt.Printf("  popq %%rsi # lhs len addr\n")
+			fmt.Printf("  popq %%r9 # lhs cap\n")
+			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
+			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
+			fmt.Printf("  movq %%r8, (%%r9) # cap to cap\n")
+
+		case T_INT:
+			fmt.Printf("  popq %%rdi # rhs evaluated\n")
+			fmt.Printf("  popq %%rax # lhs addr\n")
+			fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
+		case T_UINT8:
+			fmt.Printf("  popq %%rdi # rhs evaluated\n")
+			fmt.Printf("  popq %%rax # lhs addr\n")
+			fmt.Printf("  movb %%dil, (%%rax) # assign byte\n")
+		default:
+			panic("TBI")
+		}
+	case *ast.ReturnStmt:
+		if len(s.Results) == 1 {
+			emitExpr(s.Results[0])
+			switch getTypeKind(getTypeOfExpr(s.Results[0])) {
+			case T_INT:
+				fmt.Printf("  popq %%rax # return int\n")
+			case T_STRING:
+				fmt.Printf("  popq %%rax # return string (ptr)\n")
+				fmt.Printf("  popq %%rsi # return string (len)\n")
+			default:
+				panic("TBI")
+			}
+
+
+			fmt.Printf("  leave\n")
+			fmt.Printf("  ret\n")
+		} else if len(s.Results) == 0 {
+			fmt.Printf("  leave\n")
+			fmt.Printf("  ret\n")
+		} else {
+			panic("TBI")
+		}
+	default:
+		throw(stmt)
+	}
+}
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
+	fmt.Printf("\n")
 	funcDecl := fnc.decl
 	fmt.Printf("%s.%s: # args %d, locals %d\n",
 		pkgPrefix, funcDecl.Name, fnc.argsarea, fnc.localarea)
@@ -368,75 +436,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 		fmt.Printf("  subq $%d, %%rsp # local area\n", fnc.localarea)
 	}
 	for _, stmt := range funcDecl.Body.List {
-		switch s := stmt.(type) {
-		case *ast.ExprStmt:
-			expr := s.X
-			emitExpr(expr)
-		case *ast.DeclStmt:
-			continue
-		case *ast.AssignStmt:
-			fmt.Printf("  # *ast.AssignStmt\n")
-			lhs := s.Lhs[0]
-			fmt.Printf("# lhs=%#v\n", lhs)
-			rhs := s.Rhs[0]
-			emitAddr(lhs)
-			emitExpr(rhs) // push len, push ptr
-			fmt.Printf("# %#v\n", lhs)
-			switch getTypeKind(getTypeOfExpr(lhs)) {
-			case T_STRING:
-				fmt.Printf("  popq %%rcx # rhs ptr\n")
-				fmt.Printf("  popq %%rax # rhs len\n")
-				fmt.Printf("  popq %%rdx # lhs ptr addr\n")
-				fmt.Printf("  popq %%rsi # lhs len addr\n")
-				fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
-				fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
-			case T_SLICE:
-				fmt.Printf("  popq %%rcx # rhs ptr\n")
-				fmt.Printf("  popq %%rax # rhs len\n")
-				fmt.Printf("  popq %%r8 # rhs cap\n")
-				fmt.Printf("  popq %%rdx # lhs ptr addr\n")
-				fmt.Printf("  popq %%rsi # lhs len addr\n")
-				fmt.Printf("  popq %%r9 # lhs cap\n")
-				fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
-				fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
-				fmt.Printf("  movq %%r8, (%%r9) # cap to cap\n")
-
-			case T_INT:
-				fmt.Printf("  popq %%rdi # rhs evaluated\n")
-				fmt.Printf("  popq %%rax # lhs addr\n")
-				fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
-			case T_UINT8:
-				fmt.Printf("  popq %%rdi # rhs evaluated\n")
-				fmt.Printf("  popq %%rax # lhs addr\n")
-				fmt.Printf("  movb %%dil, (%%rax) # assign byte\n")
-			default:
-				panic("TBI")
-			}
-		case *ast.ReturnStmt:
-			if len(s.Results) == 1 {
-				emitExpr(s.Results[0])
-				switch getTypeKind(getTypeOfExpr(s.Results[0])) {
-				case T_INT:
-					fmt.Printf("  popq %%rax # return int\n")
-				case T_STRING:
-					fmt.Printf("  popq %%rax # return string (ptr)\n")
-					fmt.Printf("  popq %%rsi # return string (len)\n")
-				default:
-					panic("TBI")
-				}
-
-
-				fmt.Printf("  leave\n")
-				fmt.Printf("  ret\n")
-			} else if len(s.Results) == 0 {
-				fmt.Printf("  leave\n")
-				fmt.Printf("  ret\n")
-			} else {
-				panic("TBI")
-			}
-		default:
-			throw(stmt)
-		}
+		emitStmt(stmt)
 	}
 	fmt.Printf("  leave\n")
 	fmt.Printf("  ret\n")
