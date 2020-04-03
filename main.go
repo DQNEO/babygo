@@ -42,8 +42,6 @@ func emitVariable(obj *ast.Object) {
 	case *ast.Field:
 		typ = dcl.Type
 		localOffset = getObjData(obj) // param offset
-		fmt.Printf("  # dcl.Names[0].Obj=%#v\n", dcl.Names[0].Obj)
-		fmt.Printf("  # param offset=%d\n", localOffset)
 	default:
 		throw(dcl)
 	}
