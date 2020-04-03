@@ -505,6 +505,14 @@ var gString = &ast.Object{
 	Type: nil,
 }
 
+var gUintptr = &ast.Object{
+	Kind: ast.Typ,
+	Name: "uintptr",
+	Decl: nil,
+	Data: 8,
+	Type: nil,
+}
+
 var gInt = &ast.Object{
 	Kind: ast.Typ,
 	Name: "int",
@@ -518,6 +526,14 @@ var gUint8 = &ast.Object{
 	Name: "uint8",
 	Decl: nil,
 	Data: 1,
+	Type: nil,
+}
+
+var gUint16 = &ast.Object{
+	Kind: ast.Typ,
+	Name: "uint16",
+	Decl: nil,
+	Data: 2,
 	Type: nil,
 }
 
@@ -546,8 +562,10 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 	}
 
 	universe.Insert(gString)
+	universe.Insert(gUintptr)
 	universe.Insert(gInt)
 	universe.Insert(gUint8)
+	universe.Insert(gUint16)
 
 	universe.Insert(&ast.Object{
 		Kind: ast.Fun,
@@ -601,10 +619,10 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 							throw(valSpec.Type)
 						}
 						lit.Value = registerStringLiteral(lit.Value)
-					case T_INT:
+					case T_INT,T_UINT8, T_UINT16, T_UINTPTR:
 						_,ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
-							throw(valSpec.Type)
+							throw(valSpec.Type) // allow only literal
 						}
 					default:
 						throw(valSpec.Type)
@@ -720,6 +738,8 @@ const T_STRING = "T_STRING"
 const T_SLICE = "T_SLICE"
 const T_INT = "T_INT"
 const T_UINT8 = "T_UINT8"
+const T_UINT16 = "T_UINT16"
+const T_UINTPTR = "T_UINTPTR"
 const T_ARRAY = "T_ARRAY"
 
 func getTypeOfExpr(expr ast.Expr) ast.Expr {
@@ -784,16 +804,23 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 func getTypeKind(typeExpr ast.Expr) string {
 	switch e := typeExpr.(type) {
 	case *ast.Ident:
+		if e.Obj == nil {
+			panic("Unresolved identifier:" +e.Name)
+		}
 		if e.Obj.Kind == ast.Var {
 			throw(e.Obj)
 		} else if e.Obj.Kind == ast.Typ {
 			switch e.Obj {
+			case gUintptr:
+				return T_UINTPTR
 			case gInt:
 				return T_INT
 			case gString:
 				return T_STRING
 			case gUint8:
 				return T_UINT8
+			case gUint16:
+				return T_UINT16
 			default:
 				throw(e.Obj)
 			}
@@ -836,15 +863,47 @@ func emitData() {
 				splitted := strings.Split(strval, ":")
 				fmt.Printf("  .quad %s\n", splitted[0])
 				fmt.Printf("  .quad %s\n", splitted[1])
+			case nil:
+				fmt.Printf("  .quad 0\n")
+				fmt.Printf("  .quad 0\n")
 			default:
 				panic("Unexpected case")
+			}
+		case T_UINTPTR:
+			switch vl := val.(type) {
+			case *ast.BasicLit:
+				fmt.Printf("  .quad %s\n", vl.Value)
+			case nil:
+				fmt.Printf("  .quad 0\n")
+			default:
+				throw(val)
 			}
 		case T_INT:
 			switch vl := val.(type) {
 			case *ast.BasicLit:
 				fmt.Printf("  .quad %s\n", vl.Value)
+			case nil:
+				fmt.Printf("  .quad 0\n")
 			default:
-				panic("Unexpected case")
+				throw(val)
+			}
+		case T_UINT8:
+			switch vl := val.(type) {
+			case *ast.BasicLit:
+				fmt.Printf("  .byte %s\n", vl.Value)
+			case nil:
+				fmt.Printf("  .byte 0\n")
+			default:
+				throw(val)
+			}
+		case T_UINT16:
+			switch vl := val.(type) {
+			case *ast.BasicLit:
+				fmt.Printf("  .word %s\n", vl.Value)
+			case nil:
+				fmt.Printf("  .word 0\n")
+			default:
+				throw(val)
 			}
 		case T_SLICE:
 			fmt.Printf("  .quad 0 # ptr\n")

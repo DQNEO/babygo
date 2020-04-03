@@ -2,10 +2,17 @@ package main
 
 import "os"
 
-var globalstring string = "hello stderr\n"
-
 var globalint int = 30
 var globalint2 int = 0
+var globaluint8 uint8 = 8
+var globaluint16 uint16 = 16
+
+var globalstring string = "hello stderr\n"
+var globalstring2 string
+var globalintslice []int
+var globalarray [10]uint8
+var globalslice []uint8
+var globaluintptr uintptr
 
 func add1(x int) int {
 	return x + 1
@@ -29,12 +36,10 @@ func returnstring() string {
 	return "i am a local 1\n"
 }
 
-var globalchars [10]uint8
-var globalslice []uint8
 
 func printchars() {
 	var chars []uint8
-	chars = globalchars[0:4]
+	chars = globalarray[0:4]
 	print(string(chars))
 	globalslice = chars
 	print(string(chars))
@@ -42,10 +47,10 @@ func printchars() {
 
 // test global chars
 func f1() {
-	globalchars[0] = 'A'
-	globalchars[1] = 'B'
-	globalchars[2] = globalchars[0]
-	globalchars[3] = 10 // '\n'
+	globalarray[0] = 'A'
+	globalarray[1] = 'B'
+	globalarray[2] = globalarray[0]
+	globalarray[3] = 10 // '\n'
 	printchars()
 }
 
