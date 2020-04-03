@@ -14,12 +14,14 @@ var globalarray [10]uint8
 var globalslice []uint8
 var globaluintptr uintptr
 
-func assign() {
+func assignGlobal() {
 	globalint = 22
 	globaluint8 = 1
 	globaluint16 = 5
 	globaluintptr = 7
+	globalstring = "globalstring changed\n"
 }
+
 
 func add1(x int) int {
 	return x + 1
@@ -62,11 +64,11 @@ func testChar() {
 }
 
 func main() {
-	assign()
 	testChar()
 	globalint2 = sum(1, 3)
-
 	print(globalstring)
+
+	assignGlobal()
 
 	var localstring1 string
 	var localstring2 string
@@ -75,7 +77,6 @@ func main() {
 	localstring1 = returnstring()
 	localstring2 = "i m local2\n"
 	print2(localstring1, localstring2)
-	globalstring = "globalstring changed\n"
 	print(globalstring)
 	var locali3 int
 	var tmp int
