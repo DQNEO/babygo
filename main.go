@@ -323,22 +323,36 @@ func emitExpr(expr ast.Expr) {
 		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X) // left
 		emitExpr(e.Y) // right
-		if e.Op.String() == "+" {
+		switch e.Op.String()  {
+		case "+":
 			fmt.Printf("  popq %%rdi # right\n")
 			fmt.Printf("  popq %%rax # left\n")
 			fmt.Printf("  addq %%rdi, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
-		} else if e.Op.String() == "-" {
+		case "-":
 			fmt.Printf("  popq %%rdi # right\n")
 			fmt.Printf("  popq %%rax # left\n")
 			fmt.Printf("  subq %%rdi, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
-		} else if e.Op.String() == "*" {
+		case "*":
 			fmt.Printf("  popq %%rdi # right\n")
 			fmt.Printf("  popq %%rax # left\n")
 			fmt.Printf("  imulq %%rdi, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
-		} else {
+		case "%":
+			fmt.Printf("  popq %%rcx # right\n")
+			fmt.Printf("  popq %%rax # left\n")
+			fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
+			fmt.Printf("  divq %%rcx\n")
+			fmt.Printf("  movq %%rdx, %%rax\n")
+			fmt.Printf("  pushq %%rax\n")
+		case "/":
+			fmt.Printf("  popq %%rcx # right\n")
+			fmt.Printf("  popq %%rax # left\n")
+			fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
+			fmt.Printf("  divq %%rcx\n")
+			fmt.Printf("  pushq %%rax\n")
+		default:
 			throw(e.Op)
 		}
 		fmt.Printf("  # end %T\n", e)

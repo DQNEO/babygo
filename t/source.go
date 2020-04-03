@@ -59,13 +59,13 @@ func testChar() {
 	globalarray[0] = 'A'
 	globalarray[1] = 'B'
 	globalarray[2] = globalarray[0]
-	globalarray[3] = 10 // '\n'
+	globalarray[3] = 100 / 10 // '\n'
 	printchars()
 }
 
 func main() {
 	testChar()
-	globalint2 = sum(1, 3)
+	globalint2 = sum(1, 13 % 5)
 	print(globalstring)
 
 	assignGlobal()
