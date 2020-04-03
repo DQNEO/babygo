@@ -73,14 +73,14 @@ func emitVariable(obj *ast.Object) {
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		fmt.Printf("  leaq %s, %%rdx # string variable\n", addr)
-		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
-		fmt.Printf("  movq %d(%%rdx), %%rcx\n", 8)
+		fmt.Printf("  leaq %s, %%rcx # string variable\n", addr)
+		fmt.Printf("  movq %d(%%rcx), %%rax\n", 0)
+		fmt.Printf("  movq %d(%%rcx), %%rcx\n", 8)
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_INT:
-		fmt.Printf("  leaq %s, %%rdx # int variable\n", addr)
-		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
+		fmt.Printf("  leaq %s, %%rax # int variable\n", addr)
+		fmt.Printf("  movq %d(%%rax), %%rax\n", 0)
 		fmt.Printf("  pushq %%rax # int value\n")
 	default:
 		throw(typ)
