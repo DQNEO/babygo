@@ -980,7 +980,7 @@ func generateCode(f *ast.File) {
 
 func main() {
 	fset := &token.FileSet{}
-	f, err := parser.ParseFile(fset, "./t/source.go", nil, 0)
+	f, err := parser.ParseFile(fset, "./t/a.go", nil, 0)
 	if err != nil {
 		panic(err)
 	}

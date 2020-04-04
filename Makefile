@@ -2,7 +2,7 @@
 
 all: a.out
 
-a.s: main.go t/source.go
+a.s: main.go t/a.go
 	go run main.go > a.s
 
 a.o: a.s runtime.s
@@ -18,11 +18,11 @@ test: a.out
 sample/sample.s: sample/sample.go
 	go tool compile -N -S sample/sample.go > sample/sample.s
 
-t/source: t/source.go
-	go build -o t/source t/source.go
+t/a: t/a.go
+	go build -o t/a t/a.go
 
-t/expected.2: t/source
-	t/source 2> t/expected.2 || echo 0
+t/expected.2: t/a
+	t/a 2> t/expected.2 || echo ok
 
 expect:
 	make t/expected.2
