@@ -213,6 +213,9 @@ func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
 func emitExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
+		if e.Obj == nil {
+			panic(fmt.Sprintf("ident %s is unresolved", e.Name))
+		}
 		fmt.Printf("  # ident kind=%v\n", e.Obj.Kind)
 		fmt.Printf("  # Obj=%v\n", e.Obj)
 		if e.Obj.Kind == ast.Var {
