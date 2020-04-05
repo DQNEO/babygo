@@ -520,7 +520,14 @@ var stringIndex int
 func registerStringLiteral(s string) string {
 	rawStringLiteal := s
 	stringLiterals = append(stringLiterals, rawStringLiteal)
-	r := fmt.Sprintf(".S%d:%d", stringIndex, len(rawStringLiteal) - 2 -1) // \n is counted as 2 ?
+	var strlen int
+	for _, c := range []uint8(rawStringLiteal) {
+		if c != '\\' {
+			strlen++
+		}
+	}
+
+	r := fmt.Sprintf(".S%d:%d", stringIndex, strlen - 2)
 	stringIndex++
 	return r
 }
