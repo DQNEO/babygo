@@ -2,6 +2,30 @@ package main
 
 import "os"
 
+func testIf() {
+	if true {
+		print("ok true\n")
+	}
+	if false {
+		print("ERROR\n")
+	}
+	print("ok false\n")
+}
+
+func testElse() {
+	if true {
+		print("ok true\n")
+	} else {
+		print("ERROR\n")
+	}
+
+	if false {
+		print("ERROR\n")
+	} else {
+		print("ok false\n")
+	}
+}
+
 var globalint int = 30
 var globalint2 int = 0
 var globaluint8 uint8 = 8
@@ -64,6 +88,8 @@ func testChar() {
 }
 
 func main() {
+	testIf()
+	testElse()
 	testChar()
 	globalint2 = sum(1, 13 % 5)
 	print(globalstring)

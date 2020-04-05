@@ -35,6 +35,14 @@ func emitVariable(obj *ast.Object) {
 
 	var typ ast.Expr
 	var localOffset int
+	switch obj {
+	case gTrue:
+		fmt.Printf("  pushq $1 # true\n")
+		return
+	case gFalse:
+		fmt.Printf("  pushq $0 # false\n")
+		return
+	}
 	switch dcl := obj.Decl.(type) {
 	case *ast.ValueSpec:
 		typ = dcl.Type
@@ -43,7 +51,7 @@ func emitVariable(obj *ast.Object) {
 		typ = dcl.Type
 		localOffset = getObjData(obj) // param offset
 	default:
-		throw(dcl)
+		throw(obj)
 	}
 
 	var scope_comment string
@@ -387,7 +395,6 @@ func emitExpr(expr ast.Expr) {
 }
 
 func emitStmt(stmt ast.Stmt) {
-	fmt.Printf("\n")
 	fmt.Printf("  # == Stmt %T ==\n", stmt)
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
@@ -455,10 +462,41 @@ func emitStmt(stmt ast.Stmt) {
 		} else {
 			panic("TBI")
 		}
+	case *ast.IfStmt:
+		fmt.Printf("  # if\n")
+
+		labelid++
+		labelEndif := fmt.Sprintf(".L.endif.%d", labelid)
+		labelElse := fmt.Sprintf(".L.else.%d", labelid)
+
+		if s.Else != nil {
+			emitExpr(s.Cond)
+			fmt.Printf("  popq %%rax\n")
+			fmt.Printf("  cmpq $0, %%rax\n")
+			fmt.Printf("  je %s # jmp if false\n", labelElse)
+			emitStmt(s.Body) // then
+			fmt.Printf("  jmp %s\n", labelEndif)
+			fmt.Printf("  %s:\n", labelElse)
+			emitStmt(s.Else) // then
+		} else {
+			emitExpr(s.Cond)
+			fmt.Printf("  popq %%rax\n")
+			fmt.Printf("  cmpq $0, %%rax\n")
+			fmt.Printf("  je %s # jmp if false\n", labelEndif)
+			emitStmt(s.Body) // then
+		}
+		fmt.Printf("  %s:\n", labelEndif)
+		fmt.Printf("  # end if\n")
+	case *ast.BlockStmt:
+		for _, stmt := range s.List {
+			emitStmt(stmt)
+		}
 	default:
 		throw(stmt)
 	}
 }
+var labelid int
+
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("\n")
 	funcDecl := fnc.decl
@@ -531,6 +569,16 @@ func walkStmt(stmt ast.Stmt) {
 		for _, r := range s.Results {
 			walkExpr(r)
 		}
+	case *ast.IfStmt:
+		walkExpr(s.Cond)
+		walkStmt(s.Body)
+		if s.Else != nil {
+			walkStmt(s.Else)
+		}
+	case *ast.BlockStmt:
+		for _, stmt := range s.List {
+			walkStmt(stmt)
+		}
 	default:
 		throw(stmt)
 	}
@@ -581,6 +629,22 @@ func walkExpr(expr ast.Expr) {
 
 const sliceSize = 24
 
+var gTrue = &ast.Object{
+	Kind: ast.Var,
+	Name: "true",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gFalse = &ast.Object{
+	Kind: ast.Var,
+	Name: "false",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
 var gString = &ast.Object{
 	Kind: ast.Typ,
 	Name: "string",
@@ -594,6 +658,14 @@ var gUintptr = &ast.Object{
 	Name: "uintptr",
 	Decl: nil,
 	Data: 8,
+	Type: nil,
+}
+
+var gBool = &ast.Object{
+	Kind: ast.Typ,
+	Name: "bool",
+	Decl: nil,
+	Data: 8, // same as int for now
 	Type: nil,
 }
 
@@ -645,11 +717,18 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 		Objects: make(map[string]*ast.Object),
 	}
 
+	// predeclared types
 	universe.Insert(gString)
 	universe.Insert(gUintptr)
+	universe.Insert(gBool)
 	universe.Insert(gInt)
 	universe.Insert(gUint8)
 	universe.Insert(gUint16)
+
+	// predeclared variables
+	universe.Insert(gTrue)
+	universe.Insert(gFalse)
+
 
 	universe.Insert(&ast.Object{
 		Kind: ast.Fun,
