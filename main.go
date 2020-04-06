@@ -974,8 +974,14 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 				Name:    "int",
 				Obj:     gInt,
 			}
+		case "CHAR":
+			return &ast.Ident{
+				NamePos: 0,
+				Name:    "int",
+				Obj:     gInt,
+			}
 		default:
-			throw(e)
+			throw(e.Kind.String())
 		}
 	case *ast.UnaryExpr:
 		switch e.Op.String() {

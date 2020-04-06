@@ -195,7 +195,7 @@ func main() {
 	print(globalstring)
 	var locali3 int
 	var tmp int
-	tmp = '3' - '1'
+	tmp = int(uint8('3' - '1'))
 	tmp = tmp + int(globaluint16)
 	tmp = tmp + int(globaluint8)
 	tmp = tmp + int(globaluintptr)
