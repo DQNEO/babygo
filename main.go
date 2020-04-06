@@ -127,7 +127,7 @@ func emitVariableAddr(obj *ast.Object) {
 	}
 
 	fmt.Printf("  leaq %s, %%rdx # addr\n", addr)
-	switch getTypeKind(decl.Type) {
+	switch getTypeKind(typ) {
 	case T_SLICE:
 		fmt.Printf("  movq %%rdx, %%rax\n")
 		fmt.Printf("  addq $8, %%rdx\n")
@@ -155,7 +155,7 @@ func emitVariableAddr(obj *ast.Object) {
 	case T_ARRAY:
 		fmt.Printf("  pushq %%rdx\n")
 	default:
-		throw(decl.Type)
+		throw(typ)
 	}
 }
 
