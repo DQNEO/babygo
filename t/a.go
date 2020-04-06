@@ -223,31 +223,28 @@ func testMinus() int {
 	return x
 }
 
-func main() {
-	testItoa()
-	testFor()
-	testCmpUint8()
-	testCmpInt()
-	testIf()
-	testElse()
-	testChar()
-	var i13 int = 0
-	i13 = testArgAssign(i13)
-	var i5 int
-	i5 = testMinus()
-	globalint2 = sum(1, i13 % i5)
+func testString() {
 	print(globalstring)
-
 	assignGlobal()
 
 	var localstring1 string
 	var localstring2 string
 
 	print1("hello string literal\n")
+
 	localstring1 = returnstring()
 	localstring2 = "i m local2\n"
 	print2(localstring1, localstring2)
 	print(globalstring)
+}
+
+func testMisc() {
+	var i13 int = 0
+	i13 = testArgAssign(i13)
+	var i5 int
+	i5 = testMinus()
+	globalint2 = sum(1, i13 % i5)
+
 	var locali3 int
 	var tmp int
 	tmp = int(uint8('3' - '1'))
@@ -257,6 +254,19 @@ func main() {
 	locali3 = add1(tmp)
 	var i42 int
 	i42 =  sum(globalint , globalint2) + locali3
+
 	print(Itoa(i42))
 	print("\n")
+}
+
+func main() {
+	testItoa()
+	testFor()
+	testCmpUint8()
+	testCmpInt()
+	testIf()
+	testElse()
+	testChar()
+	testString()
+	testMisc()
 }
