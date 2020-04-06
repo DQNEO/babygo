@@ -14,9 +14,9 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-if [[ $exit_status -eq 42 ]]; then
+if [[ $exit_status -eq 0 ]]; then
   echo ok
 else
-  echo error
-  exit 1
+  echo FAILED
+  exit $exit_status
 fi

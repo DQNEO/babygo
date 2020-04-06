@@ -22,7 +22,7 @@ t/a: t/a.go
 	go build -o t/a t/a.go
 
 t/expected.2: t/a
-	t/a 2> t/expected.2 || echo ok
+	t/a 2> t/expected.2
 
 expect:
 	make t/expected.2

@@ -1,7 +1,5 @@
 package main
 
-import "os"
-
 func testItoa() {
 	print(Itoa(1234567890))
 	print("\n")
@@ -257,5 +255,8 @@ func main() {
 	tmp = tmp + int(globaluint8)
 	tmp = tmp + int(globaluintptr)
 	locali3 = add1(tmp)
-	os.Exit( sum(globalint , globalint2) + locali3)
+	var i42 int
+	i42 =  sum(globalint , globalint2) + locali3
+	print(Itoa(i42))
+	print("\n")
 }
