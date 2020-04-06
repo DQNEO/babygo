@@ -103,12 +103,20 @@ func emitVariableAddr(obj *ast.Object) {
 	if obj.Kind != ast.Var {
 		panic("obj should be ast.Var")
 	}
-	decl,ok := obj.Decl.(*ast.ValueSpec)
-	if !ok {
-		panic("Unexpected case")
+
+	var typ ast.Expr
+	var localOffset int
+	switch dcl := obj.Decl.(type) {
+	case *ast.ValueSpec:
+		typ = dcl.Type
+		localOffset = getObjData(obj)
+	case *ast.Field:
+		typ = dcl.Type
+		localOffset = getObjData(obj) // param offset
+	default:
+		throw(obj)
 	}
-	typ := decl.Type
-	localOffset := (getObjData(obj))
+
 	var scope_comment string
 	if isGlobalVar(obj) {
 		scope_comment = "global"

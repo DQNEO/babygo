@@ -152,6 +152,11 @@ func testChar() {
 	printchars()
 }
 
+func testArgAssign(x int) int {
+	x = 13
+	return x
+}
+
 func main() {
 	testFor()
 	testCmpUint8()
@@ -159,7 +164,9 @@ func main() {
 	testIf()
 	testElse()
 	testChar()
-	globalint2 = sum(1, 13 % 5)
+	var i13 int = 0
+	i13 = testArgAssign(i13)
+	globalint2 = sum(1, i13 % 5)
 	print(globalstring)
 
 	assignGlobal()
