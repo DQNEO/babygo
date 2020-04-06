@@ -84,7 +84,7 @@ func emitVariable(obj *ast.Object) {
 		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 8)
 		fmt.Printf("  pushq %%rdx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
-	case T_INT, T_UINTPTR:
+	case T_INT, T_BOOL, T_UINTPTR:
 		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 0)
 		fmt.Printf("  pushq %%rdx # int value\n")
 	case T_UINT16:
@@ -152,7 +152,7 @@ func emitVariableAddr(obj *ast.Object) {
 
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
-	case T_INT:
+	case T_INT,T_BOOL:
 		fmt.Printf("  pushq %%rdx\n")
 	case T_UINT8:
 		fmt.Printf("  pushq %%rdx\n")
@@ -458,7 +458,7 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
 			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
 			fmt.Printf("  movq %%r8, (%%r9) # cap to cap\n")
-		case T_INT, T_UINTPTR:
+		case T_INT,T_BOOL, T_UINTPTR:
 			fmt.Printf("  popq %%rdi # rhs evaluated\n")
 			fmt.Printf("  popq %%rax # lhs addr\n")
 			fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
@@ -610,6 +610,8 @@ func walkStmt(stmt ast.Stmt) {
 					varSize = gInt.Data.(int)
 				case T_UINT8:
 					varSize = gUint8.Data.(int)
+				case T_BOOL:
+					varSize = gInt.Data.(int)
 				default:
 					throw(varSpec.Type)
 				}
@@ -924,6 +926,7 @@ func getExprSize(valueExpr ast.Expr) int {
 
 const T_STRING = "T_STRING"
 const T_SLICE = "T_SLICE"
+const T_BOOL = "T_BOOL"
 const T_INT = "T_INT"
 const T_UINT8 = "T_UINT8"
 const T_UINT16 = "T_UINT16"
@@ -1009,6 +1012,8 @@ func getTypeKind(typeExpr ast.Expr) string {
 				return T_UINT8
 			case gUint16:
 				return T_UINT16
+			case gBool:
+				return T_BOOL
 			default:
 				throw(e.Obj)
 			}

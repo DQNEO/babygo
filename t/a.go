@@ -68,10 +68,15 @@ func testCmpInt() {
 }
 
 func testIf() {
-	if true {
+	var tr bool
+	tr = true
+	var fls bool
+	fls = false
+
+	if tr {
 		print("ok true\n")
 	}
-	if false {
+	if fls {
 		print("ERROR\n")
 	}
 	print("ok false\n")
