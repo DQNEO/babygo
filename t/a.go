@@ -2,6 +2,34 @@ package main
 
 import "os"
 
+func testCmpUint8() {
+	var localuint8 uint8
+	localuint8 = 1
+	if localuint8 == 1 {
+		print("uint8 cmp == ok\n")
+	}
+	if localuint8 != 1 {
+		print("ERROR\n")
+	} else {
+		print("uint8 cmp != ok\n")
+	}
+	if localuint8 > 0 {
+		print("uint8 cmp > ok\n")
+	}
+	if localuint8 < 0 {
+		print("ERROR\n")
+	} else {
+		print("uint8 cmp < ok\n")
+	}
+
+	if localuint8 >= 1 {
+		print("uint8 cmp >= ok\n")
+	}
+	if localuint8 <= 1 {
+		print("uint8 cmp <= ok\n")
+	}
+}
+
 func testCmpInt() {
 	var a int
 	a = 1
@@ -117,6 +145,7 @@ func testChar() {
 }
 
 func main() {
+	testCmpUint8()
 	testCmpInt()
 	testIf()
 	testElse()

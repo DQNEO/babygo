@@ -115,7 +115,8 @@ func emitVariableAddr(obj *ast.Object) {
 	} else {
 		scope_comment = "local"
 	}
-	fmt.Printf("  # emitVariableAddr %s \"%s\" T=%T Data=%d\n", scope_comment, obj.Name, typ, obj.Data)
+	fmt.Printf("  # obj %#v\n", obj)
+	fmt.Printf("  # emitVariableAddr %s \"%s\" T=%T Data=%d %#v\n", scope_comment, obj.Name, typ, obj.Data, obj.Decl)
 
 
 	var addr string
@@ -581,6 +582,8 @@ func walkStmt(stmt ast.Stmt) {
 					varSize = gString.Data.(int)
 				case T_INT:
 					varSize = gInt.Data.(int)
+				case T_UINT8:
+					varSize = gUint8.Data.(int)
 				default:
 					throw(varSpec.Type)
 				}
