@@ -30,10 +30,7 @@ func getObjData(obj *ast.Object) int {
 }
 
 func emitVariable(obj *ast.Object) {
-	// precondition
-	if obj.Kind != ast.Var {
-		panic("obj should be ast.Var")
-	}
+	assert(obj.Kind == ast.Var, "obj should be ast.Var")
 
 	var typ ast.Expr
 	var localOffset int
@@ -99,10 +96,7 @@ func emitVariable(obj *ast.Object) {
 }
 
 func emitVariableAddr(obj *ast.Object) {
-	// precondition
-	if obj.Kind != ast.Var {
-		panic("obj should be ast.Var")
-	}
+	assert(obj.Kind == ast.Var, "obj should be ast.Var")
 
 	var typ ast.Expr
 	var localOffset int
@@ -164,6 +158,12 @@ func emitVariableAddr(obj *ast.Object) {
 		fmt.Printf("  pushq %%rdx\n")
 	default:
 		throw(typ)
+	}
+}
+
+func assert(bol bool, msg string) {
+	if !bol {
+		panic(msg)
 	}
 }
 
