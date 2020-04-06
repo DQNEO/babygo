@@ -358,6 +358,18 @@ func emitExpr(expr ast.Expr) {
 			fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
 			fmt.Printf("  divq %%rcx\n")
 			fmt.Printf("  pushq %%rax\n")
+		case "==":
+			emitCompExpr("sete")
+		case "!=":
+			emitCompExpr("setne")
+		case "<":
+			emitCompExpr("setl")
+		case "<=":
+			emitCompExpr("setle")
+		case ">":
+			emitCompExpr("setg")
+		case ">=":
+			emitCompExpr("setge")
 		default:
 			panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
 		}
@@ -392,6 +404,16 @@ func emitExpr(expr ast.Expr) {
 	default:
 		throw(expr)
 	}
+}
+
+//@TODO handle other types than int
+func emitCompExpr(inst string) {
+	fmt.Printf("  popq %%rcx # right\n")
+	fmt.Printf("  popq %%rax # left\n")
+	fmt.Printf("  cmpq %%rcx, %%rax\n")
+	fmt.Printf("  %s %%al\n", inst)
+	fmt.Printf("  movzbq %%al, %%rax\n")
+	fmt.Printf("  pushq %%rax\n")
 }
 
 func emitStmt(stmt ast.Stmt) {

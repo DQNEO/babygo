@@ -2,6 +2,35 @@ package main
 
 import "os"
 
+func testCmpInt() {
+	var a int
+	a = 1
+	if a == 1 {
+		print("int cmp == ok\n")
+	}
+	if a != 1 {
+		print("ERROR\n")
+	} else {
+		print("int cmp != ok\n")
+	}
+	if a > 0 {
+		print("int cmp > ok\n")
+	}
+	if a < 0 {
+		print("ERROR\n")
+	} else {
+		print("int cmp < ok\n")
+	}
+
+	if a >= 1 {
+		print("int cmp >= ok\n")
+	}
+	if a <= 1 {
+		print("int cmp <= ok\n")
+	}
+
+}
+
 func testIf() {
 	if true {
 		print("ok true\n")
@@ -88,6 +117,7 @@ func testChar() {
 }
 
 func main() {
+	testCmpInt()
 	testIf()
 	testElse()
 	testChar()
