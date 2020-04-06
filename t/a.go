@@ -162,6 +162,13 @@ func testArgAssign(x int) int {
 	return x
 }
 
+func testMinus() int {
+	var x int
+	x = -1
+	x = x * -5
+	return x
+}
+
 func main() {
 	testFor()
 	testCmpUint8()
@@ -171,7 +178,9 @@ func main() {
 	testChar()
 	var i13 int = 0
 	i13 = testArgAssign(i13)
-	globalint2 = sum(1, i13 % 5)
+	var i5 int
+	i5 = testMinus()
+	globalint2 = sum(1, i13 % i5)
 	print(globalstring)
 
 	assignGlobal()

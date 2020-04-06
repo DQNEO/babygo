@@ -336,6 +336,16 @@ func emitExpr(expr ast.Expr) {
 		default:
 			panic("Unexpected literal kind:" + e.Kind.String())
 		}
+	case *ast.UnaryExpr:
+		switch e.Op.String() {
+		case "-":
+			emitExpr(e.X)
+			fmt.Printf("  popq %%rax # e.X\n")
+			fmt.Printf("  imulq $-1, %%rax\n")
+			fmt.Printf("  pushq %%rax\n")
+		default:
+			throw(e.Op.String())
+		}
 	case *ast.BinaryExpr:
 		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X) // left
@@ -671,6 +681,8 @@ func walkExpr(expr ast.Expr) {
 		default:
 			panic("Unexpected literal kind:" + e.Kind.String())
 		}
+	case *ast.UnaryExpr:
+		walkExpr(e.X)
 	case *ast.BinaryExpr:
 		walkExpr(e.X) // left
 		walkExpr(e.Y) // right
@@ -964,6 +976,13 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 			}
 		default:
 			throw(e)
+		}
+	case *ast.UnaryExpr:
+		switch e.Op.String() {
+		case "-":
+			return getTypeOfExpr(e.X)
+		default:
+			throw(e.Op.String())
 		}
 	case *ast.BinaryExpr:
 		return getTypeOfExpr(e.X)
