@@ -359,7 +359,7 @@ func emitExpr(expr ast.Expr) {
 			fmt.Printf("  divq %%rcx\n")
 			fmt.Printf("  pushq %%rax\n")
 		default:
-			throw(e.Op)
+			panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
 		}
 		fmt.Printf("  # end %T\n", e)
 	case *ast.CompositeLit:
