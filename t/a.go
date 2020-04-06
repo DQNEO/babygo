@@ -2,6 +2,62 @@ package main
 
 import "os"
 
+func testItoa() {
+	print(Itoa(1234567890))
+	print("\n")
+	print(Itoa(54321))
+	print("\n")
+	print(Itoa(1))
+	print("\n")
+	print(Itoa(0))
+	print("\n")
+	print(Itoa(-1))
+	print("\n")
+	print(Itoa(-54321))
+	print("\n")
+	print(Itoa(-1234567890))
+	print("\n")
+}
+
+var buf [100]uint8
+var r [100]uint8
+
+func Itoa(ival int) string {
+	var next int
+	var right int
+	var ix int
+	ix = 0
+	if ival == 0 {
+		return "0"
+	}
+	var minus bool
+	minus = false
+	for ix = 0; ival != 0; ix = ix + 1 {
+		if ival < 0 {
+			ival = -1 * ival
+			minus = true
+			r[0] = '-'
+		} else {
+			next = ival / 10
+			right = ival - next*10
+			ival = next
+			buf[ix] = uint8('0' + right)
+		}
+	}
+	var j int
+	var c uint8
+	for j = 0; j < ix; j = j + 1 {
+		c = buf[ix-j-1]
+		if minus {
+			r[j+1] = c
+		} else {
+			r[j] = c
+		}
+	}
+
+	return string(r[0:ix])
+}
+
 func testFor() {
 	var i int
 	for i=0;i<3; i = i + 1 {
@@ -170,6 +226,7 @@ func testMinus() int {
 }
 
 func main() {
+	testItoa()
 	testFor()
 	testCmpUint8()
 	testCmpInt()

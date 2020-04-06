@@ -1005,8 +1005,16 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 		switch fn := e.Fun.(type) {
 		case *ast.Ident:
 			switch fn.Obj.Kind {
-			case ast.Typ:
+			case ast.Typ: // conversion
 				return fn
+			case ast.Fun:
+				switch decl := fn.Obj.Decl.(type) {
+				case *ast.FuncDecl:
+					assert(len(decl.Type.Results.List) == 1, "func is expected to return a single value")
+					return decl.Type.Results.List[0].Type
+				default:
+					throw(fn.Obj.Decl)
+				}
 			}
 		}
 		panic("TBI")
