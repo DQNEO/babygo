@@ -1004,6 +1004,19 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 			}
 		}
 		panic("TBI")
+	case *ast.SliceExpr:
+		underlyingCollectionType := getTypeOfExpr(e.X)
+		var elementTyp ast.Expr
+		switch colType := underlyingCollectionType.(type) {
+		case *ast.ArrayType:
+			elementTyp = colType.Elt
+		}
+		r := &ast.ArrayType{
+			Len: nil,
+			Elt: elementTyp,
+		}
+		return r
+
 	default:
 		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
 	}

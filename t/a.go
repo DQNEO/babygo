@@ -145,7 +145,7 @@ func printchars() {
 	chars = globalarray[0:4]
 	print(string(chars))
 	globalslice = chars
-	print(string(chars))
+	print(string(globalarray[0:4]))
 }
 
 // test global chars
