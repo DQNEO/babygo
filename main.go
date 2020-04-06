@@ -516,6 +516,24 @@ func emitStmt(stmt ast.Stmt) {
 		for _, stmt := range s.List {
 			emitStmt(stmt)
 		}
+	case *ast.ForStmt:
+		labelid++
+		labelCond := fmt.Sprintf(".L.loop.cond.%d", labelid)
+		labelExit := fmt.Sprintf(".L.loop.exit.%d", labelid)
+
+		emitStmt(s.Init)
+
+		fmt.Printf("  %s:\n", labelCond)
+		emitExpr(s.Cond)
+		fmt.Printf("  popq %%rax\n")
+		fmt.Printf("  cmpq $0, %%rax\n")
+		fmt.Printf("  je %s # jmp if false\n", labelExit)
+		emitStmt(s.Body)
+		emitStmt(s.Post)
+		fmt.Printf("  jmp %s\n", labelCond)
+		fmt.Printf("  %s:\n", labelExit)
+
+
 	default:
 		throw(stmt)
 	}
@@ -613,6 +631,11 @@ func walkStmt(stmt ast.Stmt) {
 		for _, stmt := range s.List {
 			walkStmt(stmt)
 		}
+	case *ast.ForStmt:
+		walkStmt(s.Init)
+		walkExpr(s.Cond)
+		walkStmt(s.Post)
+		walkStmt(s.Body)
 	default:
 		throw(stmt)
 	}

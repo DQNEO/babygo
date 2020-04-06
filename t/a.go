@@ -2,6 +2,14 @@ package main
 
 import "os"
 
+func testFor() {
+	var i int
+	for i=0;i<3; i = i + 1 {
+		print("A")
+	}
+	print("\n")
+}
+
 func testCmpUint8() {
 	var localuint8 uint8
 	localuint8 = 1
@@ -145,6 +153,7 @@ func testChar() {
 }
 
 func main() {
+	testFor()
 	testCmpUint8()
 	testCmpInt()
 	testIf()
