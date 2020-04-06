@@ -11,8 +11,10 @@ import (
 	"strings"
 )
 
+const globalFlag int = 999
+
 func isGlobalVar(obj *ast.Object) bool {
-	return getObjData(obj) == -1
+	return getObjData(obj) == globalFlag
 }
 
 func setObjData(obj *ast.Object, i int) {
@@ -800,7 +802,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 				valSpec := spec.(*ast.ValueSpec)
 				fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
 				nameIdent := valSpec.Names[0]
-				nameIdent.Obj.Data = -1 // mark as global
+				nameIdent.Obj.Data = globalFlag
 				if len(valSpec.Values) > 0 {
 					fmt.Printf("# spec.Name=%s, Value=%v\n", nameIdent, valSpec.Values[0])
 					fmt.Printf("# nameIdent.Obj=%v\n", nameIdent.Obj)
