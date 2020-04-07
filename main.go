@@ -1157,7 +1157,7 @@ func emitText() {
 	}
 }
 
-func generateCode(f *ast.File) {
+func generateCode() {
 	emitData()
 	emitText()
 }
@@ -1170,5 +1170,5 @@ func main() {
 	}
 
 	semanticAnalyze(fset, f)
-	generateCode(f)
+	generateCode()
 }

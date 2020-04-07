@@ -318,7 +318,11 @@ func test() {
 	write("/\n")
 }
 
-func emitProgram() {
+func emitData() {
+
+}
+
+func emitText() {
 	write(".text\n")
 	write(".global _start\n")
 	write("_start:\n")
@@ -327,7 +331,12 @@ func emitProgram() {
 	write("syscall\n")
 }
 
+func generateCode() {
+	emitData()
+	emitText()
+}
+
 func main() {
 	test()
-	emitProgram()
+	generateCode()
 }
