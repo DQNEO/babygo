@@ -145,11 +145,11 @@ func emitAddr(expr ast.Expr) {
 }
 
 func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
-	fmt.Printf("# Conversion %s => %s\n", fn.Obj, getTypeOfExpr(arg0))
+	fmt.Printf("# Conversion %s <= %s\n", fn.Obj, getTypeOfExpr(arg0))
 	switch fn.Obj {
 	case gString: // string(e)
 		switch getTypeKind(getTypeOfExpr(arg0)) {
-		case T_SLICE: // slice -> string
+		case T_SLICE: // string(slice)
 			emitExpr(arg0) // slice
 			fmt.Printf("  popq %%rax # ptr\n")
 			fmt.Printf("  popq %%rcx # len\n")
