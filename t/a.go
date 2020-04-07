@@ -293,15 +293,6 @@ func testMisc() {
 	write("\n")
 }
 
-func emitProgram() {
-	write(".text\n")
-	write(".global _start\n")
-	write("_start:\n")
-	write("movq $0, %rdi\n")
-	write("movq $60, %rax\n")
-	write("syscall\n")
-}
-
 func write(s string) {
 	var slc []uint8
 	slc = []uint8(s)
@@ -310,7 +301,7 @@ func write(s string) {
 
 var globalptr *int
 
-func main() {
+func test() {
 	write("/*\n")
 	testIndexExprOfArray()
 	testIndexExprOfSlice()
@@ -325,6 +316,18 @@ func main() {
 	testMisc()
 	write("*")
 	write("/\n")
+}
 
+func emitProgram() {
+	write(".text\n")
+	write(".global _start\n")
+	write("_start:\n")
+	write("movq $0, %rdi\n")
+	write("movq $60, %rax\n")
+	write("syscall\n")
+}
+
+func main() {
+	test()
 	emitProgram()
 }
