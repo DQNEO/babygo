@@ -119,10 +119,20 @@ func emitAddr(expr ast.Expr) {
 			panic("Unexpected ident kind")
 		}
 	case *ast.IndexExpr:
-		emitExpr(e.Index)
-		emitAddr(e.X)
 		elmType := getTypeOfExpr(e)
 		size := getSizeOfType(elmType)
+
+		emitExpr(e.Index) // index number
+		switch getTypeKind(getTypeOfExpr(e.X)) {
+		case T_ARRAY:
+			emitAddr(e.X) // array head
+		case T_SLICE:
+			emitExpr(e.X)
+			fmt.Printf("  popq %%rax # slice.ptr\n")
+			fmt.Printf("  popq %%rcx # garbage\n")
+			fmt.Printf("  popq %%rcx # garbage\n")
+			fmt.Printf("  pushq %%rax # slice.ptr\n")
+		}
 		fmt.Printf("  popq %%rax # collection addr\n")
 		fmt.Printf("  popq %%rcx # index\n")
 		fmt.Printf("  movq $%d, %%rdx # elm size\n", size)

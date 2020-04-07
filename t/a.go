@@ -221,6 +221,26 @@ func testIndexExprOfArray() {
 	print("\n")
 }
 
+func testIndexExprOfSlice() {
+	var intslice []int
+	intslice = globalintarray[0:4]
+	intslice[0] = 66
+	intslice[1] = 77
+	intslice[2] = intslice[1]
+	intslice[3] = 88
+
+	var i int
+	for i = 0; i<4 ;i= i+1 {
+		print(Itoa(intslice[i]))
+	}
+	print("\n")
+
+	for i = 0; i<4 ;i= i+1 {
+		print(Itoa(globalintarray[i]))
+	}
+	print("\n")
+}
+
 func testArgAssign(x int) int {
 	x = 13
 	return x
@@ -271,6 +291,7 @@ func testMisc() {
 
 func main() {
 	testIndexExprOfArray()
+	testIndexExprOfSlice()
 	testItoa()
 	testFor()
 	testCmpUint8()
