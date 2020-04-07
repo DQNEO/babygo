@@ -31,6 +31,10 @@ func getObjData(obj *ast.Object) int {
 
 func emitVariable(obj *ast.Object) {
 	typ := emitVariableAddr(obj)
+	emitLoad(typ)
+}
+
+func emitLoad(typ ast.Expr) {
 	fmt.Printf("  popq %%rdx\n")
 	switch getTypeKind(typ) {
 	case T_SLICE:
@@ -59,8 +63,6 @@ func emitVariable(obj *ast.Object) {
 	default:
 		throw(typ)
 	}
-
-
 }
 
 func emitVariableAddr(obj *ast.Object) ast.Expr {
@@ -348,15 +350,8 @@ func emitExpr(expr ast.Expr) {
 		panic("TBI")
 	case *ast.IndexExpr:
 		emitAddr(e) // emit addr of element
-		fmt.Printf("  popq %%rax # addr of element\n")
 		typ := getTypeOfExpr(e)
-		switch getTypeKind(typ) {
-		case T_UINT8:
-			fmt.Printf("  movzbq (%%rax), %%rax # load 1 byte\n")
-			fmt.Printf("  pushq %%rax #\n")
-		default:
-			panic("TBI")
-		}
+		emitLoad(typ)
 	case *ast.SliceExpr:
 		//e.Index, e.X
 		emitAddr(e.X) // array head
