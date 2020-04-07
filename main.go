@@ -47,14 +47,14 @@ func emitLoad(typ ast.Expr) {
 		fmt.Printf("  pushq %%rdx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_UINT8:
-		fmt.Printf("  movzbq %d(%%rdx), %%rdx\n", 0)
-		fmt.Printf("  pushq %%rdx # int value\n")
+		fmt.Printf("  movzbq %d(%%rdx), %%rdx # load uint8\n", 0)
+		fmt.Printf("  pushq %%rdx\n")
 	case T_UINT16:
-		fmt.Printf("  movzwq %d(%%rdx), %%rdx\n", 0)
-		fmt.Printf("  pushq %%rdx # int value\n")
+		fmt.Printf("  movzwq %d(%%rdx), %%rdx # load uint16\n", 0)
+		fmt.Printf("  pushq %%rdx\n")
 	case T_INT, T_BOOL, T_UINTPTR:
-		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 0)
-		fmt.Printf("  pushq %%rdx # int value\n")
+		fmt.Printf("  movq %d(%%rdx), %%rdx # load int\n", 0)
+		fmt.Printf("  pushq %%rdx\n")
 	default:
 		throw(typ)
 	}
