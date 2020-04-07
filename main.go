@@ -385,6 +385,46 @@ func emitCompExpr(inst string) {
 	fmt.Printf("  pushq %%rax\n")
 }
 
+func emitStore(typ ast.Expr) {
+	switch getTypeKind(typ) {
+	case T_SLICE:
+		fmt.Printf("  popq %%rcx # rhs ptr\n")
+		fmt.Printf("  popq %%rax # rhs len\n")
+		fmt.Printf("  popq %%r8 # rhs cap\n")
+
+		fmt.Printf("  popq %%rdx # lhs ptr addr\n")
+		fmt.Printf("  leaq %d(%%rdx), %%rsi #len \n", 8)
+		fmt.Printf("  leaq %d(%%rdx), %%r9 # cap\n", 16)
+
+		fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
+		fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
+		fmt.Printf("  movq %%r8, (%%r9) # cap to cap\n")
+	case T_STRING:
+		fmt.Printf("  popq %%rcx # rhs ptr\n")
+		fmt.Printf("  popq %%rax # rhs len\n")
+
+		fmt.Printf("  popq %%rdx # lhs ptr addr\n")
+		fmt.Printf("  leaq %d(%%rdx), %%rsi #len \n", 8)
+
+		fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
+		fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
+	case T_INT,T_BOOL, T_UINTPTR:
+		fmt.Printf("  popq %%rdi # rhs evaluated\n")
+		fmt.Printf("  popq %%rax # lhs addr\n")
+		fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
+	case T_UINT8:
+		fmt.Printf("  popq %%rdi # rhs evaluated\n")
+		fmt.Printf("  popq %%rax # lhs addr\n")
+		fmt.Printf("  movb %%dil, (%%rax) # assign byte\n")
+	case T_UINT16:
+		fmt.Printf("  popq %%rdi # rhs evaluated\n")
+		fmt.Printf("  popq %%rax # lhs addr\n")
+		fmt.Printf("  movw %%di, (%%rax) # assign word\n")
+	default:
+		panic("TBI:" + getTypeKind(typ))
+	}
+}
+
 func emitStmt(stmt ast.Stmt) {
 	fmt.Printf("  # == Stmt %T ==\n", stmt)
 	switch s := stmt.(type) {
@@ -397,44 +437,8 @@ func emitStmt(stmt ast.Stmt) {
 		lhs := s.Lhs[0]
 		rhs := s.Rhs[0]
 		emitAddr(lhs)
-		emitExpr(rhs) // push len, push ptr
-		switch getTypeKind(getTypeOfExpr(lhs)) {
-		case T_SLICE:
-			fmt.Printf("  popq %%rcx # rhs ptr\n")
-			fmt.Printf("  popq %%rax # rhs len\n")
-			fmt.Printf("  popq %%r8 # rhs cap\n")
-
-			fmt.Printf("  popq %%rdx # lhs ptr addr\n")
-			fmt.Printf("  leaq %d(%%rdx), %%rsi #len \n", 8)
-			fmt.Printf("  leaq %d(%%rdx), %%r9 # cap\n", 16)
-
-			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
-			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
-			fmt.Printf("  movq %%r8, (%%r9) # cap to cap\n")
-		case T_STRING:
-			fmt.Printf("  popq %%rcx # rhs ptr\n")
-			fmt.Printf("  popq %%rax # rhs len\n")
-
-			fmt.Printf("  popq %%rdx # lhs ptr addr\n")
-			fmt.Printf("  leaq %d(%%rdx), %%rsi #len \n", 8)
-
-			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
-			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
-		case T_INT,T_BOOL, T_UINTPTR:
-			fmt.Printf("  popq %%rdi # rhs evaluated\n")
-			fmt.Printf("  popq %%rax # lhs addr\n")
-			fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
-		case T_UINT8:
-			fmt.Printf("  popq %%rdi # rhs evaluated\n")
-			fmt.Printf("  popq %%rax # lhs addr\n")
-			fmt.Printf("  movb %%dil, (%%rax) # assign byte\n")
-		case T_UINT16:
-			fmt.Printf("  popq %%rdi # rhs evaluated\n")
-			fmt.Printf("  popq %%rax # lhs addr\n")
-			fmt.Printf("  movw %%di, (%%rax) # assign word\n")
-		default:
-			panic("TBI:" + getTypeKind(getTypeOfExpr(lhs)))
-		}
+		emitExpr(rhs)
+		emitStore(getTypeOfExpr(lhs))
 	case *ast.ReturnStmt:
 		if len(s.Results) == 1 {
 			emitExpr(s.Results[0])
