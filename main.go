@@ -161,8 +161,6 @@ func emitExpr(expr ast.Expr) {
 		if e.Obj == nil {
 			panic(fmt.Sprintf("ident %s is unresolved", e.Name))
 		}
-		fmt.Printf("  # ident kind=%v\n", e.Obj.Kind)
-		fmt.Printf("  # Obj=%v\n", e.Obj)
 		if e.Obj.Kind == ast.Var {
 			switch e.Obj {
 			case gTrue:
@@ -184,7 +182,7 @@ func emitExpr(expr ast.Expr) {
 			}
 			emitLoad(typ)
 		} else {
-			panic("Unexpected ident kind")
+			panic("Unexpected ident kind:" + e.Obj.Kind.String())
 		}
 	case *ast.CallExpr:
 		fun := e.Fun
