@@ -308,6 +308,8 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+var globalptr *int
+
 func main() {
 	write("/*\n")
 	testIndexExprOfArray()

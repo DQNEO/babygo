@@ -917,6 +917,7 @@ const T_UINT8 = "T_UINT8"
 const T_UINT16 = "T_UINT16"
 const T_UINTPTR = "T_UINTPTR"
 const T_ARRAY = "T_ARRAY"
+const T_POINTER = "T_POINTER"
 
 func getTypeOfExpr(expr ast.Expr) ast.Expr {
 	switch e := expr.(type) {
@@ -1043,6 +1044,8 @@ func getTypeKind(typeExpr ast.Expr) string {
 		} else {
 			return T_ARRAY
 		}
+	case *ast.StarExpr:
+		return T_POINTER
 	default:
 		throw(typeExpr)
 	}
@@ -1081,6 +1084,8 @@ func emitData() {
 			default:
 				panic("Unexpected case")
 			}
+		case T_POINTER:
+			fmt.Printf("  .quad 0 # pointer \n") // @TODO
 		case T_UINTPTR:
 			switch vl := val.(type) {
 			case *ast.BasicLit:
