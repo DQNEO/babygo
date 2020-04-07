@@ -65,16 +65,7 @@ func emitVariableAddr(obj *ast.Object) ast.Expr {
 
 	var typ ast.Expr
 	var localOffset int
-	switch dcl := obj.Decl.(type) {
-	case *ast.ValueSpec:
-		typ = dcl.Type
-		localOffset = getObjData(obj)
-	case *ast.Field:
-		typ = dcl.Type
-		localOffset = getObjData(obj) // param offset
-	default:
-		throw(obj)
-	}
+	localOffset = getObjData(obj)
 
 	var scope_comment string
 	if isGlobalVar(obj) {
@@ -83,7 +74,7 @@ func emitVariableAddr(obj *ast.Object) ast.Expr {
 		scope_comment = "local"
 	}
 	fmt.Printf("  # obj %#v\n", obj)
-	fmt.Printf("  # emitVariableAddr %s \"%s\" T=%T Data=%d %#v\n", scope_comment, obj.Name, typ, obj.Data, obj.Decl)
+	fmt.Printf("  # emitVariableAddr %s \"%s\" Data=%d %#v\n", scope_comment, obj.Name, obj.Data, obj.Decl)
 
 
 	var addr string
@@ -95,6 +86,15 @@ func emitVariableAddr(obj *ast.Object) ast.Expr {
 
 	fmt.Printf("  leaq %s, %%rax # addr\n", addr)
 	fmt.Printf("  pushq %%rax\n")
+
+	switch dcl := obj.Decl.(type) {
+	case *ast.ValueSpec:
+		typ = dcl.Type
+	case *ast.Field:
+		typ = dcl.Type
+	default:
+		throw(obj)
+	}
 
 	return typ
 }
