@@ -29,11 +29,6 @@ func getObjData(obj *ast.Object) int {
 	return objData
 }
 
-func emitVariable(obj *ast.Object) {
-	typ := emitVariableAddr(obj)
-	emitLoad(typ)
-}
-
 func emitLoad(typ ast.Expr) {
 	fmt.Printf("  popq %%rdx\n")
 	switch getTypeKind(typ) {
@@ -189,7 +184,8 @@ func emitExpr(expr ast.Expr) {
 				fmt.Printf("  pushq $0 # false\n")
 				return
 			}
-			emitVariable(e.Obj)
+			typ := emitVariableAddr(e.Obj)
+			emitLoad(typ)
 		} else {
 			panic("Unexpected ident kind")
 		}
