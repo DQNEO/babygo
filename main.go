@@ -60,10 +60,9 @@ func emitLoad(typ ast.Expr) {
 	}
 }
 
-func emitVariableAddr(obj *ast.Object) ast.Expr {
+func emitVariableAddr(obj *ast.Object) {
 	assert(obj.Kind == ast.Var, "obj should be ast.Var")
 
-	var typ ast.Expr
 	var localOffset int
 	localOffset = getObjData(obj)
 
@@ -86,17 +85,6 @@ func emitVariableAddr(obj *ast.Object) ast.Expr {
 
 	fmt.Printf("  leaq %s, %%rax # addr\n", addr)
 	fmt.Printf("  pushq %%rax\n")
-
-	switch dcl := obj.Decl.(type) {
-	case *ast.ValueSpec:
-		typ = dcl.Type
-	case *ast.Field:
-		typ = dcl.Type
-	default:
-		throw(obj)
-	}
-
-	return typ
 }
 
 func assert(bol bool, msg string) {
@@ -184,7 +172,16 @@ func emitExpr(expr ast.Expr) {
 				fmt.Printf("  pushq $0 # false\n")
 				return
 			}
-			typ := emitVariableAddr(e.Obj)
+			emitVariableAddr(e.Obj)
+			var typ ast.Expr
+			switch dcl := e.Obj.Decl.(type) {
+			case *ast.ValueSpec:
+				typ = dcl.Type
+			case *ast.Field:
+				typ = dcl.Type
+			default:
+				throw(e.Obj)
+			}
 			emitLoad(typ)
 		} else {
 			panic("Unexpected ident kind")
