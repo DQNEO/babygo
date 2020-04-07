@@ -36,8 +36,6 @@ globalstring changed
 42
 */
 .text
-.global _start
-_start:
-movq $0, %rdi
-movq $60, %rax
-syscall
+.global main.main
+main.main:
+  ret

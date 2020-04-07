@@ -1,6 +1,8 @@
 # Run this on Linux
 
-all: a.out
+.PHONEY: test2 test
+
+all: test2
 
 a.s: main.go t/a.go
 	go run main.go > a.s
@@ -21,12 +23,26 @@ sample/sample.s: sample/sample.go
 t/a: t/a.go
 	go build -o t/a t/a.go
 
-t/expected.2: t/a
+t/expected.1: t/a
 	t/a 1> t/expected.1
 
 expect:
 	make t/expected.1
 
+# 2gen compiler
+2gen.s: a.out
+	./a.out > 2gen.s
+
+2gen.o: 2gen.s
+	as -o 2gen.o 2gen.s runtime.s
+
+2gen: 2gen.o
+	ld -o 2gen 2gen.o
+
+test2: 2gen
+	./2gen && echo 2gen ok
+
 clean:
 	rm -f a.s a.o a.out
+	rm -f 2gen 2gen.o 2gen.s
 

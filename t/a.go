@@ -318,17 +318,32 @@ func test() {
 	write("/\n")
 }
 
+func semanticAnalyze() {
+	globalFuncsArray[0] = "main"
+}
+
 func emitData() {
 
 }
 
+func emitFuncDecl(pkgPrefix string, fn string) {
+	write(".global main.main\n")
+	write(pkgPrefix)
+	write(".")
+	write(fn)
+	write(":\n")
+	write("  ret\n")
+}
+
+var globalFuncsArray [1]string
+
 func emitText() {
 	write(".text\n")
-	write(".global _start\n")
-	write("_start:\n")
-	write("movq $0, %rdi\n")
-	write("movq $60, %rax\n")
-	write("syscall\n")
+	var i int
+	i = 0
+	for i = 0; i<1; i = i + 1 {
+		emitFuncDecl("main", globalFuncsArray[i])
+	}
 }
 
 func generateCode() {
@@ -338,5 +353,6 @@ func generateCode() {
 
 func main() {
 	test()
+	semanticAnalyze()
 	generateCode()
 }
