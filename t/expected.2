@@ -1,3 +1,4 @@
+/*
 11222244
 66777788
 66777788
@@ -33,3 +34,10 @@ i am a local 1
 i m local2
 globalstring changed
 42
+*/
+.text
+.global _start
+_start:
+movq $0, %rdi
+movq $60, %rax
+syscall

@@ -289,7 +289,17 @@ func testMisc() {
 	print("\n")
 }
 
+func emitProgram() {
+	print(".text\n")
+	print(".global _start\n")
+	print("_start:\n")
+	print("movq $0, %rdi\n")
+	print("movq $60, %rax\n")
+	print("syscall\n")
+}
+
 func main() {
+	print("/*\n")
 	testIndexExprOfArray()
 	testIndexExprOfSlice()
 	testItoa()
@@ -301,4 +311,8 @@ func main() {
 	testChar()
 	testString()
 	testMisc()
+	print("*")
+	print("/\n")
+
+	emitProgram()
 }
