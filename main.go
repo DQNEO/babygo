@@ -73,14 +73,14 @@ func emitVariable(obj *ast.Object) {
 		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 8)
 		fmt.Printf("  pushq %%rdx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
-	case T_INT, T_BOOL, T_UINTPTR:
-		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 0)
+	case T_UINT8:
+		fmt.Printf("  movzbq %d(%%rdx), %%rdx\n", 0)
 		fmt.Printf("  pushq %%rdx # int value\n")
 	case T_UINT16:
 		fmt.Printf("  movzwq %d(%%rdx), %%rdx\n", 0)
 		fmt.Printf("  pushq %%rdx # int value\n")
-	case T_UINT8:
-		fmt.Printf("  movzbq %d(%%rdx), %%rdx\n", 0)
+	case T_INT, T_BOOL, T_UINTPTR:
+		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 0)
 		fmt.Printf("  pushq %%rdx # int value\n")
 	default:
 		throw(typ)
@@ -138,13 +138,11 @@ func emitVariableAddr(obj *ast.Object) {
 
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
-	case T_INT,T_BOOL:
-		fmt.Printf("  pushq %%rdx\n")
 	case T_UINT8:
 		fmt.Printf("  pushq %%rdx\n")
 	case T_UINT16:
 		fmt.Printf("  pushq %%rdx\n")
-	case T_UINTPTR:
+	case T_INT,T_BOOL, T_UINTPTR:
 		fmt.Printf("  pushq %%rdx\n")
 	case T_ARRAY:
 		fmt.Printf("  pushq %%rdx\n")
