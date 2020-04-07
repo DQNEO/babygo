@@ -426,13 +426,6 @@ func emitStmt(stmt ast.Stmt) {
 		emitAddr(lhs)
 		emitExpr(rhs) // push len, push ptr
 		switch getTypeKind(getTypeOfExpr(lhs)) {
-		case T_STRING:
-			fmt.Printf("  popq %%rcx # rhs ptr\n")
-			fmt.Printf("  popq %%rax # rhs len\n")
-			fmt.Printf("  popq %%rdx # lhs ptr addr\n")
-			fmt.Printf("  popq %%rsi # lhs len addr\n")
-			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
-			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
 		case T_SLICE:
 			fmt.Printf("  popq %%rcx # rhs ptr\n")
 			fmt.Printf("  popq %%rax # rhs len\n")
@@ -443,6 +436,13 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
 			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
 			fmt.Printf("  movq %%r8, (%%r9) # cap to cap\n")
+		case T_STRING:
+			fmt.Printf("  popq %%rcx # rhs ptr\n")
+			fmt.Printf("  popq %%rax # rhs len\n")
+			fmt.Printf("  popq %%rdx # lhs ptr addr\n")
+			fmt.Printf("  popq %%rsi # lhs len addr\n")
+			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
+			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
 		case T_INT,T_BOOL, T_UINTPTR:
 			fmt.Printf("  popq %%rdi # rhs evaluated\n")
 			fmt.Printf("  popq %%rax # lhs addr\n")
