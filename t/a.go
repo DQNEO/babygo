@@ -193,8 +193,13 @@ func returnstring() string {
 	return "i am a local 1\n"
 }
 
+// test global chars
+func testChar() {
+	globalarray[0] = 'A'
+	globalarray[1] = 'B'
+	globalarray[2] = globalarray[0]
+	globalarray[3] = 100 / 10 // '\n'
 
-func printchars() {
 	var chars []uint8
 	chars = globalarray[0:4]
 	print(string(chars))
@@ -202,13 +207,18 @@ func printchars() {
 	print(string(globalarray[0:4]))
 }
 
-// test global chars
-func testChar() {
-	globalarray[0] = 'A'
-	globalarray[1] = 'B'
-	globalarray[2] = globalarray[0]
-	globalarray[3] = 100 / 10 // '\n'
-	printchars()
+var globalintarray [4]int
+
+func testIndexExprOfArray() {
+	globalintarray[0] = 11
+	globalintarray[1] = 22
+	globalintarray[2] = globalintarray[1]
+	globalintarray[3] = 44
+	var i int
+	for i = 0; i<4 ;i= i+1 {
+		print(Itoa(globalintarray[i]))
+	}
+	print("\n")
 }
 
 func testArgAssign(x int) int {
@@ -260,6 +270,7 @@ func testMisc() {
 }
 
 func main() {
+	testIndexExprOfArray()
 	testItoa()
 	testFor()
 	testCmpUint8()
