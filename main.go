@@ -361,7 +361,7 @@ func emitExpr(expr ast.Expr) {
 	}
 }
 
-//@TODO handle other types than int
+//@TODO handle larger types than int
 func emitCompExpr(inst string) {
 	fmt.Printf("  popq %%rcx # right\n")
 	fmt.Printf("  popq %%rax # left\n")
