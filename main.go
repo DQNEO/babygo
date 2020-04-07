@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const globalFlag int = 999
+const globalFlag int = 99999
 
 func isGlobalVar(obj *ast.Object) bool {
 	return getObjData(obj) == globalFlag
