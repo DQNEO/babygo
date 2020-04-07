@@ -22,10 +22,10 @@ t/a: t/a.go
 	go build -o t/a t/a.go
 
 t/expected.2: t/a
-	t/a 2> t/expected.2
+	t/a 1> t/expected.1
 
 expect:
-	make t/expected.2
+	make t/expected.1
 
 clean:
 	rm -f a.s a.o a.out

@@ -8,12 +8,6 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-diff t/expected.2 /tmp/actual.2
-if [[ $? -ne 0 ]]; then
-  echo "stderr differs"
-  exit 1
-fi
-
 if [[ $exit_status -eq 0 ]]; then
   echo ok
 else

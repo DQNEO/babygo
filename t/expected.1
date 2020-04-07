@@ -1,0 +1,43 @@
+/*
+11222244
+66777788
+66777788
+1234567890
+54321
+1
+0
+-1
+-54321
+-1234567890
+AAA
+uint8 cmp == ok
+uint8 cmp != ok
+uint8 cmp > ok
+uint8 cmp < ok
+uint8 cmp >= ok
+uint8 cmp <= ok
+int cmp == ok
+int cmp != ok
+int cmp > ok
+int cmp < ok
+int cmp >= ok
+int cmp <= ok
+ok true
+ok false
+ok true
+ok false
+ABA
+ABA
+hello stderr
+hello string literal
+i am a local 1
+i m local2
+globalstring changed
+42
+*/
+.text
+.global _start
+_start:
+movq $0, %rdi
+movq $60, %rax
+syscall

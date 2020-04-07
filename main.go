@@ -144,6 +144,19 @@ func emitAddr(expr ast.Expr) {
 	}
 }
 
+// Conversion slice(string)
+func emitConversionToSlice(fn *ast.ArrayType, arg0 ast.Expr) {
+	assert(fn.Len == nil, "fn should be slice")
+	assert(getTypeKind(getTypeOfExpr(arg0)) == T_STRING, "fn should be slice")
+	fmt.Printf("# Conversion %s <= %s\n", fn.Elt, getTypeOfExpr(arg0))
+	emitExpr(arg0)
+	fmt.Printf("  popq %%rax # ptr\n")
+	fmt.Printf("  popq %%rcx # len\n")
+	fmt.Printf("  pushq %%rcx # cap\n")
+	fmt.Printf("  pushq %%rcx # len\n")
+	fmt.Printf("  pushq %%rax # ptr\n")
+}
+
 func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
 	fmt.Printf("# Conversion %s <= %s\n", fn.Obj, getTypeOfExpr(arg0))
 	switch fn.Obj {
@@ -194,10 +207,15 @@ func emitExpr(expr ast.Expr) {
 		} else {
 			panic("Unexpected ident kind:" + e.Obj.Kind.String())
 		}
+	case *ast.SelectorExpr:
+		symbol := fmt.Sprintf("%s.%s", e.X, e.Sel) // e.g. os.Stdout
+		panic(symbol)
 	case *ast.CallExpr:
 		fun := e.Fun
 		fmt.Printf("  # callExpr=%#v\n", fun)
 		switch fn := fun.(type) {
+		case *ast.ArrayType: // Conversion to slice
+			emitConversionToSlice(fn, e.Args[0])
 		case *ast.Ident:
 			switch fn.Obj.Kind {
 			case ast.Typ:
@@ -260,9 +278,10 @@ func emitExpr(expr ast.Expr) {
 				}
 			}
 		case *ast.SelectorExpr:
+			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel) // syscall.Write()
+			emitExpr(e.Args[1])
 			emitExpr(e.Args[0])
-			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
-			fmt.Printf("  callq %s\n", symbol)
+			fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
 		default:
 			throw(fun)
 		}
@@ -618,6 +637,8 @@ func walkExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		// what to do ?
+	case *ast.SelectorExpr:
+		walkExpr(e.X)
 	case *ast.CallExpr:
 		for _, arg := range e.Args {
 			walkExpr(arg)

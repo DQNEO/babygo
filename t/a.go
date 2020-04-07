@@ -1,20 +1,24 @@
 package main
 
+import (
+	"syscall"
+)
+
 func testItoa() {
-	print(Itoa(1234567890))
-	print("\n")
-	print(Itoa(54321))
-	print("\n")
-	print(Itoa(1))
-	print("\n")
-	print(Itoa(0))
-	print("\n")
-	print(Itoa(-1))
-	print("\n")
-	print(Itoa(-54321))
-	print("\n")
-	print(Itoa(-1234567890))
-	print("\n")
+	write(Itoa(1234567890))
+	write("\n")
+	write(Itoa(54321))
+	write("\n")
+	write(Itoa(1))
+	write("\n")
+	write(Itoa(0))
+	write("\n")
+	write(Itoa(-1))
+	write("\n")
+	write(Itoa(-54321))
+	write("\n")
+	write(Itoa(-1234567890))
+	write("\n")
 }
 
 var buf [100]uint8
@@ -59,36 +63,36 @@ func Itoa(ival int) string {
 func testFor() {
 	var i int
 	for i=0;i<3; i = i + 1 {
-		print("A")
+		write("A")
 	}
-	print("\n")
+	write("\n")
 }
 
 func testCmpUint8() {
 	var localuint8 uint8
 	localuint8 = 1
 	if localuint8 == 1 {
-		print("uint8 cmp == ok\n")
+		write("uint8 cmp == ok\n")
 	}
 	if localuint8 != 1 {
-		print("ERROR\n")
+		write("ERROR\n")
 	} else {
-		print("uint8 cmp != ok\n")
+		write("uint8 cmp != ok\n")
 	}
 	if localuint8 > 0 {
-		print("uint8 cmp > ok\n")
+		write("uint8 cmp > ok\n")
 	}
 	if localuint8 < 0 {
-		print("ERROR\n")
+		write("ERROR\n")
 	} else {
-		print("uint8 cmp < ok\n")
+		write("uint8 cmp < ok\n")
 	}
 
 	if localuint8 >= 1 {
-		print("uint8 cmp >= ok\n")
+		write("uint8 cmp >= ok\n")
 	}
 	if localuint8 <= 1 {
-		print("uint8 cmp <= ok\n")
+		write("uint8 cmp <= ok\n")
 	}
 }
 
@@ -96,27 +100,27 @@ func testCmpInt() {
 	var a int
 	a = 1
 	if a == 1 {
-		print("int cmp == ok\n")
+		write("int cmp == ok\n")
 	}
 	if a != 1 {
-		print("ERROR\n")
+		write("ERROR\n")
 	} else {
-		print("int cmp != ok\n")
+		write("int cmp != ok\n")
 	}
 	if a > 0 {
-		print("int cmp > ok\n")
+		write("int cmp > ok\n")
 	}
 	if a < 0 {
-		print("ERROR\n")
+		write("ERROR\n")
 	} else {
-		print("int cmp < ok\n")
+		write("int cmp < ok\n")
 	}
 
 	if a >= 1 {
-		print("int cmp >= ok\n")
+		write("int cmp >= ok\n")
 	}
 	if a <= 1 {
-		print("int cmp <= ok\n")
+		write("int cmp <= ok\n")
 	}
 
 }
@@ -128,25 +132,25 @@ func testIf() {
 	fls = false
 
 	if tr {
-		print("ok true\n")
+		write("ok true\n")
 	}
 	if fls {
-		print("ERROR\n")
+		write("ERROR\n")
 	}
-	print("ok false\n")
+	write("ok false\n")
 }
 
 func testElse() {
 	if true {
-		print("ok true\n")
+		write("ok true\n")
 	} else {
-		print("ERROR\n")
+		write("ERROR\n")
 	}
 
 	if false {
-		print("ERROR\n")
+		write("ERROR\n")
 	} else {
-		print("ok false\n")
+		write("ok false\n")
 	}
 }
 
@@ -180,13 +184,13 @@ func sum(x int, y int) int {
 }
 
 func print1(a string) {
-	print(a)
+	write(a)
 	return
 }
 
 func print2(a string, b string) {
-	print(a)
-	print(b)
+	write(a)
+	write(b)
 }
 
 func returnstring() string {
@@ -202,9 +206,9 @@ func testChar() {
 
 	var chars []uint8
 	chars = globalarray[0:4]
-	print(string(chars))
+	write(string(chars))
 	globalslice = chars
-	print(string(globalarray[0:4]))
+	write(string(globalarray[0:4]))
 }
 
 var globalintarray [4]int
@@ -216,9 +220,9 @@ func testIndexExprOfArray() {
 	globalintarray[3] = 44
 	var i int
 	for i = 0; i<4 ;i= i+1 {
-		print(Itoa(globalintarray[i]))
+		write(Itoa(globalintarray[i]))
 	}
-	print("\n")
+	write("\n")
 }
 
 func testIndexExprOfSlice() {
@@ -231,14 +235,14 @@ func testIndexExprOfSlice() {
 
 	var i int
 	for i = 0; i<4 ;i= i+1 {
-		print(Itoa(intslice[i]))
+		write(Itoa(intslice[i]))
 	}
-	print("\n")
+	write("\n")
 
 	for i = 0; i<4 ;i= i+1 {
-		print(Itoa(globalintarray[i]))
+		write(Itoa(globalintarray[i]))
 	}
-	print("\n")
+	write("\n")
 }
 
 func testArgAssign(x int) int {
@@ -254,7 +258,7 @@ func testMinus() int {
 }
 
 func testString() {
-	print(globalstring)
+	write(globalstring)
 	assignGlobal()
 
 	var localstring1 string
@@ -265,7 +269,7 @@ func testString() {
 	localstring1 = returnstring()
 	localstring2 = "i m local2\n"
 	print2(localstring1, localstring2)
-	print(globalstring)
+	write(globalstring)
 }
 
 func testMisc() {
@@ -285,21 +289,27 @@ func testMisc() {
 	var i42 int
 	i42 =  sum(globalint , globalint2) + locali3
 
-	print(Itoa(i42))
-	print("\n")
+	write(Itoa(i42))
+	write("\n")
 }
 
 func emitProgram() {
-	print(".text\n")
-	print(".global _start\n")
-	print("_start:\n")
-	print("movq $0, %rdi\n")
-	print("movq $60, %rax\n")
-	print("syscall\n")
+	write(".text\n")
+	write(".global _start\n")
+	write("_start:\n")
+	write("movq $0, %rdi\n")
+	write("movq $60, %rax\n")
+	write("syscall\n")
+}
+
+func write(s string) {
+	var slc []uint8
+	slc = []uint8(s)
+	syscall.Write(1, slc)
 }
 
 func main() {
-	print("/*\n")
+	write("/*\n")
 	testIndexExprOfArray()
 	testIndexExprOfSlice()
 	testItoa()
@@ -311,8 +321,8 @@ func main() {
 	testChar()
 	testString()
 	testMisc()
-	print("*")
-	print("/\n")
+	write("*")
+	write("/\n")
 
 	emitProgram()
 }
