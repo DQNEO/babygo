@@ -30,47 +30,20 @@ func getObjData(obj *ast.Object) int {
 }
 
 func emitVariable(obj *ast.Object) {
-	assert(obj.Kind == ast.Var, "obj should be ast.Var")
-
-	var typ ast.Expr
-	var localOffset int
-	switch dcl := obj.Decl.(type) {
-	case *ast.ValueSpec:
-		typ = dcl.Type
-		localOffset = getObjData(obj)
-	case *ast.Field:
-		typ = dcl.Type
-		localOffset = getObjData(obj) // param offset
-	default:
-		throw(obj)
-	}
-
-	var scope_comment string
-	if isGlobalVar(obj) {
-		scope_comment = "global"
-	} else {
-		scope_comment = "local"
-	}
-	fmt.Printf("  # emitVariable %s \"%s\" T=%T Data=%d\n", scope_comment, obj.Name, typ, obj.Data)
-
-	var addr string
-	if isGlobalVar(obj) {
-		addr = fmt.Sprintf("%s(%%rip)", obj.Name)
-	} else {
-		addr = fmt.Sprintf("%d(%%rbp)", localOffset)
-	}
-	fmt.Printf("  leaq %s, %%rdx # slice variable\n", addr)
+	typ := loadHeadAddr(obj)
 	switch getTypeKind(typ) {
 	case T_SLICE:
 		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
 		fmt.Printf("  movq %d(%%rdx), %%rcx\n", 8)
 		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 16)
+
 		fmt.Printf("  pushq %%rdx # cap\n")
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_STRING:
 		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
 		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 8)
+
 		fmt.Printf("  pushq %%rdx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_UINT8:
@@ -85,9 +58,11 @@ func emitVariable(obj *ast.Object) {
 	default:
 		throw(typ)
 	}
+
+
 }
 
-func emitVariableAddr(obj *ast.Object) {
+func loadHeadAddr(obj *ast.Object) ast.Expr {
 	assert(obj.Kind == ast.Var, "obj should be ast.Var")
 
 	var typ ast.Expr
@@ -121,20 +96,23 @@ func emitVariableAddr(obj *ast.Object) {
 	}
 
 	fmt.Printf("  leaq %s, %%rdx # addr\n", addr)
+	return typ
+}
+
+func emitVariableAddr(obj *ast.Object) {
+	typ := loadHeadAddr(obj)
 	switch getTypeKind(typ) {
 	case T_SLICE:
-		fmt.Printf("  movq %%rdx, %%rax\n")
-		fmt.Printf("  addq $8, %%rdx\n")
-		fmt.Printf("  movq %%rdx, %%rcx # len\n")
-		fmt.Printf("  addq $8, %%rdx # cap\n")
+		fmt.Printf("  leaq %d(%%rdx), %%rax\n", 0)
+		fmt.Printf("  leaq %d(%%rdx), %%rcx\n", 8)
+		fmt.Printf("  leaq %d(%%rdx), %%rdx\n", 16)
 
 		fmt.Printf("  pushq %%rdx # cap\n")
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		fmt.Printf("  movq %%rdx, %%rax\n")
-		fmt.Printf("  addq $8, %%rdx\n")
-		fmt.Printf("  movq %%rdx, %%rcx # len\n")
+		fmt.Printf("  leaq %d(%%rdx), %%rax\n", 0)
+		fmt.Printf("  leaq %d(%%rdx), %%rcx\n", 8)
 
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
@@ -398,15 +376,14 @@ func emitExpr(expr ast.Expr) {
 	case *ast.IndexExpr:
 		emitAddr(e) // emit addr of element
 		fmt.Printf("  popq %%rax # addr of element\n")
-		typ :=getTypeOfExpr(e)
-		size := getSizeOfType(typ)
-		switch size {
-		case 1:
-			fmt.Printf("  movb (%%rax), %%al # load 1 byte\n")
+		typ := getTypeOfExpr(e)
+		switch getTypeKind(typ) {
+		case T_UINT8:
+			fmt.Printf("  movzbq (%%rax), %%rax # load 1 byte\n")
+			fmt.Printf("  pushq %%rax #\n")
 		default:
 			panic("TBI")
 		}
-		fmt.Printf("  pushq %%rax #\n")
 	case *ast.SliceExpr:
 		//e.Index, e.X
 		emitAddr(e.X) // array head
