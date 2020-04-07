@@ -34,14 +34,6 @@ func emitVariable(obj *ast.Object) {
 
 	var typ ast.Expr
 	var localOffset int
-	switch obj {
-	case gTrue:
-		fmt.Printf("  pushq $1 # true\n")
-		return
-	case gFalse:
-		fmt.Printf("  pushq $0 # false\n")
-		return
-	}
 	switch dcl := obj.Decl.(type) {
 	case *ast.ValueSpec:
 		typ = dcl.Type
@@ -238,6 +230,14 @@ func emitExpr(expr ast.Expr) {
 		fmt.Printf("  # ident kind=%v\n", e.Obj.Kind)
 		fmt.Printf("  # Obj=%v\n", e.Obj)
 		if e.Obj.Kind == ast.Var {
+			switch e.Obj {
+			case gTrue:
+				fmt.Printf("  pushq $1 # true\n")
+				return
+			case gFalse:
+				fmt.Printf("  pushq $0 # false\n")
+				return
+			}
 			emitVariable(e.Obj)
 		} else {
 			panic("Unexpected ident kind")
