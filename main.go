@@ -30,7 +30,8 @@ func getObjData(obj *ast.Object) int {
 }
 
 func emitVariable(obj *ast.Object) {
-	typ := loadHeadAddr(obj)
+	typ := emitVariableAddr(obj)
+	fmt.Printf("  popq %%rdx\n")
 	switch getTypeKind(typ) {
 	case T_SLICE:
 		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
@@ -62,7 +63,7 @@ func emitVariable(obj *ast.Object) {
 
 }
 
-func loadHeadAddr(obj *ast.Object) ast.Expr {
+func emitVariableAddr(obj *ast.Object) ast.Expr {
 	assert(obj.Kind == ast.Var, "obj should be ast.Var")
 
 	var typ ast.Expr
@@ -95,38 +96,10 @@ func loadHeadAddr(obj *ast.Object) ast.Expr {
 		addr = fmt.Sprintf("%d(%%rbp)", localOffset)
 	}
 
-	fmt.Printf("  leaq %s, %%rdx # addr\n", addr)
+	fmt.Printf("  leaq %s, %%rax # addr\n", addr)
+	fmt.Printf("  pushq %%rax\n")
+
 	return typ
-}
-
-func emitVariableAddr(obj *ast.Object) {
-	typ := loadHeadAddr(obj)
-	switch getTypeKind(typ) {
-	case T_SLICE:
-		fmt.Printf("  leaq %d(%%rdx), %%rax\n", 0)
-		fmt.Printf("  leaq %d(%%rdx), %%rcx\n", 8)
-		fmt.Printf("  leaq %d(%%rdx), %%rdx\n", 16)
-
-		fmt.Printf("  pushq %%rdx # cap\n")
-		fmt.Printf("  pushq %%rcx # len\n")
-		fmt.Printf("  pushq %%rax # ptr\n")
-	case T_STRING:
-		fmt.Printf("  leaq %d(%%rdx), %%rax\n", 0)
-		fmt.Printf("  leaq %d(%%rdx), %%rcx\n", 8)
-
-		fmt.Printf("  pushq %%rcx # len\n")
-		fmt.Printf("  pushq %%rax # ptr\n")
-	case T_UINT8:
-		fmt.Printf("  pushq %%rdx\n")
-	case T_UINT16:
-		fmt.Printf("  pushq %%rdx\n")
-	case T_INT,T_BOOL, T_UINTPTR:
-		fmt.Printf("  pushq %%rdx\n")
-	case T_ARRAY:
-		fmt.Printf("  pushq %%rdx\n")
-	default:
-		throw(typ)
-	}
 }
 
 func assert(bol bool, msg string) {
@@ -430,17 +403,21 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  popq %%rcx # rhs ptr\n")
 			fmt.Printf("  popq %%rax # rhs len\n")
 			fmt.Printf("  popq %%r8 # rhs cap\n")
+
 			fmt.Printf("  popq %%rdx # lhs ptr addr\n")
-			fmt.Printf("  popq %%rsi # lhs len addr\n")
-			fmt.Printf("  popq %%r9 # lhs cap\n")
+			fmt.Printf("  leaq %d(%%rdx), %%rsi #len \n", 8)
+			fmt.Printf("  leaq %d(%%rdx), %%r9 # cap\n", 16)
+
 			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
 			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
 			fmt.Printf("  movq %%r8, (%%r9) # cap to cap\n")
 		case T_STRING:
 			fmt.Printf("  popq %%rcx # rhs ptr\n")
 			fmt.Printf("  popq %%rax # rhs len\n")
+
 			fmt.Printf("  popq %%rdx # lhs ptr addr\n")
-			fmt.Printf("  popq %%rsi # lhs len addr\n")
+			fmt.Printf("  leaq %d(%%rdx), %%rsi #len \n", 8)
+
 			fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
 			fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
 		case T_INT,T_BOOL, T_UINTPTR:
