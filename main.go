@@ -255,7 +255,7 @@ func emitExpr(expr ast.Expr) {
 					size := getExprSize(arg)
 					totalSize += size
 				}
-				symbol := "main." + fn.Name
+				symbol := pkgName + "." + fn.Name
 				fmt.Printf("  callq %s\n", symbol)
 				fmt.Printf("  addq $%d, %%rsp # revert\n", totalSize)
 
@@ -567,7 +567,10 @@ func registerStringLiteral(s string) string {
 		}
 	}
 
-	r := fmt.Sprintf(".S%d:%d", stringIndex, strlen - 2)
+	if pkgName == "" {
+		panic("no pkgName")
+	}
+	r := fmt.Sprintf(".%s.S%d:%d", pkgName, stringIndex, strlen - 2)
 	stringIndex++
 	return r
 }
@@ -753,7 +756,7 @@ var gUint16 = &ast.Object{
 	Type: nil,
 }
 
-func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
+func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	// https://github.com/golang/example/tree/master/gotypes#an-example
 	// Type check
 	// A Config controls various options of the type checker.
@@ -761,12 +764,13 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 	// we must specify how to deal with imports.
 	conf := types.Config{Importer: importer.Default()}
 
-	// Type-check the package containing only file fiile.
+	// Type-check the package containing only file.
 	// Check returns a *types.Package.
 	pkg, err := conf.Check("./t", fset, []*ast.File{fiile}, nil)
 	if err != nil {
 		panic(err)
 	}
+	pkgName = pkg.Name()
 
 	fmt.Printf("# Package  %q\n", pkg.Path())
 	universe := &ast.Scope{
@@ -887,6 +891,8 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 			throw(decl)
 		}
 	}
+
+	return pkg
 }
 
 type Func struct {
@@ -1057,11 +1063,11 @@ func getTypeKind(typeExpr ast.Expr) string {
 	return ""
 }
 
-func emitData() {
+func emitData(pkgName string) {
 	fmt.Printf(".data\n")
 	for i, sl := range stringLiterals {
 		fmt.Printf("# string literals\n")
-		fmt.Printf(".S%d:\n", i)
+		fmt.Printf(".%s.S%d:\n", pkgName, i)
 		fmt.Printf("  .string %s\n", sl)
 	}
 
@@ -1155,18 +1161,19 @@ func emitData() {
 	fmt.Printf("# ==============================\n")
 }
 
-func emitText() {
+func emitText(pkgName string) {
 	fmt.Printf(".text\n")
 	for _, fnc := range globalFuncs {
-		emitFuncDecl("main", fnc)
+		emitFuncDecl(pkgName, fnc)
 	}
 }
 
-func generateCode() {
-	emitData()
-	emitText()
+func generateCode(pkgName string) {
+	emitData(pkgName)
+	emitText(pkgName)
 }
 
+var pkgName string
 var stringLiterals []string
 var stringIndex int
 
@@ -1174,12 +1181,18 @@ var globalVars []*ast.ValueSpec
 var globalFuncs []*Func
 
 func main() {
-	fset := &token.FileSet{}
-	f, err := parser.ParseFile(fset, "./t/a.go", nil, 0)
-	if err != nil {
-		panic(err)
-	}
+	for _, file := range []string{"./runtime.go", "./t/a.go"} {
+		globalVars = nil
+		globalFuncs = nil
+		stringLiterals = nil
+		stringIndex = 0
+		fset := &token.FileSet{}
+		f, err := parser.ParseFile(fset, file, nil, 0)
+		if err != nil {
+			panic(err)
+		}
 
-	semanticAnalyze(fset, f)
-	generateCode()
+		pkg := semanticAnalyze(fset, f)
+		generateCode(pkg.Name())
+	}
 }

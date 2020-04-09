@@ -4,7 +4,7 @@
 
 all: test
 
-a.s: main.go t/a.go
+a.s: main.go runtime.go t/a.go
 	go run main.go > a.s
 
 a.o: a.s runtime.s
