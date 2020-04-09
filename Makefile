@@ -2,7 +2,7 @@
 
 .PHONEY: test2 test
 
-all: test2
+all: test
 
 a.s: main.go t/a.go
 	go run main.go > a.s
@@ -30,17 +30,17 @@ expect:
 	make t/expected.1
 
 # 2gen compiler
-2gen.s: a.out
-	./a.out > 2gen.s
+#2gen.s: a.out
+#	./a.out > 2gen.s
 
-2gen.o: 2gen.s
-	as -o 2gen.o 2gen.s runtime.s
+#2gen.o: 2gen.s
+#	as -o 2gen.o 2gen.s runtime.s
 
-2gen: 2gen.o
-	ld -o 2gen 2gen.o
+#2gen: 2gen.o
+#	ld -o 2gen 2gen.o
 
-test2: 2gen
-	./2gen && echo 2gen ok
+#test2: 2gen
+#	./2gen && echo 2gen ok
 
 clean:
 	rm -f a.s a.o a.out
