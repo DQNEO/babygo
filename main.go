@@ -24,7 +24,7 @@ func setObjData(obj *ast.Object, i int) {
 func getObjData(obj *ast.Object) int {
 	objData, ok := obj.Data.(int)
 	if !ok {
-		throw(obj.Data)
+		throw(obj)
 	}
 	return objData
 }
@@ -100,6 +100,9 @@ func throw(x interface{}) {
 func getSizeOfType(typeExpr ast.Expr) int {
 	switch typ := typeExpr.(type) {
 	case *ast.Ident:
+		if typ.Obj == nil {
+			throw(typ)
+		}
 		data,ok := typ.Obj.Data.(int)
 		if !ok {
 			throw(typ.Obj)
@@ -217,6 +220,9 @@ func emitExpr(expr ast.Expr) {
 		case *ast.ArrayType: // Conversion to slice
 			emitConversionToSlice(fn, e.Args[0])
 		case *ast.Ident:
+			if fn.Obj == nil {
+				panic("unresolved ident: " + fn.String())
+			}
 			switch fn.Obj.Kind {
 			case ast.Typ:
 				// Conversion
