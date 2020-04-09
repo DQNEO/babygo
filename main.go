@@ -272,7 +272,7 @@ func emitExpr(expr ast.Expr) {
 						switch getTypeKind(retval0.Type) {
 						case T_STRING:
 							fmt.Printf("  # fn.Obj=%#v\n", obj)
-							fmt.Printf("  pushq %%rsi # str len\n")
+							fmt.Printf("  pushq %%rdi # str len\n")
 							fmt.Printf("  pushq %%rax # str ptr\n")
 						case T_INT:
 							fmt.Printf("  # fn.Obj=%#v\n", obj)
@@ -473,7 +473,7 @@ func emitStmt(stmt ast.Stmt) {
 				fmt.Printf("  popq %%rax # return int\n")
 			case T_STRING:
 				fmt.Printf("  popq %%rax # return string (ptr)\n")
-				fmt.Printf("  popq %%rsi # return string (len)\n")
+				fmt.Printf("  popq %%rdi # return string (len)\n")
 			default:
 				panic("TBI")
 			}
