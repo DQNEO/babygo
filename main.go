@@ -552,9 +552,6 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("  ret\n")
 }
 
-var stringLiterals []string
-var stringIndex int
-
 func registerStringLiteral(s string) string {
 	rawStringLiteal := s
 	stringLiterals = append(stringLiterals, rawStringLiteal)
@@ -750,9 +747,6 @@ var gUint16 = &ast.Object{
 	Data: 2,
 	Type: nil,
 }
-
-var globalVars []*ast.ValueSpec
-var globalFuncs []*Func
 
 func semanticAnalyze(fset *token.FileSet, fiile *ast.File) {
 	// https://github.com/golang/example/tree/master/gotypes#an-example
@@ -1167,6 +1161,12 @@ func generateCode() {
 	emitData()
 	emitText()
 }
+
+var stringLiterals []string
+var stringIndex int
+
+var globalVars []*ast.ValueSpec
+var globalFuncs []*Func
 
 func main() {
 	fset := &token.FileSet{}
