@@ -455,11 +455,16 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.DeclStmt:
 		return // do nothing
 	case *ast.AssignStmt:
-		lhs := s.Lhs[0]
-		rhs := s.Rhs[0]
-		emitAddr(lhs)
-		emitExpr(rhs)
-		emitStore(getTypeOfExpr(lhs))
+		switch s.Tok.String() {
+		case "=":
+			lhs := s.Lhs[0]
+			rhs := s.Rhs[0]
+			emitAddr(lhs)
+			emitExpr(rhs)
+			emitStore(getTypeOfExpr(lhs))
+		default:
+			panic("TBI: assignment of " + s.Tok.String())
+		}
 	case *ast.ReturnStmt:
 		if len(s.Results) == 1 {
 			emitExpr(s.Results[0])
