@@ -12,6 +12,19 @@ _start:
   syscall
 # End of program
 
+runtime.makeSlice: # (elmSize, len, cap)
+  movq 8(%rsp), %rax # elmSize
+  movq 24(%rsp), %rcx # cap
+  imulq %rcx, %rax
+  pushq %rax
+  callq runtime.malloc
+  addq $8, %rsp
+  # movq %rax, %rax # addr
+  movq 16(%rsp), %rdi # len
+  movq 24(%rsp), %rsi # cap
+  ret
+
+
 runtime.printstring:
   movq $2,       %rdi #             arg0:fd
   movq  8(%rsp), %rsi # arg0:ptr -> arg1:buf

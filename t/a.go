@@ -4,12 +4,30 @@ import (
 	"syscall"
 )
 
+func testMalloc() {
+	var x []uint8
+	x = make([]uint8, 3, 20)
+	x[0] = 'A'
+	x[1] = 'B'
+	x[2] = 'C'
+	write(string(x))
+	write("\n")
+}
+
+func testMakaSlice() []uint8 {
+	var slc []uint8
+	slc = make([]uint8, 0, 10)
+	return slc
+}
+
 func testItoa() {
 	write(Itoa(1234567890))
 	write("\n")
 	write(Itoa(54321))
 	write("\n")
 	write(Itoa(1))
+	write("\n")
+	write("0")
 	write("\n")
 	write(Itoa(0))
 	write("\n")
@@ -46,6 +64,7 @@ func Itoa(ival int) string {
 			buf[ix] = uint8('0' + right)
 		}
 	}
+
 	var j int
 	var c uint8
 	for j = 0; j < ix; j = j + 1 {
@@ -218,10 +237,14 @@ func testIndexExprOfArray() {
 	globalintarray[1] = 22
 	globalintarray[2] = globalintarray[1]
 	globalintarray[3] = 44
-	var i int
+	/*
+		var i int
 	for i = 0; i<4 ;i= i+1 {
-		write(Itoa(globalintarray[i]))
+		//write("x")
+		Itoa(globalintarray[i])
 	}
+
+	 */
 	write("\n")
 }
 
@@ -303,6 +326,7 @@ var globalptr *int
 
 func test() {
 	write("/*\n")
+	testMalloc()
 	testIndexExprOfArray()
 	testIndexExprOfSlice()
 	testItoa()

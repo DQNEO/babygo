@@ -223,13 +223,38 @@ func emitExpr(expr ast.Expr) {
 			if fn.Obj == nil {
 				panic("unresolved ident: " + fn.String())
 			}
+			switch fn.Obj {
+			case gMake:
+				var typeArg ast.Expr = e.Args[0]
+				switch getTypeKind(typeArg) {
+				case T_SLICE:
+					// make([]T, ...)
+					arrayType, ok := typeArg.(*ast.ArrayType)
+					assert(ok, "should be *ast.ArrayType")
+
+
+					var lenArg ast.Expr = e.Args[1]
+					var capArg ast.Expr = e.Args[2]
+					emitExpr(capArg)
+					emitExpr(lenArg)
+					elmSize := getSizeOfType(arrayType.Elt)
+					fmt.Printf("  pushq $%d # elm size\n", elmSize)
+					symbol := "runtime.makeSlice"
+					fmt.Printf("  callq %s\n", symbol)
+					fmt.Printf("  addq $24, %%rsp # revert for one string\n")
+					fmt.Printf("  pushq %%rsi # slice cap\n")
+					fmt.Printf("  pushq %%rdi # slice len\n")
+					fmt.Printf("  pushq %%rax # slice ptr\n")
+					return
+				default:
+					throw(typeArg)
+				}
+			}
 			switch fn.Obj.Kind {
 			case ast.Typ:
 				// Conversion
 				emitConversion(fn, e.Args[0])
 				return
-			case ast.Fun:
-
 			}
 			if fn.Name == "print" {
 				// builtin print
@@ -284,10 +309,17 @@ func emitExpr(expr ast.Expr) {
 				}
 			}
 		case *ast.SelectorExpr:
-			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel) // syscall.Write()
-			emitExpr(e.Args[1])
-			emitExpr(e.Args[0])
-			fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
+			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel) // syscall.Write() or unsafe.Pointer(x)
+			switch symbol {
+			case "unsafe.Pointer":
+				emitExpr(e.Args[0])
+			case "syscall.Write":
+				emitExpr(e.Args[1])
+				emitExpr(e.Args[0])
+				fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
+			default:
+				panic(symbol)
+			}
 		default:
 			throw(fun)
 		}
@@ -320,6 +352,8 @@ func emitExpr(expr ast.Expr) {
 			fmt.Printf("  popq %%rax # e.X\n")
 			fmt.Printf("  imulq $-1, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
+		case "&":
+			emitAddr(e.X)
 		default:
 			throw(e.Op.String())
 		}
@@ -469,11 +503,15 @@ func emitStmt(stmt ast.Stmt) {
 		if len(s.Results) == 1 {
 			emitExpr(s.Results[0])
 			switch getTypeKind(getTypeOfExpr(s.Results[0])) {
-			case T_INT:
+			case T_INT, T_UINTPTR:
 				fmt.Printf("  popq %%rax # return int\n")
 			case T_STRING:
 				fmt.Printf("  popq %%rax # return string (ptr)\n")
 				fmt.Printf("  popq %%rdi # return string (len)\n")
+			case T_SLICE:
+				fmt.Printf("  popq %%rax # return string (ptr)\n")
+				fmt.Printf("  popq %%rdi # return string (len)\n")
+				fmt.Printf("  popq %%rsi # return string (cap)\n")
 			default:
 				panic("TBI")
 			}
@@ -598,7 +636,7 @@ func walkStmt(stmt ast.Stmt) {
 					varSize = sliceSize
 				case T_STRING:
 					varSize = gString.Data.(int)
-				case T_INT:
+				case T_INT, T_UINTPTR:
 					varSize = gInt.Data.(int)
 				case T_UINT8:
 					varSize = gUint8.Data.(int)
@@ -685,6 +723,8 @@ func walkExpr(expr ast.Expr) {
 			walkExpr(e.Max)
 		}
 		walkExpr(e.X)
+	case *ast.ArrayType: // first argument of builtin func like make()
+		// do nothing
 	default:
 		throw(expr)
 	}
@@ -756,6 +796,16 @@ var gUint16 = &ast.Object{
 	Type: nil,
 }
 
+
+
+var gMake = &ast.Object{
+	Kind: ast.Fun,
+	Name: "make",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
 func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	// https://github.com/golang/example/tree/master/gotypes#an-example
 	// Type check
@@ -790,6 +840,8 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	universe.Insert(gTrue)
 	universe.Insert(gFalse)
 
+	// predeclare funcs
+	universe.Insert(gMake)
 
 	universe.Insert(&ast.Object{
 		Kind: ast.Fun,
@@ -865,10 +917,10 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 				switch getTypeKind(field.Type) {
 				case T_STRING:
 					varSize = gString.Data.(int)
-				case T_INT:
+				case T_INT, T_UINTPTR:
 					varSize = gInt.Data.(int)
 				default:
-					panic("TBI")
+					panic(getTypeKind(field.Type))
 				}
 				setObjData(obj, paramoffset)
 				paramoffset += varSize
@@ -1001,8 +1053,23 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 					throw(fn.Obj.Decl)
 				}
 			}
+		case *ast.SelectorExpr:
+			xIdent, ok := fn.X.(*ast.Ident)
+			if !ok {
+				throw(fn)
+			}
+			if xIdent.Name == "unsafe" && fn.Sel.Name == "Pointer" {
+				// unsafe.Pointer(x)
+				return &ast.Ident{
+					NamePos: 0,
+					Name:    "uintptr",
+					Obj:     gUintptr,
+				}
+			}
+			throw(fmt.Sprintf("%#v, %#v\n", xIdent, fn.Sel))
+		default:
+			throw(e.Fun)
 		}
-		panic("TBI")
 	case *ast.SliceExpr:
 		underlyingCollectionType := getTypeOfExpr(e.X)
 		var elementTyp ast.Expr
