@@ -148,7 +148,7 @@ func emitAddr(expr ast.Expr) {
 func emitConversionToSlice(fn *ast.ArrayType, arg0 ast.Expr) {
 	assert(fn.Len == nil, "fn should be slice")
 	assert(getTypeKind(getTypeOfExpr(arg0)) == T_STRING, "fn should be slice")
-	fmt.Printf("# Conversion %s <= %s\n", fn.Elt, getTypeOfExpr(arg0))
+	fmt.Printf("  # Conversion to slice %s <= %s\n", fn.Elt, getTypeOfExpr(arg0))
 	emitExpr(arg0)
 	fmt.Printf("  popq %%rax # ptr\n")
 	fmt.Printf("  popq %%rcx # len\n")
@@ -158,7 +158,7 @@ func emitConversionToSlice(fn *ast.ArrayType, arg0 ast.Expr) {
 }
 
 func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
-	fmt.Printf("# Conversion %s <= %s\n", fn.Obj, getTypeOfExpr(arg0))
+	fmt.Printf("  # general Conversion %s <= %s\n", fn.Obj, getTypeOfExpr(arg0))
 	switch fn.Obj {
 	case gString: // string(e)
 		switch getTypeKind(getTypeOfExpr(arg0)) {
