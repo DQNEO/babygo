@@ -983,6 +983,11 @@ const T_ARRAY = "T_ARRAY"
 const T_POINTER = "T_POINTER"
 
 func getTypeOfExpr(expr ast.Expr) ast.Expr {
+	var tInt *ast.Ident = &ast.Ident{
+		NamePos: 0,
+		Name:    "int",
+		Obj:     gInt,
+	}
 	switch e := expr.(type) {
 	case *ast.Ident:
 		if e.Obj.Kind == ast.Var {
@@ -1006,17 +1011,9 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 				Obj:     gString,
 			}
 		case "INT":
-			return &ast.Ident{
-				NamePos: 0,
-				Name:    "int",
-				Obj:     gInt,
-			}
+			return tInt
 		case "CHAR":
-			return &ast.Ident{
-				NamePos: 0,
-				Name:    "int",
-				Obj:     gInt,
-			}
+			return tInt
 		default:
 			throw(e.Kind.String())
 		}
