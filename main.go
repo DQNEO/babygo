@@ -249,61 +249,62 @@ func emitExpr(expr ast.Expr) {
 				default:
 					throw(typeArg)
 				}
-			}
-			switch fn.Obj.Kind {
-			case ast.Typ:
-				// Conversion
-				emitConversion(fn, e.Args[0])
-				return
-			}
-			if fn.Name == "print" {
-				// builtin print
-				emitExpr(e.Args[0]) // push ptr, push len
-				switch getTypeKind(getTypeOfExpr(e.Args[0]))  {
-				case T_STRING:
-					symbol := fmt.Sprintf("runtime.printstring")
-					fmt.Printf("  callq %s\n", symbol)
-					fmt.Printf("  addq $16, %%rsp # revert for one string\n")
-				case T_INT:
-					symbol := fmt.Sprintf("runtime.printint")
-					fmt.Printf("  callq %s\n", symbol)
-					fmt.Printf("  addq $8, %%rsp # revert for one int\n")
-				default:
-					panic("TBI")
+			default:
+				switch fn.Obj.Kind {
+				case ast.Typ:
+					// Conversion
+					emitConversion(fn, e.Args[0])
+					return
 				}
-			} else {
-				// general funcall
-				var totalSize int = 0
-				for i:=len(e.Args) - 1;i>=0;i-- {
-					arg := e.Args[i]
-					emitExpr(arg)
-					size := getExprSize(arg)
-					totalSize += size
-				}
-				symbol := pkgName + "." + fn.Name
-				fmt.Printf("  callq %s\n", symbol)
-				fmt.Printf("  addq $%d, %%rsp # revert\n", totalSize)
-
-				obj := fn.Obj //.Kind == FN
-				fndecl,ok := obj.Decl.(*ast.FuncDecl)
-				if !ok {
-					throw(fn.Obj)
-				}
-				if fndecl.Type.Results != nil {
-					if len(fndecl.Type.Results.List) > 2 {
+				if fn.Name == "print" {
+					// builtin print
+					emitExpr(e.Args[0]) // push ptr, push len
+					switch getTypeKind(getTypeOfExpr(e.Args[0]))  {
+					case T_STRING:
+						symbol := fmt.Sprintf("runtime.printstring")
+						fmt.Printf("  callq %s\n", symbol)
+						fmt.Printf("  addq $16, %%rsp # revert for one string\n")
+					case T_INT:
+						symbol := fmt.Sprintf("runtime.printint")
+						fmt.Printf("  callq %s\n", symbol)
+						fmt.Printf("  addq $8, %%rsp # revert for one int\n")
+					default:
 						panic("TBI")
-					} else if len(fndecl.Type.Results.List) == 1 {
-						retval0 := fndecl.Type.Results.List[0]
-						switch getTypeKind(retval0.Type) {
-						case T_STRING:
-							fmt.Printf("  # fn.Obj=%#v\n", obj)
-							fmt.Printf("  pushq %%rdi # str len\n")
-							fmt.Printf("  pushq %%rax # str ptr\n")
-						case T_INT:
-							fmt.Printf("  # fn.Obj=%#v\n", obj)
-							fmt.Printf("  pushq %%rax\n")
-						default:
-							throw(retval0.Type)
+					}
+				} else {
+					// general funcall
+					var totalSize int = 0
+					for i:=len(e.Args) - 1;i>=0;i-- {
+						arg := e.Args[i]
+						emitExpr(arg)
+						size := getExprSize(arg)
+						totalSize += size
+					}
+					symbol := pkgName + "." + fn.Name
+					fmt.Printf("  callq %s\n", symbol)
+					fmt.Printf("  addq $%d, %%rsp # revert\n", totalSize)
+
+					obj := fn.Obj //.Kind == FN
+					fndecl,ok := obj.Decl.(*ast.FuncDecl)
+					if !ok {
+						throw(fn.Obj)
+					}
+					if fndecl.Type.Results != nil {
+						if len(fndecl.Type.Results.List) > 2 {
+							panic("TBI")
+						} else if len(fndecl.Type.Results.List) == 1 {
+							retval0 := fndecl.Type.Results.List[0]
+							switch getTypeKind(retval0.Type) {
+							case T_STRING:
+								fmt.Printf("  # fn.Obj=%#v\n", obj)
+								fmt.Printf("  pushq %%rdi # str len\n")
+								fmt.Printf("  pushq %%rax # str ptr\n")
+							case T_INT:
+								fmt.Printf("  # fn.Obj=%#v\n", obj)
+								fmt.Printf("  pushq %%rax\n")
+							default:
+								throw(retval0.Type)
+							}
 						}
 					}
 				}
