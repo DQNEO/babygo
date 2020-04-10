@@ -245,7 +245,6 @@ func emitExpr(expr ast.Expr) {
 					fmt.Printf("  pushq %%rsi # slice cap\n")
 					fmt.Printf("  pushq %%rdi # slice len\n")
 					fmt.Printf("  pushq %%rax # slice ptr\n")
-					return
 				default:
 					throw(typeArg)
 				}
