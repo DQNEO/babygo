@@ -4,6 +4,20 @@ import (
 	"syscall"
 )
 
+func testLen() {
+	var x []uint8
+	x = make([]uint8, 0 , 0)
+	write(Itoa(len(x)))
+	write("\n")
+
+	x = make([]uint8, 12, 12)
+	write(Itoa(len(x)))
+	write("\n")
+
+	write(Itoa(len(globalintarray)))
+	write("\n")
+}
+
 func testMalloc() {
 	var x []uint8
 	x = make([]uint8, 3, 20)
@@ -326,6 +340,7 @@ var globalptr *int
 
 func test() {
 	write("/*\n")
+	testLen()
 	testMalloc()
 	testIndexExprOfArray()
 	testIndexExprOfSlice()

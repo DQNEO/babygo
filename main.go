@@ -224,6 +224,21 @@ func emitExpr(expr ast.Expr) {
 				panic("unresolved ident: " + fn.String())
 			}
 			switch fn.Obj {
+			case gLen:
+				assert(len(e.Args) == 1, "builtin len should take only 1 args")
+				var lenArg ast.Expr = e.Args[0]
+				switch getTypeKind(getTypeOfExpr(lenArg)) {
+				case T_ARRAY:
+					arrayType, ok := getTypeOfExpr(lenArg).(*ast.ArrayType)
+					assert(ok, "should be *ast.ArrayType")
+					emitExpr(arrayType.Len)
+				case T_SLICE:
+					emitExpr(lenArg)
+					fmt.Printf("  popq %%rax # throw away ptr\n")
+					fmt.Printf("  popq %%rcx # len\n")
+					fmt.Printf("  popq %%rax # throw away cap\n")
+					fmt.Printf("  pushq %%rcx # len\n")
+				}
 			case gMake:
 				var typeArg ast.Expr = e.Args[0]
 				switch getTypeKind(typeArg) {
@@ -231,7 +246,6 @@ func emitExpr(expr ast.Expr) {
 					// make([]T, ...)
 					arrayType, ok := typeArg.(*ast.ArrayType)
 					assert(ok, "should be *ast.ArrayType")
-
 
 					var lenArg ast.Expr = e.Args[1]
 					var capArg ast.Expr = e.Args[2]
@@ -307,6 +321,7 @@ func emitExpr(expr ast.Expr) {
 						}
 					}
 				}
+
 			}
 		case *ast.SelectorExpr:
 			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel) // syscall.Write() or unsafe.Pointer(x)
@@ -796,11 +811,17 @@ var gUint16 = &ast.Object{
 	Type: nil,
 }
 
-
-
 var gMake = &ast.Object{
 	Kind: ast.Fun,
 	Name: "make",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gLen = &ast.Object{
+	Kind: ast.Fun,
+	Name: "len",
 	Decl: nil,
 	Data: nil,
 	Type: nil,
@@ -840,8 +861,9 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	universe.Insert(gTrue)
 	universe.Insert(gFalse)
 
-	// predeclare funcs
+	// predeclared funcs
 	universe.Insert(gMake)
+	universe.Insert(gLen)
 
 	universe.Insert(&ast.Object{
 		Kind: ast.Fun,
@@ -1042,6 +1064,10 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 			case ast.Typ: // conversion
 				return fn
 			case ast.Fun:
+				switch fn.Obj {
+				case gLen:
+					return tInt
+				}
 				switch decl := fn.Obj.Decl.(type) {
 				case *ast.FuncDecl:
 					assert(len(decl.Type.Results.List) == 1, "func is expected to return a single value")
