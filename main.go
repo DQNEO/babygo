@@ -246,6 +246,25 @@ func emitExpr(expr ast.Expr) {
 				default:
 					throw(getTypeKind(getTypeOfExpr(lenArg)))
 				}
+			case gCap:
+				assert(len(e.Args) == 1, "builtin len should take only 1 args")
+				var lenArg ast.Expr = e.Args[0]
+				switch getTypeKind(getTypeOfExpr(lenArg)) {
+				case T_ARRAY:
+					arrayType, ok := getTypeOfExpr(lenArg).(*ast.ArrayType)
+					assert(ok, "should be *ast.ArrayType")
+					emitExpr(arrayType.Len)
+				case T_SLICE:
+					emitExpr(lenArg)
+					fmt.Printf("  popq %%rax # throw away ptr\n")
+					fmt.Printf("  popq %%rcx # len\n")
+					fmt.Printf("  popq %%rax # throw away cap\n")
+					fmt.Printf("  pushq %%rax # cap\n")
+				case T_STRING:
+					panic("cap() cannot accept string type")
+				default:
+					throw(getTypeKind(getTypeOfExpr(lenArg)))
+				}
 			case gMake:
 				var typeArg ast.Expr = e.Args[0]
 				switch getTypeKind(typeArg) {
@@ -834,6 +853,14 @@ var gLen = &ast.Object{
 	Type: nil,
 }
 
+var gCap = &ast.Object{
+	Kind: ast.Fun,
+	Name: "cap",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
 func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	// https://github.com/golang/example/tree/master/gotypes#an-example
 	// Type check
@@ -871,6 +898,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	// predeclared funcs
 	universe.Insert(gMake)
 	universe.Insert(gLen)
+	universe.Insert(gCap)
 
 	universe.Insert(&ast.Object{
 		Kind: ast.Fun,
@@ -1072,7 +1100,7 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 				return fn
 			case ast.Fun:
 				switch fn.Obj {
-				case gLen:
+				case gLen, gCap:
 					return tInt
 				}
 				switch decl := fn.Obj.Decl.(type) {

@@ -10,11 +10,20 @@ func testLen() {
 	write(Itoa(len(x)))
 	write("\n")
 
-	x = make([]uint8, 12, 12)
+	write(Itoa(cap(x)))
+	write("\n")
+
+	x = make([]uint8, 12, 24)
 	write(Itoa(len(x)))
 	write("\n")
 
+	write(Itoa(cap(x)))
+	write("\n")
+
 	write(Itoa(len(globalintarray)))
+	write("\n")
+
+	write(Itoa(cap(globalintarray)))
 	write("\n")
 
 	var s string
