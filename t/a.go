@@ -16,6 +16,11 @@ func testLen() {
 
 	write(Itoa(len(globalintarray)))
 	write("\n")
+
+	var s string
+	s = "hello\n"
+	write(Itoa(len(s))) // 6
+	write("\n")
 }
 
 func testMalloc() {

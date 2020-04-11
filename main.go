@@ -238,6 +238,11 @@ func emitExpr(expr ast.Expr) {
 					fmt.Printf("  popq %%rcx # len\n")
 					fmt.Printf("  popq %%rax # throw away cap\n")
 					fmt.Printf("  pushq %%rcx # len\n")
+				case T_STRING:
+					emitExpr(lenArg)
+					fmt.Printf("  popq %%rax # throw away ptr\n")
+					fmt.Printf("  popq %%rcx # len\n")
+					fmt.Printf("  pushq %%rcx # len\n")
 				default:
 					throw(getTypeKind(getTypeOfExpr(lenArg)))
 				}
