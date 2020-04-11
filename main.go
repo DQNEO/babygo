@@ -238,6 +238,8 @@ func emitExpr(expr ast.Expr) {
 					fmt.Printf("  popq %%rcx # len\n")
 					fmt.Printf("  popq %%rax # throw away cap\n")
 					fmt.Printf("  pushq %%rcx # len\n")
+				default:
+					throw(getTypeKind(getTypeOfExpr(lenArg)))
 				}
 			case gMake:
 				var typeArg ast.Expr = e.Args[0]
