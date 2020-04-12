@@ -135,6 +135,13 @@ func emitAddr(expr ast.Expr) {
 			fmt.Printf("  popq %%rcx # garbage\n")
 			fmt.Printf("  popq %%rcx # garbage\n")
 			fmt.Printf("  pushq %%rax # slice.ptr\n")
+		case T_STRING:
+			emitExpr(e.X)
+			fmt.Printf("  popq %%rax # string.ptr\n")
+			fmt.Printf("  popq %%rcx # garbage\n")
+			fmt.Printf("  pushq %%rax # string.ptr\n")
+		default:
+			panic(getTypeKind(getTypeOfExpr(e.X)))
 		}
 		fmt.Printf("  popq %%rax # collection addr\n")
 		fmt.Printf("  popq %%rcx # index\n")
@@ -1090,7 +1097,15 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 		case *ast.ArrayType:
 			return tp.Elt
 		default:
-			panic(fmt.Sprintf("Unexpected expr type:%#v", typ))
+			if getTypeKind(typ) == T_STRING {
+				return  &ast.Ident{
+					NamePos: 0,
+					Name:    "uint8",
+					Obj:     gUint8,
+				}
+			} else {
+				panic(fmt.Sprintf("Unexpected expr type:%#v", typ))
+			}
 		}
 	case *ast.CallExpr: // funcall or conversion
 		switch fn := e.Fun.(type) {
