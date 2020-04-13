@@ -548,6 +548,29 @@ func emitStmt(stmt ast.Stmt) {
 		expr := s.X
 		emitExpr(expr)
 	case *ast.DeclStmt:
+		decl := s.Decl
+		switch dcl := decl.(type) {
+		case *ast.GenDecl:
+			declSpec := dcl.Specs[0]
+			switch ds := declSpec.(type) {
+			case *ast.ValueSpec:
+				varSpec := ds
+				if len(varSpec.Values) > 0 {
+					// assignment
+					lhs := varSpec.Names[0]
+					rhs := varSpec.Values[0]
+					emitAddr(lhs)
+					emitExpr(rhs)
+					emitStore(getTypeOfExpr(lhs))
+				}
+				if len(varSpec.Values) > 1 {
+					panic("TBI")
+				}
+			default:
+			}
+		default:
+			return
+		}
 		return // do nothing
 	case *ast.AssignStmt:
 		switch s.Tok.String() {
@@ -710,10 +733,14 @@ func walkStmt(stmt ast.Stmt) {
 				localoffset -= varSize
 				setObjData(obj, localoffset)
 				localvars = append(localvars, ds)
+				for _, v := range ds.Values {
+					walkExpr(v)
+				}
 			}
 		default:
 			throw(decl)
 		}
+
 	case *ast.AssignStmt:
 		//lhs := s.Lhs[0]
 		rhs := s.Rhs[0]

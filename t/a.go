@@ -4,9 +4,14 @@ import (
 	"syscall"
 )
 
+func testDeclValue() {
+	var i int = 123
+	write(Itoa(i))
+	write("\n")
+}
+
 func testConcateStrings() {
-	var concatenated string
-	concatenated = "foo" + "bar" + "1234\n"
+	var concatenated string = "foo" + "bar" + "1234\n"
 	write(concatenated)
 }
 
@@ -360,6 +365,7 @@ var globalptr *int
 
 func test() {
 	write("/*\n")
+	testDeclValue()
 	testConcateStrings()
 	testLen()
 	testMalloc()
