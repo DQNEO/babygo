@@ -1,8 +1,8 @@
-/a.o
-/a.out
-/a.s
+/test.s
+/test.o
+/test.out
 sample.o
-/t/a
+/t/test
 /2gen.s
 /2gen.o
 /2gen

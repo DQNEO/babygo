@@ -1,5 +1,5 @@
 #!/bin/bash
 
 set -e
-make --silent a.out
-./a.out
+make --silent test.out
+./test.out
