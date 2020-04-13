@@ -541,6 +541,12 @@ func emitStore(typ ast.Expr) {
 	}
 }
 
+func emitAssign(lhs ast.Expr, rhs ast.Expr) {
+	emitAddr(lhs)
+	emitExpr(rhs)
+	emitStore(getTypeOfExpr(lhs))
+}
+
 func emitStmt(stmt ast.Stmt) {
 	fmt.Printf("  # == Stmt %T ==\n", stmt)
 	switch s := stmt.(type) {
@@ -559,9 +565,7 @@ func emitStmt(stmt ast.Stmt) {
 					// assignment
 					lhs := varSpec.Names[0]
 					rhs := varSpec.Values[0]
-					emitAddr(lhs)
-					emitExpr(rhs)
-					emitStore(getTypeOfExpr(lhs))
+					emitAssign(lhs, rhs)
 				}
 				if len(varSpec.Values) > 1 {
 					panic("TBI")
@@ -577,9 +581,7 @@ func emitStmt(stmt ast.Stmt) {
 		case "=":
 			lhs := s.Lhs[0]
 			rhs := s.Rhs[0]
-			emitAddr(lhs)
-			emitExpr(rhs)
-			emitStore(getTypeOfExpr(lhs))
+			emitAssign(lhs, rhs)
 		default:
 			panic("TBI: assignment of " + s.Tok.String())
 		}
