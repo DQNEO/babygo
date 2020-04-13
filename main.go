@@ -406,6 +406,10 @@ func emitExpr(expr ast.Expr) {
 			throw(e.Op.String())
 		}
 	case *ast.BinaryExpr:
+		if getTypeKind(getTypeOfExpr(e.X)) == T_STRING {
+			emitConcateString(e.X, e.Y)
+			return
+		}
 		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X) // left
 		emitExpr(e.Y) // right
@@ -476,6 +480,15 @@ func emitExpr(expr ast.Expr) {
 	default:
 		throw(expr)
 	}
+}
+
+func emitConcateString(left ast.Expr, right ast.Expr) {
+	emitExpr(right)
+	emitExpr(left)
+	fmt.Printf("  callq runtime.catstrings\n")
+	fmt.Printf("  addq $32, %%rsp # revert for one string\n")
+	fmt.Printf("  pushq %%rdi # slice len\n")
+	fmt.Printf("  pushq %%rax # slice ptr\n")
 }
 
 //@TODO handle larger types than int
@@ -1110,6 +1123,9 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 	case *ast.CallExpr: // funcall or conversion
 		switch fn := e.Fun.(type) {
 		case *ast.Ident:
+			if fn.Obj == nil {
+				throw(fn)
+			}
 			switch fn.Obj.Kind {
 			case ast.Typ: // conversion
 				return fn

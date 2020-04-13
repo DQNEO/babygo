@@ -30,3 +30,19 @@ func panic(s string) {
 	print(s)
 	//exit(1)
 }
+
+func catstrings(a string, b string) string {
+	var totallen int
+	var r []uint8
+	totallen = len(a) + len(b)
+	r = make([]uint8, totallen, totallen)
+	var i int
+	for i=0;i<len(a);i=i+1 {
+		r[i] = a[i]
+	}
+	var j int
+	for j=0;j<len(b);j=j+1 {
+		r[i+j] = b[j]
+	}
+	return string(r)
+}
