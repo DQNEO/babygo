@@ -44,8 +44,7 @@ func testLen() {
 }
 
 func testMalloc() {
-	var x []uint8
-	x = make([]uint8, 3, 20)
+	var x []uint8 = make([]uint8, 3, 20)
 	x[0] = 'A'
 	x[1] = 'B'
 	x[2] = 'C'
@@ -54,8 +53,7 @@ func testMalloc() {
 }
 
 func testMakaSlice() []uint8 {
-	var slc []uint8
-	slc = make([]uint8, 0, 10)
+	var slc []uint8 = make([]uint8, 0, 10)
 	return slc
 }
 
@@ -84,8 +82,7 @@ var r [100]uint8
 func Itoa(ival int) string {
 	var next int
 	var right int
-	var ix int
-	ix = 0
+	var ix int = 0
 	if ival == 0 {
 		return "0"
 	}
@@ -127,8 +124,7 @@ func testFor() {
 }
 
 func testCmpUint8() {
-	var localuint8 uint8
-	localuint8 = 1
+	var localuint8 uint8 = 1
 	if localuint8 == 1 {
 		write("uint8 cmp == ok\n")
 	}
@@ -155,8 +151,7 @@ func testCmpUint8() {
 }
 
 func testCmpInt() {
-	var a int
-	a = 1
+	var a int = 1
 	if a == 1 {
 		write("int cmp == ok\n")
 	}
@@ -184,10 +179,8 @@ func testCmpInt() {
 }
 
 func testIf() {
-	var tr bool
-	tr = true
-	var fls bool
-	fls = false
+	var tr bool = true
+	var fls bool = false
 
 	if tr {
 		write("ok true\n")
@@ -262,8 +255,7 @@ func testChar() {
 	globalarray[2] = globalarray[0]
 	globalarray[3] = 100 / 10 // '\n'
 
-	var chars []uint8
-	chars = globalarray[0:4]
+	var chars []uint8 = globalarray[0:4]
 	write(string(chars))
 	globalslice = chars
 	write(string(globalarray[0:4]))
@@ -288,8 +280,7 @@ func testIndexExprOfArray() {
 }
 
 func testIndexExprOfSlice() {
-	var intslice []int
-	intslice = globalintarray[0:4]
+	var intslice []int = globalintarray[0:4]
 	intslice[0] = 66
 	intslice[1] = 77
 	intslice[2] = intslice[1]
@@ -313,8 +304,7 @@ func testArgAssign(x int) int {
 }
 
 func testMinus() int {
-	var x int
-	x = -1
+	var x int = -1
 	x = x * -5
 	return x
 }
@@ -323,12 +313,10 @@ func testString() {
 	write(globalstring)
 	assignGlobal()
 
-	var localstring1 string
-	var localstring2 string
-
 	print1("hello string literal\n")
 
-	localstring1 = returnstring()
+	var localstring1 string = returnstring()
+	var localstring2 string
 	localstring2 = "i m local2\n"
 	print2(localstring1, localstring2)
 	write(globalstring)
@@ -337,8 +325,7 @@ func testString() {
 func testMisc() {
 	var i13 int = 0
 	i13 = testArgAssign(i13)
-	var i5 int
-	i5 = testMinus()
+	var i5 int = testMinus()
 	globalint2 = sum(1, i13 % i5)
 
 	var locali3 int
@@ -356,8 +343,7 @@ func testMisc() {
 }
 
 func write(s string) {
-	var slc []uint8
-	slc = []uint8(s)
+	var slc []uint8 = []uint8(s)
 	syscall.Write(1, slc)
 }
 
@@ -406,7 +392,6 @@ var globalFuncsArray [1]string
 func emitText() {
 	write(".text\n")
 	var i int
-	i = 0
 	for i = 0; i<1; i = i + 1 {
 		emitFuncDecl("main", globalFuncsArray[i])
 	}
