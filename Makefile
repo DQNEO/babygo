@@ -13,7 +13,7 @@ test.o: test.s runtime.s
 test.out: test.o
 	ld -o test.out test.o
 
-test: test.out t/expected.1 t/test.go
+test: test.out t/expected.1
 	./test.sh
 
 # to learn Go's assembly
