@@ -10,11 +10,9 @@ func testPointer() {
 	var p *int
 	p = &i
 	j = *p
-	write(Itoa(j))
-	write("\n")
+	writeln(Itoa(j))
 	*p = 11
-	write(Itoa(i))
-	write("\n")
+	writeln(Itoa(i))
 
 	var c uint8 = 'A'
 	var pc *uint8
@@ -23,47 +21,38 @@ func testPointer() {
 	var slc []uint8
 	slc = make([]uint8, 1 , 1)
 	slc[0] = c
-	write(string(slc))
-	write("\n")
+	writeln(string(slc))
 }
 
 func testDeclValue() {
 	var i int = 123
-	write(Itoa(i))
-	write("\n")
+	writeln(Itoa(i))
 }
 
 func testConcateStrings() {
-	var concatenated string = "foo" + "bar" + "1234\n"
-	write(concatenated)
+	var concatenated string = "foo" + "bar" + "1234"
+	writeln(concatenated)
 }
 
 func testLen() {
 	var x []uint8
 	x = make([]uint8, 0 , 0)
-	write(Itoa(len(x)))
-	write("\n")
+	writeln(Itoa(len(x)))
 
-	write(Itoa(cap(x)))
-	write("\n")
+	writeln(Itoa(cap(x)))
 
 	x = make([]uint8, 12, 24)
-	write(Itoa(len(x)))
-	write("\n")
+	writeln(Itoa(len(x)))
 
-	write(Itoa(cap(x)))
-	write("\n")
+	writeln(Itoa(cap(x)))
 
-	write(Itoa(len(globalintarray)))
-	write("\n")
+	writeln(Itoa(len(globalintarray)))
 
-	write(Itoa(cap(globalintarray)))
-	write("\n")
+	writeln(Itoa(cap(globalintarray)))
 
 	var s string
 	s = "hello\n"
-	write(Itoa(len(s))) // 6
-	write("\n")
+	writeln(Itoa(len(s))) // 6
 }
 
 func testMalloc() {
@@ -71,8 +60,7 @@ func testMalloc() {
 	x[0] = 'A'
 	x[1] = 'B'
 	x[2] = 'C'
-	write(string(x))
-	write("\n")
+	writeln(string(x))
 }
 
 func testMakaSlice() []uint8 {
@@ -81,22 +69,14 @@ func testMakaSlice() []uint8 {
 }
 
 func testItoa() {
-	write(Itoa(1234567890))
-	write("\n")
-	write(Itoa(54321))
-	write("\n")
-	write(Itoa(1))
-	write("\n")
-	write("0")
-	write("\n")
-	write(Itoa(0))
-	write("\n")
-	write(Itoa(-1))
-	write("\n")
-	write(Itoa(-54321))
-	write("\n")
-	write(Itoa(-1234567890))
-	write("\n")
+	writeln(Itoa(1234567890))
+	writeln(Itoa(54321))
+	writeln(Itoa(1))
+	writeln("0")
+	writeln(Itoa(0))
+	writeln(Itoa(-1))
+	writeln(Itoa(-54321))
+	writeln(Itoa(-1234567890))
 }
 
 var buf [100]uint8
@@ -149,54 +129,54 @@ func testFor() {
 func testCmpUint8() {
 	var localuint8 uint8 = 1
 	if localuint8 == 1 {
-		write("uint8 cmp == ok\n")
+		writeln("uint8 cmp == ok")
 	}
 	if localuint8 != 1 {
-		write("ERROR\n")
+		writeln("ERROR")
 	} else {
-		write("uint8 cmp != ok\n")
+		writeln("uint8 cmp != ok")
 	}
 	if localuint8 > 0 {
-		write("uint8 cmp > ok\n")
+		writeln("uint8 cmp > ok")
 	}
 	if localuint8 < 0 {
-		write("ERROR\n")
+		writeln("ERROR")
 	} else {
-		write("uint8 cmp < ok\n")
+		writeln("uint8 cmp < ok")
 	}
 
 	if localuint8 >= 1 {
-		write("uint8 cmp >= ok\n")
+		writeln("uint8 cmp >= ok")
 	}
 	if localuint8 <= 1 {
-		write("uint8 cmp <= ok\n")
+		writeln("uint8 cmp <= ok")
 	}
 }
 
 func testCmpInt() {
 	var a int = 1
 	if a == 1 {
-		write("int cmp == ok\n")
+		writeln("int cmp == ok")
 	}
 	if a != 1 {
-		write("ERROR\n")
+		writeln("ERROR")
 	} else {
-		write("int cmp != ok\n")
+		writeln("int cmp != ok")
 	}
 	if a > 0 {
-		write("int cmp > ok\n")
+		writeln("int cmp > ok")
 	}
 	if a < 0 {
-		write("ERROR\n")
+		writeln("ERROR")
 	} else {
-		write("int cmp < ok\n")
+		writeln("int cmp < ok")
 	}
 
 	if a >= 1 {
-		write("int cmp >= ok\n")
+		writeln("int cmp >= ok")
 	}
 	if a <= 1 {
-		write("int cmp <= ok\n")
+		writeln("int cmp <= ok")
 	}
 
 }
@@ -206,25 +186,25 @@ func testIf() {
 	var fls bool = false
 
 	if tr {
-		write("ok true\n")
+		writeln("ok true")
 	}
 	if fls {
-		write("ERROR\n")
+		writeln("ERROR")
 	}
-	write("ok false\n")
+	writeln("ok false")
 }
 
 func testElse() {
 	if true {
-		write("ok true\n")
+		writeln("ok true")
 	} else {
-		write("ERROR\n")
+		writeln("ERROR")
 	}
 
 	if false {
-		write("ERROR\n")
+		writeln("ERROR")
 	} else {
-		write("ok false\n")
+		writeln("ok false")
 	}
 }
 
@@ -361,10 +341,13 @@ func testMisc() {
 	var i42 int
 	i42 =  sum(globalint , globalint2) + locali3
 
-	write(Itoa(i42))
-	write("\n")
+	writeln(Itoa(i42))
 }
 
+func writeln(s string) {
+	var s2 string = s + "\n"
+	write(s2)
+}
 func write(s string) {
 	var slc []uint8 = []uint8(s)
 	syscall.Write(1, slc)
