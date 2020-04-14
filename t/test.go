@@ -15,6 +15,16 @@ func testPointer() {
 	*p = 11
 	write(Itoa(i))
 	write("\n")
+
+	var c uint8 = 'A'
+	var pc *uint8
+	pc = &c
+	*pc = 'B'
+	var slc []uint8
+	slc = make([]uint8, 1 , 1)
+	slc[0] = c
+	write(string(slc))
+	write("\n")
 }
 
 func testDeclValue() {
