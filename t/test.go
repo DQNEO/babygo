@@ -4,6 +4,16 @@ import (
 	"syscall"
 )
 
+func testPointer() {
+	var i int = 12
+	var j int
+	var p *int
+	p = &i
+	j = *p
+	write(Itoa(j))
+	write("\n")
+}
+
 func testDeclValue() {
 	var i int = 123
 	write(Itoa(i))
@@ -350,6 +360,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testPointer()
 	testDeclValue()
 	testConcateStrings()
 	testLen()

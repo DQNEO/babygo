@@ -52,7 +52,7 @@ func emitLoad(typ ast.Expr) {
 	case T_UINT16:
 		fmt.Printf("  movzwq %d(%%rdx), %%rdx # load uint16\n", 0)
 		fmt.Printf("  pushq %%rdx\n")
-	case T_INT, T_BOOL, T_UINTPTR:
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmt.Printf("  movq %d(%%rdx), %%rdx # load int\n", 0)
 		fmt.Printf("  pushq %%rdx\n")
 	default:
@@ -405,6 +405,11 @@ func emitExpr(expr ast.Expr) {
 		default:
 			throw(e.Op.String())
 		}
+	case *ast.StarExpr:
+		emitExpr(e.X)
+		fmt.Printf("  popq %%rax # e.X\n")
+		fmt.Printf("  movq (%%rax), %%rax # dereference\n")
+		fmt.Printf("  pushq %%rax\n")
 	case *ast.BinaryExpr:
 		if getTypeKind(getTypeOfExpr(e.X)) == T_STRING {
 			emitConcateString(e.X, e.Y)
@@ -524,7 +529,7 @@ func emitStore(typ ast.Expr) {
 
 		fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
 		fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
-	case T_INT,T_BOOL, T_UINTPTR:
+	case T_INT,T_BOOL, T_UINTPTR, T_POINTER:
 		fmt.Printf("  popq %%rdi # rhs evaluated\n")
 		fmt.Printf("  popq %%rax # lhs addr\n")
 		fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
@@ -722,7 +727,7 @@ func walkStmt(stmt ast.Stmt) {
 					varSize = sliceSize
 				case T_STRING:
 					varSize = gString.Data.(int)
-				case T_INT, T_UINTPTR:
+				case T_INT, T_UINTPTR, T_POINTER:
 					varSize = gInt.Data.(int)
 				case T_UINT8:
 					varSize = gUint8.Data.(int)
@@ -815,6 +820,8 @@ func walkExpr(expr ast.Expr) {
 		walkExpr(e.X)
 	case *ast.ArrayType: // first argument of builtin func like make()
 		// do nothing
+	case *ast.StarExpr:
+		walkExpr(e.X)
 	default:
 		throw(expr)
 	}
