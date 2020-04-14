@@ -12,6 +12,9 @@ func testPointer() {
 	j = *p
 	write(Itoa(j))
 	write("\n")
+	*p = 11
+	write(Itoa(i))
+	write("\n")
 }
 
 func testDeclValue() {

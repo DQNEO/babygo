@@ -149,6 +149,8 @@ func emitAddr(expr ast.Expr) {
 		fmt.Printf("  imulq %%rdx, %%rcx\n")
 		fmt.Printf("  addq %%rcx, %%rax\n")
 		fmt.Printf("  pushq %%rax # addr of element\n")
+	case *ast.StarExpr:
+		emitExpr(e.X)
 	default:
 		throw(expr)
 	}
@@ -1207,7 +1209,13 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 			Elt: elementTyp,
 		}
 		return r
-
+	case *ast.StarExpr:
+		typ := getTypeOfExpr(e.X)
+		ptrType, ok := typ.(*ast.StarExpr)
+		if !ok {
+			throw(typ)
+		}
+		return ptrType.X
 	default:
 		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
 	}
