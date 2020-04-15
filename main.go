@@ -509,6 +509,7 @@ func emitCompExpr(inst string) {
 }
 
 func emitStore(typ ast.Expr) {
+	fmt.Printf("  # emitStore(%s)\n", getTypeKind(typ))
 	switch getTypeKind(typ) {
 	case T_SLICE:
 		fmt.Printf("  popq %%rcx # rhs ptr\n")
@@ -549,12 +550,16 @@ func emitStore(typ ast.Expr) {
 }
 
 func emitAssign(lhs ast.Expr, rhs ast.Expr) {
+	fmt.Printf("  # Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
+	fmt.Printf("  # Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs)
+	fmt.Printf("  # Assignment: emitStore(getTypeOfExpr(lhs))\n")
 	emitStore(getTypeOfExpr(lhs))
 }
 
 func emitStmt(stmt ast.Stmt) {
+	fmt.Printf("  \n")
 	fmt.Printf("  # == Stmt %T ==\n", stmt)
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
