@@ -6,3 +6,4 @@ sample.o
 /2gen.s
 /2gen.o
 /2gen
+t/source.go

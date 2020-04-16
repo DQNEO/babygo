@@ -1496,7 +1496,7 @@ var globalVars []*ast.ValueSpec
 var globalFuncs []*Func
 
 func main() {
-	for _, file := range []string{"./runtime.go", "./t/test.go"} {
+	for _, file := range []string{"./runtime.go", "./t/source.go"} {
 		globalVars = nil
 		globalFuncs = nil
 		stringLiterals = nil

@@ -5,6 +5,7 @@
 all: test
 
 test.s: main.go runtime.go t/test.go
+	ln -sf test.go t/source.go
 	go run main.go > test.s
 
 test.o: test.s runtime.s
@@ -27,17 +28,18 @@ t/expected.1: t/test
 	t/test 1> t/expected.1
 
 # 2gen compiler
-#2gen.s: test.out
-#	./test.out > 2gen.s
+2gen.s: main.go runtime.go t/self.go
+	ln -sf self.go t/source.go
+	go run main.go > 2gen.s
 
-#2gen.o: 2gen.s
-#	as -o 2gen.o 2gen.s runtime.s
+2gen.o: 2gen.s
+	as -o 2gen.o 2gen.s runtime.s
 
-#2gen: 2gen.o
-#	ld -o 2gen 2gen.o
+2gen: 2gen.o
+	ld -o 2gen 2gen.o
 
-#test2: 2gen
-#	./2gen && echo 2gen ok
+test2: 2gen
+	./2gen && echo 2gen ok
 
 clean:
 	rm -f test.s test.o test.out t/test
