@@ -9,6 +9,25 @@ type MyStruct struct {
 	field2 int
 }
 
+func testStructPointer() {
+	var _strct MyStruct
+	var strct *MyStruct
+	strct = &_strct
+	strct.field1 = 123
+
+	var i int
+	i  = strct.field1
+	writeln(Itoa(i))
+
+	strct.field2 = 456
+	writeln(Itoa(_strct.field2))
+
+	strct.field1 = 777
+	strct.field2 = strct.field1
+	writeln(Itoa(strct.field2))
+
+}
+
 func testStruct() {
 	var strct MyStruct
 	strct.field1 = 123
@@ -377,6 +396,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testStructPointer()
 	testStruct()
 	testPointer()
 	testDeclValue()

@@ -151,21 +151,28 @@ func emitAddr(expr ast.Expr) {
 		fmt.Printf("  pushq %%rax # addr of element\n")
 	case *ast.StarExpr:
 		emitExpr(e.X)
-	case *ast.SelectorExpr:
+	case *ast.SelectorExpr:// X.Sel
 		typeOfX := getTypeOfExpr(e.X)
+		var structType ast.Expr
 		switch getTypeKind(typeOfX) {
 		case T_STRUCT:
-			// strct.field => e.X . e.Sel
-			field := lookupStructField(typeOfX, e.Sel.Name)
-			offset := getStructFieldOffset(field)
-
+			// strct.field
+			structType = typeOfX
 			emitAddr(e.X)
-			fmt.Printf("  popq %%rax # addr of struct head\n")
-			fmt.Printf("  addq $%d, %%rax # add offset to \"%s\"\n", offset, e.Sel.Name)
-			fmt.Printf("  pushq %%rax # addr of struct.field\n")
+		case T_POINTER:
+			// ptr.field
+			ptrType, ok := typeOfX.(*ast.StarExpr)
+			assert(ok, "should be *ast.StarExpr")
+			structType = ptrType.X
+			emitExpr(e.X)
 		default:
 			throw("TBI")
 		}
+		field := lookupStructField(structType, e.Sel.Name)
+		offset := getStructFieldOffset(field)
+		fmt.Printf("  popq %%rax # addr of struct head\n")
+		fmt.Printf("  addq $%d, %%rax # add offset to \"%s\"\n", offset, e.Sel.Name)
+		fmt.Printf("  pushq %%rax # addr of struct.field\n")
 	default:
 		throw(expr)
 	}
@@ -205,6 +212,24 @@ func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
 	return
 }
 
+func getStructTypeOfX(e *ast.SelectorExpr) ast.Expr {
+	typeOfX := getTypeOfExpr(e.X)
+	var structType ast.Expr
+	switch getTypeKind(typeOfX) {
+	case T_STRUCT:
+		// strct.field => e.X . e.Sel
+		structType = typeOfX
+	case T_POINTER:
+		// ptr.field => e.X . e.Sel
+		ptrType, ok := typeOfX.(*ast.StarExpr)
+		assert(ok, "should be *ast.StarExpr")
+		structType = ptrType.X
+	default:
+		throw("TBI")
+	}
+	return structType
+}
+
 func emitExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -233,10 +258,8 @@ func emitExpr(expr ast.Expr) {
 	case *ast.StarExpr:
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
-	case *ast.SelectorExpr:
+	case *ast.SelectorExpr: // X.Sel
 		fmt.Printf("  # emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
-		assert(getTypeKind(getTypeOfExpr(e.X)) == T_STRUCT, "expect T_STRUCT")
-		//symbol := fmt.Sprintf("%s.%s", e.X, e.Sel) // e.g. os.Stdout
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case *ast.CallExpr:
@@ -743,7 +766,9 @@ func setStructFieldOffset(field *ast.Field, offset int) {
 }
 
 func getStructFields(namedStructType ast.Expr) []*ast.Field {
-	assert(getTypeKind(namedStructType) == T_STRUCT, "should be T_STRUCT")
+	if getTypeKind(namedStructType) != T_STRUCT {
+			throw(namedStructType)
+	}
 	ident, ok := namedStructType.(*ast.Ident)
 	if !ok {
 		throw(namedStructType)
@@ -1177,6 +1202,9 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 	}
 	switch e := expr.(type) {
 	case *ast.Ident:
+		if e.Obj.Kind == ast.Typ {
+			panic("expression expected, but got Type")
+		}
 		if e.Obj.Kind == ast.Var {
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
@@ -1290,8 +1318,8 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 		return ptrType.X
 	case *ast.SelectorExpr:
 		fmt.Printf("  # getTypeOfExpr(%s.%s)\n", e.X, e.Sel)
-		typeOfX := getTypeOfExpr(e.X)
-		field := lookupStructField(typeOfX, e.Sel.Name)
+		structType := getStructTypeOfX(e)
+		field := lookupStructField(structType, e.Sel.Name)
 		return field.Type
 	default:
 		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
