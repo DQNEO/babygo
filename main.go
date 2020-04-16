@@ -1495,14 +1495,18 @@ var stringIndex int
 var globalVars []*ast.ValueSpec
 var globalFuncs []*Func
 
+var sourceFiles [2]string
 func main() {
-	for _, file := range []string{"./runtime.go", "./t/source.go"} {
+	sourceFiles[0] = "./runtime.go"
+	sourceFiles[1] = "./t/source.go"
+	var i int
+	for i=0;i<len(sourceFiles); i++ {
 		globalVars = nil
 		globalFuncs = nil
 		stringLiterals = nil
 		stringIndex = 0
 		fset := &token.FileSet{}
-		f, err := parser.ParseFile(fset, file, nil, 0)
+		f, err := parser.ParseFile(fset, sourceFiles[i], nil, 0)
 		if err != nil {
 			panic(err)
 		}
