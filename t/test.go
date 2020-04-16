@@ -4,6 +4,27 @@ import (
 	"syscall"
 )
 
+type MyStruct struct {
+	field1 int
+	field2 int
+}
+
+func testStruct() {
+	var strct MyStruct
+	strct.field1 = 123
+
+	var i int
+	i  = strct.field1
+	writeln(Itoa(i))
+
+	strct.field2 = 456
+	writeln(Itoa(strct.field2))
+
+	strct.field1 = 777
+	strct.field2 = strct.field1
+	writeln(Itoa(strct.field2))
+}
+
 func testPointer() {
 	var i int = 12
 	var j int
@@ -356,6 +377,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testStruct()
 	testPointer()
 	testDeclValue()
 	testConcateStrings()
