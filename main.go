@@ -1046,7 +1046,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 		Data: nil,
 		Type: nil,
 	})
-	//fmt.Printf("Universer:    %v\n", types.Universe)
+	//fmt.Printf("Universer:    %#v\n", types.Universe)
 	ap, _ := ast.NewPackage(fset, map[string]*ast.File{"": fiile}, nil, universe)
 
 	var unresolved []*ast.Ident
@@ -1059,7 +1059,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	}
 
 	fmt.Printf("# Name:    %s\n", pkg.Name())
-	fmt.Printf("# Unresolved: %v\n", unresolved)
+	fmt.Printf("# Unresolved: %#v\n", unresolved)
 	fmt.Printf("# Package:   %s\n", ap.Name)
 
 
@@ -1074,8 +1074,6 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 				nameIdent := valSpec.Names[0]
 				nameIdent.Obj.Data = globalFlag
 				if len(valSpec.Values) > 0 {
-					fmt.Printf("# spec.Name=%s, Value=%v\n", nameIdent, valSpec.Values[0])
-					fmt.Printf("# nameIdent.Obj=%v\n", nameIdent.Obj)
 					switch getTypeKind(valSpec.Type) {
 					case T_STRING:
 						lit,ok := valSpec.Values[0].(*ast.BasicLit)
