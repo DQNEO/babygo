@@ -108,8 +108,10 @@ func getSizeOfType(typeExpr ast.Expr) int {
 			throw(typ.Obj)
 		}
 		return data
+	case *ast.StarExpr:
+		return 8
 	}
-	panic("Unexpected")
+	throw(typeExpr)
 	return 0
 }
 
