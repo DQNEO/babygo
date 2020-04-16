@@ -208,12 +208,11 @@ func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
 func emitExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
-		// true and false are predeclared constants
 		switch e.Obj {
-		case gTrue:
+		case gTrue: // true constant
 			fmt.Printf("  pushq $1 # true\n")
 			return
-		case gFalse:
+		case gFalse: // false constant
 			fmt.Printf("  pushq $0 # false\n")
 			return
 		}
@@ -222,36 +221,24 @@ func emitExpr(expr ast.Expr) {
 			panic(fmt.Sprintf("ident %s is unresolved", e.Name))
 		}
 
-		var typ ast.Expr
-		if e.Obj.Kind == ast.Var {
-			emitAddr(e)
-			switch dcl := e.Obj.Decl.(type) {
-			case *ast.ValueSpec:
-				typ = dcl.Type
-			case *ast.Field:
-				typ = dcl.Type
-			default:
-				throw(e.Obj)
-			}
-		} else {
+		if e.Obj.Kind != ast.Var {
 			panic("Unexpected ident kind:" + e.Obj.Kind.String())
+		} else {
 		}
-		emitLoad(typ)
+		emitAddr(e)
+		emitLoad(getTypeOfExpr(e))
 	case *ast.IndexExpr:
 		emitAddr(e) // emit addr of element
-		typ := getTypeOfExpr(e)
-		emitLoad(typ)
+		emitLoad(getTypeOfExpr(e))
 	case *ast.StarExpr:
 		emitExpr(e.X)
-		typ := getTypeOfExpr(e)
-		emitLoad(typ)
+		emitLoad(getTypeOfExpr(e))
 	case *ast.SelectorExpr:
 		fmt.Printf("  # emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
 		assert(getTypeKind(getTypeOfExpr(e.X)) == T_STRUCT, "expect T_STRING")
 		//symbol := fmt.Sprintf("%s.%s", e.X, e.Sel) // e.g. os.Stdout
 		emitAddr(e)
-		typ := getTypeOfExpr(e)
-		emitLoad(typ)
+		emitLoad(getTypeOfExpr(e))
 	case *ast.CallExpr:
 		fun := e.Fun
 		fmt.Printf("  # callExpr=%#v\n", fun)
