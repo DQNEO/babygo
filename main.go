@@ -235,7 +235,7 @@ func emitExpr(expr ast.Expr) {
 		emitLoad(getTypeOfExpr(e))
 	case *ast.SelectorExpr:
 		fmt.Printf("  # emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
-		assert(getTypeKind(getTypeOfExpr(e.X)) == T_STRUCT, "expect T_STRING")
+		assert(getTypeKind(getTypeOfExpr(e.X)) == T_STRUCT, "expect T_STRUCT")
 		//symbol := fmt.Sprintf("%s.%s", e.X, e.Sel) // e.g. os.Stdout
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
