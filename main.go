@@ -211,6 +211,7 @@ func emitExpr(expr ast.Expr) {
 		if e.Obj == nil {
 			panic(fmt.Sprintf("ident %s is unresolved", e.Name))
 		}
+		var typ ast.Expr
 		if e.Obj.Kind == ast.Var {
 			switch e.Obj {
 			case gTrue:
@@ -220,8 +221,7 @@ func emitExpr(expr ast.Expr) {
 				fmt.Printf("  pushq $0 # false\n")
 				return
 			}
-			emitVariableAddr(e.Obj)
-			var typ ast.Expr
+			emitAddr(e)
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
 				typ = dcl.Type
@@ -230,21 +230,25 @@ func emitExpr(expr ast.Expr) {
 			default:
 				throw(e.Obj)
 			}
-			emitLoad(typ)
 		} else {
 			panic("Unexpected ident kind:" + e.Obj.Kind.String())
 		}
+		emitLoad(typ)
+	case *ast.IndexExpr:
+		emitAddr(e) // emit addr of element
+		typ := getTypeOfExpr(e)
+		emitLoad(typ)
+	case *ast.StarExpr:
+		emitExpr(e.X)
+		typ := getTypeOfExpr(e)
+		emitLoad(typ)
 	case *ast.SelectorExpr:
 		fmt.Printf("  # emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
-		switch getTypeKind(getTypeOfExpr(e.X)) {
-		case T_STRUCT:
-			emitAddr(e)
-			typ := getTypeOfExpr(e)
-			emitLoad(typ)
-		default:
-			//symbol := fmt.Sprintf("%s.%s", e.X, e.Sel) // e.g. os.Stdout
-			throw(e)
-		}
+		assert(getTypeKind(getTypeOfExpr(e.X)) == T_STRUCT, "expect T_STRING")
+		//symbol := fmt.Sprintf("%s.%s", e.X, e.Sel) // e.g. os.Stdout
+		emitAddr(e)
+		typ := getTypeOfExpr(e)
+		emitLoad(typ)
 	case *ast.CallExpr:
 		fun := e.Fun
 		fmt.Printf("  # callExpr=%#v\n", fun)
@@ -430,11 +434,6 @@ func emitExpr(expr ast.Expr) {
 		default:
 			throw(e.Op.String())
 		}
-	case *ast.StarExpr:
-		emitExpr(e.X)
-		fmt.Printf("  popq %%rax # e.X\n")
-		fmt.Printf("  movq (%%rax), %%rax # dereference\n")
-		fmt.Printf("  pushq %%rax\n")
 	case *ast.BinaryExpr:
 		if getTypeKind(getTypeOfExpr(e.X)) == T_STRING {
 			emitConcateString(e.X, e.Y)
@@ -490,10 +489,6 @@ func emitExpr(expr ast.Expr) {
 		fmt.Printf("  # end %T\n", e)
 	case *ast.CompositeLit:
 		panic("TBI")
-	case *ast.IndexExpr:
-		emitAddr(e) // emit addr of element
-		typ := getTypeOfExpr(e)
-		emitLoad(typ)
 	case *ast.SliceExpr:
 		//e.Index, e.X
 		emitAddr(e.X) // array head
