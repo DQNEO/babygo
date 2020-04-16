@@ -9,6 +9,18 @@ type MyStruct struct {
 	field2 int
 }
 
+func testSliceOfStrings() {
+	var s1 string = "hello"
+	var s2 string = " strings\n"
+	var strings []string = make([]string, 2,2)
+	strings[0] = s1
+	strings[1] = s2
+    var i int
+	for i = 0; i<2;i = i+1 {
+		write(strings[i])
+	}
+}
+
 var structPointers []*MyStruct
 
 func testSliceOfPointers() {
@@ -416,6 +428,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testSliceOfStrings()
 	testSliceOfPointers()
 	testStructPointer()
 	testStruct()
