@@ -208,19 +208,22 @@ func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
 func emitExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
+		// true and false are predeclared constants
+		switch e.Obj {
+		case gTrue:
+			fmt.Printf("  pushq $1 # true\n")
+			return
+		case gFalse:
+			fmt.Printf("  pushq $0 # false\n")
+			return
+		}
+
 		if e.Obj == nil {
 			panic(fmt.Sprintf("ident %s is unresolved", e.Name))
 		}
+
 		var typ ast.Expr
 		if e.Obj.Kind == ast.Var {
-			switch e.Obj {
-			case gTrue:
-				fmt.Printf("  pushq $1 # true\n")
-				return
-			case gFalse:
-				fmt.Printf("  pushq $0 # false\n")
-				return
-			}
 			emitAddr(e)
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
