@@ -28,8 +28,8 @@ t/expected.1: t/test
 	t/test 1> t/expected.1
 
 # 2gen compiler
-2gen.s: main.go runtime.go t/self.go
-	ln -sf self.go t/source.go
+2gen.s: main.go runtime.go t2/self.go
+	ln -sf ../t2/self.go t/source.go
 	go run main.go > 2gen.s
 
 2gen.o: 2gen.s
