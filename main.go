@@ -228,10 +228,10 @@ func emitExpr(expr ast.Expr) {
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case *ast.IndexExpr:
-		emitAddr(e) // emit addr of element
+		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case *ast.StarExpr:
-		emitExpr(e.X)
+		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case *ast.SelectorExpr:
 		fmt.Printf("  # emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
