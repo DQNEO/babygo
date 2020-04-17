@@ -1470,21 +1470,20 @@ func emitData(pkgName string) {
 			fmt.Printf("  .quad 0 # len\n")
 			fmt.Printf("  .quad 0 # cap\n")
 		case T_ARRAY:
-			if val == nil {
-				arrayType,ok :=  varDecl.Type.(*ast.ArrayType)
-				if !ok {
-					panic("Unexpected")
-				}
-				basicLit, ok := arrayType.Len.(*ast.BasicLit)
-				length, err := strconv.Atoi(basicLit.Value)
-				if err != nil {
-					panic(fmt.Sprintf("%#v\n", basicLit.Value))
-				}
-				for i:=0;i<length;i++ {
-					fmt.Printf("  .byte %d\n", 0)
-				}
-			} else {
+			if val != nil {
 				panic("TBI")
+			}
+			arrayType,ok :=  varDecl.Type.(*ast.ArrayType)
+			assert(ok, "should be *ast.ArrayType")
+			assert(arrayType.Len != nil, "slice type is not expected")
+			basicLit, ok := arrayType.Len.(*ast.BasicLit)
+			assert(ok, "should be *ast.BasicLit")
+			length, err := strconv.Atoi(basicLit.Value)
+			if err != nil {
+				panic(err)
+			}
+			for i:=0;i<length;i++ {
+				fmt.Printf("  .byte %d\n", 0)
 			}
 		default:
 			throw(getTypeKind(varDecl.Type))
