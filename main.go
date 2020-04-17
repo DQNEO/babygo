@@ -277,36 +277,36 @@ func emitExpr(expr ast.Expr) {
 			switch fn.Obj {
 			case gLen:
 				assert(len(e.Args) == 1, "builtin len should take only 1 args")
-				var lenArg ast.Expr = e.Args[0]
-				switch getTypeKind(getTypeOfExpr(lenArg)) {
+				var arg ast.Expr = e.Args[0]
+				switch getTypeKind(getTypeOfExpr(arg)) {
 				case T_ARRAY:
-					arrayType, ok := getTypeOfExpr(lenArg).(*ast.ArrayType)
+					arrayType, ok := getTypeOfExpr(arg).(*ast.ArrayType)
 					assert(ok, "should be *ast.ArrayType")
 					emitExpr(arrayType.Len)
 				case T_SLICE:
-					emitExpr(lenArg)
+					emitExpr(arg)
 					fmt.Printf("  popq %%rax # throw away ptr\n")
 					fmt.Printf("  popq %%rcx # len\n")
 					fmt.Printf("  popq %%rax # throw away cap\n")
 					fmt.Printf("  pushq %%rcx # len\n")
 				case T_STRING:
-					emitExpr(lenArg)
+					emitExpr(arg)
 					fmt.Printf("  popq %%rax # throw away ptr\n")
 					fmt.Printf("  popq %%rcx # len\n")
 					fmt.Printf("  pushq %%rcx # len\n")
 				default:
-					throw(getTypeKind(getTypeOfExpr(lenArg)))
+					throw(getTypeKind(getTypeOfExpr(arg)))
 				}
 			case gCap:
 				assert(len(e.Args) == 1, "builtin len should take only 1 args")
-				var lenArg ast.Expr = e.Args[0]
-				switch getTypeKind(getTypeOfExpr(lenArg)) {
+				var arg ast.Expr = e.Args[0]
+				switch getTypeKind(getTypeOfExpr(arg)) {
 				case T_ARRAY:
-					arrayType, ok := getTypeOfExpr(lenArg).(*ast.ArrayType)
+					arrayType, ok := getTypeOfExpr(arg).(*ast.ArrayType)
 					assert(ok, "should be *ast.ArrayType")
 					emitExpr(arrayType.Len)
 				case T_SLICE:
-					emitExpr(lenArg)
+					emitExpr(arg)
 					fmt.Printf("  popq %%rax # throw away ptr\n")
 					fmt.Printf("  popq %%rcx # len\n")
 					fmt.Printf("  popq %%rax # throw away cap\n")
@@ -314,7 +314,7 @@ func emitExpr(expr ast.Expr) {
 				case T_STRING:
 					panic("cap() cannot accept string type")
 				default:
-					throw(getTypeKind(getTypeOfExpr(lenArg)))
+					throw(getTypeKind(getTypeOfExpr(arg)))
 				}
 			case gMake:
 				var typeArg ast.Expr = e.Args[0]
