@@ -181,10 +181,10 @@ func emitAddr(expr ast.Expr) {
 }
 
 // Conversion slice(string)
-func emitConversionToSlice(fn *ast.ArrayType, arg0 ast.Expr) {
-	assert(fn.Len == nil, "fn should be slice")
-	assert(getTypeKind(getTypeOfExpr(arg0)) == T_STRING, "fn should be slice")
-	fmt.Printf("  # Conversion to slice %s <= %s\n", fn.Elt, getTypeOfExpr(arg0))
+func emitConversionToSlice(arrayType *ast.ArrayType, arg0 ast.Expr) {
+	assert(arrayType.Len == nil, "arrayType should be slice")
+	assert(getTypeKind(getTypeOfExpr(arg0)) == T_STRING, "arrayType should be slice")
+	fmt.Printf("  # Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
 	emitExpr(arg0)
 	fmt.Printf("  popq %%rax # ptr\n")
 	fmt.Printf("  popq %%rcx # len\n")
