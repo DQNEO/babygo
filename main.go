@@ -949,7 +949,7 @@ func walkExpr(expr ast.Expr) {
 const sliceSize = 24
 
 var gTrue = &ast.Object{
-	Kind: ast.Var,
+	Kind: ast.Con,
 	Name: "true",
 	Decl: nil,
 	Data: nil,
@@ -957,7 +957,7 @@ var gTrue = &ast.Object{
 }
 
 var gFalse = &ast.Object{
-	Kind: ast.Var,
+	Kind: ast.Con,
 	Name: "false",
 	Decl: nil,
 	Data: nil,
@@ -1066,7 +1066,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	universe.Insert(gUint8)
 	universe.Insert(gUint16)
 
-	// predeclared variables
+	// predeclared constants
 	universe.Insert(gTrue)
 	universe.Insert(gFalse)
 
