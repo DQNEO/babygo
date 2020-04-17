@@ -27,21 +27,21 @@ t1/test: t1/test.go
 t/expected.1: t1/test
 	t1/test 1> t/expected.1
 
-# 2gen compiler
-2gen.s: main.go runtime.go t2/self.go
+# self compiler
+self.s: main.go runtime.go t2/self.go
 	ln -sf ../t2/self.go t/source.go
-	go run main.go > 2gen.s
+	go run main.go > self.s
 
-2gen.o: 2gen.s
-	as -o 2gen.o 2gen.s runtime.s
+self.o: self.s
+	as -o self.o self.s runtime.s
 
-2gen: 2gen.o
-	ld -o 2gen 2gen.o
+self: self.o
+	ld -o self self.o
 
-test2: 2gen
-	./2gen && echo 2gen ok
+test2: self
+	./self
 
 clean:
 	rm -f test.s test.o test.out t1/test
-	rm -f 2gen 2gen.o 2gen.s
+	rm -f self self.o self.s
 

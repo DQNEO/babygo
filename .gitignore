@@ -3,7 +3,7 @@
 /test.out
 sample.o
 /t1/test
-/2gen.s
-/2gen.o
-/2gen
+/self.s
+/self.o
+/self
 t/source.go
