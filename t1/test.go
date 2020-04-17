@@ -19,6 +19,22 @@ type MyStruct struct {
 	field2 int
 }
 
+var globalstrings1 [2]string
+var globalstrings2 [2]string
+var __slice []string
+
+func testGlobalStrings() {
+	globalstrings1[0] = "aaa,"
+	globalstrings1[1] = "bbb,"
+	globalstrings2[0] = "ccc,"
+	globalstrings2[1] = "ddd,"
+	__slice = make([]string, 1, 1)
+	write(globalstrings1[0])
+	write(globalstrings1[1])
+	write(globalstrings1[0])
+	write(globalstrings1[1])
+}
+
 var globalstrings [2]string
 func testSliceOfStrings() {
 	var s1 string = "hello"
@@ -446,6 +462,7 @@ var globalptr *int
 
 func test() {
 	testIncrDecr()
+	testSliceOfStrings()
 	testSliceOfStrings()
 	testSliceOfPointers()
 	testStructPointer()

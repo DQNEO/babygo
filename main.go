@@ -1470,6 +1470,7 @@ func emitData(pkgName string) {
 			fmt.Printf("  .quad 0 # len\n")
 			fmt.Printf("  .quad 0 # cap\n")
 		case T_ARRAY:
+			// emit global zero values
 			if val != nil {
 				panic("TBI")
 			}
@@ -1482,8 +1483,20 @@ func emitData(pkgName string) {
 			if err != nil {
 				panic(err)
 			}
+			var zeroValue string
+			switch getTypeKind(arrayType.Elt) {
+			case T_INT:
+				zeroValue = fmt.Sprintf("  .quad 0 # int\n")
+			case T_UINT8:
+				zeroValue = fmt.Sprintf("  .byte 0 # uint8\n")
+			case T_STRING:
+				zeroValue = fmt.Sprintf("  .quad 0 # str.ptr\n")
+				zeroValue += fmt.Sprintf("  .quad 0 # str.len\n")
+			default:
+				throw(arrayType.Elt)
+			}
 			for i:=0;i<length;i++ {
-				fmt.Printf("  .byte %d\n", 0)
+				fmt.Printf(zeroValue)
 			}
 		default:
 			throw(getTypeKind(varDecl.Type))

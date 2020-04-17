@@ -7,12 +7,23 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
-func semanticAnalyze() {
+func semanticAnalyze() string {
 	globalFuncsArray[0] = "main"
+
+	stringLiterals = make([]string, 1, 1)
+	stringLiterals[0] = "hello"
+
+	return "main"
 }
 
 func emitData(pkgName string) {
+	write(".data\n")
 
+	var i int = 0
+	for i=0;i<1;i++ {
+		write("." + pkgName + ".S0" + ":\n")
+		write("  .string " + stringLiterals[i] + "\n")
+	}
 }
 
 func emitFuncDecl(pkgPrefix string, fn string) {
@@ -22,6 +33,7 @@ func emitFuncDecl(pkgPrefix string, fn string) {
 }
 
 var globalFuncsArray [1]string
+var stringLiterals []string
 
 func emitText(pkgName string) {
 	write(".text\n")
@@ -43,8 +55,7 @@ func main() {
 	var i int
 	for i=0;i<len(sourceFiles); i++ {
 		_garbage = sourceFiles[i]
-		semanticAnalyze()
-		var pkgName string = "main"
+		var pkgName string = semanticAnalyze()
 		generateCode(pkgName)
 	}
 }
