@@ -4,6 +4,18 @@ import (
 	"syscall"
 )
 
+var testNilSlice []*MyStruct
+
+func testNil() {
+	testNilSlice = make([]*MyStruct, 2, 2)
+	writeln(Itoa(len(testNilSlice)))
+	writeln(Itoa(cap(testNilSlice)))
+
+	testNilSlice = nil
+	writeln(Itoa(len(testNilSlice)))
+	writeln(Itoa(cap(testNilSlice)))
+}
+
 func testIncrDecr() {
 	var i int = 0
 	i++
@@ -461,6 +473,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testNil()
 	testIncrDecr()
 	testSliceOfStrings()
 	testSliceOfStrings()

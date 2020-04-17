@@ -127,18 +127,19 @@ func emitAddr(expr ast.Expr) {
 		elmType := getTypeOfExpr(e)
 		size := getSizeOfType(elmType)
 
-		emitExpr(e.Index) // index number
-		switch getTypeKind(getTypeOfExpr(e.X)) {
+		emitExpr(e.Index, tInt) // index number
+		typ := getTypeOfExpr(e.X)
+		switch getTypeKind(typ) {
 		case T_ARRAY:
 			emitAddr(e.X) // array head
 		case T_SLICE:
-			emitExpr(e.X)
+			emitExpr(e.X, typ)
 			fmt.Printf("  popq %%rax # slice.ptr\n")
 			fmt.Printf("  popq %%rcx # garbage\n")
 			fmt.Printf("  popq %%rcx # garbage\n")
 			fmt.Printf("  pushq %%rax # slice.ptr\n")
 		case T_STRING:
-			emitExpr(e.X)
+			emitExpr(e.X, typ)
 			fmt.Printf("  popq %%rax # string.ptr\n")
 			fmt.Printf("  popq %%rcx # garbage\n")
 			fmt.Printf("  pushq %%rax # string.ptr\n")
@@ -152,7 +153,7 @@ func emitAddr(expr ast.Expr) {
 		fmt.Printf("  addq %%rcx, %%rax\n")
 		fmt.Printf("  pushq %%rax # addr of element\n")
 	case *ast.StarExpr:
-		emitExpr(e.X)
+		emitExpr(e.X, nil)
 	case *ast.SelectorExpr:// X.Sel
 		typeOfX := getTypeOfExpr(e.X)
 		var structType ast.Expr
@@ -166,7 +167,7 @@ func emitAddr(expr ast.Expr) {
 			ptrType, ok := typeOfX.(*ast.StarExpr)
 			assert(ok, "should be *ast.StarExpr")
 			structType = ptrType.X
-			emitExpr(e.X)
+			emitExpr(e.X, nil)
 		default:
 			throw("TBI")
 		}
@@ -185,7 +186,7 @@ func emitConversionToSlice(arrayType *ast.ArrayType, arg0 ast.Expr) {
 	assert(arrayType.Len == nil, "arrayType should be slice")
 	assert(getTypeKind(getTypeOfExpr(arg0)) == T_STRING, "arrayType should be slice")
 	fmt.Printf("  # Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
-	emitExpr(arg0)
+	emitExpr(arg0, arrayType)
 	fmt.Printf("  popq %%rax # ptr\n")
 	fmt.Printf("  popq %%rcx # len\n")
 	fmt.Printf("  pushq %%rcx # cap\n")
@@ -199,7 +200,7 @@ func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
 	case gString: // string(e)
 		switch getTypeKind(getTypeOfExpr(arg0)) {
 		case T_SLICE: // string(slice)
-			emitExpr(arg0) // slice
+			emitExpr(arg0, fn) // slice
 			fmt.Printf("  popq %%rax # ptr\n")
 			fmt.Printf("  popq %%rcx # len\n")
 			fmt.Printf("  popq %%rdx # cap (to be abandoned)\n")
@@ -207,7 +208,7 @@ func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
 			fmt.Printf("  pushq %%rax # str ptr\n")
 		}
 	case gInt, gUint8, gUint16, gUintptr: // int(e)
-		emitExpr(arg0)
+		emitExpr(arg0, fn)
 	default:
 		throw(fn.Obj)
 	}
@@ -232,7 +233,18 @@ func getStructTypeOfX(e *ast.SelectorExpr) ast.Expr {
 	return structType
 }
 
-func emitExpr(expr ast.Expr) {
+func emitZeroValue(typeExpr ast.Expr) {
+	switch getTypeKind(typeExpr) {
+	case T_SLICE:
+		fmt.Printf("  pushq $0 # slice.cap\n")
+		fmt.Printf("  pushq $0 # slice.len\n")
+		fmt.Printf("  pushq $0 # slice.ptr\n")
+	default:
+		throw(typeExpr)
+	}
+}
+
+func emitExpr(expr ast.Expr, forceType ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		switch e.Obj {
@@ -241,6 +253,14 @@ func emitExpr(expr ast.Expr) {
 			return
 		case gFalse: // false constant
 			fmt.Printf("  pushq $0 # false\n")
+			return
+		case gNil:
+			switch getTypeKind(forceType) {
+			case T_SLICE:
+				emitZeroValue(forceType)
+			default:
+				throw(forceType)
+			}
 			return
 		}
 
@@ -282,15 +302,15 @@ func emitExpr(expr ast.Expr) {
 				case T_ARRAY:
 					arrayType, ok := getTypeOfExpr(arg).(*ast.ArrayType)
 					assert(ok, "should be *ast.ArrayType")
-					emitExpr(arrayType.Len)
+					emitExpr(arrayType.Len, tInt)
 				case T_SLICE:
-					emitExpr(arg)
+					emitExpr(arg, nil)
 					fmt.Printf("  popq %%rax # throw away ptr\n")
 					fmt.Printf("  popq %%rcx # len\n")
 					fmt.Printf("  popq %%rax # throw away cap\n")
 					fmt.Printf("  pushq %%rcx # len\n")
 				case T_STRING:
-					emitExpr(arg)
+					emitExpr(arg, nil)
 					fmt.Printf("  popq %%rax # throw away ptr\n")
 					fmt.Printf("  popq %%rcx # len\n")
 					fmt.Printf("  pushq %%rcx # len\n")
@@ -304,9 +324,9 @@ func emitExpr(expr ast.Expr) {
 				case T_ARRAY:
 					arrayType, ok := getTypeOfExpr(arg).(*ast.ArrayType)
 					assert(ok, "should be *ast.ArrayType")
-					emitExpr(arrayType.Len)
+					emitExpr(arrayType.Len, tInt)
 				case T_SLICE:
-					emitExpr(arg)
+					emitExpr(arg, nil)
 					fmt.Printf("  popq %%rax # throw away ptr\n")
 					fmt.Printf("  popq %%rcx # len\n")
 					fmt.Printf("  popq %%rax # throw away cap\n")
@@ -326,8 +346,8 @@ func emitExpr(expr ast.Expr) {
 
 					var lenArg ast.Expr = e.Args[1]
 					var capArg ast.Expr = e.Args[2]
-					emitExpr(capArg)
-					emitExpr(lenArg)
+					emitExpr(capArg, typeArg)
+					emitExpr(lenArg, typeArg)
 					elmSize := getSizeOfType(arrayType.Elt)
 					fmt.Printf("  pushq $%d # elm size\n", elmSize)
 					symbol := "runtime.makeSlice"
@@ -348,7 +368,7 @@ func emitExpr(expr ast.Expr) {
 				}
 				if fn.Name == "print" {
 					// builtin print
-					emitExpr(e.Args[0]) // push ptr, push len
+					emitExpr(e.Args[0], nil) // push ptr, push len
 					switch getTypeKind(getTypeOfExpr(e.Args[0]))  {
 					case T_STRING:
 						symbol := fmt.Sprintf("runtime.printstring")
@@ -366,7 +386,7 @@ func emitExpr(expr ast.Expr) {
 					var totalSize int = 0
 					for i:=len(e.Args) - 1;i>=0;i-- {
 						arg := e.Args[i]
-						emitExpr(arg)
+						emitExpr(arg, nil)
 						size := getExprSize(arg)
 						totalSize += size
 					}
@@ -404,10 +424,10 @@ func emitExpr(expr ast.Expr) {
 			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel) // syscall.Write() or unsafe.Pointer(x)
 			switch symbol {
 			case "unsafe.Pointer":
-				emitExpr(e.Args[0])
+				emitExpr(e.Args[0], nil)
 			case "syscall.Write":
-				emitExpr(e.Args[1])
-				emitExpr(e.Args[0])
+				emitExpr(e.Args[1], nil)
+				emitExpr(e.Args[0], nil)
 				fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
 			default:
 				panic(symbol)
@@ -416,7 +436,7 @@ func emitExpr(expr ast.Expr) {
 			throw(fun)
 		}
 	case *ast.ParenExpr:
-		emitExpr(e.X)
+		emitExpr(e.X, getTypeOfExpr(e))
 	case *ast.BasicLit:
 		switch e.Kind.String() {
 		case "CHAR":
@@ -440,7 +460,7 @@ func emitExpr(expr ast.Expr) {
 	case *ast.UnaryExpr:
 		switch e.Op.String() {
 		case "-":
-			emitExpr(e.X)
+			emitExpr(e.X, nil)
 			fmt.Printf("  popq %%rax # e.X\n")
 			fmt.Printf("  imulq $-1, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
@@ -455,8 +475,8 @@ func emitExpr(expr ast.Expr) {
 			return
 		}
 		fmt.Printf("  # start %T\n", e)
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExpr(e.X, nil) // left
+		emitExpr(e.Y, nil) // right
 		switch e.Op.String()  {
 		case "+":
 			fmt.Printf("  popq %%rdi # right\n")
@@ -507,8 +527,8 @@ func emitExpr(expr ast.Expr) {
 	case *ast.SliceExpr:
 		//e.Index, e.X
 		emitAddr(e.X) // array head
-		emitExpr(e.Low) // intval
-		emitExpr(e.High) // intval
+		emitExpr(e.Low, nil) // intval
+		emitExpr(e.High, nil) // intval
 		//emitExpr(e.Max) // @TODO
 		fmt.Printf("  popq %%rax # high\n")
 		fmt.Printf("  popq %%rcx # low\n")
@@ -523,8 +543,8 @@ func emitExpr(expr ast.Expr) {
 }
 
 func emitConcateString(left ast.Expr, right ast.Expr) {
-	emitExpr(right)
-	emitExpr(left)
+	emitExpr(right, nil)
+	emitExpr(left, nil)
 	fmt.Printf("  callq runtime.catstrings\n")
 	fmt.Printf("  addq $32, %%rsp # revert for one string\n")
 	fmt.Printf("  pushq %%rdi # slice len\n")
@@ -586,7 +606,7 @@ func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 	fmt.Printf("  # Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	fmt.Printf("  # Assignment: emitExpr(rhs)\n")
-	emitExpr(rhs)
+	emitExpr(rhs, getTypeOfExpr(lhs))
 	fmt.Printf("  # Assignment: emitStore(getTypeOfExpr(lhs))\n")
 	emitStore(getTypeOfExpr(lhs))
 }
@@ -597,7 +617,7 @@ func emitStmt(stmt ast.Stmt) {
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
 		expr := s.X
-		emitExpr(expr)
+		emitExpr(expr, nil)
 	case *ast.DeclStmt:
 		decl := s.Decl
 		switch dcl := decl.(type) {
@@ -632,7 +652,7 @@ func emitStmt(stmt ast.Stmt) {
 		}
 	case *ast.ReturnStmt:
 		if len(s.Results) == 1 {
-			emitExpr(s.Results[0])
+			emitExpr(s.Results[0], nil) // @FIXME
 			switch getTypeKind(getTypeOfExpr(s.Results[0])) {
 			case T_INT, T_UINTPTR:
 				fmt.Printf("  popq %%rax # return int\n")
@@ -664,7 +684,7 @@ func emitStmt(stmt ast.Stmt) {
 		labelElse := fmt.Sprintf(".L.else.%d", labelid)
 
 		if s.Else != nil {
-			emitExpr(s.Cond)
+			emitExpr(s.Cond, nil)
 			fmt.Printf("  popq %%rax\n")
 			fmt.Printf("  cmpq $0, %%rax\n")
 			fmt.Printf("  je %s # jmp if false\n", labelElse)
@@ -673,7 +693,7 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  %s:\n", labelElse)
 			emitStmt(s.Else) // then
 		} else {
-			emitExpr(s.Cond)
+			emitExpr(s.Cond, nil)
 			fmt.Printf("  popq %%rax\n")
 			fmt.Printf("  cmpq $0, %%rax\n")
 			fmt.Printf("  je %s # jmp if false\n", labelEndif)
@@ -693,7 +713,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitStmt(s.Init)
 
 		fmt.Printf("  %s:\n", labelCond)
-		emitExpr(s.Cond)
+		emitExpr(s.Cond, nil)
 		fmt.Printf("  popq %%rax\n")
 		fmt.Printf("  cmpq $0, %%rax\n")
 		fmt.Printf("  je %s # jmp if false\n", labelExit)
@@ -713,7 +733,7 @@ func emitStmt(stmt ast.Stmt) {
 		}
 
 		emitAddr(s.X)
-		emitExpr(s.X)
+		emitExpr(s.X, nil)
 		fmt.Printf("  popq %%rax\n")
 		fmt.Printf("  %s $1, %%rax\n", inst)
 		fmt.Printf("  pushq %%rax\n")
@@ -956,6 +976,14 @@ var gTrue = &ast.Object{
 	Type: nil,
 }
 
+var gNil = &ast.Object{
+	Kind: ast.Con, // is nil a constant ?
+	Name: "nil",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
 var gFalse = &ast.Object{
 	Kind: ast.Con,
 	Name: "false",
@@ -1069,6 +1097,8 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	// predeclared constants
 	universe.Insert(gTrue)
 	universe.Insert(gFalse)
+
+	universe.Insert(gNil)
 
 	// predeclared funcs
 	universe.Insert(gMake)
@@ -1213,12 +1243,19 @@ const T_ARRAY = "T_ARRAY"
 const T_STRUCT = "T_STRUCT"
 const T_POINTER = "T_POINTER"
 
+var tInt *ast.Ident = &ast.Ident{
+	NamePos: 0,
+	Name:    "int",
+	Obj:     gInt,
+}
+
+var tString *ast.Ident = &ast.Ident{
+	NamePos: 0,
+	Name:    "string",
+	Obj:     gString,
+}
+
 func getTypeOfExpr(expr ast.Expr) ast.Expr {
-	var tInt *ast.Ident = &ast.Ident{
-		NamePos: 0,
-		Name:    "int",
-		Obj:     gInt,
-	}
 	switch e := expr.(type) {
 	case *ast.Ident:
 		if e.Obj.Kind == ast.Typ {
