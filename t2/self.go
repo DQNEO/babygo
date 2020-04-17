@@ -26,7 +26,7 @@ var globalFuncsArray [1]string
 func emitText(pkgName string) {
 	write(".text\n")
 	var i int
-	for i = 0; i<1; i = i + 1 {
+	for i = 0; i<1; i++ {
 		emitFuncDecl(pkgName, globalFuncsArray[i])
 	}
 }
@@ -41,7 +41,7 @@ var _garbage string
 func main() {
 	sourceFiles[0] = "./t/self.go"
 	var i int
-	for i=0;i<len(sourceFiles); i=i+1 {
+	for i=0;i<len(sourceFiles); i++ {
 		_garbage = sourceFiles[i]
 		semanticAnalyze()
 		var pkgName string = "main"
