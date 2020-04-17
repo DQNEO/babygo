@@ -4,6 +4,16 @@ import (
 	"syscall"
 )
 
+func testIncrDecr() {
+	var i int = 0
+	i++
+	writeln(Itoa(i))
+
+	i--
+	i--
+	writeln(Itoa(i))
+}
+
 type MyStruct struct {
 	field1 int
 	field2 int
@@ -435,6 +445,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testIncrDecr()
 	testSliceOfStrings()
 	testSliceOfPointers()
 	testStructPointer()

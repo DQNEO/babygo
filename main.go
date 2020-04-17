@@ -701,8 +701,23 @@ func emitStmt(stmt ast.Stmt) {
 		emitStmt(s.Post)
 		fmt.Printf("  jmp %s\n", labelCond)
 		fmt.Printf("  %s:\n", labelExit)
+	case *ast.IncDecStmt:
+		var inst string
+		switch s.Tok.String() {
+		case "++":
+			inst = "addq"
+		case "--":
+			inst = "subq"
+		default:
+			throw(s.Tok.String())
+		}
 
-
+		emitAddr(s.X)
+		emitExpr(s.X)
+		fmt.Printf("  popq %%rax\n")
+		fmt.Printf("  %s $1, %%rax\n", inst)
+		fmt.Printf("  pushq %%rax\n")
+		emitStore(getTypeOfExpr(s.X))
 	default:
 		throw(stmt)
 	}
@@ -873,6 +888,8 @@ func walkStmt(stmt ast.Stmt) {
 		walkExpr(s.Cond)
 		walkStmt(s.Post)
 		walkStmt(s.Body)
+	case *ast.IncDecStmt:
+		walkExpr(s.X)
 	default:
 		throw(stmt)
 	}
