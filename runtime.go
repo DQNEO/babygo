@@ -31,6 +31,15 @@ func panic(s string) {
 	//exit(1)
 }
 
+func nop1() {
+}
+
+func nop2() {
+}
+
+func nop3() {
+}
+
 func catstrings(a string, b string) string {
 	var totallen int
 	var r []uint8
