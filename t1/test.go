@@ -4,9 +4,37 @@ import (
 	"syscall"
 )
 
+
+func testZeroValues() {
+	writeln("-- testZeroValues()")
+	var s string
+	write(s)
+
+	var s2 string = ""
+	write(s2)
+	if s == s2 {
+		writeln("string cmp ok")
+	} else {
+		writeln("ERROR")
+	}
+	var h int = 1
+	var i int
+	var j int = 2
+	writeln(Itoa(h))
+	writeln(Itoa(i))
+	writeln(Itoa(j))
+
+	if i == 0 {
+		writeln("int zero ok")
+	} else {
+		writeln("ERROR")
+	}
+}
+
 var testNilSlice []*MyStruct
 
 func testNil() {
+	writeln("-- testNil()")
 	testNilSlice = make([]*MyStruct, 2, 2)
 	writeln(Itoa(len(testNilSlice)))
 	writeln(Itoa(cap(testNilSlice)))
@@ -474,6 +502,7 @@ var globalptr *int
 
 func test() {
 	testNil()
+	testZeroValues()
 	testIncrDecr()
 	testSliceOfStrings()
 	testSliceOfStrings()

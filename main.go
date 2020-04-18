@@ -236,9 +236,16 @@ func getStructTypeOfX(e *ast.SelectorExpr) ast.Expr {
 func emitZeroValue(typeExpr ast.Expr) {
 	switch getTypeKind(typeExpr) {
 	case T_SLICE:
-		fmt.Printf("  pushq $0 # slice.cap\n")
-		fmt.Printf("  pushq $0 # slice.len\n")
-		fmt.Printf("  pushq $0 # slice.ptr\n")
+		fmt.Printf("  pushq $0 # slice zero value\n")
+		fmt.Printf("  pushq $0 # slice zero value\n")
+		fmt.Printf("  pushq $0 # slice zero valuer\n")
+	case T_STRING:
+		fmt.Printf("  pushq $0 # string zero value\n")
+		fmt.Printf("  pushq $0 # string zero value\n")
+	case T_INT,T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
+		fmt.Printf("  pushq $0 # %s zero value\n", getTypeKind(typeExpr))
+	case T_STRUCT:
+		println("@FIXME") //@FIXME
 	default:
 		throw(typeExpr)
 	}
@@ -451,9 +458,14 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 		case "STRING":
 			// e.Value == ".S%d:%d"
 			splitted := strings.Split(e.Value, ":")
-			fmt.Printf("  pushq $%s # str len\n", splitted[1])
-			fmt.Printf("  leaq %s, %%rax # str ptr\n", splitted[0])
-			fmt.Printf("  pushq %%rax # str ptr\n")
+			if splitted[1] == "0" {
+				// zero value
+				emitZeroValue(tString)
+			} else {
+				fmt.Printf("  pushq $%s # str len\n", splitted[1])
+				fmt.Printf("  leaq %s, %%rax # str ptr\n", splitted[0])
+				fmt.Printf("  pushq %%rax # str ptr\n")
+			}
 		default:
 			panic("Unexpected literal kind:" + e.Kind.String())
 		}
@@ -597,6 +609,8 @@ func emitStore(typ ast.Expr) {
 		fmt.Printf("  popq %%rdi # rhs evaluated\n")
 		fmt.Printf("  popq %%rax # lhs addr\n")
 		fmt.Printf("  movw %%di, (%%rax) # assign word\n")
+	case T_STRUCT:
+		println("@FIXME") // @FXIME
 	default:
 		panic("TBI:" + getTypeKind(typ))
 	}
@@ -627,12 +641,18 @@ func emitStmt(stmt ast.Stmt) {
 			case *ast.ValueSpec:
 				fmt.Printf("  # Decl.Specs[0]: Names[0]=%#v, Type=%#v\n", ds.Names[0], ds.Type)
 				varSpec := ds
+				lhs := varSpec.Names[0]
+				var rhs ast.Expr
 				if len(varSpec.Values) == 0 {
-					fmt.Printf("  # Init with zero value\n")
+					fmt.Printf("  # lhs addresss\n")
+					emitAddr(lhs)
+					fmt.Printf("  # emitZeroValue\n")
+					emitZeroValue(getTypeOfExpr(lhs))
+					fmt.Printf("  # Assignment: zero value\n")
+					emitStore(getTypeOfExpr(lhs))
 				} else if len(varSpec.Values) == 1 {
 					// assignment
-					lhs := varSpec.Names[0]
-					rhs := varSpec.Values[0]
+					rhs = varSpec.Values[0]
 					emitAssign(lhs, rhs)
 				} else {
 					panic("TBI")
@@ -1526,12 +1546,12 @@ func emitData(pkgName string) {
 			var zeroValue string
 			switch getTypeKind(arrayType.Elt) {
 			case T_INT:
-				zeroValue = fmt.Sprintf("  .quad 0 # int\n")
+				zeroValue = fmt.Sprintf("  .quad 0 # int zero value\n")
 			case T_UINT8:
-				zeroValue = fmt.Sprintf("  .byte 0 # uint8\n")
+				zeroValue = fmt.Sprintf("  .byte 0 # uint8 zero value\n")
 			case T_STRING:
-				zeroValue = fmt.Sprintf("  .quad 0 # str.ptr\n")
-				zeroValue += fmt.Sprintf("  .quad 0 # str.len\n")
+				zeroValue = fmt.Sprintf("  .quad 0 # string zero value (ptr)\n")
+				zeroValue += fmt.Sprintf("  .quad 0 # string zero value (len)\n")
 			default:
 				throw(arrayType.Elt)
 			}
