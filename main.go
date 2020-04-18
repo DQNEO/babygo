@@ -394,7 +394,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 					for i:=len(e.Args) - 1;i>=0;i-- {
 						arg := e.Args[i]
 						emitExpr(arg, nil)
-						size := getExprSize(arg)
+						size := getExprSize(getTypeOfExpr(arg))
 						totalSize += size
 					}
 					symbol := pkgName + "." + fn.Name
@@ -1237,8 +1237,8 @@ type Func struct {
 	argsarea  int
 }
 
-func getExprSize(valueExpr ast.Expr) int {
-	switch getTypeKind(getTypeOfExpr(valueExpr)) {
+func getExprSize(typeExpr ast.Expr) int {
+	switch getTypeKind(typeExpr) {
 	case T_STRING:
 		return 8*2
 	case T_SLICE:
@@ -1250,7 +1250,7 @@ func getExprSize(valueExpr ast.Expr) int {
 	case T_ARRAY:
 		panic("TBI")
 	default:
-		throw(valueExpr)
+		throw(typeExpr)
 	}
 	return 0
 }
