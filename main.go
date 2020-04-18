@@ -625,17 +625,20 @@ func emitStmt(stmt ast.Stmt) {
 			declSpec := dcl.Specs[0]
 			switch ds := declSpec.(type) {
 			case *ast.ValueSpec:
+				fmt.Printf("  # Decl.Specs[0]: Names[0]=%#v, Type=%#v\n", ds.Names[0], ds.Type)
 				varSpec := ds
-				if len(varSpec.Values) > 0 {
+				if len(varSpec.Values) == 0 {
+					fmt.Printf("  # Init with zero value\n")
+				} else if len(varSpec.Values) == 1 {
 					// assignment
 					lhs := varSpec.Names[0]
 					rhs := varSpec.Values[0]
 					emitAssign(lhs, rhs)
-				}
-				if len(varSpec.Values) > 1 {
+				} else {
 					panic("TBI")
 				}
 			default:
+				throw(declSpec)
 			}
 		default:
 			return
