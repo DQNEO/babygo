@@ -41,7 +41,7 @@ func Itoa(ival int) string {
 	return string(r[0:ix])
 }
 
-func write(s string) {
+func fmtPrintf(s string) {
 	var slc []uint8 = []uint8(s)
 	syscall.Write(1, slc)
 }
@@ -62,18 +62,15 @@ func semanticAnalyze(s string) string {
 	return s
 }
 
-func fmtPrintf(s string) {
-	write(s)
-}
 
 func emitData(pkgName string) {
-	write(".data\n")
+	fmtPrintf(".data\n")
 	var i int = 0
 	for i=0;i<len(stringLiterals);i++ {
-		write("# string literals\n")
+		fmtPrintf("# string literals\n")
 		var seq string = Itoa(i)
-		write("." + pkgName + ".S" + seq + ":\n")
-		write("  .string " + stringLiterals[i] + "\n")
+		fmtPrintf("." + pkgName + ".S" + seq + ":\n")
+		fmtPrintf("  .string " + stringLiterals[i] + "\n")
 	}
 	fmtPrintf("# ===== Global Variables =====\n")
 	fmtPrintf("# ==============================\n")
@@ -81,12 +78,12 @@ func emitData(pkgName string) {
 
 func emitFuncDecl(pkgPrefix string, fn *Func) {
 	var fname string = fn.name
-	write(pkgPrefix + "." + fname + ":\n")
-	write("  ret\n")
+	fmtPrintf(pkgPrefix + "." + fname + ":\n")
+	fmtPrintf("  ret\n")
 }
 
 func emitText(pkgName string) {
-	write(".text\n")
+	fmtPrintf(".text\n")
 	var i int
 	for i = 0; i<len(globalFuncs); i++ {
 		var fnc *Func = globalFuncs[i]
