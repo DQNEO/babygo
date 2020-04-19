@@ -76,9 +76,16 @@ func emitData(pkgName string) {
 	fmtPrintf("# ==============================\n")
 }
 
-func emitFuncDecl(pkgPrefix string, fn *Func) {
-	var fname string = fn.name
+func emitFuncDecl(pkgPrefix string, fnc *Func) {
+	fmtPrintf("\n")
+	var fname string = fnc.name
 	fmtPrintf(pkgPrefix + "." + fname + ":\n")
+	if len(fnc.localvars) > 0 {
+		var slocalarea string = Itoa(fnc.localarea)
+		fmtPrintf("  subq $" + slocalarea + ", %rsp # local area\n")
+	}
+
+	fmtPrintf("  leave\n")
 	fmtPrintf("  ret\n")
 }
 
@@ -101,8 +108,7 @@ type astValueSpec struct {
 }
 
 type Func struct {
-//	decl      *ast.FuncDecl
-//	localvars []*ast.ValueSpec
+	localvars []*string
 	localarea int
 	argsarea  int
 	name string
