@@ -325,6 +325,16 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				default:
 					throw(getTypeKind(getTypeOfExpr(arg)))
 				}
+			case gNew:
+				var typeArg ast.Expr = e.Args[0]
+				// size to malloc
+				size := getSizeOfType(typeArg)
+				fmt.Printf("  pushq $%d\n", size)
+				// call malloc and return pointer
+				fmt.Printf("  callq runtime.malloc\n")
+				fmt.Printf("  addq $8, %%rsp # revert stack pointer\n")
+				fmt.Printf("  pushq %%rax # addr\n")
+
 			case gMake:
 				var typeArg ast.Expr = e.Args[0]
 				switch getTypeKind(typeArg) {
@@ -398,7 +408,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 								fmt.Printf("  # fn.Obj=%#v\n", obj)
 								fmt.Printf("  pushq %%rdi # str len\n")
 								fmt.Printf("  pushq %%rax # str ptr\n")
-							case T_INT:
+							case T_INT, T_UINTPTR, T_POINTER:
 								fmt.Printf("  # fn.Obj=%#v\n", obj)
 								fmt.Printf("  pushq %%rax\n")
 							default:
@@ -666,8 +676,8 @@ func emitStmt(stmt ast.Stmt) {
 		if len(s.Results) == 1 {
 			emitExpr(s.Results[0], nil) // @FIXME
 			switch getTypeKind(getTypeOfExpr(s.Results[0])) {
-			case T_INT, T_UINTPTR:
-				fmt.Printf("  popq %%rax # return int\n")
+			case T_INT, T_UINTPTR, T_POINTER:
+				fmt.Printf("  popq %%rax # return 64bit\n")
 			case T_STRING:
 				fmt.Printf("  popq %%rax # return string (ptr)\n")
 				fmt.Printf("  popq %%rdi # return string (len)\n")
@@ -1040,6 +1050,15 @@ var gUint16 = &ast.Object{
 	Type: nil,
 }
 
+var gNew = &ast.Object{
+	Kind: ast.Fun,
+	Name: "new",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+
 var gMake = &ast.Object{
 	Kind: ast.Fun,
 	Name: "make",
@@ -1103,6 +1122,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	universe.Insert(gNil)
 
 	// predeclared funcs
+	universe.Insert(gNew)
 	universe.Insert(gMake)
 	universe.Insert(gLen)
 	universe.Insert(gCap)

@@ -4,6 +4,20 @@ import (
 	"syscall"
 )
 
+func _testNew() *MyStruct {
+	var strct *MyStruct
+	strct = new(MyStruct)
+	writeln(Itoa(strct.field2))
+	strct.field2 = 2
+	return strct
+}
+
+func testNew() {
+	var strct *MyStruct
+	strct = _testNew()
+	writeln(Itoa(strct.field1))
+	writeln(Itoa(strct.field2))
+}
 
 var testNilSlice []*MyStruct
 
@@ -496,6 +510,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testNew()
 	testNil()
 	testZeroValues()
 	testIncrDecr()
