@@ -639,19 +639,19 @@ func emitStmt(stmt ast.Stmt) {
 			switch ds := declSpec.(type) {
 			case *ast.ValueSpec:
 				fmt.Printf("  # Decl.Specs[0]: Names[0]=%#v, Type=%#v\n", ds.Names[0], ds.Type)
-				varSpec := ds
-				lhs := varSpec.Names[0]
+				valSpec := ds
+				lhs := valSpec.Names[0]
 				var rhs ast.Expr
-				if len(varSpec.Values) == 0 {
+				if len(valSpec.Values) == 0 {
 					fmt.Printf("  # lhs addresss\n")
 					emitAddr(lhs)
 					fmt.Printf("  # emitZeroValue\n")
 					emitZeroValue(getTypeOfExpr(lhs))
 					fmt.Printf("  # Assignment: zero value\n")
 					emitStore(getTypeOfExpr(lhs))
-				} else if len(varSpec.Values) == 1 {
+				} else if len(valSpec.Values) == 1 {
 					// assignment
-					rhs = varSpec.Values[0]
+					rhs = valSpec.Values[0]
 					emitAssign(lhs, rhs)
 				} else {
 					panic("TBI")
