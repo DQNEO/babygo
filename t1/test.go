@@ -5,6 +5,19 @@ import (
 )
 
 
+var testNilSlice []*MyStruct
+
+func testNil() {
+	writeln("-- testNil()")
+	testNilSlice = make([]*MyStruct, 2, 2)
+	writeln(Itoa(len(testNilSlice)))
+	writeln(Itoa(cap(testNilSlice)))
+
+	testNilSlice = nil
+	writeln(Itoa(len(testNilSlice)))
+	writeln(Itoa(cap(testNilSlice)))
+}
+
 func testZeroValues() {
 	writeln("-- testZeroValues()")
 	var s string
@@ -29,19 +42,6 @@ func testZeroValues() {
 	} else {
 		writeln("ERROR")
 	}
-}
-
-var testNilSlice []*MyStruct
-
-func testNil() {
-	writeln("-- testNil()")
-	testNilSlice = make([]*MyStruct, 2, 2)
-	writeln(Itoa(len(testNilSlice)))
-	writeln(Itoa(cap(testNilSlice)))
-
-	testNilSlice = nil
-	writeln(Itoa(len(testNilSlice)))
-	writeln(Itoa(cap(testNilSlice)))
 }
 
 func testIncrDecr() {
