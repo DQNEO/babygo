@@ -25,11 +25,6 @@ func testZeroValues() {
 
 	var s2 string = ""
 	write(s2)
-	if s == s2 {
-		writeln("string cmp ok")
-	} else {
-		writeln("ERROR")
-	}
 	var h int = 1
 	var i int
 	var j int = 2
