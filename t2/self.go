@@ -70,7 +70,8 @@ func emitData(pkgName string) {
 }
 
 func emitFuncDecl(pkgPrefix string, fn string) {
-	write(pkgPrefix + "." + fn + ":\n")
+	var fname string = fn
+	write(pkgPrefix + "." + fname + ":\n")
 	write("  ret\n")
 }
 
