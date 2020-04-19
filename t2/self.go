@@ -62,6 +62,10 @@ func semanticAnalyze(s string) string {
 	return s
 }
 
+func fmtPrintf(s string) {
+	write(s)
+}
+
 func emitData(pkgName string) {
 	write(".data\n")
 	var i int = 0
@@ -71,6 +75,8 @@ func emitData(pkgName string) {
 		write("." + pkgName + ".S" + seq + ":\n")
 		write("  .string " + stringLiterals[i] + "\n")
 	}
+	fmtPrintf("# ===== Global Variables =====\n")
+	fmtPrintf("# ==============================\n")
 }
 
 func emitFuncDecl(pkgPrefix string, fn *Func) {
