@@ -82,7 +82,7 @@ func getSizeOfType(typeExpr ast.Expr) int {
 	case T_BOOL:
 		return gInt.Data.(int)
 	case T_STRUCT:
-		return calcStructTypeSize(typeExpr)
+		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(typeExpr))
 	default:
 		throw(typeExpr)
 	}
@@ -153,7 +153,7 @@ func emitAddr(expr ast.Expr) {
 		default:
 			throw("TBI")
 		}
-		field := lookupStructField(structType, e.Sel.Name)
+		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		offset := getStructFieldOffset(field)
 		fmt.Printf("  popq %%rax # addr of struct head\n")
 		fmt.Printf("  addq $%d, %%rax # add offset to \"%s\"\n", offset, e.Sel.Name)
@@ -806,6 +806,9 @@ var localoffset localoffsetint
 
 
 func getStructFieldOffset(field *ast.Field) int {
+	if field.Doc == nil {
+		panic("Doc is nil:"+field.Names[0].Name)
+	}
 	text := field.Doc.List[0].Text
 	offset, err := strconv.Atoi(text)
 	if err != nil {
@@ -824,7 +827,16 @@ func setStructFieldOffset(field *ast.Field, offset int) {
 	field.Doc = commentGroup
 }
 
-func getStructFields(namedStructType ast.Expr) []*ast.Field {
+func getStructFields(structTypeSpec *ast.TypeSpec) []*ast.Field {
+	structType, ok := structTypeSpec.Type.(*ast.StructType)
+	if !ok {
+		throw(structTypeSpec.Type)
+	}
+
+	return structType.Fields.List
+}
+
+func getStructTypeSpec(namedStructType ast.Expr) *ast.TypeSpec {
 	if getTypeKind(namedStructType) != T_STRUCT {
 			throw(namedStructType)
 	}
@@ -836,16 +848,11 @@ func getStructFields(namedStructType ast.Expr) []*ast.Field {
 	if !ok {
 		throw(ident.Obj.Decl)
 	}
-	structType, ok := typeSpec.Type.(*ast.StructType)
-	if !ok {
-		throw(typeSpec.Type)
-	}
-
-	return structType.Fields.List
+	return typeSpec
 }
 
-func lookupStructField(namedStructType ast.Expr, selName string) *ast.Field {
-	for _, field := range getStructFields(namedStructType) {
+func lookupStructField(structTypeSpec *ast.TypeSpec, selName string) *ast.Field {
+	for _, field := range getStructFields(structTypeSpec) {
 		if field.Names[0].Name == selName {
 			return field
 		}
@@ -854,9 +861,9 @@ func lookupStructField(namedStructType ast.Expr, selName string) *ast.Field {
 	return nil
 }
 
-func calcStructTypeSize(namedStructType ast.Expr) int {
+func calcStructSizeAndSetFieldOffset(structTypeSpec *ast.TypeSpec) int {
 	var offset int = 0
-	for _, field := range getStructFields(namedStructType) {
+	for _, field := range getStructFields(structTypeSpec) {
 		setStructFieldOffset(field, offset)
 		size := getSizeOfType(field.Type)
 		offset += size
@@ -1162,10 +1169,11 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	for _, decl := range fiile.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
-			switch dcl.Tok {
-			case token.VAR:
-				spec := dcl.Specs[0]
-				valSpec := spec.(*ast.ValueSpec)
+			spec := dcl.Specs[0]
+			switch spc := spec.(type) {
+			case *ast.ValueSpec:
+				valSpec := spc
+				//println(fmt.Sprintf("spec=%s", dcl.Tok))
 				fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
 				nameIdent := valSpec.Names[0]
 				nameIdent.Obj.Data = &Variable{
@@ -1192,7 +1200,15 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 					}
 				}
 				globalVars = append(globalVars, valSpec)
+			case *ast.ImportSpec:
+			case *ast.TypeSpec:
+				typeSpec := spc
+				assert(getTypeKind(typeSpec.Type) == T_STRUCT, "should be T_STRUCT")
+				calcStructSizeAndSetFieldOffset(typeSpec)
+			default:
+				throw(spec)
 			}
+
 		case *ast.FuncDecl:
 			funcDecl := decl.(*ast.FuncDecl)
 			localvars = nil
@@ -1382,7 +1398,7 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 	case *ast.SelectorExpr:
 		fmt.Printf("  # getTypeOfExpr(%s.%s)\n", e.X, e.Sel)
 		structType := getStructTypeOfX(e)
-		field := lookupStructField(structType, e.Sel.Name)
+		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		return field.Type
 	default:
 		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))

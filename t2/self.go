@@ -47,9 +47,13 @@ func write(s string) {
 }
 
 func semanticAnalyze(s string) string {
-	globalFuncs = make([]string, 2, 2)
-	globalFuncs[0] = "main"
-	globalFuncs[1] = "foo"
+	globalFuncs = make([]*Func, 2, 2)
+	var fnc *Func = new(Func)
+	fnc.name = "main"
+	globalFuncs[0] = fnc
+	var fnc2 *Func = new(Func)
+	fnc2.name = "foo"
+	globalFuncs[1] = fnc2
 
 	stringLiterals = make([]string, 2, 2)
 	stringLiterals[0] = "hello0"
@@ -69,8 +73,8 @@ func emitData(pkgName string) {
 	}
 }
 
-func emitFuncDecl(pkgPrefix string, fn string) {
-	var fname string = fn
+func emitFuncDecl(pkgPrefix string, fn *Func) {
+	var fname string = fn.name
 	write(pkgPrefix + "." + fname + ":\n")
 	write("  ret\n")
 }
@@ -79,7 +83,7 @@ func emitText(pkgName string) {
 	write(".text\n")
 	var i int
 	for i = 0; i<len(globalFuncs); i++ {
-		var fnc string = globalFuncs[i]
+		var fnc *Func = globalFuncs[i]
 		emitFuncDecl(pkgName, fnc)
 	}
 }
@@ -98,12 +102,13 @@ type Func struct {
 //	localvars []*ast.ValueSpec
 	localarea int
 	argsarea  int
+	name string
 }
 
 var stringLiterals []string
 var stringIndex int
 var globalVars []*astValueSpec
-var globalFuncs []string
+var globalFuncs []*Func
 
 var sourceFiles [1]string
 var _garbage string
