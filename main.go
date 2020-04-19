@@ -465,7 +465,19 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 		}
 	case *ast.BinaryExpr:
 		if getTypeKind(getTypeOfExpr(e.X)) == T_STRING {
-			emitConcateString(e.X, e.Y)
+			switch e.Op.String() {
+			case "+":
+				emitExpr(e.Y, nil)
+				emitExpr(e.X, nil)
+				fmt.Printf("  callq runtime.catstrings\n")
+				fmt.Printf("  addq $32, %%rsp # revert for one string\n")
+				fmt.Printf("  pushq %%rdi # slice len\n")
+				fmt.Printf("  pushq %%rax # slice ptr\n")
+			case "==":
+				panic("TBI")
+			default:
+				throw(e.Op.String())
+			}
 			return
 		}
 		fmt.Printf("  # start %T\n", e)
@@ -537,12 +549,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 }
 
 func emitConcateString(left ast.Expr, right ast.Expr) {
-	emitExpr(right, nil)
-	emitExpr(left, nil)
-	fmt.Printf("  callq runtime.catstrings\n")
-	fmt.Printf("  addq $32, %%rsp # revert for one string\n")
-	fmt.Printf("  pushq %%rdi # slice len\n")
-	fmt.Printf("  pushq %%rax # slice ptr\n")
+
 }
 
 //@TODO handle larger types than int
