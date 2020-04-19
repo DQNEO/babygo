@@ -11,23 +11,7 @@ import (
 	"strings"
 )
 
-const globalFlag int = 99999
-
-func isGlobalVar(obj *ast.Object) bool {
-	return getObjData(obj) == globalFlag
-}
-
-func setObjData(obj *ast.Object, i int) {
-	obj.Data = i
-}
-
-func getObjData(obj *ast.Object) int {
-	objData, ok := obj.Data.(int)
-	if !ok {
-		throw(obj)
-	}
-	return objData
-}
+type localoffsetint int
 
 func emitLoad(typ ast.Expr) {
 	fmt.Printf("  popq %%rdx\n")
@@ -60,27 +44,14 @@ func emitLoad(typ ast.Expr) {
 	}
 }
 
-func emitVariableAddr(obj *ast.Object) {
-	assert(obj.Kind == ast.Var, "obj should be ast.Var")
-
-	var localOffset int
-	localOffset = getObjData(obj)
-
-	var scope_comment string
-	if isGlobalVar(obj) {
-		scope_comment = "global"
-	} else {
-		scope_comment = "local"
-	}
-	fmt.Printf("  # obj %#v\n", obj)
-	fmt.Printf("  # emitVariableAddr %s \"%s\" Data=%d %#v\n", scope_comment, obj.Name, obj.Data, obj.Decl)
-
+func emitVariableAddr(variable *Variable) {
+	fmt.Printf("  # variable %#v\n", variable)
 
 	var addr string
-	if isGlobalVar(obj) {
-		addr = fmt.Sprintf("%s(%%rip)", obj.Name)
+	if variable.isGlobal {
+		addr = fmt.Sprintf("%s(%%rip)", variable.globalSymbol)
 	} else {
-		addr = fmt.Sprintf("%d(%%rbp)", localOffset)
+		addr = fmt.Sprintf("%d(%%rbp)", variable.localOffset)
 	}
 
 	fmt.Printf("  leaq %s, %%rax # addr\n", addr)
@@ -115,11 +86,20 @@ func getSizeOfType(typeExpr ast.Expr) int {
 	return 0
 }
 
+type Variable struct{
+	name string
+	isGlobal bool
+	globalSymbol string
+	localOffset localoffsetint
+}
+
 func emitAddr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		if e.Obj.Kind == ast.Var {
-			emitVariableAddr(e.Obj)
+			vr, ok := e.Obj.Data.(*Variable)
+			assert(ok, "should be *Variable")
+			emitVariableAddr(vr)
 		} else {
 			panic("Unexpected ident kind")
 		}
@@ -803,7 +783,7 @@ func registerStringLiteral(s string) string {
 }
 
 var localvars []*ast.ValueSpec
-var localoffset int
+var localoffset localoffsetint
 
 
 func getStructFieldOffset(field *ast.Field) int {
@@ -897,8 +877,13 @@ func walkStmt(stmt ast.Stmt) {
 					throw(varSpec.Type)
 				}
 
-				localoffset -= varSize
-				setObjData(obj, localoffset)
+				localoffset -= localoffsetint(varSize)
+				obj.Data = &Variable{
+					name: obj.Name,
+					isGlobal:     false,
+					globalSymbol: "",
+					localOffset:  localoffset,
+				}
 				localvars = append(localvars, ds)
 				for _, v := range ds.Values {
 					walkExpr(v)
@@ -1087,6 +1072,8 @@ var gCap = &ast.Object{
 	Type: nil,
 }
 
+type isGlobal bool
+
 func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	// https://github.com/golang/example/tree/master/gotypes#an-example
 	// Type check
@@ -1169,7 +1156,12 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 				valSpec := spec.(*ast.ValueSpec)
 				fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
 				nameIdent := valSpec.Names[0]
-				nameIdent.Obj.Data = globalFlag
+				nameIdent.Obj.Data = &Variable{
+					name: nameIdent.Obj.Name,
+					isGlobal:     true,
+					globalSymbol: nameIdent.Obj.Name,
+					localOffset:  0,
+				}
 				if len(valSpec.Values) > 0 {
 					switch getTypeKind(valSpec.Type) {
 					case T_STRING:
@@ -1193,7 +1185,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 			funcDecl := decl.(*ast.FuncDecl)
 			localvars = nil
 			localoffset  = 0
-			var paramoffset int = 16
+			var paramoffset localoffsetint = 16
 			for _, field := range funcDecl.Type.Params.List {
 				obj :=field.Names[0].Obj
 				var varSize int
@@ -1205,8 +1197,13 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 				default:
 					panic(getTypeKind(field.Type))
 				}
-				setObjData(obj, paramoffset)
-				paramoffset += varSize
+				obj.Data = &Variable{
+					name: obj.Name,
+					isGlobal:     false,
+					globalSymbol: "",
+					localOffset:  paramoffset,
+				}
+				paramoffset += localoffsetint(varSize)
 				fmt.Printf("# field.Names[0].Obj=%#v\n", obj)
 			}
 			if funcDecl.Body == nil {
@@ -1233,8 +1230,8 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 type Func struct {
 	decl      *ast.FuncDecl
 	localvars []*ast.ValueSpec
-	localarea int
-	argsarea  int
+	localarea localoffsetint
+	argsarea  localoffsetint
 }
 
 func getExprSize(typeExpr ast.Expr) int {
