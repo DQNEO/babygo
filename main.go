@@ -1386,12 +1386,16 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 			if !ok {
 				throw(fn)
 			}
-			if xIdent.Name == "unsafe" && fn.Sel.Name == "Pointer" {
-				// unsafe.Pointer(x)
-				return &ast.Ident{
-					NamePos: 0,
-					Name:    "uintptr",
-					Obj:     gUintptr,
+			if xIdent.Name == "unsafe" {
+				if  fn.Sel.Name == "Pointer" {
+					// unsafe.Pointer(x)
+					return &ast.Ident{
+						NamePos: 0,
+						Name:    "uintptr",
+						Obj:     gUintptr,
+					}
+				} else {
+					panic("TBI")
 				}
 			}
 			throw(fmt.Sprintf("%#v, %#v\n", xIdent, fn.Sel))
