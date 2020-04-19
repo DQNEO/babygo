@@ -69,21 +69,24 @@ func throw(x interface{}) {
 }
 
 func getSizeOfType(typeExpr ast.Expr) int {
-	switch typ := typeExpr.(type) {
-	case *ast.Ident:
-		if typ.Obj == nil {
-			throw(typ)
-		}
-		data,ok := typ.Obj.Data.(int)
-		if !ok {
-			throw(typ.Obj)
-		}
-		return data
-	case *ast.StarExpr:
-		return 8
+	var varSize int
+	switch getTypeKind(typeExpr)  {
+	case T_SLICE:
+		return sliceSize
+	case T_STRING:
+		return gString.Data.(int)
+	case T_INT, T_UINTPTR, T_POINTER:
+		return gInt.Data.(int)
+	case T_UINT8:
+		return gUint8.Data.(int)
+	case T_BOOL:
+		return gInt.Data.(int)
+	case T_STRUCT:
+		return calcStructTypeSize(typeExpr)
+	default:
+		throw(typeExpr)
 	}
-	throw(typeExpr)
-	return 0
+	return varSize
 }
 
 type Variable struct{
@@ -106,7 +109,6 @@ func emitAddr(expr ast.Expr) {
 	case *ast.IndexExpr:
 		elmType := getTypeOfExpr(e)
 		size := getSizeOfType(elmType)
-
 		emitExpr(e.Index, tInt) // index number
 		typ := getTypeOfExpr(e.X)
 		switch getTypeKind(typ) {
@@ -374,7 +376,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 					for i:=len(e.Args) - 1;i>=0;i-- {
 						arg := e.Args[i]
 						emitExpr(arg, nil)
-						size := getExprSize(getTypeOfExpr(arg))
+						size := getSizeOfType(getTypeOfExpr(arg))
 						totalSize += size
 					}
 					symbol := pkgName + "." + fn.Name
@@ -859,24 +861,7 @@ func walkStmt(stmt ast.Stmt) {
 			case *ast.ValueSpec:
 				varSpec := ds
 				obj := varSpec.Names[0].Obj
-				var varSize int
-				switch getTypeKind(varSpec.Type)  {
-				case T_SLICE:
-					varSize = sliceSize
-				case T_STRING:
-					varSize = gString.Data.(int)
-				case T_INT, T_UINTPTR, T_POINTER:
-					varSize = gInt.Data.(int)
-				case T_UINT8:
-					varSize = gUint8.Data.(int)
-				case T_BOOL:
-					varSize = gInt.Data.(int)
-				case T_STRUCT:
-					varSize = calcStructTypeSize(varSpec.Type)
-				default:
-					throw(varSpec.Type)
-				}
-
+				var varSize int = getSizeOfType(varSpec.Type)
 				localoffset -= localoffsetint(varSize)
 				obj.Data = &Variable{
 					name: obj.Name,
@@ -1188,21 +1173,13 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 			var paramoffset localoffsetint = 16
 			for _, field := range funcDecl.Type.Params.List {
 				obj :=field.Names[0].Obj
-				var varSize int
-				switch getTypeKind(field.Type) {
-				case T_STRING:
-					varSize = gString.Data.(int)
-				case T_INT, T_UINTPTR:
-					varSize = gInt.Data.(int)
-				default:
-					panic(getTypeKind(field.Type))
-				}
 				obj.Data = &Variable{
 					name: obj.Name,
 					isGlobal:     false,
 					globalSymbol: "",
 					localOffset:  paramoffset,
 				}
+				var varSize int = getSizeOfType(field.Type)
 				paramoffset += localoffsetint(varSize)
 				fmt.Printf("# field.Names[0].Obj=%#v\n", obj)
 			}
@@ -1234,23 +1211,6 @@ type Func struct {
 	argsarea  localoffsetint
 }
 
-func getExprSize(typeExpr ast.Expr) int {
-	switch getTypeKind(typeExpr) {
-	case T_STRING:
-		return 8*2
-	case T_SLICE:
-		return 8*3
-	case T_INT:
-		return 8
-	case T_UINT8:
-		return 1
-	case T_ARRAY:
-		panic("TBI")
-	default:
-		throw(typeExpr)
-	}
-	return 0
-}
 
 const T_STRING = "T_STRING"
 const T_SLICE = "T_SLICE"
