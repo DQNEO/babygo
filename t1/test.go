@@ -17,6 +17,9 @@ func testNew() {
 	strct = _testNew()
 	writeln(Itoa(strct.field1))
 	writeln(Itoa(strct.field2))
+	var i *int
+	i = new(int)
+	writeln(Itoa(*i)) // 0
 }
 
 var testNilSlice []*MyStruct

@@ -203,6 +203,11 @@ func emitConversion(typeExpr ast.Expr, arg0 ast.Expr) {
 		} else {
 			throw(typeExpr)
 		}
+	case *ast.ParenExpr: // (T)(arg0)
+		emitConversion(typ.X, arg0)
+	case *ast.StarExpr: // (*T)(arg0)
+		// go through
+		emitExpr(arg0, nil)
 	default:
 		throw(typeExpr)
 	}
@@ -442,6 +447,9 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 			default:
 				panic(symbol)
 			}
+		case *ast.ParenExpr: // (T)(e)
+			// we assume this is conversion
+			emitConversion(fn, e.Args[0])
 		default:
 			throw(fun)
 		}
@@ -896,6 +904,9 @@ func walkStmt(stmt ast.Stmt) {
 			case *ast.ValueSpec:
 				varSpec := ds
 				obj := varSpec.Names[0].Obj
+				if varSpec.Type == nil {
+					panic("type inference is not supported: " + obj.Name)
+				}
 				var varSize int = getSizeOfType(varSpec.Type)
 				localoffset -= localoffsetint(varSize)
 				obj.Data = &Variable{
