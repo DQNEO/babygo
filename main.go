@@ -787,15 +787,14 @@ var labelid int
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("\n")
-	funcDecl := fnc.decl
 	fmt.Printf("%s.%s: # args %d, locals %d\n",
-		pkgPrefix, funcDecl.Name, fnc.argsarea, fnc.localarea)
+		pkgPrefix, fnc.name, fnc.argsarea, fnc.localarea)
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
 	if len(fnc.localvars) > 0 {
 		fmt.Printf("  subq $%d, %%rsp # local area\n", fnc.localarea)
 	}
-	for _, stmt := range funcDecl.Body.List {
+	for _, stmt := range fnc.stmts {
 		emitStmt(stmt)
 	}
 	fmt.Printf("  leave\n")
@@ -1255,7 +1254,8 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 				walkStmt(stmt)
 			}
 			fnc := &Func{
-				decl:      funcDecl,
+				name: funcDecl.Name.Name,
+				stmts:funcDecl.Body.List,
 				localvars: localvars,
 				localarea: -localoffset,
 				argsarea: paramoffset,
@@ -1270,7 +1270,8 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 }
 
 type Func struct {
-	decl      *ast.FuncDecl
+	name      string
+	stmts     []ast.Stmt
 	localvars []*ast.ValueSpec
 	localarea localoffsetint
 	argsarea  localoffsetint
