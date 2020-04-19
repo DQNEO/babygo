@@ -176,23 +176,35 @@ func emitConversionToSlice(arrayType *ast.ArrayType, arg0 ast.Expr) {
 	fmt.Printf("  pushq %%rax # ptr\n")
 }
 
-func emitConversion(fn *ast.Ident, arg0 ast.Expr) {
-	fmt.Printf("  # general Conversion %s <= %s\n", fn.Obj, getTypeOfExpr(arg0))
-	switch fn.Obj {
-	case gString: // string(e)
-		switch getTypeKind(getTypeOfExpr(arg0)) {
-		case T_SLICE: // string(slice)
-			emitExpr(arg0, fn) // slice
-			fmt.Printf("  popq %%rax # ptr\n")
-			fmt.Printf("  popq %%rcx # len\n")
-			fmt.Printf("  popq %%rdx # cap (to be abandoned)\n")
-			fmt.Printf("  pushq %%rcx # str len\n")
-			fmt.Printf("  pushq %%rax # str ptr\n")
+func emitConversion(typeExpr ast.Expr, arg0 ast.Expr) {
+	fmt.Printf("  # Conversion %s <= %s\n", typeExpr, getTypeOfExpr(arg0))
+	switch typ := typeExpr.(type) {
+	case *ast.Ident:
+		ident := typ
+		switch ident.Obj {
+		case gString: // string(e)
+			switch getTypeKind(getTypeOfExpr(arg0)) {
+			case T_SLICE: // string(slice)
+				emitExpr(arg0, ident) // slice
+				fmt.Printf("  popq %%rax # ptr\n")
+				fmt.Printf("  popq %%rcx # len\n")
+				fmt.Printf("  popq %%rdx # cap (to be abandoned)\n")
+				fmt.Printf("  pushq %%rcx # str len\n")
+				fmt.Printf("  pushq %%rax # str ptr\n")
+			}
+		case gInt, gUint8, gUint16, gUintptr: // int(e)
+			emitExpr(arg0, ident)
+		default:
+			throw(ident.Obj)
 		}
-	case gInt, gUint8, gUint16, gUintptr: // int(e)
-		emitExpr(arg0, fn)
+	case *ast.ArrayType: // Conversion to slice
+		if typ.Len == nil {
+			emitConversionToSlice(typ, arg0)
+		} else {
+			throw(typeExpr)
+		}
 	default:
-		throw(fn.Obj)
+		throw(typeExpr)
 	}
 	return
 }
@@ -277,11 +289,16 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 		fun := e.Fun
 		fmt.Printf("  # callExpr=%#v\n", fun)
 		switch fn := fun.(type) {
-		case *ast.ArrayType: // Conversion to slice
-			emitConversionToSlice(fn, e.Args[0])
+		case *ast.ArrayType: // Conversion
+			emitConversion(fn, e.Args[0])
 		case *ast.Ident:
 			if fn.Obj == nil {
 				panic("unresolved ident: " + fn.String())
+			}
+			if fn.Obj.Kind == ast.Typ {
+				// Conversion
+				emitConversion(fn, e.Args[0])
+				return
 			}
 			switch fn.Obj {
 			case gLen:
@@ -359,12 +376,6 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 					throw(typeArg)
 				}
 			default:
-				switch fn.Obj.Kind {
-				case ast.Typ:
-					// Conversion
-					emitConversion(fn, e.Args[0])
-					return
-				}
 				if fn.Name == "print" {
 					// builtin print
 					emitExpr(e.Args[0], nil) // push ptr, push len
