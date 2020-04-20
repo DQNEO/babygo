@@ -46,7 +46,7 @@ func fmtPrintf(s string) {
 	syscall.Write(1, slc)
 }
 
-func semanticAnalyze(s string) string {
+func semanticAnalyze(name string) string {
 	globalFuncs = make([]*Func, 2, 2)
 	var fnc *Func = new(Func)
 	fnc.name = "main"
@@ -59,18 +59,18 @@ func semanticAnalyze(s string) string {
 	stringLiterals[0] = "hello0"
 	stringLiterals[1] = "hello1"
 
-	return s
+	return name
 }
 
 
 func emitData(pkgName string) {
 	fmtPrintf(".data\n")
 	var i int = 0
-	for i=0;i<len(stringLiterals);i++ {
+	var sl string
+	for _, sl = range stringLiterals {
 		fmtPrintf("# string literals\n")
-		var seq string = Itoa(i)
-		fmtPrintf("." + pkgName + ".S" + seq + ":\n")
-		fmtPrintf("  .string " + stringLiterals[i] + "\n")
+		fmtPrintf("." + pkgName + ".S" + Itoa(i) + ":\n")
+		fmtPrintf("  .string " + sl + "\n")
 	}
 	fmtPrintf("# ===== Global Variables =====\n")
 	fmtPrintf("# ==============================\n")
@@ -123,14 +123,13 @@ var sourceFiles [1]string
 var _garbage string
 func main() {
 	sourceFiles[0] = "main"
-	var i int
-	for i=0;i<len(sourceFiles); i++ {
+	var sourceFile string
+	for _, sourceFile = range sourceFiles {
 		globalVars = nil
 		globalFuncs = nil
 		stringLiterals = nil
 		stringIndex = 0
-		_garbage = sourceFiles[i]
-		var pkgName string = semanticAnalyze(sourceFiles[0])
+		var pkgName string = semanticAnalyze(sourceFile)
 		generateCode(pkgName)
 	}
 }
