@@ -886,6 +886,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 type sliteral struct {
 	label string
 	strlen int
+	value string // raw value
 }
 
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
@@ -904,18 +905,19 @@ func registerStringLiteral(lit *ast.BasicLit)  {
 		panic("no pkgName")
 	}
 
-	stringLiterals = append(stringLiterals, lit.Value)
 	var strlen int
 	for _, c := range []uint8(lit.Value) {
 		if c != '\\' {
 			strlen++
 		}
 	}
-
-	mapStringLiterals[lit] = &sliteral{
+	sl := &sliteral{
 		label:  getStringLabel(pkgName, stringIndex),
 		strlen: strlen - 2,
+		value: lit.Value,
 	}
+	mapStringLiterals[lit] = sl
+	stringLiterals = append(stringLiterals, sl)
 	stringIndex++
 }
 
@@ -1602,11 +1604,10 @@ func getStringLabel(pkgName string, i int) string {
 
 func emitData(pkgName string) {
 	fmt.Printf(".data\n")
-	for i, sl := range stringLiterals {
+	for _, sl := range stringLiterals {
 		fmt.Printf("# string literals\n")
-		var label string = getStringLabel(pkgName, i)
-		fmt.Printf("%s:\n", label)
-		fmt.Printf("  .string %s\n", sl)
+		fmt.Printf("%s:\n", sl.label)
+		fmt.Printf("  .string %s\n", sl.value)
 	}
 
 	fmt.Printf("# ===== Global Variables =====\n")
@@ -1723,7 +1724,7 @@ func generateCode(pkgName string) {
 }
 
 var pkgName string
-var stringLiterals []string
+var stringLiterals []*sliteral
 var stringIndex int
 
 var globalVars []*ast.ValueSpec
