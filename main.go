@@ -256,6 +256,28 @@ func emitZeroValue(typeExpr ast.Expr) {
 	}
 }
 
+func emitLen(arg ast.Expr) {
+	switch getTypeKind(getTypeOfExpr(arg)) {
+	case T_ARRAY:
+		arrayType, ok := getTypeOfExpr(arg).(*ast.ArrayType)
+		assert(ok, "should be *ast.ArrayType")
+		emitExpr(arrayType.Len, tInt)
+	case T_SLICE:
+		emitExpr(arg, nil)
+		fmt.Printf("  popq %%rax # throw away ptr\n")
+		fmt.Printf("  popq %%rcx # len\n")
+		fmt.Printf("  popq %%rax # throw away cap\n")
+		fmt.Printf("  pushq %%rcx # len\n")
+	case T_STRING:
+		emitExpr(arg, nil)
+		fmt.Printf("  popq %%rax # throw away ptr\n")
+		fmt.Printf("  popq %%rcx # len\n")
+		fmt.Printf("  pushq %%rcx # len\n")
+	default:
+		throw(getTypeKind(getTypeOfExpr(arg)))
+	}
+}
+
 func emitExpr(expr ast.Expr, forceType ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -315,25 +337,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 			case gLen:
 				assert(len(e.Args) == 1, "builtin len should take only 1 args")
 				var arg ast.Expr = e.Args[0]
-				switch getTypeKind(getTypeOfExpr(arg)) {
-				case T_ARRAY:
-					arrayType, ok := getTypeOfExpr(arg).(*ast.ArrayType)
-					assert(ok, "should be *ast.ArrayType")
-					emitExpr(arrayType.Len, tInt)
-				case T_SLICE:
-					emitExpr(arg, nil)
-					fmt.Printf("  popq %%rax # throw away ptr\n")
-					fmt.Printf("  popq %%rcx # len\n")
-					fmt.Printf("  popq %%rax # throw away cap\n")
-					fmt.Printf("  pushq %%rcx # len\n")
-				case T_STRING:
-					emitExpr(arg, nil)
-					fmt.Printf("  popq %%rax # throw away ptr\n")
-					fmt.Printf("  popq %%rcx # len\n")
-					fmt.Printf("  pushq %%rcx # len\n")
-				default:
-					throw(getTypeKind(getTypeOfExpr(arg)))
-				}
+				emitLen(arg)
 			case gCap:
 				assert(len(e.Args) == 1, "builtin len should take only 1 args")
 				var arg ast.Expr = e.Args[0]
