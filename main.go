@@ -792,7 +792,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
 	if fnc.localarea != 0 {
-		fmt.Printf("  subq $%d, %%rsp # local area\n", fnc.localarea)
+		fmt.Printf("  subq $%d, %%rsp # local area\n", -fnc.localarea)
 	}
 	for _, stmt := range fnc.stmts {
 		emitStmt(stmt)
@@ -1256,7 +1256,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 			fnc := &Func{
 				name: funcDecl.Name.Name,
 				stmts:funcDecl.Body.List,
-				localarea: -localoffset,
+				localarea: localoffset,
 				argsarea: paramoffset,
 			}
 			globalFuncs = append(globalFuncs, fnc)
