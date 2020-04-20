@@ -96,6 +96,28 @@ type Variable struct{
 	localOffset localoffsetint
 }
 
+func emitCollectionAddr(collection ast.Expr) {
+	typ := getTypeOfExpr(collection)
+	switch getTypeKind(typ) {
+	case T_ARRAY:
+		emitAddr(collection) // array head
+	case T_SLICE:
+		emitExpr(collection, typ)
+		fmt.Printf("  popq %%rax # slice.ptr\n")
+		fmt.Printf("  popq %%rcx # garbage\n")
+		fmt.Printf("  popq %%rcx # garbage\n")
+		fmt.Printf("  pushq %%rax # slice.ptr\n")
+	case T_STRING:
+		emitExpr(collection, typ)
+		fmt.Printf("  popq %%rax # string.ptr\n")
+		fmt.Printf("  popq %%rcx # garbage\n")
+		fmt.Printf("  pushq %%rax # string.ptr\n")
+	default:
+		panic(getTypeKind(getTypeOfExpr(collection)))
+	}
+
+}
+
 func emitAddr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -107,30 +129,14 @@ func emitAddr(expr ast.Expr) {
 			panic("Unexpected ident kind")
 		}
 	case *ast.IndexExpr:
-		elmType := getTypeOfExpr(e)
-		size := getSizeOfType(elmType)
 		emitExpr(e.Index, tInt) // index number
-		typ := getTypeOfExpr(e.X)
-		switch getTypeKind(typ) {
-		case T_ARRAY:
-			emitAddr(e.X) // array head
-		case T_SLICE:
-			emitExpr(e.X, typ)
-			fmt.Printf("  popq %%rax # slice.ptr\n")
-			fmt.Printf("  popq %%rcx # garbage\n")
-			fmt.Printf("  popq %%rcx # garbage\n")
-			fmt.Printf("  pushq %%rax # slice.ptr\n")
-		case T_STRING:
-			emitExpr(e.X, typ)
-			fmt.Printf("  popq %%rax # string.ptr\n")
-			fmt.Printf("  popq %%rcx # garbage\n")
-			fmt.Printf("  pushq %%rax # string.ptr\n")
-		default:
-			panic(getTypeKind(getTypeOfExpr(e.X)))
-		}
+
+		collection := e.X
+		emitCollectionAddr(collection)
+
 		fmt.Printf("  popq %%rax # collection addr\n")
 		fmt.Printf("  popq %%rcx # index\n")
-		fmt.Printf("  movq $%d, %%rdx # elm size\n", size)
+		fmt.Printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(getTypeOfExpr(e)))
 		fmt.Printf("  imulq %%rdx, %%rcx\n")
 		fmt.Printf("  addq %%rcx, %%rax\n")
 		fmt.Printf("  pushq %%rax # addr of element\n")
