@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
-	"strings"
 )
 
 type localoffsetint int
@@ -478,13 +477,13 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 			fmt.Printf("  pushq $%d # number literal\n", ival)
 		case "STRING":
 			// e.Value == ".S%d:%d"
-			splitted := strings.Split(e.Value, ":")
-			if splitted[1] == "0" {
+			sl := getStringLiteral(e)
+			if sl.strlen == 0 {
 				// zero value
 				emitZeroValue(tString)
 			} else {
-				fmt.Printf("  pushq $%s # str len\n", splitted[1])
-				fmt.Printf("  leaq %s, %%rax # str ptr\n", splitted[0])
+				fmt.Printf("  pushq $%d # str len\n", sl.strlen)
+				fmt.Printf("  leaq %s, %%rax # str ptr\n", sl.label)
 				fmt.Printf("  pushq %%rax # str ptr\n")
 			}
 		default:
@@ -884,22 +883,40 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("  ret\n")
 }
 
-func registerStringLiteral(s string) string {
-	rawStringLiteal := s
-	stringLiterals = append(stringLiterals, rawStringLiteal)
+type sliteral struct {
+	label string
+	strlen int
+}
+
+func getStringLiteral(lit *ast.BasicLit) *sliteral {
+	sl, ok := mapStringLiterals[lit]
+	if !ok {
+		panic("unexpected")
+	}
+
+	return sl
+}
+
+var mapStringLiterals map[*ast.BasicLit]*sliteral = map[*ast.BasicLit]*sliteral{}
+
+func registerStringLiteral(lit *ast.BasicLit)  {
+	if pkgName == "" {
+		panic("no pkgName")
+	}
+
+	stringLiterals = append(stringLiterals, lit.Value)
 	var strlen int
-	for _, c := range []uint8(rawStringLiteal) {
+	for _, c := range []uint8(lit.Value) {
 		if c != '\\' {
 			strlen++
 		}
 	}
 
-	if pkgName == "" {
-		panic("no pkgName")
+	mapStringLiterals[lit] = &sliteral{
+		label:  getStringLabel(pkgName, stringIndex),
+		strlen: strlen - 2,
 	}
-	r := fmt.Sprintf("%s:%d", getStringLabel(pkgName, stringIndex), strlen - 2)
 	stringIndex++
-	return r
 }
 
 var localoffset localoffsetint
@@ -1063,7 +1080,7 @@ func walkExpr(expr ast.Expr) {
 		case "INT":
 		case "CHAR":
 		case "STRING":
-			e.Value = registerStringLiteral(e.Value)
+			registerStringLiteral(e)
 		default:
 			panic("Unexpected literal kind:" + e.Kind.String())
 		}
@@ -1315,7 +1332,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 						if !ok {
 							throw(valSpec.Type)
 						}
-						lit.Value = registerStringLiteral(lit.Value)
+						registerStringLiteral(lit)
 					case T_INT,T_UINT8, T_UINT16, T_UINTPTR:
 						_,ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
@@ -1605,11 +1622,9 @@ func emitData(pkgName string) {
 		case T_STRING:
 			switch vl := val.(type) {
 			case *ast.BasicLit:
-				var strval string
-				strval = vl.Value
-				splitted := strings.Split(strval, ":")
-				fmt.Printf("  .quad %s\n", splitted[0])
-				fmt.Printf("  .quad %s\n", splitted[1])
+				sl := getStringLiteral(vl)
+				fmt.Printf("  .quad %s\n", sl.label)
+				fmt.Printf("  .quad %d\n", sl.strlen)
 			case nil:
 				fmt.Printf("  .quad 0\n")
 				fmt.Printf("  .quad 0\n")
