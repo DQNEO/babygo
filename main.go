@@ -911,14 +911,17 @@ func registerStringLiteral(lit *ast.BasicLit)  {
 			strlen++
 		}
 	}
+
+	label := fmt.Sprintf(".%s.S%d", pkgName, stringIndex)
+	stringIndex++
+
 	sl := &sliteral{
-		label:  getStringLabel(pkgName, stringIndex),
+		label:  label,
 		strlen: strlen - 2,
-		value: lit.Value,
+		value:  lit.Value,
 	}
 	mapStringLiterals[lit] = sl
 	stringLiterals = append(stringLiterals, sl)
-	stringIndex++
 }
 
 var localoffset localoffsetint
@@ -1596,10 +1599,6 @@ func getTypeKind(typeExpr ast.Expr) string {
 		throw(typeExpr)
 	}
 	return ""
-}
-
-func getStringLabel(pkgName string, i int) string {
-	return fmt.Sprintf(".%s.S%d", pkgName, i)
 }
 
 func emitData(pkgName string) {
