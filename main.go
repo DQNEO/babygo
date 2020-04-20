@@ -723,8 +723,18 @@ func emitStmt(stmt ast.Stmt) {
 		} else if len(s.Results) == 0 {
 			fmt.Printf("  leave\n")
 			fmt.Printf("  ret\n")
-		} else {
-			panic("TBI")
+		} else if len(s.Results) == 3 {
+			// Special treatment to return a slice
+			for _, result := range s.Results {
+				assert(getSizeOfType(getTypeOfExpr(result)) == 8, "TBI")
+			}
+			emitExpr(s.Results[2], nil) // @FIXME
+			emitExpr(s.Results[1], nil) // @FIXME
+			emitExpr(s.Results[0], nil) // @FIXME
+			fmt.Printf("  popq %%rax # return 64bit\n")
+			fmt.Printf("  popq %%rdi # return 64bit\n")
+			fmt.Printf("  popq %%rsi # return 64bit\n")
+
 		}
 	case *ast.IfStmt:
 		fmt.Printf("  # if\n")

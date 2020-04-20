@@ -39,6 +39,12 @@ func malloc(size uintptr) uintptr {
 	return r
 }
 
+func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
+	var size uintptr = uintptr(elmSize * scap)
+	var addr uintptr = malloc(size)
+	return addr, slen, scap
+}
+
 func panic(s string) {
 	print(s)
 	//exit(1)
