@@ -905,8 +905,7 @@ func walkStmt(stmt ast.Stmt) {
 				if varSpec.Type == nil {
 					panic("type inference is not supported: " + obj.Name)
 				}
-				var varSize int = getSizeOfType(varSpec.Type)
-				localoffset -= localoffsetint(varSize)
+				localoffset -= localoffsetint(getSizeOfType(varSpec.Type))
 				obj.Data = newLocalVariable(obj.Name, localoffset)
 				for _, v := range ds.Values {
 					walkExpr(v)
