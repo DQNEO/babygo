@@ -772,6 +772,79 @@ func emitStmt(stmt ast.Stmt) {
 		emitStmt(s.Post)
 		fmt.Printf("  jmp %s\n", labelCond)
 		fmt.Printf("  %s:\n", labelExit)
+	case *ast.RangeStmt: // only for array and slice
+		labelid++
+		labelCond := fmt.Sprintf(".L.loop.cond.%d", labelid)
+		labelEndFor := fmt.Sprintf(".L.loop.exit.%d", labelid)
+
+		// initialization: store len(rangeexpr)
+		fmt.Printf("  # ForRange Initialization\n")
+
+		fmt.Printf("  #   assign to lenvar\n")
+		// emit len of rangeexpr
+		rngMisc, ok := mapRangeStmt[s]
+		assert(ok, "lenVar should exist")
+		// lenvar = len(s.X)
+		emitVariableAddr(rngMisc.lenvar)
+		emitLen(s.X)
+		emitStore(tInt)
+
+		fmt.Printf("  #   assign to indexvar\n")
+		// indexvar = 0
+		emitVariableAddr(rngMisc.indexvar)
+		emitZeroValue(tInt)
+		emitStore(tInt)
+
+		// Condition
+		// if (indexvar < lenvar) then
+		//   execute body
+		// else
+		//   exit
+		fmt.Printf("  # ForRange Condition\n")
+		fmt.Printf("  %s:\n", labelCond)
+
+		emitVariableAddr(rngMisc.indexvar)
+		emitLoad(tInt)
+		emitVariableAddr(rngMisc.lenvar)
+		emitLoad(tInt)
+		emitCompExpr("setl")
+		fmt.Printf("  popq %%rax\n")
+		fmt.Printf("  cmpq $0, %%rax\n")
+		fmt.Printf("  je %s # jmp if false\n", labelEndFor)
+
+		fmt.Printf("  # assign collection[indexvar] value variables\n")
+		elemType := getTypeOfExpr(s.Value)
+		emitAddr(s.Value) // lhs
+
+		emitVariableAddr(rngMisc.indexvar)
+		emitLoad(tInt) // index value
+		emitCollectionAddr(s.X) // collection addr
+		fmt.Printf("  popq %%rax # collection addr\n")
+		fmt.Printf("  popq %%rcx # index\n")
+		fmt.Printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(elemType))
+		fmt.Printf("  imulq %%rdx, %%rcx\n")
+		fmt.Printf("  addq %%rcx, %%rax\n")
+		fmt.Printf("  pushq %%rax # addr of element\n")
+		emitLoad(elemType)
+		emitStore(elemType)
+
+		// Body
+		fmt.Printf("  # ForRange Body\n")
+		emitStmt(s.Body)
+
+		// Post statement: Increment indexvar and go next
+		fmt.Printf("  # ForRange Post statement\n")
+		emitVariableAddr(rngMisc.indexvar) // lhs
+		emitVariableAddr(rngMisc.indexvar) // rhs
+		emitLoad(tInt)
+		fmt.Printf("  popq %%rax # indexvar value\n")
+		fmt.Printf("  addq $1, %%rax # ++\n")
+		fmt.Printf("  pushq %%rax #\n")
+		emitStore(tInt)
+
+		fmt.Printf("  jmp %s\n", labelCond)
+
+		fmt.Printf("  %s:\n", labelEndFor)
 	case *ast.IncDecStmt:
 		var inst string
 		switch s.Tok.String() {
@@ -948,13 +1021,30 @@ func walkStmt(stmt ast.Stmt) {
 		walkExpr(s.Cond)
 		walkStmt(s.Post)
 		walkStmt(s.Body)
+	case *ast.RangeStmt:
+		walkExpr(s.X)
+		walkStmt(s.Body)
+		localoffset -= localoffsetint(gInt.Data.(int))
+		lenvar := newLocalVariable(".range.len", localoffset)
+		localoffset -= localoffsetint(gInt.Data.(int))
+		indexvar := newLocalVariable(".range.index", localoffset)
+		mapRangeStmt[s] = &RangeStmtMisc{
+			lenvar: lenvar,
+			indexvar:  indexvar,
+		}
 	case *ast.IncDecStmt:
 		walkExpr(s.X)
 	default:
 		throw(stmt)
 	}
-
 }
+
+type RangeStmtMisc struct {
+	lenvar *Variable
+	indexvar *Variable
+}
+
+var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
 
 func walkExpr(expr ast.Expr) {
 	switch e := expr.(type) {
@@ -1601,7 +1691,8 @@ func emitData(pkgName string) {
 
 func emitText(pkgName string) {
 	fmt.Printf(".text\n")
-	for _, fnc := range globalFuncs {
+	var fnc *Func
+	for _, fnc = range globalFuncs {
 		emitFuncDecl(pkgName, fnc)
 	}
 }

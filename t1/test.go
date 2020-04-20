@@ -4,6 +4,42 @@ import (
 	"syscall"
 )
 
+func testForrange() {
+	var slc []string
+	var s string
+
+	writeln("going to loop 0 times")
+	for _, s = range slc {
+		write(s)
+		write("ERROR")
+	}
+	slc = make([]string, 2, 2)
+	slc[0] = ""
+	slc[1] = ""
+
+	writeln("going to loop 2 times")
+	for _, s = range slc {
+		write(s)
+		writeln(" in loop")
+	}
+
+	writeln("going to loop 4 times")
+	var a int
+	for _, a = range globalintarray {
+		write(Itoa(a))
+	}
+	writeln("")
+
+	slc = make([]string, 3, 3)
+	slc[0] = "hello"
+	slc[1] = "for"
+	slc[2] = "range"
+	for _, s = range slc {
+		write(s)
+	}
+	writeln("")
+}
+
 func _testNew() *MyStruct {
 	var strct *MyStruct
 	strct = new(MyStruct)
@@ -513,6 +549,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testForrange()
 	testNew()
 	testNil()
 	testZeroValues()

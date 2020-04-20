@@ -44,6 +44,9 @@ func panic(s string) {
 	//exit(1)
 }
 
+func nop() {
+}
+
 func nop1() {
 }
 
