@@ -897,7 +897,7 @@ func registerStringLiteral(s string) string {
 	if pkgName == "" {
 		panic("no pkgName")
 	}
-	r := fmt.Sprintf(".%s.S%d:%d", pkgName, stringIndex, strlen - 2)
+	r := fmt.Sprintf("%s:%d", getStringLabel(pkgName, stringIndex), strlen - 2)
 	stringIndex++
 	return r
 }
@@ -1579,11 +1579,16 @@ func getTypeKind(typeExpr ast.Expr) string {
 	return ""
 }
 
+func getStringLabel(pkgName string, i int) string {
+	return fmt.Sprintf(".%s.S%d", pkgName, i)
+}
+
 func emitData(pkgName string) {
 	fmt.Printf(".data\n")
 	for i, sl := range stringLiterals {
 		fmt.Printf("# string literals\n")
-		fmt.Printf(".%s.S%d:\n", pkgName, i)
+		var label string = getStringLabel(pkgName, i)
+		fmt.Printf("%s:\n", label)
 		fmt.Printf("  .string %s\n", sl)
 	}
 
