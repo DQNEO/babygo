@@ -819,7 +819,6 @@ func registerStringLiteral(s string) string {
 	return r
 }
 
-var localvars []*ast.ValueSpec
 var localoffset localoffsetint
 
 
@@ -914,7 +913,6 @@ func walkStmt(stmt ast.Stmt) {
 					globalSymbol: "",
 					localOffset:  localoffset,
 				}
-				localvars = append(localvars, ds)
 				for _, v := range ds.Values {
 					walkExpr(v)
 				}
@@ -1232,7 +1230,6 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 
 		case *ast.FuncDecl:
 			funcDecl := decl.(*ast.FuncDecl)
-			localvars = nil
 			localoffset  = 0
 			var paramoffset localoffsetint = 16
 			for _, field := range funcDecl.Type.Params.List {
