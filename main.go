@@ -907,12 +907,7 @@ func walkStmt(stmt ast.Stmt) {
 				}
 				var varSize int = getSizeOfType(varSpec.Type)
 				localoffset -= localoffsetint(varSize)
-				obj.Data = &Variable{
-					name: obj.Name,
-					isGlobal:     false,
-					globalSymbol: "",
-					localOffset:  localoffset,
-				}
+				obj.Data = newLocalVariable(obj.Name, localoffset)
 				for _, v := range ds.Values {
 					walkExpr(v)
 				}
@@ -1111,6 +1106,24 @@ var gCap = &ast.Object{
 
 type isGlobal bool
 
+func newGlobalVariable(name string) *Variable {
+	return &Variable{
+		name:         name,
+		isGlobal:     true,
+		globalSymbol: name,
+		localOffset:  0,
+	}
+}
+
+func newLocalVariable(name string, localoffset localoffsetint) *Variable {
+	return &Variable{
+		name:         name,
+		isGlobal:     false,
+		globalSymbol: "",
+		localOffset:  localoffset,
+	}
+}
+
 func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	// https://github.com/golang/example/tree/master/gotypes#an-example
 	// Type check
@@ -1195,12 +1208,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 				//println(fmt.Sprintf("spec=%s", dcl.Tok))
 				fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
 				nameIdent := valSpec.Names[0]
-				nameIdent.Obj.Data = &Variable{
-					name: nameIdent.Obj.Name,
-					isGlobal:     true,
-					globalSymbol: nameIdent.Obj.Name,
-					localOffset:  0,
-				}
+				nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
 				if len(valSpec.Values) > 0 {
 					switch getTypeKind(valSpec.Type) {
 					case T_STRING:
@@ -1234,12 +1242,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 			var paramoffset localoffsetint = 16
 			for _, field := range funcDecl.Type.Params.List {
 				obj :=field.Names[0].Obj
-				obj.Data = &Variable{
-					name: obj.Name,
-					isGlobal:     false,
-					globalSymbol: "",
-					localOffset:  paramoffset,
-				}
+				obj.Data = newLocalVariable(obj.Name, paramoffset)
 				var varSize int = getSizeOfType(field.Type)
 				paramoffset += localoffsetint(varSize)
 				fmt.Printf("# field.Names[0].Obj=%#v\n", obj)
