@@ -95,7 +95,7 @@ type Variable struct{
 	localOffset localoffsetint
 }
 
-func emitCollectionAddr(collection ast.Expr) {
+func emitListHeadAddr(collection ast.Expr) {
 	typ := getTypeOfExpr(collection)
 	switch getTypeKind(typ) {
 	case T_ARRAY:
@@ -131,7 +131,7 @@ func emitAddr(expr ast.Expr) {
 		emitExpr(e.Index, tInt) // index number
 
 		collection := e.X
-		emitCollectionAddr(collection)
+		emitListHeadAddr(collection)
 
 		fmt.Printf("  popq %%rax # collection addr\n")
 		fmt.Printf("  popq %%rcx # index\n")
@@ -569,7 +569,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 	case *ast.CompositeLit:
 		panic("TBI")
 	case *ast.SliceExpr: // list[low:high]
-		emitCollectionAddr(e.X)
+		emitListHeadAddr(e.X)
 		emitExpr(e.Low, nil) // intval
 		emitExpr(e.High, nil) // intval
 		//emitExpr(e.Max) // @TODO
@@ -825,8 +825,8 @@ func emitStmt(stmt ast.Stmt) {
 		emitAddr(s.Value) // lhs
 
 		emitVariableAddr(rngMisc.indexvar)
-		emitLoad(tInt) // index value
-		emitCollectionAddr(s.X) // collection addr
+		emitLoad(tInt)        // index value
+		emitListHeadAddr(s.X) // collection addr
 		fmt.Printf("  popq %%rax # collection addr\n")
 		fmt.Printf("  popq %%rcx # index\n")
 		fmt.Printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(elemType))
