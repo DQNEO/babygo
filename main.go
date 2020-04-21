@@ -95,24 +95,24 @@ type Variable struct{
 	localOffset localoffsetint
 }
 
-func emitListHeadAddr(collection ast.Expr) {
-	typ := getTypeOfExpr(collection)
+func emitListHeadAddr(list ast.Expr) {
+	typ := getTypeOfExpr(list)
 	switch getTypeKind(typ) {
 	case T_ARRAY:
-		emitAddr(collection) // array head
+		emitAddr(list) // array head
 	case T_SLICE:
-		emitExpr(collection, typ)
+		emitExpr(list, typ)
 		fmt.Printf("  popq %%rax # slice.ptr\n")
 		fmt.Printf("  popq %%rcx # garbage\n")
 		fmt.Printf("  popq %%rcx # garbage\n")
 		fmt.Printf("  pushq %%rax # slice.ptr\n")
 	case T_STRING:
-		emitExpr(collection, typ)
+		emitExpr(list, typ)
 		fmt.Printf("  popq %%rax # string.ptr\n")
 		fmt.Printf("  popq %%rcx # garbage\n")
 		fmt.Printf("  pushq %%rax # string.ptr\n")
 	default:
-		panic(getTypeKind(getTypeOfExpr(collection)))
+		panic(getTypeKind(getTypeOfExpr(list)))
 	}
 
 }
@@ -130,10 +130,10 @@ func emitAddr(expr ast.Expr) {
 	case *ast.IndexExpr:
 		emitExpr(e.Index, tInt) // index number
 
-		collection := e.X
-		emitListHeadAddr(collection)
+		list := e.X
+		emitListHeadAddr(list)
 
-		fmt.Printf("  popq %%rax # collection addr\n")
+		fmt.Printf("  popq %%rax # list addr\n")
 		fmt.Printf("  popq %%rcx # index\n")
 		fmt.Printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(getTypeOfExpr(e)))
 		fmt.Printf("  imulq %%rdx, %%rcx\n")
@@ -820,14 +820,14 @@ func emitStmt(stmt ast.Stmt) {
 		fmt.Printf("  cmpq $0, %%rax\n")
 		fmt.Printf("  je %s # jmp if false\n", labelEndFor)
 
-		fmt.Printf("  # assign collection[indexvar] value variables\n")
+		fmt.Printf("  # assign list[indexvar] value variables\n")
 		elemType := getTypeOfExpr(s.Value)
 		emitAddr(s.Value) // lhs
 
 		emitVariableAddr(rngMisc.indexvar)
 		emitLoad(tInt)        // index value
-		emitListHeadAddr(s.X) // collection addr
-		fmt.Printf("  popq %%rax # collection addr\n")
+		emitListHeadAddr(s.X) // list head addr
+		fmt.Printf("  popq %%rax # list head addr\n")
 		fmt.Printf("  popq %%rcx # index\n")
 		fmt.Printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(elemType))
 		fmt.Printf("  imulq %%rdx, %%rcx\n")
@@ -1472,8 +1472,8 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 	case *ast.BinaryExpr:
 		return getTypeOfExpr(e.X)
 	case *ast.IndexExpr:
-		collection := e.X
-		typ := getTypeOfExpr(collection)
+		list := e.X
+		typ := getTypeOfExpr(list)
 		switch tp := typ.(type) {
 		case *ast.ArrayType:
 			return tp.Elt
