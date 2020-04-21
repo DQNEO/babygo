@@ -55,9 +55,14 @@ func semanticAnalyze(name string) string {
 	fnc2.name = "foo"
 	globalFuncs[1] = fnc2
 
-	stringLiterals = make([]string, 2, 2)
-	stringLiterals[0] = "hello0"
-	stringLiterals[1] = "hello1"
+	stringLiterals = make([]*sliteral, 2, 2)
+	var s1 *sliteral = new(sliteral)
+	s1.value = "hello0"
+	stringLiterals[0] = s1
+
+	var s2 *sliteral = new(sliteral)
+	s2.value = "hello1"
+	stringLiterals[1] = s2
 
 	return name
 }
@@ -66,11 +71,11 @@ func semanticAnalyze(name string) string {
 func emitData(pkgName string) {
 	fmtPrintf(".data\n")
 	var i int = 0
-	var sl string
+	var sl *sliteral
 	for _, sl = range stringLiterals {
 		fmtPrintf("# string literals\n")
 		fmtPrintf("." + pkgName + ".S" + Itoa(i) + ":\n")
-		fmtPrintf("  .string " + sl + "\n")
+		fmtPrintf("  .string " + sl.value + "\n")
 	}
 	fmtPrintf("# ===== Global Variables =====\n")
 	fmtPrintf("# ==============================\n")
@@ -114,7 +119,13 @@ type Func struct {
 	name string
 }
 
-var stringLiterals []string
+type sliteral struct {
+	label string
+	strlen int
+	value string // raw value
+}
+
+var stringLiterals []*sliteral
 var stringIndex int
 var globalVars []*astValueSpec
 var globalFuncs []*Func
