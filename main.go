@@ -249,7 +249,7 @@ func emitZeroValue(typeExpr ast.Expr) {
 	case T_INT,T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmt.Printf("  pushq $0 # %s zero value\n", getTypeKind(typeExpr))
 	case T_STRUCT:
-		println("@FIXME") //@FIXME
+		//@FIXME
 	default:
 		throw(typeExpr)
 	}
@@ -637,7 +637,7 @@ func emitStore(typ ast.Expr) {
 		fmt.Printf("  popq %%rax # lhs addr\n")
 		fmt.Printf("  movw %%di, (%%rax) # assign word\n")
 	case T_STRUCT:
-		println("@FIXME") // @FXIME
+		// @FXIME
 	default:
 		panic("TBI:" + getTypeKind(typ))
 	}
