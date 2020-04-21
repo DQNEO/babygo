@@ -58,10 +58,12 @@ func semanticAnalyze(name string) string {
 	stringLiterals = make([]*sliteral, 2, 2)
 	var s1 *sliteral = new(sliteral)
 	s1.value = "hello0"
+	s1.label = ".main.S0"
 	stringLiterals[0] = s1
 
 	var s2 *sliteral = new(sliteral)
 	s2.value = "hello1"
+	s2.label = ".main.S1"
 	stringLiterals[1] = s2
 
 	return name
@@ -70,11 +72,10 @@ func semanticAnalyze(name string) string {
 
 func emitData(pkgName string) {
 	fmtPrintf(".data\n")
-	var i int = 0
 	var sl *sliteral
 	for _, sl = range stringLiterals {
 		fmtPrintf("# string literals\n")
-		fmtPrintf("." + pkgName + ".S" + Itoa(i) + ":\n")
+		fmtPrintf(sl.label+ ":\n")
 		fmtPrintf("  .string " + sl.value + "\n")
 	}
 	fmtPrintf("# ===== Global Variables =====\n")
