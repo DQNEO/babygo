@@ -568,9 +568,8 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 		fmt.Printf("  # end %T\n", e)
 	case *ast.CompositeLit:
 		panic("TBI")
-	case *ast.SliceExpr:
-		//e.Index, e.X
-		emitAddr(e.X) // array head
+	case *ast.SliceExpr: // list[low:high]
+		emitCollectionAddr(e.X)
 		emitExpr(e.Low, nil) // intval
 		emitExpr(e.High, nil) // intval
 		//emitExpr(e.Max) // @TODO

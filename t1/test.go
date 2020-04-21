@@ -4,6 +4,17 @@ import (
 	"syscall"
 )
 
+func testSliceOfSlice() {
+	var slc []uint8 = make([]uint8, 3,3)
+	slc[0] = 'a'
+	slc[1] = 'b'
+	slc[2] = 'c'
+	writeln(string(slc))
+
+	var slc2 []uint8 = slc[0:3]
+	writeln(string(slc2))
+}
+
 func testForrange() {
 	var slc []string
 	var s string
@@ -549,6 +560,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testSliceOfSlice()
 	testForrange()
 	testNew()
 	testNil()
