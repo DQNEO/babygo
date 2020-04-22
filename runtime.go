@@ -27,6 +27,17 @@ func memzeropad(addr uintptr, size uintptr) {
 	}
 }
 
+func memcopy(src uintptr, dst uintptr, length int) {
+	var i int
+	var srcp *uint8
+	var dstp *uint8
+	for i = 0; i < length; i++ {
+		srcp = (*uint8)(unsafe.Pointer(src + uintptr(i)))
+		dstp = (*uint8)(unsafe.Pointer(dst + uintptr(i)))
+		*dstp = *srcp
+	}
+}
+
 func malloc(size uintptr) uintptr {
 	if heapCurrent+size > heapTail {
 		panic("malloc exceeds heap capacity")
@@ -43,13 +54,6 @@ func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
 	var size uintptr = uintptr(elmSize * scap)
 	var addr uintptr = malloc(size)
 	return addr, slen, scap
-}
-
-func copySlice1(src []uint8, dst []uint8) {
-	var i int
-	for i = 0; i < len(src); i++ {
-		dst[i] = src[i]
-	}
 }
 
 // Actually this is an alias to makeSlice
@@ -72,7 +76,9 @@ func append1(x []uint8, elm uint8) (uintptr, int, int) {
 		}
 		z = makeSlice1(1, zlen, newcap)
 		nop()
-		copySlice1(x,z)
+		if xlen > 0 {
+			memcopy(uintptr(unsafe.Pointer(&x[0])),uintptr(unsafe.Pointer(&z[0])), len(x) * 1)
+		}
 	}
 
 	z[xlen] = elm
