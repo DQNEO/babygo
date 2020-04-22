@@ -386,30 +386,30 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 			case gAppend:
 				var sliceArg ast.Expr = e.Args[0]
 				var elemArg ast.Expr = e.Args[1]
-				emitExpr(elemArg, nil)  // size 8 or 16
+				emitExpr(elemArg, nil)  // various size
 				emitExpr(sliceArg, nil) // size 24
-				var stackSizeForArgs int
+				var stackForElm int
 				var symbol string
 				var size int = getSizeOfType(getElementTypeOfListType(getTypeOfExpr(sliceArg)))
 				switch size {
 				case 1:
 					symbol = "runtime.append1"
-					stackSizeForArgs = 8
+					stackForElm = 8
 				case 8:
 					symbol = "runtime.append8"
-					stackSizeForArgs = 8
+					stackForElm = 8
 				case 16:
 					symbol = "runtime.append16"
-					stackSizeForArgs = 16
+					stackForElm = 16
 				case 24:
 					symbol = "runtime.append24"
-					stackSizeForArgs = 24
+					stackForElm = 24
 				default:
 					throw(size)
 				}
 
 				fmt.Printf("  callq %s\n", symbol)
-				fmt.Printf("  addq $24+%d, %%rsp # revert\n", stackSizeForArgs)
+				fmt.Printf("  addq $24+%d, %%rsp # revert\n", stackForElm)
 				fmt.Printf("  pushq %%rsi # slice cap\n")
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
