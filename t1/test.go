@@ -6,14 +6,13 @@ import (
 
 func testAppend() {
 	var slc []uint8
-	slc = append(slc, 's')
-	slc = append(slc, 'l')
-	slc = append(slc, 'i')
-	slc = append(slc, 'c')
-	slc = append(slc, 'e')
-	slc = append(slc, 10)
+	var char uint8
+	for char = 'a'; char <= 'z' ; char++ {
+		slc = append(slc, char)
+	}
+	slc = append(slc, 10) // '\n'
 	write(string(slc))
-	writeln(Itoa(len(slc))) // 6
+	writeln(Itoa(len(slc))) // 27
 }
 
 func testSliceOfSlice() {
