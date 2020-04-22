@@ -4,7 +4,20 @@ import (
 	"syscall"
 )
 
-func testAppend() {
+func testAppendString() {
+	var slc []string
+	slc = append(slc, "a")
+	slc = append(slc, "bcde")
+	var elm string = "fghijklmn\n"
+	slc = append(slc, elm)
+	var s string
+	for _, s = range slc {
+		write(s)
+	}
+	writeln(Itoa(len(slc))) // 3
+}
+
+func testAppendByte() {
 	var slc []uint8
 	var char uint8
 	for char = 'a'; char <= 'z' ; char++ {
@@ -577,7 +590,8 @@ func write(s string) {
 var globalptr *int
 
 func test() {
-	testAppend()
+	testAppendString()
+	testAppendByte()
 	testSliceOfSlice()
 	testForrange()
 	testNew()

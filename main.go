@@ -386,17 +386,24 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 			case gAppend:
 				var sliceArg ast.Expr = e.Args[0]
 				var elemArg ast.Expr = e.Args[1]
-				emitExpr(elemArg, nil)
-				emitExpr(sliceArg, nil)
+				emitExpr(elemArg, nil)  // size 8 or 16
+				emitExpr(sliceArg, nil) // size 24
+				var stackSizeForArgs int
 				var symbol string
-				switch getSizeOfType(getElementTypeOfListType(getTypeOfExpr(sliceArg))) {
+				var size int = getSizeOfType(getElementTypeOfListType(getTypeOfExpr(sliceArg)))
+				switch size {
 				case 1:
 					symbol = "runtime.append1"
+					stackSizeForArgs = 8
+				case 16:
+					symbol = "runtime.append16"
+					stackSizeForArgs = 16
 				default:
-					panic("TBI")
+					throw(size)
 				}
+
 				fmt.Printf("  callq %s\n", symbol)
-				fmt.Printf("  addq $32, %%rsp # revert\n")
+				fmt.Printf("  addq $24+%d, %%rsp # revert\n", stackSizeForArgs)
 				fmt.Printf("  pushq %%rsi # slice cap\n")
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
@@ -418,6 +425,8 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 					}
 				} else {
 					if fn.Name == "makeSlice1" {
+						fn.Name = "makeSlice"
+					} else if fn.Name == "makeSlice16" {
 						fn.Name = "makeSlice"
 					}
 					// general funcall
