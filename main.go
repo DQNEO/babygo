@@ -430,13 +430,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 						panic("TBI")
 					}
 				} else {
-					if fn.Name == "makeSlice1" {
-						fn.Name = "makeSlice"
-					} else if fn.Name == "makeSlice8" {
-						fn.Name = "makeSlice"
-					} else if fn.Name == "makeSlice16" {
-						fn.Name = "makeSlice"
-					} else if fn.Name == "makeSlice24" {
+					if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
 						fn.Name = "makeSlice"
 					}
 					// general funcall
