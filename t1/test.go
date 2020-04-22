@@ -4,6 +4,12 @@ import (
 	"syscall"
 )
 
+func testSringIndex() {
+	var s string = "abcde"
+	var char uint8 = s[3]
+	writeln(Itoa(int(char)))
+}
+
 func testSubstring() {
 	var s string = "abcdefghi"
 	var subs string = s[2:5] // "cde"
@@ -645,6 +651,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testSringIndex()
 	testSubstring()
 	testAppendSlice()
 	testAppendPtr()
