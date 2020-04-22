@@ -4,6 +4,23 @@ import (
 	"syscall"
 )
 
+func testAppendPtr() {
+	var slc []*MyStruct
+	var p *MyStruct
+	var i int
+	for i=0;i<10;i++ {
+		p = new(MyStruct)
+		p.field1 = i
+		slc = append(slc, p)
+	}
+
+	for _, p = range slc {
+		write(Itoa(p.field1)) // 123456789
+	}
+	write("\n")
+}
+
+
 func testAppendInt() {
 	var slc []int
 	slc = append(slc, 1)
@@ -606,6 +623,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testAppendPtr()
 	testAppendInt()
 	testAppendString()
 	testAppendByte()
