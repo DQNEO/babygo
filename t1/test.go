@@ -4,6 +4,12 @@ import (
 	"syscall"
 )
 
+func testSubstring() {
+	var s string = "abcdefghi"
+	var subs string = s[2:5] // "cde"
+	writeln(subs)
+}
+
 func testAppendSlice() {
 	var slcslc [][]string
 	var slc []string
@@ -639,6 +645,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testSubstring()
 	testAppendSlice()
 	testAppendPtr()
 	testAppendInt()

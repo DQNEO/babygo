@@ -601,18 +601,27 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 	case *ast.CompositeLit:
 		panic("TBI")
 	case *ast.SliceExpr: // list[low:high]
+		list := e.X
+		listType := getTypeOfExpr(list)
 		emitExpr(e.Low, tInt)  // intval
 		emitExpr(e.High, tInt) // intval
 		//emitExpr(e.Max) // @TODO
 		fmt.Printf("  popq %%rax # high\n")
 		fmt.Printf("  popq %%rcx # low\n")
 		fmt.Printf("  subq %%rcx, %%rax # high - low\n")
-		fmt.Printf("  pushq %%rax # cap\n")
-		fmt.Printf("  pushq %%rax # len\n")
+		switch getTypeKind(listType) {
+		case T_SLICE, T_ARRAY:
+			fmt.Printf("  pushq %%rax # cap\n")
+			fmt.Printf("  pushq %%rax # len\n")
+		case T_STRING:
+			fmt.Printf("  pushq %%rax # len\n")
+			// no cap
+		default:
+			throw(list)
+		}
 
 		emitExpr(e.Low, tInt) // index number
-		list := e.X
-		elmType := getElementTypeOfListType(getTypeOfExpr(list))
+		elmType := getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
 	default:
 		throw(expr)
