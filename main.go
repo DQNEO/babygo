@@ -131,13 +131,8 @@ func emitAddr(expr ast.Expr) {
 		emitExpr(e.Index, tInt) // index number
 
 		list := e.X
-		emitListHeadAddr(list)
-		fmt.Printf("  popq %%rax # list addr\n")
-		fmt.Printf("  popq %%rcx # index\n")
-		fmt.Printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(getTypeOfExpr(e)))
-		fmt.Printf("  imulq %%rdx, %%rcx\n")
-		fmt.Printf("  addq %%rcx, %%rax\n")
-		fmt.Printf("  pushq %%rax # addr of element\n")
+		elmType := getTypeOfExpr(e)
+		emitListElementAddr(list, elmType)
 	case *ast.StarExpr:
 		emitExpr(e.X, nil)
 	case *ast.SelectorExpr:// X.Sel
@@ -579,18 +574,21 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 
 		emitExpr(e.Low, tInt) // index number
 		list := e.X
-		emitListHeadAddr(list)
-		fmt.Printf("  popq %%rax # list addr\n")
-		fmt.Printf("  popq %%rcx # index\n")
-		fmt.Printf("  movq $%d, %%rdx # elm size %s\n",
-			getSizeOfType(getElementTypeOfListType(getTypeOfExpr(list))), getElementTypeOfListType(getTypeOfExpr(list)))
-		fmt.Printf("  imulq %%rdx, %%rcx\n")
-		fmt.Printf("  addq %%rcx, %%rax\n")
-		fmt.Printf("  pushq %%rax # addr of element\n")
-
+		elmType := getElementTypeOfListType(getTypeOfExpr(list))
+		emitListElementAddr(list, elmType)
 	default:
 		throw(expr)
 	}
+}
+
+func emitListElementAddr(list ast.Expr, elmType ast.Expr) {
+	emitListHeadAddr(list)
+	fmt.Printf("  popq %%rax # list addr\n")
+	fmt.Printf("  popq %%rcx # index\n")
+	fmt.Printf("  movq $%d, %%rdx # elm size %s\n", getSizeOfType(elmType), elmType)
+	fmt.Printf("  imulq %%rdx, %%rcx\n")
+	fmt.Printf("  addq %%rcx, %%rax\n")
+	fmt.Printf("  pushq %%rax # addr of element\n")
 }
 
 func getElementTypeOfListType(typeExpr ast.Expr) ast.Expr {
@@ -845,13 +843,8 @@ func emitStmt(stmt ast.Stmt) {
 
 		emitVariableAddr(rngMisc.indexvar)
 		emitLoad(tInt)        // index value
-		emitListHeadAddr(s.X) // list head addr
-		fmt.Printf("  popq %%rax # list head addr\n")
-		fmt.Printf("  popq %%rcx # index\n")
-		fmt.Printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(elemType))
-		fmt.Printf("  imulq %%rdx, %%rcx\n")
-		fmt.Printf("  addq %%rcx, %%rax\n")
-		fmt.Printf("  pushq %%rax # addr of element\n")
+		emitListElementAddr(s.X, elemType)
+
 		emitLoad(elemType)
 		emitStore(elemType)
 
