@@ -52,6 +52,7 @@ func copySlice8(src []uint8, dst []uint8) {
 	}
 }
 
+// Actually this is an alias to makeSlice
 func _makeSlice8(elmSize int, slen int, scap int) []uint8
 
 func append8(x []uint8, elm uint8) []uint8 {
