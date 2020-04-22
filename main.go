@@ -569,8 +569,8 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 		fmt.Printf("  popq %%rax # high\n")
 		fmt.Printf("  popq %%rcx # low\n")
 		fmt.Printf("  subq %%rcx, %%rax # high - low\n")
-		fmt.Printf("  pushq %%rax # len\n")
 		fmt.Printf("  pushq %%rax # cap\n")
+		fmt.Printf("  pushq %%rax # len\n")
 
 		emitExpr(e.Low, tInt) // index number
 		list := e.X
@@ -597,9 +597,12 @@ func getElementTypeOfListType(typeExpr ast.Expr) ast.Expr {
 		arrayType, ok := typeExpr.(*ast.ArrayType)
 		assert(ok, "expect *ast.ArrayType")
 		return arrayType.Elt
+	case T_STRING:
+		return tUint8
 	default:
-		panic("TBI")
+		throw(typeExpr)
 	}
+	return nil
 }
 
 func emitConcateString(left ast.Expr, right ast.Expr) {
@@ -1435,6 +1438,12 @@ var tInt *ast.Ident = &ast.Ident{
 	Obj:     gInt,
 }
 
+var tUint8 *ast.Ident = &ast.Ident{
+	NamePos: 0,
+	Name:    "int",
+	Obj:     gUint8,
+}
+
 var tString *ast.Ident = &ast.Ident{
 	NamePos: 0,
 	Name:    "string",
@@ -1485,21 +1494,7 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 		return getTypeOfExpr(e.X)
 	case *ast.IndexExpr:
 		list := e.X
-		typ := getTypeOfExpr(list)
-		switch tp := typ.(type) {
-		case *ast.ArrayType:
-			return tp.Elt
-		default:
-			if getTypeKind(typ) == T_STRING {
-				return  &ast.Ident{
-					NamePos: 0,
-					Name:    "uint8",
-					Obj:     gUint8,
-				}
-			} else {
-				panic(fmt.Sprintf("Unexpected expr type:%#v", typ))
-			}
-		}
+		return getElementTypeOfListType(getTypeOfExpr(list))
 	case *ast.CallExpr: // funcall or conversion
 		switch fn := e.Fun.(type) {
 		case *ast.Ident:
