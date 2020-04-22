@@ -484,6 +484,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				emitExpr(e.Args[1], nil)
 				emitExpr(e.Args[0], nil)
 				fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
+				// @FIXME revert rsp
 			default:
 				panic(symbol)
 			}
