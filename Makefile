@@ -41,6 +41,9 @@ self: self.o
 test2: self
 	./self
 
+fmt: *.go t1/*.go t2/*.go
+	gofmt -w *.go t*/*.go
+
 clean:
 	rm -f test.s test.o test.out t1/test
 	rm -f self self.o self.s

@@ -11,7 +11,7 @@ var heapTail uintptr
 
 func heapInit() {
 	heapHead = uintptr(unsafe.Pointer(&heap[0])) // brk(0)
-	heapTail = heapHead + 4096   // brk(heapHead + heapSize)
+	heapTail = heapHead + 4096                   // brk(heapHead + heapSize)
 	heapCurrent = heapHead
 }
 
@@ -20,7 +20,7 @@ func memzeropad(addr uintptr, size uintptr) {
 	var isize int = int(size)
 	var i int
 	var up uintptr
-	for i=0;i<isize;i++ {
+	for i = 0; i < isize; i++ {
 		*p = 0
 		up = uintptr(unsafe.Pointer(p)) + 1
 		p = (*uint8)(unsafe.Pointer(up))
@@ -81,7 +81,7 @@ func append1(old []uint8, elm uint8) (uintptr, int, int) {
 		new_ = makeSlice1(elmSize, newlen, newcap)
 		var oldSize int = oldlen * elmSize
 		if oldlen > 0 {
-			memcopy(uintptr(unsafe.Pointer(&old[0])),uintptr(unsafe.Pointer(&new_[0])), oldSize)
+			memcopy(uintptr(unsafe.Pointer(&old[0])), uintptr(unsafe.Pointer(&new_[0])), oldSize)
 		}
 	}
 
@@ -108,7 +108,7 @@ func append8(old []int, elm int) (uintptr, int, int) {
 		new_ = makeSlice8(elmSize, newlen, newcap)
 		var oldSize int = oldlen * elmSize
 		if oldlen > 0 {
-			memcopy(uintptr(unsafe.Pointer(&old[0])),uintptr(unsafe.Pointer(&new_[0])), oldSize)
+			memcopy(uintptr(unsafe.Pointer(&old[0])), uintptr(unsafe.Pointer(&new_[0])), oldSize)
 		}
 	}
 
@@ -135,7 +135,7 @@ func append16(old []string, elm string) (uintptr, int, int) {
 		new_ = makeSlice16(elmSize, newlen, newcap)
 		var oldSize int = oldlen * elmSize
 		if oldlen > 0 {
-			memcopy(uintptr(unsafe.Pointer(&old[0])),uintptr(unsafe.Pointer(&new_[0])), oldSize)
+			memcopy(uintptr(unsafe.Pointer(&old[0])), uintptr(unsafe.Pointer(&new_[0])), oldSize)
 		}
 	}
 
@@ -162,7 +162,7 @@ func append24(old [][]int, elm []int) (uintptr, int, int) {
 		new_ = makeSlice24(elmSize, newlen, newcap)
 		var oldSize int = oldlen * elmSize
 		if oldlen > 0 {
-			memcopy(uintptr(unsafe.Pointer(&old[0])),uintptr(unsafe.Pointer(&new_[0])), oldSize)
+			memcopy(uintptr(unsafe.Pointer(&old[0])), uintptr(unsafe.Pointer(&new_[0])), oldSize)
 		}
 	}
 
@@ -193,11 +193,11 @@ func catstrings(a string, b string) string {
 	totallen = len(a) + len(b)
 	r = make([]uint8, totallen, totallen)
 	var i int
-	for i=0;i<len(a);i=i+1 {
+	for i = 0; i < len(a); i = i + 1 {
 		r[i] = a[i]
 	}
 	var j int
-	for j=0;j<len(b);j=j+1 {
+	for j = 0; j < len(b); j = j + 1 {
 		r[i+j] = b[j]
 	}
 	return string(r)

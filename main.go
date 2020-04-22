@@ -69,7 +69,7 @@ func throw(x interface{}) {
 
 func getSizeOfType(typeExpr ast.Expr) int {
 	var varSize int
-	switch getTypeKind(typeExpr)  {
+	switch getTypeKind(typeExpr) {
 	case T_SLICE:
 		return sliceSize
 	case T_STRING:
@@ -88,11 +88,11 @@ func getSizeOfType(typeExpr ast.Expr) int {
 	return varSize
 }
 
-type Variable struct{
-	name string
-	isGlobal bool
+type Variable struct {
+	name         string
+	isGlobal     bool
 	globalSymbol string
-	localOffset localoffsetint
+	localOffset  localoffsetint
 }
 
 func emitListHeadAddr(list ast.Expr) {
@@ -135,7 +135,7 @@ func emitAddr(expr ast.Expr) {
 		emitListElementAddr(list, elmType)
 	case *ast.StarExpr:
 		emitExpr(e.X, nil)
-	case *ast.SelectorExpr:// X.Sel
+	case *ast.SelectorExpr: // X.Sel
 		typeOfX := getTypeOfExpr(e.X)
 		var structType ast.Expr
 		switch getTypeKind(typeOfX) {
@@ -240,7 +240,7 @@ func emitZeroValue(typeExpr ast.Expr) {
 	case T_STRING:
 		fmt.Printf("  pushq $0 # string zero value\n")
 		fmt.Printf("  pushq $0 # string zero value\n")
-	case T_INT,T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
+	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmt.Printf("  pushq $0 # %s zero value\n", getTypeKind(typeExpr))
 	case T_STRUCT:
 		//@FIXME
@@ -417,7 +417,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				if fn.Name == "print" {
 					// builtin print
 					emitExpr(e.Args[0], nil) // push ptr, push len
-					switch getTypeKind(getTypeOfExpr(e.Args[0]))  {
+					switch getTypeKind(getTypeOfExpr(e.Args[0])) {
 					case T_STRING:
 						symbol := fmt.Sprintf("runtime.printstring")
 						fmt.Printf("  callq %s\n", symbol)
@@ -435,7 +435,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 					}
 					// general funcall
 					var totalSize int = 0
-					for i:=len(e.Args) - 1;i>=0;i-- {
+					for i := len(e.Args) - 1; i >= 0; i-- {
 						arg := e.Args[i]
 						emitExpr(arg, nil)
 						size := getSizeOfType(getTypeOfExpr(arg))
@@ -446,7 +446,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 					fmt.Printf("  addq $%d, %%rsp # revert\n", totalSize)
 
 					obj := fn.Obj //.Kind == FN
-					fndecl,ok := obj.Decl.(*ast.FuncDecl)
+					fndecl, ok := obj.Decl.(*ast.FuncDecl)
 					if !ok {
 						throw(fn.Obj)
 					}
@@ -552,7 +552,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X, nil) // left
 		emitExpr(e.Y, nil) // right
-		switch e.Op.String()  {
+		switch e.Op.String() {
 		case "+":
 			fmt.Printf("  popq %%rdi # right\n")
 			fmt.Printf("  popq %%rax # left\n")
@@ -600,7 +600,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 	case *ast.CompositeLit:
 		panic("TBI")
 	case *ast.SliceExpr: // list[low:high]
-		emitExpr(e.Low, tInt) // intval
+		emitExpr(e.Low, tInt)  // intval
 		emitExpr(e.High, tInt) // intval
 		//emitExpr(e.Max) // @TODO
 		fmt.Printf("  popq %%rax # high\n")
@@ -680,7 +680,7 @@ func emitStore(typ ast.Expr) {
 
 		fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
 		fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
-	case T_INT,T_BOOL, T_UINTPTR, T_POINTER:
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmt.Printf("  popq %%rdi # rhs evaluated\n")
 		fmt.Printf("  popq %%rax # lhs addr\n")
 		fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
@@ -772,7 +772,6 @@ func emitStmt(stmt ast.Stmt) {
 			default:
 				panic("TBI")
 			}
-
 
 			fmt.Printf("  leave\n")
 			fmt.Printf("  ret\n")
@@ -882,7 +881,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitAddr(s.Value) // lhs
 
 		emitVariableAddr(rngMisc.indexvar)
-		emitLoad(tInt)        // index value
+		emitLoad(tInt) // index value
 		emitListElementAddr(s.X, elemType)
 
 		emitLoad(elemType)
@@ -926,6 +925,7 @@ func emitStmt(stmt ast.Stmt) {
 		throw(stmt)
 	}
 }
+
 var labelid int
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
@@ -945,9 +945,9 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 }
 
 type sliteral struct {
-	label string
+	label  string
 	strlen int
-	value string // raw value
+	value  string // raw value
 }
 
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
@@ -961,7 +961,7 @@ func getStringLiteral(lit *ast.BasicLit) *sliteral {
 
 var mapStringLiterals map[*ast.BasicLit]*sliteral = map[*ast.BasicLit]*sliteral{}
 
-func registerStringLiteral(lit *ast.BasicLit)  {
+func registerStringLiteral(lit *ast.BasicLit) {
 	if pkgName == "" {
 		panic("no pkgName")
 	}
@@ -987,10 +987,9 @@ func registerStringLiteral(lit *ast.BasicLit)  {
 
 var localoffset localoffsetint
 
-
 func getStructFieldOffset(field *ast.Field) int {
 	if field.Doc == nil {
-		panic("Doc is nil:"+field.Names[0].Name)
+		panic("Doc is nil:" + field.Names[0].Name)
 	}
 	text := field.Doc.List[0].Text
 	offset, err := strconv.Atoi(text)
@@ -1002,7 +1001,7 @@ func getStructFieldOffset(field *ast.Field) int {
 
 func setStructFieldOffset(field *ast.Field, offset int) {
 	comment := &ast.Comment{
-		Text:  strconv.Itoa(offset),
+		Text: strconv.Itoa(offset),
 	}
 	commentGroup := &ast.CommentGroup{
 		List: []*ast.Comment{comment},
@@ -1021,13 +1020,13 @@ func getStructFields(structTypeSpec *ast.TypeSpec) []*ast.Field {
 
 func getStructTypeSpec(namedStructType ast.Expr) *ast.TypeSpec {
 	if getTypeKind(namedStructType) != T_STRUCT {
-			throw(namedStructType)
+		throw(namedStructType)
 	}
 	ident, ok := namedStructType.(*ast.Ident)
 	if !ok {
 		throw(namedStructType)
 	}
-	typeSpec,ok := ident.Obj.Decl.(*ast.TypeSpec)
+	typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec)
 	if !ok {
 		throw(ident.Obj.Decl)
 	}
@@ -1112,8 +1111,8 @@ func walkStmt(stmt ast.Stmt) {
 		localoffset -= localoffsetint(gInt.Data.(int))
 		indexvar := newLocalVariable(".range.index", localoffset)
 		mapRangeStmt[s] = &RangeStmtMisc{
-			lenvar: lenvar,
-			indexvar:  indexvar,
+			lenvar:   lenvar,
+			indexvar: indexvar,
 		}
 	case *ast.IncDecStmt:
 		walkExpr(s.X)
@@ -1123,7 +1122,7 @@ func walkStmt(stmt ast.Stmt) {
 }
 
 type RangeStmtMisc struct {
-	lenvar *Variable
+	lenvar   *Variable
 	indexvar *Variable
 }
 
@@ -1387,7 +1386,6 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	fmt.Printf("# Unresolved: %#v\n", unresolved)
 	fmt.Printf("# Package:   %s\n", ap.Name)
 
-
 	for _, decl := range fiile.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
@@ -1402,13 +1400,13 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 				if len(valSpec.Values) > 0 {
 					switch getTypeKind(valSpec.Type) {
 					case T_STRING:
-						lit,ok := valSpec.Values[0].(*ast.BasicLit)
+						lit, ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
 							throw(valSpec.Type)
 						}
 						registerStringLiteral(lit)
-					case T_INT,T_UINT8, T_UINT16, T_UINTPTR:
-						_,ok := valSpec.Values[0].(*ast.BasicLit)
+					case T_INT, T_UINT8, T_UINT16, T_UINTPTR:
+						_, ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
 							throw(valSpec.Type) // allow only literal
 						}
@@ -1428,10 +1426,10 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 
 		case *ast.FuncDecl:
 			funcDecl := decl.(*ast.FuncDecl)
-			localoffset  = 0
+			localoffset = 0
 			var paramoffset localoffsetint = 16
 			for _, field := range funcDecl.Type.Params.List {
-				obj :=field.Names[0].Obj
+				obj := field.Names[0].Obj
 				obj.Data = newLocalVariable(obj.Name, paramoffset)
 				var varSize int = getSizeOfType(field.Type)
 				paramoffset += localoffsetint(varSize)
@@ -1444,10 +1442,10 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 				walkStmt(stmt)
 			}
 			fnc := &Func{
-				name: funcDecl.Name.Name,
-				stmts:funcDecl.Body.List,
+				name:      funcDecl.Name.Name,
+				stmts:     funcDecl.Body.List,
 				localarea: localoffset,
-				argsarea: paramoffset,
+				argsarea:  paramoffset,
 			}
 			globalFuncs = append(globalFuncs, fnc)
 		default:
@@ -1464,7 +1462,6 @@ type Func struct {
 	localarea localoffsetint
 	argsarea  localoffsetint
 }
-
 
 const T_STRING = "T_STRING"
 const T_SLICE = "T_SLICE"
@@ -1568,7 +1565,7 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 				throw(fn)
 			}
 			if xIdent.Name == "unsafe" {
-				if  fn.Sel.Name == "Pointer" {
+				if fn.Sel.Name == "Pointer" {
 					// unsafe.Pointer(x)
 					return &ast.Ident{
 						NamePos: 0,
@@ -1618,7 +1615,7 @@ func getTypeKind(typeExpr ast.Expr) string {
 	switch e := typeExpr.(type) {
 	case *ast.Ident:
 		if e.Obj == nil {
-			panic("Unresolved identifier:" +e.Name)
+			panic("Unresolved identifier:" + e.Name)
 		}
 		if e.Obj.Kind == ast.Var {
 			throw(e.Obj)
@@ -1739,7 +1736,7 @@ func emitData(pkgName string) {
 			if val != nil {
 				panic("TBI")
 			}
-			arrayType,ok :=  varDecl.Type.(*ast.ArrayType)
+			arrayType, ok := varDecl.Type.(*ast.ArrayType)
 			assert(ok, "should be *ast.ArrayType")
 			assert(arrayType.Len != nil, "slice type is not expected")
 			basicLit, ok := arrayType.Len.(*ast.BasicLit)
@@ -1760,7 +1757,7 @@ func emitData(pkgName string) {
 			default:
 				throw(arrayType.Elt)
 			}
-			for i:=0;i<length;i++ {
+			for i := 0; i < length; i++ {
 				fmt.Printf(zeroValue)
 			}
 		default:
@@ -1791,6 +1788,7 @@ var globalVars []*ast.ValueSpec
 var globalFuncs []*Func
 
 var sourceFiles [2]string
+
 func main() {
 	sourceFiles[0] = "./runtime.go"
 	sourceFiles[1] = "./t/source.go"

@@ -26,7 +26,7 @@ func testAppendPtr() {
 	var slc []*MyStruct
 	var p *MyStruct
 	var i int
-	for i=0;i<10;i++ {
+	for i = 0; i < 10; i++ {
 		p = new(MyStruct)
 		p.field1 = i
 		slc = append(slc, p)
@@ -38,12 +38,11 @@ func testAppendPtr() {
 	write("\n")
 }
 
-
 func testAppendInt() {
 	var slc []int
 	slc = append(slc, 1)
 	var i int
-	for i=2;i<10;i++ {
+	for i = 2; i < 10; i++ {
 		slc = append(slc, i)
 	}
 	slc = append(slc, 10)
@@ -53,7 +52,6 @@ func testAppendInt() {
 	}
 	write("\n")
 }
-
 
 func testAppendString() {
 	var slc []string
@@ -71,7 +69,7 @@ func testAppendString() {
 func testAppendByte() {
 	var slc []uint8
 	var char uint8
-	for char = 'a'; char <= 'z' ; char++ {
+	for char = 'a'; char <= 'z'; char++ {
 		slc = append(slc, char)
 	}
 	slc = append(slc, 10) // '\n'
@@ -80,7 +78,7 @@ func testAppendByte() {
 }
 
 func testSliceOfSlice() {
-	var slc []uint8 = make([]uint8, 3,3)
+	var slc []uint8 = make([]uint8, 3, 3)
 	slc[0] = 'a'
 	slc[1] = 'b'
 	slc[2] = 'c'
@@ -216,20 +214,21 @@ func testGlobalStrings() {
 }
 
 var globalstrings [2]string
+
 func testSliceOfStrings() {
 	var s1 string = "hello"
 	var s2 string = " strings\n"
-	var strings []string = make([]string, 2,2)
+	var strings []string = make([]string, 2, 2)
 	var i int
 	strings[0] = s1
 	strings[1] = s2
-	for i = 0; i<2;i = i+1 {
+	for i = 0; i < 2; i = i + 1 {
 		write(strings[i])
 	}
 
 	globalstrings[0] = s1
 	globalstrings[1] = " globalstrings\n"
-	for i = 0; i<2;i = i+1 {
+	for i = 0; i < 2; i = i + 1 {
 		write(globalstrings[i])
 	}
 }
@@ -249,7 +248,7 @@ func testSliceOfPointers() {
 	structPointers[1] = p2
 
 	var i int
-	for i = 0; i<2;i = i+1 {
+	for i = 0; i < 2; i = i + 1 {
 		writeln(Itoa(structPointers[i].field2))
 	}
 }
@@ -261,7 +260,7 @@ func testStructPointer() {
 	strct.field1 = 123
 
 	var i int
-	i  = strct.field1
+	i = strct.field1
 	writeln(Itoa(i))
 
 	strct.field2 = 456
@@ -278,7 +277,7 @@ func testStruct() {
 	strct.field1 = 123
 
 	var i int
-	i  = strct.field1
+	i = strct.field1
 	writeln(Itoa(i))
 
 	strct.field2 = 456
@@ -304,7 +303,7 @@ func testPointer() {
 	pc = &c
 	*pc = 'B'
 	var slc []uint8
-	slc = make([]uint8, 1 , 1)
+	slc = make([]uint8, 1, 1)
 	slc[0] = c
 	writeln(string(slc))
 }
@@ -321,7 +320,7 @@ func testConcateStrings() {
 
 func testLen() {
 	var x []uint8
-	x = make([]uint8, 0 , 0)
+	x = make([]uint8, 0, 0)
 	writeln(Itoa(len(x)))
 
 	writeln(Itoa(cap(x)))
@@ -405,7 +404,7 @@ func Itoa(ival int) string {
 
 func testFor() {
 	var i int
-	for i=0;i<3; i = i + 1 {
+	for i = 0; i < 3; i = i + 1 {
 		write("A")
 	}
 	write("\n")
@@ -513,7 +512,6 @@ func assignGlobal() {
 	globalstring = "globalstring changed\n"
 }
 
-
 func add1(x int) int {
 	return x + 1
 }
@@ -557,13 +555,13 @@ func testIndexExprOfArray() {
 	globalintarray[2] = globalintarray[1]
 	globalintarray[3] = 44
 	/*
-		var i int
-	for i = 0; i<4 ;i= i+1 {
-		//write("x")
-		Itoa(globalintarray[i])
-	}
+			var i int
+		for i = 0; i<4 ;i= i+1 {
+			//write("x")
+			Itoa(globalintarray[i])
+		}
 
-	 */
+	*/
 	write("\n")
 }
 
@@ -575,12 +573,12 @@ func testIndexExprOfSlice() {
 	intslice[3] = 88
 
 	var i int
-	for i = 0; i<4 ;i= i+1 {
+	for i = 0; i < 4; i = i + 1 {
 		write(Itoa(intslice[i]))
 	}
 	write("\n")
 
-	for i = 0; i<4 ;i= i+1 {
+	for i = 0; i < 4; i = i + 1 {
 		write(Itoa(globalintarray[i]))
 	}
 	write("\n")
@@ -614,7 +612,7 @@ func testMisc() {
 	var i13 int = 0
 	i13 = testArgAssign(i13)
 	var i5 int = testMinus()
-	globalint2 = sum(1, i13 % i5)
+	globalint2 = sum(1, i13%i5)
 
 	var locali3 int
 	var tmp int
@@ -624,7 +622,7 @@ func testMisc() {
 	tmp = tmp + int(globaluintptr)
 	locali3 = add1(tmp)
 	var i42 int
-	i42 =  sum(globalint , globalint2) + locali3
+	i42 = sum(globalint, globalint2) + locali3
 
 	writeln(Itoa(i42))
 }

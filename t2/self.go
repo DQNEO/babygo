@@ -69,13 +69,12 @@ func semanticAnalyze(name string) string {
 	return name
 }
 
-
 func emitData(pkgName string) {
 	fmtPrintf(".data\n")
 	var sl *sliteral
 	for _, sl = range stringLiterals {
 		fmtPrintf("# string literals\n")
-		fmtPrintf(sl.label+ ":\n")
+		fmtPrintf(sl.label + ":\n")
 		fmtPrintf("  .string " + sl.value + "\n")
 	}
 	fmtPrintf("# ===== Global Variables =====\n")
@@ -98,7 +97,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 func emitText(pkgName string) {
 	fmtPrintf(".text\n")
 	var i int
-	for i = 0; i<len(globalFuncs); i++ {
+	for i = 0; i < len(globalFuncs); i++ {
 		var fnc *Func = globalFuncs[i]
 		emitFuncDecl(pkgName, fnc)
 	}
@@ -109,7 +108,6 @@ func generateCode(pkgName string) {
 	emitText(pkgName)
 }
 
-
 type astValueSpec struct {
 }
 
@@ -117,13 +115,13 @@ type Func struct {
 	localvars []*string
 	localarea int
 	argsarea  int
-	name string
+	name      string
 }
 
 type sliteral struct {
-	label string
+	label  string
 	strlen int
-	value string // raw value
+	value  string // raw value
 }
 
 var stringLiterals []*sliteral
@@ -133,6 +131,7 @@ var globalFuncs []*Func
 
 var sourceFiles [1]string
 var _garbage string
+
 func main() {
 	sourceFiles[0] = "main"
 	var sourceFile string
