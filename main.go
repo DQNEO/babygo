@@ -401,6 +401,9 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				case 16:
 					symbol = "runtime.append16"
 					stackSizeForArgs = 16
+				case 24:
+					symbol = "runtime.append24"
+					stackSizeForArgs = 24
 				default:
 					throw(size)
 				}
@@ -432,6 +435,8 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 					} else if fn.Name == "makeSlice8" {
 						fn.Name = "makeSlice"
 					} else if fn.Name == "makeSlice16" {
+						fn.Name = "makeSlice"
+					} else if fn.Name == "makeSlice24" {
 						fn.Name = "makeSlice"
 					}
 					// general funcall

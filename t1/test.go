@@ -4,6 +4,24 @@ import (
 	"syscall"
 )
 
+func testAppendSlice() {
+	var slcslc [][]string
+	var slc []string
+	slc = append(slc, "aa")
+	slc = append(slc, "bb")
+	slcslc = append(slcslc, slc)
+	slcslc = append(slcslc, slc)
+	slcslc = append(slcslc, slc)
+	var s string
+	for _, slc = range slcslc {
+		for _, s = range slc {
+			write(s)
+		}
+		write("|")
+	}
+	write("\n")
+}
+
 func testAppendPtr() {
 	var slc []*MyStruct
 	var p *MyStruct
@@ -623,6 +641,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testAppendSlice()
 	testAppendPtr()
 	testAppendInt()
 	testAppendString()
