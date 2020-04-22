@@ -389,8 +389,8 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				emitExpr(elemArg, nil)
 				emitExpr(sliceArg, nil)
 				var symbol string
-				switch getSizeOfType(getTypeOfExpr(elemArg)) {
-				case 8:
+				switch getSizeOfType(getElementTypeOfListType(getTypeOfExpr(sliceArg))) {
+				case 1:
 					symbol = "runtime.append8"
 				default:
 					panic("TBI")
