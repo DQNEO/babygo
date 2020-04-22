@@ -11,8 +11,14 @@ func testSliceOfSlice() {
 	slc[2] = 'c'
 	writeln(string(slc))
 
-	var slc2 []uint8 = slc[0:3]
+	var slc1 []uint8 = slc[0:3]
+	writeln(string(slc1))
+
+	var slc2 []uint8 = slc[0:2]
 	writeln(string(slc2))
+
+	var slc3 []uint8 = slc[1:3]
+	writeln(string(slc3))
 }
 
 func testForrange() {

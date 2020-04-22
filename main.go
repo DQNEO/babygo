@@ -132,7 +132,6 @@ func emitAddr(expr ast.Expr) {
 
 		list := e.X
 		emitListHeadAddr(list)
-
 		fmt.Printf("  popq %%rax # list addr\n")
 		fmt.Printf("  popq %%rcx # index\n")
 		fmt.Printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(getTypeOfExpr(e)))
@@ -569,19 +568,39 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 	case *ast.CompositeLit:
 		panic("TBI")
 	case *ast.SliceExpr: // list[low:high]
-		emitListHeadAddr(e.X)
-		emitExpr(e.Low, nil) // intval
-		emitExpr(e.High, nil) // intval
+		emitExpr(e.Low, tInt) // intval
+		emitExpr(e.High, tInt) // intval
 		//emitExpr(e.Max) // @TODO
 		fmt.Printf("  popq %%rax # high\n")
 		fmt.Printf("  popq %%rcx # low\n")
-		fmt.Printf("  popq %%rdx # array\n")
 		fmt.Printf("  subq %%rcx, %%rax # high - low\n")
-		fmt.Printf("  pushq %%rax # cap\n")
 		fmt.Printf("  pushq %%rax # len\n")
-		fmt.Printf("  pushq %%rdx # array\n")
+		fmt.Printf("  pushq %%rax # cap\n")
+
+		emitExpr(e.Low, tInt) // index number
+		list := e.X
+		emitListHeadAddr(list)
+		fmt.Printf("  popq %%rax # list addr\n")
+		fmt.Printf("  popq %%rcx # index\n")
+		fmt.Printf("  movq $%d, %%rdx # elm size %s\n",
+			getSizeOfType(getElementTypeOfListType(getTypeOfExpr(list))), getElementTypeOfListType(getTypeOfExpr(list)))
+		fmt.Printf("  imulq %%rdx, %%rcx\n")
+		fmt.Printf("  addq %%rcx, %%rax\n")
+		fmt.Printf("  pushq %%rax # addr of element\n")
+
 	default:
 		throw(expr)
+	}
+}
+
+func getElementTypeOfListType(typeExpr ast.Expr) ast.Expr {
+	switch getTypeKind(typeExpr) {
+	case T_SLICE, T_ARRAY:
+		arrayType, ok := typeExpr.(*ast.ArrayType)
+		assert(ok, "expect *ast.ArrayType")
+		return arrayType.Elt
+	default:
+		panic("TBI")
 	}
 }
 
