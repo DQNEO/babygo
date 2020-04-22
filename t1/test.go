@@ -13,6 +13,7 @@ func testAppend() {
 	slc = append(slc, 'e')
 	slc = append(slc, 10)
 	write(string(slc))
+	writeln(Itoa(len(slc))) // 6
 }
 
 func testSliceOfSlice() {
