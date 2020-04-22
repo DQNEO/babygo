@@ -62,120 +62,112 @@ func makeSlice8(elmSize int, slen int, scap int) []int
 func makeSlice16(elmSize int, slen int, scap int) []string
 func makeSlice24(elmSize int, slen int, scap int) [][]int
 
-func append1(x []uint8, elm uint8) (uintptr, int, int) {
-	var xlen int = len(x)
-	var zlen int = xlen + 1
+func append1(old []uint8, elm uint8) (uintptr, int, int) {
+	var new_ []uint8
+	var elmSize int = 1
 
-	var z []uint8
-	if cap(x) >= zlen {
-		z = x[0:zlen]
-		nop1()
+	var oldlen int = len(old)
+	var newlen int = oldlen + 1
+
+	if cap(old) >= newlen {
+		new_ = old[0:newlen]
 	} else {
 		var newcap int
-		if xlen == 0 {
+		if oldlen == 0 {
 			newcap = 1
 		} else {
-			newcap = xlen * 2
+			newcap = oldlen * 2
 		}
-		z = makeSlice1(1, zlen, newcap)
-		nop()
-		if xlen > 0 {
-			memcopy(uintptr(unsafe.Pointer(&x[0])),uintptr(unsafe.Pointer(&z[0])), len(x) * 1)
+		new_ = makeSlice1(elmSize, newlen, newcap)
+		var oldSize int = oldlen * elmSize
+		if oldlen > 0 {
+			memcopy(uintptr(unsafe.Pointer(&old[0])),uintptr(unsafe.Pointer(&new_[0])), oldSize)
 		}
 	}
 
-	z[xlen] = elm
-
-	var ptr uintptr  =  uintptr(unsafe.Pointer(&z[0]))
-	var zcap int = cap(z)
-	return ptr, zlen, zcap
+	new_[oldlen] = elm
+	return uintptr(unsafe.Pointer(&new_[0])), newlen, cap(new_)
 }
 
-func append8(x []int, elm int) (uintptr, int, int) {
-	var xlen int = len(x)
-	var zlen int = xlen + 1
+func append8(old []int, elm int) (uintptr, int, int) {
+	var new_ []int
+	var elmSize int = 8
 
-	var z []int
-	if cap(x) >= zlen {
-		z = x[0:zlen]
-		nop1()
+	var oldlen int = len(old)
+	var newlen int = oldlen + 1
+
+	if cap(old) >= newlen {
+		new_ = old[0:newlen]
 	} else {
 		var newcap int
-		if xlen == 0 {
+		if oldlen == 0 {
 			newcap = 1
 		} else {
-			newcap = xlen * 2
+			newcap = oldlen * 2
 		}
-		z = makeSlice8(8, zlen, newcap)
-		nop()
-		if xlen > 0 {
-			memcopy(uintptr(unsafe.Pointer(&x[0])),uintptr(unsafe.Pointer(&z[0])), len(x) * 8)
+		new_ = makeSlice8(elmSize, newlen, newcap)
+		var oldSize int = oldlen * elmSize
+		if oldlen > 0 {
+			memcopy(uintptr(unsafe.Pointer(&old[0])),uintptr(unsafe.Pointer(&new_[0])), oldSize)
 		}
 	}
 
-	z[xlen] = elm
-
-	var ptr uintptr  =  uintptr(unsafe.Pointer(&z[0]))
-	var zcap int = cap(z)
-	return ptr, zlen, zcap
+	new_[oldlen] = elm
+	return uintptr(unsafe.Pointer(&new_[0])), newlen, cap(new_)
 }
 
-func append16(x []string, elm string) (uintptr, int, int) {
-	var xlen int = len(x)
-	var zlen int = xlen + 1
+func append16(old []string, elm string) (uintptr, int, int) {
+	var new_ []string
+	var elmSize int = 16
 
-	var z []string
-	if cap(x) >= zlen {
-		z = x[0:zlen]
-		nop1()
+	var oldlen int = len(old)
+	var newlen int = oldlen + 1
+
+	if cap(old) >= newlen {
+		new_ = old[0:newlen]
 	} else {
 		var newcap int
-		if xlen == 0 {
+		if oldlen == 0 {
 			newcap = 1
 		} else {
-			newcap = xlen * 2
+			newcap = oldlen * 2
 		}
-		z = makeSlice16(16, zlen, newcap)
-		nop()
-		if xlen > 0 {
-			memcopy(uintptr(unsafe.Pointer(&x[0])),uintptr(unsafe.Pointer(&z[0])), len(x) * 16)
+		new_ = makeSlice16(elmSize, newlen, newcap)
+		var oldSize int = oldlen * elmSize
+		if oldlen > 0 {
+			memcopy(uintptr(unsafe.Pointer(&old[0])),uintptr(unsafe.Pointer(&new_[0])), oldSize)
 		}
 	}
 
-	z[xlen] = elm
-
-	var ptr uintptr  =  uintptr(unsafe.Pointer(&z[0]))
-	var zcap int = cap(z)
-	return ptr, zlen, zcap
+	new_[oldlen] = elm
+	return uintptr(unsafe.Pointer(&new_[0])), newlen, cap(new_)
 }
 
-func append24(x [][]int, elm []int) (uintptr, int, int) {
-	var xlen int = len(x)
-	var zlen int = xlen + 1
+func append24(old [][]int, elm []int) (uintptr, int, int) {
+	var new_ [][]int
+	var elmSize int = 24
 
-	var z [][]int
-	if cap(x) >= zlen {
-		z = x[0:zlen]
-		nop1()
+	var oldlen int = len(old)
+	var newlen int = oldlen + 1
+
+	if cap(old) >= newlen {
+		new_ = old[0:newlen]
 	} else {
 		var newcap int
-		if xlen == 0 {
+		if oldlen == 0 {
 			newcap = 1
 		} else {
-			newcap = xlen * 2
+			newcap = oldlen * 2
 		}
-		z = makeSlice24(24, zlen, newcap)
-		nop()
-		if xlen > 0 {
-			memcopy(uintptr(unsafe.Pointer(&x[0])),uintptr(unsafe.Pointer(&z[0])), len(x) * 24)
+		new_ = makeSlice24(elmSize, newlen, newcap)
+		var oldSize int = oldlen * elmSize
+		if oldlen > 0 {
+			memcopy(uintptr(unsafe.Pointer(&old[0])),uintptr(unsafe.Pointer(&new_[0])), oldSize)
 		}
 	}
 
-	z[xlen] = elm
-
-	var ptr uintptr  =  uintptr(unsafe.Pointer(&z[0]))
-	var zcap int = cap(z)
-	return ptr, zlen, zcap
+	new_[oldlen] = elm
+	return uintptr(unsafe.Pointer(&new_[0])), newlen, cap(new_)
 }
 
 func panic(s string) {
