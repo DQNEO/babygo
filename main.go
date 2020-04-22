@@ -390,8 +390,8 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				emitExpr(sliceArg, nil) // size 24
 				var stackForElm int
 				var symbol string
-				var size int = getSizeOfType(getElementTypeOfListType(getTypeOfExpr(sliceArg)))
-				switch size {
+				var elmSize int = getSizeOfType(getElementTypeOfListType(getTypeOfExpr(sliceArg)))
+				switch elmSize {
 				case 1:
 					symbol = "runtime.append1"
 					stackForElm = 8
@@ -405,7 +405,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 					symbol = "runtime.append24"
 					stackForElm = 24
 				default:
-					throw(size)
+					throw(elmSize)
 				}
 
 				fmt.Printf("  callq %s\n", symbol)
