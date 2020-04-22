@@ -391,7 +391,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				var symbol string
 				switch getSizeOfType(getElementTypeOfListType(getTypeOfExpr(sliceArg))) {
 				case 1:
-					symbol = "runtime.append8"
+					symbol = "runtime.append1"
 				default:
 					panic("TBI")
 				}
@@ -417,7 +417,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 						panic("TBI")
 					}
 				} else {
-					if fn.Name == "_makeSlice8" {
+					if fn.Name == "makeSlice1" {
 						fn.Name = "makeSlice"
 					}
 					// general funcall

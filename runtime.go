@@ -45,7 +45,7 @@ func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
 	return addr, slen, scap
 }
 
-func copySlice8(src []uint8, dst []uint8) {
+func copySlice1(src []uint8, dst []uint8) {
 	var i int
 	for i = 0; i < len(src); i++ {
 		dst[i] = src[i]
@@ -53,13 +53,13 @@ func copySlice8(src []uint8, dst []uint8) {
 }
 
 // Actually this is an alias to makeSlice
-func _makeSlice8(elmSize int, slen int, scap int) []uint8
+func makeSlice1(elmSize int, slen int, scap int) []uint8
 
-func append8(x []uint8, elm uint8) []uint8 {
-	var z []uint8
+func append1(x []uint8, elm uint8) (uintptr, int, int) {
 	var xlen int = len(x)
 	var zlen int = xlen + 1
 
+	var z []uint8
 	if cap(x) >= zlen {
 		z = x[0:zlen]
 		nop1()
@@ -70,13 +70,16 @@ func append8(x []uint8, elm uint8) []uint8 {
 		} else {
 			newcap = xlen * 2
 		}
-		z = _makeSlice8(1, zlen, newcap)
+		z = makeSlice1(1, zlen, newcap)
 		nop()
-		copySlice8(x,z)
+		copySlice1(x,z)
 	}
 
 	z[xlen] = elm
-	return z
+
+	var ptr uintptr  =  uintptr(unsafe.Pointer(&z[0]))
+	var zcap int = cap(z)
+	return ptr, zlen, zcap
 }
 
 func panic(s string) {
