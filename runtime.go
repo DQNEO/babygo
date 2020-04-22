@@ -58,6 +58,7 @@ func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
 
 // Actually this is an alias to makeSlice
 func makeSlice1(elmSize int, slen int, scap int) []uint8
+func makeSlice8(elmSize int, slen int, scap int) []int
 func makeSlice16(elmSize int, slen int, scap int) []string
 
 func append1(x []uint8, elm uint8) (uintptr, int, int) {
@@ -79,6 +80,35 @@ func append1(x []uint8, elm uint8) (uintptr, int, int) {
 		nop()
 		if xlen > 0 {
 			memcopy(uintptr(unsafe.Pointer(&x[0])),uintptr(unsafe.Pointer(&z[0])), len(x) * 1)
+		}
+	}
+
+	z[xlen] = elm
+
+	var ptr uintptr  =  uintptr(unsafe.Pointer(&z[0]))
+	var zcap int = cap(z)
+	return ptr, zlen, zcap
+}
+
+func append8(x []int, elm int) (uintptr, int, int) {
+	var xlen int = len(x)
+	var zlen int = xlen + 1
+
+	var z []int
+	if cap(x) >= zlen {
+		z = x[0:zlen]
+		nop1()
+	} else {
+		var newcap int
+		if xlen == 0 {
+			newcap = 1
+		} else {
+			newcap = xlen * 2
+		}
+		z = makeSlice8(8, zlen, newcap)
+		nop()
+		if xlen > 0 {
+			memcopy(uintptr(unsafe.Pointer(&x[0])),uintptr(unsafe.Pointer(&z[0])), len(x) * 8)
 		}
 	}
 

@@ -395,6 +395,9 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				case 1:
 					symbol = "runtime.append1"
 					stackSizeForArgs = 8
+				case 8:
+					symbol = "runtime.append8"
+					stackSizeForArgs = 8
 				case 16:
 					symbol = "runtime.append16"
 					stackSizeForArgs = 16
@@ -425,6 +428,8 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 					}
 				} else {
 					if fn.Name == "makeSlice1" {
+						fn.Name = "makeSlice"
+					} else if fn.Name == "makeSlice8" {
 						fn.Name = "makeSlice"
 					} else if fn.Name == "makeSlice16" {
 						fn.Name = "makeSlice"
