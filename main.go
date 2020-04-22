@@ -383,6 +383,23 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				default:
 					throw(typeArg)
 				}
+			case gAppend:
+				var sliceArg ast.Expr = e.Args[0]
+				var elemArg ast.Expr = e.Args[1]
+				emitExpr(elemArg, nil)
+				emitExpr(sliceArg, nil)
+				var symbol string
+				switch getSizeOfType(getTypeOfExpr(elemArg)) {
+				case 8:
+					symbol = "runtime.append8"
+				default:
+					panic("TBI")
+				}
+				fmt.Printf("  callq %s\n", symbol)
+				fmt.Printf("  addq $32, %%rsp # revert\n")
+				fmt.Printf("  pushq %%rsi # slice cap\n")
+				fmt.Printf("  pushq %%rdi # slice len\n")
+				fmt.Printf("  pushq %%rax # slice ptr\n")
 			default:
 				if fn.Name == "print" {
 					// builtin print
@@ -400,6 +417,9 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 						panic("TBI")
 					}
 				} else {
+					if fn.Name == "_makeSlice8" {
+						fn.Name = "makeSlice"
+					}
 					// general funcall
 					var totalSize int = 0
 					for i:=len(e.Args) - 1;i>=0;i-- {
@@ -430,8 +450,12 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 							case T_INT, T_UINTPTR, T_POINTER:
 								fmt.Printf("  # fn.Obj=%#v\n", obj)
 								fmt.Printf("  pushq %%rax\n")
+							case T_SLICE:
+								fmt.Printf("  pushq %%rsi # slice cap\n")
+								fmt.Printf("  pushq %%rdi # slice len\n")
+								fmt.Printf("  pushq %%rax # slice ptr\n")
 							default:
-								throw(retval0.Type)
+								throw(getTypeKind(retval0.Type))
 							}
 						}
 					}
@@ -1224,10 +1248,17 @@ var gNew = &ast.Object{
 	Type: nil,
 }
 
-
 var gMake = &ast.Object{
 	Kind: ast.Fun,
 	Name: "make",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gAppend = &ast.Object{
+	Kind: ast.Fun,
+	Name: "append",
 	Decl: nil,
 	Data: nil,
 	Type: nil,
@@ -1308,6 +1339,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	// predeclared funcs
 	universe.Insert(gNew)
 	universe.Insert(gMake)
+	universe.Insert(gAppend)
 	universe.Insert(gLen)
 	universe.Insert(gCap)
 

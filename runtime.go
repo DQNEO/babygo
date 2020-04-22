@@ -45,6 +45,39 @@ func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
 	return addr, slen, scap
 }
 
+func copySlice8(src []uint8, dst []uint8) {
+	var i int
+	for i = 0; i < len(src); i++ {
+		dst[i] = src[i]
+	}
+}
+
+func _makeSlice8(elmSize int, slen int, scap int) []uint8
+
+func append8(x []uint8, elm uint8) []uint8 {
+	var z []uint8
+	var xlen int = len(x)
+	var zlen int = xlen + 1
+
+	if cap(x) >= zlen {
+		z = x[0:zlen]
+		nop1()
+	} else {
+		var newcap int
+		if xlen == 0 {
+			newcap = 1
+		} else {
+			newcap = xlen * 2
+		}
+		z = _makeSlice8(1, zlen, newcap)
+		nop()
+		copySlice8(x,z)
+	}
+
+	z[xlen] = elm
+	return z
+}
+
 func panic(s string) {
 	print(s)
 	//exit(1)

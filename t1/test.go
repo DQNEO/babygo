@@ -4,6 +4,17 @@ import (
 	"syscall"
 )
 
+func testAppend() {
+	var slc []uint8
+	slc = append(slc, 's')
+	slc = append(slc, 'l')
+	slc = append(slc, 'i')
+	slc = append(slc, 'c')
+	slc = append(slc, 'e')
+	slc = append(slc, 10)
+	write(string(slc))
+}
+
 func testSliceOfSlice() {
 	var slc []uint8 = make([]uint8, 3,3)
 	slc[0] = 'a'
@@ -566,6 +577,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testAppend()
 	testSliceOfSlice()
 	testForrange()
 	testNew()
