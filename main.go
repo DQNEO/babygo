@@ -1569,7 +1569,9 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 					throw(fn.Obj.Decl)
 				}
 			}
-		case *ast.SelectorExpr:
+		case *ast.ArrayType: // conversion [n]T(e) or []T(e)
+			return fn
+		case *ast.SelectorExpr: // X.Sel()
 			xIdent, ok := fn.X.(*ast.Ident)
 			if !ok {
 				throw(fn)

@@ -4,6 +4,48 @@ import (
 	"syscall"
 )
 
+func Sprintf(format string, a []string) string {
+
+	var buf []uint8
+	var inPercent bool
+	var argIndex int
+	var c uint8
+	for _, c = range []uint8(format) {
+		if inPercent {
+			if c == '%' {
+				buf = append(buf, c)
+			} else {
+				var arg string = a[argIndex]
+				argIndex++
+				var s string = arg // // p.printArg(arg, c)
+				var _c uint8
+				for _, _c = range []uint8(s) {
+					buf = append(buf, _c)
+				}
+			}
+			inPercent = false
+		} else {
+			if  c == '%' {
+				inPercent = true
+			} else {
+				buf = append(buf, c)
+			}
+		}
+	}
+
+	return string(buf)
+}
+
+func testSprintf() {
+	var a []string = make([]string, 3,3)
+	a[0] = Itoa(1234)
+	a[1] = "c"
+	a[2] = "efg"
+	var s string = Sprintf("%sab%sd%s", a)
+	write(s)
+	write("|\n")
+}
+
 func testSringIndex() {
 	var s string = "abcde"
 	var char uint8 = s[3]
@@ -651,6 +693,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testSprintf()
 	testSringIndex()
 	testSubstring()
 	testAppendSlice()
