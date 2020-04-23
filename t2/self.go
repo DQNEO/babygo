@@ -2,8 +2,8 @@ package main
 
 import "syscall"
 
-var buf [100]uint8
-var r [100]uint8
+var __itoa_buf [100]uint8
+var __itoa_r [100]uint8
 
 func Itoa(ival int) string {
 	var next int
@@ -18,27 +18,27 @@ func Itoa(ival int) string {
 		if ival < 0 {
 			ival = -1 * ival
 			minus = true
-			r[0] = '-'
+			__itoa_r[0] = '-'
 		} else {
 			next = ival / 10
 			right = ival - next*10
 			ival = next
-			buf[ix] = uint8('0' + right)
+			__itoa_buf[ix] = uint8('0' + right)
 		}
 	}
 
 	var j int
 	var c uint8
 	for j = 0; j < ix; j = j + 1 {
-		c = buf[ix-j-1]
+		c = __itoa_buf[ix-j-1]
 		if minus {
-			r[j+1] = c
+			__itoa_r[j+1] = c
 		} else {
-			r[j] = c
+			__itoa_r[j] = c
 		}
 	}
 
-	return string(r[0:ix])
+	return string(__itoa_r[0:ix])
 }
 
 func fmtPrintf(s string) {
