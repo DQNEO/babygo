@@ -1013,7 +1013,7 @@ type sliteral struct {
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
 	sl, ok := mapStringLiterals[lit]
 	if !ok {
-		panic("unexpected")
+		panic("StringLiteral is not registered")
 	}
 
 	return sl
@@ -1209,13 +1209,15 @@ func walkExpr(expr ast.Expr) {
 		default:
 			panic("Unexpected literal kind:" + e.Kind.String())
 		}
+	case *ast.CompositeLit:
+		for _, v := range e.Elts {
+			walkExpr(v)
+		}
 	case *ast.UnaryExpr:
 		walkExpr(e.X)
 	case *ast.BinaryExpr:
 		walkExpr(e.X) // left
 		walkExpr(e.Y) // right
-	case *ast.CompositeLit:
-		// what to do ?
 	case *ast.IndexExpr:
 		walkExpr(e.Index)
 	case *ast.SliceExpr:

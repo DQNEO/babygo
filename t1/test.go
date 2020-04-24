@@ -10,6 +10,13 @@ func testArrayLiteral() {
 	for _, i = range aInt {
 		writeln(Itoa(i))
 	}
+
+	var aString [3]string = [3]string{"a", "bb", "ccc"}
+	var s string
+	for _, s = range aString {
+		write(s)
+	}
+	write("\n")
 }
 
 func Sprintf(format string, a []string) string {
