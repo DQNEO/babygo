@@ -296,6 +296,22 @@ func emitCallMalloc(size int) {
 	fmt.Printf("  pushq %%rax # addr\n")
 }
 
+func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
+	elmType := arrayType.Elt
+	elmSize := getSizeOfType(elmType)
+	memSize := elmSize * arrayLen
+	emitCallMalloc(memSize) // push
+	for i, elm := range elts {
+		// emit lhs
+		fmt.Printf("  popq %%rax # addr\n")
+		fmt.Printf("  pushq %%rax # backup malloced addr\n")
+		fmt.Printf("  addq $%d, %%rax # add offset\n", elmSize * i)
+		fmt.Printf("  pushq %%rax # elm addr\n")
+		emitExpr(elm, elmType)
+		emitStore(elmType)
+	}
+}
+
 func emitExpr(expr ast.Expr, forceType ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -619,26 +635,22 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 		}
 		fmt.Printf("  # end %T\n", e)
 	case *ast.CompositeLit:
+		// slice , array, map or struct
 		switch getTypeKind(e.Type) {
 		case T_ARRAY:
 			arrayType, ok := e.Type.(*ast.ArrayType)
 			assert(ok, "expect *ast.ArrayType")
-			elmType := arrayType.Elt
-
-			elmSize := getSizeOfType(elmType)
-			memSize := getSizeOfType(e.Type)
-			emitCallMalloc(memSize) // push
-			for i, elm := range e.Elts {
-				// emit lhs
-				fmt.Printf("  popq %%rax # addr\n")
-				fmt.Printf("  pushq %%rax # backup malloced addr\n")
-				fmt.Printf("  addq $%d, %%rax # add offset\n", elmSize * i)
-				fmt.Printf("  pushq %%rax # elm addr\n")
-				emitExpr(elm, elmType)
-				emitStore(elmType)
-			}
+			arrayLen := evalInt(arrayType.Len)
+			emitArrayLiteral(arrayType, arrayLen, e.Elts)
+		case T_SLICE:
+			arrayType, ok := e.Type.(*ast.ArrayType)
+			assert(ok, "expect *ast.ArrayType")
+			length := len(e.Elts)
+			emitArrayLiteral(arrayType, length, e.Elts)
 			fmt.Printf("  popq  %%rax # malloced addr\n")
-			fmt.Printf("  pushq %%rax # malloced addr\n")
+			fmt.Printf("  pushq $%d # slice.cap\n", length)
+			fmt.Printf("  pushq $%d # slice.len\n", length)
+			fmt.Printf("  pushq %%rax # slice.ptr\n")
 		default:
 			throw(e.Type)
 		}
@@ -1668,6 +1680,8 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 		structType := getStructTypeOfX(e)
 		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		return field.Type
+	case *ast.CompositeLit:
+		return e.Type
 	default:
 		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
 	}

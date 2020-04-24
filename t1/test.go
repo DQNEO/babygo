@@ -4,6 +4,11 @@ import (
 	"syscall"
 )
 
+func testSliceLiteral() {
+	var slc []string = []string{"this is ", "slice literal"}
+	writeln(slc[0] + slc[1])
+}
+
 func testArrayLiteral() {
 	var aInt [3]int = [3]int{1,2,3}
 	var i int
@@ -712,6 +717,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testSliceLiteral()
 	testArrayLiteral()
 	testSprintf()
 	testSringIndex()
