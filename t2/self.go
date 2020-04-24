@@ -41,7 +41,7 @@ func Itoa(ival int) string {
 	return string(__itoa_r[0:ix])
 }
 
-func fmtPrintf(s string) {
+func fmtPrint(s string) {
 	var slc []uint8 = []uint8(s)
 	syscall.Write(1, slc)
 }
@@ -70,32 +70,32 @@ func semanticAnalyze(name string) string {
 }
 
 func emitData(pkgName string) {
-	fmtPrintf(".data\n")
+	fmtPrint(".data\n")
 	var sl *sliteral
 	for _, sl = range stringLiterals {
-		fmtPrintf("# string literals\n")
-		fmtPrintf(sl.label + ":\n")
-		fmtPrintf("  .string " + sl.value + "\n")
+		fmtPrint("# string literals\n")
+		fmtPrint(sl.label + ":\n")
+		fmtPrint("  .string " + sl.value + "\n")
 	}
-	fmtPrintf("# ===== Global Variables =====\n")
-	fmtPrintf("# ==============================\n")
+	fmtPrint("# ===== Global Variables =====\n")
+	fmtPrint("# ==============================\n")
 }
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
-	fmtPrintf("\n")
+	fmtPrint("\n")
 	var fname string = fnc.name
-	fmtPrintf(pkgPrefix + "." + fname + ":\n")
+	fmtPrint(pkgPrefix + "." + fname + ":\n")
 	if len(fnc.localvars) > 0 {
 		var slocalarea string = Itoa(fnc.localarea)
-		fmtPrintf("  subq $" + slocalarea + ", %rsp # local area\n")
+		fmtPrint("  subq $" + slocalarea + ", %rsp # local area\n")
 	}
 
-	fmtPrintf("  leave\n")
-	fmtPrintf("  ret\n")
+	fmtPrint("  leave\n")
+	fmtPrint("  ret\n")
 }
 
 func emitText(pkgName string) {
-	fmtPrintf(".text\n")
+	fmtPrint(".text\n")
 	var i int
 	for i = 0; i < len(globalFuncs); i++ {
 		var fnc *Func = globalFuncs[i]
