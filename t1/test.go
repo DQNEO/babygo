@@ -4,6 +4,14 @@ import (
 	"syscall"
 )
 
+func testArrayLiteral() {
+	var aInt [3]int = [3]int{1,2,3}
+	var i int
+	for _, i = range aInt {
+		writeln(Itoa(i))
+	}
+}
+
 func Sprintf(format string, a []string) string {
 
 	var buf []uint8
@@ -693,6 +701,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testArrayLiteral()
 	testSprintf()
 	testSringIndex()
 	testSubstring()

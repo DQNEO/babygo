@@ -67,6 +67,18 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
 
+func evalInt(expr ast.Expr) int {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		i, err := strconv.Atoi(e.Value)
+		if err != nil {
+			panic(err)
+		}
+		return i
+	}
+	return 0
+}
+
 func getSizeOfType(typeExpr ast.Expr) int {
 	var varSize int
 	switch getTypeKind(typeExpr) {
@@ -80,6 +92,11 @@ func getSizeOfType(typeExpr ast.Expr) int {
 		return gUint8.Data.(int)
 	case T_BOOL:
 		return gInt.Data.(int)
+	case T_ARRAY:
+		arrayType, ok := typeExpr.(*ast.ArrayType)
+		assert(ok, "expect *ast.ArrayType")
+		elmSize := getSizeOfType(arrayType.Elt)
+		return elmSize * evalInt(arrayType.Len)
 	case T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(typeExpr))
 	default:
@@ -271,6 +288,14 @@ func emitLen(arg ast.Expr) {
 	}
 }
 
+func emitCallMalloc(size int) {
+	fmt.Printf("  pushq $%d\n", size)
+	// call malloc and return pointer
+	fmt.Printf("  callq runtime.malloc\n")
+	fmt.Printf("  addq $8, %%rsp # revert stack pointer\n")
+	fmt.Printf("  pushq %%rax # addr\n")
+}
+
 func emitExpr(expr ast.Expr, forceType ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -354,12 +379,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				var typeArg ast.Expr = e.Args[0]
 				// size to malloc
 				size := getSizeOfType(typeArg)
-				fmt.Printf("  pushq $%d\n", size)
-				// call malloc and return pointer
-				fmt.Printf("  callq runtime.malloc\n")
-				fmt.Printf("  addq $8, %%rsp # revert stack pointer\n")
-				fmt.Printf("  pushq %%rax # addr\n")
-
+				emitCallMalloc(size)
 			case gMake:
 				var typeArg ast.Expr = e.Args[0]
 				switch getTypeKind(typeArg) {
@@ -599,7 +619,29 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 		}
 		fmt.Printf("  # end %T\n", e)
 	case *ast.CompositeLit:
-		panic("TBI")
+		switch getTypeKind(e.Type) {
+		case T_ARRAY:
+			arrayType, ok := e.Type.(*ast.ArrayType)
+			assert(ok, "expect *ast.ArrayType")
+			elmType := arrayType.Elt
+
+			elmSize := getSizeOfType(elmType)
+			memSize := getSizeOfType(e.Type)
+			emitCallMalloc(memSize) // push
+			for i, elm := range e.Elts {
+				// emit lhs
+				fmt.Printf("  popq %%rax # addr\n")
+				fmt.Printf("  pushq %%rax # backup malloced addr\n")
+				fmt.Printf("  addq $%d, %%rax # add offset\n", elmSize * i)
+				fmt.Printf("  pushq %%rax # elm addr\n")
+				emitExpr(elm, elmType)
+				emitStore(elmType)
+			}
+			fmt.Printf("  popq  %%rax # malloced addr\n")
+			fmt.Printf("  pushq %%rax # malloced addr\n")
+		default:
+			throw(e.Type)
+		}
 	case *ast.SliceExpr: // list[low:high]
 		list := e.X
 		listType := getTypeOfExpr(list)
@@ -704,6 +746,14 @@ func emitStore(typ ast.Expr) {
 		fmt.Printf("  movw %%di, (%%rax) # assign word\n")
 	case T_STRUCT:
 		// @FXIME
+	case T_ARRAY:
+		fmt.Printf("  popq %%rdi # rhs: addr of data\n")
+		fmt.Printf("  popq %%rax # lhs: addr to store\n")
+		fmt.Printf("  pushq $%d # size\n", getSizeOfType(typ))
+		fmt.Printf("  pushq %%rax # dst lhs\n")
+		fmt.Printf("  pushq %%rdi # src rhs\n")
+		fmt.Printf("  callq runtime.memcopy\n")
+		fmt.Printf("  addq $24, %%rsp\n # rewind stack pointer")
 	default:
 		panic("TBI:" + getTypeKind(typ))
 	}
