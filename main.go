@@ -38,6 +38,9 @@ func emitLoad(typ ast.Expr) {
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmt.Printf("  movq %d(%%rdx), %%rdx # load int\n", 0)
 		fmt.Printf("  pushq %%rdx\n")
+	case T_ARRAY:
+		// pure proxy
+		fmt.Printf("  pushq %%rdx\n")
 	default:
 		throw(typ)
 	}

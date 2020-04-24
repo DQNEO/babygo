@@ -9,6 +9,16 @@ func testSliceLiteral() {
 	writeln(slc[0] + slc[1])
 }
 
+func testArrayCopy() {
+	var aInt [3]int = [3]int{1,2,3}
+	var bInt [3]int = aInt
+	aInt[1] = 20
+
+	write(Itoa(aInt[1]))
+	write(Itoa(bInt[1]))
+	write("\n")
+}
+
 func testArrayLiteral() {
 	var aInt [3]int = [3]int{1,2,3}
 	var i int
@@ -718,6 +728,7 @@ var globalptr *int
 
 func test() {
 	testSliceLiteral()
+	testArrayCopy()
 	testArrayLiteral()
 	testSprintf()
 	testSringIndex()
