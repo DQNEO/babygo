@@ -17,6 +17,10 @@ func testArrayLiteral() {
 		write(s)
 	}
 	write("\n")
+
+	var aByte [4]uint8 = [4]uint8{'x', 'y', 'z', 10}
+	var buf []uint8 = aByte[0:4]
+	write(string(buf))
 }
 
 func Sprintf(format string, a []string) string {
