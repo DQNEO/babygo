@@ -1564,6 +1564,13 @@ var tInt *Type = &Type{
 	},
 }
 
+var tUintptr *Type = &Type{
+	e: &ast.Ident{
+		NamePos: 0,
+		Name:    "uintptr",
+		Obj:     gUintptr,
+	},
+}
 
 var tUint8 *Type = &Type{
 	e:&ast.Ident{
@@ -1602,11 +1609,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	case *ast.BasicLit:
 		switch e.Kind.String() {
 		case "STRING":
-			return e2t(&ast.Ident{
-				NamePos: 0,
-				Name:    "string",
-				Obj:     gString,
-			})
+			return tString
 		case "INT":
 			return tInt
 		case "CHAR":
@@ -1658,11 +1661,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			if xIdent.Name == "unsafe" {
 				if fn.Sel.Name == "Pointer" {
 					// unsafe.Pointer(x)
-					return e2t(&ast.Ident{
-						NamePos: 0,
-						Name:    "uintptr",
-						Obj:     gUintptr,
-					})
+					return tUintptr
 				} else {
 					panic("TBI")
 				}
