@@ -10,11 +10,15 @@ import (
 	"strconv"
 )
 
+type Type struct {
+	e ast.Expr // original expr
+}
+
 type localoffsetint int
 
-func emitLoad(typ ast.Expr) {
+func emitLoad(t *Type) {
 	fmt.Printf("  popq %%rdx\n")
-	switch getTypeKind(typ) {
+	switch getTypeKind(t) {
 	case T_SLICE:
 		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
 		fmt.Printf("  movq %d(%%rdx), %%rcx\n", 8)
@@ -42,7 +46,7 @@ func emitLoad(typ ast.Expr) {
 		// pure proxy
 		fmt.Printf("  pushq %%rdx\n")
 	default:
-		throw(typ)
+		throw(t)
 	}
 }
 
@@ -82,9 +86,9 @@ func evalInt(expr ast.Expr) int {
 	return 0
 }
 
-func getSizeOfType(typeExpr ast.Expr) int {
+func getSizeOfType(t *Type) int {
 	var varSize int
-	switch getTypeKind(typeExpr) {
+	switch getTypeKind(t) {
 	case T_SLICE:
 		return sliceSize
 	case T_STRING:
@@ -96,14 +100,14 @@ func getSizeOfType(typeExpr ast.Expr) int {
 	case T_BOOL:
 		return gInt.Data.(int)
 	case T_ARRAY:
-		arrayType, ok := typeExpr.(*ast.ArrayType)
+		arrayType, ok := t.e.(*ast.ArrayType)
 		assert(ok, "expect *ast.ArrayType")
-		elmSize := getSizeOfType(arrayType.Elt)
+		elmSize := getSizeOfType(e2t(arrayType.Elt))
 		return elmSize * evalInt(arrayType.Len)
 	case T_STRUCT:
-		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(typeExpr))
+		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
 	default:
-		throw(typeExpr)
+		throw(t)
 	}
 	return varSize
 }
@@ -116,18 +120,18 @@ type Variable struct {
 }
 
 func emitListHeadAddr(list ast.Expr) {
-	typ := getTypeOfExpr(list)
-	switch getTypeKind(typ) {
+	t := getTypeOfExpr(list)
+	switch getTypeKind(t) {
 	case T_ARRAY:
 		emitAddr(list) // array head
 	case T_SLICE:
-		emitExpr(list, typ)
+		emitExpr(list, t)
 		fmt.Printf("  popq %%rax # slice.ptr\n")
 		fmt.Printf("  popq %%rcx # garbage\n")
 		fmt.Printf("  popq %%rcx # garbage\n")
 		fmt.Printf("  pushq %%rax # slice.ptr\n")
 	case T_STRING:
-		emitExpr(list, typ)
+		emitExpr(list, t)
 		fmt.Printf("  popq %%rax # string.ptr\n")
 		fmt.Printf("  popq %%rcx # garbage\n")
 		fmt.Printf("  pushq %%rax # string.ptr\n")
@@ -157,7 +161,7 @@ func emitAddr(expr ast.Expr) {
 		emitExpr(e.X, nil)
 	case *ast.SelectorExpr: // X.Sel
 		typeOfX := getTypeOfExpr(e.X)
-		var structType ast.Expr
+		var structType *Type
 		switch getTypeKind(typeOfX) {
 		case T_STRUCT:
 			// strct.field
@@ -165,9 +169,9 @@ func emitAddr(expr ast.Expr) {
 			emitAddr(e.X)
 		case T_POINTER:
 			// ptr.field
-			ptrType, ok := typeOfX.(*ast.StarExpr)
+			ptrType, ok := typeOfX.e.(*ast.StarExpr)
 			assert(ok, "should be *ast.StarExpr")
-			structType = ptrType.X
+			structType = e2t(ptrType.X)
 			emitExpr(e.X, nil)
 		default:
 			throw("TBI")
@@ -187,7 +191,7 @@ func emitConversionToSlice(arrayType *ast.ArrayType, arg0 ast.Expr) {
 	assert(arrayType.Len == nil, "arrayType should be slice")
 	assert(getTypeKind(getTypeOfExpr(arg0)) == T_STRING, "arrayType should be slice")
 	fmt.Printf("  # Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
-	emitExpr(arg0, arrayType)
+	emitExpr(arg0, e2t(arrayType))
 	fmt.Printf("  popq %%rax # ptr\n")
 	fmt.Printf("  popq %%rcx # len\n")
 	fmt.Printf("  pushq %%rcx # cap\n")
@@ -195,16 +199,16 @@ func emitConversionToSlice(arrayType *ast.ArrayType, arg0 ast.Expr) {
 	fmt.Printf("  pushq %%rax # ptr\n")
 }
 
-func emitConversion(typeExpr ast.Expr, arg0 ast.Expr) {
-	fmt.Printf("  # Conversion %s <= %s\n", typeExpr, getTypeOfExpr(arg0))
-	switch typ := typeExpr.(type) {
+func emitConversion(tp *Type, arg0 ast.Expr) {
+	fmt.Printf("  # Conversion %s <= %s\n", tp.e, getTypeOfExpr(arg0))
+	switch typeExpr := tp.e.(type) {
 	case *ast.Ident:
-		ident := typ
+		ident := typeExpr
 		switch ident.Obj {
 		case gString: // string(e)
 			switch getTypeKind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
-				emitExpr(arg0, ident) // slice
+				emitExpr(arg0, e2t(ident)) // slice
 				fmt.Printf("  popq %%rax # ptr\n")
 				fmt.Printf("  popq %%rcx # len\n")
 				fmt.Printf("  popq %%rdx # cap (to be abandoned)\n")
@@ -212,18 +216,18 @@ func emitConversion(typeExpr ast.Expr, arg0 ast.Expr) {
 				fmt.Printf("  pushq %%rax # str ptr\n")
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
-			emitExpr(arg0, ident)
+			emitExpr(arg0, e2t(ident))
 		default:
 			throw(ident.Obj)
 		}
 	case *ast.ArrayType: // Conversion to slice
-		if typ.Len == nil {
-			emitConversionToSlice(typ, arg0)
+		if typeExpr.Len == nil {
+			emitConversionToSlice(typeExpr, arg0)
 		} else {
 			throw(typeExpr)
 		}
 	case *ast.ParenExpr: // (T)(arg0)
-		emitConversion(typ.X, arg0)
+		emitConversion(e2t(typeExpr.X), arg0)
 	case *ast.StarExpr: // (*T)(arg0)
 		// go through
 		emitExpr(arg0, nil)
@@ -233,26 +237,26 @@ func emitConversion(typeExpr ast.Expr, arg0 ast.Expr) {
 	return
 }
 
-func getStructTypeOfX(e *ast.SelectorExpr) ast.Expr {
+func getStructTypeOfX(e *ast.SelectorExpr) *Type {
 	typeOfX := getTypeOfExpr(e.X)
-	var structType ast.Expr
+	var structType *Type
 	switch getTypeKind(typeOfX) {
 	case T_STRUCT:
 		// strct.field => e.X . e.Sel
 		structType = typeOfX
 	case T_POINTER:
 		// ptr.field => e.X . e.Sel
-		ptrType, ok := typeOfX.(*ast.StarExpr)
+		ptrType, ok := typeOfX.e.(*ast.StarExpr)
 		assert(ok, "should be *ast.StarExpr")
-		structType = ptrType.X
+		structType = e2t(ptrType.X)
 	default:
 		throw("TBI")
 	}
 	return structType
 }
 
-func emitZeroValue(typeExpr ast.Expr) {
-	switch getTypeKind(typeExpr) {
+func emitZeroValue(t *Type) {
+	switch getTypeKind(t) {
 	case T_SLICE:
 		fmt.Printf("  pushq $0 # slice zero value\n")
 		fmt.Printf("  pushq $0 # slice zero value\n")
@@ -261,18 +265,18 @@ func emitZeroValue(typeExpr ast.Expr) {
 		fmt.Printf("  pushq $0 # string zero value\n")
 		fmt.Printf("  pushq $0 # string zero value\n")
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
-		fmt.Printf("  pushq $0 # %s zero value\n", getTypeKind(typeExpr))
+		fmt.Printf("  pushq $0 # %s zero value\n", getTypeKind(t))
 	case T_STRUCT:
 		//@FIXME
 	default:
-		throw(typeExpr)
+		throw(t)
 	}
 }
 
 func emitLen(arg ast.Expr) {
 	switch getTypeKind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
-		arrayType, ok := getTypeOfExpr(arg).(*ast.ArrayType)
+		arrayType, ok := getTypeOfExpr(arg).e.(*ast.ArrayType)
 		assert(ok, "should be *ast.ArrayType")
 		emitExpr(arrayType.Len, tInt)
 	case T_SLICE:
@@ -300,7 +304,7 @@ func emitCallMalloc(size int) {
 }
 
 func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
-	elmType := arrayType.Elt
+	elmType := e2t(arrayType.Elt)
 	elmSize := getSizeOfType(elmType)
 	memSize := elmSize * arrayLen
 	emitCallMalloc(memSize) // push
@@ -315,7 +319,7 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 	}
 }
 
-func emitExpr(expr ast.Expr, forceType ast.Expr) {
+func emitExpr(expr ast.Expr, forceType *Type) {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		switch e.Obj {
@@ -360,14 +364,14 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 		fmt.Printf("  # callExpr=%#v\n", fun)
 		switch fn := fun.(type) {
 		case *ast.ArrayType: // Conversion
-			emitConversion(fn, e.Args[0])
+			emitConversion(e2t(fn), e.Args[0])
 		case *ast.Ident:
 			if fn.Obj == nil {
 				panic("unresolved ident: " + fn.String())
 			}
 			if fn.Obj.Kind == ast.Typ {
 				// Conversion
-				emitConversion(fn, e.Args[0])
+				emitConversion(e2t(fn), e.Args[0])
 				return
 			}
 			switch fn.Obj {
@@ -380,7 +384,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 				var arg ast.Expr = e.Args[0]
 				switch getTypeKind(getTypeOfExpr(arg)) {
 				case T_ARRAY:
-					arrayType, ok := getTypeOfExpr(arg).(*ast.ArrayType)
+					arrayType, ok := getTypeOfExpr(arg).e.(*ast.ArrayType)
 					assert(ok, "should be *ast.ArrayType")
 					emitExpr(arrayType.Len, tInt)
 				case T_SLICE:
@@ -395,23 +399,23 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 					throw(getTypeKind(getTypeOfExpr(arg)))
 				}
 			case gNew:
-				var typeArg ast.Expr = e.Args[0]
+				typeArg := e2t(e.Args[0])
 				// size to malloc
 				size := getSizeOfType(typeArg)
 				emitCallMalloc(size)
 			case gMake:
-				var typeArg ast.Expr = e.Args[0]
+				var typeArg = e2t(e.Args[0])
 				switch getTypeKind(typeArg) {
 				case T_SLICE:
 					// make([]T, ...)
-					arrayType, ok := typeArg.(*ast.ArrayType)
+					arrayType, ok := typeArg.e.(*ast.ArrayType)
 					assert(ok, "should be *ast.ArrayType")
 
 					var lenArg ast.Expr = e.Args[1]
 					var capArg ast.Expr = e.Args[2]
 					emitExpr(capArg, typeArg)
 					emitExpr(lenArg, typeArg)
-					elmSize := getSizeOfType(arrayType.Elt)
+					elmSize := getSizeOfType(e2t(arrayType.Elt))
 					fmt.Printf("  pushq $%d # elm size\n", elmSize)
 					symbol := "runtime.makeSlice"
 					fmt.Printf("  callq %s\n", symbol)
@@ -494,7 +498,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 							panic("TBI")
 						} else if len(fndecl.Type.Results.List) == 1 {
 							retval0 := fndecl.Type.Results.List[0]
-							switch getTypeKind(retval0.Type) {
+							switch getTypeKind(e2t(retval0.Type)) {
 							case T_STRING:
 								fmt.Printf("  # fn.Obj=%#v\n", obj)
 								fmt.Printf("  pushq %%rdi # str len\n")
@@ -507,7 +511,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 								fmt.Printf("  pushq %%rdi # slice len\n")
 								fmt.Printf("  pushq %%rax # slice ptr\n")
 							default:
-								throw(getTypeKind(retval0.Type))
+								throw(getTypeKind(e2t(retval0.Type)))
 							}
 						}
 					}
@@ -529,7 +533,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 			}
 		case *ast.ParenExpr: // (T)(e)
 			// we assume this is conversion
-			emitConversion(fn, e.Args[0])
+			emitConversion(e2t(fn), e.Args[0])
 		default:
 			throw(fun)
 		}
@@ -639,7 +643,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 		fmt.Printf("  # end %T\n", e)
 	case *ast.CompositeLit:
 		// slice , array, map or struct
-		switch getTypeKind(e.Type) {
+		switch getTypeKind(e2t(e.Type)) {
 		case T_ARRAY:
 			arrayType, ok := e.Type.(*ast.ArrayType)
 			assert(ok, "expect *ast.ArrayType")
@@ -685,7 +689,7 @@ func emitExpr(expr ast.Expr, forceType ast.Expr) {
 	}
 }
 
-func emitListElementAddr(list ast.Expr, elmType ast.Expr) {
+func emitListElementAddr(list ast.Expr, elmType *Type) {
 	emitListHeadAddr(list)
 	fmt.Printf("  popq %%rax # list addr\n")
 	fmt.Printf("  popq %%rcx # index\n")
@@ -695,16 +699,16 @@ func emitListElementAddr(list ast.Expr, elmType ast.Expr) {
 	fmt.Printf("  pushq %%rax # addr of element\n")
 }
 
-func getElementTypeOfListType(typeExpr ast.Expr) ast.Expr {
-	switch getTypeKind(typeExpr) {
+func getElementTypeOfListType(t *Type) *Type {
+	switch getTypeKind(t) {
 	case T_SLICE, T_ARRAY:
-		arrayType, ok := typeExpr.(*ast.ArrayType)
+		arrayType, ok := t.e.(*ast.ArrayType)
 		assert(ok, "expect *ast.ArrayType")
-		return arrayType.Elt
+		return e2t(arrayType.Elt)
 	case T_STRING:
 		return tUint8
 	default:
-		throw(typeExpr)
+		throw(t)
 	}
 	return nil
 }
@@ -723,9 +727,9 @@ func emitCompExpr(inst string) {
 	fmt.Printf("  pushq %%rax\n")
 }
 
-func emitStore(typ ast.Expr) {
-	fmt.Printf("  # emitStore(%s)\n", getTypeKind(typ))
-	switch getTypeKind(typ) {
+func emitStore(t *Type) {
+	fmt.Printf("  # emitStore(%s)\n", getTypeKind(t))
+	switch getTypeKind(t) {
 	case T_SLICE:
 		fmt.Printf("  popq %%rcx # rhs ptr\n")
 		fmt.Printf("  popq %%rax # rhs len\n")
@@ -764,13 +768,13 @@ func emitStore(typ ast.Expr) {
 	case T_ARRAY:
 		fmt.Printf("  popq %%rdi # rhs: addr of data\n")
 		fmt.Printf("  popq %%rax # lhs: addr to store\n")
-		fmt.Printf("  pushq $%d # size\n", getSizeOfType(typ))
+		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
 		fmt.Printf("  pushq %%rax # dst lhs\n")
 		fmt.Printf("  pushq %%rdi # src rhs\n")
 		fmt.Printf("  callq runtime.memcopy\n")
 		fmt.Printf("  addq $24, %%rsp\n # rewind stack pointer")
 	default:
-		panic("TBI:" + getTypeKind(typ))
+		panic("TBI:" + getTypeKind(t))
 	}
 }
 
@@ -1093,11 +1097,11 @@ func getStructFields(structTypeSpec *ast.TypeSpec) []*ast.Field {
 	return structType.Fields.List
 }
 
-func getStructTypeSpec(namedStructType ast.Expr) *ast.TypeSpec {
+func getStructTypeSpec(namedStructType *Type) *ast.TypeSpec {
 	if getTypeKind(namedStructType) != T_STRUCT {
 		throw(namedStructType)
 	}
-	ident, ok := namedStructType.(*ast.Ident)
+	ident, ok := namedStructType.e.(*ast.Ident)
 	if !ok {
 		throw(namedStructType)
 	}
@@ -1122,7 +1126,7 @@ func calcStructSizeAndSetFieldOffset(structTypeSpec *ast.TypeSpec) int {
 	var offset int = 0
 	for _, field := range getStructFields(structTypeSpec) {
 		setStructFieldOffset(field, offset)
-		size := getSizeOfType(field.Type)
+		size := getSizeOfType(e2t(field.Type))
 		offset += size
 	}
 	return offset
@@ -1145,7 +1149,7 @@ func walkStmt(stmt ast.Stmt) {
 				if varSpec.Type == nil {
 					panic("type inference is not supported: " + obj.Name)
 				}
-				localoffset -= localoffsetint(getSizeOfType(varSpec.Type))
+				localoffset -= localoffsetint(getSizeOfType(e2t(varSpec.Type)))
 				obj.Data = newLocalVariable(obj.Name, localoffset)
 				for _, v := range ds.Values {
 					walkExpr(v)
@@ -1475,7 +1479,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 				nameIdent := valSpec.Names[0]
 				nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
 				if len(valSpec.Values) > 0 {
-					switch getTypeKind(valSpec.Type) {
+					switch getTypeKind(e2t(valSpec.Type)) {
 					case T_STRING:
 						lit, ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
@@ -1495,7 +1499,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 			case *ast.ImportSpec:
 			case *ast.TypeSpec:
 				typeSpec := spc
-				assert(getTypeKind(typeSpec.Type) == T_STRUCT, "should be T_STRUCT")
+				assert(getTypeKind(e2t(typeSpec.Type)) == T_STRUCT, "should be T_STRUCT")
 				calcStructSizeAndSetFieldOffset(typeSpec)
 			default:
 				throw(spec)
@@ -1508,7 +1512,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 			for _, field := range funcDecl.Type.Params.List {
 				obj := field.Names[0].Obj
 				obj.Data = newLocalVariable(obj.Name, paramoffset)
-				var varSize int = getSizeOfType(field.Type)
+				var varSize int = getSizeOfType(e2t(field.Type))
 				paramoffset += localoffsetint(varSize)
 				fmt.Printf("# field.Names[0].Obj=%#v\n", obj)
 			}
@@ -1551,25 +1555,32 @@ const T_ARRAY = "T_ARRAY"
 const T_STRUCT = "T_STRUCT"
 const T_POINTER = "T_POINTER"
 
-var tInt *ast.Ident = &ast.Ident{
-	NamePos: 0,
-	Name:    "int",
-	Obj:     gInt,
+var tInt *Type = &Type{
+	e: &ast.Ident{
+		NamePos: 0,
+		Name:    "int",
+		Obj:     gInt,
+	},
 }
 
-var tUint8 *ast.Ident = &ast.Ident{
-	NamePos: 0,
-	Name:    "int",
-	Obj:     gUint8,
+
+var tUint8 *Type = &Type{
+	e:&ast.Ident{
+		NamePos: 0,
+		Name:    "int",
+		Obj:     gUint8,
+	},
 }
 
-var tString *ast.Ident = &ast.Ident{
-	NamePos: 0,
-	Name:    "string",
-	Obj:     gString,
+var tString *Type = &Type{
+	e:&ast.Ident{
+		NamePos: 0,
+		Name:    "string",
+		Obj:     gString,
+	},
 }
 
-func getTypeOfExpr(expr ast.Expr) ast.Expr {
+func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		if e.Obj.Kind == ast.Typ {
@@ -1578,9 +1589,9 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 		if e.Obj.Kind == ast.Var {
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
-				return dcl.Type
+				return e2t(dcl.Type)
 			case *ast.Field:
-				return dcl.Type
+				return e2t(dcl.Type)
 			default:
 				throw(e.Obj)
 			}
@@ -1590,11 +1601,11 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 	case *ast.BasicLit:
 		switch e.Kind.String() {
 		case "STRING":
-			return &ast.Ident{
+			return e2t(&ast.Ident{
 				NamePos: 0,
 				Name:    "string",
 				Obj:     gString,
-			}
+			})
 		case "INT":
 			return tInt
 		case "CHAR":
@@ -1622,7 +1633,7 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 			}
 			switch fn.Obj.Kind {
 			case ast.Typ: // conversion
-				return fn
+				return e2t(fn)
 			case ast.Fun:
 				switch fn.Obj {
 				case gLen, gCap:
@@ -1631,13 +1642,13 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 				switch decl := fn.Obj.Decl.(type) {
 				case *ast.FuncDecl:
 					assert(len(decl.Type.Results.List) == 1, "func is expected to return a single value")
-					return decl.Type.Results.List[0].Type
+					return e2t(decl.Type.Results.List[0].Type)
 				default:
 					throw(fn.Obj.Decl)
 				}
 			}
 		case *ast.ArrayType: // conversion [n]T(e) or []T(e)
-			return fn
+			return e2t(fn)
 		case *ast.SelectorExpr: // X.Sel()
 			xIdent, ok := fn.X.(*ast.Ident)
 			if !ok {
@@ -1646,11 +1657,11 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 			if xIdent.Name == "unsafe" {
 				if fn.Sel.Name == "Pointer" {
 					// unsafe.Pointer(x)
-					return &ast.Ident{
+					return e2t(&ast.Ident{
 						NamePos: 0,
 						Name:    "uintptr",
 						Obj:     gUintptr,
-					}
+					})
 				} else {
 					panic("TBI")
 				}
@@ -1662,7 +1673,7 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 	case *ast.SliceExpr:
 		underlyingCollectionType := getTypeOfExpr(e.X)
 		var elementTyp ast.Expr
-		switch colType := underlyingCollectionType.(type) {
+		switch colType := underlyingCollectionType.e.(type) {
 		case *ast.ArrayType:
 			elementTyp = colType.Elt
 		}
@@ -1670,21 +1681,21 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 			Len: nil,
 			Elt: elementTyp,
 		}
-		return r
+		return e2t(r)
 	case *ast.StarExpr:
-		typ := getTypeOfExpr(e.X)
-		ptrType, ok := typ.(*ast.StarExpr)
+		t := getTypeOfExpr(e.X)
+		ptrType, ok := t.e.(*ast.StarExpr)
 		if !ok {
-			throw(typ)
+			throw(t)
 		}
-		return ptrType.X
+		return e2t(ptrType.X)
 	case *ast.SelectorExpr:
 		fmt.Printf("  # getTypeOfExpr(%s.%s)\n", e.X, e.Sel)
 		structType := getStructTypeOfX(e)
 		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
-		return field.Type
+		return e2t(field.Type)
 	case *ast.CompositeLit:
-		return e.Type
+		return e2t(e.Type)
 	default:
 		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
 	}
@@ -1692,8 +1703,14 @@ func getTypeOfExpr(expr ast.Expr) ast.Expr {
 	return nil
 }
 
-func getTypeKind(typeExpr ast.Expr) string {
-	switch e := typeExpr.(type) {
+func e2t(typeExpr ast.Expr) *Type {
+	return &Type{
+		e: typeExpr,
+	}
+}
+
+func getTypeKind(t *Type) string {
+	switch e := t.e.(type) {
 	case *ast.Ident:
 		if e.Obj == nil {
 			panic("Unresolved identifier:" + e.Name)
@@ -1721,7 +1738,7 @@ func getTypeKind(typeExpr ast.Expr) string {
 				if !ok {
 					throw(decl)
 				}
-				return getTypeKind(typeSpec.Type)
+				return getTypeKind(e2t(typeSpec.Type))
 			}
 		}
 	case *ast.StructType:
@@ -1735,7 +1752,7 @@ func getTypeKind(typeExpr ast.Expr) string {
 	case *ast.StarExpr:
 		return T_POINTER
 	default:
-		throw(typeExpr)
+		throw(t)
 	}
 	return ""
 }
@@ -1756,8 +1773,8 @@ func emitData(pkgName string) {
 			val = varDecl.Values[0]
 		}
 
-		fmt.Printf("%s: # T %s\n", name, getTypeKind(varDecl.Type))
-		switch getTypeKind(varDecl.Type) {
+		fmt.Printf("%s: # T %s\n", name, getTypeKind(e2t(varDecl.Type)))
+		switch getTypeKind(e2t(varDecl.Type)) {
 		case T_STRING:
 			switch vl := val.(type) {
 			case *ast.BasicLit:
@@ -1827,7 +1844,7 @@ func emitData(pkgName string) {
 				panic(err)
 			}
 			var zeroValue string
-			switch getTypeKind(arrayType.Elt) {
+			switch getTypeKind(e2t(arrayType.Elt)) {
 			case T_INT:
 				zeroValue = fmt.Sprintf("  .quad 0 # int zero value\n")
 			case T_UINT8:
@@ -1842,7 +1859,7 @@ func emitData(pkgName string) {
 				fmt.Printf(zeroValue)
 			}
 		default:
-			throw(getTypeKind(varDecl.Type))
+			throw(getTypeKind(e2t(varDecl.Type)))
 		}
 	}
 	fmt.Printf("# ==============================\n")
