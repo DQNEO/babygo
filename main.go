@@ -186,19 +186,6 @@ func emitAddr(expr ast.Expr) {
 	}
 }
 
-// Conversion slice(string)
-func emitConversionToSlice(arrayType *ast.ArrayType, arg0 ast.Expr) {
-	assert(arrayType.Len == nil, "arrayType should be slice")
-	assert(kind(getTypeOfExpr(arg0)) == T_STRING, "arrayType should be slice")
-	fmt.Printf("  # Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
-	emitExpr(arg0, e2t(arrayType))
-	fmt.Printf("  popq %%rax # ptr\n")
-	fmt.Printf("  popq %%rcx # len\n")
-	fmt.Printf("  pushq %%rcx # cap\n")
-	fmt.Printf("  pushq %%rcx # len\n")
-	fmt.Printf("  pushq %%rax # ptr\n")
-}
-
 func emitConversion(tp *Type, arg0 ast.Expr) {
 	fmt.Printf("  # Conversion %s <= %s\n", tp.e, getTypeOfExpr(arg0))
 	switch typeExpr := tp.e.(type) {
@@ -221,8 +208,16 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 			throw(ident.Obj)
 		}
 	case *ast.ArrayType: // Conversion to slice
-		if typeExpr.Len == nil {
-			emitConversionToSlice(typeExpr, arg0)
+		arrayType := typeExpr
+		if arrayType.Len == nil {
+			assert(kind(getTypeOfExpr(arg0)) == T_STRING, "arrayType should be slice")
+			fmt.Printf("  # Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
+			emitExpr(arg0, tp)
+			fmt.Printf("  popq %%rax # ptr\n")
+			fmt.Printf("  popq %%rcx # len\n")
+			fmt.Printf("  pushq %%rcx # cap\n")
+			fmt.Printf("  pushq %%rcx # len\n")
+			fmt.Printf("  pushq %%rax # ptr\n")
 		} else {
 			throw(typeExpr)
 		}
