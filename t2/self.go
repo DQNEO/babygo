@@ -2,6 +2,40 @@ package main
 
 import "syscall"
 
+func fmtSprintf(format string, a []string) string {
+	if len(a) == 0 {
+		return format
+	}
+	var buf []uint8
+	var inPercent bool
+	var argIndex int
+	var c uint8
+	for _, c = range []uint8(format) {
+		if inPercent {
+			if c == '%' {
+				buf = append(buf, c)
+			} else {
+				var arg string = a[argIndex]
+				argIndex++
+				var s string = arg // // p.printArg(arg, c)
+				var _c uint8
+				for _, _c = range []uint8(s) {
+					buf = append(buf, _c)
+				}
+			}
+			inPercent = false
+		} else {
+			if  c == '%' {
+				inPercent = true
+			} else {
+				buf = append(buf, c)
+			}
+		}
+	}
+
+	return string(buf)
+}
+
 var __itoa_buf [100]uint8
 var __itoa_r [100]uint8
 
@@ -46,6 +80,11 @@ func fmtPrint(s string) {
 	syscall.Write(1, slc)
 }
 
+func fmtPrintf(format string, a []string) {
+	var s string = fmtSprintf(format, a)
+	syscall.Write(1, []uint8(s))
+}
+
 func semanticAnalyze(name string) string {
 	globalFuncs = make([]*Func, 2, 2)
 	var fnc *Func = new(Func)
@@ -74,8 +113,8 @@ func emitData(pkgName string) {
 	var sl *sliteral
 	for _, sl = range stringLiterals {
 		fmtPrint("# string literals\n")
-		fmtPrint(sl.label + ":\n")
-		fmtPrint("  .string " + sl.value + "\n")
+		fmtPrintf("%s:\n", []string{sl.label})
+		fmtPrintf("  .string %s\n", []string{sl.value})
 	}
 	fmtPrint("# ===== Global Variables =====\n")
 	fmtPrint("# ==============================\n")
