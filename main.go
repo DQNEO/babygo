@@ -796,7 +796,8 @@ func emitStmt(stmt ast.Stmt) {
 			declSpec := dcl.Specs[0]
 			switch ds := declSpec.(type) {
 			case *ast.ValueSpec:
-				fmt.Printf("  # Decl.Specs[0]: Names[0]=%#v, Type=%#v\n", ds.Names[0], ds.Type)
+				t := e2t(ds.Type)
+				fmt.Printf("  # Decl.Specs[0]: Names[0]=%#v, Type=%#v\n", ds.Names[0], t.e)
 				valSpec := ds
 				lhs := valSpec.Names[0]
 				var rhs ast.Expr
@@ -804,9 +805,9 @@ func emitStmt(stmt ast.Stmt) {
 					fmt.Printf("  # lhs addresss\n")
 					emitAddr(lhs)
 					fmt.Printf("  # emitZeroValue\n")
-					emitZeroValue(getTypeOfExpr(lhs))
+					emitZeroValue(t)
 					fmt.Printf("  # Assignment: zero value\n")
-					emitStore(getTypeOfExpr(lhs))
+					emitStore(t)
 				} else if len(valSpec.Values) == 1 {
 					// assignment
 					rhs = valSpec.Values[0]
@@ -1144,7 +1145,8 @@ func walkStmt(stmt ast.Stmt) {
 				if varSpec.Type == nil {
 					panic("type inference is not supported: " + obj.Name)
 				}
-				localoffset -= localoffsetint(getSizeOfType(e2t(varSpec.Type)))
+				t := e2t(varSpec.Type)
+				localoffset -= localoffsetint(getSizeOfType(t))
 				obj.Data = newLocalVariable(obj.Name, localoffset)
 				for _, v := range ds.Values {
 					walkExpr(v)
@@ -1470,24 +1472,25 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 			case *ast.ValueSpec:
 				valSpec := spc
 				//println(fmt.Sprintf("spec=%s", dcl.Tok))
-				fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
+				//fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
+				t := e2t(valSpec.Type)
 				nameIdent := valSpec.Names[0]
 				nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
 				if len(valSpec.Values) > 0 {
-					switch kind(e2t(valSpec.Type)) {
+					switch kind(t) {
 					case T_STRING:
 						lit, ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
-							throw(valSpec.Type)
+							throw(t)
 						}
 						registerStringLiteral(lit)
 					case T_INT, T_UINT8, T_UINT16, T_UINTPTR:
 						_, ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
-							throw(valSpec.Type) // allow only literal
+							throw(t)// allow only literal
 						}
 					default:
-						throw(valSpec.Type)
+						throw(t)
 					}
 				}
 				globalVars = append(globalVars, valSpec)
