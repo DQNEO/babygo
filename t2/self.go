@@ -105,6 +105,15 @@ func semanticAnalyze(name string) string {
 	s2.label = ".main.S1"
 	stringLiterals[1] = s2
 
+	var globalVar0 *astValueSpec = new(astValueSpec)
+	globalVar0.name = "_gvar0"
+	globalVar0.value = "10"
+	globalVars = append(globalVars, globalVar0)
+
+	var globalVar1 *astValueSpec = new(astValueSpec)
+	globalVar1.name = "_gvar1"
+	globalVar1.value = "11"
+	globalVars = append(globalVars, globalVar1)
 	return name
 }
 
@@ -117,6 +126,12 @@ func emitData(pkgName string) {
 		fmtPrintf("  .string %s\n", []string{sl.value})
 	}
 	fmtPrint("# ===== Global Variables =====\n")
+	var varDecl *astValueSpec
+	for _, varDecl = range globalVars {
+		fmtPrintf("%s:\n", []string{varDecl.name})
+		fmtPrintf("  .quad %s\n", []string{varDecl.value})
+	}
+
 	fmtPrint("# ==============================\n")
 }
 
@@ -148,6 +163,8 @@ func generateCode(pkgName string) {
 }
 
 type astValueSpec struct {
+	name string
+	value string
 }
 
 type Func struct {
