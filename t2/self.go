@@ -117,8 +117,11 @@ func semanticAnalyze(name string) string {
 	return name
 }
 
-func emitGlobalVariable(name string, val string) {
+func emitGlobalVariable(name string, t *Type, val string) {
 	fmtPrintf("%s:\n", []string{name})
+	if t == nil {
+		fmtPrint("  # no type\n")
+	}
 	fmtPrintf("  .quad %s\n", []string{val})
 }
 
@@ -133,7 +136,7 @@ func emitData(pkgName string) {
 	fmtPrint("# ===== Global Variables =====\n")
 	var spec *astValueSpec
 	for _, spec = range globalVars {
-		emitGlobalVariable(spec.name, spec.value)
+		emitGlobalVariable(spec.name, spec.t, spec.value)
 	}
 
 	fmtPrint("# ==============================\n")
@@ -166,8 +169,13 @@ func generateCode(pkgName string) {
 	emitText(pkgName)
 }
 
+type Type struct {
+
+}
+
 type astValueSpec struct {
 	name string
+	t *Type
 	value string
 }
 

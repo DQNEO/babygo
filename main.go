@@ -325,11 +325,16 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			fmt.Printf("  pushq $0 # false\n")
 			return
 		case gNil:
+			if forceType == nil {
+				panic("Type is required for nil")
+			}
 			switch kind(forceType) {
 			case T_SLICE:
 				emitZeroValue(forceType)
+			case T_POINTER:
+				emitZeroValue(forceType)
 			default:
-				throw(forceType)
+				throw(kind(forceType))
 			}
 			return
 		}
@@ -590,7 +595,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		}
 		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.Y, getTypeOfExpr(e.X)) // right
 		switch e.Op.String() {
 		case "+":
 			fmt.Printf("  popq %%rdi # right\n")
@@ -1711,6 +1716,9 @@ func e2t(typeExpr ast.Expr) *Type {
 }
 
 func kind(t *Type) TypeKind {
+	if t == nil {
+		panic("nil type is not expected")
+	}
 	switch e := t.e.(type) {
 	case *ast.Ident:
 		if e.Obj == nil {
