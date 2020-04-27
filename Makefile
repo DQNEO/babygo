@@ -6,7 +6,7 @@ all: test
 
 test.s: main.go runtime.go t1/test.go
 	ln -sf ../t1/test.go t/source.go
-	go run main.go > test.s
+	go run main.go | cat > test.s
 
 test.o: test.s runtime.s
 	as -o test.o test.s runtime.s
@@ -30,7 +30,7 @@ t/expected.1: t1/test
 # self compiler
 self.s: main.go runtime.go t2/self.go
 	ln -sf ../t2/self.go t/source.go
-	go run main.go > self.s
+	go run main.go | cat > self.s
 
 self.o: self.s
 	as -o self.o self.s runtime.s
