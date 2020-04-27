@@ -108,6 +108,8 @@ func semanticAnalyze(name string) string {
 	var globalVar0 *astValueSpec = new(astValueSpec)
 	globalVar0.name = "_gvar0"
 	globalVar0.value = "10"
+	globalVar0.t = new(Type)
+	globalVar0.t.kind = "T_INT"
 	globalVars = append(globalVars, globalVar0)
 
 	var globalVar1 *astValueSpec = new(astValueSpec)
@@ -118,10 +120,13 @@ func semanticAnalyze(name string) string {
 }
 
 func emitGlobalVariable(name string, t *Type, val string) {
-	fmtPrintf("%s:\n", []string{name})
+	var typeKind string
 	if t == nil {
-		fmtPrint("  # no type\n")
+		typeKind = "UNTYPED"
+	} else {
+		typeKind = t.kind
 	}
+	fmtPrintf("%s: # T %s \n", []string{name, typeKind})
 	fmtPrintf("  .quad %s\n", []string{val})
 }
 
@@ -170,7 +175,7 @@ func generateCode(pkgName string) {
 }
 
 type Type struct {
-
+	kind string
 }
 
 type astValueSpec struct {

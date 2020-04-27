@@ -1767,8 +1767,9 @@ func kind(t *Type) TypeKind {
 }
 
 func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
-	fmt.Printf("%s: # T %s\n", name, kind(t))
-	switch kind(t) {
+	typeKind := kind(t)
+	fmt.Printf("%s: # T %s\n", name, typeKind)
+	switch typeKind {
 	case T_STRING:
 		switch vl := val.(type) {
 		case *ast.BasicLit:
@@ -1853,7 +1854,7 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 			fmt.Printf(zeroValue)
 		}
 	default:
-		throw(kind(t))
+		throw(typeKind)
 	}
 }
 
