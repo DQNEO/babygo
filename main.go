@@ -1755,6 +1755,97 @@ func kind(t *Type) TypeKind {
 	return ""
 }
 
+func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
+	fmt.Printf("%s: # T %s\n", name, kind(t))
+	switch kind(t) {
+	case T_STRING:
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			sl := getStringLiteral(vl)
+			fmt.Printf("  .quad %s\n", sl.label)
+			fmt.Printf("  .quad %d\n", sl.strlen)
+		case nil:
+			fmt.Printf("  .quad 0\n")
+			fmt.Printf("  .quad 0\n")
+		default:
+			panic("Unexpected case")
+		}
+	case T_POINTER:
+		fmt.Printf("  .quad 0 # pointer \n") // @TODO
+	case T_UINTPTR:
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			fmt.Printf("  .quad %s\n", vl.Value)
+		case nil:
+			fmt.Printf("  .quad 0\n")
+		default:
+			throw(val)
+		}
+	case T_INT:
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			fmt.Printf("  .quad %s\n", vl.Value)
+		case nil:
+			fmt.Printf("  .quad 0\n")
+		default:
+			throw(val)
+		}
+	case T_UINT8:
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			fmt.Printf("  .byte %s\n", vl.Value)
+		case nil:
+			fmt.Printf("  .byte 0\n")
+		default:
+			throw(val)
+		}
+	case T_UINT16:
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			fmt.Printf("  .word %s\n", vl.Value)
+		case nil:
+			fmt.Printf("  .word 0\n")
+		default:
+			throw(val)
+		}
+	case T_SLICE:
+		fmt.Printf("  .quad 0 # ptr\n")
+		fmt.Printf("  .quad 0 # len\n")
+		fmt.Printf("  .quad 0 # cap\n")
+	case T_ARRAY:
+		// emit global zero values
+		if val != nil {
+			panic("TBI")
+		}
+		arrayType, ok := t.e.(*ast.ArrayType)
+		assert(ok, "should be *ast.ArrayType")
+		assert(arrayType.Len != nil, "slice type is not expected")
+		basicLit, ok := arrayType.Len.(*ast.BasicLit)
+		assert(ok, "should be *ast.BasicLit")
+		length, err := strconv.Atoi(basicLit.Value)
+		if err != nil {
+			panic(err)
+		}
+		var zeroValue string
+		switch kind(e2t(arrayType.Elt)) {
+		case T_INT:
+			zeroValue = fmt.Sprintf("  .quad 0 # int zero value\n")
+		case T_UINT8:
+			zeroValue = fmt.Sprintf("  .byte 0 # uint8 zero value\n")
+		case T_STRING:
+			zeroValue = fmt.Sprintf("  .quad 0 # string zero value (ptr)\n")
+			zeroValue += fmt.Sprintf("  .quad 0 # string zero value (len)\n")
+		default:
+			throw(arrayType.Elt)
+		}
+		for i := 0; i < length; i++ {
+			fmt.Printf(zeroValue)
+		}
+	default:
+		throw(kind(t))
+	}
+}
+
 func emitData(pkgName string) {
 	fmt.Printf(".data\n")
 	for _, sl := range stringLiterals {
@@ -1764,101 +1855,17 @@ func emitData(pkgName string) {
 	}
 
 	fmt.Printf("# ===== Global Variables =====\n")
-	for _, varDecl := range globalVars {
-		name := varDecl.Names[0]
+	for _, spec := range globalVars {
+		name := spec.Names[0]
 		var val ast.Expr
-		if len(varDecl.Values) > 0 {
-			val = varDecl.Values[0]
+		if len(spec.Values) > 0 {
+			val = spec.Values[0]
 		}
-
-		fmt.Printf("%s: # T %s\n", name, kind(e2t(varDecl.Type)))
-		switch kind(e2t(varDecl.Type)) {
-		case T_STRING:
-			switch vl := val.(type) {
-			case *ast.BasicLit:
-				sl := getStringLiteral(vl)
-				fmt.Printf("  .quad %s\n", sl.label)
-				fmt.Printf("  .quad %d\n", sl.strlen)
-			case nil:
-				fmt.Printf("  .quad 0\n")
-				fmt.Printf("  .quad 0\n")
-			default:
-				panic("Unexpected case")
-			}
-		case T_POINTER:
-			fmt.Printf("  .quad 0 # pointer \n") // @TODO
-		case T_UINTPTR:
-			switch vl := val.(type) {
-			case *ast.BasicLit:
-				fmt.Printf("  .quad %s\n", vl.Value)
-			case nil:
-				fmt.Printf("  .quad 0\n")
-			default:
-				throw(val)
-			}
-		case T_INT:
-			switch vl := val.(type) {
-			case *ast.BasicLit:
-				fmt.Printf("  .quad %s\n", vl.Value)
-			case nil:
-				fmt.Printf("  .quad 0\n")
-			default:
-				throw(val)
-			}
-		case T_UINT8:
-			switch vl := val.(type) {
-			case *ast.BasicLit:
-				fmt.Printf("  .byte %s\n", vl.Value)
-			case nil:
-				fmt.Printf("  .byte 0\n")
-			default:
-				throw(val)
-			}
-		case T_UINT16:
-			switch vl := val.(type) {
-			case *ast.BasicLit:
-				fmt.Printf("  .word %s\n", vl.Value)
-			case nil:
-				fmt.Printf("  .word 0\n")
-			default:
-				throw(val)
-			}
-		case T_SLICE:
-			fmt.Printf("  .quad 0 # ptr\n")
-			fmt.Printf("  .quad 0 # len\n")
-			fmt.Printf("  .quad 0 # cap\n")
-		case T_ARRAY:
-			// emit global zero values
-			if val != nil {
-				panic("TBI")
-			}
-			arrayType, ok := varDecl.Type.(*ast.ArrayType)
-			assert(ok, "should be *ast.ArrayType")
-			assert(arrayType.Len != nil, "slice type is not expected")
-			basicLit, ok := arrayType.Len.(*ast.BasicLit)
-			assert(ok, "should be *ast.BasicLit")
-			length, err := strconv.Atoi(basicLit.Value)
-			if err != nil {
-				panic(err)
-			}
-			var zeroValue string
-			switch kind(e2t(arrayType.Elt)) {
-			case T_INT:
-				zeroValue = fmt.Sprintf("  .quad 0 # int zero value\n")
-			case T_UINT8:
-				zeroValue = fmt.Sprintf("  .byte 0 # uint8 zero value\n")
-			case T_STRING:
-				zeroValue = fmt.Sprintf("  .quad 0 # string zero value (ptr)\n")
-				zeroValue += fmt.Sprintf("  .quad 0 # string zero value (len)\n")
-			default:
-				throw(arrayType.Elt)
-			}
-			for i := 0; i < length; i++ {
-				fmt.Printf(zeroValue)
-			}
-		default:
-			throw(kind(e2t(varDecl.Type)))
+		var t *Type
+		if spec.Type != nil {
+			t = e2t(spec.Type)
 		}
+		emitGlobalVariable(name, t, val)
 	}
 	fmt.Printf("# ==============================\n")
 }
