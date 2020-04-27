@@ -117,6 +117,11 @@ func semanticAnalyze(name string) string {
 	return name
 }
 
+func emitGlobalVariable(name string, val string) {
+	fmtPrintf("%s:\n", []string{name})
+	fmtPrintf("  .quad %s\n", []string{val})
+}
+
 func emitData(pkgName string) {
 	fmtPrint(".data\n")
 	var sl *sliteral
@@ -126,10 +131,9 @@ func emitData(pkgName string) {
 		fmtPrintf("  .string %s\n", []string{sl.value})
 	}
 	fmtPrint("# ===== Global Variables =====\n")
-	var varDecl *astValueSpec
-	for _, varDecl = range globalVars {
-		fmtPrintf("%s:\n", []string{varDecl.name})
-		fmtPrintf("  .quad %s\n", []string{varDecl.value})
+	var spec *astValueSpec
+	for _, spec = range globalVars {
+		emitGlobalVariable(spec.name, spec.value)
 	}
 
 	fmtPrint("# ==============================\n")
