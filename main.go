@@ -1702,6 +1702,9 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 }
 
 func e2t(typeExpr ast.Expr) *Type {
+	if typeExpr == nil {
+		panic("nil is not allowed")
+	}
 	return &Type{
 		e: typeExpr,
 	}
@@ -1856,7 +1859,6 @@ func emitData(pkgName string) {
 
 	fmt.Printf("# ===== Global Variables =====\n")
 	for _, spec := range globalVars {
-		name := spec.Names[0]
 		var val ast.Expr
 		if len(spec.Values) > 0 {
 			val = spec.Values[0]
@@ -1865,7 +1867,7 @@ func emitData(pkgName string) {
 		if spec.Type != nil {
 			t = e2t(spec.Type)
 		}
-		emitGlobalVariable(name, t, val)
+		emitGlobalVariable(spec.Names[0], t, val)
 	}
 	fmt.Printf("# ==============================\n")
 }
