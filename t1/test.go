@@ -4,6 +4,22 @@ import (
 	"syscall"
 )
 
+func returnTrue() bool {
+	var bol bool
+	bol = true
+	bol = !bol
+	return !bol
+}
+
+func testBool() {
+	var bol bool = returnTrue()
+	if bol {
+		writeln("bool ok")
+	} else {
+		writeln("ERROR")
+	}
+}
+
 func testNilComparison() {
 	var p *MyStruct
 	if p == nil {
@@ -755,6 +771,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testBool()
 	testNilComparison()
 	testSliceLiteral()
 	testArrayCopy()

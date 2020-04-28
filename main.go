@@ -503,7 +503,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 								fmt.Printf("  # fn.Obj=%#v\n", obj)
 								fmt.Printf("  pushq %%rdi # str len\n")
 								fmt.Printf("  pushq %%rax # str ptr\n")
-							case T_INT, T_UINTPTR, T_POINTER:
+							case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 								fmt.Printf("  # fn.Obj=%#v\n", obj)
 								fmt.Printf("  pushq %%rax\n")
 							case T_SLICE:
@@ -573,8 +573,13 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			fmt.Printf("  pushq %%rax\n")
 		case "&":
 			emitAddr(e.X)
+		case "!":
+			emitExpr(e.X, nil)
+			fmt.Printf("  popq %%rax # e.X\n")
+			fmt.Printf("  not %%rax\n")
+			fmt.Printf("  pushq %%rax\n")
 		default:
-			throw(e.Op.String())
+			throw(e)
 		}
 	case *ast.BinaryExpr:
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
@@ -840,7 +845,7 @@ func emitStmt(stmt ast.Stmt) {
 		if len(s.Results) == 1 {
 			emitExpr(s.Results[0], nil) // @FIXME
 			switch kind(getTypeOfExpr(s.Results[0])) {
-			case T_INT, T_UINTPTR, T_POINTER:
+			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 				fmt.Printf("  popq %%rax # return 64bit\n")
 			case T_STRING:
 				fmt.Printf("  popq %%rax # return string (ptr)\n")
@@ -1559,6 +1564,15 @@ const T_ARRAY TypeKind = "T_ARRAY"
 const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
 
+var tBool *Type = &Type{
+	e: &ast.Ident{
+		NamePos: 0,
+		Name:    "bool",
+		Obj:     gBool,
+	},
+}
+
+
 var tInt *Type = &Type{
 	e: &ast.Ident{
 		NamePos: 0,
@@ -1606,8 +1620,14 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			default:
 				throw(e.Obj)
 			}
-		} else {
-			throw(e.Obj)
+		} else if e.Obj.Kind == ast.Con {
+			if e.Obj == gTrue {
+				return tBool
+			} else if e.Obj == gFalse {
+				return tBool
+			} else {
+				throw(e.Obj)
+			}
 		}
 	case *ast.BasicLit:
 		switch e.Kind.String() {
@@ -1624,6 +1644,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		switch e.Op.String() {
 		case "-":
 			return getTypeOfExpr(e.X)
+		case "!":
+			return tBool
 		default:
 			throw(e.Op.String())
 		}
