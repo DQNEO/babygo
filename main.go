@@ -592,7 +592,24 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
 			case "==":
-				panic("TBI")
+				emitExpr(e.Y, nil)
+				emitExpr(e.X, nil)
+				fmt.Printf("  callq runtime.cmpstrings\n")
+				fmt.Printf("  addq $8, %%rsp # revert for one string\n")
+				fmt.Printf("  pushq %%rax # cmp result (1 or 0)\n")
+			case "!=":
+				emitExpr(e.Y, nil)
+				emitExpr(e.X, nil)
+				fmt.Printf("  callq runtime.cmpstrings\n")
+				fmt.Printf("  addq $8, %%rsp # revert for one string\n")
+				fmt.Printf("  pushq %%rax # cmp result (1 or 0)\n")
+
+				// invert bool value
+				fmt.Printf("  popq %%rax\n")
+				fmt.Printf("  cmpq $0, %%rax\n")
+				fmt.Printf("  sete %%al\n")
+				fmt.Printf("  movzbq %%al, %%rax\n")
+				fmt.Printf("  pushq %%rax\n")
 			default:
 				throw(e.Op.String())
 			}
@@ -728,7 +745,7 @@ func emitCompExpr(inst string) {
 	fmt.Printf("  popq %%rax # left\n")
 	fmt.Printf("  cmpq %%rcx, %%rax\n")
 	fmt.Printf("  %s %%al\n", inst)
-	fmt.Printf("  movzbq %%al, %%rax\n")
+	fmt.Printf("  movzbq %%al, %%rax\n") // true:1, false:0
 	fmt.Printf("  pushq %%rax\n")
 }
 

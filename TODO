@@ -9,4 +9,3 @@ TODO
 * syscall.Syscall() func
 * malloc with brk()
 * type inference for minimal simple cases
-* string comparison (== and !=)
