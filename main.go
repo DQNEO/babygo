@@ -314,6 +314,14 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 	}
 }
 
+func emitInvertBoolValue() {
+	fmt.Printf("  popq %%rax\n")
+	fmt.Printf("  cmpq $0, %%rax\n")
+	fmt.Printf("  sete %%al\n")
+	fmt.Printf("  movzbq %%al, %%rax\n")
+	fmt.Printf("  pushq %%rax\n")
+}
+
 func emitExpr(expr ast.Expr, forceType *Type) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -575,9 +583,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			emitAddr(e.X)
 		case "!":
 			emitExpr(e.X, nil)
-			fmt.Printf("  popq %%rax # e.X\n")
-			fmt.Printf("  not %%rax\n")
-			fmt.Printf("  pushq %%rax\n")
+			emitInvertBoolValue()
 		default:
 			throw(e)
 		}
@@ -605,11 +611,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				fmt.Printf("  pushq %%rax # cmp result (1 or 0)\n")
 
 				// invert bool value
-				fmt.Printf("  popq %%rax\n")
-				fmt.Printf("  cmpq $0, %%rax\n")
-				fmt.Printf("  sete %%al\n")
-				fmt.Printf("  movzbq %%al, %%rax\n")
-				fmt.Printf("  pushq %%rax\n")
+				emitInvertBoolValue()
 			default:
 				throw(e.Op.String())
 			}
