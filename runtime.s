@@ -6,9 +6,9 @@
 _start:
   callq runtime.heapInit
   callq main.main
-  # exit(0)
+
   movq $0, %rdi # arg1
-  movq $60, %rax
+  movq $60, %rax # sys exit
   syscall
 # End of program
 
