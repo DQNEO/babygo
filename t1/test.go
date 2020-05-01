@@ -879,6 +879,7 @@ func test() {
 	testChar()
 	testString()
 	testMisc()
+	print("test end\n")
 }
 
 func main() {
