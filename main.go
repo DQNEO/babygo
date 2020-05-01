@@ -316,9 +316,7 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 
 func emitInvertBoolValue() {
 	fmt.Printf("  popq %%rax\n")
-	fmt.Printf("  cmpq $0, %%rax\n")
-	fmt.Printf("  sete %%al\n")
-	fmt.Printf("  movzbq %%al, %%rax\n")
+	fmt.Printf("  xor $1, %%rax\n")
 	fmt.Printf("  pushq %%rax\n")
 }
 
