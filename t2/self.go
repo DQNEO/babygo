@@ -115,22 +115,34 @@ func semanticAnalyze(name string) string {
 	var globalVar1 *astValueSpec = new(astValueSpec)
 	globalVar1.name = "_gvar1"
 	globalVar1.value = "11"
+	globalVar1.t = new(Type)
+	globalVar1.t.kind = "T_INT"
 	globalVars = append(globalVars, globalVar1)
+
+	var globalVar2 *astValueSpec = new(astValueSpec)
+	globalVar2.name = "_gvar2"
+	globalVar2.value = "foo"
+	globalVar2.t = new(Type)
+	globalVar2.t.kind = "T_STRING"
+	globalVars = append(globalVars, globalVar2)
+
 	return name
 }
 
 func emitGlobalVariable(name string, t *Type, val string) {
 	var typeKind string
-	if t == nil {
-		typeKind = "UNTYPED"
-	} else {
+	if t != nil {
 		typeKind = t.kind
 	}
 	fmtPrintf("%s: # T %s \n", []string{name, typeKind})
 	if typeKind == "T_STRING" {
-		fmtPrint("  # T_STRING\n")
+		fmtPrint("  .quad 0\n")
+		fmtPrint("  .quad 0\n")
+	} else if typeKind == "T_INT" {
+		fmtPrintf("  .quad %s\n", []string{val})
+	} else {
+		fmtPrint("ERROR\n")
 	}
-	fmtPrintf("  .quad %s\n", []string{val})
 }
 
 func emitData(pkgName string) {
