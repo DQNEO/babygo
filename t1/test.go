@@ -4,6 +4,30 @@ import (
 	"syscall"
 )
 
+func testSwitchInt() {
+	var testVar int = 7
+	var caseVar int = 5
+	switch testVar {
+	case 1:
+		writeln("ERROR")
+	case caseVar + 2:
+		writeln("switch int ok")
+	default:
+		writeln("ERROR")
+	}
+
+	switch testVar {
+	case 0:
+		writeln("ERROR")
+	case 6:
+		writeln("ERROR")
+	default:
+		writeln("switch default ok")
+	case 8:
+		writeln("ERROR")
+	}
+}
+
 func testStringComparison() {
 	var s string
 	if s == "" {
@@ -838,6 +862,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testSwitchInt()
 	testStringComparison()
 	testBool()
 	testNilComparison()

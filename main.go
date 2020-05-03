@@ -1023,9 +1023,67 @@ func emitStmt(stmt ast.Stmt) {
 		fmt.Printf("  %s $1, %%rax\n", inst)
 		fmt.Printf("  pushq %%rax\n")
 		emitStore(getTypeOfExpr(s.X))
+	case *ast.SwitchStmt:
+		labelid++
+		labelEnd := fmt.Sprintf(".L.switch.%d.exit", labelid)
+		if s.Init != nil {
+			panic("TBI")
+		}
+		if s.Tag == nil {
+			panic("TBI")
+		}
+		emitExpr(s.Tag, nil)
+		condType := getTypeOfExpr(s.Tag)
+		cases := s.Body.List
+		var labels []string = make([]string, len(cases))
+		var defaultLabel string
+		for i, c := range cases {
+			cc , ok := c.(*ast.CaseClause)
+			assert(ok, "should be *ast.CaseClause")
+			labelid++
+			labelCase := fmt.Sprintf(".L.case.%d", labelid)
+			labels[i] = labelCase
+			if cc.List == nil {
+				defaultLabel = labelCase
+				continue
+			}
+			for _, e := range cc.List {
+				emitExpr(e, nil)
+				// @FIXME consider other types than int (e.g. uint8, string, pointer)
+				fmt.Printf("  popq %%rax # case epr\n")
+				fmt.Printf("  popq %%rcx # switch expr\n")
+				fmt.Printf("  pushq %%rcx # switch expr (backup)\n")
+				fmt.Printf("  cmpq %%rax, %%rcx\n")
+				fmt.Printf("  je %s\n", labelCase)
+			}
+
+		}
+		if defaultLabel != "" {
+			// default
+			fmt.Printf("  jmp %s\n", defaultLabel)
+		}
+
+		emitRevertStackTop(condType)
+		for i, c := range cases {
+			cc, ok := c.(*ast.CaseClause)
+			assert(ok, "should be *ast.CaseClause")
+			fmt.Printf("%s:\n", labels[i])
+			for _, _s := range cc.Body {
+				emitStmt(_s)
+			}
+			fmt.Printf("  jmp %s\n", labelEnd)
+		}
+		fmt.Printf("%s:\n", labelEnd)
+		/*
+	case *ast.CaseClause:
+		 */
 	default:
 		throw(stmt)
 	}
+}
+
+func emitRevertStackTop(t *Type) {
+	fmt.Printf("  addq $%d, %%rsp # revert stack top\n", getSizeOfType(t))
 }
 
 var labelid int
@@ -1219,6 +1277,21 @@ func walkStmt(stmt ast.Stmt) {
 		}
 	case *ast.IncDecStmt:
 		walkExpr(s.X)
+	case *ast.SwitchStmt:
+		if s.Init != nil {
+			walkStmt(s.Init)
+		}
+		if s.Tag != nil {
+			walkExpr(s.Tag)
+		}
+		walkStmt(s.Body)
+	case *ast.CaseClause:
+		for _, e := range s.List {
+			walkExpr(e)
+		}
+		for _, stmt := range s.Body {
+			walkStmt(stmt)
+		}
 	default:
 		throw(stmt)
 	}
