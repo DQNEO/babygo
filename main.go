@@ -776,26 +776,16 @@ func emitStore(t *Type) {
 	fmt.Printf("  # emitStore(%s)\n", kind(t))
 	switch kind(t) {
 	case T_SLICE:
-		fmt.Printf("  popq %%rcx # rhs ptr\n")
-		fmt.Printf("  popq %%rax # rhs len\n")
-		fmt.Printf("  popq %%r8 # rhs cap\n")
-
-		fmt.Printf("  popq %%rdx # lhs ptr addr\n")
-		fmt.Printf("  leaq %d(%%rdx), %%rsi #len \n", 8)
-		fmt.Printf("  leaq %d(%%rdx), %%r9 # cap\n", 16)
-
-		fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
-		fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
-		fmt.Printf("  movq %%r8, (%%r9) # cap to cap\n")
+		emitPopSlice()
+		fmt.Printf("  popq %%rsi # lhs ptr addr\n")
+		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
+		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
+		fmt.Printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", 16)
 	case T_STRING:
-		fmt.Printf("  popq %%rcx # rhs ptr\n")
-		fmt.Printf("  popq %%rax # rhs len\n")
-
-		fmt.Printf("  popq %%rdx # lhs ptr addr\n")
-		fmt.Printf("  leaq %d(%%rdx), %%rsi #len \n", 8)
-
-		fmt.Printf("  movq %%rcx, (%%rdx) # ptr to ptr\n")
-		fmt.Printf("  movq %%rax, (%%rsi) # len to len\n")
+		emitPopString()
+		fmt.Printf("  popq %%rsi # lhs ptr addr\n")
+		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
+		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmt.Printf("  popq %%rdi # rhs evaluated\n")
 		fmt.Printf("  popq %%rax # lhs addr\n")
