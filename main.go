@@ -587,21 +587,17 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		}
 	case *ast.BinaryExpr:
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
+			emitExpr(e.Y, nil)
+			emitExpr(e.X, nil)
 			switch e.Op.String() {
 			case "+":
-				emitExpr(e.Y, nil)
-				emitExpr(e.X, nil)
 				fmt.Printf("  callq runtime.catstrings\n")
 				fmt.Printf("  addq $32, %%rsp # revert for one string\n")
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
 			case "==":
-				emitExpr(e.Y, nil)
-				emitExpr(e.X, nil)
 				emitCompEq(getTypeOfExpr(e.X))
 			case "!=":
-				emitExpr(e.Y, nil)
-				emitExpr(e.X, nil)
 				emitCompEq(getTypeOfExpr(e.X))
 				emitInvertBoolValue()
 			default:
