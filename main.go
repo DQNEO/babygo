@@ -598,26 +598,21 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			case "==":
 				emitExpr(e.Y, nil)
 				emitExpr(e.X, nil)
-				fmt.Printf("  callq runtime.cmpstrings\n")
-				fmt.Printf("  addq $8, %%rsp # revert for one string\n")
-				fmt.Printf("  pushq %%rax # cmp result (1 or 0)\n")
+				emitCompEq(getTypeOfExpr(e.X))
 			case "!=":
 				emitExpr(e.Y, nil)
 				emitExpr(e.X, nil)
-				fmt.Printf("  callq runtime.cmpstrings\n")
-				fmt.Printf("  addq $8, %%rsp # revert for one string\n")
-				fmt.Printf("  pushq %%rax # cmp result (1 or 0)\n")
-
-				// invert bool value
+				emitCompEq(getTypeOfExpr(e.X))
 				emitInvertBoolValue()
 			default:
 				throw(e.Op.String())
 			}
 			return
 		}
+		t :=  getTypeOfExpr(e.X)
 		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, getTypeOfExpr(e.X)) // right
+		emitExpr(e.Y, t) // right
 		switch e.Op.String() {
 		case "+":
 			fmt.Printf("  popq %%rdi # right\n")
@@ -648,9 +643,10 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			fmt.Printf("  divq %%rcx\n")
 			fmt.Printf("  pushq %%rax\n")
 		case "==":
-			emitCompExpr("sete")
+			emitCompEq(t)
 		case "!=":
-			emitCompExpr("setne")
+			emitCompEq(t)
+			emitInvertBoolValue()
 		case "<":
 			emitCompExpr("setl")
 		case "<=":
@@ -737,6 +733,21 @@ func getElementTypeOfListType(t *Type) *Type {
 
 func emitConcateString(left ast.Expr, right ast.Expr) {
 
+}
+
+func emitCompEq(t *Type) {
+	switch kind(t) {
+	case T_STRING:
+		fmt.Printf("  callq runtime.cmpstrings\n")
+		fmt.Printf("  addq $8, %%rsp # revert for one string\n")
+		fmt.Printf("  pushq %%rax # cmp result (1 or 0)\n")
+	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
+		emitCompExpr("sete")
+	case T_SLICE:
+		emitCompExpr("sete") // @FIXME this is not correct
+	default:
+		throw(kind(t))
+	}
 }
 
 //@TODO handle larger types than int
