@@ -20,6 +20,14 @@ func emitPop1(comment string) {
 	fmt.Printf("  popq %%rax # %s\n", comment)
 }
 
+func emitPopBool(comment string) {
+	fmt.Printf("  popq %%rax # result of %s\n", comment)
+}
+
+func emitPopAddress(comment string) {
+	fmt.Printf("  popq %%rax # address of %s\n", comment)
+}
+
 func emitPopString() {
 	fmt.Printf("  popq %%rax # string.ptr\n")
 	fmt.Printf("  popq %%rcx # string.len\n")
@@ -320,7 +328,7 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 }
 
 func emitInvertBoolValue() {
-	fmt.Printf("  popq %%rax\n")
+	emitPopBool("")
 	fmt.Printf("  xor $1, %%rax\n")
 	fmt.Printf("  pushq %%rax\n")
 }
@@ -400,10 +408,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					emitExpr(arrayType.Len, tInt)
 				case T_SLICE:
 					emitExpr(arg, nil)
-					fmt.Printf("  popq %%rax # throw away ptr\n")
-					fmt.Printf("  popq %%rcx # len\n")
-					fmt.Printf("  popq %%rax # throw away cap\n")
-					fmt.Printf("  pushq %%rax # cap\n")
+					emitPopSlice()
+					fmt.Printf("  pushq %%rdx # cap\n")
 				case T_STRING:
 					panic("cap() cannot accept string type")
 				default:
@@ -673,7 +679,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			assert(ok, "expect *ast.ArrayType")
 			length := len(e.Elts)
 			emitArrayLiteral(arrayType, length, e.Elts)
-			fmt.Printf("  popq  %%rax # malloced addr\n")
+			emitPopAddress("malloc")
 			fmt.Printf("  pushq $%d # slice.cap\n", length)
 			fmt.Printf("  pushq $%d # slice.len\n", length)
 			fmt.Printf("  pushq %%rax # slice.ptr\n")
@@ -710,7 +716,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 
 func emitListElementAddr(list ast.Expr, elmType *Type) {
 	emitListHeadAddr(list)
-	fmt.Printf("  popq %%rax # list addr\n")
+	emitPopAddress("list head")
 	fmt.Printf("  popq %%rcx # index\n")
 	fmt.Printf("  movq $%d, %%rdx # elm size %s\n", getSizeOfType(elmType), elmType)
 	fmt.Printf("  imulq %%rdx, %%rcx\n")
@@ -912,19 +918,16 @@ func emitStmt(stmt ast.Stmt) {
 		labelEndif := fmt.Sprintf(".L.endif.%d", labelid)
 		labelElse := fmt.Sprintf(".L.else.%d", labelid)
 
+		emitExpr(s.Cond, nil)
+		emitPopBool("if condition")
+		fmt.Printf("  cmpq $1, %%rax\n")
 		if s.Else != nil {
-			emitExpr(s.Cond, nil)
-			fmt.Printf("  popq %%rax\n")
-			fmt.Printf("  cmpq $1, %%rax\n")
 			fmt.Printf("  jne %s # jmp if false\n", labelElse)
 			emitStmt(s.Body) // then
 			fmt.Printf("  jmp %s\n", labelEndif)
 			fmt.Printf("  %s:\n", labelElse)
 			emitStmt(s.Else) // then
 		} else {
-			emitExpr(s.Cond, nil)
-			fmt.Printf("  popq %%rax\n")
-			fmt.Printf("  cmpq $1, %%rax\n")
 			fmt.Printf("  jne %s # jmp if false\n", labelEndif)
 			emitStmt(s.Body) // then
 		}
@@ -943,7 +946,7 @@ func emitStmt(stmt ast.Stmt) {
 
 		fmt.Printf("  %s:\n", labelCond)
 		emitExpr(s.Cond, nil)
-		fmt.Printf("  popq %%rax\n")
+		emitPopBool("for condition")
 		fmt.Printf("  cmpq $1, %%rax\n")
 		fmt.Printf("  jne %s # jmp if false\n", labelExit)
 		emitStmt(s.Body)
@@ -986,7 +989,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitVariableAddr(rngMisc.lenvar)
 		emitLoad(tInt)
 		emitCompExpr("setl")
-		fmt.Printf("  popq %%rax\n")
+		emitPopBool(" indexvar < lenvar")
 		fmt.Printf("  cmpq $1, %%rax\n")
 		fmt.Printf("  jne %s # jmp if false\n", labelEndFor)
 
@@ -1010,7 +1013,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitVariableAddr(rngMisc.indexvar) // lhs
 		emitVariableAddr(rngMisc.indexvar) // rhs
 		emitLoad(tInt)
-		fmt.Printf("  popq %%rax # indexvar value\n")
+		emitPop1("indexvar value")
 		fmt.Printf("  addq $1, %%rax # ++\n")
 		fmt.Printf("  pushq %%rax #\n")
 		emitStore(tInt)
@@ -1031,7 +1034,7 @@ func emitStmt(stmt ast.Stmt) {
 
 		emitAddr(s.X)
 		emitExpr(s.X, nil)
-		fmt.Printf("  popq %%rax\n")
+		emitPop1("")
 		fmt.Printf("  %s $1, %%rax\n", inst)
 		fmt.Printf("  pushq %%rax\n")
 		emitStore(getTypeOfExpr(s.X))
@@ -1067,7 +1070,7 @@ func emitStmt(stmt ast.Stmt) {
 				fmt.Printf("  pushq %%rax # switch expr \n")
 				emitExpr(e, nil)
 				emitCompEq(condType)
-				fmt.Printf("  popq %%rax\n")
+				emitPopBool(" of switch-case comparison")
 				fmt.Printf("  cmpq $1, %%rax\n")
 				fmt.Printf("  je %s # jump if match\n", labelCase)
 			}
