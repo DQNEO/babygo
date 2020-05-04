@@ -1049,7 +1049,7 @@ func emitStmt(stmt ast.Stmt) {
 			}
 			for _, e := range cc.List {
 				emitExpr(e, nil)
-				// @FIXME consider other types than int (e.g. uint8, string, pointer)
+				// @FIXME consider types larger than int (e.g. string, pointer)
 				fmt.Printf("  popq %%rax # case epr\n")
 				fmt.Printf("  popq %%rcx # switch expr\n")
 				fmt.Printf("  pushq %%rcx # switch expr (backup)\n")
