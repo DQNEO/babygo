@@ -627,19 +627,19 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		emitExpr(e.Y, t) // right
 		switch e.Op.String() {
 		case "+":
-			fmt.Printf("  popq %%rdi # right\n")
+			fmt.Printf("  popq %%rcx # right\n")
 			fmt.Printf("  popq %%rax # left\n")
-			fmt.Printf("  addq %%rdi, %%rax\n")
+			fmt.Printf("  addq %%rcx, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
 		case "-":
-			fmt.Printf("  popq %%rdi # right\n")
+			fmt.Printf("  popq %%rcx # right\n")
 			fmt.Printf("  popq %%rax # left\n")
-			fmt.Printf("  subq %%rdi, %%rax\n")
+			fmt.Printf("  subq %%rcx, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
 		case "*":
-			fmt.Printf("  popq %%rdi # right\n")
+			fmt.Printf("  popq %%rcx # right\n")
 			fmt.Printf("  popq %%rax # left\n")
-			fmt.Printf("  imulq %%rdi, %%rax\n")
+			fmt.Printf("  imulq %%rcx, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
 		case "%":
 			fmt.Printf("  popq %%rcx # right\n")
