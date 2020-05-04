@@ -1056,6 +1056,7 @@ func emitStmt(stmt ast.Stmt) {
 			}
 			for _, e := range cc.List {
 				// @FIXME consider types larger than int (e.g. string, pointer)
+				assert(getSizeOfType(condType) <= 8, "should be one register size")
 				fmt.Printf("  popq %%rax # switch expr\n")
 				fmt.Printf("  pushq %%rax # switch expr (backup)\n")
 				fmt.Printf("  pushq %%rax # switch expr \n")
