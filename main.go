@@ -20,12 +20,12 @@ func emitPop1(comment string) {
 	fmt.Printf("  popq %%rax # %s\n", comment)
 }
 
-func emitPop2() {
+func emitPopString() {
 	fmt.Printf("  popq %%rax # string.ptr\n")
 	fmt.Printf("  popq %%rcx # string.len\n")
 }
 
-func emitPop3() {
+func emitPopSlice() {
 	fmt.Printf("  popq %%rax # slice.ptr\n")
 	fmt.Printf("  popq %%rcx # slice.len\n")
 	fmt.Printf("  popq %%rdx # slice.cap\n")
@@ -140,11 +140,11 @@ func emitListHeadAddr(list ast.Expr) {
 		emitAddr(list) // array head
 	case T_SLICE:
 		emitExpr(list, t)
-		emitPop3()
+		emitPopSlice()
 		fmt.Printf("  pushq %%rax # slice.ptr\n")
 	case T_STRING:
 		emitExpr(list, t)
-		emitPop2()
+		emitPopString()
 		fmt.Printf("  pushq %%rax # string.ptr\n")
 	default:
 		panic(kind(getTypeOfExpr(list)))
@@ -207,7 +207,7 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
 				emitExpr(arg0, e2t(ident)) // slice
-				emitPop3()
+				emitPopSlice()
 				fmt.Printf("  pushq %%rcx # str len\n")
 				fmt.Printf("  pushq %%rax # str ptr\n")
 			}
@@ -222,7 +222,7 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 			assert(kind(getTypeOfExpr(arg0)) == T_STRING, "arrayType should be slice")
 			fmt.Printf("  # Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
 			emitExpr(arg0, tp)
-			emitPop2()
+			emitPopString()
 			fmt.Printf("  pushq %%rcx # cap\n")
 			fmt.Printf("  pushq %%rcx # len\n")
 			fmt.Printf("  pushq %%rax # ptr\n")
@@ -284,11 +284,11 @@ func emitLen(arg ast.Expr) {
 		emitExpr(arrayType.Len, tInt)
 	case T_SLICE:
 		emitExpr(arg, nil)
-		emitPop3()
+		emitPopSlice()
 		fmt.Printf("  pushq %%rcx # len\n")
 	case T_STRING:
 		emitExpr(arg, nil)
-		emitPop2()
+		emitPopString()
 		fmt.Printf("  pushq %%rcx # len\n")
 	default:
 		throw(kind(getTypeOfExpr(arg)))
