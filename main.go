@@ -39,6 +39,11 @@ func emitPopSlice() {
 	fmt.Printf("  popq %%rdx # slice.cap\n")
 }
 
+func emitPushStackTop(comment string) {
+	fmt.Printf("  movq (%%rsp), %%rax # copy stack top value (%s) \n", comment)
+	fmt.Printf("  pushq %%rax\n")
+}
+
 func emitLoad(t *Type) {
 	emitPop1("address")
 	switch kind(t) {
@@ -318,8 +323,8 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 	emitCallMalloc(memSize) // push
 	for i, elm := range elts {
 		// emit lhs
-		fmt.Printf("  popq %%rax # addr\n")
-		fmt.Printf("  pushq %%rax # backup malloced addr\n")
+		emitPushStackTop("malloced address")
+		emitPopAddress("malloced address")
 		fmt.Printf("  addq $%d, %%rax # add offset\n", elmSize * i)
 		fmt.Printf("  pushq %%rax # elm addr\n")
 		emitExpr(elm, elmType)
@@ -717,7 +722,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 func emitListElementAddr(list ast.Expr, elmType *Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
-	fmt.Printf("  popq %%rcx # index\n")
+	fmt.Printf("  popq %%rcx # index id\n")
 	fmt.Printf("  movq $%d, %%rdx # elm size %s\n", getSizeOfType(elmType), elmType)
 	fmt.Printf("  imulq %%rdx, %%rcx\n")
 	fmt.Printf("  addq %%rcx, %%rax\n")
@@ -1065,9 +1070,7 @@ func emitStmt(stmt ast.Stmt) {
 			for _, e := range cc.List {
 				// @FIXME consider types larger than int (e.g. string, pointer)
 				assert(getSizeOfType(condType) <= 8, "should be one register size")
-				fmt.Printf("  popq %%rax # switch expr\n")
-				fmt.Printf("  pushq %%rax # switch expr (backup)\n")
-				fmt.Printf("  pushq %%rax # switch expr \n")
+				emitPushStackTop("switch expr")
 				emitExpr(e, nil)
 				emitCompEq(condType)
 				emitPopBool(" of switch-case comparison")
