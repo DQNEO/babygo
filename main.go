@@ -16,8 +16,8 @@ type Type struct {
 
 type localoffsetint int
 
-func emitPop1(reg string, comment string) {
-	fmt.Printf("  popq %%%s # %s\n", reg, comment)
+func emitPop1(comment string) {
+	fmt.Printf("  popq %%rax # %s\n", comment)
 }
 
 func emitPop2() {
@@ -32,33 +32,33 @@ func emitPop3() {
 }
 
 func emitLoad(t *Type) {
-	emitPop1("rdx", "address")
+	emitPop1("address")
 	switch kind(t) {
 	case T_SLICE:
-		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
-		fmt.Printf("  movq %d(%%rdx), %%rcx\n", 8)
-		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 16)
+		fmt.Printf("  movq %d(%%rax), %%rdx\n", 16)
+		fmt.Printf("  movq %d(%%rax), %%rcx\n", 8)
+		fmt.Printf("  movq %d(%%rax), %%rax\n", 0)
 		fmt.Printf("  pushq %%rdx # cap\n")
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
-		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 8)
+		fmt.Printf("  movq %d(%%rax), %%rdx\n", 8)
+		fmt.Printf("  movq %d(%%rax), %%rax\n", 0)
 
 		fmt.Printf("  pushq %%rdx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_UINT8:
-		fmt.Printf("  movzbq %d(%%rdx), %%rdx # load uint8\n", 0)
-		fmt.Printf("  pushq %%rdx\n")
+		fmt.Printf("  movzbq %d(%%rax), %%rax # load uint8\n", 0)
+		fmt.Printf("  pushq %%rax\n")
 	case T_UINT16:
-		fmt.Printf("  movzwq %d(%%rdx), %%rdx # load uint16\n", 0)
-		fmt.Printf("  pushq %%rdx\n")
+		fmt.Printf("  movzwq %d(%%rax), %%rax # load uint16\n", 0)
+		fmt.Printf("  pushq %%rax\n")
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmt.Printf("  movq %d(%%rdx), %%rdx # load int\n", 0)
-		fmt.Printf("  pushq %%rdx\n")
+		fmt.Printf("  movq %d(%%rax), %%rax # load int\n", 0)
+		fmt.Printf("  pushq %%rax\n")
 	case T_ARRAY:
 		// pure proxy
-		fmt.Printf("  pushq %%rdx\n")
+		fmt.Printf("  pushq %%rax\n")
 	default:
 		throw(t)
 	}
@@ -189,7 +189,7 @@ func emitAddr(expr ast.Expr) {
 		}
 		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		offset := getStructFieldOffset(field)
-		emitPop1("rax", "addr of struct head")
+		emitPop1( "addr of struct head")
 		fmt.Printf("  addq $%d, %%rax # add offset to \"%s\"\n", offset, e.Sel.Name)
 		fmt.Printf("  pushq %%rax # addr of struct.field\n")
 	default:
