@@ -910,8 +910,8 @@ func emitStmt(stmt ast.Stmt) {
 		if s.Else != nil {
 			emitExpr(s.Cond, nil)
 			fmt.Printf("  popq %%rax\n")
-			fmt.Printf("  cmpq $0, %%rax\n")
-			fmt.Printf("  je %s # jmp if false\n", labelElse)
+			fmt.Printf("  cmpq $1, %%rax\n")
+			fmt.Printf("  jne %s # jmp if false\n", labelElse)
 			emitStmt(s.Body) // then
 			fmt.Printf("  jmp %s\n", labelEndif)
 			fmt.Printf("  %s:\n", labelElse)
@@ -919,8 +919,8 @@ func emitStmt(stmt ast.Stmt) {
 		} else {
 			emitExpr(s.Cond, nil)
 			fmt.Printf("  popq %%rax\n")
-			fmt.Printf("  cmpq $0, %%rax\n")
-			fmt.Printf("  je %s # jmp if false\n", labelEndif)
+			fmt.Printf("  cmpq $1, %%rax\n")
+			fmt.Printf("  jne %s # jmp if false\n", labelEndif)
 			emitStmt(s.Body) // then
 		}
 		fmt.Printf("  %s:\n", labelEndif)
@@ -939,8 +939,8 @@ func emitStmt(stmt ast.Stmt) {
 		fmt.Printf("  %s:\n", labelCond)
 		emitExpr(s.Cond, nil)
 		fmt.Printf("  popq %%rax\n")
-		fmt.Printf("  cmpq $0, %%rax\n")
-		fmt.Printf("  je %s # jmp if false\n", labelExit)
+		fmt.Printf("  cmpq $1, %%rax\n")
+		fmt.Printf("  jne %s # jmp if false\n", labelExit)
 		emitStmt(s.Body)
 		emitStmt(s.Post)
 		fmt.Printf("  jmp %s\n", labelCond)
@@ -982,8 +982,8 @@ func emitStmt(stmt ast.Stmt) {
 		emitLoad(tInt)
 		emitCompExpr("setl")
 		fmt.Printf("  popq %%rax\n")
-		fmt.Printf("  cmpq $0, %%rax\n")
-		fmt.Printf("  je %s # jmp if false\n", labelEndFor)
+		fmt.Printf("  cmpq $1, %%rax\n")
+		fmt.Printf("  jne %s # jmp if false\n", labelEndFor)
 
 		fmt.Printf("  # assign list[indexvar] value variables\n")
 		elemType := getTypeOfExpr(s.Value)
@@ -1063,7 +1063,7 @@ func emitStmt(stmt ast.Stmt) {
 				emitCompEq(condType)
 				fmt.Printf("  popq %%rax\n")
 				fmt.Printf("  cmpq $1, %%rax\n")
-				fmt.Printf("  je	%s\n", labelCase)
+				fmt.Printf("  je %s # jump if match\n", labelCase)
 			}
 
 		}
