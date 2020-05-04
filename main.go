@@ -1055,13 +1055,15 @@ func emitStmt(stmt ast.Stmt) {
 				continue
 			}
 			for _, e := range cc.List {
-				emitExpr(e, nil)
 				// @FIXME consider types larger than int (e.g. string, pointer)
-				fmt.Printf("  popq %%rax # case epr\n")
-				fmt.Printf("  popq %%rcx # switch expr\n")
-				fmt.Printf("  pushq %%rcx # switch expr (backup)\n")
-				fmt.Printf("  cmpq %%rax, %%rcx\n")
-				fmt.Printf("  je %s\n", labelCase)
+				fmt.Printf("  popq %%rax # switch expr\n")
+				fmt.Printf("  pushq %%rax # switch expr (backup)\n")
+				fmt.Printf("  pushq %%rax # switch expr \n")
+				emitExpr(e, nil)
+				emitCompEq(condType)
+				fmt.Printf("  popq %%rax\n")
+				fmt.Printf("  cmpq $1, %%rax\n")
+				fmt.Printf("  je	%s\n", labelCase)
 			}
 
 		}
