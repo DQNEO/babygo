@@ -16,14 +16,28 @@ type Type struct {
 
 type localoffsetint int
 
+func emitPop1(reg string, comment string) {
+	fmt.Printf("  popq %%%s # %s\n", reg, comment)
+}
+
+func emitPop2() {
+	fmt.Printf("  popq %%rax # string.ptr\n")
+	fmt.Printf("  popq %%rcx # string.len\n")
+}
+
+func emitPop3() {
+	fmt.Printf("  popq %%rax # slice.ptr\n")
+	fmt.Printf("  popq %%rcx # slice.len\n")
+	fmt.Printf("  popq %%rdx # slice.cap\n")
+}
+
 func emitLoad(t *Type) {
-	fmt.Printf("  popq %%rdx\n")
+	emitPop1("rdx", "address")
 	switch kind(t) {
 	case T_SLICE:
 		fmt.Printf("  movq %d(%%rdx), %%rax\n", 0)
 		fmt.Printf("  movq %d(%%rdx), %%rcx\n", 8)
 		fmt.Printf("  movq %d(%%rdx), %%rdx\n", 16)
-
 		fmt.Printf("  pushq %%rdx # cap\n")
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
@@ -126,14 +140,11 @@ func emitListHeadAddr(list ast.Expr) {
 		emitAddr(list) // array head
 	case T_SLICE:
 		emitExpr(list, t)
-		fmt.Printf("  popq %%rax # slice.ptr\n")
-		fmt.Printf("  popq %%rcx # garbage\n")
-		fmt.Printf("  popq %%rcx # garbage\n")
+		emitPop3()
 		fmt.Printf("  pushq %%rax # slice.ptr\n")
 	case T_STRING:
 		emitExpr(list, t)
-		fmt.Printf("  popq %%rax # string.ptr\n")
-		fmt.Printf("  popq %%rcx # garbage\n")
+		emitPop2()
 		fmt.Printf("  pushq %%rax # string.ptr\n")
 	default:
 		panic(kind(getTypeOfExpr(list)))
@@ -178,7 +189,7 @@ func emitAddr(expr ast.Expr) {
 		}
 		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		offset := getStructFieldOffset(field)
-		fmt.Printf("  popq %%rax # addr of struct head\n")
+		emitPop1("rax", "addr of struct head")
 		fmt.Printf("  addq $%d, %%rax # add offset to \"%s\"\n", offset, e.Sel.Name)
 		fmt.Printf("  pushq %%rax # addr of struct.field\n")
 	default:
@@ -196,9 +207,7 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
 				emitExpr(arg0, e2t(ident)) // slice
-				fmt.Printf("  popq %%rax # ptr\n")
-				fmt.Printf("  popq %%rcx # len\n")
-				fmt.Printf("  popq %%rdx # cap (to be abandoned)\n")
+				emitPop3()
 				fmt.Printf("  pushq %%rcx # str len\n")
 				fmt.Printf("  pushq %%rax # str ptr\n")
 			}
@@ -213,8 +222,7 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 			assert(kind(getTypeOfExpr(arg0)) == T_STRING, "arrayType should be slice")
 			fmt.Printf("  # Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
 			emitExpr(arg0, tp)
-			fmt.Printf("  popq %%rax # ptr\n")
-			fmt.Printf("  popq %%rcx # len\n")
+			emitPop2()
 			fmt.Printf("  pushq %%rcx # cap\n")
 			fmt.Printf("  pushq %%rcx # len\n")
 			fmt.Printf("  pushq %%rax # ptr\n")
@@ -276,14 +284,11 @@ func emitLen(arg ast.Expr) {
 		emitExpr(arrayType.Len, tInt)
 	case T_SLICE:
 		emitExpr(arg, nil)
-		fmt.Printf("  popq %%rax # throw away ptr\n")
-		fmt.Printf("  popq %%rcx # len\n")
-		fmt.Printf("  popq %%rax # throw away cap\n")
+		emitPop3()
 		fmt.Printf("  pushq %%rcx # len\n")
 	case T_STRING:
 		emitExpr(arg, nil)
-		fmt.Printf("  popq %%rax # throw away ptr\n")
-		fmt.Printf("  popq %%rcx # len\n")
+		emitPop2()
 		fmt.Printf("  pushq %%rcx # len\n")
 	default:
 		throw(kind(getTypeOfExpr(arg)))
