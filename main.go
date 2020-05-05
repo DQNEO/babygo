@@ -2028,11 +2028,9 @@ var stringIndex int
 var globalVars []*ast.ValueSpec
 var globalFuncs []*Func
 
-var sourceFiles [2]string
 
 func main() {
-	sourceFiles[0] = "./runtime.go"
-	sourceFiles[1] = "./t/source.go"
+	var sourceFiles []string = []string{"./runtime.go", "./t/source.go"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil

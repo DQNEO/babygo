@@ -218,11 +218,10 @@ var stringIndex int
 var globalVars []*astValueSpec
 var globalFuncs []*Func
 
-var sourceFiles [1]string
 var _garbage string
 
 func main() {
-	sourceFiles[0] = "main"
+	var sourceFiles []string = []string{"main"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil
