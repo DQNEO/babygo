@@ -130,6 +130,15 @@ func semanticAnalyze(name string) string {
 }
 
 const T_STRING string = "T_STRING"
+const T_SLICE string = "T_SLICE"
+const T_BOOL string = "T_BOOL"
+const T_INT string = "T_INT"
+const T_UINT8 string = "T_UINT8"
+const T_UINT16 string = "T_UINT16"
+const T_UINTPTR string = "T_UINTPTR"
+const T_ARRAY string = "T_ARRAY"
+const T_STRUCT string = "T_STRUCT"
+const T_POINTER string = "T_POINTER"
 
 func emitGlobalVariable(name string, t *Type, val string) {
 	var typeKind string
@@ -141,7 +150,7 @@ func emitGlobalVariable(name string, t *Type, val string) {
 	case T_STRING:
 		fmtPrint("  .quad 0\n")
 		fmtPrint("  .quad 0\n")
-	case "T_INT":
+	case T_INT:
 		fmtPrintf("  .quad %s\n", []string{val})
 	default:
 		fmtPrint("ERROR\n")
