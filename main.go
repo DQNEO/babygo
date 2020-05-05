@@ -44,6 +44,13 @@ func emitPushStackTop(comment string) {
 	fmt.Printf("  pushq %%rax\n")
 }
 
+func emitAddConst(addValue int, comment string) {
+	fmt.Printf("  # Add const: %s\n", comment)
+	emitPop1("")
+	fmt.Printf("  addq $%d, %%rax\n", addValue)
+	fmt.Printf("  pushq %%rax\n")
+}
+
 func emitLoad(t *Type) {
 	emitPop1("address")
 	switch kind(t) {
@@ -202,9 +209,7 @@ func emitAddr(expr ast.Expr) {
 		}
 		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		offset := getStructFieldOffset(field)
-		emitPopAddress( "struct head")
-		fmt.Printf("  addq $%d, %%rax # add offset to \"%s\"\n", offset, e.Sel.Name)
-		fmt.Printf("  pushq %%rax # addr of struct.field\n")
+		emitAddConst(offset, "struct head address + struct.field offset")
 	default:
 		throw(expr)
 	}
@@ -324,9 +329,7 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 	for i, elm := range elts {
 		// emit lhs
 		emitPushStackTop("malloced address")
-		emitPopAddress("malloced address")
-		fmt.Printf("  addq $%d, %%rax # add offset\n", elmSize * i)
-		fmt.Printf("  pushq %%rax # elm addr\n")
+		emitAddConst(elmSize * i, "malloced address + elmSize * index")
 		emitExpr(elm, elmType)
 		emitStore(elmType)
 	}
@@ -1008,30 +1011,26 @@ func emitStmt(stmt ast.Stmt) {
 		emitVariableAddr(rngMisc.indexvar) // lhs
 		emitVariableAddr(rngMisc.indexvar) // rhs
 		emitLoad(tInt)
-		emitPop1("indexvar value")
-		fmt.Printf("  addq $1, %%rax # ++\n")
-		fmt.Printf("  pushq %%rax #\n")
+		emitAddConst(1, "indexvar value ++")
 		emitStore(tInt)
 
 		fmt.Printf("  jmp %s\n", labelCond)
 
 		fmt.Printf("  %s:\n", labelEndFor)
 	case *ast.IncDecStmt:
-		var inst string
+		var addValue int
 		switch s.Tok.String() {
 		case "++":
-			inst = "addq"
+			addValue = 1
 		case "--":
-			inst = "subq"
+			addValue = -1
 		default:
 			throw(s.Tok.String())
 		}
 
 		emitAddr(s.X)
 		emitExpr(s.X, nil)
-		emitPop1("")
-		fmt.Printf("  %s $1, %%rax\n", inst)
-		fmt.Printf("  pushq %%rax\n")
+		emitAddConst(addValue, "rhs ++ or --")
 		emitStore(getTypeOfExpr(s.X))
 	case *ast.SwitchStmt:
 		labelid++
