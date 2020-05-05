@@ -25,7 +25,7 @@ func fmtSprintf(format string, a []string) string {
 			}
 			inPercent = false
 		} else {
-			if  c == '%' {
+			if c == '%' {
 				inPercent = true
 			} else {
 				buf = append(buf, c)
@@ -194,8 +194,8 @@ type Type struct {
 }
 
 type astValueSpec struct {
-	name string
-	t *Type
+	name  string
+	t     *Type
 	value string
 }
 

@@ -52,7 +52,6 @@ func testSwitchByte() {
 	}
 }
 
-
 func testSwitchInt() {
 	var testVar int = 7
 	var caseVar int = 5
@@ -194,7 +193,7 @@ func testSliceLiteral() {
 }
 
 func testArrayCopy() {
-	var aInt [3]int = [3]int{1,2,3}
+	var aInt [3]int = [3]int{1, 2, 3}
 	var bInt [3]int = aInt
 	aInt[1] = 20
 
@@ -204,7 +203,7 @@ func testArrayCopy() {
 }
 
 func testArrayLiteral() {
-	var aInt [3]int = [3]int{1,2,3}
+	var aInt [3]int = [3]int{1, 2, 3}
 	var i int
 	for _, i = range aInt {
 		writeln(Itoa(i))
@@ -243,7 +242,7 @@ func Sprintf(format string, a []string) string {
 			}
 			inPercent = false
 		} else {
-			if  c == '%' {
+			if c == '%' {
 				inPercent = true
 			} else {
 				buf = append(buf, c)
@@ -255,7 +254,7 @@ func Sprintf(format string, a []string) string {
 }
 
 func testSprintf() {
-	var a []string = make([]string, 3,3)
+	var a []string = make([]string, 3, 3)
 	a[0] = Itoa(1234)
 	a[1] = "c"
 	a[2] = "efg"

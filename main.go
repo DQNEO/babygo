@@ -339,7 +339,7 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 	for i, elm := range elts {
 		// emit lhs
 		emitPushStackTop(tUintptr, "malloced address")
-		emitAddConst(elmSize * i, "malloced address + elmSize * index")
+		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		emitExpr(elm, elmType)
 		emitStore(elmType)
 	}
@@ -634,10 +634,10 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			}
 			return
 		}
-		t :=  getTypeOfExpr(e.X)
+		t := getTypeOfExpr(e.X)
 		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, t) // right
+		emitExpr(e.Y, t)   // right
 		switch e.Op.String() {
 		case "+":
 			fmt.Printf("  popq %%rcx # right\n")
@@ -1053,7 +1053,7 @@ func emitStmt(stmt ast.Stmt) {
 		var labels []string = make([]string, len(cases))
 		var defaultLabel string
 		for i, c := range cases {
-			cc , ok := c.(*ast.CaseClause)
+			cc, ok := c.(*ast.CaseClause)
 			assert(ok, "should be *ast.CaseClause")
 			labelid++
 			labelCase := fmt.Sprintf(".L.case.%d", labelid)
@@ -1090,8 +1090,8 @@ func emitStmt(stmt ast.Stmt) {
 		}
 		fmt.Printf("%s:\n", labelEnd)
 		/*
-	case *ast.CaseClause:
-		 */
+			case *ast.CaseClause:
+		*/
 	default:
 		throw(stmt)
 	}
@@ -1602,7 +1602,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 					case T_INT, T_UINT8, T_UINT16, T_UINTPTR:
 						_, ok := valSpec.Values[0].(*ast.BasicLit)
 						if !ok {
-							throw(t)// allow only literal
+							throw(t) // allow only literal
 						}
 					default:
 						throw(t)
@@ -1658,6 +1658,7 @@ type Func struct {
 }
 
 type TypeKind string
+
 const T_STRING TypeKind = "T_STRING"
 const T_SLICE TypeKind = "T_SLICE"
 const T_BOOL TypeKind = "T_BOOL"
@@ -1677,7 +1678,6 @@ var tBool *Type = &Type{
 	},
 }
 
-
 var tInt *Type = &Type{
 	e: &ast.Ident{
 		NamePos: 0,
@@ -1695,7 +1695,7 @@ var tUintptr *Type = &Type{
 }
 
 var tUint8 *Type = &Type{
-	e:&ast.Ident{
+	e: &ast.Ident{
 		NamePos: 0,
 		Name:    "int",
 		Obj:     gUint8,
@@ -1703,7 +1703,7 @@ var tUint8 *Type = &Type{
 }
 
 var tString *Type = &Type{
-	e:&ast.Ident{
+	e: &ast.Ident{
 		NamePos: 0,
 		Name:    "string",
 		Obj:     gString,
