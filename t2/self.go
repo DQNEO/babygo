@@ -129,6 +129,8 @@ func semanticAnalyze(name string) string {
 	return name
 }
 
+const T_STRING string = "T_STRING"
+
 func emitGlobalVariable(name string, t *Type, val string) {
 	var typeKind string
 	if t != nil {
@@ -136,7 +138,7 @@ func emitGlobalVariable(name string, t *Type, val string) {
 	}
 	fmtPrintf("%s: # T %s \n", []string{name, typeKind})
 	switch typeKind {
-	case "T_STRING":
+	case T_STRING:
 		fmtPrint("  .quad 0\n")
 		fmtPrint("  .quad 0\n")
 	case "T_INT":

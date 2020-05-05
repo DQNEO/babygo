@@ -4,6 +4,16 @@ import (
 	"syscall"
 )
 
+const CONST_STRING string = "const_string"
+const CONST_FOO string = "foo"
+const sliceSize int = 24
+
+func testConst() {
+	write(Itoa(sliceSize))
+	write(CONST_STRING)
+	writeln(CONST_FOO)
+}
+
 func testSwitchString() {
 	var testVar string = "foo"
 	var caseVar string = "fo"
@@ -910,6 +920,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testConst()
 	testSwitchString()
 	testSwitchByte()
 	testSwitchInt()

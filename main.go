@@ -380,12 +380,25 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			panic(fmt.Sprintf("ident %s is unresolved", e.Name))
 		}
 
-		if e.Obj.Kind != ast.Var {
+		switch e.Obj.Kind {
+		case ast.Var:
+			emitAddr(e)
+			emitLoad(getTypeOfExpr(e))
+		case ast.Con:
+			valSpec, ok := e.Obj.Decl.(*ast.ValueSpec)
+			assert(ok, "should be *ast.ValueSpec")
+			lit , ok := valSpec.Values[0].(*ast.BasicLit)
+			assert(ok, "should be *ast.BasicLit")
+			var t *Type
+			if valSpec.Type != nil {
+				t = e2t(valSpec.Type)
+			} else {
+				t = forceType
+			}
+			emitExpr(lit, t)
+		default:
 			panic("Unexpected ident kind:" + e.Obj.Kind.String())
-		} else {
 		}
-		emitAddr(e)
-		emitLoad(getTypeOfExpr(e))
 	case *ast.IndexExpr:
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
@@ -1371,7 +1384,7 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
-const sliceSize = 24
+const sliceSize int = 24
 
 var gTrue = &ast.Object{
 	Kind: ast.Con,
@@ -1731,7 +1744,12 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			} else if e.Obj == gFalse {
 				return tBool
 			} else {
-				throw(e.Obj)
+				switch dcl := e.Obj.Decl.(type) {
+				case *ast.ValueSpec:
+					return e2t(dcl.Type)
+				default:
+					throw(e.Obj)
+				}
 			}
 		}
 	case *ast.BasicLit:
