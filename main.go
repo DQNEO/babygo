@@ -697,11 +697,11 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 	case *ast.SliceExpr: // list[low:high]
 		list := e.X
 		listType := getTypeOfExpr(list)
-		emitExpr(e.Low, tInt)  // intval
 		emitExpr(e.High, tInt) // intval
+		emitExpr(e.Low, tInt)  // intval
 		//emitExpr(e.Max) // @TODO
-		fmt.Printf("  popq %%rax # high\n")
 		fmt.Printf("  popq %%rcx # low\n")
+		fmt.Printf("  popq %%rax # high\n")
 		fmt.Printf("  subq %%rcx, %%rax # high - low\n")
 		switch kind(listType) {
 		case T_SLICE, T_ARRAY:
