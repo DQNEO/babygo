@@ -154,6 +154,7 @@ func emitData(pkgName string) {
 		fmtPrintf("%s:\n", []string{sl.label})
 		fmtPrintf("  .string %s\n", []string{sl.value})
 	}
+
 	fmtPrint("# ===== Global Variables =====\n")
 	var spec *astValueSpec
 	for _, spec = range globalVars {

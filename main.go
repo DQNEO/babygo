@@ -2044,6 +2044,7 @@ func main() {
 		}
 
 		pkg := semanticAnalyze(fset, f)
-		generateCode(pkg.Name())
+		pkgName := pkg.Name()
+		generateCode(pkgName)
 	}
 }
