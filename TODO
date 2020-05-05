@@ -3,7 +3,6 @@ TODO
 * Sprintf
 * &&, ||
 * continue, break
-* switch statement
 * use heap and copy in string conversion
 * return value on stack
 * init os.Args
