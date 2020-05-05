@@ -85,6 +85,11 @@ func fmtPrintf(format string, a []string) {
 	syscall.Write(1, []uint8(s))
 }
 
+func emitPopBool(comment string) {
+	fmtPrintf("  popq %%rax # result of %s\n", []string{comment})
+}
+
+
 func semanticAnalyze(name string) string {
 	globalFuncs = make([]*Func, 2, 2)
 	var fnc *Func = new(Func)
@@ -233,6 +238,9 @@ var globalFuncs []*Func
 var _garbage string
 
 func main() {
+	// Test funcs
+	emitPopBool("test emitPopBool")
+
 	var sourceFiles []string = []string{"main"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
