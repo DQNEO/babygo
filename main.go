@@ -756,10 +756,6 @@ func getElementTypeOfListType(t *Type) *Type {
 	return nil
 }
 
-func emitConcateString(left ast.Expr, right ast.Expr) {
-
-}
-
 func emitCompEq(t *Type) {
 	switch kind(t) {
 	case T_STRING:
