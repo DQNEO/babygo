@@ -1726,10 +1726,8 @@ var tString *Type = &Type{
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
-		if e.Obj.Kind == ast.Typ {
-			panic("expression expected, but got Type")
-		}
-		if e.Obj.Kind == ast.Var {
+		switch e.Obj.Kind {
+		case ast.Var:
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
 				return e2t(dcl.Type)
@@ -1738,7 +1736,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			default:
 				throw(e.Obj)
 			}
-		} else if e.Obj.Kind == ast.Con {
+		case ast.Con:
 			if e.Obj == gTrue {
 				return tBool
 			} else if e.Obj == gFalse {
@@ -1751,6 +1749,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 					throw(e.Obj)
 				}
 			}
+		default:
+			throw(e.Obj.Kind)
 		}
 	case *ast.BasicLit:
 		switch e.Kind.String() {
