@@ -8,3 +8,4 @@ sample.o
 /self
 t/source.go
 /a.s
+/self2.s

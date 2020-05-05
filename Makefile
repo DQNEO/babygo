@@ -39,7 +39,9 @@ self: self.o
 	ld -o self self.o
 
 test2: self
-	./self
+	./self > self2.s
+	go run t2/self.go > /tmp/self2.s
+	diff self2.s /tmp/self2.s && echo 'ok'
 
 fmt: *.go t1/*.go t2/*.go
 	gofmt -w *.go t*/*.go
