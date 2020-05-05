@@ -202,7 +202,7 @@ func emitAddr(expr ast.Expr) {
 		}
 		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		offset := getStructFieldOffset(field)
-		emitPop1( "addr of struct head")
+		emitPopAddress( "struct head")
 		fmt.Printf("  addq $%d, %%rax # add offset to \"%s\"\n", offset, e.Sel.Name)
 		fmt.Printf("  pushq %%rax # addr of struct.field\n")
 	default:
