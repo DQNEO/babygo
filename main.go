@@ -16,10 +16,6 @@ type Type struct {
 
 type localoffsetint int
 
-func emitPop1(comment string) {
-	fmt.Printf("  popq %%rax # %s\n", comment)
-}
-
 func emitPopBool(comment string) {
 	fmt.Printf("  popq %%rax # result of %s\n", comment)
 }
@@ -56,13 +52,13 @@ func emitPushStackTop(condType *Type, comment string) {
 
 func emitAddConst(addValue int, comment string) {
 	fmt.Printf("  # Add const: %s\n", comment)
-	emitPop1("")
+	fmt.Printf("  popq %%rax\n")
 	fmt.Printf("  addq $%d, %%rax\n", addValue)
 	fmt.Printf("  pushq %%rax\n")
 }
 
 func emitLoad(t *Type) {
-	emitPop1("address")
+	emitPopAddress(string(kind(t)))
 	switch kind(t) {
 	case T_SLICE:
 		fmt.Printf("  movq %d(%%rax), %%rdx\n", 16)
