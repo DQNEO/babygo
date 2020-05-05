@@ -135,12 +135,13 @@ func emitGlobalVariable(name string, t *Type, val string) {
 		typeKind = t.kind
 	}
 	fmtPrintf("%s: # T %s \n", []string{name, typeKind})
-	if typeKind == "T_STRING" {
+	switch typeKind {
+	case "T_STRING":
 		fmtPrint("  .quad 0\n")
 		fmtPrint("  .quad 0\n")
-	} else if typeKind == "T_INT" {
+	case "T_INT":
 		fmtPrintf("  .quad %s\n", []string{val})
-	} else {
+	default:
 		fmtPrint("ERROR\n")
 	}
 }
