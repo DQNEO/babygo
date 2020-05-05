@@ -4,6 +4,30 @@ import (
 	"syscall"
 )
 
+func testSwitchString() {
+	var testVar string = "foo"
+	var caseVar string = "fo"
+	switch testVar {
+	case caseVar + "o":
+		writeln("swithc string 1 ok")
+	case "":
+		writeln("ERROR")
+	default:
+		writeln("ERROR")
+	}
+
+	switch testVar {
+	case "":
+		writeln("ERROR")
+	case "fo":
+		writeln("ERROR")
+	default:
+		writeln("switch string default ok")
+	case "fooo":
+		writeln("ERROR")
+	}
+}
+
 func testSwitchByte() {
 	var testVar uint8 = 'c'
 	var caseVar uint8 = 'a'
@@ -887,6 +911,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testSwitchString()
 	testSwitchByte()
 	testSwitchInt()
 	testStringComparison()

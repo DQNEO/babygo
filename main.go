@@ -39,9 +39,19 @@ func emitPopSlice() {
 	fmt.Printf("  popq %%rdx # slice.cap\n")
 }
 
-func emitPushStackTop(comment string) {
-	fmt.Printf("  movq (%%rsp), %%rax # copy stack top value (%s) \n", comment)
-	fmt.Printf("  pushq %%rax\n")
+func emitPushStackTop(condType *Type, comment string) {
+	switch kind(condType) {
+	case T_STRING:
+		fmt.Printf("  movq 8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", comment)
+		fmt.Printf("  movq 0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", comment)
+		fmt.Printf("  pushq %%rcx # str.len\n")
+		fmt.Printf("  pushq %%rax # str.ptr\n")
+	case T_POINTER, T_UINTPTR, T_BOOL, T_INT, T_UINT8, T_UINT16:
+		fmt.Printf("  movq (%%rsp), %%rax # copy stack top value (%s) \n", comment)
+		fmt.Printf("  pushq %%rax\n")
+	default:
+		throw(condType)
+	}
 }
 
 func emitAddConst(addValue int, comment string) {
@@ -328,7 +338,7 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 	emitCallMalloc(memSize) // push
 	for i, elm := range elts {
 		// emit lhs
-		emitPushStackTop("malloced address")
+		emitPushStackTop(tUintptr, "malloced address")
 		emitAddConst(elmSize * i, "malloced address + elmSize * index")
 		emitExpr(elm, elmType)
 		emitStore(elmType)
@@ -754,7 +764,7 @@ func emitCompEq(t *Type) {
 	switch kind(t) {
 	case T_STRING:
 		fmt.Printf("  callq runtime.cmpstrings\n")
-		fmt.Printf("  addq $8, %%rsp # revert for one string\n")
+		fmt.Printf("  addq $32, %%rsp # revert for two strings\n")
 		fmt.Printf("  pushq %%rax # cmp result (1 or 0)\n")
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
@@ -1057,9 +1067,8 @@ func emitStmt(stmt ast.Stmt) {
 				continue
 			}
 			for _, e := range cc.List {
-				// @FIXME consider types larger than int (e.g. string, pointer)
-				assert(getSizeOfType(condType) <= 8, "should be one register size")
-				emitPushStackTop("switch expr")
+				assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string")
+				emitPushStackTop(condType, "switch expr")
 				emitExpr(e, nil)
 				emitCompEq(condType)
 				emitPopBool(" of switch-case comparison")
