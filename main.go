@@ -688,6 +688,46 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			}
 			return
 		}
+
+		switch e.Op.String() {
+		case "&&":
+			labelid++
+			labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
+			labelExit := fmt.Sprintf(".L.%d.exit", labelid)
+			emitExpr(e.X, nil) // left
+			emitPopBool("left")
+			fmt.Printf("  cmpq $1, %%rax\n")
+			// exit with false if left is false
+			fmt.Printf("  jne %s\n", labelExitWithFalse)
+
+			// if left is true, then eval right and exit
+			emitExpr(e.Y, nil) // right
+			fmt.Printf("  jmp %s\n", labelExit)
+
+			fmt.Printf("  %s:\n", labelExitWithFalse)
+			fmt.Printf("  pushq $0 # false\n")
+			fmt.Printf("  %s:\n", labelExit)
+			return
+		case "||":
+			labelid++
+			labelExitWithTrue := fmt.Sprintf(".L.%d.true", labelid)
+			labelExit := fmt.Sprintf(".L.%d.exit", labelid)
+			emitExpr(e.X, nil) // left
+			emitPopBool("left")
+			fmt.Printf("  cmpq $1, %%rax\n")
+			// exit with true if left is true
+			fmt.Printf("  je %s\n", labelExitWithTrue)
+
+			// if left is false, then eval right and exit
+			emitExpr(e.Y, nil) // right
+			fmt.Printf("  jmp %s\n", labelExit)
+
+			fmt.Printf("  %s:\n", labelExitWithTrue)
+			fmt.Printf("  pushq $1 # true\n")
+			fmt.Printf("  %s:\n", labelExit)
+			return
+		}
+
 		t := getTypeOfExpr(e.X)
 		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X, nil) // left
