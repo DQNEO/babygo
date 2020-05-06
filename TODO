@@ -1,6 +1,5 @@
 TODO
 
-* Sprintf
 * &&, ||
 * continue, break
 * use heap and copy in string conversion
@@ -8,3 +7,4 @@ TODO
 * init os.Args
 * malloc with brk()
 * type inference for minimal simple cases
+* variadic args
