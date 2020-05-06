@@ -12,9 +12,6 @@ import (
 )
 
 func fmtSprintf(format string, a []string) string {
-	if len(a) == 0 {
-		return format
-	}
 	var buf []uint8
 	var inPercent bool
 	var argIndex int
@@ -66,18 +63,18 @@ func emitPopBool(comment string) {
 }
 
 func emitPopAddress(comment string) {
-	fmt.Printf("  popq %%rax # address of %s\n", comment)
+	fmtPrintf("  popq %%rax # address of %s\n", []string{comment})
 }
 
 func emitPopString() {
-	fmt.Printf("  popq %%rax # string.ptr\n")
-	fmt.Printf("  popq %%rcx # string.len\n")
+	fmtPrintf("  popq %%rax # string.ptr\n", nil)
+	fmtPrintf("  popq %%rcx # string.len\n", nil)
 }
 
 func emitPopSlice() {
-	fmt.Printf("  popq %%rax # slice.ptr\n")
-	fmt.Printf("  popq %%rcx # slice.len\n")
-	fmt.Printf("  popq %%rdx # slice.cap\n")
+	fmtPrintf("  popq %%rax # slice.ptr\n", nil)
+	fmtPrintf("  popq %%rcx # slice.len\n", nil)
+	fmtPrintf("  popq %%rdx # slice.cap\n", nil)
 }
 
 func emitPushStackTop(condType *Type, comment string) {

@@ -3,9 +3,6 @@ package main
 import "syscall"
 
 func fmtSprintf(format string, a []string) string {
-	if len(a) == 0 {
-		return format
-	}
 	var buf []uint8
 	var inPercent bool
 	var argIndex int
