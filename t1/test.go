@@ -18,9 +18,9 @@ func testSwitchString() {
 	var testVar string = "foo"
 	var caseVar string = "fo"
 	switch testVar {
-	case caseVar + "o":
+	case "x", caseVar + "o":
 		writeln("swithc string 1 ok")
-	case "":
+	case "", "y":
 		writeln("ERROR")
 	default:
 		writeln("ERROR")
