@@ -36,6 +36,16 @@ func fmtSprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func fmtPrintf(format string, a []string) {
+	var s string = fmtSprintf(format, a)
+	syscall.Write(1, []uint8(s))
+}
+
+func fmtPrint(s string) {
+	var slc []uint8 = []uint8(s)
+	syscall.Write(1, slc)
+}
+
 var __itoa_buf [100]uint8
 var __itoa_r [100]uint8
 
@@ -73,16 +83,6 @@ func Itoa(ival int) string {
 	}
 
 	return string(__itoa_r[0:ix])
-}
-
-func fmtPrint(s string) {
-	var slc []uint8 = []uint8(s)
-	syscall.Write(1, slc)
-}
-
-func fmtPrintf(format string, a []string) {
-	var s string = fmtSprintf(format, a)
-	syscall.Write(1, []uint8(s))
 }
 
 func emitPopBool(comment string) {
