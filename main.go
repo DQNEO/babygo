@@ -389,15 +389,23 @@ func emitInvertBoolValue() {
 	fmt.Printf("  pushq %%rax\n")
 }
 
+func emitTrue()  {
+	fmt.Printf("  pushq $1 # true\n")
+}
+
+func emitFalse() {
+	fmt.Printf("  pushq $0 # false\n")
+}
+
 func emitExpr(expr ast.Expr, forceType *Type) {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		switch e.Obj {
 		case gTrue: // true constant
-			fmt.Printf("  pushq $1 # true\n")
+			emitTrue()
 			return
 		case gFalse: // false constant
-			fmt.Printf("  pushq $0 # false\n")
+			emitFalse()
 			return
 		case gNil:
 			if forceType == nil {
@@ -705,7 +713,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			fmt.Printf("  jmp %s\n", labelExit)
 
 			fmt.Printf("  %s:\n", labelExitWithFalse)
-			fmt.Printf("  pushq $0 # false\n")
+			emitFalse()
 			fmt.Printf("  %s:\n", labelExit)
 			return
 		case "||":
@@ -723,7 +731,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			fmt.Printf("  jmp %s\n", labelExit)
 
 			fmt.Printf("  %s:\n", labelExitWithTrue)
-			fmt.Printf("  pushq $1 # true\n")
+			emitTrue()
 			fmt.Printf("  %s:\n", labelExit)
 			return
 		}
