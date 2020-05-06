@@ -86,6 +86,20 @@ func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", []string{comment})
 }
 
+func emitPopAddress(comment string) {
+	fmtPrintf("  popq %%rax # address of %s\n", []string{comment})
+}
+
+func emitPopString() {
+	fmtPrintf("  popq %%rax # string.ptr\n", nil)
+	fmtPrintf("  popq %%rcx # string.len\n", nil)
+}
+
+func emitPopSlice() {
+	fmtPrintf("  popq %%rax # slice.ptr\n", nil)
+	fmtPrintf("  popq %%rcx # slice.len\n", nil)
+	fmtPrintf("  popq %%rdx # slice.cap\n", nil)
+}
 
 func semanticAnalyze(name string) string {
 	return fakeSemanticAnalyze(name)
@@ -195,9 +209,6 @@ var globalFuncs []*Func
 var _garbage string
 
 func main() {
-	// Test funcs
-	emitPopBool("test emitPopBool")
-
 	var sourceFiles []string = []string{"main"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
@@ -208,6 +219,12 @@ func main() {
 		var pkgName string = semanticAnalyze(sourceFile)
 		generateCode(pkgName)
 	}
+
+	// Test funcs
+	emitPopBool("comment")
+	emitPopAddress("comment")
+	emitPopString()
+	emitPopSlice()
 }
 
 func fakeSemanticAnalyze(name string) string {
