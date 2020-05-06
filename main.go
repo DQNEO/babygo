@@ -8,7 +8,52 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"syscall"
 )
+
+func fmtSprintf(format string, a []string) string {
+	if len(a) == 0 {
+		return format
+	}
+	var buf []uint8
+	var inPercent bool
+	var argIndex int
+	var c uint8
+	for _, c = range []uint8(format) {
+		if inPercent {
+			if c == '%' {
+				buf = append(buf, c)
+			} else {
+				var arg string = a[argIndex]
+				argIndex++
+				var s string = arg // // p.printArg(arg, c)
+				var _c uint8
+				for _, _c = range []uint8(s) {
+					buf = append(buf, _c)
+				}
+			}
+			inPercent = false
+		} else {
+			if c == '%' {
+				inPercent = true
+			} else {
+				buf = append(buf, c)
+			}
+		}
+	}
+
+	return string(buf)
+}
+
+func fmtPrintf(format string, a []string) {
+	var s string = fmtSprintf(format, a)
+	syscall.Write(1, []uint8(s))
+}
+
+func fmtPrint(s string) {
+	var slc []uint8 = []uint8(s)
+	syscall.Write(1, slc)
+}
 
 type Type struct {
 	e ast.Expr // original expr
@@ -17,7 +62,7 @@ type Type struct {
 type localoffsetint int
 
 func emitPopBool(comment string) {
-	fmt.Printf("  popq %%rax # result of %s\n", comment)
+	fmtPrintf("  popq %%rax # result of %s\n", []string{comment})
 }
 
 func emitPopAddress(comment string) {
