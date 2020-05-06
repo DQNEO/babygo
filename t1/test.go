@@ -270,6 +270,9 @@ func testSprintf() {
 	a[2] = "efg"
 	var s string = Sprintf("%sab%sd%s", a)
 	write(s)
+
+	var s2 string = Sprintf("%%rax", nil)
+	write(s2)
 	write("|\n")
 }
 

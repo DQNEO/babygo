@@ -562,23 +562,26 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
 						fn.Name = "makeSlice"
 					}
-					// general funcall
+					// general function call
+					obj := fn.Obj //.Kind == FN
+					fndecl, ok := obj.Decl.(*ast.FuncDecl)
+					if !ok {
+						throw(fn.Obj)
+					}
+					params := fndecl.Type.Params.List
 					var totalSize int = 0
 					for i := len(e.Args) - 1; i >= 0; i-- {
 						arg := e.Args[i]
-						emitExpr(arg, nil)
-						size := getSizeOfType(getTypeOfExpr(arg))
+						param := params[i]
+						paramType := e2t(param.Type)
+						emitExpr(arg, paramType)
+						size := getSizeOfType(paramType)
 						totalSize += size
 					}
 					symbol := pkgName + "." + fn.Name
 					fmt.Printf("  callq %s\n", symbol)
 					fmt.Printf("  addq $%d, %%rsp # revert\n", totalSize)
 
-					obj := fn.Obj //.Kind == FN
-					fndecl, ok := obj.Decl.(*ast.FuncDecl)
-					if !ok {
-						throw(fn.Obj)
-					}
 					if fndecl.Type.Results != nil {
 						if len(fndecl.Type.Results.List) > 2 {
 							panic("TBI")
