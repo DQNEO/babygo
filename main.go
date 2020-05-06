@@ -1587,8 +1587,6 @@ var gCap = &ast.Object{
 	Type: nil,
 }
 
-type isGlobal bool
-
 func newGlobalVariable(name string) *Variable {
 	return &Variable{
 		name:         name,
