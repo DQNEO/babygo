@@ -3,10 +3,8 @@ package main
 import (
 	"fmt"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/token"
-	"go/types"
 	"strconv"
 	"syscall"
 )
@@ -1605,23 +1603,7 @@ func newLocalVariable(name string, localoffset localoffsetint) *Variable {
 	}
 }
 
-func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
-	// https://github.com/golang/example/tree/master/gotypes#an-example
-	// Type check
-	// A Config controls various options of the type checker.
-	// The defaults work fine except for one setting:
-	// we must specify how to deal with imports.
-	conf := types.Config{Importer: importer.Default()}
-
-	// Type-check the package containing only file.
-	// Check returns a *types.Package.
-	pkg, err := conf.Check("./t", fset, []*ast.File{fiile}, nil)
-	if err != nil {
-		panic(err)
-	}
-	pkgName = pkg.Name()
-
-	fmt.Printf("# Package  %q\n", pkg.Path())
+func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 	universe := &ast.Scope{
 		Outer:   nil,
 		Objects: make(map[string]*ast.Object),
@@ -1665,6 +1647,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 	})
 	//fmt.Printf("Universer:    %#v\n", types.Universe)
 	ap, _ := ast.NewPackage(fset, map[string]*ast.File{"": fiile}, nil, universe)
+	pkgName = ap.Name
 
 	var unresolved []*ast.Ident
 	for _, ident := range fiile.Unresolved {
@@ -1675,7 +1658,6 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 		}
 	}
 
-	fmt.Printf("# Name:    %s\n", pkg.Name())
 	fmt.Printf("# Unresolved: %#v\n", unresolved)
 	fmt.Printf("# Package:   %s\n", ap.Name)
 
@@ -1747,7 +1729,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) *types.Package {
 		}
 	}
 
-	return pkg
+	return pkgName
 }
 
 type Func struct {
@@ -2146,8 +2128,7 @@ func main() {
 			panic(err)
 		}
 
-		pkg := semanticAnalyze(fset, f)
-		pkgName := pkg.Name()
+		pkgName := semanticAnalyze(fset, f)
 		generateCode(pkgName)
 	}
 }
