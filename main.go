@@ -1893,13 +1893,11 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			if !ok {
 				throw(fn)
 			}
-			if xIdent.Name == "unsafe" {
-				if fn.Sel.Name == "Pointer" {
-					// unsafe.Pointer(x)
-					return tUintptr
-				} else {
-					panic("TBI")
-				}
+			if xIdent.Name == "unsafe" && fn.Sel.Name == "Pointer" {
+				// unsafe.Pointer(x)
+				return tUintptr
+			} else {
+				panic("TBI")
 			}
 			throw(fmt.Sprintf("%#v, %#v\n", xIdent, fn.Sel))
 		default:
