@@ -3,7 +3,7 @@ package runtime
 
 import "unsafe"
 
-var heap [4096]uint8
+var heap [32768]uint8
 
 var heapHead uintptr
 var heapCurrent uintptr
@@ -11,7 +11,7 @@ var heapTail uintptr
 
 func heapInit() {
 	heapHead = uintptr(unsafe.Pointer(&heap[0])) // brk(0)
-	heapTail = heapHead + 4096                   // brk(heapHead + heapSize)
+	heapTail = heapHead + 32768                   // brk(heapHead + heapSize)
 	heapCurrent = heapHead
 }
 
