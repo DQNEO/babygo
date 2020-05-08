@@ -741,6 +741,44 @@ func testFor() {
 	write("\n")
 }
 
+func testForBreakContinue() {
+	var i int
+	for i = 0; i < 10; i = i + 1 {
+		if i == 3 {
+			break
+		}
+		write(Itoa(i))
+	}
+	write("exit")
+	writeln(Itoa(i))
+	for i = 0; i < 10; i = i + 1 {
+		if i < 7 {
+			continue
+		}
+		write(Itoa(i))
+	}
+	write("exit")
+	writeln(Itoa(i))
+
+	var ary []int = []int{0,1,2,3,4,5,6,7,8,9}
+	for _, i = range ary {
+		if i == 3 {
+			break
+		}
+		write(Itoa(i))
+	}
+	write("exit")
+	writeln(Itoa(i))
+	for _, i = range ary {
+		if i < 7 {
+			continue
+		}
+		write(Itoa(i))
+	}
+	write("exit")
+	writeln(Itoa(i))
+}
+
 func testCmpUint8() {
 	var localuint8 uint8 = 1
 	if localuint8 == 1 {
@@ -970,6 +1008,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testForBreakContinue()
 	testLogicalAndOr()
 	testConst()
 	testSwitchString()

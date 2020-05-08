@@ -1043,8 +1043,13 @@ func emitStmt(stmt ast.Stmt) {
 		}
 	case *ast.ForStmt:
 		labelid++
-		labelCond := fmt.Sprintf(".L.loop.cond.%d", labelid)
-		labelExit := fmt.Sprintf(".L.loop.exit.%d", labelid)
+		labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
+		labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
+		labelExit := fmt.Sprintf(".L.for.exit.%d", labelid)
+		forStmt,ok := mapForNodeToFor[s]
+		assert(ok, "map value should exist")
+		forStmt.labelPost = labelPost
+		forStmt.labelExit = labelExit
 
 		emitStmt(s.Init)
 
@@ -1054,14 +1059,20 @@ func emitStmt(stmt ast.Stmt) {
 		fmt.Printf("  cmpq $1, %%rax\n")
 		fmt.Printf("  jne %s # jmp if false\n", labelExit)
 		emitStmt(s.Body)
+		fmt.Printf("  %s:\n", labelPost) // used for "continue"
 		emitStmt(s.Post)
 		fmt.Printf("  jmp %s\n", labelCond)
 		fmt.Printf("  %s:\n", labelExit)
 	case *ast.RangeStmt: // only for array and slice
 		labelid++
-		labelCond := fmt.Sprintf(".L.loop.cond.%d", labelid)
-		labelEndFor := fmt.Sprintf(".L.loop.exit.%d", labelid)
+		labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
+		labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
+		labelExit := fmt.Sprintf(".L.range.exit.%d", labelid)
 
+		forStmt,ok := mapRangeNodeToFor[s]
+		assert(ok, "map value should exist")
+		forStmt.labelPost = labelPost
+		forStmt.labelExit = labelExit
 		// initialization: store len(rangeexpr)
 		fmt.Printf("  # ForRange Initialization\n")
 
@@ -1095,7 +1106,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitCompExpr("setl")
 		emitPopBool(" indexvar < lenvar")
 		fmt.Printf("  cmpq $1, %%rax\n")
-		fmt.Printf("  jne %s # jmp if false\n", labelEndFor)
+		fmt.Printf("  jne %s # jmp if false\n", labelExit)
 
 		fmt.Printf("  # assign list[indexvar] value variables\n")
 		elemType := getTypeOfExpr(s.Value)
@@ -1114,6 +1125,7 @@ func emitStmt(stmt ast.Stmt) {
 
 		// Post statement: Increment indexvar and go next
 		fmt.Printf("  # ForRange Post statement\n")
+		fmt.Printf("  %s:\n", labelPost)   // used for "continue"
 		emitVariableAddr(rngMisc.indexvar) // lhs
 		emitVariableAddr(rngMisc.indexvar) // rhs
 		emitLoad(tInt)
@@ -1122,7 +1134,7 @@ func emitStmt(stmt ast.Stmt) {
 
 		fmt.Printf("  jmp %s\n", labelCond)
 
-		fmt.Printf("  %s:\n", labelEndFor)
+		fmt.Printf("  %s:\n", labelExit)
 	case *ast.IncDecStmt:
 		var addValue int
 		switch s.Tok.String() {
@@ -1192,6 +1204,17 @@ func emitStmt(stmt ast.Stmt) {
 		/*
 			case *ast.CaseClause:
 		*/
+	case *ast.BranchStmt:
+		containerFor, ok := mapBranchToFor[s]
+		assert(ok, "map value should exist")
+		switch s.Tok {
+		case token.CONTINUE:
+			fmt.Printf("jmp %s # continue\n", containerFor.labelPost)
+		case token.BREAK:
+			fmt.Printf("jmp %s # break\n", containerFor.labelExit)
+		default:
+			throw(s.Tok)
+		}
 	default:
 		throw(stmt)
 	}
@@ -1375,11 +1398,22 @@ func walkStmt(stmt ast.Stmt) {
 			walkStmt(stmt)
 		}
 	case *ast.ForStmt:
+		forStmt := new(ForStmt)
+		forStmt.astFor = s
+		forStmt.outer = currentFor
+		currentFor = forStmt
+		mapForNodeToFor[s] = forStmt
 		walkStmt(s.Init)
 		walkExpr(s.Cond)
 		walkStmt(s.Post)
 		walkStmt(s.Body)
+		currentFor = forStmt.outer
 	case *ast.RangeStmt:
+		forStmt := new(ForStmt)
+		forStmt.astRange = s
+		forStmt.outer = currentFor
+		currentFor = forStmt
+		mapRangeNodeToFor[s] = forStmt
 		walkExpr(s.X)
 		walkStmt(s.Body)
 		localoffset -= localoffsetint(gInt.Data.(int))
@@ -1390,6 +1424,7 @@ func walkStmt(stmt ast.Stmt) {
 			lenvar:   lenvar,
 			indexvar: indexvar,
 		}
+		currentFor = forStmt.outer
 	case *ast.IncDecStmt:
 		walkExpr(s.X)
 	case *ast.SwitchStmt:
@@ -1407,10 +1442,27 @@ func walkStmt(stmt ast.Stmt) {
 		for _, stmt := range s.Body {
 			walkStmt(stmt)
 		}
+	case *ast.BranchStmt:
+		assert(currentFor != nil, "break or continue should be in for body")
+		mapBranchToFor[s] = currentFor
 	default:
 		throw(stmt)
 	}
 }
+
+type ForStmt struct {
+	kind      int    // 1:for 2:range
+	labelPost string // for continue
+	labelExit string // for break
+	outer     *ForStmt
+	astFor    *ast.ForStmt
+	astRange  *ast.RangeStmt
+}
+var currentFor *ForStmt
+
+var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
+var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
+var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
 
 type RangeStmtMisc struct {
 	lenvar   *Variable
