@@ -90,6 +90,10 @@ func emitPushStackTop(condType *Type, comment string) {
 	}
 }
 
+func emitRevertStackPointer(size int) {
+	fmt.Printf("  addq $%d, %%rsp # revert stack pointer\n", size)
+}
+
 func emitAddConst(addValue int, comment string) {
 	fmt.Printf("  # Add const: %s\n", comment)
 	fmt.Printf("  popq %%rax\n")
@@ -363,7 +367,7 @@ func emitCallMalloc(size int) {
 	fmt.Printf("  pushq $%d\n", size)
 	// call malloc and return pointer
 	fmt.Printf("  callq runtime.malloc\n")
-	fmt.Printf("  addq $8, %%rsp # revert stack pointer\n")
+	emitRevertStackPointer(ptrSize)
 	fmt.Printf("  pushq %%rax # addr\n")
 }
 
@@ -509,9 +513,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					emitExpr(lenArg, typeArg)
 					elmSize := getSizeOfType(e2t(arrayType.Elt))
 					fmt.Printf("  pushq $%d # elm size\n", elmSize)
-					symbol := "runtime.makeSlice"
-					fmt.Printf("  callq %s\n", symbol)
-					fmt.Printf("  addq $24, %%rsp # revert for one string\n")
+					fmt.Printf("  callq %s\n", "runtime.makeSlice")
+					emitRevertStackPointer(sliceSize)
 					fmt.Printf("  pushq %%rsi # slice cap\n")
 					fmt.Printf("  pushq %%rdi # slice len\n")
 					fmt.Printf("  pushq %%rax # slice ptr\n")
@@ -544,7 +547,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				}
 
 				fmt.Printf("  callq %s\n", symbol)
-				fmt.Printf("  addq $24+%d, %%rsp # revert\n", stackForElm)
+				emitRevertStackPointer(sliceSize+stackForElm)
 				fmt.Printf("  pushq %%rsi # slice cap\n")
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
@@ -556,11 +559,11 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					case T_STRING:
 						symbol := fmt.Sprintf("runtime.printstring")
 						fmt.Printf("  callq %s\n", symbol)
-						fmt.Printf("  addq $16, %%rsp # revert for one string\n")
+						emitRevertStackPointer(stringSize)
 					case T_INT:
 						symbol := fmt.Sprintf("runtime.printint")
 						fmt.Printf("  callq %s\n", symbol)
-						fmt.Printf("  addq $8, %%rsp # revert for one int\n")
+						emitRevertStackPointer(intSize)
 					default:
 						panic("TBI")
 					}
@@ -586,7 +589,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					}
 					symbol := pkgName + "." + fn.Name
 					fmt.Printf("  callq %s\n", symbol)
-					fmt.Printf("  addq $%d, %%rsp # revert\n", totalSize)
+					emitRevertStackPointer(totalSize)
 
 					if fndecl.Type.Results != nil {
 						if len(fndecl.Type.Results.List) > 2 {
@@ -681,7 +684,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			switch e.Op.String() {
 			case "+":
 				fmt.Printf("  callq runtime.catstrings\n")
-				fmt.Printf("  addq $32, %%rsp # revert for one string\n")
+				emitRevertStackPointer(stringSize * 2)
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
 			case "==":
@@ -860,7 +863,7 @@ func emitCompEq(t *Type) {
 	switch kind(t) {
 	case T_STRING:
 		fmt.Printf("  callq runtime.cmpstrings\n")
-		fmt.Printf("  addq $32, %%rsp # revert for two strings\n")
+		emitRevertStackPointer(stringSize*2)
 		fmt.Printf("  pushq %%rax # cmp result (1 or 0)\n")
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
@@ -916,7 +919,7 @@ func emitStore(t *Type) {
 		fmt.Printf("  pushq %%rax # dst lhs\n")
 		fmt.Printf("  pushq %%rdi # src rhs\n")
 		fmt.Printf("  callq runtime.memcopy\n")
-		fmt.Printf("  addq $24, %%rsp\n # rewind stack pointer")
+		emitRevertStackPointer(ptrSize*2 + intSize)
 	default:
 		panic("TBI:" + kind(t))
 	}
@@ -1524,6 +1527,9 @@ func walkExpr(expr ast.Expr) {
 }
 
 const sliceSize int = 24
+const stringSize int = 16
+const intSize int = 8
+const ptrSize int = 8
 
 var gTrue = &ast.Object{
 	Kind: ast.Con,
