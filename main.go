@@ -366,7 +366,7 @@ func emitLen(arg ast.Expr) {
 func emitCallMalloc(size int) {
 	fmt.Printf("  pushq $%d\n", size)
 	// call malloc and return pointer
-	fmt.Printf("  callq runtime.malloc\n")
+	fmt.Printf("  callq runtime.malloc\n")// @OK arg eval orders
 	emitRevertStackPointer(ptrSize)
 	fmt.Printf("  pushq %%rax # addr\n")
 }
@@ -399,6 +399,38 @@ func emitFalse() {
 	fmt.Printf("  pushq $0 # false\n")
 }
 
+func emitPushArgs2(arg0 ast.Expr, t0 *Type, arg1 ast.Expr, t1 *Type) {
+	emitExpr(arg0, t0)
+	emitExpr(arg1, t1)
+	// pop arg1
+	// pop arg0
+	// push arg1
+	// push arg0
+}
+
+// ABI of stack layout
+//
+// string:
+//   str.ptr
+//   str.len
+// slice:
+//   slc.ptr
+//   slc.len
+//   slc.cap
+//
+// ABI of function call
+// call to f(i1 int, i2 int)
+//   -- stack top
+//   i1
+//   i2
+//   --
+// call to f(s1 string, s2 string)
+//   -- stack top
+//   s1.ptr
+//   s1.len
+//   s2.ptr
+//   s2.len
+//   --
 func emitExpr(expr ast.Expr, forceType *Type) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -506,12 +538,19 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					// make([]T, ...)
 					arrayType, ok := typeArg.e.(*ast.ArrayType)
 					assert(ok, "should be *ast.ArrayType")
+					elmSize := getSizeOfType(e2t(arrayType.Elt))
 
 					var lenArg ast.Expr = e.Args[1]
 					var capArg ast.Expr = e.Args[2]
-					emitExpr(capArg, typeArg)
 					emitExpr(lenArg, typeArg)
-					elmSize := getSizeOfType(e2t(arrayType.Elt))
+					emitExpr(capArg, typeArg)
+
+					// invert arg orders OK
+					fmt.Printf("  popq %%rax # cap\n")
+					fmt.Printf("  popq %%rcx # len\n")
+					fmt.Printf("  pushq %%rax # cap\n")
+					fmt.Printf("  pushq %%rcx # len\n")
+
 					fmt.Printf("  pushq $%d # elm size\n", elmSize)
 					fmt.Printf("  callq %s\n", "runtime.makeSlice")
 					emitRevertStackPointer(sliceSize)
@@ -524,8 +563,6 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			case gAppend:
 				var sliceArg ast.Expr = e.Args[0]
 				var elemArg ast.Expr = e.Args[1]
-				emitExpr(elemArg, nil)  // various size
-				emitExpr(sliceArg, nil) // size 24
 				var stackForElm int
 				var symbol string
 				var elmSize int = getSizeOfType(getElementTypeOfListType(getTypeOfExpr(sliceArg)))
@@ -545,6 +582,41 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				default:
 					throw(elmSize)
 				}
+
+				emitExpr(sliceArg, nil) // size 24
+				emitExpr(elemArg, nil)  // various size
+
+				switch elmSize {
+				case 1,8:
+					fmtPrintf("  popq %%rax\n", nil)
+				case 16:
+					emitPopString()
+				case 24:
+					emitPopSlice()
+				default:
+					throw(elmSize)
+				}
+				fmtPrintf("  popq %%r8 # slice.ptr\n", nil)
+				fmtPrintf("  popq %%r9 # slice.len\n", nil)
+				fmtPrintf("  popq %%r10 # slice.cap\n", nil)
+
+				switch elmSize {
+				case 1,8:
+					fmtPrintf("  pushq %%rax\n", nil)
+				case 16:
+					fmtPrintf("  pushq %%rcx # string.len\n", nil)
+					fmtPrintf("  pushq %%rax # string.ptr\n", nil)
+				case 24:
+					fmtPrintf("  pushq %%rdx # slice.cap\n", nil)
+					fmtPrintf("  pushq %%rcx # slice.len\n", nil)
+					fmtPrintf("  pushq %%rax # slice.ptr\n", nil)
+				default:
+					throw(elmSize)
+				}
+				fmtPrintf("  pushq %%r10 # slice.cap\n", nil)
+				fmtPrintf("  pushq %%r9 # slice.len\n", nil)
+				fmtPrintf("  pushq %%r8 # slice.ptr\n", nil)
+
 
 				fmt.Printf("  callq %s\n", symbol)
 				emitRevertStackPointer(sliceSize+stackForElm)
@@ -622,9 +694,20 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			case "unsafe.Pointer":
 				emitExpr(e.Args[0], nil)
 			case "syscall.Write":
-				emitExpr(e.Args[1], nil)
-				emitExpr(e.Args[0], nil)
+				emitExpr(e.Args[0], nil) // fd
+				emitExpr(e.Args[1], nil) // slice
+
+				fmt.Printf("  popq %%rax\n") // arg1: slc.ptr
+				fmt.Printf("  popq %%rcx\n") // arg1: slc.len
+				fmt.Printf("  popq %%rsi\n") // arg1: slc.cap
+				fmt.Printf("  popq %%rdx\n") // arg0
+				fmt.Printf("  pushq %%rsi\n")  // arg1: slc.cap
+				fmt.Printf("  pushq %%rcx\n")  // arg1: slc.len
+				fmt.Printf("  pushq %%rax\n")  // arg1: slc.p
+				fmt.Printf("  pushq %%rdx\n")  // arg0
+
 				fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
+				emitRevertStackPointer(intSize * 2)
 				// @FIXME revert rsp
 			default:
 				panic(symbol)
@@ -679,8 +762,20 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		}
 	case *ast.BinaryExpr:
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
-			emitExpr(e.Y, nil)
 			emitExpr(e.X, nil)
+			emitExpr(e.Y, nil)
+
+			// invert stack order
+			fmt.Printf("  popq %%rax # ptr\n") // Y
+			fmt.Printf("  popq %%rcx # len\n")
+			fmt.Printf("  popq %%rdx # ptr\n") // X
+			fmt.Printf("  popq %%rsi # len\n")
+
+			fmt.Printf("  pushq %%rcx # len\n")
+			fmt.Printf("  pushq %%rax # ptr\n") // Y
+			fmt.Printf("  pushq %%rsi # len\n")
+			fmt.Printf("  pushq %%rdx # ptr\n") // X
+
 			switch e.Op.String() {
 			case "+":
 				fmt.Printf("  callq runtime.catstrings\n")
