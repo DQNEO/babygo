@@ -101,6 +101,24 @@ func emitAddConst(addValue int, comment string) {
 	fmt.Printf("  pushq %%rax\n")
 }
 
+func getPushSizeOfType(t *Type) int {
+	switch kind(t) {
+	case T_SLICE:
+		return sliceSize
+	case T_STRING:
+		return stringSize
+	case T_UINT8,T_UINT16, T_INT, T_BOOL:
+		return intSize
+	case T_UINTPTR, T_POINTER:
+		return ptrSize
+	case T_ARRAY, T_STRUCT:
+		return ptrSize
+	default:
+		throw(t)
+	}
+	throw(t)
+	return 0
+}
 func emitLoad(t *Type) {
 	emitPopAddress(string(kind(t)))
 	switch kind(t) {
@@ -366,7 +384,7 @@ func emitLen(arg ast.Expr) {
 func emitCallMalloc(size int) {
 	fmt.Printf("  pushq $%d\n", size)
 	// call malloc and return pointer
-	fmt.Printf("  callq runtime.malloc\n")// @OK arg eval orders
+	fmt.Printf("  callq runtime.malloc\n")// no need to invert args orders
 	emitRevertStackPointer(ptrSize)
 	fmt.Printf("  pushq %%rax # addr\n")
 }
@@ -540,20 +558,31 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					assert(ok, "should be *ast.ArrayType")
 					elmSize := getSizeOfType(e2t(arrayType.Elt))
 
-					var lenArg ast.Expr = e.Args[1]
-					var capArg ast.Expr = e.Args[2]
-					emitExpr(lenArg, typeArg)
-					emitExpr(capArg, typeArg)
-
-					// invert arg orders OK
-					fmt.Printf("  popq %%rax # cap\n")
-					fmt.Printf("  popq %%rcx # len\n")
-					fmt.Printf("  pushq %%rax # cap\n")
-					fmt.Printf("  pushq %%rcx # len\n")
+					var offsets []int = make([]int, 3, 3)
+					offsets[0] = getPushSizeOfType(tInt)
+					offsets[1] = offsets[0] + getPushSizeOfType(tInt)
+					offsets[2] = offsets[1] + getPushSizeOfType(tInt)
+					totalPushedSize := offsets[2]
+					fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
 
 					fmt.Printf("  pushq $%d # elm size\n", elmSize)
+					emitExpr(e.Args[1], typeArg) // len
+					emitExpr(e.Args[2], typeArg) // cap
+
+					fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
+
+					// invert args
+					fmt.Printf("  movq %d(%%rsp) , %%rax # load\n", -offsets[0])
+					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", 0)
+
+					fmt.Printf("  movq %d(%%rsp) , %%rax # load\n", -offsets[1])
+					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", offsets[0])
+
+					fmt.Printf("  movq %d(%%rsp) , %%rax # load\n", -offsets[2])
+					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", offsets[1])
+
 					fmt.Printf("  callq %s\n", "runtime.makeSlice")
-					emitRevertStackPointer(sliceSize)
+					emitRevertStackPointer(totalPushedSize)
 					fmt.Printf("  pushq %%rsi # slice cap\n")
 					fmt.Printf("  pushq %%rdi # slice len\n")
 					fmt.Printf("  pushq %%rax # slice ptr\n")
@@ -694,20 +723,32 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			case "unsafe.Pointer":
 				emitExpr(e.Args[0], nil)
 			case "syscall.Write":
-				emitExpr(e.Args[0], nil) // fd
-				emitExpr(e.Args[1], nil) // slice
+				var offsets []int = make([]int, 2, 2)
+				offsets[0] = getPushSizeOfType(tInt)
+				offsets[1] = offsets[0] + getPushSizeOfType(getTypeOfExpr(e.Args[1]))
+				var totalPushedSize = offsets[1]
 
-				fmt.Printf("  popq %%rax\n") // arg1: slc.ptr
-				fmt.Printf("  popq %%rcx\n") // arg1: slc.len
-				fmt.Printf("  popq %%rsi\n") // arg1: slc.cap
-				fmt.Printf("  popq %%rdx\n") // arg0
-				fmt.Printf("  pushq %%rsi\n")  // arg1: slc.cap
-				fmt.Printf("  pushq %%rcx\n")  // arg1: slc.len
-				fmt.Printf("  pushq %%rax\n")  // arg1: slc.p
-				fmt.Printf("  pushq %%rdx\n")  // arg0
+				fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
+				emitExpr(e.Args[0], tInt) // fd int
+				emitExpr(e.Args[1], nil) // slc slice
+
+				fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
+				// invert args
+
+				// arg0: int
+				fmt.Printf(" movq %d(%%rsp), %%rax # load int\n",  - offsets[0])
+				fmt.Printf(" movq %%rax, %d(%%rsp) # store int\n",  0)
+
+				// arg1: slice
+				fmt.Printf("  movq %d+0(%%rsp), %%rax\n",  - offsets[1]) // arg1: slc.ptr
+				fmt.Printf("  movq %d+8(%%rsp), %%rcx\n",  - offsets[1]) // arg1: slc.len
+				fmt.Printf("  movq %d+16(%%rsp), %%rdx\n",  - offsets[1]) // arg1: slc.cap
+				fmt.Printf("  movq %%rax, %d+0(%%rsp)\n",  + offsets[0])  // arg1: slc.ptr
+				fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", + offsets[0])  // arg1: slc.len
+				fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", + offsets[0])  // arg1: slc.cap
 
 				fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
-				emitRevertStackPointer(intSize * 2)
+				emitRevertStackPointer(totalPushedSize)
 				// @FIXME revert rsp
 			default:
 				panic(symbol)
@@ -762,19 +803,24 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		}
 	case *ast.BinaryExpr:
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
+			totalPushedSize := 32
+			fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
+
 			emitExpr(e.X, nil)
 			emitExpr(e.Y, nil)
 
-			// invert stack order
-			fmt.Printf("  popq %%rax # ptr\n") // Y
-			fmt.Printf("  popq %%rcx # len\n")
-			fmt.Printf("  popq %%rdx # ptr\n") // X
-			fmt.Printf("  popq %%rsi # len\n")
+			fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
 
-			fmt.Printf("  pushq %%rcx # len\n")
-			fmt.Printf("  pushq %%rax # ptr\n") // Y
-			fmt.Printf("  pushq %%rsi # len\n")
-			fmt.Printf("  pushq %%rdx # ptr\n") // X
+			// invert args
+			fmt.Printf("  movq %d(%%rsp), %%rax\n", -16)
+			fmt.Printf("  movq %d+8(%%rsp), %%rcx\n", -16)
+			fmt.Printf("  movq %%rax, %d(%%rsp)\n", 0)
+			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", 0)
+
+			fmt.Printf("  movq %d(%%rsp), %%rax\n", -32)
+			fmt.Printf("  movq %d+8(%%rsp), %%rcx\n", -32)
+			fmt.Printf("  movq %%rax, %d(%%rsp)\n", 16)
+			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", 16)
 
 			switch e.Op.String() {
 			case "+":
