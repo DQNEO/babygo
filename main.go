@@ -430,6 +430,15 @@ func emitFalse() {
 	fmt.Printf("  pushq $0 # false\n")
 }
 
+func newNumberLiteral(x int) *ast.BasicLit {
+	e := &ast.BasicLit{
+		ValuePos: 0,
+		Kind:     token.INT,
+		Value:    fmt.Sprintf("%d", x),
+	}
+	return e
+}
+
 func emitPushArgs2(arg0 ast.Expr, t0 *Type, arg1 ast.Expr, t1 *Type) {
 	emitExpr(arg0, t0)
 	emitExpr(arg1, t1)
@@ -570,29 +579,47 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					arrayType, ok := typeArg.e.(*ast.ArrayType)
 					assert(ok, "should be *ast.ArrayType")
 					elmSize := getSizeOfType(e2t(arrayType.Elt))
+					numlit := newNumberLiteral(elmSize)
 
-					var offsets []int = make([]int, 3, 3)
-					offsets[0] = getPushSizeOfType(tInt)
-					offsets[1] = offsets[0] + getPushSizeOfType(tInt)
-					offsets[2] = offsets[1] + getPushSizeOfType(tInt)
-					totalPushedSize := offsets[2]
+					var args []*Arg = []*Arg{
+						// elmSize
+						&Arg{
+							e: numlit,
+							t: tInt,
+						},
+						// len
+						&Arg{
+							e: e.Args[1],
+							t: tInt,
+						},
+						// cap
+						&Arg{
+							e: e.Args[2],
+							t: tInt,
+						},
+					}
+
+					var offsets []int = make([]int, len(args), len(args))
+					var totalPushedSize int
+					for i, arg := range args {
+						offsets[i] = totalPushedSize
+						totalPushedSize += getPushSizeOfArg(arg)
+					}
 					fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
-
-					fmt.Printf("  pushq $%d # elm size\n", elmSize)
-					emitExpr(e.Args[1], typeArg) // len
-					emitExpr(e.Args[2], typeArg) // cap
-
+					for _, arg := range args {
+						emitExpr(arg.e, arg.t)
+					}
 					fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
 
 					// invert args
-					fmt.Printf("  movq %d(%%rsp) , %%rax # load\n", -offsets[0])
-					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", 0)
-
-					fmt.Printf("  movq %d(%%rsp) , %%rax # load\n", -offsets[1])
+					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -offsets[0])
 					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", offsets[0])
 
-					fmt.Printf("  movq %d(%%rsp) , %%rax # load\n", -offsets[2])
+					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -offsets[1])
 					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", offsets[1])
+
+					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -offsets[2])
+					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", offsets[2])
 
 					fmt.Printf("  callq %s\n", "runtime.makeSlice")
 					emitRevertStackPointer(totalPushedSize)
@@ -754,15 +781,13 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					offsets[i] = totalPushedSize
 					totalPushedSize += getPushSizeOfArg(arg)
 				}
-
 				fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
 				for _, arg := range args {
 					emitExpr(arg.e, arg.t)
 				}
-
 				fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
-				// invert args
 
+				// invert args
 				// arg0: int
 				fmt.Printf(" movq %d-8(%%rsp), %%rax # load int\n",  offsets[0])
 				fmt.Printf(" movq %%rax, %d(%%rsp) # store int\n",  offsets[0])
