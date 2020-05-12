@@ -736,13 +736,13 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				// invert args
 
 				// arg0: int
-				fmt.Printf(" movq %d(%%rsp), %%rax # load int\n",  - offsets[0])
+				fmt.Printf(" movq %d-8(%%rsp), %%rax # load int\n",  0)
 				fmt.Printf(" movq %%rax, %d(%%rsp) # store int\n",  0)
 
 				// arg1: slice
-				fmt.Printf("  movq %d+0(%%rsp), %%rax\n",  - offsets[1]) // arg1: slc.ptr
-				fmt.Printf("  movq %d+8(%%rsp), %%rcx\n",  - offsets[1]) // arg1: slc.len
-				fmt.Printf("  movq %d+16(%%rsp), %%rdx\n",  - offsets[1]) // arg1: slc.cap
+				fmt.Printf("  movq %d-24(%%rsp), %%rax\n",  - offsets[0] ) // arg1: slc.ptr
+				fmt.Printf("  movq %d-16(%%rsp), %%rcx\n",  - offsets[0] ) // arg1: slc.len
+				fmt.Printf("  movq %d-8(%%rsp), %%rdx\n",  - offsets[0] ) // arg1: slc.cap
 				fmt.Printf("  movq %%rax, %d+0(%%rsp)\n",  + offsets[0])  // arg1: slc.ptr
 				fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", + offsets[0])  // arg1: slc.len
 				fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", + offsets[0])  // arg1: slc.cap
