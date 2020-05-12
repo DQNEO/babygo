@@ -101,6 +101,19 @@ func emitAddConst(addValue int, comment string) {
 	fmt.Printf("  pushq %%rax\n")
 }
 
+type Arg struct {
+	e ast.Expr
+	t *Type // expected type
+}
+
+func getPushSizeOfArg(arg *Arg) int {
+	if arg.t == nil {
+		return getPushSizeOfType(getTypeOfExpr(arg.e))
+	} else {
+		return getPushSizeOfType(arg.t)
+	}
+}
+
 func getPushSizeOfType(t *Type) int {
 	switch kind(t) {
 	case T_SLICE:
@@ -723,29 +736,44 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			case "unsafe.Pointer":
 				emitExpr(e.Args[0], nil)
 			case "syscall.Write":
-				var offsets []int = make([]int, 2, 2)
-				offsets[0] = getPushSizeOfType(tInt)
-				offsets[1] = offsets[0] + getPushSizeOfType(getTypeOfExpr(e.Args[1]))
-				var totalPushedSize = offsets[1]
+				var args []*Arg = []*Arg{
+				// fd int
+				&Arg{
+					e: e.Args[0],
+					t: tInt,
+				},
+				// buf slice
+					&Arg{
+						e: e.Args[1],
+						t: nil,
+					},
+				}
+				var offsets []int = make([]int, len(args), len(args))
+				var totalPushedSize int
+				for i, arg := range args {
+					offsets[i] = totalPushedSize
+					totalPushedSize += getPushSizeOfArg(arg)
+				}
 
 				fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
-				emitExpr(e.Args[0], tInt) // fd int
-				emitExpr(e.Args[1], nil) // slc slice
+				for _, arg := range args {
+					emitExpr(arg.e, arg.t)
+				}
 
 				fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
 				// invert args
 
 				// arg0: int
-				fmt.Printf(" movq %d-8(%%rsp), %%rax # load int\n",  0)
-				fmt.Printf(" movq %%rax, %d(%%rsp) # store int\n",  0)
+				fmt.Printf(" movq %d-8(%%rsp), %%rax # load int\n",  offsets[0])
+				fmt.Printf(" movq %%rax, %d(%%rsp) # store int\n",  offsets[0])
 
 				// arg1: slice
-				fmt.Printf("  movq %d-24(%%rsp), %%rax\n",  - offsets[0] ) // arg1: slc.ptr
-				fmt.Printf("  movq %d-16(%%rsp), %%rcx\n",  - offsets[0] ) // arg1: slc.len
-				fmt.Printf("  movq %d-8(%%rsp), %%rdx\n",  - offsets[0] ) // arg1: slc.cap
-				fmt.Printf("  movq %%rax, %d+0(%%rsp)\n",  + offsets[0])  // arg1: slc.ptr
-				fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", + offsets[0])  // arg1: slc.len
-				fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", + offsets[0])  // arg1: slc.cap
+				fmt.Printf("  movq %d-24(%%rsp), %%rax\n",  - offsets[1] ) // arg1: slc.ptr
+				fmt.Printf("  movq %d-16(%%rsp), %%rcx\n",  - offsets[1] ) // arg1: slc.len
+				fmt.Printf("  movq %d-8(%%rsp), %%rdx\n",  - offsets[1] ) // arg1: slc.cap
+				fmt.Printf("  movq %%rax, %d+0(%%rsp)\n",  + offsets[1])  // arg1: slc.ptr
+				fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", + offsets[1])  // arg1: slc.len
+				fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", + offsets[1])  // arg1: slc.cap
 
 				fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
 				emitRevertStackPointer(totalPushedSize)
