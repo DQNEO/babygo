@@ -802,7 +802,6 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 
 				fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
 				emitRevertStackPointer(totalPushedSize)
-				// @FIXME revert rsp
 			default:
 				panic(symbol)
 			}
@@ -856,24 +855,39 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		}
 	case *ast.BinaryExpr:
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
-			totalPushedSize := 32
+			var args []*Arg = []*Arg{
+				&Arg{
+					e: e.X,
+					t: nil,
+				},
+				&Arg{
+					e: e.Y,
+					t: nil,
+				},
+			}
+			var offsets []int = make([]int, len(args), len(args))
+			var totalPushedSize int
+			for i, arg := range args {
+				offsets[i] = totalPushedSize
+				totalPushedSize += getPushSizeOfArg(arg)
+			}
 			fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
-
-			emitExpr(e.X, nil)
-			emitExpr(e.Y, nil)
+			for _, arg := range args {
+				emitExpr(arg.e, nil)
+			}
 
 			fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
 
 			// invert args
-			fmt.Printf("  movq %d(%%rsp), %%rax\n", -16)
-			fmt.Printf("  movq %d+8(%%rsp), %%rcx\n", -16)
-			fmt.Printf("  movq %%rax, %d(%%rsp)\n", 0)
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", 0)
+			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -offsets[0])
+			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -offsets[0])
+			fmt.Printf("  movq %%rax, %d(%%rsp)\n", offsets[0])
+			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", offsets[0])
 
-			fmt.Printf("  movq %d(%%rsp), %%rax\n", -32)
-			fmt.Printf("  movq %d+8(%%rsp), %%rcx\n", -32)
-			fmt.Printf("  movq %%rax, %d(%%rsp)\n", 16)
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", 16)
+			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -offsets[1])
+			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -offsets[1])
+			fmt.Printf("  movq %%rax, %d(%%rsp)\n", offsets[1])
+			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", offsets[1])
 
 			switch e.Op.String() {
 			case "+":
