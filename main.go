@@ -471,7 +471,7 @@ func emitReverseArgs(args []*Arg) {
 			t = getTypeOfExpr(arg.e)
 		}
 		switch kind(t) {
-		case T_INT:
+		case T_INT, T_UINT8, T_POINTER:
 			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
 			fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", arg.offset)
 		case T_STRING:
@@ -487,7 +487,7 @@ func emitReverseArgs(args []*Arg) {
 			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", + arg.offset)  // arg1: slc.len
 			fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", + arg.offset)  // arg1: slc.cap
 		default:
-			throw(arg.t)
+			throw(kind(t))
 		}
 	}
 }
@@ -656,13 +656,9 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			case gAppend:
 				var sliceArg ast.Expr = e.Args[0]
 				var elemArg ast.Expr = e.Args[1]
-				var stackForElm int
-				var symbol string
 				var elmType *Type = getElementTypeOfListType(getTypeOfExpr(sliceArg))
 				var elmSize int = getSizeOfType(elmType)
 
-				stackForElm = getPushSizeOfType(elmType)
-/*
 				var args []*Arg = []*Arg{
 					// slice
 					&Arg{
@@ -675,41 +671,10 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 						t: elmType,
 					},
 				}
-*/
-				emitExpr(sliceArg, nil) // size 24
-				emitExpr(elemArg, nil)  // various size
+				totalPushedSize := emitFuncallArgs(args)
+				emitReverseArgs(args)
 
-				switch elmSize {
-				case 1,8:
-					fmtPrintf("  popq %%rax\n", nil)
-				case 16:
-					emitPopString()
-				case 24:
-					emitPopSlice()
-				default:
-					throw(elmSize)
-				}
-				fmtPrintf("  popq %%r8 # slice.ptr\n", nil)
-				fmtPrintf("  popq %%r9 # slice.len\n", nil)
-				fmtPrintf("  popq %%r10 # slice.cap\n", nil)
-
-				switch elmSize {
-				case 1,8:
-					fmtPrintf("  pushq %%rax\n", nil)
-				case 16:
-					fmtPrintf("  pushq %%rcx # string.len\n", nil)
-					fmtPrintf("  pushq %%rax # string.ptr\n", nil)
-				case 24:
-					fmtPrintf("  pushq %%rdx # slice.cap\n", nil)
-					fmtPrintf("  pushq %%rcx # slice.len\n", nil)
-					fmtPrintf("  pushq %%rax # slice.ptr\n", nil)
-				default:
-					throw(elmSize)
-				}
-				fmtPrintf("  pushq %%r10 # slice.cap\n", nil)
-				fmtPrintf("  pushq %%r9 # slice.len\n", nil)
-				fmtPrintf("  pushq %%r8 # slice.ptr\n", nil)
-
+				var symbol string
 				switch elmSize {
 				case 1:
 					symbol = "runtime.append1"
@@ -722,9 +687,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				default:
 					throw(elmSize)
 				}
-
 				fmt.Printf("  callq %s\n", symbol)
-				emitRevertStackPointer(sliceSize+stackForElm)
+				emitRevertStackPointer(totalPushedSize)
 				fmt.Printf("  pushq %%rsi # slice cap\n")
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
