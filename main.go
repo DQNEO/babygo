@@ -104,6 +104,7 @@ func emitAddConst(addValue int, comment string) {
 type Arg struct {
 	e ast.Expr
 	t *Type // expected type
+	offset int
 }
 
 func getPushSizeOfArg(arg *Arg) int {
@@ -448,6 +449,21 @@ func emitPushArgs2(arg0 ast.Expr, t0 *Type, arg1 ast.Expr, t1 *Type) {
 	// push arg0
 }
 
+func emitFuncallArgs(args []*Arg) int {
+	var totalPushedSize int
+	for _, arg := range args {
+		arg.offset = totalPushedSize
+		totalPushedSize += getPushSizeOfArg(arg)
+	}
+	fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
+	for _, arg := range args {
+		emitExpr(arg.e, arg.t)
+	}
+	fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
+	return totalPushedSize
+}
+
+
 // ABI of stack layout
 //
 // string:
@@ -599,27 +615,17 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 						},
 					}
 
-					var offsets []int = make([]int, len(args), len(args))
-					var totalPushedSize int
-					for i, arg := range args {
-						offsets[i] = totalPushedSize
-						totalPushedSize += getPushSizeOfArg(arg)
-					}
-					fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
-					for _, arg := range args {
-						emitExpr(arg.e, arg.t)
-					}
-					fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
+					totalPushedSize := emitFuncallArgs(args)
 
 					// invert args
-					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -offsets[0])
-					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", offsets[0])
+					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -args[0].offset)
+					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", args[0].offset)
 
-					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -offsets[1])
-					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", offsets[1])
+					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -args[1].offset)
+					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", args[1].offset)
 
-					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -offsets[2])
-					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", offsets[2])
+					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -args[2].offset)
+					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", args[2].offset)
 
 					fmt.Printf("  callq %s\n", "runtime.makeSlice")
 					emitRevertStackPointer(totalPushedSize)
@@ -775,30 +781,20 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 						t: nil,
 					},
 				}
-				var offsets []int = make([]int, len(args), len(args))
-				var totalPushedSize int
-				for i, arg := range args {
-					offsets[i] = totalPushedSize
-					totalPushedSize += getPushSizeOfArg(arg)
-				}
-				fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
-				for _, arg := range args {
-					emitExpr(arg.e, arg.t)
-				}
-				fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
 
+				totalPushedSize := emitFuncallArgs(args)
 				// invert args
 				// arg0: int
-				fmt.Printf(" movq %d-8(%%rsp), %%rax # load int\n",  offsets[0])
-				fmt.Printf(" movq %%rax, %d(%%rsp) # store int\n",  offsets[0])
+				fmt.Printf(" movq %d-8(%%rsp), %%rax # load int\n",  args[0].offset)
+				fmt.Printf(" movq %%rax, %d(%%rsp) # store int\n",  args[0].offset)
 
 				// arg1: slice
-				fmt.Printf("  movq %d-24(%%rsp), %%rax\n",  - offsets[1] ) // arg1: slc.ptr
-				fmt.Printf("  movq %d-16(%%rsp), %%rcx\n",  - offsets[1] ) // arg1: slc.len
-				fmt.Printf("  movq %d-8(%%rsp), %%rdx\n",  - offsets[1] ) // arg1: slc.cap
-				fmt.Printf("  movq %%rax, %d+0(%%rsp)\n",  + offsets[1])  // arg1: slc.ptr
-				fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", + offsets[1])  // arg1: slc.len
-				fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", + offsets[1])  // arg1: slc.cap
+				fmt.Printf("  movq %d-24(%%rsp), %%rax\n",  - args[1].offset ) // arg1: slc.ptr
+				fmt.Printf("  movq %d-16(%%rsp), %%rcx\n",  - args[1].offset ) // arg1: slc.len
+				fmt.Printf("  movq %d-8(%%rsp), %%rdx\n",  - args[1].offset ) // arg1: slc.cap
+				fmt.Printf("  movq %%rax, %d+0(%%rsp)\n",  + args[1].offset)  // arg1: slc.ptr
+				fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", + args[1].offset)  // arg1: slc.len
+				fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", + args[1].offset)  // arg1: slc.cap
 
 				fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
 				emitRevertStackPointer(totalPushedSize)
@@ -859,40 +855,31 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				&Arg{
 					e: e.X,
 					t: nil,
+					offset:0,
 				},
 				&Arg{
 					e: e.Y,
 					t: nil,
+					offset:0,
 				},
 			}
-			var offsets []int = make([]int, len(args), len(args))
-			var totalPushedSize int
-			for i, arg := range args {
-				offsets[i] = totalPushedSize
-				totalPushedSize += getPushSizeOfArg(arg)
-			}
-			fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
-			for _, arg := range args {
-				emitExpr(arg.e, nil)
-			}
 
-			fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
-
+			totalPushedSize := emitFuncallArgs(args)
 			// invert args
-			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -offsets[0])
-			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -offsets[0])
-			fmt.Printf("  movq %%rax, %d(%%rsp)\n", offsets[0])
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", offsets[0])
+			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -args[0].offset)
+			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -args[0].offset)
+			fmt.Printf("  movq %%rax, %d(%%rsp)\n", args[0].offset)
+			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", args[0].offset)
 
-			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -offsets[1])
-			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -offsets[1])
-			fmt.Printf("  movq %%rax, %d(%%rsp)\n", offsets[1])
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", offsets[1])
+			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -args[1].offset)
+			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -args[1].offset)
+			fmt.Printf("  movq %%rax, %d(%%rsp)\n", args[1].offset)
+			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", args[1].offset)
 
 			switch e.Op.String() {
 			case "+":
 				fmt.Printf("  callq runtime.catstrings\n")
-				emitRevertStackPointer(stringSize * 2)
+				emitRevertStackPointer(totalPushedSize)
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
 			case "==":
