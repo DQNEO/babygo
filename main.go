@@ -463,6 +463,31 @@ func emitFuncallArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
+// copy args on stack in reversed order
+func emitReverseArgs(args []*Arg) {
+	for _, arg := range args {
+		var t *Type
+		if arg.t != nil {
+			t = arg.t
+		} else {
+			t = getTypeOfExpr(arg.e)
+		}
+		switch kind(t) {
+		case T_INT:
+			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
+			fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", arg.offset)
+		case T_SLICE:
+			fmt.Printf("  movq %d-24(%%rsp), %%rax\n",  - arg.offset ) // arg1: slc.ptr
+			fmt.Printf("  movq %d-16(%%rsp), %%rcx\n",  - arg.offset ) // arg1: slc.len
+			fmt.Printf("  movq %d-8(%%rsp), %%rdx\n",  - arg.offset ) // arg1: slc.cap
+			fmt.Printf("  movq %%rax, %d+0(%%rsp)\n",  + arg.offset)  // arg1: slc.ptr
+			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", + arg.offset)  // arg1: slc.len
+			fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", + arg.offset)  // arg1: slc.cap
+		default:
+			throw(arg.t)
+		}
+	}
+}
 
 // ABI of stack layout
 //
@@ -616,17 +641,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					}
 
 					totalPushedSize := emitFuncallArgs(args)
-
-					// invert args
-					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -args[0].offset)
-					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", args[0].offset)
-
-					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -args[1].offset)
-					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", args[1].offset)
-
-					fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -args[2].offset)
-					fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", args[2].offset)
-
+					emitReverseArgs(args)
 					fmt.Printf("  callq %s\n", "runtime.makeSlice")
 					emitRevertStackPointer(totalPushedSize)
 					fmt.Printf("  pushq %%rsi # slice cap\n")
@@ -783,18 +798,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				}
 
 				totalPushedSize := emitFuncallArgs(args)
-				// invert args
-				// arg0: int
-				fmt.Printf(" movq %d-8(%%rsp), %%rax # load int\n",  args[0].offset)
-				fmt.Printf(" movq %%rax, %d(%%rsp) # store int\n",  args[0].offset)
-
-				// arg1: slice
-				fmt.Printf("  movq %d-24(%%rsp), %%rax\n",  - args[1].offset ) // arg1: slc.ptr
-				fmt.Printf("  movq %d-16(%%rsp), %%rcx\n",  - args[1].offset ) // arg1: slc.len
-				fmt.Printf("  movq %d-8(%%rsp), %%rdx\n",  - args[1].offset ) // arg1: slc.cap
-				fmt.Printf("  movq %%rax, %d+0(%%rsp)\n",  + args[1].offset)  // arg1: slc.ptr
-				fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", + args[1].offset)  // arg1: slc.len
-				fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", + args[1].offset)  // arg1: slc.cap
+				emitReverseArgs(args)
 
 				fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
 				emitRevertStackPointer(totalPushedSize)
@@ -865,16 +869,15 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			}
 
 			totalPushedSize := emitFuncallArgs(args)
-			// invert args
-			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -args[0].offset)
-			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -args[0].offset)
-			fmt.Printf("  movq %%rax, %d(%%rsp)\n", args[0].offset)
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", args[0].offset)
 
-			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -args[1].offset)
-			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -args[1].offset)
-			fmt.Printf("  movq %%rax, %d(%%rsp)\n", args[1].offset)
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", args[1].offset)
+			// invert args
+			for _, arg := range args {
+				// copy string
+				fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -arg.offset)
+				fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -arg.offset)
+				fmt.Printf("  movq %%rax, %d(%%rsp)\n", arg.offset)
+				fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", arg.offset)
+			}
 
 			switch e.Op.String() {
 			case "+":
