@@ -55,6 +55,25 @@ const CONST_STRING string = "const_string"
 const CONST_FOO string = "foo"
 const sliceSize int = 24
 
+func testVaargNotPassed(a int, b...int) {
+	if b == nil {
+		write(Itoa(a))
+		writeln(" nil vaargs ok")
+	} else {
+		writeln("ERROR")
+	}
+}
+
+func _vaprintf(f string, a...string) {
+	write(Sprintf(f, a))
+}
+
+func testVaargs() {
+	testVaargNotPassed(777)
+	_vaprintf("pass nil slice\n")
+	_vaprintf("%s %s %s\n", "a", "bc", "def")
+}
+
 func testConst() {
 	write(Itoa(sliceSize))
 	write(CONST_STRING)
@@ -1008,6 +1027,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testVaargs()
 	testForBreakContinue()
 	testLogicalAndOr()
 	testConst()

@@ -720,15 +720,59 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 						throw(fn.Obj)
 					}
 					params := fndecl.Type.Params.List
+					var variadicArgs []ast.Expr // nil means there is no varadic in funcdecl
+					var variadicElp *ast.Ellipsis
 					var args []*Arg
-					for i, eArg := range e.Args {
-						param := params[i]
+					var argIndex int
+					var eArg ast.Expr
+					var param *ast.Field
+					for argIndex, eArg = range e.Args {
+						if argIndex < len(params) {
+							param = params[argIndex]
+							elp, ok := param.Type.(*ast.Ellipsis)
+							if ok {
+								variadicElp = elp
+								variadicArgs = make([]ast.Expr, 0)
+							}
+						}
+						if variadicArgs != nil {
+							variadicArgs = append(variadicArgs, eArg)
+							continue
+						}
+
 						paramType := e2t(param.Type)
 						arg := &Arg{
 							e:      eArg,
 							t:      paramType,
 						}
 						args = append(args, arg)
+					}
+
+					if variadicArgs != nil {
+						sliceType := &ast.ArrayType{Elt: variadicElp.Elt}
+						slicelite := &ast.CompositeLit{
+							Type:       sliceType,
+							Lbrace:     0,
+							Elts:       variadicArgs,
+							Rbrace:     0,
+							Incomplete: false,
+						}
+						args = append(args, &Arg{
+							e:      slicelite,
+							t:      e2t(sliceType),
+							offset: 0,
+						})
+					} else if len(e.Args) < len(params) {
+						// Add nil as a variadic arg
+						param := params[argIndex+1]
+						elp, ok := param.Type.(*ast.Ellipsis)
+						assert(ok, "compile error")
+						//variadicArgs = make([]ast.Expr, 0,0)
+						args = append(args, &Arg{
+							e:      eNil,
+							t:      e2t(elp),
+							offset: 0,
+						})
 					}
 
 					symbol := pkgName + "." + fn.Name
@@ -1715,6 +1759,10 @@ var gNil = &ast.Object{
 	Type: nil,
 }
 
+var eNil = &ast.Ident{
+	Obj: gNil,
+}
+
 var gFalse = &ast.Object{
 	Kind: ast.Con,
 	Name: "false",
@@ -1928,6 +1976,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 
 		case *ast.FuncDecl:
 			funcDecl := decl.(*ast.FuncDecl)
+			fmt.Printf("# funcdef %s\n", funcDecl.Name.Name)
 			localoffset = 0
 			var paramoffset localoffsetint = 16
 			for _, field := range funcDecl.Type.Params.List {
@@ -1936,6 +1985,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 				var varSize int = getSizeOfType(e2t(field.Type))
 				paramoffset += localoffsetint(varSize)
 				fmt.Printf("# field.Names[0].Obj=%#v\n", obj)
+				fmt.Printf("#   field.Type=%#v\n", field.Type)
 			}
 			if funcDecl.Body == nil {
 				break
@@ -2198,6 +2248,8 @@ func kind(t *Type) TypeKind {
 		}
 	case *ast.StarExpr:
 		return T_POINTER
+	case *ast.Ellipsis: // x ...T
+		return T_SLICE // @TODO is this right ?
 	default:
 		throw(t)
 	}

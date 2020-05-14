@@ -33,7 +33,7 @@ func fmtSprintf(format string, a []string) string {
 	return string(buf)
 }
 
-func fmtPrintf(format string, a []string) {
+func fmtPrintf(format string, a...string) {
 	var s string = fmtSprintf(format, a)
 	syscall.Write(1, []uint8(s))
 }
@@ -83,22 +83,22 @@ func Itoa(ival int) string {
 }
 
 func emitPopBool(comment string) {
-	fmtPrintf("  popq %%rax # result of %s\n", []string{comment})
+	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }
 
 func emitPopAddress(comment string) {
-	fmtPrintf("  popq %%rax # address of %s\n", []string{comment})
+	fmtPrintf("  popq %%rax # address of %s\n", comment)
 }
 
 func emitPopString() {
-	fmtPrintf("  popq %%rax # string.ptr\n", nil)
-	fmtPrintf("  popq %%rcx # string.len\n", nil)
+	fmtPrintf("  popq %%rax # string.ptr\n")
+	fmtPrintf("  popq %%rcx # string.len\n")
 }
 
 func emitPopSlice() {
-	fmtPrintf("  popq %%rax # slice.ptr\n", nil)
-	fmtPrintf("  popq %%rcx # slice.len\n", nil)
-	fmtPrintf("  popq %%rdx # slice.cap\n", nil)
+	fmtPrintf("  popq %%rax # slice.ptr\n")
+	fmtPrintf("  popq %%rcx # slice.len\n")
+	fmtPrintf("  popq %%rdx # slice.cap\n")
 }
 
 func semanticAnalyze(name string) string {
@@ -121,13 +121,13 @@ func emitGlobalVariable(name string, t *Type, val string) {
 	if t != nil {
 		typeKind = t.kind
 	}
-	fmtPrintf("%s: # T %s \n", []string{name, typeKind})
+	fmtPrintf("%s: # T %s \n", name, typeKind)
 	switch typeKind {
 	case T_STRING:
 		fmtPrint("  .quad 0\n")
 		fmtPrint("  .quad 0\n")
 	case T_INT:
-		fmtPrintf("  .quad %s\n", []string{val})
+		fmtPrintf("  .quad %s\n", val)
 	default:
 		fmtPrint("ERROR\n")
 	}
@@ -138,8 +138,8 @@ func emitData(pkgName string) {
 	var sl *sliteral
 	for _, sl = range stringLiterals {
 		fmtPrint("# string literals\n")
-		fmtPrintf("%s:\n", []string{sl.label})
-		fmtPrintf("  .string %s\n", []string{sl.value})
+		fmtPrintf("%s:\n", sl.label)
+		fmtPrintf("  .string %s\n", sl.value)
 	}
 
 	fmtPrint("# ===== Global Variables =====\n")
