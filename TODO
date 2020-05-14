@@ -1,7 +1,0 @@
-TODO
-
-* use heap and copy in string conversion
-* return value on stack
-* init os.Args
-* malloc with brk()
-* type inference for minimal simple cases
