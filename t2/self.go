@@ -38,11 +38,6 @@ func fmtPrintf(format string, a ...string) {
 	syscall.Write(1, []uint8(s))
 }
 
-func fmtPrint(s string) {
-	var slc []uint8 = []uint8(s)
-	syscall.Write(1, slc)
-}
-
 var __itoa_buf [100]uint8
 var __itoa_r [100]uint8
 
@@ -124,48 +119,48 @@ func emitGlobalVariable(name string, t *Type, val string) {
 	fmtPrintf("%s: # T %s \n", name, typeKind)
 	switch typeKind {
 	case T_STRING:
-		fmtPrint("  .quad 0\n")
-		fmtPrint("  .quad 0\n")
+		fmtPrintf("  .quad 0\n")
+		fmtPrintf("  .quad 0\n")
 	case T_INT:
 		fmtPrintf("  .quad %s\n", val)
 	default:
-		fmtPrint("ERROR\n")
+		fmtPrintf("ERROR\n")
 	}
 }
 
 func emitData(pkgName string) {
-	fmtPrint(".data\n")
+	fmtPrintf(".data\n")
 	var sl *sliteral
 	for _, sl = range stringLiterals {
-		fmtPrint("# string literals\n")
+		fmtPrintf("# string literals\n")
 		fmtPrintf("%s:\n", sl.label)
 		fmtPrintf("  .string %s\n", sl.value)
 	}
 
-	fmtPrint("# ===== Global Variables =====\n")
+	fmtPrintf("# ===== Global Variables =====\n")
 	var spec *astValueSpec
 	for _, spec = range globalVars {
 		emitGlobalVariable(spec.name, spec.t, spec.value)
 	}
 
-	fmtPrint("# ==============================\n")
+	fmtPrintf("# ==============================\n")
 }
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
-	fmtPrint("\n")
+	fmtPrintf("\n")
 	var fname string = fnc.name
-	fmtPrint(pkgPrefix + "." + fname + ":\n")
+	fmtPrintf(pkgPrefix + "." + fname + ":\n")
 	if len(fnc.localvars) > 0 {
 		var slocalarea string = Itoa(fnc.localarea)
-		fmtPrint("  subq $" + slocalarea + ", %rsp # local area\n")
+		fmtPrintf("  subq $" + slocalarea + ", %rsp # local area\n")
 	}
 
-	fmtPrint("  leave\n")
-	fmtPrint("  ret\n")
+	fmtPrintf("  leave\n")
+	fmtPrintf("  ret\n")
 }
 
 func emitText(pkgName string) {
-	fmtPrint(".text\n")
+	fmtPrintf(".text\n")
 	var i int
 	for i = 0; i < len(globalFuncs); i++ {
 		var fnc *Func = globalFuncs[i]
