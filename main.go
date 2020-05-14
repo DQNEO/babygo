@@ -391,7 +391,7 @@ func emitCallMalloc(size int) {
 	fmt.Printf("  pushq $%d\n", size)
 	// call malloc and return pointer
 	fmt.Printf("  callq runtime.malloc\n")// no need to invert args orders
-	emitRevertStackPointer(ptrSize)
+	emitRevertStackPointer(intSize)
 	fmt.Printf("  pushq %%rax # addr\n")
 }
 
