@@ -492,6 +492,13 @@ func emitReverseArgs(args []*Arg) {
 	}
 }
 
+func emitCall(symbol string, args []*Arg) {
+	totalPushedSize := emitFuncallArgs(args)
+	emitReverseArgs(args)
+	fmt.Printf("  callq %s\n", symbol)
+	emitRevertStackPointer(totalPushedSize)
+}
+
 // ABI of stack layout
 //
 // string:
@@ -643,10 +650,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 						},
 					}
 
-					totalPushedSize := emitFuncallArgs(args)
-					emitReverseArgs(args)
-					fmt.Printf("  callq %s\n", "runtime.makeSlice")
-					emitRevertStackPointer(totalPushedSize)
+					emitCall("runtime.makeSlice", args)
 					fmt.Printf("  pushq %%rsi # slice cap\n")
 					fmt.Printf("  pushq %%rdi # slice len\n")
 					fmt.Printf("  pushq %%rax # slice ptr\n")
@@ -671,8 +675,6 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 						t: elmType,
 					},
 				}
-				totalPushedSize := emitFuncallArgs(args)
-				emitReverseArgs(args)
 
 				var symbol string
 				switch elmSize {
@@ -687,27 +689,26 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				default:
 					throw(elmSize)
 				}
-				fmt.Printf("  callq %s\n", symbol)
-				emitRevertStackPointer(totalPushedSize)
+				emitCall(symbol, args)
 				fmt.Printf("  pushq %%rsi # slice cap\n")
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
 			default:
 				if fn.Name == "print" {
 					// builtin print
-					emitExpr(e.Args[0], nil) // push ptr, push len
+					args := []*Arg{&Arg{
+						e: e.Args[0],
+					}}
+					var symbol string
 					switch kind(getTypeOfExpr(e.Args[0])) {
 					case T_STRING:
-						symbol := fmt.Sprintf("runtime.printstring")
-						fmt.Printf("  callq %s\n", symbol)
-						emitRevertStackPointer(stringSize)
+						symbol = "runtime.printstring"
 					case T_INT:
-						symbol := fmt.Sprintf("runtime.printint")
-						fmt.Printf("  callq %s\n", symbol)
-						emitRevertStackPointer(intSize)
+						symbol = "runtime.printint"
 					default:
 						panic("TBI")
 					}
+					emitCall(symbol, args)
 				} else {
 					if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
 						fn.Name = "makeSlice"
@@ -730,12 +731,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 						args = append(args, arg)
 					}
 
-					var totalPushedSize int = 0
-					totalPushedSize = emitFuncallArgs(args)
-					emitReverseArgs(args)
 					symbol := pkgName + "." + fn.Name
-					fmt.Printf("  callq %s\n", symbol)
-					emitRevertStackPointer(totalPushedSize)
+					emitCall(symbol, args)
 
 					if fndecl.Type.Results != nil {
 						if len(fndecl.Type.Results.List) > 2 {
@@ -781,11 +778,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					},
 				}
 
-				totalPushedSize := emitFuncallArgs(args)
-				emitReverseArgs(args)
-
-				fmt.Printf("  callq %s\n", symbol) // func decl is in runtime
-				emitRevertStackPointer(totalPushedSize)
+				// func decl is in runtime
+				emitCall(symbol, args)
 			default:
 				panic(symbol)
 			}
@@ -852,18 +846,18 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				},
 			}
 
-			totalPushedSize := emitFuncallArgs(args)
-			emitReverseArgs(args)
-
 			switch e.Op.String() {
 			case "+":
-				fmt.Printf("  callq runtime.catstrings\n")
-				emitRevertStackPointer(totalPushedSize)
+				emitCall("runtime.catstrings", args)
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
 			case "==":
+				emitFuncallArgs(args)
+				emitReverseArgs(args)
 				emitCompEq(getTypeOfExpr(e.X))
 			case "!=":
+				emitFuncallArgs(args)
+				emitReverseArgs(args)
 				emitCompEq(getTypeOfExpr(e.X))
 				emitInvertBoolValue()
 			default:
