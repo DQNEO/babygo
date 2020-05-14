@@ -33,7 +33,7 @@ func fmtSprintf(format string, a []string) string {
 	return string(buf)
 }
 
-func fmtPrintf(format string, a...string) {
+func fmtPrintf(format string, a ...string) {
 	var s string = fmtSprintf(format, a)
 	syscall.Write(1, []uint8(s))
 }
@@ -270,4 +270,3 @@ func fakeSemanticAnalyze(name string) string {
 
 	return name
 }
-

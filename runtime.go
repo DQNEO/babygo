@@ -11,7 +11,7 @@ var heapTail uintptr
 
 func heapInit() {
 	heapHead = uintptr(unsafe.Pointer(&heap[0])) // brk(0)
-	heapTail = heapHead + 32768                   // brk(heapHead + heapSize)
+	heapTail = heapHead + 32768                  // brk(heapHead + heapSize)
 	heapCurrent = heapHead
 }
 

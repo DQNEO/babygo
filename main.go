@@ -102,8 +102,8 @@ func emitAddConst(addValue int, comment string) {
 }
 
 type Arg struct {
-	e ast.Expr
-	t *Type // expected type
+	e      ast.Expr
+	t      *Type // expected type
 	offset int
 }
 
@@ -113,7 +113,7 @@ func getPushSizeOfType(t *Type) int {
 		return sliceSize
 	case T_STRING:
 		return stringSize
-	case T_UINT8,T_UINT16, T_INT, T_BOOL:
+	case T_UINT8, T_UINT16, T_INT, T_BOOL:
 		return intSize
 	case T_UINTPTR, T_POINTER:
 		return ptrSize
@@ -390,7 +390,7 @@ func emitLen(arg ast.Expr) {
 func emitCallMalloc(size int) {
 	fmt.Printf("  pushq $%d\n", size)
 	// call malloc and return pointer
-	fmt.Printf("  callq runtime.malloc\n")// no need to invert args orders
+	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
 	emitRevertStackPointer(intSize)
 	fmt.Printf("  pushq %%rax # addr\n")
 }
@@ -415,7 +415,7 @@ func emitInvertBoolValue() {
 	fmt.Printf("  pushq %%rax\n")
 }
 
-func emitTrue()  {
+func emitTrue() {
 	fmt.Printf("  pushq $1 # true\n")
 }
 
@@ -480,12 +480,12 @@ func emitReverseArgs(args []*Arg) {
 			fmt.Printf("  movq %%rax, %d(%%rsp)\n", arg.offset)
 			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", arg.offset)
 		case T_SLICE:
-			fmt.Printf("  movq %d-24(%%rsp), %%rax\n",  - arg.offset ) // arg1: slc.ptr
-			fmt.Printf("  movq %d-16(%%rsp), %%rcx\n",  - arg.offset ) // arg1: slc.len
-			fmt.Printf("  movq %d-8(%%rsp), %%rdx\n",  - arg.offset ) // arg1: slc.cap
-			fmt.Printf("  movq %%rax, %d+0(%%rsp)\n",  + arg.offset)  // arg1: slc.ptr
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", + arg.offset)  // arg1: slc.len
-			fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", + arg.offset)  // arg1: slc.cap
+			fmt.Printf("  movq %d-24(%%rsp), %%rax\n", -arg.offset) // arg1: slc.ptr
+			fmt.Printf("  movq %d-16(%%rsp), %%rcx\n", -arg.offset) // arg1: slc.len
+			fmt.Printf("  movq %d-8(%%rsp), %%rdx\n", -arg.offset)  // arg1: slc.cap
+			fmt.Printf("  movq %%rax, %d+0(%%rsp)\n", +arg.offset)  // arg1: slc.ptr
+			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", +arg.offset)  // arg1: slc.len
+			fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", +arg.offset) // arg1: slc.cap
 		default:
 			throw(kind(t))
 		}
@@ -558,7 +558,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		case ast.Con:
 			valSpec, ok := e.Obj.Decl.(*ast.ValueSpec)
 			assert(ok, "should be *ast.ValueSpec")
-			lit , ok := valSpec.Values[0].(*ast.BasicLit)
+			lit, ok := valSpec.Values[0].(*ast.BasicLit)
 			assert(ok, "should be *ast.BasicLit")
 			var t *Type
 			if valSpec.Type != nil {
@@ -742,8 +742,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 
 						paramType := e2t(param.Type)
 						arg := &Arg{
-							e:      eArg,
-							t:      paramType,
+							e: eArg,
+							t: paramType,
 						}
 						args = append(args, arg)
 					}
@@ -810,12 +810,12 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				emitExpr(e.Args[0], nil)
 			case "syscall.Write":
 				var args []*Arg = []*Arg{
-				// fd int
-				&Arg{
-					e: e.Args[0],
-					t: tInt,
-				},
-				// buf slice
+					// fd int
+					&Arg{
+						e: e.Args[0],
+						t: tInt,
+					},
+					// buf slice
 					&Arg{
 						e: e.Args[1],
 						t: nil,
@@ -879,14 +879,14 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
 			var args []*Arg = []*Arg{
 				&Arg{
-					e: e.X,
-					t: nil,
-					offset:0,
+					e:      e.X,
+					t:      nil,
+					offset: 0,
 				},
 				&Arg{
-					e: e.Y,
-					t: nil,
-					offset:0,
+					e:      e.Y,
+					t:      nil,
+					offset: 0,
 				},
 			}
 
@@ -1075,7 +1075,7 @@ func emitCompEq(t *Type) {
 	switch kind(t) {
 	case T_STRING:
 		fmt.Printf("  callq runtime.cmpstrings\n")
-		emitRevertStackPointer(stringSize*2)
+		emitRevertStackPointer(stringSize * 2)
 		fmt.Printf("  pushq %%rax # cmp result (1 or 0)\n")
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
@@ -1261,7 +1261,7 @@ func emitStmt(stmt ast.Stmt) {
 		labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 		labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
 		labelExit := fmt.Sprintf(".L.for.exit.%d", labelid)
-		forStmt,ok := mapForNodeToFor[s]
+		forStmt, ok := mapForNodeToFor[s]
 		assert(ok, "map value should exist")
 		forStmt.labelPost = labelPost
 		forStmt.labelExit = labelExit
@@ -1284,7 +1284,7 @@ func emitStmt(stmt ast.Stmt) {
 		labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
 		labelExit := fmt.Sprintf(".L.range.exit.%d", labelid)
 
-		forStmt,ok := mapRangeNodeToFor[s]
+		forStmt, ok := mapRangeNodeToFor[s]
 		assert(ok, "map value should exist")
 		forStmt.labelPost = labelPost
 		forStmt.labelExit = labelExit
@@ -1673,6 +1673,7 @@ type ForStmt struct {
 	astFor    *ast.ForStmt
 	astRange  *ast.RangeStmt
 }
+
 var currentFor *ForStmt
 
 var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
@@ -2390,7 +2391,6 @@ var stringIndex int
 
 var globalVars []*ast.ValueSpec
 var globalFuncs []*Func
-
 
 func main() {
 	var sourceFiles []string = []string{"./runtime.go", "./t/source.go"}

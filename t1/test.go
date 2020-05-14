@@ -55,7 +55,7 @@ const CONST_STRING string = "const_string"
 const CONST_FOO string = "foo"
 const sliceSize int = 24
 
-func testVaargNotPassed(a int, b...int) {
+func testVaargNotPassed(a int, b ...int) {
 	if b == nil {
 		write(Itoa(a))
 		writeln(" nil vaargs ok")
@@ -64,7 +64,7 @@ func testVaargNotPassed(a int, b...int) {
 	}
 }
 
-func _vaprintf(f string, a...string) {
+func _vaprintf(f string, a ...string) {
 	write(Sprintf(f, a))
 }
 
@@ -779,7 +779,7 @@ func testForBreakContinue() {
 	write("exit")
 	writeln(Itoa(i))
 
-	var ary []int = []int{0,1,2,3,4,5,6,7,8,9}
+	var ary []int = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	for _, i = range ary {
 		if i == 3 {
 			break
