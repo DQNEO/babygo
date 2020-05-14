@@ -471,7 +471,7 @@ func emitReverseArgs(args []*Arg) {
 			t = getTypeOfExpr(arg.e)
 		}
 		switch kind(t) {
-		case T_INT, T_UINT8, T_POINTER:
+		case T_INT, T_UINT8, T_POINTER, T_UINTPTR:
 			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
 			fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", arg.offset)
 		case T_STRING:
@@ -719,18 +719,23 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 						throw(fn.Obj)
 					}
 					params := fndecl.Type.Params.List
-					var totalSize int = 0
-					for i := len(e.Args) - 1; i >= 0; i-- {
-						arg := e.Args[i]
+					var args []*Arg
+					for i, eArg := range e.Args {
 						param := params[i]
 						paramType := e2t(param.Type)
-						emitExpr(arg, paramType)
-						size := getSizeOfType(paramType)
-						totalSize += size
+						arg := &Arg{
+							e:      eArg,
+							t:      paramType,
+						}
+						args = append(args, arg)
 					}
+
+					var totalPushedSize int = 0
+					totalPushedSize = emitFuncallArgs(args)
+					emitReverseArgs(args)
 					symbol := pkgName + "." + fn.Name
 					fmt.Printf("  callq %s\n", symbol)
-					emitRevertStackPointer(totalSize)
+					emitRevertStackPointer(totalPushedSize)
 
 					if fndecl.Type.Results != nil {
 						if len(fndecl.Type.Results.List) > 2 {
