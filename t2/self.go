@@ -126,6 +126,30 @@ type Type struct {
 	kind string
 }
 
+func getPushSizeOfType(t *Type) int {
+	switch kind(t) {
+	case T_SLICE:
+		return sliceSize
+	case T_STRING:
+		return stringSize
+	case T_UINT8, T_UINT16, T_INT, T_BOOL:
+		return intSize
+	case T_UINTPTR, T_POINTER:
+		return ptrSize
+	case T_ARRAY, T_STRUCT:
+		return ptrSize
+	default:
+		throw(kind(t))
+	}
+	throw(kind(t))
+	return 0
+}
+
+const sliceSize int = 24
+const stringSize int = 16
+const intSize int = 8
+const ptrSize int = 8
+
 func throw(s string) {
 	syscall.Write(2, []uint8(s))
 }
@@ -292,6 +316,7 @@ func test() {
 	emitPushStackTop(t1, "comment")
 	emitRevertStackPointer(24)
 	emitAddConst(42, "comment")
+	getPushSizeOfType(t1)
 }
 
 func fakeSemanticAnalyze(file *astFile) string {
