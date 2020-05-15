@@ -40,14 +40,9 @@ func fmtSprintf(format string, a []string) string {
 	return string(buf)
 }
 
-func fmtPrintf(format string, a []string) {
+func fmtPrintf(format string, a ...string) {
 	var s string = fmtSprintf(format, a)
 	syscall.Write(1, []uint8(s))
-}
-
-func fmtPrint(s string) {
-	var slc []uint8 = []uint8(s)
-	syscall.Write(1, slc)
 }
 
 type Type struct {
@@ -57,34 +52,34 @@ type Type struct {
 type localoffsetint int
 
 func emitPopBool(comment string) {
-	fmtPrintf("  popq %%rax # result of %s\n", []string{comment})
+	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }
 
 func emitPopAddress(comment string) {
-	fmtPrintf("  popq %%rax # address of %s\n", []string{comment})
+	fmtPrintf("  popq %%rax # address of %s\n", comment)
 }
 
 func emitPopString() {
-	fmtPrintf("  popq %%rax # string.ptr\n", nil)
-	fmtPrintf("  popq %%rcx # string.len\n", nil)
+	fmtPrintf("  popq %%rax # string.ptr\n")
+	fmtPrintf("  popq %%rcx # string.len\n")
 }
 
 func emitPopSlice() {
-	fmtPrintf("  popq %%rax # slice.ptr\n", nil)
-	fmtPrintf("  popq %%rcx # slice.len\n", nil)
-	fmtPrintf("  popq %%rdx # slice.cap\n", nil)
+	fmtPrintf("  popq %%rax # slice.ptr\n")
+	fmtPrintf("  popq %%rcx # slice.len\n")
+	fmtPrintf("  popq %%rdx # slice.cap\n")
 }
 
 func emitPushStackTop(condType *Type, comment string) {
 	switch kind(condType) {
 	case T_STRING:
-		fmt.Printf("  movq 8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", comment)
-		fmt.Printf("  movq 0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", comment)
-		fmt.Printf("  pushq %%rcx # str.len\n")
-		fmt.Printf("  pushq %%rax # str.ptr\n")
+		fmtPrintf("  movq 8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", comment)
+		fmtPrintf("  movq 0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", comment)
+		fmtPrintf("  pushq %%rcx # str.len\n")
+		fmtPrintf("  pushq %%rax # str.ptr\n")
 	case T_POINTER, T_UINTPTR, T_BOOL, T_INT, T_UINT8, T_UINT16:
-		fmt.Printf("  movq (%%rsp), %%rax # copy stack top value (%s) \n", comment)
-		fmt.Printf("  pushq %%rax\n")
+		fmtPrintf("  movq (%%rsp), %%rax # copy stack top value (%s) \n", comment)
+		fmtPrintf("  pushq %%rax\n")
 	default:
 		throw(condType)
 	}
