@@ -505,17 +505,21 @@ func emitCall(symbol string, args []*Arg) {
 //   slc.cap
 //
 // ABI of function call
-// call to f(i1 int, i2 int)
+//
+// call f(i1 int, i2 int)
 //   -- stack top
 //   i1
 //   i2
 //   --
-// call to f(s1 string, s2 string)
+//
+// call f(i int, s string, slc []T)
 //   -- stack top
-//   s1.ptr
-//   s1.len
-//   s2.ptr
-//   s2.len
+//   i
+//   s.ptr
+//   s.len
+//   slc.ptr
+//   slc.len
+//   slc.cap
 //   --
 func emitExpr(expr ast.Expr, forceType *Type) {
 	switch e := expr.(type) {
