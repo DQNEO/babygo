@@ -237,6 +237,10 @@ func main() {
 		generateCode(pkgName)
 	}
 
+	test()
+}
+
+func test() {
 	// Test funcs
 	emitPopBool("comment")
 	emitPopAddress("comment")
@@ -246,7 +250,6 @@ func main() {
 	t1.kind = T_INT
 	emitPushStackTop(t1, "comment")
 }
-
 
 func fakeSemanticAnalyze(name string) string {
 	globalFuncs = make([]*Func, 2, 2)
