@@ -118,8 +118,8 @@ func kind(t *Type) string {
 	return t.kind
 }
 
-func semanticAnalyze(name string) string {
-	return fakeSemanticAnalyze(name)
+func semanticAnalyze(file *astFile) string {
+	return fakeSemanticAnalyze(file)
 }
 
 const T_STRING string = "T_STRING"
@@ -225,6 +225,33 @@ var globalFuncs []*Func
 
 var _garbage string
 
+type astFile struct {
+	Name string
+}
+
+func readSource(filename string) []uint8 {
+	return []uint8("main")
+}
+
+var gtext []uint8
+
+func parserInit(text []uint8) {
+	gtext = text
+}
+
+func parserParseFile() *astFile {
+	var f *astFile = new(astFile)
+	f.Name = string(gtext)
+	return f
+}
+
+func parseFile(filename string) *astFile {
+	var text []uint8 = readSource(filename)
+	parserInit(text)
+	var f *astFile = parserParseFile()
+	return f
+}
+
 func main() {
 	var sourceFiles []string = []string{"main"}
 	var sourceFile string
@@ -233,7 +260,8 @@ func main() {
 		globalFuncs = nil
 		stringLiterals = nil
 		stringIndex = 0
-		var pkgName string = semanticAnalyze(sourceFile)
+		var f *astFile = parseFile(sourceFile)
+		var pkgName string = semanticAnalyze(f)
 		generateCode(pkgName)
 	}
 
@@ -251,10 +279,10 @@ func test() {
 	emitPushStackTop(t1, "comment")
 }
 
-func fakeSemanticAnalyze(name string) string {
+func fakeSemanticAnalyze(file *astFile) string {
 	globalFuncs = make([]*Func, 2, 2)
 	var fnc *Func = new(Func)
-	fnc.name = "main"
+	fnc.name = file.Name
 	globalFuncs[0] = fnc
 	var fnc2 *Func = new(Func)
 	fnc2.name = "foo"
@@ -292,5 +320,5 @@ func fakeSemanticAnalyze(name string) string {
 	globalVar2.t.kind = "T_STRING"
 	globalVars = append(globalVars, globalVar2)
 
-	return name
+	return file.Name
 }

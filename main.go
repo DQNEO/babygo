@@ -2387,6 +2387,14 @@ var stringIndex int
 var globalVars []*ast.ValueSpec
 var globalFuncs []*Func
 
+func parseFile(fset *token.FileSet, filename string) *ast.File {
+	f, err := parser.ParseFile(fset, filename, nil, 0)
+	if err != nil {
+		panic(err)
+	}
+	return f
+}
+
 func main() {
 	var sourceFiles []string = []string{"./runtime.go", "./t/source.go"}
 	var sourceFile string
@@ -2396,11 +2404,7 @@ func main() {
 		stringLiterals = nil
 		stringIndex = 0
 		fset := &token.FileSet{}
-		f, err := parser.ParseFile(fset, sourceFile, nil, 0)
-		if err != nil {
-			panic(err)
-		}
-
+		f := parseFile(fset, sourceFile)
 		pkgName := semanticAnalyze(fset, f)
 		generateCode(pkgName)
 	}
