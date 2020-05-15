@@ -38,6 +38,10 @@ func fmtPrintf(format string, a ...string) {
 	syscall.Write(1, []uint8(s))
 }
 
+type Type struct {
+	kind string
+}
+
 var __itoa_buf [100]uint8
 var __itoa_r [100]uint8
 
@@ -118,6 +122,8 @@ func kind(t *Type) string {
 	return t.kind
 }
 
+//type localoffsetint int //@TODO
+
 func semanticAnalyze(file *astFile) string {
 	return fakeSemanticAnalyze(file)
 }
@@ -193,10 +199,6 @@ func emitText(pkgName string) {
 func generateCode(pkgName string) {
 	emitData(pkgName)
 	emitText(pkgName)
-}
-
-type Type struct {
-	kind string
 }
 
 type astValueSpec struct {

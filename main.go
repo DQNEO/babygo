@@ -49,7 +49,44 @@ type Type struct {
 	e ast.Expr // original expr
 }
 
-type localoffsetint int
+var __itoa_buf [100]uint8
+var __itoa_r [100]uint8
+
+func Itoa(ival int) string {
+	var next int
+	var right int
+	var ix int = 0
+	if ival == 0 {
+		return "0"
+	}
+	var minus bool
+	minus = false
+	for ix = 0; ival != 0; ix = ix + 1 {
+		if ival < 0 {
+			ival = -1 * ival
+			minus = true
+			__itoa_r[0] = '-'
+		} else {
+			next = ival / 10
+			right = ival - next*10
+			ival = next
+			__itoa_buf[ix] = uint8('0' + right)
+		}
+	}
+
+	var j int
+	var c uint8
+	for j = 0; j < ix; j = j + 1 {
+		c = __itoa_buf[ix-j-1]
+		if minus {
+			__itoa_r[j+1] = c
+		} else {
+			__itoa_r[j] = c
+		}
+	}
+
+	return string(__itoa_r[0:ix])
+}
 
 func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", comment)
@@ -86,7 +123,7 @@ func emitPushStackTop(condType *Type, comment string) {
 }
 
 func emitRevertStackPointer(size int) {
-	fmt.Printf("  addq $%d, %%rsp # revert stack pointer\n", size)
+	fmtPrintf("  addq $%s, %%rsp # revert stack pointer\n", Itoa(size))
 }
 
 func emitAddConst(addValue int, comment string) {
@@ -214,6 +251,8 @@ func getSizeOfType(t *Type) int {
 	}
 	return varSize
 }
+
+type localoffsetint int
 
 type Variable struct {
 	name         string
