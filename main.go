@@ -45,10 +45,6 @@ func fmtPrintf(format string, a ...string) {
 	syscall.Write(1, []uint8(s))
 }
 
-type Type struct {
-	e ast.Expr // original expr
-}
-
 var __itoa_buf [100]uint8
 var __itoa_r [100]uint8
 
@@ -127,10 +123,14 @@ func emitRevertStackPointer(size int) {
 }
 
 func emitAddConst(addValue int, comment string) {
-	fmt.Printf("  # Add const: %s\n", comment)
-	fmt.Printf("  popq %%rax\n")
-	fmt.Printf("  addq $%d, %%rax\n", addValue)
-	fmt.Printf("  pushq %%rax\n")
+	fmtPrintf("  # Add const: %s\n", comment)
+	fmtPrintf("  popq %%rax\n")
+	fmtPrintf("  addq $%s, %%rax\n", Itoa(addValue))
+	fmtPrintf("  pushq %%rax\n")
+}
+
+type Type struct {
+	e ast.Expr // original expr
 }
 
 type Arg struct {
@@ -157,6 +157,7 @@ func getPushSizeOfType(t *Type) int {
 	throw(t)
 	return 0
 }
+
 func emitLoad(t *Type) {
 	emitPopAddress(string(kind(t)))
 	switch kind(t) {

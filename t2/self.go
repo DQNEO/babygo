@@ -38,10 +38,6 @@ func fmtPrintf(format string, a ...string) {
 	syscall.Write(1, []uint8(s))
 }
 
-type Type struct {
-	kind string
-}
-
 var __itoa_buf [100]uint8
 var __itoa_r [100]uint8
 
@@ -113,6 +109,21 @@ func emitPushStackTop(condType *Type, comment string) {
 	default:
 		throw(kind(condType))
 	}
+}
+
+func emitRevertStackPointer(size int) {
+	fmtPrintf("  addq $%s, %%rsp # revert stack pointer\n", Itoa(size))
+}
+
+func emitAddConst(addValue int, comment string) {
+	fmtPrintf("  # Add const: %s\n", comment)
+	fmtPrintf("  popq %%rax\n")
+	fmtPrintf("  addq $%s, %%rax\n", Itoa(addValue))
+	fmtPrintf("  pushq %%rax\n")
+}
+
+type Type struct {
+	kind string
 }
 
 func throw(s string) {
@@ -279,6 +290,8 @@ func test() {
 	var t1 *Type = new(Type)
 	t1.kind = T_INT
 	emitPushStackTop(t1, "comment")
+	emitRevertStackPointer(24)
+	emitAddConst(42, "comment")
 }
 
 func fakeSemanticAnalyze(file *astFile) string {
