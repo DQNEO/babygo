@@ -96,6 +96,28 @@ func emitPopSlice() {
 	fmtPrintf("  popq %%rdx # slice.cap\n")
 }
 
+func emitPushStackTop(condType *Type, comment string) {
+	switch kind(condType) {
+	case T_STRING:
+		fmtPrintf("  movq 8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", comment)
+		fmtPrintf("  movq 0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", comment)
+		fmtPrintf("  pushq %%rcx # str.len\n")
+		fmtPrintf("  pushq %%rax # str.ptr\n")
+	case T_POINTER, T_UINTPTR, T_BOOL, T_INT, T_UINT8, T_UINT16:
+		fmtPrintf("  movq (%%rsp), %%rax # copy stack top value (%s) \n", comment)
+		fmtPrintf("  pushq %%rax\n")
+	default:
+		throw(kind(condType))
+	}
+}
+
+func throw(s string) {
+	syscall.Write(2, []uint8(s))
+}
+func kind(t *Type) string {
+	return t.kind
+}
+
 func semanticAnalyze(name string) string {
 	return fakeSemanticAnalyze(name)
 }
@@ -220,7 +242,11 @@ func main() {
 	emitPopAddress("comment")
 	emitPopString()
 	emitPopSlice()
+	var t1 *Type = new(Type)
+	t1.kind = T_INT
+	emitPushStackTop(t1, "comment")
 }
+
 
 func fakeSemanticAnalyze(name string) string {
 	globalFuncs = make([]*Func, 2, 2)
