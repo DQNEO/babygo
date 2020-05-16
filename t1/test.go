@@ -5,6 +5,7 @@ import (
 )
 
 const O_READONLY int = 0
+
 func testOpenRead() {
 	var fd int
 	fd, _ = syscall.Open("t1/text.txt", O_READONLY, 0)
