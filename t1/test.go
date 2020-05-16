@@ -10,6 +10,12 @@ func testOpenRead() {
 	var fd int
 	fd, _ = syscall.Open("t1/text.txt", O_READONLY, 0)
 	writeln(Itoa(fd))
+	var buf []uint8 = make([]uint8, 300, 300)
+	var n int
+	n, _ = syscall.Read(fd, buf)
+	writeln(Itoa(n)) // should be 280
+	var readbytes []uint8 = buf[0:n]
+	writeln(string(readbytes))
 }
 
 func testLogicalAndOr() {
