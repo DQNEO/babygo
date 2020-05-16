@@ -863,6 +863,10 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			case "syscall.Write":
 				// func decl is in runtime
 				emitCallNonDecl(symbol, e.Args)
+			case "syscall.Open":
+				// func decl is in runtime
+				emitCallNonDecl(symbol, e.Args)
+				fmt.Printf("  pushq %%rax # fd\n")
 			default:
 				panic(symbol)
 			}

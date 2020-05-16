@@ -23,6 +23,20 @@ runtime.printstring:
   addq $8 * 4, %rsp
   ret
 
+syscall.Open:
+  movq  8(%rsp), %rdi # arg0:str.ptr
+  movq 16(%rsp), %rsi # arg0:str.len (throw away)
+  movq 24(%rsp), %rdx # arg1:flag int
+  movq 32(%rsp), %rcx # arg2:perm int
+
+  pushq %rcx # perm
+  pushq %rdx # flag
+  pushq %rdi # path
+  pushq $2   # sys_open = 2
+  callq syscall.Syscall
+  addq $8 * 4, %rsp
+  ret
+
 syscall.Write:
   movq  8(%rsp), %rdx # arg0:fd
   movq 16(%rsp), %rsi # arg1:ptr

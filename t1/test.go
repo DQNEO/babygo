@@ -4,6 +4,13 @@ import (
 	"syscall"
 )
 
+const O_READONLY int = 0
+func testOpenRead() {
+	var fd int
+	fd, _ = syscall.Open("t1/text.txt", O_READONLY, 0)
+	writeln(Itoa(fd))
+}
+
 func testLogicalAndOr() {
 	var t bool = true
 	var f bool = false
@@ -1027,6 +1034,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testOpenRead()
 	testVaargs()
 	testForBreakContinue()
 	testLogicalAndOr()
