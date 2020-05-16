@@ -527,6 +527,19 @@ func emitReverseArgs(args []*Arg) {
 	}
 }
 
+// Call without using func decl
+func emitCallNonDecl(symbol string, eArgs []ast.Expr) {
+	var args []*Arg
+	for _, eArg := range eArgs {
+		arg := &Arg{
+			e: eArg,
+			t: nil,
+		}
+		args = append(args, arg)
+	}
+	emitCall(symbol, args)
+}
+
 func emitCall(symbol string, args []*Arg) {
 	totalPushedSize := emitFuncallArgs(args)
 	emitReverseArgs(args)
@@ -848,21 +861,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			case "unsafe.Pointer":
 				emitExpr(e.Args[0], nil)
 			case "syscall.Write":
-				var args []*Arg = []*Arg{
-					// fd int
-					&Arg{
-						e: e.Args[0],
-						t: tInt,
-					},
-					// buf slice
-					&Arg{
-						e: e.Args[1],
-						t: nil,
-					},
-				}
-
 				// func decl is in runtime
-				emitCall(symbol, args)
+				emitCallNonDecl(symbol, e.Args)
 			default:
 				panic(symbol)
 			}
