@@ -2,6 +2,7 @@ package main
 
 import "syscall"
 
+// --- libs ---
 func fmtSprintf(format string, a []string) string {
 	var buf []uint8
 	var inPercent bool
@@ -77,6 +78,118 @@ func Itoa(ival int) string {
 	return string(__itoa_r[0:ix])
 }
 
+// --- scanner ---
+var scannerSrc []uint8
+var scannerCh uint8
+var scannerOffset int
+var scannerNextOffset int
+
+func scannerNext() {
+	if scannerNextOffset < len(scannerSrc) {
+		scannerOffset = scannerNextOffset
+		scannerCh = scannerSrc[scannerOffset]
+		scannerNextOffset++
+	} else {
+		scannerCh = 0
+	}
+}
+
+func scannerInit(src []uint8) {
+	scannerSrc = src
+	scannerOffset = 0
+	scannerNextOffset = 0
+	scannerCh = ' '
+	scannerNext()
+}
+
+func isLetter(ch uint8) bool {
+	return 'A' <= ch && ch <= 'z'
+}
+
+func isDecimal(ch uint8) bool {
+	return '0' <= ch && ch <= '9'
+}
+
+func scannerScanIdentifier() string {
+	var offset int = scannerOffset
+	for isLetter(scannerCh) || isDecimal(scannerCh) {
+		scannerNext()
+	}
+	return string(scannerSrc[offset:scannerOffset])
+}
+
+type TokenContainer struct {
+	pos int // what's this ?
+	tok string // token.Token
+	lit string // raw data
+}
+
+func scannerScan() *TokenContainer {
+	var tc *TokenContainer
+	if isLetter(scannerCh) {
+		var lit string = scannerScanIdentifier()
+		tc = new(TokenContainer)
+		tc.lit = lit
+		tc.tok = lit
+		tc.pos = 0
+	} else if isDecimal(scannerCh) {
+		fmtPrintf("isNumber:%d\n", Itoa(int(scannerCh)))
+	} else {
+		fmtPrintf("other:%d\n", Itoa(int(scannerCh)))
+	}
+	return tc
+}
+
+// --- parser ---
+
+const O_READONLY int = 0
+
+func readFile(filename string) []uint8 {
+	var fd int
+	fd, _ = syscall.Open(filename, O_READONLY, 0)
+	//fmtPrintf(Itoa(fd))
+	//fmtPrintf("\n")
+	var buf []uint8 = make([]uint8, 8000, 8000)
+	var n int
+	n, _ = syscall.Read(fd, buf)
+	//fmtPrintf(Itoa(n))
+	var readbytes []uint8 = buf[0:n]
+	return readbytes
+}
+
+func readSource(filename string) []uint8 {
+	return readFile(filename)
+}
+
+func parserInit(src []uint8) {
+	scannerInit(src)
+	parserNext()
+}
+
+var ptok *TokenContainer
+func parserNext() {
+	ptok = scannerScan()
+}
+
+func parserParseFile() *astFile {
+	// expect "package" keyword
+	if ptok.tok != "package" {
+		fmtPrintf("package expected, but got %s\n", ptok.tok)
+	}
+	fmtPrintf("first token: %s '%s' \n", ptok.tok, ptok.lit)
+	var f *astFile = new(astFile)
+	return f
+}
+
+func parseFile(filename string) *astFile {
+	var text []uint8 = readSource(filename)
+	parserInit(text)
+	var f *astFile = parserParseFile()
+	f.Name = "main"
+	return f
+}
+
+// --- codegen ---
 func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }
@@ -266,31 +379,8 @@ type astFile struct {
 	Name string
 }
 
-func readSource(filename string) []uint8 {
-	return []uint8("main")
-}
-
-var gtext []uint8
-
-func parserInit(text []uint8) {
-	gtext = text
-}
-
-func parserParseFile() *astFile {
-	var f *astFile = new(astFile)
-	f.Name = string(gtext)
-	return f
-}
-
-func parseFile(filename string) *astFile {
-	var text []uint8 = readSource(filename)
-	parserInit(text)
-	var f *astFile = parserParseFile()
-	return f
-}
-
 func main() {
-	var sourceFiles []string = []string{"main"}
+	var sourceFiles []string = []string{"t2/self.go"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil
@@ -298,11 +388,12 @@ func main() {
 		stringLiterals = nil
 		stringIndex = 0
 		var f *astFile = parseFile(sourceFile)
+		return
 		var pkgName string = semanticAnalyze(f)
 		generateCode(pkgName)
 	}
 
-	test()
+	//test()
 }
 
 func test() {
