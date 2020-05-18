@@ -837,6 +837,11 @@ func testCmpUint8() {
 	if localuint8 <= 1 {
 		writeln("uint8 cmp <= ok")
 	}
+
+	localuint8 = 101
+	if localuint8 == 'A' {
+		writeln("uint8 cmp == A ok")
+	}
 }
 
 func testCmpInt() {
@@ -864,7 +869,10 @@ func testCmpInt() {
 	if a <= 1 {
 		writeln("int cmp <= ok")
 	}
-
+	a = 101
+	if a == 'A' {
+		writeln("int cmp == A ok")
+	}
 }
 
 func testIf() {
