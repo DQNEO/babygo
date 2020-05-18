@@ -1313,16 +1313,22 @@ func emitStmt(stmt ast.Stmt) {
 		forStmt.labelPost = labelPost
 		forStmt.labelExit = labelExit
 
-		emitStmt(s.Init)
+		if s.Init != nil {
+			emitStmt(s.Init)
+		}
 
 		fmt.Printf("  %s:\n", labelCond)
-		emitExpr(s.Cond, nil)
-		emitPopBool("for condition")
-		fmt.Printf("  cmpq $1, %%rax\n")
-		fmt.Printf("  jne %s # jmp if false\n", labelExit)
+		if s.Cond != nil {
+			emitExpr(s.Cond, nil)
+			emitPopBool("for condition")
+			fmt.Printf("  cmpq $1, %%rax\n")
+			fmt.Printf("  jne %s # jmp if false\n", labelExit)
+		}
 		emitStmt(s.Body)
 		fmt.Printf("  %s:\n", labelPost) // used for "continue"
-		emitStmt(s.Post)
+		if s.Post != nil {
+			emitStmt(s.Post)
+		}
 		fmt.Printf("  jmp %s\n", labelCond)
 		fmt.Printf("  %s:\n", labelExit)
 	case *ast.RangeStmt: // only for array and slice
@@ -1665,9 +1671,15 @@ func walkStmt(stmt ast.Stmt) {
 		forStmt.outer = currentFor
 		currentFor = forStmt
 		mapForNodeToFor[s] = forStmt
-		walkStmt(s.Init)
-		walkExpr(s.Cond)
-		walkStmt(s.Post)
+		if s.Init != nil {
+			walkStmt(s.Init)
+		}
+		if s.Cond != nil {
+			walkExpr(s.Cond)
+		}
+		if s.Post != nil {
+			walkStmt(s.Post)
+		}
 		walkStmt(s.Body)
 		currentFor = forStmt.outer
 	case *ast.RangeStmt:

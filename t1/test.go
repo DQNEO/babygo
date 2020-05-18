@@ -774,6 +774,32 @@ func testFor() {
 	write("\n")
 }
 
+func testForOmissible() {
+	var i int
+	for {
+		i++
+		if i == 2 {
+			break
+		}
+	}
+	write(Itoa(i))
+
+	i = 0
+	for i < 3 {
+		i++
+	}
+	write(Itoa(i))
+
+	i = 0
+	for ; i< 4; {
+		i++
+	}
+	write(Itoa(i))
+
+	write("\n")
+}
+
+
 func testForBreakContinue() {
 	var i int
 	for i = 0; i < 10; i = i + 1 {
@@ -1052,6 +1078,7 @@ func test() {
 	testOpenRead()
 	testVaargs()
 	testForBreakContinue()
+	testForOmissible()
 	testLogicalAndOr()
 	testConst()
 	testSwitchString()
