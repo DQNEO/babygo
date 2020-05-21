@@ -860,6 +860,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			switch symbol {
 			case "unsafe.Pointer":
 				emitExpr(e.Args[0], nil)
+			case "os.Exit":
+				emitCallNonDecl(symbol, e.Args)
 			case "syscall.Write":
 				// func decl is in runtime
 				emitCallNonDecl(symbol, e.Args)

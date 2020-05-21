@@ -28,7 +28,7 @@ t/expected.1: t1/test
 	t1/test 1> t/expected.1
 
 # self compiler
-self.s: main.go runtime.go t2/self.go
+self.s: main.go runtime.go runtime.s t2/self.go
 	ln -sf ../t2/self.go t/source.go
 	go run main.go > /tmp/self.s && cp /tmp/self.s self.s
 

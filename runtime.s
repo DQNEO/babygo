@@ -12,6 +12,11 @@ _start:
   syscall
 # End of program
 
+os.Exit:
+  movq  8(%rsp), %rdi # arg0:status
+  movq $60, %rax # sys exit
+  syscall
+
 runtime.printstring:
   movq  8(%rsp), %rdi # arg0:ptr
   movq 16(%rsp), %rsi # arg1:len
