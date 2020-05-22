@@ -888,9 +888,20 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		switch e.Kind.String() {
 		case "CHAR":
 			val := e.Value
-			char := val[1]
-			ival := int(char)
-			fmt.Printf("  pushq $%d # convert char literal to int\n", ival)
+			var char uint8 = val[1]
+			if val[1] == '\\' {
+				switch val[2] {
+				case 'n':
+					char = '\n'
+				case '\\':
+					char = '\\'
+				case 't':
+					char = '\t'
+				case 'r':
+					char = '\r'
+				}
+			}
+			fmt.Printf("  pushq $%d # convert char literal to int\n", int(char))
 		case "INT":
 			val := e.Value
 			ival, _ := strconv.Atoi(val)

@@ -4,6 +4,13 @@ import (
 	"syscall"
 )
 
+func testEscapedChar() {
+	var chars []uint8 = []uint8{'\\', '\t', '\r', '\n'}
+	write("start")
+	write(string(chars))
+	writeln("end")
+}
+
 const O_READONLY int = 0
 
 func testOpenRead() {
@@ -1075,6 +1082,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testEscapedChar()
 	testOpenRead()
 	testVaargs()
 	testForBreakContinue()
