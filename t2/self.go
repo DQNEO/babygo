@@ -1,6 +1,9 @@
 package main
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 // --- libs ---
 func fmtSprintf(format string, a []string) string {
@@ -78,6 +81,16 @@ func Itoa(ival int) string {
 	return string(__itoa_r[0:ix])
 }
 
+func inArray(x string, list []string) bool {
+	var v string
+	for _, v = range list {
+		if v == x {
+			return true
+		}
+	}
+	return false
+}
+
 // --- scanner ---
 var scannerSrc []uint8
 var scannerCh uint8
@@ -90,20 +103,34 @@ func scannerNext() {
 		scannerCh = scannerSrc[scannerOffset]
 		scannerNextOffset++
 	} else {
-		scannerCh = 0
+		scannerCh = 1 //EOF
 	}
 }
 
+var keywords []string
+
 func scannerInit(src []uint8) {
+	// https://golang.org/ref/spec#Keywords
+	keywords = []string{
+		"break", "default", "func", "interface", "select",
+		"case", "defer", "go", "map", "struct",
+		"chan", "else", "goto", "package", "switch",
+		"const", "fallthrough", "if", "range", "type",
+		"continue", "for", "import", "return", "var",
+	}
 	scannerSrc = src
 	scannerOffset = 0
 	scannerNextOffset = 0
 	scannerCh = ' '
+	fmtPrintf("src len = %s\n", Itoa(len(scannerSrc)))
 	scannerNext()
 }
 
 func isLetter(ch uint8) bool {
-	return 'A' <= ch && ch <= 'z'
+	if ch == '_' {
+		return true
+	}
+	return ('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z')
 }
 
 func isDecimal(ch uint8) bool {
@@ -118,38 +145,294 @@ func scannerScanIdentifier() string {
 	return string(scannerSrc[offset:scannerOffset])
 }
 
+func scannerScanNumber() string {
+	var offset int = scannerOffset
+	for isDecimal(scannerCh) {
+		scannerNext()
+	}
+	return string(scannerSrc[offset:scannerOffset])
+}
+
+func scannerScanString() string {
+	//fmtPrintf("begin: scannerScanString\n")
+	var offset int = scannerOffset - 1
+	for scannerCh != '"' {
+		scannerNext()
+	}
+	scannerNext() // consume ending '""
+	return string(scannerSrc[offset:scannerOffset])
+}
+
+func scannerScanChar() string {
+	//fmtPrintf("begin: scannerScanString\n")
+	var offset int = scannerOffset - 1
+	for scannerCh != 39 {
+		//fmtPrintf("in loop char:%s\n", string([]uint8{scannerCh}))
+		scannerNext()
+	}
+	scannerNext() // consume ending '""
+	return string(scannerSrc[offset:scannerOffset])
+}
+
+func scannerrScanComment() string {
+	var offset int = scannerOffset - 1
+	for scannerCh != 10 {
+		scannerNext()
+	}
+	return string(scannerSrc[offset:scannerOffset])
+}
+
 type TokenContainer struct {
 	pos int // what's this ?
 	tok string // token.Token
 	lit string // raw data
 }
 
-func scannerScan() *TokenContainer {
-	var tc *TokenContainer
-	if isLetter(scannerCh) {
-		var lit string = scannerScanIdentifier()
-		tc = new(TokenContainer)
-		tc.lit = lit
-		tc.tok = lit
-		tc.pos = 0
-	} else if isDecimal(scannerCh) {
-		fmtPrintf("isNumber:%d\n", Itoa(int(scannerCh)))
-	} else {
-		fmtPrintf("other:%d\n", Itoa(int(scannerCh)))
+func scannerSkipWhitespace() {
+	for scannerCh == ' ' || scannerCh == 10 || scannerCh == 9 { // @FIXME 9,10 => tab, newline
+		scannerNext()
 	}
+}
+
+func scannerSwitch2(tok0 string, tok1 string) string {
+	if scannerCh == '=' {
+		scannerNext()
+		return tok1
+	} else {
+		return tok0
+	}
+}
+
+func scannerScan() *TokenContainer {
+	scannerSkipWhitespace()
+	var tc *TokenContainer
+	tc = new(TokenContainer)
+	var lit string
+	var tok string
+	var ch uint8 = scannerCh
+	if isLetter(ch) {
+		lit = scannerScanIdentifier()
+		if inArray(lit, keywords) {
+			tok = lit
+		} else {
+			tok = "IDENT"
+		}
+	} else if isDecimal(ch) {
+		lit = scannerScanNumber()
+		tok = "NUMBER"
+	} else {
+		scannerNext()
+		switch ch {
+		case '"': // double quote
+			//fmtPrintf("double quote\n")
+			lit = scannerScanString()
+			tok = "STRING"
+		case 39: // single quote
+			lit = scannerScanChar()
+			tok = "CHAR"
+		// https://golang.org/ref/spec#Operators_and_punctuation
+		//	+    &     +=    &=     &&    ==    !=    (    )
+		//	-    |     -=    |=     ||    <     <=    [    ]
+		//  *    ^     *=    ^=     <-    >     >=    {    }
+		//	/    <<    /=    <<=    ++    =     :=    ,    ;
+		//	%    >>    %=    >>=    --    !     ...   .    :
+		//	&^          &^=
+		case ':': // :=, :
+			if scannerCh == '=' {
+				scannerNext()
+				tok = ":="
+			} else {
+				tok = ":"
+			}
+		case '.': // ..., .
+			var peekCh uint8 = scannerSrc[scannerNextOffset]
+			if scannerCh == '.' && peekCh == '.' {
+				scannerNext()
+				scannerNext()
+				tok = "..."
+			} else {
+				tok = "."
+			}
+		case ',':
+			tok = ","
+		case ';':
+			tok = ";"
+			lit = ";"
+		case '(':
+			tok = "("
+		case ')':
+			tok = ")"
+		case '[':
+			tok = "["
+		case ']':
+			tok = "]"
+		case '{':
+			tok = "{"
+		case '}':
+			tok = "}"
+		case '+': // +=, ++, +
+			switch scannerCh {
+			case '=':
+				scannerNext()
+				tok = "+="
+			case '+':
+				scannerNext()
+				tok = "++"
+			default:
+				tok = "+"
+			}
+		case '-': // -= --  -
+			switch scannerCh {
+			case '-':
+				scannerNext()
+				tok = "--"
+			case '=':
+				scannerNext()
+				tok = "-="
+			default:
+				tok = "-"
+			}
+		case '*': // *=  *
+			if scannerCh == '=' {
+				scannerNext()
+				tok = "*="
+			} else {
+				tok = "*"
+			}
+		case '/':
+			// @TODO block comment
+			if scannerCh == '/' {
+				lit = scannerrScanComment()
+				tok = "COMMENT"
+			} else if scannerCh == '=' {
+				tok = "/="
+			} else {
+				tok = "/"
+			}
+		case '%': // %= %
+			if scannerCh == '=' {
+				scannerNext()
+				tok = "%="
+			} else {
+				tok = "%"
+			}
+		case '^': // ^= ^
+			if scannerCh == '=' {
+				scannerNext()
+				tok = "^="
+			} else {
+				tok = "^"
+			}
+		case '<': //  <= <- <<= <<
+			switch scannerCh {
+			case '-':
+				scannerNext()
+				tok = "<-"
+			case '=':
+				scannerNext()
+				tok = "<="
+			case '<':
+				var peekCh uint8 = scannerSrc[scannerNextOffset]
+				if peekCh == '=' {
+					scannerNext()
+					scannerNext()
+					tok = "<<="
+				} else {
+					scannerNext()
+					tok = "<<"
+				}
+			default:
+				tok = "<"
+			}
+		case '>': // >= >>= >> >
+			switch scannerCh {
+			case '=':
+				scannerNext()
+				tok = ">="
+			case '>':
+				var peekCh uint8 = scannerSrc[scannerNextOffset]
+				if peekCh == '=' {
+					scannerNext()
+					scannerNext()
+					tok = ">>="
+				} else {
+					scannerNext()
+					tok = ">>"
+				}
+			default:
+				tok = ">"
+			}
+		case '=': // == =
+			if scannerCh == '=' {
+				scannerNext()
+				tok = "=="
+			} else {
+				tok = "="
+			}
+		case '!': // !=, !
+			if scannerCh == '=' {
+				scannerNext()
+				tok = "!="
+			} else {
+				tok = "!"
+			}
+		case '&': // & &= && &^ &^=
+			switch scannerCh {
+			case '=':
+				tok = "&="
+			case '&':
+				tok = "&&"
+			case '^':
+				var peekCh uint8 = scannerSrc[scannerNextOffset]
+				if peekCh == '=' {
+					scannerNext()
+					scannerNext()
+					tok = "&^="
+				} else {
+					scannerNext()
+					tok = "&^"
+				}
+			default:
+				tok = "&"
+			}
+		case '|': // |= || |
+			switch scannerCh {
+			case '|':
+				scannerNext()
+				tok = "||"
+			case '=':
+				scannerNext()
+				tok = "|="
+			default:
+				tok = "|"
+			}
+		case 1:
+			tok = "EOF"
+		default:
+			fmtPrintf("unknown char:%s:%s\n", string([]uint8{ch}), Itoa(int(ch)))
+			os.Exit(1)
+			tok = "UNKNOWN"
+		}
+	}
+	tc.lit = lit
+	tc.pos = 0
+	tc.tok = tok
+	fmtPrintf("token:[%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
 	return tc
 }
+
 
 // --- parser ---
 
 const O_READONLY int = 0
+const FILE_SIZE int = 20000
 
 func readFile(filename string) []uint8 {
 	var fd int
 	fd, _ = syscall.Open(filename, O_READONLY, 0)
 	//fmtPrintf(Itoa(fd))
 	//fmtPrintf("\n")
-	var buf []uint8 = make([]uint8, 8000, 8000)
+	var buf []uint8 = make([]uint8, FILE_SIZE, FILE_SIZE)
 	var n int
 	n, _ = syscall.Read(fd, buf)
 	//fmtPrintf(Itoa(n))
@@ -174,9 +457,16 @@ func parserNext() {
 func parserParseFile() *astFile {
 	// expect "package" keyword
 	if ptok.tok != "package" {
-		fmtPrintf("package expected, but got %s\n", ptok.tok)
+		//fmtPrintf("package expected, but got %s\n", ptok.tok)
 	}
-	fmtPrintf("first token: %s '%s' \n", ptok.tok, ptok.lit)
+
+	for {
+		ptok = scannerScan()
+		if  ptok.tok == "EOF" {
+			fmtPrintf("EOF\n")
+			break
+		}
+	}
 	var f *astFile = new(astFile)
 	return f
 }
@@ -380,7 +670,7 @@ type astFile struct {
 }
 
 func main() {
-	var sourceFiles []string = []string{"t2/self.go"}
+	var sourceFiles []string = []string{"t2/tokens.txt"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil

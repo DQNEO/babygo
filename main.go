@@ -2249,6 +2249,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		return e2t(field.Type)
 	case *ast.CompositeLit:
 		return e2t(e.Type)
+	case *ast.ParenExpr:
+		return getTypeOfExpr(e.X)
 	default:
 		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
 	}
