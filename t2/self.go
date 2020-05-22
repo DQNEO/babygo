@@ -166,7 +166,7 @@ func scannerScanString() string {
 func scannerScanChar() string {
 	//fmtPrintf("begin: scannerScanString\n")
 	var offset int = scannerOffset - 1
-	for scannerCh != 39 {
+	for scannerCh != '\'' {
 		//fmtPrintf("in loop char:%s\n", string([]uint8{scannerCh}))
 		scannerNext()
 	}
@@ -176,7 +176,7 @@ func scannerScanChar() string {
 
 func scannerrScanComment() string {
 	var offset int = scannerOffset - 1
-	for scannerCh != 10 {
+	for scannerCh != '\n' {
 		scannerNext()
 	}
 	return string(scannerSrc[offset:scannerOffset])
@@ -189,7 +189,7 @@ type TokenContainer struct {
 }
 
 func scannerSkipWhitespace() {
-	for scannerCh == ' ' || scannerCh == 10 || scannerCh == 9 { // @FIXME 9,10 => tab, newline
+	for scannerCh == ' ' || scannerCh == '\n' || scannerCh == '\t' {
 		scannerNext()
 	}
 }
@@ -227,7 +227,7 @@ func scannerScan() *TokenContainer {
 			//fmtPrintf("double quote\n")
 			lit = scannerScanString()
 			tok = "STRING"
-		case 39: // single quote
+		case '\'': // single quote
 			lit = scannerScanChar()
 			tok = "CHAR"
 		// https://golang.org/ref/spec#Operators_and_punctuation
