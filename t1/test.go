@@ -5,7 +5,7 @@ import (
 )
 
 func testEscapedChar() {
-	var chars []uint8 = []uint8{'\\', '\t', '\r', '\n'}
+	var chars []uint8 = []uint8{'\\', '\t', '\r', '\'', '\n'}
 	write("start")
 	write(string(chars))
 	writeln("end")

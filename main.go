@@ -891,6 +891,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			var char uint8 = val[1]
 			if val[1] == '\\' {
 				switch val[2] {
+				case '\'':
+					char = '\''
 				case 'n':
 					char = '\n'
 				case '\\':
