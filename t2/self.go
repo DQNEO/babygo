@@ -188,8 +188,9 @@ type TokenContainer struct {
 	lit string // raw data
 }
 
+// https://golang.org/ref/spec#Tokens
 func scannerSkipWhitespace() {
-	for scannerCh == ' ' || scannerCh == '\n' || scannerCh == '\t' {
+	for scannerCh == ' ' || scannerCh == '\n' || scannerCh == '\r' || scannerCh == '\t' {
 		scannerNext()
 	}
 }
