@@ -195,15 +195,6 @@ func scannerSkipWhitespace() {
 	}
 }
 
-func scannerSwitch2(tok0 string, tok1 string) string {
-	if scannerCh == '=' {
-		scannerNext()
-		return tok1
-	} else {
-		return tok0
-	}
-}
-
 func scannerScan() *TokenContainer {
 	scannerSkipWhitespace()
 	var tc *TokenContainer
