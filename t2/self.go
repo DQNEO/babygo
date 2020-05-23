@@ -96,6 +96,7 @@ var scannerSrc []uint8
 var scannerCh uint8
 var scannerOffset int
 var scannerNextOffset int
+var scannerInsertSemi bool
 
 func scannerNext() {
 	if scannerNextOffset < len(scannerSrc) {
@@ -121,6 +122,7 @@ func scannerInit(src []uint8) {
 	scannerSrc = src
 	scannerOffset = 0
 	scannerNextOffset = 0
+	scannerInsertSemi = false
 	scannerCh = ' '
 	fmtPrintf("src len = %s\n", Itoa(len(scannerSrc)))
 	scannerNext()
@@ -190,7 +192,7 @@ type TokenContainer struct {
 
 // https://golang.org/ref/spec#Tokens
 func scannerSkipWhitespace() {
-	for scannerCh == ' ' || scannerCh == '\n' || scannerCh == '\r' || scannerCh == '\t' {
+	for scannerCh == ' ' || scannerCh == '\t' || (scannerCh == '\n' && !scannerInsertSemi) || scannerCh == '\r' {
 		scannerNext()
 	}
 }
@@ -201,20 +203,32 @@ func scannerScan() *TokenContainer {
 	tc = new(TokenContainer)
 	var lit string
 	var tok string
+	var insertSemi bool
 	var ch uint8 = scannerCh
 	if isLetter(ch) {
 		lit = scannerScanIdentifier()
 		if inArray(lit, keywords) {
 			tok = lit
+			switch tok {
+			case "break", "continue", "fallthrough", "return":
+				insertSemi = true
+			}
 		} else {
+			insertSemi = true
 			tok = "IDENT"
 		}
 	} else if isDecimal(ch) {
+		insertSemi = true
 		lit = scannerScanNumber()
 		tok = "NUMBER"
 	} else {
 		scannerNext()
 		switch ch {
+		case '\n':
+			scannerInsertSemi = false
+			lit = "\n"
+			tc.pos = 0
+			tok = ";"
 		case '"': // double quote
 			//fmtPrintf("double quote\n")
 			lit = scannerScanString()
@@ -253,14 +267,17 @@ func scannerScan() *TokenContainer {
 		case '(':
 			tok = "("
 		case ')':
+			insertSemi = true
 			tok = ")"
 		case '[':
 			tok = "["
 		case ']':
+			insertSemi = true
 			tok = "]"
 		case '{':
 			tok = "{"
 		case '}':
+			insertSemi = true
 			tok = "}"
 		case '+': // +=, ++, +
 			switch scannerCh {
@@ -270,6 +287,7 @@ func scannerScan() *TokenContainer {
 			case '+':
 				scannerNext()
 				tok = "++"
+				insertSemi = true
 			default:
 				tok = "+"
 			}
@@ -278,6 +296,7 @@ func scannerScan() *TokenContainer {
 			case '-':
 				scannerNext()
 				tok = "--"
+				insertSemi = true
 			case '=':
 				scannerNext()
 				tok = "-="
@@ -410,6 +429,7 @@ func scannerScan() *TokenContainer {
 	tc.pos = 0
 	tc.tok = tok
 	fmtPrintf("token:[%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
+	scannerInsertSemi = insertSemi
 	return tc
 }
 
@@ -446,11 +466,55 @@ func parserNext() {
 	ptok = scannerScan()
 }
 
+func parserExpect(tok string) {
+	if ptok.tok != tok {
+		fmtPrintf("%s expected, but got %s\n", tok, ptok.tok)
+		os.Exit(1)
+	}
+	parserNext()
+}
+
+func parserExpectSemi() {
+	if ptok.tok != ")" && ptok.tok != "}" {
+		switch ptok.tok {
+		case ";":
+			parserNext()
+		default:
+			fmtPrintf("; expected, but got %s(%s)\n", ptok.tok ,ptok.lit)
+			os.Exit(1)
+		}
+	}
+}
+
+type astIdent struct {
+	Name string
+}
+
+func parserParseIdent() *astIdent {
+	var name string
+	if ptok.tok == "IDENT" {
+		name = ptok.lit
+		parserNext()
+	} else {
+		fmtPrintf("IDENT expected, but got %s\n", ptok.tok)
+		os.Exit(1)
+	}
+
+	var r *astIdent = new(astIdent)
+	r.Name = name
+	return r
+}
+
 func parserParseFile() *astFile {
 	// expect "package" keyword
-	if ptok.tok != "package" {
-		//fmtPrintf("package expected, but got %s\n", ptok.tok)
-	}
+	parserExpect("package")
+
+	var ident *astIdent = parserParseIdent()
+	fmtPrintf("package name = %s\n", ident.Name)
+	parserExpectSemi()
+
+	var f *astFile = new(astFile)
+	return f
 
 	for {
 		ptok = scannerScan()
@@ -459,7 +523,7 @@ func parserParseFile() *astFile {
 			break
 		}
 	}
-	var f *astFile = new(astFile)
+	f = new(astFile)
 	return f
 }
 
@@ -662,7 +726,7 @@ type astFile struct {
 }
 
 func main() {
-	var sourceFiles []string = []string{"t2/tokens.txt"}
+	var sourceFiles []string = []string{"t2/self.go"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil
