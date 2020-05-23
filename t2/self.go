@@ -185,7 +185,7 @@ func scannerrScanComment() string {
 }
 
 type TokenContainer struct {
-	pos int // what's this ?
+	pos int    // what's this ?
 	tok string // token.Token
 	lit string // raw data
 }
@@ -433,7 +433,6 @@ func scannerScan() *TokenContainer {
 	return tc
 }
 
-
 // --- parser ---
 
 const O_READONLY int = 0
@@ -462,6 +461,7 @@ func parserInit(src []uint8) {
 }
 
 var ptok *TokenContainer
+
 func parserNext() {
 	ptok = scannerScan()
 }
@@ -480,7 +480,7 @@ func parserExpectSemi() {
 		case ";":
 			parserNext()
 		default:
-			fmtPrintf("; expected, but got %s(%s)\n", ptok.tok ,ptok.lit)
+			fmtPrintf("; expected, but got %s(%s)\n", ptok.tok, ptok.lit)
 			os.Exit(1)
 		}
 	}
@@ -518,7 +518,7 @@ func parserParseFile() *astFile {
 
 	for {
 		ptok = scannerScan()
-		if  ptok.tok == "EOF" {
+		if ptok.tok == "EOF" {
 			fmtPrintf("EOF\n")
 			break
 		}

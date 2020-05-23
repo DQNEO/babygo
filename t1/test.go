@@ -819,14 +819,13 @@ func testForOmissible() {
 	write(Itoa(i))
 
 	i = 0
-	for ; i< 4; {
+	for i < 4 {
 		i++
 	}
 	write(Itoa(i))
 
 	write("\n")
 }
-
 
 func testForBreakContinue() {
 	var i int

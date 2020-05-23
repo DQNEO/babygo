@@ -2196,7 +2196,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		}
 	case *ast.BinaryExpr:
 		switch e.Op.String() {
-		case "==","!=", "<", ">", "<=", ">=":
+		case "==", "!=", "<", ">", "<=", ">=":
 			return tBool
 		default:
 			return getTypeOfExpr(e.X)
