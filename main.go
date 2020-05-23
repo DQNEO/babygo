@@ -2035,8 +2035,10 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 						if !ok {
 							throw(t) // allow only literal
 						}
+					case T_BOOL:
+						// Let it go for now
 					default:
-						throw(t)
+						throw(kind(t))
 					}
 				}
 				globalVars = append(globalVars, valSpec)
@@ -2360,6 +2362,8 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 		default:
 			throw(val)
 		}
+	case T_BOOL:
+		fmt.Printf("  .quad 0 # bool zero value\n") // @TODO
 	case T_INT:
 		switch vl := val.(type) {
 		case *ast.BasicLit:
