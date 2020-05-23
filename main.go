@@ -2195,7 +2195,12 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			throw(e.Op.String())
 		}
 	case *ast.BinaryExpr:
-		return getTypeOfExpr(e.X)
+		switch e.Op.String() {
+		case "==","!=", "<", ">", "<=", ">=":
+			return tBool
+		default:
+			return getTypeOfExpr(e.X)
+		}
 	case *ast.IndexExpr:
 		list := e.X
 		return getElementTypeOfListType(getTypeOfExpr(list))
