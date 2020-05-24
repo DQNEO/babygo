@@ -1,18 +1,29 @@
 // runtime
 package runtime
 
-import "unsafe"
+import (
+	"syscall"
+	"unsafe"
+)
 
-var heap [2605360]uint8
+const SYS_BRK int = 12
+const heapSize uintptr = 2605360
 
 var heapHead uintptr
 var heapCurrent uintptr
 var heapTail uintptr
 
 func heapInit() {
-	heapHead = uintptr(unsafe.Pointer(&heap[0])) // brk(0)
-	heapTail = heapHead + 2605360                // brk(heapHead + heapSize)
+	heapHead = brk(0)
+	heapTail = brk(heapHead + heapSize)
 	heapCurrent = heapHead
+}
+
+
+func brk(addr uintptr) uintptr {
+	var ret uintptr
+	ret,_,_ = syscall.Syscall(uintptr(SYS_BRK), addr, uintptr(0), uintptr(0))
+	return ret
 }
 
 func memzeropad(addr uintptr, size uintptr) {

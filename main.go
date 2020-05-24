@@ -862,6 +862,10 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				emitExpr(e.Args[0], nil)
 			case "os.Exit":
 				emitCallNonDecl(symbol, e.Args)
+			case "syscall.Syscall":
+				// func decl is in runtime
+				emitCallNonDecl(symbol, e.Args)
+				fmt.Printf("  pushq %%rax # ret\n")
 			case "syscall.Write":
 				// func decl is in runtime
 				emitCallNonDecl(symbol, e.Args)
