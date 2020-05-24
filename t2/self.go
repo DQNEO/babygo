@@ -225,15 +225,16 @@ func scannerScan() *TokenContainer {
 		scannerNext()
 		switch ch {
 		case '\n':
+			tc.tok = ";"
+			tc.lit = "\n"
 			scannerInsertSemi = false
-			lit = "\n"
-			tc.pos = 0
-			tok = ";"
+			return tc
 		case '"': // double quote
-			//fmtPrintf("double quote\n")
+			insertSemi = true
 			lit = scannerScanString()
 			tok = "STRING"
 		case '\'': // single quote
+			insertSemi = true
 			lit = scannerScanChar()
 			tok = "CHAR"
 		// https://golang.org/ref/spec#Operators_and_punctuation
