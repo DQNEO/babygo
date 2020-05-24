@@ -225,10 +225,9 @@ func scannerScan() *TokenContainer {
 		scannerNext()
 		switch ch {
 		case '\n':
-			tc.tok = ";"
-			tc.lit = "\n"
-			scannerInsertSemi = false
-			return tc
+			tok = ";"
+			lit = "\n"
+			insertSemi = false
 		case '"': // double quote
 			insertSemi = true
 			lit = scannerScanString()
@@ -316,6 +315,8 @@ func scannerScan() *TokenContainer {
 			if scannerCh == '/' {
 				lit = scannerrScanComment()
 				tok = "COMMENT"
+				scannerInsertSemi = false
+				return scannerScan()
 			} else if scannerCh == '=' {
 				tok = "/="
 			} else {
