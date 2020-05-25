@@ -491,7 +491,7 @@ type astIdent struct {
 	Name string
 }
 
-func parserParseIdent() *astIdent {
+func parseIdent() *astIdent {
 	var name string
 	if ptok.tok == "IDENT" {
 		name = ptok.lit
@@ -510,7 +510,7 @@ func parserParseFile() *astFile {
 	// expect "package" keyword
 	parserExpect("package")
 
-	var ident *astIdent = parserParseIdent()
+	var ident *astIdent = parseIdent()
 	fmtPrintf("package name = %s\n", ident.Name)
 	parserExpectSemi()
 
