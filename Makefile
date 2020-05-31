@@ -43,6 +43,9 @@ test2: self
 	go run 2gen/2gen.go > /tmp/2gen_out.s
 	diff 2gen_out.s /tmp/2gen_out.s && echo 'ok'
 
+test-all:
+	make test test2
+
 fmt: *.go t1/*.go 2gen/*.go
 	gofmt -w *.go t1/*.go 2gen/*.go
 
