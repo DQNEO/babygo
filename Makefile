@@ -27,26 +27,26 @@ t1/test: t1/test.go
 t1/expected.1: t1/test
 	t1/test 1> t1/expected.1
 
-# self compiler
-self.s: main.go runtime.go runtime.s t2/self.go
-	ln -sf ../t2/self.go t/source.go
-	go run main.go > /tmp/self.s && cp /tmp/self.s self.s
+# 2nd gen compiler
+2gen.s: main.go runtime.go runtime.s 2gen/2gen.go
+	ln -sf ../2gen/2gen.go t/source.go
+	go run main.go > /tmp/2gen.s && cp /tmp/2gen.s 2gen.s
 
-self.o: self.s
-	as -o self.o self.s runtime.s
+2gen.o: 2gen.s
+	as -o 2gen.o 2gen.s runtime.s
 
-self: self.o
-	ld -o self self.o
+self: 2gen.o
+	ld -o self 2gen.o
 
 test2: self
-	./self > self2.s
-	go run t2/self.go > /tmp/self2.s
-	diff self2.s /tmp/self2.s && echo 'ok'
+	./self > 2gen_out.s
+	go run 2gen/2gen.go > /tmp/2gen_out.s
+	diff 2gen_out.s /tmp/2gen_out.s && echo 'ok'
 
-fmt: *.go t1/*.go t2/*.go
-	gofmt -w *.go t*/*.go
+fmt: *.go t1/*.go 2gen/*.go
+	gofmt -w *.go t1/*.go 2gen/*.go
 
 clean:
 	rm -f test.s test.o test.out t1/test
-	rm -f self self.o self.s
+	rm -f self 2gen.o 2gen.s
 

@@ -1038,7 +1038,7 @@ type astFile struct {
 }
 
 func main() {
-	var sourceFiles []string = []string{"t2/sample.go"}
+	var sourceFiles []string = []string{"2gen/sample.go"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil
