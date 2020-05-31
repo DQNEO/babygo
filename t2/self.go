@@ -1,9 +1,7 @@
 package main
 
-import (
-	"os"
-	"syscall"
-)
+import "os"
+import "syscall"
 
 // --- libs ---
 func fmtSprintf(format string, a []string) string {
@@ -430,9 +428,73 @@ func scannerScan() *TokenContainer {
 	tc.lit = lit
 	tc.pos = 0
 	tc.tok = tok
-	fmtPrintf("token:[%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
+	fmtPrintf("[scanner] scanned : [%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
 	scannerInsertSemi = insertSemi
 	return tc
+}
+
+// --- ast ---
+type astIdent struct {
+	Name string
+}
+
+type astImportSpec struct {
+	Path string
+}
+
+type astDecl struct {
+	Name *astIdent
+	Sig  *signature
+	Body *astBlockStmt
+}
+
+type astField struct {
+	Name *astIdent
+	Type *astExpr
+}
+
+type astFieldList struct {
+	List []*astField
+}
+
+type signature struct {
+	params *astFieldList
+	results *astFieldList
+}
+
+type astDeclStmt struct {
+	Decl    *astDecl
+	GenDecl *astGenDecl
+}
+
+type astStmt struct {
+	dtype string
+	DeclStmt *astDeclStmt
+}
+
+type astExpr struct {
+	dtype     string
+	ident     *astIdent
+	arrayType *astArrayType
+}
+
+type astArrayType struct {
+	Len *astExpr
+	Elt *astExpr
+}
+
+type astBlockStmt struct {
+	List []*astStmt
+}
+
+type astGenDecl struct {
+	Specs []*astValueSpec
+}
+
+type astValueSpec struct {
+	Name *astIdent
+	Type *astExpr
+	Value *astExpr
 }
 
 // --- parser ---
@@ -465,7 +527,9 @@ func parserInit(src []uint8) {
 var ptok *TokenContainer
 
 func parserNext() {
+	//fmtPrintf("parserNext\n")
 	ptok = scannerScan()
+	//fmtPrintf("current ptok: tok=%s, lit=%s\n", ptok.tok, ptok.lit)
 }
 
 func parserExpect(tok string) {
@@ -477,6 +541,7 @@ func parserExpect(tok string) {
 }
 
 func parserExpectSemi() {
+	//fmtPrintf("parserExpectSemi\n")
 	if ptok.tok != ")" && ptok.tok != "}" {
 		switch ptok.tok {
 		case ";":
@@ -486,10 +551,6 @@ func parserExpectSemi() {
 			os.Exit(1)
 		}
 	}
-}
-
-type astIdent struct {
-	Name string
 }
 
 func parseIdent() *astIdent {
@@ -507,34 +568,277 @@ func parseIdent() *astIdent {
 	return r
 }
 
+func parserParseImportDecl() *astImportSpec {
+	//fmtPrintf("parserParseImportDecl\n")
+	parserExpect("import")
+	var path string = ptok.lit
+	parserNext()
+	parserExpectSemi()
+	var spec *astImportSpec = new(astImportSpec)
+	spec.Path = path
+	return spec
+}
+
+func parseStmt() {
+
+}
+
+
+func parseVarType() *astExpr {
+	var e *astExpr = tryIdentOrType()
+	return e
+}
+
+func parseType() *astExpr {
+	var typ *astExpr = tryIdentOrType()
+	return typ
+}
+
+func eFromArrayType(t *astArrayType) *astExpr {
+	var r *astExpr = new(astExpr)
+	r.dtype = "*astArrayType"
+	r.arrayType = t
+	return r
+}
+
+func parseArrayType() *astExpr {
+	parserExpect("[")
+	if ptok.tok != "]" {
+		fmtPrintf("[parseArrayType] TBI:%s\n",ptok.tok)
+		os.Exit(1)
+	}
+	parserExpect("]")
+	var elt *astExpr = parseType()
+	var arrayType *astArrayType = new(astArrayType)
+	arrayType.Elt = elt
+	return eFromArrayType(arrayType)
+}
+
+func tryIdentOrType() *astExpr {
+	var typ *astExpr = new(astExpr)
+	fmtPrintf("debug 1-1\n")
+	switch ptok.tok {
+	case "IDENT":
+		var ident *astIdent = parseIdent()
+		typ.ident = ident
+		typ.dtype = "*astIdent"
+	case "[":
+		fmtPrintf("debug 1-2\n")
+		typ = parseArrayType()
+		fmtPrintf("debug 1-3\n")
+		return typ
+	default:
+		fmtPrintf("TBI\n")
+		os.Exit(1)
+	}
+	return typ
+}
+
+
+func parseParameterList() []*astField {
+	var params []*astField
+	//var list []*astExpr
+	for ptok.tok != ")" {
+		var field *astField = new(astField)
+		var ident *astIdent = parseIdent()
+//		fmtPrintf("debug 1\n")
+		var typ *astExpr = parseVarType()
+//		fmtPrintf("debug 2\n")
+		field.Name = ident
+		field.Type = typ
+//		fmtPrintf("debug 3\n")
+		fmtPrintf("[parser] parseParameterList: Field %s %s\n", field.Name.Name, field.Type.dtype)
+//		fmtPrintf("debug 4\n")
+		params = append(params, field)
+		if ptok.tok == "," {
+			parserNext()
+			continue
+		} else if ptok.tok == ")" {
+			break
+		} else {
+			fmtPrintf("[parseParameterList] Syntax Error\n")
+			os.Exit(1)
+		}
+	}
+
+	return params
+}
+
+func parseParameters() *astFieldList {
+	var params []*astField
+	parserExpect("(")
+	if ptok.tok != ")" {
+		params = parseParameterList()
+	}
+	parserExpect(")")
+	var afl *astFieldList = new(astFieldList)
+	afl.List = params
+	return afl
+}
+
+func parserResult() *astFieldList {
+	var r *astFieldList = new(astFieldList)
+	if ptok.tok == "{" {
+		r = nil
+		return r
+	}
+	var typ *astExpr = parseType()
+	var field *astField = new(astField)
+	field.Type = typ
+	r.List = append(r.List, field)
+	return r
+}
+
+func parseSignature() *signature {
+	var params *astFieldList
+	var results *astFieldList
+	params = parseParameters()
+	results = parserResult()
+	var sig *signature = new(signature)
+	sig.params = params
+	sig.results = results
+	return sig
+}
+
+func parserStmt() *astStmt {
+	var s *astStmt
+	switch ptok.tok {
+	case "var":
+		var decl *astGenDecl = parseDecl("var")
+		s = new(astStmt)
+		s.dtype = "*astGenDecl"
+		s.DeclStmt = new(astDeclStmt)
+		s.DeclStmt.GenDecl = decl
+		return s
+	default:
+		fmtPrintf("parserStmt:TBI:%s\n", ptok.tok)
+		os.Exit(1)
+	}
+	return s
+}
+
+func parseStmtList() []*astStmt {
+	var list []*astStmt
+	for ptok.tok != "}" {
+		fmtPrintf("# begin parserStmt()\n")
+		var stmt *astStmt = parserStmt()
+		fmtPrintf("# end parserStmt()\n")
+		list = append(list, stmt)
+	}
+	return list
+}
+
+func parseBody() *astBlockStmt {
+	parserExpect("{")
+
+	var list  []*astStmt
+	fmtPrintf("# begin parseStmtList()\n")
+	list = parseStmtList()
+	fmtPrintf("# end parseStmtList()\n")
+	parserExpect("}")
+
+	var r *astBlockStmt = new(astBlockStmt)
+	r.List = list
+	return r
+}
+
+/*
+func parseVarDecl() {
+
+}
+
+func parseRhs() *astExpr {
+	return nil
+}
+
+func parserVarDecl() *astStmt {
+	return nil
+}
+*/
+
+func parseDecl(keyword string) *astGenDecl {
+	var r *astGenDecl
+	switch ptok.tok {
+	case "var":
+		parserExpect(keyword)
+		var ident *astIdent = parseIdent()
+		var typ *astExpr= parseType()
+		var value *astExpr
+		if ptok.tok == "=" {
+			parserNext()
+			//value =parseRhs()
+			value = nil
+		}
+		parserExpectSemi()
+
+		var spec *astValueSpec = new(astValueSpec)
+		spec.Name = ident
+		spec.Type = typ
+		spec.Value = value
+		r = new(astGenDecl)
+		r.Specs = append(r.Specs, spec)
+		return r
+	default:
+		fmtPrintf("[parseDecl] TBI\n")
+		os.Exit(1)
+	}
+	return r
+}
+
+func parserParseFuncDecl() *astDecl {
+	parserExpect("func")
+	var ident *astIdent = parseIdent()
+	var sig *signature = parseSignature()
+	var body *astBlockStmt
+	if ptok.tok == "{" {
+		fmtPrintf("# begin parseBody()\n")
+		body = parseBody()
+		fmtPrintf("# end parseBody()\n")
+		parserExpectSemi()
+	}
+	var decl *astDecl = new(astDecl)
+	decl.Name = ident
+	decl.Sig = sig
+	decl.Body = body
+	return decl
+}
+
 func parserParseFile() *astFile {
 	// expect "package" keyword
 	parserExpect("package")
 
 	var ident *astIdent = parseIdent()
-	fmtPrintf("package name = %s\n", ident.Name)
+	fmtPrintf("parser: package name = %s\n", ident.Name)
 	parserExpectSemi()
 
-	var f *astFile = new(astFile)
-	return f
-
-	for {
-		ptok = scannerScan()
-		if ptok.tok == "EOF" {
-			fmtPrintf("EOF\n")
-			break
-		}
+	for ptok.tok == "import" {
+		parserParseImportDecl()
 	}
-	f = new(astFile)
+
+	var decls []*astDecl
+	var decl *astDecl
+	for ptok.tok != "EOF" {
+		switch ptok.tok {
+		case "func":
+			decl  = parserParseFuncDecl()
+			fmtPrintf("func decl parsed:%s\n", decl.Name.Name)
+		default:
+			fmtPrintf("parserParseFile:TBI:%s\n", ptok.tok)
+			os.Exit(1)
+		}
+		decls = append(decls, decl)
+	}
+
+	var f *astFile = new(astFile)
+	f.Name = ident.Name
+	f.Decls = decls
 	return f
 }
 
 func parseFile(filename string) *astFile {
 	var text []uint8 = readSource(filename)
 	parserInit(text)
-	var f *astFile = parserParseFile()
-	f.Name = "main"
-	return f
+	return parserParseFile()
 }
 
 // --- codegen ---
@@ -621,6 +925,14 @@ func kind(t *Type) string {
 //type localoffsetint int //@TODO
 
 func semanticAnalyze(file *astFile) string {
+	var decl *astDecl
+
+	for _, decl = range file.Decls {
+		fmtPrintf("[sema] decl func = %s\n", decl.Name.Name)
+		var fnc *Func = new(Func)
+		fnc.name = decl.Name.Name
+		globalFuncs = append(globalFuncs, fnc)
+	}
 	return fakeSemanticAnalyze(file)
 }
 
@@ -662,11 +974,14 @@ func emitData(pkgName string) {
 	}
 
 	fmtPrintf("# ===== Global Variables =====\n")
+
+	/*
 	var spec *astValueSpec
 	for _, spec = range globalVars {
-		emitGlobalVariable(spec.name, spec.t, spec.value)
+		//emitGlobalVariable(spec.Name.Name, spec.Type, spec.Value)
+		//emitGlobalVariable(spec.Name.Name, nil, "")
 	}
-
+*/
 	fmtPrintf("# ==============================\n")
 }
 
@@ -697,12 +1012,6 @@ func generateCode(pkgName string) {
 	emitText(pkgName)
 }
 
-type astValueSpec struct {
-	name  string
-	t     *Type
-	value string
-}
-
 type Func struct {
 	localvars []*string
 	localarea int
@@ -725,10 +1034,11 @@ var _garbage string
 
 type astFile struct {
 	Name string
+	Decls []*astDecl
 }
 
 func main() {
-	var sourceFiles []string = []string{"t2/self.go"}
+	var sourceFiles []string = []string{"t2/sample.go"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil
@@ -736,7 +1046,6 @@ func main() {
 		stringLiterals = nil
 		stringIndex = 0
 		var f *astFile = parseFile(sourceFile)
-		return
 		var pkgName string = semanticAnalyze(f)
 		generateCode(pkgName)
 	}
@@ -759,13 +1068,6 @@ func test() {
 }
 
 func fakeSemanticAnalyze(file *astFile) string {
-	globalFuncs = make([]*Func, 2, 2)
-	var fnc *Func = new(Func)
-	fnc.name = file.Name
-	globalFuncs[0] = fnc
-	var fnc2 *Func = new(Func)
-	fnc2.name = "foo"
-	globalFuncs[1] = fnc2
 
 	stringLiterals = make([]*sliteral, 2, 2)
 	var s1 *sliteral = new(sliteral)
@@ -778,8 +1080,12 @@ func fakeSemanticAnalyze(file *astFile) string {
 	s2.label = ".main.S1"
 	stringLiterals[1] = s2
 
+
+	/*
 	var globalVar0 *astValueSpec = new(astValueSpec)
-	globalVar0.name = "_gvar0"
+	var ident0 *astIdent = new(astIdent)
+	ident0.Name = "_gvar0"
+	globalVar0.Name = ident0
 	globalVar0.value = "10"
 	globalVar0.t = new(Type)
 	globalVar0.t.kind = "T_INT"
@@ -798,6 +1104,6 @@ func fakeSemanticAnalyze(file *astFile) string {
 	globalVar2.t = new(Type)
 	globalVar2.t.kind = "T_STRING"
 	globalVars = append(globalVars, globalVar2)
-
+*/
 	return file.Name
 }
