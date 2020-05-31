@@ -14,7 +14,7 @@ test.o: test.s runtime.s
 test.out: test.o
 	ld -o test.out test.o
 
-test: test.out t/expected.1
+test: test.out t1/expected.1
 	./test.sh
 
 # to learn Go's assembly
@@ -24,8 +24,8 @@ sample/sample.s: sample/sample.go
 t1/test: t1/test.go
 	go build -o t1/test t1/test.go
 
-t/expected.1: t1/test
-	t1/test 1> t/expected.1
+t1/expected.1: t1/test
+	t1/test 1> t1/expected.1
 
 # self compiler
 self.s: main.go runtime.go runtime.s t2/self.go
