@@ -102,6 +102,7 @@ func scannerNext() {
 		scannerCh = scannerSrc[scannerOffset]
 		scannerNextOffset++
 	} else {
+		scannerOffset = len(scannerSrc)
 		scannerCh = 1 //EOF
 	}
 }
