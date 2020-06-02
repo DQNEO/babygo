@@ -1,8 +1,6 @@
 package main
 
-import (
-	"syscall"
-)
+import "syscall"
 
 func testEscapedChar() {
 	var chars []uint8 = []uint8{'\\', '\t', '\r', '\'', '\n'}
