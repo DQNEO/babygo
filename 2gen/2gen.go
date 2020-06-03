@@ -1,6 +1,8 @@
 package main
 
-import "os"
+import (
+	"os"
+)
 import "syscall"
 
 // --- libs ---
@@ -123,7 +125,7 @@ func scannerInit(src []uint8) {
 	scannerNextOffset = 0
 	scannerInsertSemi = false
 	scannerCh = ' '
-	fmtPrintf("src len = %s\n", Itoa(len(scannerSrc)))
+	fmtPrintf("# src len = %s\n", Itoa(len(scannerSrc)))
 	scannerNext()
 }
 
@@ -219,7 +221,7 @@ func scannerScan() *TokenContainer {
 	} else if isDecimal(ch) {
 		insertSemi = true
 		lit = scannerScanNumber()
-		tok = "NUMBER"
+		tok = "INT"
 	} else {
 		scannerNext()
 		switch ch {
@@ -429,7 +431,7 @@ func scannerScan() *TokenContainer {
 	tc.lit = lit
 	tc.pos = 0
 	tc.tok = tok
-	fmtPrintf("[scanner] scanned : [%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
+	fmtPrintf("# [scanner] scanned : [%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
 	scannerInsertSemi = insertSemi
 	return tc
 }
@@ -468,15 +470,21 @@ type astDeclStmt struct {
 	GenDecl *astGenDecl
 }
 
+type astExprStmt struct {
+	X *astExpr
+}
+
 type astStmt struct {
 	dtype string
 	DeclStmt *astDeclStmt
+	exprStmt *astExprStmt
 }
 
 type astExpr struct {
 	dtype     string
 	ident     *astIdent
 	arrayType *astArrayType
+	basicLit *astBasicLit
 }
 
 type astArrayType struct {
@@ -836,6 +844,37 @@ func parserParseFile() *astFile {
 	return f
 }
 
+type astBasicLit struct {
+	Kind     string   // token.INT, token.CHAR, or token.STRING
+	Value    string
+}
+
+func parseFile0(filename string) *astFile {
+	var text []uint8 = readSource(filename)
+	parserInit(text)
+
+	fmtPrintf("# Parsed tok = %s, basicLit = %s\n", ptok.tok, ptok.lit)
+	var decl *astDecl = new(astDecl)
+	decl.Name = new(astIdent)
+	decl.Name.Name = "main" // func main()
+	var basicLit *astBasicLit = new(astBasicLit)
+	basicLit.Value = ptok.lit
+	basicLit.Kind = ptok.tok
+	decl.Body = new(astBlockStmt)
+	var stmt *astStmt = new(astStmt)
+	stmt.dtype = "*astExprStmt"
+	stmt.exprStmt = new(astExprStmt)
+	var expr *astExpr = new(astExpr)
+	expr.dtype = "*astBasicLit"
+	expr.basicLit = basicLit
+	stmt.exprStmt.X = expr
+	decl.Body.List = append(decl.Body.List, stmt)
+	var f *astFile = new(astFile)
+	f.Name = "main" // pakcage main
+	f.Decls = append(f.Decls, decl)
+	return f
+}
+
 func parseFile(filename string) *astFile {
 	var text []uint8 = readSource(filename)
 	parserInit(text)
@@ -929,9 +968,10 @@ func semanticAnalyze(file *astFile) string {
 	var decl *astDecl
 
 	for _, decl = range file.Decls {
-		fmtPrintf("[sema] decl func = %s\n", decl.Name.Name)
+		fmtPrintf("# [sema] decl func = %s\n", decl.Name.Name)
 		var fnc *Func = new(Func)
 		fnc.name = decl.Name.Name
+		fnc.Body = decl.Body
 		globalFuncs = append(globalFuncs, fnc)
 	}
 	return fakeSemanticAnalyze(file)
@@ -971,7 +1011,7 @@ func emitData(pkgName string) {
 	for _, sl = range stringLiterals {
 		fmtPrintf("# string literals\n")
 		fmtPrintf("%s:\n", sl.label)
-		fmtPrintf("  .string %s\n", sl.value)
+		fmtPrintf("  .string \"%s\"\n", sl.value)
 	}
 
 	fmtPrintf("# ===== Global Variables =====\n")
@@ -995,6 +1035,11 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 		fmtPrintf("  subq $" + slocalarea + ", %rsp # local area\n")
 	}
 
+	fmtPrintf("  # func body\n")
+	fmtPrintf("  movq $%s, %%rdi # status\n", fnc.Body.List[0].exprStmt.X.basicLit.Value)
+	fmtPrintf("  movq $60, %%rax # sys exit\n")
+	fmtPrintf("  syscall\n")
+
 	fmtPrintf("  leave\n")
 	fmtPrintf("  ret\n")
 }
@@ -1009,6 +1054,11 @@ func emitText(pkgName string) {
 }
 
 func generateCode(pkgName string) {
+	fmtPrintf("")
+	fmtPrintf("	.global _start\n")
+	fmtPrintf("_start:\n")
+	fmtPrintf("	callq main.main\n")
+
 	emitData(pkgName)
 	emitText(pkgName)
 }
@@ -1018,6 +1068,7 @@ type Func struct {
 	localarea int
 	argsarea  int
 	name      string
+	Body *astBlockStmt
 }
 
 type sliteral struct {
@@ -1046,7 +1097,7 @@ func main() {
 		globalFuncs = nil
 		stringLiterals = nil
 		stringIndex = 0
-		var f *astFile = parseFile(sourceFile)
+		var f *astFile = parseFile0(sourceFile)
 		var pkgName string = semanticAnalyze(f)
 		generateCode(pkgName)
 	}
