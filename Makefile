@@ -43,6 +43,10 @@ test2: self
 	go run 2gen/2gen.go > /tmp/2gen_out.s
 	diff 2gen_out.s /tmp/2gen_out.s && echo 'ok'
 
+test3: self runtime.s
+	./self | as -o a.o runtime.s - && ld a.o
+	./a.out
+
 test-all:
 	make test test2
 

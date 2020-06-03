@@ -1030,9 +1030,8 @@ func emitData(pkgName string) {
 func emitExpr(expr *astExpr) {
 	switch expr.dtype {
 	case "*astBasicLit":
-		fmtPrintf("  movq $%s, %%rdi # status\n", expr.basicLit.Value)
-		fmtPrintf("  movq $60, %%rax # sys exit\n")
-		fmtPrintf("  syscall\n")
+		fmtPrintf("  pushq $%s # status\n", expr.basicLit.Value)
+		fmtPrintf("  callq os.Exit\n")
 	}
 }
 
@@ -1078,9 +1077,8 @@ func emitText(pkgName string) {
 
 func generateCode(pkgName string) {
 	fmtPrintf("")
-	fmtPrintf("	.global _start\n")
-	fmtPrintf("_start:\n")
-	fmtPrintf("	callq main.main\n")
+	fmtPrintf("runtime.heapInit:\n")
+	fmtPrintf("ret\n")
 
 	emitData(pkgName)
 	emitText(pkgName)
