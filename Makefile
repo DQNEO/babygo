@@ -28,7 +28,7 @@ t1/expected.1: t1/test
 	t1/test 1> t1/expected.1
 
 # 2nd gen compiler
-2gen.s: main.go runtime.go runtime.s 2gen/2gen.go
+2gen.s: main.go runtime.go runtime.s 2gen/2gen.go 2gen/sample.go
 	ln -sf ../2gen/2gen.go t/source.go
 	go run main.go > /tmp/2gen.s && cp /tmp/2gen.s 2gen.s
 
