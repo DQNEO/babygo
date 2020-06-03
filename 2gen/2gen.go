@@ -478,6 +478,7 @@ type astStmt struct {
 	dtype string
 	DeclStmt *astDeclStmt
 	exprStmt *astExprStmt
+	blockStmt *astBlockStmt
 }
 
 type astExpr struct {
@@ -1026,6 +1027,27 @@ func emitData(pkgName string) {
 	fmtPrintf("# ==============================\n")
 }
 
+func emitExpr(expr *astExpr) {
+	switch expr.dtype {
+	case "*astBasicLit":
+		fmtPrintf("  movq $%s, %%rdi # status\n", expr.basicLit.Value)
+		fmtPrintf("  movq $60, %%rax # sys exit\n")
+		fmtPrintf("  syscall\n")
+	}
+}
+
+func emitStmt(stmt *astStmt) {
+	switch stmt.dtype {
+	case "*astBlockStmt":
+		var stmt2 *astStmt
+		for _, stmt2 = range stmt.blockStmt.List {
+			emitStmt(stmt2)
+		}
+	case "*astExprStmt":
+		emitExpr(stmt.exprStmt.X)
+	}
+}
+
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmtPrintf("\n")
 	var fname string = fnc.name
@@ -1036,9 +1058,10 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	}
 
 	fmtPrintf("  # func body\n")
-	fmtPrintf("  movq $%s, %%rdi # status\n", fnc.Body.List[0].exprStmt.X.basicLit.Value)
-	fmtPrintf("  movq $60, %%rax # sys exit\n")
-	fmtPrintf("  syscall\n")
+	var stmt *astStmt = new(astStmt)
+	stmt.dtype = "*astBlockStmt"
+	stmt.blockStmt = fnc.Body
+	emitStmt(stmt)
 
 	fmtPrintf("  leave\n")
 	fmtPrintf("  ret\n")
