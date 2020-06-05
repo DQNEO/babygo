@@ -486,6 +486,7 @@ type astExpr struct {
 	ident     *astIdent
 	arrayType *astArrayType
 	basicLit *astBasicLit
+	callExpr *astCallExpr
 }
 
 type astArrayType struct {
@@ -710,6 +711,56 @@ func parseSignature() *signature {
 	return sig
 }
 
+type astCallExpr struct {
+	Fun      string      // function expression
+	Args     []*astExpr    // function arguments; or nil
+}
+
+func parseExpr() *astExpr {
+	var r *astExpr = new(astExpr)
+	switch ptok.tok {
+	case "IDENT":
+		var identToken *TokenContainer = ptok
+		parserNext() // consume IDENT
+		if ptok.tok == "." {
+			parserNext() // consume "."
+			if ptok.tok != "IDENT" {
+				fmtPrintf("tok should be IDENT")
+				os.Exit(1)
+			}
+			var secondIdent string = ptok.lit
+			parserNext() // consume IDENT
+			var callExpr *astCallExpr = new(astCallExpr)
+			callExpr.Fun = identToken.lit + "." + secondIdent
+			fmtPrintf("# [DEBUG] ptok.tok=%s\n", ptok.tok)
+			parserNext() // consume "("
+			var arg *astExpr= parseExpr()
+			callExpr.Args = append(callExpr.Args, arg)
+			r.dtype = "*astCallExpr"
+			r.callExpr = callExpr
+		} else if ptok.tok == "(" {
+			parserNext()
+			var callExpr *astCallExpr = new(astCallExpr)
+			callExpr.Fun = identToken.lit
+			var arg *astExpr= parseExpr()
+			callExpr.Args = append(callExpr.Args, arg)
+			r.dtype = "*astCallExpr"
+			r.callExpr = callExpr
+		} else {
+			fmtPrintf("[parseExpr] TBI ptok.tok=%s (%s)\n", ptok.tok, ptok.lit)
+			os.Exit(1)
+		}
+	case "INT":
+		var basicLit *astBasicLit = new(astBasicLit)
+		basicLit.Kind = "INT"
+		basicLit.Value = ptok.lit
+		r.dtype = "*astBasicLit"
+		r.basicLit = basicLit
+	}
+
+	return r
+}
+
 func parserStmt() *astStmt {
 	var s *astStmt
 	switch ptok.tok {
@@ -855,6 +906,7 @@ func parseFile0(filename string) *astFile {
 	parserInit(text)
 
 	fmtPrintf("# Parsed tok = %s, basicLit = %s\n", ptok.tok, ptok.lit)
+	var e *astExpr = parseExpr()
 	var decl *astDecl = new(astDecl)
 	decl.Name = new(astIdent)
 	decl.Name.Name = "main" // func main()
@@ -865,10 +917,9 @@ func parseFile0(filename string) *astFile {
 	var stmt *astStmt = new(astStmt)
 	stmt.dtype = "*astExprStmt"
 	stmt.exprStmt = new(astExprStmt)
-	var expr *astExpr = new(astExpr)
-	expr.dtype = "*astBasicLit"
-	expr.basicLit = basicLit
-	stmt.exprStmt.X = expr
+	//expr.dtype = "*astBasicLit"
+	//expr.basicLit = basicLit
+	stmt.exprStmt.X = e
 	decl.Body.List = append(decl.Body.List, stmt)
 	var f *astFile = new(astFile)
 	f.Name = "main" // pakcage main
@@ -1031,7 +1082,13 @@ func emitExpr(expr *astExpr) {
 	switch expr.dtype {
 	case "*astBasicLit":
 		fmtPrintf("  pushq $%s # status\n", expr.basicLit.Value)
-		fmtPrintf("  callq os.Exit\n")
+	case "*astCallExpr":
+		var callExpr *astCallExpr = expr.callExpr
+		emitExpr(callExpr.Args[0])
+		fmtPrintf("  callq %s\n", callExpr.Fun)
+	default:
+		fmtPrintf("[emitExpr] `TBI:%s\n", expr.dtype)
+		os.Exit(1)
 	}
 }
 
