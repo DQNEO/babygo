@@ -431,7 +431,7 @@ func scannerScan() *TokenContainer {
 	tc.lit = lit
 	tc.pos = 0
 	tc.tok = tok
-	//fmtPrintf("# [scanner] scanned : [%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
+	fmtPrintf("# [scanner] scanned : [%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
 	scannerInsertSemi = insertSemi
 	return tc
 }
@@ -475,10 +475,11 @@ type astExprStmt struct {
 }
 
 type astStmt struct {
-	dtype string
-	DeclStmt *astDeclStmt
-	exprStmt *astExprStmt
-	blockStmt *astBlockStmt
+	dtype      string
+	DeclStmt   *astDeclStmt
+	exprStmt   *astExprStmt
+	blockStmt  *astBlockStmt
+	assignStmt *astAssignStmt
 }
 
 type astExpr struct {
@@ -627,7 +628,7 @@ func parseArrayType() *astExpr {
 
 func tryIdentOrType() *astExpr {
 	var typ *astExpr = new(astExpr)
-	fmtPrintf("debug 1-1\n")
+	fmtPrintf("# debug 1-1\n")
 	switch ptok.tok {
 	case "IDENT":
 		var ident *astIdent = parseIdent()
@@ -716,11 +717,15 @@ type astCallExpr struct {
 	Args     []*astExpr    // function arguments; or nil
 }
 
-func parseExpr() *astExpr {
+func parsePrimaryExpr() *astExpr {
 	var r *astExpr = new(astExpr)
 	switch ptok.tok {
 	case "IDENT":
 		var identToken *TokenContainer = ptok
+		var eIdent *astExpr = new(astExpr)
+		eIdent.dtype = "*astIdent"
+		eIdent.ident = new(astIdent)
+		eIdent.ident.Name = identToken.lit
 		parserNext() // consume IDENT
 		if ptok.tok == "." {
 			parserNext() // consume "."
@@ -731,26 +736,25 @@ func parseExpr() *astExpr {
 			var secondIdent string = ptok.lit
 			parserNext() // consume IDENT
 			var callExpr *astCallExpr = new(astCallExpr)
-			callExpr.Fun = identToken.lit + "." + secondIdent
-			fmtPrintf("# [DEBUG] ptok.tok=%s\n", ptok.tok)
+			callExpr.Fun = eIdent.ident.Name + "." + secondIdent
+			fmtPrintf("# [parseUnaryExpr] ptok.tok=%s\n", ptok.tok)
 			parserNext() // consume "("
 			var arg *astExpr= parseExpr()
 			parserNext() // consume ")"
 			callExpr.Args = append(callExpr.Args, arg)
 			r.dtype = "*astCallExpr"
 			r.callExpr = callExpr
-			fmtPrintf("# [DEBUG] 741 ptok.tok=%s\n", ptok.tok)
+			fmtPrintf("# [parseUnaryExpr] 741 ptok.tok=%s\n", ptok.tok)
 		} else if ptok.tok == "(" {
 			parserNext()
 			var callExpr *astCallExpr = new(astCallExpr)
 			callExpr.Fun = identToken.lit
-			var arg *astExpr= parseExpr()
+			var arg *astExpr = parseExpr()
 			callExpr.Args = append(callExpr.Args, arg)
 			r.dtype = "*astCallExpr"
 			r.callExpr = callExpr
-		} else {
-			fmtPrintf("[parseExpr] TBI ptok.tok=%s (%s)\n", ptok.tok, ptok.lit)
-			os.Exit(1)
+		} else  {
+			return eIdent
 		}
 	case "INT":
 		var basicLit *astBasicLit = new(astBasicLit)
@@ -760,8 +764,21 @@ func parseExpr() *astExpr {
 		r.basicLit = basicLit
 		parserNext()
 	}
-
 	return r
+
+}
+
+func parseUnaryExpr() *astExpr {
+	return parsePrimaryExpr()
+}
+
+func parseExpr() *astExpr {
+	return parseUnaryExpr()
+}
+
+type astAssignStmt struct {
+	Lhs *astExpr
+	Rhs *astExpr
 }
 
 func parserStmt() *astStmt {
@@ -775,12 +792,25 @@ func parserStmt() *astStmt {
 		s.DeclStmt.GenDecl = decl
 		return s
 	case "IDENT":
-		var e *astExpr = parseExpr()
-		fmtPrintf("# [debug] e.dtype=%s\n", e.dtype)
+		var x *astExpr = parseExpr()
+
+		switch ptok.tok {
+		case "=":
+			parserNext() // consume =
+			var y *astExpr = parseExpr()
+			var as *astAssignStmt = new(astAssignStmt)
+			as.Lhs = x
+			as.Rhs = y
+			s.dtype = "*astAssignStmt"
+			s.assignStmt = as
+			parserExpectSemi()
+			return s
+		}
+		fmtPrintf("# [debug] e.dtype=%s\n", x.dtype)
 		fmtPrintf("# [debug] 20\n")
 		s.dtype = "*astExprStmt"
 		var exprStmt *astExprStmt = new(astExprStmt)
-		exprStmt.X = e
+		exprStmt.X = x
 		s.exprStmt = exprStmt
 		parserExpectSemi()
 		fmtPrintf("# [debug] 90\n")
@@ -795,6 +825,10 @@ func parseStmtList() []*astStmt {
 	var list []*astStmt
 	for ptok.tok != "}" {
 		fmtPrintf("# begin parserStmt()\n")
+		if ptok.tok == "EOF" {
+			fmtPrintf("#[parseStmtList] unexpected EOF\n")
+			os.Exit(1)
+		}
 		var stmt *astStmt = parserStmt()
 		fmtPrintf("# end parserStmt()\n")
 		list = append(list, stmt)
