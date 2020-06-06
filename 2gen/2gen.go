@@ -431,7 +431,7 @@ func scannerScan() *TokenContainer {
 	tc.lit = lit
 	tc.pos = 0
 	tc.tok = tok
-	fmtPrintf("# [scanner] scanned : [%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
+	//fmtPrintf("# [scanner] scanned : [%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
 	scannerInsertSemi = insertSemi
 	return tc
 }
@@ -735,9 +735,11 @@ func parseExpr() *astExpr {
 			fmtPrintf("# [DEBUG] ptok.tok=%s\n", ptok.tok)
 			parserNext() // consume "("
 			var arg *astExpr= parseExpr()
+			parserNext() // consume ")"
 			callExpr.Args = append(callExpr.Args, arg)
 			r.dtype = "*astCallExpr"
 			r.callExpr = callExpr
+			fmtPrintf("# [DEBUG] 741 ptok.tok=%s\n", ptok.tok)
 		} else if ptok.tok == "(" {
 			parserNext()
 			var callExpr *astCallExpr = new(astCallExpr)
@@ -756,6 +758,7 @@ func parseExpr() *astExpr {
 		basicLit.Value = ptok.lit
 		r.dtype = "*astBasicLit"
 		r.basicLit = basicLit
+		parserNext()
 	}
 
 	return r
@@ -763,16 +766,26 @@ func parseExpr() *astExpr {
 
 func parserStmt() *astStmt {
 	var s *astStmt
+	s = new(astStmt)
 	switch ptok.tok {
 	case "var":
 		var decl *astGenDecl = parseDecl("var")
-		s = new(astStmt)
 		s.dtype = "*astGenDecl"
 		s.DeclStmt = new(astDeclStmt)
 		s.DeclStmt.GenDecl = decl
 		return s
+	case "IDENT":
+		var e *astExpr = parseExpr()
+		fmtPrintf("# [debug] e.dtype=%s\n", e.dtype)
+		fmtPrintf("# [debug] 20\n")
+		s.dtype = "*astExprStmt"
+		var exprStmt *astExprStmt = new(astExprStmt)
+		exprStmt.X = e
+		s.exprStmt = exprStmt
+		parserExpectSemi()
+		fmtPrintf("# [debug] 90\n")
 	default:
-		fmtPrintf("parserStmt:TBI:%s\n", ptok.tok)
+		fmtPrintf("parserStmt:TBI2:%s\n", ptok.tok)
 		os.Exit(1)
 	}
 	return s
@@ -869,7 +882,7 @@ func parserParseFile() *astFile {
 	parserExpect("package")
 
 	var ident *astIdent = parseIdent()
-	fmtPrintf("parser: package name = %s\n", ident.Name)
+	fmtPrintf("# parser: package name = %s\n", ident.Name)
 	parserExpectSemi()
 
 	for ptok.tok == "import" {
@@ -882,9 +895,9 @@ func parserParseFile() *astFile {
 		switch ptok.tok {
 		case "func":
 			decl  = parserParseFuncDecl()
-			fmtPrintf("func decl parsed:%s\n", decl.Name.Name)
+			fmtPrintf("# func decl parsed:%s\n", decl.Name.Name)
 		default:
-			fmtPrintf("parserParseFile:TBI:%s\n", ptok.tok)
+			fmtPrintf("# parserParseFile:TBI:%s\n", ptok.tok)
 			os.Exit(1)
 		}
 		decls = append(decls, decl)
@@ -901,31 +914,28 @@ type astBasicLit struct {
 	Value    string
 }
 
+
+/*
 func parseFile0(filename string) *astFile {
 	var text []uint8 = readSource(filename)
 	parserInit(text)
 
 	fmtPrintf("# Parsed tok = %s, basicLit = %s\n", ptok.tok, ptok.lit)
-	var e *astExpr = parseExpr()
 	var decl *astDecl = new(astDecl)
 	decl.Name = new(astIdent)
 	decl.Name.Name = "main" // func main()
-	var basicLit *astBasicLit = new(astBasicLit)
-	basicLit.Value = ptok.lit
-	basicLit.Kind = ptok.tok
 	decl.Body = new(astBlockStmt)
-	var stmt *astStmt = new(astStmt)
-	stmt.dtype = "*astExprStmt"
-	stmt.exprStmt = new(astExprStmt)
-	//expr.dtype = "*astBasicLit"
-	//expr.basicLit = basicLit
-	stmt.exprStmt.X = e
+	var stmt *astStmt = parserStmt()
 	decl.Body.List = append(decl.Body.List, stmt)
+	 stmt  = parserStmt()
+	decl.Body.List = append(decl.Body.List, stmt)
+
 	var f *astFile = new(astFile)
 	f.Name = "main" // pakcage main
 	f.Decls = append(f.Decls, decl)
 	return f
 }
+*/
 
 func parseFile(filename string) *astFile {
 	var text []uint8 = readSource(filename)
@@ -1175,7 +1185,7 @@ func main() {
 		globalFuncs = nil
 		stringLiterals = nil
 		stringIndex = 0
-		var f *astFile = parseFile0(sourceFile)
+		var f *astFile = parseFile(sourceFile)
 		var pkgName string = semanticAnalyze(f)
 		generateCode(pkgName)
 	}
