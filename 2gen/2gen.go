@@ -431,7 +431,6 @@ func scannerScan() *TokenContainer {
 	tc.lit = lit
 	tc.pos = 0
 	tc.tok = tok
-	fmtPrintf("# [scanner] scanned : [%s] %s (%s)\n", tc.tok, tc.lit, Itoa(scannerOffset))
 	scannerInsertSemi = insertSemi
 	return tc
 }
@@ -541,6 +540,11 @@ var ptok *TokenContainer
 func parserNext() {
 	//fmtPrintf("parserNext\n")
 	ptok = scannerScan()
+	if ptok.tok == ";" {
+		fmtPrintf("# [parser] looking at : [%s] newline (%s)\n", ptok.tok , Itoa(scannerOffset))
+	} else {
+		fmtPrintf("# [parser] looking at: [%s] %s (%s)\n", ptok.tok, ptok.lit, Itoa(scannerOffset))
+	}
 	//fmtPrintf("current ptok: tok=%s, lit=%s\n", ptok.tok, ptok.lit)
 }
 
@@ -549,6 +553,7 @@ func parserExpect(tok string) {
 		fmtPrintf("%s expected, but got %s\n", tok, ptok.tok)
 		os.Exit(1)
 	}
+	fmtPrintf("# [parser] got exptected tok %s\n", ptok.tok)
 	parserNext()
 }
 
@@ -590,11 +595,6 @@ func parserParseImportDecl() *astImportSpec {
 	spec.Path = path
 	return spec
 }
-
-func parseStmt() {
-
-}
-
 
 func parseVarType() *astExpr {
 	var e *astExpr = tryIdentOrType()
@@ -773,12 +773,21 @@ func parseUnaryExpr() *astExpr {
 }
 
 func parseExpr() *astExpr {
-	return parseUnaryExpr()
+	fmtPrintf("#   begin parseExpr()\n")
+	var e *astExpr = parseUnaryExpr()
+	fmtPrintf("#   end parseExpr()\n")
+	return e
 }
 
 type astAssignStmt struct {
 	Lhs *astExpr
 	Rhs *astExpr
+}
+
+func nop() {
+}
+
+func nop1() {
 }
 
 func parserStmt() *astStmt {
@@ -792,12 +801,13 @@ func parserStmt() *astStmt {
 		s.DeclStmt.GenDecl = decl
 		return s
 	case "IDENT":
+		fmtPrintf("# [parserStmt] is IDENT:%s\n",ptok.lit)
 		var x *astExpr = parseExpr()
-
 		var stok string = ptok.tok
-		//switch stok {
-		//case "=":
-		if stok == "=" {
+		switch stok {
+		case "=":
+			fmtPrintf("ERROR:%s\n",stok)
+			os.Exit(1)
 			parserNext() // consume =
 			var y *astExpr = parseExpr()
 			var as *astAssignStmt = new(astAssignStmt)
@@ -807,15 +817,14 @@ func parserStmt() *astStmt {
 			s.assignStmt = as
 			parserExpectSemi()
 			return s
+		case ";":
+			s.dtype = "*astExprStmt"
+			var exprStmt *astExprStmt = new(astExprStmt)
+			exprStmt.X = x
+			s.exprStmt = exprStmt
+			parserExpectSemi()
+			return s
 		}
-		fmtPrintf("# [debug] e.dtype=%s\n", x.dtype)
-		fmtPrintf("# [debug] 20\n")
-		s.dtype = "*astExprStmt"
-		var exprStmt *astExprStmt = new(astExprStmt)
-		exprStmt.X = x
-		s.exprStmt = exprStmt
-		parserExpectSemi()
-		fmtPrintf("# [debug] 90\n")
 	default:
 		fmtPrintf("parserStmt:TBI2:%s\n", ptok.tok)
 		os.Exit(1)
@@ -949,29 +958,6 @@ type astBasicLit struct {
 	Kind     string   // token.INT, token.CHAR, or token.STRING
 	Value    string
 }
-
-
-/*
-func parseFile0(filename string) *astFile {
-	var text []uint8 = readSource(filename)
-	parserInit(text)
-
-	fmtPrintf("# Parsed tok = %s, basicLit = %s\n", ptok.tok, ptok.lit)
-	var decl *astDecl = new(astDecl)
-	decl.Name = new(astIdent)
-	decl.Name.Name = "main" // func main()
-	decl.Body = new(astBlockStmt)
-	var stmt *astStmt = parserStmt()
-	decl.Body.List = append(decl.Body.List, stmt)
-	 stmt  = parserStmt()
-	decl.Body.List = append(decl.Body.List, stmt)
-
-	var f *astFile = new(astFile)
-	f.Name = "main" // pakcage main
-	f.Decls = append(f.Decls, decl)
-	return f
-}
-*/
 
 func parseFile(filename string) *astFile {
 	var text []uint8 = readSource(filename)
@@ -1148,7 +1134,7 @@ func emitStmt(stmt *astStmt) {
 	case "*astExprStmt":
 		emitExpr(stmt.exprStmt.X)
 	default:
-		fmtPrintf("[emitStmt] TBI\n")
+		fmtPrintf("[emitStmt] TBI:%s\n", stmt.dtype)
 		os.Exit(1)
 	}
 }
