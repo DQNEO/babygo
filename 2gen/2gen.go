@@ -482,11 +482,12 @@ type astStmt struct {
 }
 
 type astExpr struct {
-	dtype     string
-	ident     *astIdent
-	arrayType *astArrayType
-	basicLit *astBasicLit
-	callExpr *astCallExpr
+	dtype      string
+	ident      *astIdent
+	arrayType  *astArrayType
+	basicLit   *astBasicLit
+	callExpr   *astCallExpr
+	binaryExpr *astBinaryExpr
 }
 
 type astArrayType struct {
@@ -718,6 +719,7 @@ type astCallExpr struct {
 }
 
 func parsePrimaryExpr() *astExpr {
+	fmtPrintf("#   begin parsePrimaryExpr()\n")
 	var r *astExpr = new(astExpr)
 	switch ptok.tok {
 	case "IDENT":
@@ -740,20 +742,25 @@ func parsePrimaryExpr() *astExpr {
 			fmtPrintf("# [parseUnaryExpr] ptok.tok=%s\n", ptok.tok)
 			parserNext() // consume "("
 			var arg *astExpr= parseExpr()
-			parserNext() // consume ")"
+			parserExpect(")") // consume ")"
 			callExpr.Args = append(callExpr.Args, arg)
 			r.dtype = "*astCallExpr"
 			r.callExpr = callExpr
 			fmtPrintf("# [parseUnaryExpr] 741 ptok.tok=%s\n", ptok.tok)
 		} else if ptok.tok == "(" {
-			parserNext()
+			parserNext() // consume "("
 			var callExpr *astCallExpr = new(astCallExpr)
 			callExpr.Fun = identToken.lit
 			var arg *astExpr = parseExpr()
+			parserNext() // consume ")"
 			callExpr.Args = append(callExpr.Args, arg)
 			r.dtype = "*astCallExpr"
 			r.callExpr = callExpr
 		} else  {
+			fmtPrintf("ERROR: ptok.tok=%s\n", ptok.tok)
+			os.Exit(1)
+			parserNext() // consume ")"
+			fmtPrintf("#   end parsePrimaryExpr()\n")
 			return eIdent
 		}
 	case "INT":
@@ -763,18 +770,60 @@ func parsePrimaryExpr() *astExpr {
 		r.dtype = "*astBasicLit"
 		r.basicLit = basicLit
 		parserNext()
+	default:
+		fmtPrintf("TBI: ptok.tok=%s\n", ptok.tok)
+		os.Exit(1)
 	}
+	fmtPrintf("#   end parsePrimaryExpr()\n")
 	return r
 
 }
 
 func parseUnaryExpr() *astExpr {
-	return parsePrimaryExpr()
+	fmtPrintf("#   begin parseUnaryExpr()\n")
+	var r *astExpr = parsePrimaryExpr()
+	fmtPrintf("#   end parseUnaryExpr()\n")
+	return r
+}
+
+type astBinaryExpr struct {
+	X *astExpr
+	Y *astExpr
+	Op string
+}
+
+func parseBinaryExpr(prec1 int) *astExpr {
+	fmtPrintf("#   begin parseBinaryExpr()\n")
+	var x *astExpr = parseUnaryExpr()
+	for {
+		var op string = ptok.tok
+		var oprec int
+		if op == "+" {
+			oprec = 3
+		}
+		if oprec < prec1 {
+			fmtPrintf("#   end parseBinaryExpr() (NonBinary)\n")
+			return x
+		}
+		parserExpect(op)
+		var y *astExpr = parseBinaryExpr(oprec+1)
+		var binaryExpr *astBinaryExpr = new(astBinaryExpr)
+		binaryExpr.X = x
+		binaryExpr.Y = y
+		binaryExpr.Op = op
+		var r *astExpr = new(astExpr)
+		r.dtype = "*astBinaryExpr"
+		r.binaryExpr = binaryExpr
+		fmtPrintf("#   end parseBinaryExpr() (Binary)\n")
+		return r
+	}
+	fmtPrintf("#   end parseBinaryExpr()\n")
+	return x
 }
 
 func parseExpr() *astExpr {
 	fmtPrintf("#   begin parseExpr()\n")
-	var e *astExpr = parseUnaryExpr()
+	var e *astExpr = parseBinaryExpr(1)
 	fmtPrintf("#   end parseExpr()\n")
 	return e
 }
@@ -791,6 +840,7 @@ func nop1() {
 }
 
 func parseStmt() *astStmt {
+	fmtPrintf("# = begin parseStmt()\n")
 	var s *astStmt
 	s = new(astStmt)
 	switch ptok.tok {
@@ -799,6 +849,7 @@ func parseStmt() *astStmt {
 		s.dtype = "*astGenDecl"
 		s.DeclStmt = new(astDeclStmt)
 		s.DeclStmt.GenDecl = decl
+		fmtPrintf("# = end parseStmt()\n")
 		return s
 	case "IDENT":
 		fmtPrintf("# [parseStmt] is IDENT:%s\n",ptok.lit)
@@ -806,7 +857,7 @@ func parseStmt() *astStmt {
 		var stok string = ptok.tok
 		switch stok {
 		case "=":
-			fmtPrintf("ERROR:%s\n",stok)
+			fmtPrintf("# [parseStmt] ERROR:%s\n",stok)
 			os.Exit(1)
 			parserNext() // consume =
 			var y *astExpr = parseExpr()
@@ -816,6 +867,7 @@ func parseStmt() *astStmt {
 			s.dtype = "*astAssignStmt"
 			s.assignStmt = as
 			parserExpectSemi()
+			fmtPrintf("# = end parseStmt()\n")
 			return s
 		case ";":
 			s.dtype = "*astExprStmt"
@@ -823,25 +875,28 @@ func parseStmt() *astStmt {
 			exprStmt.X = x
 			s.exprStmt = exprStmt
 			parserExpectSemi()
+			fmtPrintf("# = end parseStmt()\n")
 			return s
+		default:
+			fmtPrintf("parseStmt:TBI 2:%s\n", ptok.tok)
+			os.Exit(1)
 		}
 	default:
-		fmtPrintf("parseStmt:TBI2:%s\n", ptok.tok)
+		fmtPrintf("parseStmt:TBI 3:%s\n", ptok.tok)
 		os.Exit(1)
 	}
+	fmtPrintf("# = end parseStmt()\n")
 	return s
 }
 
 func parseStmtList() []*astStmt {
 	var list []*astStmt
 	for ptok.tok != "}" {
-		fmtPrintf("# begin parseStmt()\n")
 		if ptok.tok == "EOF" {
 			fmtPrintf("#[parseStmtList] unexpected EOF\n")
 			os.Exit(1)
 		}
 		var stmt *astStmt = parseStmt()
-		fmtPrintf("# end parseStmt()\n")
 		list = append(list, stmt)
 	}
 	return list
@@ -1110,16 +1165,29 @@ func emitData(pkgName string) {
 	fmtPrintf("# ==============================\n")
 }
 
-func emitExpr(expr *astExpr) {
-	switch expr.dtype {
+func emitExpr(e *astExpr) {
+	switch e.dtype {
 	case "*astBasicLit":
-		fmtPrintf("  pushq $%s # status\n", expr.basicLit.Value)
+		fmtPrintf("  pushq $%s # status\n", e.basicLit.Value)
 	case "*astCallExpr":
-		var callExpr *astCallExpr = expr.callExpr
+		var callExpr *astCallExpr = e.callExpr
 		emitExpr(callExpr.Args[0])
 		fmtPrintf("  callq %s\n", callExpr.Fun)
+	case "*astBinaryExpr":
+		emitExpr(e.binaryExpr.X) // left
+		emitExpr(e.binaryExpr.Y) // right
+		switch e.binaryExpr.Op {
+		case "+":
+			fmtPrintf("  popq %%rcx # right\n")
+			fmtPrintf("  popq %%rax # left\n")
+			fmtPrintf("  addq %%rcx, %%rax\n")
+			fmtPrintf("  pushq %%rax\n")
+		default:
+			fmtPrintf("TBI: binary operation for '%s'", e.binaryExpr.Op)
+			os.Exit(1)
+		}
 	default:
-		fmtPrintf("[emitExpr] `TBI:%s\n", expr.dtype)
+		fmtPrintf("[emitExpr] `TBI:%s\n", e.dtype)
 		os.Exit(1)
 	}
 }
