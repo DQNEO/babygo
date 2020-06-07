@@ -794,8 +794,10 @@ func parserStmt() *astStmt {
 	case "IDENT":
 		var x *astExpr = parseExpr()
 
-		switch ptok.tok {
-		case "=":
+		var stok string = ptok.tok
+		//switch stok {
+		//case "=":
+		if stok == "=" {
 			parserNext() // consume =
 			var y *astExpr = parseExpr()
 			var as *astAssignStmt = new(astAssignStmt)
@@ -1145,6 +1147,9 @@ func emitStmt(stmt *astStmt) {
 		}
 	case "*astExprStmt":
 		emitExpr(stmt.exprStmt.X)
+	default:
+		fmtPrintf("[emitStmt] TBI\n")
+		os.Exit(1)
 	}
 }
 
