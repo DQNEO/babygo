@@ -790,7 +790,7 @@ func nop() {
 func nop1() {
 }
 
-func parserStmt() *astStmt {
+func parseStmt() *astStmt {
 	var s *astStmt
 	s = new(astStmt)
 	switch ptok.tok {
@@ -801,7 +801,7 @@ func parserStmt() *astStmt {
 		s.DeclStmt.GenDecl = decl
 		return s
 	case "IDENT":
-		fmtPrintf("# [parserStmt] is IDENT:%s\n",ptok.lit)
+		fmtPrintf("# [parseStmt] is IDENT:%s\n",ptok.lit)
 		var x *astExpr = parseExpr()
 		var stok string = ptok.tok
 		switch stok {
@@ -826,7 +826,7 @@ func parserStmt() *astStmt {
 			return s
 		}
 	default:
-		fmtPrintf("parserStmt:TBI2:%s\n", ptok.tok)
+		fmtPrintf("parseStmt:TBI2:%s\n", ptok.tok)
 		os.Exit(1)
 	}
 	return s
@@ -835,13 +835,13 @@ func parserStmt() *astStmt {
 func parseStmtList() []*astStmt {
 	var list []*astStmt
 	for ptok.tok != "}" {
-		fmtPrintf("# begin parserStmt()\n")
+		fmtPrintf("# begin parseStmt()\n")
 		if ptok.tok == "EOF" {
 			fmtPrintf("#[parseStmtList] unexpected EOF\n")
 			os.Exit(1)
 		}
-		var stmt *astStmt = parserStmt()
-		fmtPrintf("# end parserStmt()\n")
+		var stmt *astStmt = parseStmt()
+		fmtPrintf("# end parseStmt()\n")
 		list = append(list, stmt)
 	}
 	return list
