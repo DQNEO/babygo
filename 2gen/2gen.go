@@ -742,6 +742,7 @@ func parsePrimaryExpr() *astExpr {
 			fmtPrintf("# [parseUnaryExpr] ptok.tok=%s\n", ptok.tok)
 			parserNext() // consume "("
 			var arg *astExpr= parseExpr()
+			fmtPrintf("#   debug\n")
 			parserExpect(")") // consume ")"
 			callExpr.Args = append(callExpr.Args, arg)
 			r.dtype = "*astCallExpr"
@@ -799,10 +800,10 @@ func parseBinaryExpr(prec1 int) *astExpr {
 		var op string = ptok.tok
 		var oprec int
 		if op == "+" {
-			oprec = 3
+			oprec = 4
 		}
 		if oprec < prec1 {
-			fmtPrintf("#   end parseBinaryExpr() (NonBinary)\n")
+			fmtPrintf("#   end parseBinaryExpr() (NonBinary) %s %s < %s\n", op, Itoa(oprec) , Itoa(prec1))
 			return x
 		}
 		parserExpect(op)
@@ -814,8 +815,7 @@ func parseBinaryExpr(prec1 int) *astExpr {
 		var r *astExpr = new(astExpr)
 		r.dtype = "*astBinaryExpr"
 		r.binaryExpr = binaryExpr
-		fmtPrintf("#   end parseBinaryExpr() (Binary)\n")
-		return r
+		x = r
 	}
 	fmtPrintf("#   end parseBinaryExpr()\n")
 	return x
