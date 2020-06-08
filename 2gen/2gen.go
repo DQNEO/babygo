@@ -436,9 +436,6 @@ func scannerScan() *TokenContainer {
 }
 
 // --- ast ---
-type astIdent struct {
-	Name string
-}
 
 type astImportSpec struct {
 	Path string
@@ -464,6 +461,14 @@ type signature struct {
 	results *astFieldList
 }
 
+type astStmt struct {
+	dtype      string
+	DeclStmt   *astDeclStmt
+	exprStmt   *astExprStmt
+	blockStmt  *astBlockStmt
+	assignStmt *astAssignStmt
+}
+
 type astDeclStmt struct {
 	Decl    *astDecl
 	GenDecl *astGenDecl
@@ -473,12 +478,23 @@ type astExprStmt struct {
 	X *astExpr
 }
 
-type astStmt struct {
-	dtype      string
-	DeclStmt   *astDeclStmt
-	exprStmt   *astExprStmt
-	blockStmt  *astBlockStmt
-	assignStmt *astAssignStmt
+type astBlockStmt struct {
+	List []*astStmt
+}
+
+type astAssignStmt struct {
+	Lhs *astExpr
+	Rhs *astExpr
+}
+
+type astGenDecl struct {
+	Specs []*astValueSpec
+}
+
+type astValueSpec struct {
+	Name *astIdent
+	Type *astExpr
+	Value *astExpr
 }
 
 type astExpr struct {
@@ -490,23 +506,29 @@ type astExpr struct {
 	binaryExpr *astBinaryExpr
 }
 
+type astIdent struct {
+	Name string
+}
+
 type astArrayType struct {
 	Len *astExpr
 	Elt *astExpr
 }
 
-type astBlockStmt struct {
-	List []*astStmt
+type astBasicLit struct {
+	Kind     string   // token.INT, token.CHAR, or token.STRING
+	Value    string
 }
 
-type astGenDecl struct {
-	Specs []*astValueSpec
+type astCallExpr struct {
+	Fun      string      // function expression
+	Args     []*astExpr    // function arguments; or nil
 }
 
-type astValueSpec struct {
-	Name *astIdent
-	Type *astExpr
-	Value *astExpr
+type astBinaryExpr struct {
+	X *astExpr
+	Y *astExpr
+	Op string
 }
 
 // --- parser ---
@@ -713,11 +735,6 @@ func parseSignature() *signature {
 	return sig
 }
 
-type astCallExpr struct {
-	Fun      string      // function expression
-	Args     []*astExpr    // function arguments; or nil
-}
-
 func parsePrimaryExpr() *astExpr {
 	fmtPrintf("#   begin parsePrimaryExpr()\n")
 	var r *astExpr = new(astExpr)
@@ -787,11 +804,6 @@ func parseUnaryExpr() *astExpr {
 	return r
 }
 
-type astBinaryExpr struct {
-	X *astExpr
-	Y *astExpr
-	Op string
-}
 
 func parseBinaryExpr(prec1 int) *astExpr {
 	fmtPrintf("#   begin parseBinaryExpr()\n")
@@ -826,11 +838,6 @@ func parseExpr() *astExpr {
 	var e *astExpr = parseBinaryExpr(1)
 	fmtPrintf("#   end parseExpr()\n")
 	return e
-}
-
-type astAssignStmt struct {
-	Lhs *astExpr
-	Rhs *astExpr
 }
 
 func nop() {
@@ -1009,10 +1016,6 @@ func parserParseFile() *astFile {
 	return f
 }
 
-type astBasicLit struct {
-	Kind     string   // token.INT, token.CHAR, or token.STRING
-	Value    string
-}
 
 func parseFile(filename string) *astFile {
 	var text []uint8 = readSource(filename)
