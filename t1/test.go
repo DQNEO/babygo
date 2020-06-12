@@ -759,10 +759,10 @@ func testItoa() {
 	writeln(Itoa(-1234567890))
 }
 
-var buf [100]uint8
-var r [100]uint8
-
 func Itoa(ival int) string {
+	var buf []uint8 = make([]uint8, 100,100)
+	var r []uint8 = make([]uint8, 100, 100)
+
 	var next int
 	var right int
 	var ix int = 0

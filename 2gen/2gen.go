@@ -42,10 +42,11 @@ func fmtPrintf(format string, a ...string) {
 	syscall.Write(1, []uint8(s))
 }
 
-var __itoa_buf [100]uint8
-var __itoa_r [100]uint8
 
 func Itoa(ival int) string {
+	var __itoa_buf []uint8 = make([]uint8, 100,100)
+	var __itoa_r []uint8 = make([]uint8, 100, 100)
+
 	var next int
 	var right int
 	var ix int = 0
