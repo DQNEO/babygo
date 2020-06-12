@@ -930,9 +930,9 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		switch e.Op.String() {
 		case "-":
 			emitExpr(e.X, nil)
-			fmt.Printf("  popq %%rax # e.X\n")
-			fmt.Printf("  imulq $-1, %%rax\n")
-			fmt.Printf("  pushq %%rax\n")
+			fmtPrintf("  popq %%rax # e.X\n")
+			fmtPrintf("  imulq $-1, %%rax\n")
+			fmtPrintf("  pushq %%rax\n")
 		case "&":
 			emitAddr(e.X)
 		case "!":

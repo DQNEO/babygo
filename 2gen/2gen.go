@@ -505,6 +505,7 @@ type astExpr struct {
 	basicLit   *astBasicLit
 	callExpr   *astCallExpr
 	binaryExpr *astBinaryExpr
+	unaryExpr  *astUnaryExpr
 }
 
 type astIdent struct {
@@ -524,6 +525,11 @@ type astBasicLit struct {
 type astCallExpr struct {
 	Fun      string      // function expression
 	Args     []*astExpr    // function arguments; or nil
+}
+
+type astUnaryExpr struct {
+	X *astExpr
+	Op string
 }
 
 type astBinaryExpr struct {
@@ -799,8 +805,21 @@ func parsePrimaryExpr() *astExpr {
 }
 
 func parseUnaryExpr() *astExpr {
+	var r *astExpr
 	fmtPrintf("#   begin parseUnaryExpr()\n")
-	var r *astExpr = parsePrimaryExpr()
+	switch ptok.tok {
+	case "+","-", "!":
+		var tok string = ptok.tok
+		parserNext()
+		var x *astExpr = parseUnaryExpr()
+		r = new(astExpr)
+		r.dtype = "*astUnaryExpr"
+		r.unaryExpr = new(astUnaryExpr)
+		r.unaryExpr.Op = tok
+		r.unaryExpr.X = x
+		return r
+	}
+	r  = parsePrimaryExpr()
 	fmtPrintf("#   end parseUnaryExpr()\n")
 	return r
 }
@@ -1196,6 +1215,17 @@ func emitExpr(e *astExpr) {
 		var callExpr *astCallExpr = e.callExpr
 		emitExpr(callExpr.Args[0])
 		fmtPrintf("  callq %s\n", callExpr.Fun)
+	case "*astUnaryExpr":
+		switch e.unaryExpr.Op {
+		case "-":
+			emitExpr(e.unaryExpr.X)
+			fmtPrintf("  popq %%rax # e.X\n")
+			fmtPrintf("  imulq $-1, %%rax\n")
+			fmtPrintf("  pushq %%rax\n")
+		default:
+			fmtPrintf("[emitExpr] `TBI:astUnaryExpr:%s\n", e.dtype)
+			os.Exit(1)
+		}
 	case "*astBinaryExpr":
 		emitExpr(e.binaryExpr.X) // left
 		emitExpr(e.binaryExpr.Y) // right
