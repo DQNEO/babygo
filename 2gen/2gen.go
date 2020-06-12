@@ -1205,10 +1205,28 @@ func emitExpr(e *astExpr) {
 			fmtPrintf("  popq %%rax # left\n")
 			fmtPrintf("  addq %%rcx, %%rax\n")
 			fmtPrintf("  pushq %%rax\n")
+		case "-":
+			fmtPrintf("  popq %%rcx # right\n")
+			fmtPrintf("  popq %%rax # left\n")
+			fmtPrintf("  subq %%rcx, %%rax\n")
+			fmtPrintf("  pushq %%rax\n")
 		case "*":
 			fmtPrintf("  popq %%rcx # right\n")
 			fmtPrintf("  popq %%rax # left\n")
 			fmtPrintf("  imulq %%rcx, %%rax\n")
+			fmtPrintf("  pushq %%rax\n")
+		case "%":
+			fmtPrintf("  popq %%rcx # right\n")
+			fmtPrintf("  popq %%rax # left\n")
+			fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
+			fmtPrintf("  divq %%rcx\n")
+			fmtPrintf("  movq %%rdx, %%rax\n")
+			fmtPrintf("  pushq %%rax\n")
+		case "/":
+			fmtPrintf("  popq %%rcx # right\n")
+			fmtPrintf("  popq %%rax # left\n")
+			fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
+			fmtPrintf("  divq %%rcx\n")
 			fmtPrintf("  pushq %%rax\n")
 		default:
 			fmtPrintf("# TBI: binary operation for '%s'", e.binaryExpr.Op)
