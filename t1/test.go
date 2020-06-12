@@ -102,6 +102,12 @@ func testConst() {
 func testSwitchString() {
 	var testVar string = "foo"
 	var caseVar string = "fo"
+
+	switch testVar {
+	case "dummy":
+		writeln("ERROR")
+	}
+
 	switch testVar {
 	case "x", caseVar + "o":
 		writeln("swithc string 1 ok")
@@ -1103,6 +1109,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testSwitchString()
 	testEscapedChar()
 	testOpenRead()
 	testVaargs()
@@ -1110,7 +1117,6 @@ func test() {
 	testForOmissible()
 	testLogicalAndOr()
 	testConst()
-	testSwitchString()
 	testSwitchByte()
 	testSwitchInt()
 	testStringComparison()

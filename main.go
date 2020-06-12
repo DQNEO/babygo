@@ -1472,9 +1472,14 @@ func emitStmt(stmt ast.Stmt) {
 			}
 
 		}
+
+		// if no case matches, then jump to
 		if defaultLabel != "" {
 			// default
 			fmt.Printf("  jmp %s\n", defaultLabel)
+		} else {
+			// exit
+			fmt.Printf("  jmp %s\n", labelEnd)
 		}
 
 		emitRevertStackTop(condType)
