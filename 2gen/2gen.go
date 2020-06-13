@@ -587,14 +587,14 @@ func parserExpect(tok string, who string) {
 	parserNext()
 }
 
-func parserExpectSemi() {
+func parserExpectSemi(caller string) {
 	//fmtPrintf("parserExpectSemi\n")
 	if ptok.tok != ")" && ptok.tok != "}" {
 		switch ptok.tok {
 		case ";":
 			parserNext()
 		default:
-			fmtPrintf("; expected, but got %s(%s)\n", ptok.tok, ptok.lit)
+			fmtPrintf("[%s] ; expected, but got %s(%s)\n", caller, ptok.tok, ptok.lit)
 			os.Exit(1)
 		}
 	}
@@ -620,7 +620,7 @@ func parserParseImportDecl() *astImportSpec {
 	parserExpect("import", "parserParseImportDecl")
 	var path string = ptok.lit
 	parserNext()
-	parserExpectSemi()
+	parserExpectSemi("parserParseImportDecl")
 	var spec *astImportSpec = new(astImportSpec)
 	spec.Path = path
 	return spec
@@ -747,6 +747,7 @@ func parsePrimaryExpr() *astExpr {
 	var r *astExpr = new(astExpr)
 	switch ptok.tok {
 	case "IDENT":
+		fmtPrintf("# [parsePrimaryExpr] IDENT\n")
 		var identToken *TokenContainer = ptok
 		var eIdent *astExpr = new(astExpr)
 		eIdent.dtype = "*astIdent"
@@ -782,9 +783,6 @@ func parsePrimaryExpr() *astExpr {
 			r.dtype = "*astCallExpr"
 			r.callExpr = callExpr
 		} else  {
-			fmtPrintf("ERROR: ptok.tok=%s\n", ptok.tok)
-			os.Exit(1)
-			parserNext() // consume ")"
 			fmtPrintf("#   end parsePrimaryExpr()\n")
 			return eIdent
 		}
@@ -892,7 +890,7 @@ func parseStmt() *astStmt {
 	switch ptok.tok {
 	case "var":
 		var decl *astGenDecl = parseDecl("var")
-		s.dtype = "*astGenDecl"
+		s.dtype = "*astDeclStmt"
 		s.DeclStmt = new(astDeclStmt)
 		s.DeclStmt.GenDecl = decl
 		fmtPrintf("# = end parseStmt()\n")
@@ -912,7 +910,7 @@ func parseStmt() *astStmt {
 			as.Rhs = y
 			s.dtype = "*astAssignStmt"
 			s.assignStmt = as
-			parserExpectSemi()
+			parserExpectSemi("parseStmt:IDENT")
 			fmtPrintf("# = end parseStmt()\n")
 			return s
 		case ";":
@@ -920,7 +918,7 @@ func parseStmt() *astStmt {
 			var exprStmt *astExprStmt = new(astExprStmt)
 			exprStmt.X = x
 			s.exprStmt = exprStmt
-			parserExpectSemi()
+			parserExpectSemi("parseStmt:,")
 			fmtPrintf("# = end parseStmt()\n")
 			return s
 		default:
@@ -980,16 +978,15 @@ func parseDecl(keyword string) *astGenDecl {
 	var r *astGenDecl
 	switch ptok.tok {
 	case "var":
-		parserExpect(keyword, "parseDecl")
+		parserExpect(keyword, "parseDecl:var:1")
 		var ident *astIdent = parseIdent()
 		var typ *astExpr= parseType()
 		var value *astExpr
 		if ptok.tok == "=" {
 			parserNext()
-			//value =parseRhs()
-			value = nil
+			value = parseExpr()
 		}
-		parserExpectSemi()
+		parserExpectSemi("parseDecl:var:2")
 
 		var spec *astValueSpec = new(astValueSpec)
 		spec.Name = ident
@@ -1014,7 +1011,7 @@ func parserParseFuncDecl() *astDecl {
 		fmtPrintf("# begin parseBody()\n")
 		body = parseBody()
 		fmtPrintf("# end parseBody()\n")
-		parserExpectSemi()
+		parserExpectSemi("parserParseFuncDecl")
 	}
 	var decl *astDecl = new(astDecl)
 	decl.Name = ident
@@ -1029,7 +1026,7 @@ func parserParseFile() *astFile {
 
 	var ident *astIdent = parseIdent()
 	fmtPrintf("# parser: package name = %s\n", ident.Name)
-	parserExpectSemi()
+	parserExpectSemi("parserParseFile")
 
 	for ptok.tok == "import" {
 		parserParseImportDecl()
@@ -1277,6 +1274,8 @@ func emitStmt(stmt *astStmt) {
 		}
 	case "*astExprStmt":
 		emitExpr(stmt.exprStmt.X)
+	case "*astDeclStmt":
+
 	default:
 		fmtPrintf("[emitStmt] TBI:%s\n", stmt.dtype)
 		os.Exit(1)
