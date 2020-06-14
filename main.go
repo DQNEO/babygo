@@ -1529,10 +1529,10 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 
 func emitData(pkgName string) {
 	fmt.Printf(".data\n")
-	for _, sl := range stringLiterals {
+	for _, con := range stringLiterals {
 		fmt.Printf("# string literals\n")
-		fmt.Printf("%s:\n", sl.label)
-		fmt.Printf("  .string %s\n", sl.value)
+		fmt.Printf("%s:\n", con.sl.label)
+		fmt.Printf("  .string %s\n", con.sl.value)
 	}
 
 	fmt.Printf("# ===== Global Variables =====\n")
@@ -1677,16 +1677,25 @@ type sliteral struct {
 	value  string // raw value
 }
 
-func getStringLiteral(lit *ast.BasicLit) *sliteral {
-	sl, ok := mapStringLiterals[lit]
-	if !ok {
-		panic(lit.Value)
-	}
+var stringLiterals []*stringLiteralsContainer
 
-	return sl
+type stringLiteralsContainer struct {
+	lit *ast.BasicLit
+	sl  *sliteral
 }
 
-var mapStringLiterals map[*ast.BasicLit]*sliteral = map[*ast.BasicLit]*sliteral{}
+var stringIndex int
+
+func getStringLiteral(lit *ast.BasicLit) *sliteral {
+	for _, container := range stringLiterals {
+		if container.lit == lit {
+			return container.sl
+		}
+	}
+
+	panic(lit.Value)
+	return nil
+}
 
 func registerStringLiteral(lit *ast.BasicLit) {
 	if pkgName == "" {
@@ -1708,8 +1717,10 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		strlen: strlen - 2,
 		value:  lit.Value,
 	}
-	mapStringLiterals[lit] = sl
-	stringLiterals = append(stringLiterals, sl)
+	var cont *stringLiteralsContainer = new(stringLiteralsContainer)
+	cont.sl = sl
+	cont.lit = lit
+	stringLiterals = append(stringLiterals, cont)
 }
 
 var localoffset localoffsetint
@@ -2470,8 +2481,6 @@ func kind(t *Type) TypeKind {
 }
 
 var pkgName string
-var stringLiterals []*sliteral
-var stringIndex int
 
 var globalVars []*ast.ValueSpec
 var globalFuncs []*Func
@@ -2501,8 +2510,8 @@ func main() {
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil
 		globalFuncs = nil
-		stringLiterals = nil
 		stringIndex = 0
+		stringLiterals = nil
 		fset := &token.FileSet{}
 		f := parseFile(fset, sourceFile)
 		pkgName := semanticAnalyze(fset, f)
