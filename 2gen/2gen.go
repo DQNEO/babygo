@@ -1290,16 +1290,18 @@ func semanticAnalyze(file *astFile) string {
 }
 
 
-const T_STRING string = "T_STRING"
-const T_SLICE string = "T_SLICE"
-const T_BOOL string = "T_BOOL"
-const T_INT string = "T_INT"
-const T_UINT8 string = "T_UINT8"
-const T_UINT16 string = "T_UINT16"
-const T_UINTPTR string = "T_UINTPTR"
-const T_ARRAY string = "T_ARRAY"
-const T_STRUCT string = "T_STRUCT"
-const T_POINTER string = "T_POINTER"
+var T_STRING string
+var T_SLICE string
+var T_BOOL string
+var T_INT string
+var T_UINT8 string
+var T_UINT16 string
+var T_UINTPTR string
+var T_ARRAY string
+var T_STRUCT string
+var T_POINTER string
+
+
 
 func emitGlobalVariable(name string, t *Type, val string) {
 	var typeKind string
@@ -1621,6 +1623,17 @@ type astFile struct {
 }
 
 func main() {
+	 T_STRING  = "T_STRING"
+	 T_SLICE  = "T_SLICE"
+	 T_BOOL  = "T_BOOL"
+	 T_INT  = "T_INT"
+	 T_UINT8  = "T_UINT8"
+	 T_UINT16  = "T_UINT16"
+	 T_UINTPTR  = "T_UINTPTR"
+	 T_ARRAY  = "T_ARRAY"
+	 T_STRUCT  = "T_STRUCT"
+	 T_POINTER  = "T_POINTER"
+	
 	var sourceFiles []string = []string{"2gen/sample.go"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {

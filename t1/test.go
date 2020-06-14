@@ -70,8 +70,6 @@ func testLogicalAndOr() {
 	}
 }
 
-const CONST_STRING string = "const_string"
-const CONST_FOO string = "foo"
 const sliceSize int = 24
 
 func testVaargNotPassed(a int, b ...int) {
@@ -95,8 +93,6 @@ func testVaargs() {
 
 func testConst() {
 	write(Itoa(sliceSize))
-	write(CONST_STRING)
-	writeln(CONST_FOO)
 }
 
 func testSwitchString() {
@@ -967,7 +963,7 @@ var globalint2 int = 0
 var globaluint8 uint8 = 8
 var globaluint16 uint16 = 16
 
-var globalstring string = "hello stderr\n"
+var globalstring string
 var globalstring2 string
 var globalintslice []int
 var globalarray [10]uint8

@@ -1680,7 +1680,7 @@ type sliteral struct {
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
 	sl, ok := mapStringLiterals[lit]
 	if !ok {
-		panic("StringLiteral is not registered")
+		panic(lit.Value)
 	}
 
 	return sl
@@ -2165,27 +2165,10 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 				valSpec := spc
 				//println(fmt.Sprintf("spec=%s", dcl.Tok))
 				//fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
-				t := e2t(valSpec.Type)
 				nameIdent := valSpec.Names[0]
 				nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
 				if len(valSpec.Values) > 0 {
-					switch kind(t) {
-					case T_STRING:
-						lit, ok := valSpec.Values[0].(*ast.BasicLit)
-						if !ok {
-							throw(t)
-						}
-						registerStringLiteral(lit)
-					case T_INT, T_UINT8, T_UINT16, T_UINTPTR:
-						_, ok := valSpec.Values[0].(*ast.BasicLit)
-						if !ok {
-							throw(t) // allow only literal
-						}
-					case T_BOOL:
-						// Let it go for now
-					default:
-						throw(kind(t))
-					}
+					// ignore values
 				}
 				globalVars = append(globalVars, valSpec)
 			case *ast.ImportSpec:
@@ -2240,16 +2223,16 @@ type Func struct {
 
 type TypeKind string
 
-const T_STRING TypeKind = "T_STRING"
-const T_SLICE TypeKind = "T_SLICE"
-const T_BOOL TypeKind = "T_BOOL"
-const T_INT TypeKind = "T_INT"
-const T_UINT8 TypeKind = "T_UINT8"
-const T_UINT16 TypeKind = "T_UINT16"
-const T_UINTPTR TypeKind = "T_UINTPTR"
-const T_ARRAY TypeKind = "T_ARRAY"
-const T_STRUCT TypeKind = "T_STRUCT"
-const T_POINTER TypeKind = "T_POINTER"
+var T_STRING TypeKind
+var T_SLICE TypeKind
+var T_BOOL TypeKind
+var T_INT TypeKind
+var T_UINT8 TypeKind
+var T_UINT16 TypeKind
+var T_UINTPTR TypeKind
+var T_ARRAY TypeKind
+var T_STRUCT TypeKind
+var T_POINTER TypeKind
 
 var tBool *Type = &Type{
 	e: &ast.Ident{
@@ -2502,6 +2485,17 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 }
 
 func main() {
+	 T_STRING  = "T_STRING"
+	 T_SLICE  = "T_SLICE"
+	 T_BOOL  = "T_BOOL"
+	 T_INT  = "T_INT"
+	 T_UINT8  = "T_UINT8"
+	 T_UINT16  = "T_UINT16"
+	 T_UINTPTR  = "T_UINTPTR"
+	 T_ARRAY  = "T_ARRAY"
+	 T_STRUCT  = "T_STRUCT"
+	 T_POINTER  = "T_POINTER"
+
 	var sourceFiles []string = []string{"./runtime.go", "./t/source.go"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
