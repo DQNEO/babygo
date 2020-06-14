@@ -192,7 +192,7 @@ func emitLoad(t *Type) {
 }
 
 func emitVariableAddr(variable *Variable) {
-	fmt.Printf("  # variable %#v\n", variable)
+	//fmt.Printf("  # variable %#v\n", variable)
 
 	var addr string
 	if variable.isGlobal {
@@ -201,8 +201,8 @@ func emitVariableAddr(variable *Variable) {
 		addr = fmt.Sprintf("%d(%%rbp)", variable.localOffset)
 	}
 
-	fmt.Printf("  leaq %s, %%rax # addr\n", addr)
-	fmt.Printf("  pushq %%rax\n")
+	fmtPrintf("  leaq %s, %%rax # addr\n", addr)
+	fmtPrintf("  pushq %%rax\n")
 }
 
 func assert(bol bool, msg string) {
@@ -1204,11 +1204,11 @@ func emitStore(t *Type) {
 }
 
 func emitAssign(lhs ast.Expr, rhs ast.Expr) {
-	fmt.Printf("  # Assignment: emitAddr(lhs)\n")
+	fmtPrintf("  # Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
-	fmt.Printf("  # Assignment: emitExpr(rhs)\n")
+	fmtPrintf("  # Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs, getTypeOfExpr(lhs))
-	fmt.Printf("  # Assignment: emitStore(getTypeOfExpr(lhs))\n")
+	fmtPrintf("  # Assignment: emitStore(getTypeOfExpr(lhs))\n")
 	emitStore(getTypeOfExpr(lhs))
 }
 
@@ -1519,13 +1519,15 @@ func emitRevertStackTop(t *Type) {
 var labelid int
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
+	var localarea int = int(fnc.localarea)
 	fmt.Printf("\n")
 	fmt.Printf("%s.%s: # args %d, locals %d\n",
 		pkgPrefix, fnc.name, fnc.argsarea, fnc.localarea)
-	fmt.Printf("  pushq %%rbp\n")
-	fmt.Printf("  movq %%rsp, %%rbp\n")
-	if fnc.localarea != 0 {
-		fmt.Printf("  subq $%d, %%rsp # local area\n", -fnc.localarea)
+
+	fmtPrintf("  pushq %%rbp\n")
+	fmtPrintf("  movq %%rsp, %%rbp\n")
+	if localarea != 0 {
+		fmtPrintf("  subq $%d, %%rsp # local area\n", Itoa(-localarea))
 	}
 	for _, stmt := range fnc.stmts {
 		emitStmt(stmt)

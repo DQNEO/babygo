@@ -471,7 +471,6 @@ type astStmt struct {
 }
 
 type astDeclStmt struct {
-	Decl    *astDecl
 	GenDecl *astGenDecl
 }
 
@@ -485,11 +484,12 @@ type astBlockStmt struct {
 
 type astAssignStmt struct {
 	Lhs *astExpr
+	Tok string
 	Rhs *astExpr
 }
 
 type astGenDecl struct {
-	Specs []*astValueSpec
+	Spec *astValueSpec
 }
 
 type astValueSpec struct {
@@ -508,8 +508,15 @@ type astExpr struct {
 	unaryExpr  *astUnaryExpr
 }
 
+type astObject struct {
+	Kind string
+	Name string
+	Variable *Variable
+}
+
 type astIdent struct {
 	Name string
+	Obj *astObject
 }
 
 type astArrayType struct {
@@ -565,7 +572,18 @@ func parserInit(src []uint8) {
 	parserNext()
 }
 
+type objectEntry struct {
+	name string
+	obj *astObject
+}
+
+type astScope struct {
+	Outer *astScope
+	Objects []*objectEntry
+}
+
 var ptok *TokenContainer
+var topScope *astScope
 
 func parserNext() {
 	//fmtPrintf("parserNext\n")
@@ -742,6 +760,56 @@ func parseSignature() *signature {
 	return sig
 }
 
+func scopeInsert(s *astScope, obj *astObject) {
+	var oe *objectEntry = new(objectEntry)
+	oe.name = obj.Name
+	oe.obj = obj
+	topScope.Objects = append(topScope.Objects, oe)
+}
+
+func declare(decl *astValueSpec, scope *astScope, kind string, ident *astIdent) {
+	// delcare
+	var obj *astObject = new(astObject) //valSpec.Name.Obj
+	obj.Name = ident.Name
+	obj.Kind = kind
+	ident.Obj = obj
+
+	// scope insert
+	if ident.Name != "_" {
+		scopeInsert(scope, obj)
+	}
+
+}
+
+func scopeLookup(s *astScope, name string) *astObject {
+	var oe *objectEntry
+	for _, oe =  range s.Objects {
+		if oe.name == name {
+			return oe.obj
+		}
+	}
+	var r *astObject = nil
+	return r
+}
+
+func parserResolve(ident *astIdent) {
+	if ident.Name == "-" {
+		return
+	}
+
+	if topScope != nil {
+		var obj *astObject
+		obj = scopeLookup(topScope, ident.Name)
+		if obj != nil {
+			ident.Obj = obj
+		}
+
+		return
+	}
+	fmtPrintf("cannot Resovle\n")
+	os.Exit(1)
+}
+
 func parsePrimaryExpr() *astExpr {
 	fmtPrintf("#   begin parsePrimaryExpr()\n")
 	var r *astExpr = new(astExpr)
@@ -751,9 +819,9 @@ func parsePrimaryExpr() *astExpr {
 		var identToken *TokenContainer = ptok
 		var eIdent *astExpr = new(astExpr)
 		eIdent.dtype = "*astIdent"
-		eIdent.ident = new(astIdent)
-		eIdent.ident.Name = identToken.lit
-		parserNext() // consume IDENT
+		var ident *astIdent =  parseIdent()
+		parserResolve(ident)
+		eIdent.ident = ident
 		if ptok.tok == "." {
 			parserNext() // consume "."
 			if ptok.tok != "IDENT" {
@@ -901,11 +969,12 @@ func parseStmt() *astStmt {
 		var stok string = ptok.tok
 		switch stok {
 		case "=":
-			fmtPrintf("# [parseStmt] ERROR:%s\n",stok)
-			os.Exit(1)
 			parserNext() // consume =
-			var y *astExpr = parseExpr()
+			//fmtPrintf("# [parseStmt] ERROR:%s\n",stok)
+			//os.Exit(1)
+			var y *astExpr = parseExpr() // rhs
 			var as *astAssignStmt = new(astAssignStmt)
+			as.Tok = "="
 			as.Lhs = x
 			as.Rhs = y
 			s.dtype = "*astAssignStmt"
@@ -987,13 +1056,13 @@ func parseDecl(keyword string) *astGenDecl {
 			value = parseExpr()
 		}
 		parserExpectSemi("parseDecl:var:2")
-
 		var spec *astValueSpec = new(astValueSpec)
 		spec.Name = ident
 		spec.Type = typ
 		spec.Value = value
+		declare(spec, topScope, "Var", ident)
 		r = new(astGenDecl)
-		r.Specs = append(r.Specs, spec)
+		r.Spec = spec
 		return r
 	default:
 		fmtPrintf("[parseDecl] TBI\n")
@@ -1004,6 +1073,9 @@ func parseDecl(keyword string) *astGenDecl {
 
 func parserParseFuncDecl() *astDecl {
 	parserExpect("func", "parserParseFuncDecl")
+
+	topScope = new(astScope)
+
 	var ident *astIdent = parseIdent()
 	var sig *signature = parseSignature()
 	var body *astBlockStmt
@@ -1017,6 +1089,7 @@ func parserParseFuncDecl() *astDecl {
 	decl.Name = ident
 	decl.Sig = sig
 	decl.Body = body
+	topScope = nil
 	return decl
 }
 
@@ -1141,19 +1214,67 @@ func kind(t *Type) string {
 }
 
 //type localoffsetint int //@TODO
+var localoffset int = 0
+
+type Variable struct {
+	name         string
+	isGlobal     bool
+	globalSymbol string
+	localOffset  int
+}
+
+func walkStmt(stmt *astStmt) {
+	fmtPrintf("# [walkStmt] begin dtype=%s\n", stmt.dtype)
+	switch stmt.dtype {
+	case "*astDeclStmt":
+		fmtPrintf("# [walkStmt] *ast.DeclStmt\n")
+		var declStmt *astDeclStmt = stmt.DeclStmt
+		if declStmt.GenDecl == nil {
+			fmtPrintf("[walkStmt] ERROR\n")
+			os.Exit(1)
+		}
+		var dcl *astGenDecl = declStmt.GenDecl
+		var valSpec *astValueSpec = dcl.Spec
+		var typ *astExpr = valSpec.Type // ident "int"
+		fmtPrintf("# [walkStmt] valSpec Name=%s, Type=%s\n",
+			valSpec.Name.Name, typ.dtype)
+		localoffset = localoffset - 8 // 8 = int size
+
+		valSpec.Name.Obj.Variable = newLocalVariable(valSpec.Name.Name, localoffset)
+		fmtPrintf("# var %s offset = %d\n", valSpec.Name.Obj.Name,
+			Itoa(valSpec.Name.Obj.Variable.localOffset))
+	default:
+
+	}
+}
+
+func newLocalVariable(name string, localoffset int) *Variable {
+	var vr *Variable = new(Variable)
+	vr.name = name
+	vr.isGlobal = false
+	vr.localOffset = localoffset
+	return vr
+}
 
 func semanticAnalyze(file *astFile) string {
 	var decl *astDecl
 
 	for _, decl = range file.Decls {
 		fmtPrintf("# [sema] decl func = %s\n", decl.Name.Name)
+		localoffset  = 0
+		var stmt *astStmt
+		for _, stmt = range decl.Body.List {
+			walkStmt(stmt)
+		}
 		var fnc *Func = new(Func)
 		fnc.name = decl.Name.Name
 		fnc.Body = decl.Body
+		fnc.localarea = localoffset
 		globalFuncs = append(globalFuncs, fnc)
 	}
 	return fakeSemanticAnalyze(file)
 }
+
 
 const T_STRING string = "T_STRING"
 const T_SLICE string = "T_SLICE"
@@ -1206,6 +1327,20 @@ func emitData(pkgName string) {
 
 func emitExpr(e *astExpr) {
 	switch e.dtype {
+	case "*astIdent":
+		var ident *astIdent = e.ident
+		if ident.Obj == nil {
+			fmtPrintf("ident %s is unresolved", ident.Name)
+			os.Exit(1)
+		}
+		switch ident.Obj.Kind {
+		case "Var":
+			emitAddr(e)
+			emitLoad()
+		default:
+			fmtPrintf("unknown Kind=%s\n", ident.Obj.Kind)
+			os.Exit(1)
+		}
 	case "*astBasicLit":
 		fmtPrintf("  pushq $%s # status\n", e.basicLit.Value)
 	case "*astCallExpr":
@@ -1265,6 +1400,64 @@ func emitExpr(e *astExpr) {
 	}
 }
 
+
+func emitVariableAddr(variable *Variable) {
+	fmtPrintf("  # variable %#v\n", variable.name)
+
+	var addr string
+	if variable.isGlobal {
+		addr = fmtSprintf("%s(%%rip)", []string{variable.globalSymbol})
+	} else {
+		addr = fmtSprintf("%d(%%rbp)", []string{Itoa(variable.localOffset)})
+	}
+
+	fmtPrintf("  leaq %s, %%rax # addr\n", addr)
+	fmtPrintf("  pushq %%rax\n")
+}
+
+func emitAddr(expr *astExpr) {
+	fmtPrintf("  # emitAddr %s\n", expr.dtype)
+	switch expr.dtype {
+	case "*astIdent":
+		fmtPrintf("  # %s\n", expr.ident.Name)
+		if expr.ident.Obj.Kind == "Var" {
+			fmtPrintf("  # is Var\n")
+			if expr.ident.Obj.Variable == nil {
+				fmtPrintf("ERROR: Variable is nil for name %s\n", expr.ident.Obj.Name)
+				os.Exit(1)
+			}
+			emitVariableAddr(expr.ident.Obj.Variable)
+		} else {
+			fmtPrintf("[emitAddr] Unexpected Kind %s \n" ,expr.ident.Obj.Kind)
+		}
+	default:
+		fmtPrintf("[emitAddr] TBI %s \n" ,expr.dtype)
+		os.Exit(1)
+	}
+}
+
+func emitLoad() {
+	fmtPrintf("  popq %%rax # address of %s\n", "int")
+
+	fmtPrintf("  movq %d(%%rax), %%rax # load int\n", Itoa(0))
+	fmtPrintf("  pushq %%rax\n")
+}
+
+func emitStore() {
+	fmtPrintf("  popq %%rdi # rhs evaluated\n")
+	fmtPrintf("  popq %%rax # lhs addr\n")
+	fmtPrintf("  movq %%rdi, (%%rax) # assign\n")
+}
+
+func emitAssign(lhs *astExpr, rhs *astExpr) {
+	fmtPrintf("  # Assignment: emitAddr(lhs)\n")
+	emitAddr(lhs)
+	fmtPrintf("  # Assignment: emitExpr(rhs)\n")
+	emitExpr(rhs)
+	emitStore() // int
+}
+
+
 func emitStmt(stmt *astStmt) {
 	switch stmt.dtype {
 	case "*astBlockStmt":
@@ -1275,7 +1468,26 @@ func emitStmt(stmt *astStmt) {
 	case "*astExprStmt":
 		emitExpr(stmt.exprStmt.X)
 	case "*astDeclStmt":
+		/*
+		var genDecl *astGenDecl = stmt.DeclStmt.GenDecl
+		var valueSpec *astValueSpec = genDecl.Specs[0]
+		var obj *astObject = valueSpec.Name.Obj
+		var typ *astExpr = valueSpec.Type
 
+		fmtPrintf("[emitStmt] TBI declSpec:%s\n", valueSpec.Name.Name)
+		os.Exit(1)
+
+		 */
+	case "*astAssignStmt":
+		switch stmt.assignStmt.Tok {
+		case "=":
+			var lhs *astExpr = stmt.assignStmt.Lhs
+			var rhs *astExpr = stmt.assignStmt.Rhs
+			emitAssign(lhs, rhs)
+		default:
+			fmtPrintf("TBI: assignment of " + stmt.assignStmt.Tok)
+			os.Exit(1)
+		}
 	default:
 		fmtPrintf("[emitStmt] TBI:%s\n", stmt.dtype)
 		os.Exit(1)
@@ -1283,12 +1495,15 @@ func emitStmt(stmt *astStmt) {
 }
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
+	var localarea int = fnc.localarea
 	fmtPrintf("\n")
 	var fname string = fnc.name
 	fmtPrintf(pkgPrefix + "." + fname + ":\n")
-	if len(fnc.localvars) > 0 {
-		var slocalarea string = Itoa(fnc.localarea)
-		fmtPrintf("  subq $" + slocalarea + ", %rsp # local area\n")
+
+	fmtPrintf("  pushq %%rbp\n")
+	fmtPrintf("  movq %%rsp, %%rbp\n")
+	if localarea != 0 {
+		fmtPrintf("  subq $%d, %%rsp # local area\n", Itoa(-localarea))
 	}
 
 	fmtPrintf("  # func body\n")
