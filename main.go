@@ -1631,7 +1631,7 @@ func lookupStructField(structTypeSpec *ast.TypeSpec, selName string) *ast.Field 
 			return field
 		}
 	}
-	panic("Unexpected flow")
+	panic("Unexpected flow: struct field not found:" + selName)
 	return nil
 }
 
