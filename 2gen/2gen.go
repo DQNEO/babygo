@@ -492,6 +492,12 @@ type astGenDecl struct {
 	Spec *astValueSpec
 }
 
+type ObjDecl struct {
+	dtype string
+	valueSpec *astValueSpec
+	field *astField
+}
+
 type astValueSpec struct {
 	Name *astIdent
 	Type *astExpr
@@ -511,6 +517,7 @@ type astExpr struct {
 type astObject struct {
 	Kind string
 	Name string
+	Decl *ObjDecl
 	Variable *Variable
 }
 
@@ -770,6 +777,10 @@ func scopeInsert(s *astScope, obj *astObject) {
 func declare(decl *astValueSpec, scope *astScope, kind string, ident *astIdent) {
 	// delcare
 	var obj *astObject = new(astObject) //valSpec.Name.Obj
+	var objDecl *ObjDecl = new(ObjDecl)
+	objDecl.dtype = "*astValueSpec"
+	objDecl.valueSpec = decl
+	obj.Decl = objDecl
 	obj.Name = ident.Name
 	obj.Kind = kind
 	ident.Obj = obj
@@ -1043,6 +1054,7 @@ func parserVarDecl() *astStmt {
 }
 */
 
+
 func parseDecl(keyword string) *astGenDecl {
 	var r *astGenDecl
 	switch ptok.tok {
@@ -1178,10 +1190,6 @@ func emitAddConst(addValue int, comment string) {
 	fmtPrintf("  pushq %%rax\n")
 }
 
-type Type struct {
-	kind string
-}
-
 func getPushSizeOfType(t *Type) int {
 	switch kind(t) {
 	case T_SLICE:
@@ -1209,8 +1217,29 @@ const ptrSize int = 8
 func throw(s string) {
 	syscall.Write(2, []uint8(s))
 }
+
 func kind(t *Type) string {
-	return t.kind
+	if t == nil {
+		fmtPrintf("nil type is not expected")
+		os.Exit(1)
+	}
+	switch t.e.dtype {
+	case "*astIdent":
+		var ident *astIdent = t.e.ident
+		switch ident.Name {
+		case "int":
+			return T_INT
+		default:
+			fmtPrintf("[kind] unsupported type %s\n", ident.Name)
+			os.Exit(1)
+		}
+	default:
+		fmtPrintf("error")
+		os.Exit(1)
+	}
+	fmtPrintf("error")
+	os.Exit(1)
+	return ""
 }
 
 //type localoffsetint int //@TODO
@@ -1290,7 +1319,7 @@ const T_POINTER string = "T_POINTER"
 func emitGlobalVariable(name string, t *Type, val string) {
 	var typeKind string
 	if t != nil {
-		typeKind = t.kind
+		typeKind = T_INT
 	}
 	fmtPrintf("%s: # T %s \n", name, typeKind)
 	switch typeKind {
@@ -1336,7 +1365,8 @@ func emitExpr(e *astExpr) {
 		switch ident.Obj.Kind {
 		case "Var":
 			emitAddr(e)
-			emitLoad()
+			var t *Type = getTypeOfExpr(e)
+			emitLoad(t)
 		default:
 			fmtPrintf("unknown Kind=%s\n", ident.Obj.Kind)
 			os.Exit(1)
@@ -1436,17 +1466,29 @@ func emitAddr(expr *astExpr) {
 	}
 }
 
-func emitLoad() {
-	fmtPrintf("  popq %%rax # address of %s\n", "int")
-
-	fmtPrintf("  movq %d(%%rax), %%rax # load int\n", Itoa(0))
-	fmtPrintf("  pushq %%rax\n")
+func emitLoad(t *Type) {
+	emitPopAddress(kind(t))
+	switch kind(t) {
+	case T_INT:
+		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", Itoa(0))
+		fmtPrintf("  pushq %%rax\n")
+	default:
+		fmtPrintf("ERROR\n")
+		os.Exit(1)
+	}
 }
 
-func emitStore() {
-	fmtPrintf("  popq %%rdi # rhs evaluated\n")
-	fmtPrintf("  popq %%rax # lhs addr\n")
-	fmtPrintf("  movq %%rdi, (%%rax) # assign\n")
+func emitStore(t *Type) {
+	fmtPrintf("  # emitStore(%s)\n", kind(t))
+	switch kind(t) {
+	case T_INT:
+		fmtPrintf("  popq %%rdi # rhs evaluated\n")
+		fmtPrintf("  popq %%rax # lhs addr\n")
+		fmtPrintf("  movq %%rdi, (%%rax) # assign\n")
+	default:
+		fmtPrintf("TBI:" + kind(t))
+		os.Exit(1)
+	}
 }
 
 func emitAssign(lhs *astExpr, rhs *astExpr) {
@@ -1454,7 +1496,7 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 	emitAddr(lhs)
 	fmtPrintf("  # Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs)
-	emitStore() // int
+	emitStore(getTypeOfExpr(lhs))
 }
 
 
@@ -1525,6 +1567,39 @@ func emitText(pkgName string) {
 	}
 }
 
+type Type struct {
+	//kind string
+	e *astExpr
+}
+
+func getTypeOfExpr(expr *astExpr) *Type {
+	switch expr.dtype {
+	case "*astIdent":
+		switch expr.ident.Obj.Kind {
+		case "Var":
+			switch expr.ident.Obj.Decl.dtype {
+			case "*astValueSpec":
+				var decl *astValueSpec = expr.ident.Obj.Decl.valueSpec
+				var t *Type = new(Type)
+				t.e = decl.Type
+				return t
+			case "*astField":
+			default:
+				fmtPrintf("[getTypeOfExpr] ERROR 0\n")
+				os.Exit(1)
+
+			}
+		default:
+			fmtPrintf("[getTypeOfExpr] ERROR 1\n")
+			os.Exit(1)
+		}
+		default:
+		fmtPrintf("[getTypeOfExpr] ERROR 2\n")
+		os.Exit(1)
+	}
+	var r *Type
+	return r
+}
 func generateCode(pkgName string) {
 	fmtPrintf("")
 	fmtPrintf("runtime.heapInit:\n")
@@ -1573,21 +1648,6 @@ func main() {
 		generateCode(pkgName)
 	}
 
-	//test()
-}
-
-func test() {
-	// Test funcs
-	emitPopBool("comment")
-	emitPopAddress("comment")
-	emitPopString()
-	emitPopSlice()
-	var t1 *Type = new(Type)
-	t1.kind = T_INT
-	emitPushStackTop(t1, "comment")
-	emitRevertStackPointer(24)
-	emitAddConst(42, "comment")
-	getPushSizeOfType(t1)
 }
 
 func fakeSemanticAnalyze(file *astFile) string {
@@ -1602,31 +1662,5 @@ func fakeSemanticAnalyze(file *astFile) string {
 	s2.value = "hello1"
 	s2.label = ".main.S1"
 	stringLiterals[1] = s2
-
-
-	/*
-	var globalVar0 *astValueSpec = new(astValueSpec)
-	var ident0 *astIdent = new(astIdent)
-	ident0.Name = "_gvar0"
-	globalVar0.Name = ident0
-	globalVar0.value = "10"
-	globalVar0.t = new(Type)
-	globalVar0.t.kind = "T_INT"
-	globalVars = append(globalVars, globalVar0)
-
-	var globalVar1 *astValueSpec = new(astValueSpec)
-	globalVar1.name = "_gvar1"
-	globalVar1.value = "11"
-	globalVar1.t = new(Type)
-	globalVar1.t.kind = "T_INT"
-	globalVars = append(globalVars, globalVar1)
-
-	var globalVar2 *astValueSpec = new(astValueSpec)
-	globalVar2.name = "_gvar2"
-	globalVar2.value = "foo"
-	globalVar2.t = new(Type)
-	globalVar2.t.kind = "T_STRING"
-	globalVars = append(globalVars, globalVar2)
-*/
 	return file.Name
 }
