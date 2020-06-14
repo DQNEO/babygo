@@ -843,12 +843,21 @@ func parsePrimaryExpr() *astExpr {
 			parserNext() // consume IDENT
 			var callExpr *astCallExpr = new(astCallExpr)
 			callExpr.Fun = eIdent.ident.Name + "." + secondIdent
+			fmtPrintf("# [parsePrimaryExpr] callExpr.Fun=%s\n", callExpr.Fun)
 			fmtPrintf("# [parsePrimaryExpr] ptok.tok=%s\n", ptok.tok)
-			parserNext() // consume "("
-			var arg *astExpr= parseExpr()
-			fmtPrintf("#   debug\n")
+			parserExpect("(", "parsePrimaryExpr")
+			var list []*astExpr
+			for ptok.tok != ")" {
+				var arg *astExpr= parseExpr()
+				list = append(list ,arg)
+				if ptok.tok == "," {
+					parserNext()
+				} else if ptok.tok == ")" {
+					break
+				}
+			}
 			parserExpect(")", "parsePrimaryExpr") // consume ")"
-			callExpr.Args = append(callExpr.Args, arg)
+			callExpr.Args = list
 			r.dtype = "*astCallExpr"
 			r.callExpr = callExpr
 			fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
@@ -868,6 +877,13 @@ func parsePrimaryExpr() *astExpr {
 	case "INT":
 		var basicLit *astBasicLit = new(astBasicLit)
 		basicLit.Kind = "INT"
+		basicLit.Value = ptok.lit
+		r.dtype = "*astBasicLit"
+		r.basicLit = basicLit
+		parserNext()
+	case "STRING":
+		var basicLit *astBasicLit = new(astBasicLit)
+		basicLit.Kind = "STRING"
 		basicLit.Value = ptok.lit
 		r.dtype = "*astBasicLit"
 		r.basicLit = basicLit
@@ -1214,6 +1230,8 @@ func kind(t *Type) string {
 		switch ident.Name {
 		case "int":
 			return T_INT
+		case "string":
+			return T_STRING
 		default:
 			fmtPrintf("[kind] unsupported type %s\n", ident.Name)
 			os.Exit(1)
@@ -1257,10 +1275,84 @@ func walkStmt(stmt *astStmt) {
 		valSpec.Name.Obj.Variable = newLocalVariable(valSpec.Name.Name, localoffset)
 		fmtPrintf("# var %s offset = %d\n", valSpec.Name.Obj.Name,
 			Itoa(valSpec.Name.Obj.Variable.localOffset))
+	case "*astAssignStmt":
+		var rhs *astExpr = stmt.assignStmt.Rhs
+		walkExpr(rhs)
 	default:
 
 	}
 }
+
+func panic(x string) {
+	fmtPrintf(x+"\n")
+	os.Exit(1)
+}
+
+var stringLiterals []*stringLiteralsContainer
+
+type stringLiteralsContainer struct {
+	lit *astBasicLit
+	sl  *sliteral
+}
+
+var stringIndex int
+
+
+func getStringLiteral(lit *astBasicLit) *sliteral {
+	var container *stringLiteralsContainer
+	for _, container = range stringLiterals {
+		if container.lit == lit {
+			return container.sl
+		}
+	}
+
+	fmtPrintf("error: %s\n" , lit.Value)
+	os.Exit(1)
+	var r *sliteral
+	return r
+}
+
+func registerStringLiteral(lit *astBasicLit) {
+	var pkgName string = "main"
+	if pkgName == "" {
+		panic("no pkgName")
+	}
+
+	var strlen int
+	var c uint8
+	var vl []uint8 = []uint8(lit.Value)
+	for _, c = range vl {
+		if c != '\\' {
+			strlen++
+		}
+	}
+
+	var label string = fmtSprintf(".%s.S%d", []string{pkgName, Itoa(stringIndex)})
+	stringIndex++
+
+	var sl *sliteral = new(sliteral)
+	sl.label = label
+	sl.strlen = strlen - 2
+	sl.value = lit.Value
+	fmtPrintf("# [registerStringLiteral] label=%s, strlen=%s\n", sl.label, Itoa(sl.strlen))
+	var cont *stringLiteralsContainer = new(stringLiteralsContainer)
+	cont.sl = sl
+	cont.lit = lit
+	stringLiterals = append(stringLiterals, cont)
+}
+
+func walkExpr(expr *astExpr) {
+	fmtPrintf("[walkExpr] dtype=%s\n", expr.dtype)
+	switch expr.dtype {
+	case "*astBasicLit":
+		switch expr.basicLit.Kind {
+		case "STRING":
+			registerStringLiteral(expr.basicLit)
+		}
+	default:
+	}
+}
+
 
 func newLocalVariable(name string, localoffset int) *Variable {
 	var vr *Variable = new(Variable)
@@ -1286,7 +1378,7 @@ func semanticAnalyze(file *astFile) string {
 		fnc.localarea = localoffset
 		globalFuncs = append(globalFuncs, fnc)
 	}
-	return fakeSemanticAnalyze(file)
+	return file.Name
 }
 
 
@@ -1322,11 +1414,12 @@ func emitGlobalVariable(name string, t *Type, val string) {
 
 func emitData(pkgName string) {
 	fmtPrintf(".data\n")
-	var sl *sliteral
-	for _, sl = range stringLiterals {
+	fmtPrintf("# string literals len = %s\n", Itoa(len(stringLiterals)))
+	var con *stringLiteralsContainer
+	for _, con = range stringLiterals {
 		fmtPrintf("# string literals\n")
-		fmtPrintf("%s:\n", sl.label)
-		fmtPrintf("  .string \"%s\"\n", sl.value)
+		fmtPrintf("%s:\n", con.sl.label)
+		fmtPrintf("  .string %s\n", con.sl.value)
 	}
 
 	fmtPrintf("# ===== Global Variables =====\n")
@@ -1359,7 +1452,26 @@ func emitExpr(e *astExpr) {
 			os.Exit(1)
 		}
 	case "*astBasicLit":
-		fmtPrintf("  pushq $%s # status\n", e.basicLit.Value)
+		fmtPrintf("# basicLit.Kind = %s \n", e.basicLit.Kind)
+		switch e.basicLit.Kind {
+		case "INT":
+			fmtPrintf("  pushq $%s # \n", e.basicLit.Value)
+		case "STRING":
+			var sl *sliteral = getStringLiteral(e.basicLit)
+			if sl.strlen == 0 {
+				// zero value
+				//emitZeroValue(tString)
+				fmtPrintf("[emitExpr] TBI: empty string literal\n")
+				os.Exit(1)
+			} else {
+				fmtPrintf("  pushq $%d # str len\n", Itoa(sl.strlen))
+				fmtPrintf("  leaq %s, %%rax # str ptr\n", sl.label)
+				fmtPrintf("  pushq %%rax # str ptr\n")
+			}
+		default:
+			fmtPrintf("[emitExpr] TBI\n")
+			os.Exit(1)
+		}
 	case "*astCallExpr":
 		var callExpr *astCallExpr = e.callExpr
 		emitExpr(callExpr.Args[0])
@@ -1459,8 +1571,14 @@ func emitLoad(t *Type) {
 	case T_INT:
 		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
+	case T_STRING:
+		fmtPrintf("  movq %d(%%rax), %%rdx\n", Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
+		fmtPrintf("  pushq %%rdx # len\n")
+		fmtPrintf("  pushq %%rax # ptr\n")
+
 	default:
-		fmtPrintf("ERROR\n")
+		fmtPrintf("[emitLoad] TBI\n")
 		os.Exit(1)
 	}
 }
@@ -1468,6 +1586,11 @@ func emitLoad(t *Type) {
 func emitStore(t *Type) {
 	fmtPrintf("  # emitStore(%s)\n", kind(t))
 	switch kind(t) {
+	case T_STRING:
+		emitPopString()
+		fmtPrintf("  popq %%rsi # lhs ptr addr\n")
+		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
+		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
 	case T_INT:
 		fmtPrintf("  popq %%rdi # rhs evaluated\n")
 		fmtPrintf("  popq %%rax # lhs addr\n")
@@ -1610,8 +1733,6 @@ type sliteral struct {
 	value  string // raw value
 }
 
-var stringLiterals []*sliteral
-var stringIndex int
 var globalVars []*astValueSpec
 var globalFuncs []*Func
 
@@ -1642,23 +1763,8 @@ func main() {
 		stringLiterals = nil
 		stringIndex = 0
 		var f *astFile = parseFile(sourceFile)
-		var pkgName string = semanticAnalyze(f)
-		generateCode(pkgName)
+		semanticAnalyze(f)
+		generateCode(f.Name)
 	}
 
-}
-
-func fakeSemanticAnalyze(file *astFile) string {
-
-	stringLiterals = make([]*sliteral, 2, 2)
-	var s1 *sliteral = new(sliteral)
-	s1.value = "hello0"
-	s1.label = ".main.S0"
-	stringLiterals[0] = s1
-
-	var s2 *sliteral = new(sliteral)
-	s2.value = "hello1"
-	s2.label = ".main.S1"
-	stringLiterals[1] = s2
-	return file.Name
 }

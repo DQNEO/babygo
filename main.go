@@ -154,7 +154,6 @@ func emitLoad(t *Type) {
 	case T_STRING:
 		fmt.Printf("  movq %d(%%rax), %%rdx\n", 8)
 		fmt.Printf("  movq %d(%%rax), %%rax\n", 0)
-
 		fmt.Printf("  pushq %%rdx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case T_UINT8:
