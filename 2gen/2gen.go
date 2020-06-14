@@ -1040,21 +1040,6 @@ func parseBody() *astBlockStmt {
 	return r
 }
 
-/*
-func parseVarDecl() {
-
-}
-
-func parseRhs() *astExpr {
-	return nil
-}
-
-func parserVarDecl() *astStmt {
-	return nil
-}
-*/
-
-
 func parseDecl(keyword string) *astGenDecl {
 	var r *astGenDecl
 	switch ptok.tok {
