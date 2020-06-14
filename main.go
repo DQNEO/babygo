@@ -9,6 +9,7 @@ import (
 	"syscall"
 )
 
+// --- libs ---
 func fmtSprintf(format string, a []string) string {
 	var buf []uint8
 	var inPercent bool
@@ -84,6 +85,17 @@ func Itoa(ival int) string {
 	return string(__itoa_r[0:ix])
 }
 
+func assert(bol bool, msg string) {
+	if !bol {
+		panic(msg)
+	}
+}
+
+func throw(x interface{}) {
+	panic(fmt.Sprintf("%#v", x))
+}
+
+// --- codd gen ---
 func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }
@@ -127,35 +139,6 @@ func emitAddConst(addValue int, comment string) {
 	fmtPrintf("  popq %%rax\n")
 	fmtPrintf("  addq $%s, %%rax\n", Itoa(addValue))
 	fmtPrintf("  pushq %%rax\n")
-}
-
-type Type struct {
-	e ast.Expr // original expr
-}
-
-type Arg struct {
-	e      ast.Expr
-	t      *Type // expected type
-	offset int
-}
-
-func getPushSizeOfType(t *Type) int {
-	switch kind(t) {
-	case T_SLICE:
-		return sliceSize
-	case T_STRING:
-		return stringSize
-	case T_UINT8, T_UINT16, T_INT, T_BOOL:
-		return intSize
-	case T_UINTPTR, T_POINTER:
-		return ptrSize
-	case T_ARRAY, T_STRUCT:
-		return ptrSize
-	default:
-		throw(t)
-	}
-	throw(t)
-	return 0
 }
 
 func emitLoad(t *Type) {
@@ -205,16 +188,6 @@ func emitVariableAddr(variable *Variable) {
 	fmtPrintf("  pushq %%rax\n")
 }
 
-func assert(bol bool, msg string) {
-	if !bol {
-		panic(msg)
-	}
-}
-
-func throw(x interface{}) {
-	panic(fmt.Sprintf("%#v", x))
-}
-
 func evalInt(expr ast.Expr) int {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
@@ -225,41 +198,6 @@ func evalInt(expr ast.Expr) int {
 		return i
 	}
 	return 0
-}
-
-func getSizeOfType(t *Type) int {
-	var varSize int
-	switch kind(t) {
-	case T_SLICE:
-		return sliceSize
-	case T_STRING:
-		return gString.Data.(int)
-	case T_INT, T_UINTPTR, T_POINTER:
-		return gInt.Data.(int)
-	case T_UINT8:
-		return gUint8.Data.(int)
-	case T_BOOL:
-		return gInt.Data.(int)
-	case T_ARRAY:
-		arrayType, ok := t.e.(*ast.ArrayType)
-		assert(ok, "expect *ast.ArrayType")
-		elmSize := getSizeOfType(e2t(arrayType.Elt))
-		return elmSize * evalInt(arrayType.Len)
-	case T_STRUCT:
-		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
-	default:
-		throw(t)
-	}
-	return varSize
-}
-
-type localoffsetint int
-
-type Variable struct {
-	name         string
-	isGlobal     bool
-	globalSymbol string
-	localOffset  localoffsetint
 }
 
 func emitListHeadAddr(list ast.Expr) {
@@ -367,23 +305,6 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 	return
 }
 
-func getStructTypeOfX(e *ast.SelectorExpr) *Type {
-	typeOfX := getTypeOfExpr(e.X)
-	var structType *Type
-	switch kind(typeOfX) {
-	case T_STRUCT:
-		// strct.field => e.X . e.Sel
-		structType = typeOfX
-	case T_POINTER:
-		// ptr.field => e.X . e.Sel
-		ptrType, ok := typeOfX.e.(*ast.StarExpr)
-		assert(ok, "should be *ast.StarExpr")
-		structType = e2t(ptrType.X)
-	default:
-		throw("TBI")
-	}
-	return structType
-}
 
 func emitZeroValue(t *Type) {
 	switch kind(t) {
@@ -456,15 +377,6 @@ func emitTrue() {
 
 func emitFalse() {
 	fmt.Printf("  pushq $0 # false\n")
-}
-
-func newNumberLiteral(x int) *ast.BasicLit {
-	e := &ast.BasicLit{
-		ValuePos: 0,
-		Kind:     token.INT,
-		Value:    fmt.Sprintf("%d", x),
-	}
-	return e
 }
 
 func emitPushArgs2(arg0 ast.Expr, t0 *Type, arg1 ast.Expr, t1 *Type) {
@@ -1122,21 +1034,6 @@ func emitListElementAddr(list ast.Expr, elmType *Type) {
 	fmt.Printf("  addq %%rcx, %%rax\n")
 	fmt.Printf("  pushq %%rax # addr of element\n")
 }
-
-func getElementTypeOfListType(t *Type) *Type {
-	switch kind(t) {
-	case T_SLICE, T_ARRAY:
-		arrayType, ok := t.e.(*ast.ArrayType)
-		assert(ok, "expect *ast.ArrayType")
-		return e2t(arrayType.Elt)
-	case T_STRING:
-		return tUint8
-	default:
-		throw(t)
-	}
-	return nil
-}
-
 func emitCompEq(t *Type) {
 	switch kind(t) {
 	case T_STRING:
@@ -1535,6 +1432,244 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("  leave\n")
 	fmt.Printf("  ret\n")
 }
+
+func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
+	typeKind := kind(t)
+	fmt.Printf("%s: # T %s\n", name, typeKind)
+	switch typeKind {
+	case T_STRING:
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			sl := getStringLiteral(vl)
+			fmt.Printf("  .quad %s\n", sl.label)
+			fmt.Printf("  .quad %d\n", sl.strlen)
+		case nil:
+			fmt.Printf("  .quad 0\n")
+			fmt.Printf("  .quad 0\n")
+		default:
+			panic("Unexpected case")
+		}
+	case T_POINTER:
+		fmt.Printf("  .quad 0 # pointer \n") // @TODO
+	case T_UINTPTR:
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			fmt.Printf("  .quad %s\n", vl.Value)
+		case nil:
+			fmt.Printf("  .quad 0\n")
+		default:
+			throw(val)
+		}
+	case T_BOOL:
+		fmt.Printf("  .quad 0 # bool zero value\n") // @TODO
+	case T_INT:
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			fmt.Printf("  .quad %s\n", vl.Value)
+		case nil:
+			fmt.Printf("  .quad 0\n")
+		default:
+			throw(val)
+		}
+	case T_UINT8:
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			fmt.Printf("  .byte %s\n", vl.Value)
+		case nil:
+			fmt.Printf("  .byte 0\n")
+		default:
+			throw(val)
+		}
+	case T_UINT16:
+		switch vl := val.(type) {
+		case *ast.BasicLit:
+			fmt.Printf("  .word %s\n", vl.Value)
+		case nil:
+			fmt.Printf("  .word 0\n")
+		default:
+			throw(val)
+		}
+	case T_SLICE:
+		fmt.Printf("  .quad 0 # ptr\n")
+		fmt.Printf("  .quad 0 # len\n")
+		fmt.Printf("  .quad 0 # cap\n")
+	case T_ARRAY:
+		// emit global zero values
+		if val != nil {
+			panic("TBI")
+		}
+		arrayType, ok := t.e.(*ast.ArrayType)
+		assert(ok, "should be *ast.ArrayType")
+		assert(arrayType.Len != nil, "slice type is not expected")
+		basicLit, ok := arrayType.Len.(*ast.BasicLit)
+		assert(ok, "should be *ast.BasicLit")
+		length, err := strconv.Atoi(basicLit.Value)
+		if err != nil {
+			panic(err)
+		}
+		var zeroValue string
+		switch kind(e2t(arrayType.Elt)) {
+		case T_INT:
+			zeroValue = fmt.Sprintf("  .quad 0 # int zero value\n")
+		case T_UINT8:
+			zeroValue = fmt.Sprintf("  .byte 0 # uint8 zero value\n")
+		case T_STRING:
+			zeroValue = fmt.Sprintf("  .quad 0 # string zero value (ptr)\n")
+			zeroValue += fmt.Sprintf("  .quad 0 # string zero value (len)\n")
+		default:
+			throw(arrayType.Elt)
+		}
+		for i := 0; i < length; i++ {
+			fmt.Printf(zeroValue)
+		}
+	default:
+		throw(typeKind)
+	}
+}
+
+func emitData(pkgName string) {
+	fmt.Printf(".data\n")
+	for _, sl := range stringLiterals {
+		fmt.Printf("# string literals\n")
+		fmt.Printf("%s:\n", sl.label)
+		fmt.Printf("  .string %s\n", sl.value)
+	}
+
+	fmt.Printf("# ===== Global Variables =====\n")
+	for _, spec := range globalVars {
+		var val ast.Expr
+		if len(spec.Values) > 0 {
+			val = spec.Values[0]
+		}
+		var t *Type
+		if spec.Type != nil {
+			t = e2t(spec.Type)
+		}
+		emitGlobalVariable(spec.Names[0], t, val)
+	}
+	fmt.Printf("# ==============================\n")
+}
+
+func emitText(pkgName string) {
+	fmt.Printf(".text\n")
+	var fnc *Func
+	for _, fnc = range globalFuncs {
+		emitFuncDecl(pkgName, fnc)
+	}
+}
+
+func generateCode(pkgName string) {
+	emitData(pkgName)
+	emitText(pkgName)
+}
+
+// -- semantic analyzer
+func newNumberLiteral(x int) *ast.BasicLit {
+	e := &ast.BasicLit{
+		ValuePos: 0,
+		Kind:     token.INT,
+		Value:    fmt.Sprintf("%d", x),
+	}
+	return e
+}
+
+func getStructTypeOfX(e *ast.SelectorExpr) *Type {
+	typeOfX := getTypeOfExpr(e.X)
+	var structType *Type
+	switch kind(typeOfX) {
+	case T_STRUCT:
+		// strct.field => e.X . e.Sel
+		structType = typeOfX
+	case T_POINTER:
+		// ptr.field => e.X . e.Sel
+		ptrType, ok := typeOfX.e.(*ast.StarExpr)
+		assert(ok, "should be *ast.StarExpr")
+		structType = e2t(ptrType.X)
+	default:
+		throw("TBI")
+	}
+	return structType
+}
+
+func getElementTypeOfListType(t *Type) *Type {
+	switch kind(t) {
+	case T_SLICE, T_ARRAY:
+		arrayType, ok := t.e.(*ast.ArrayType)
+		assert(ok, "expect *ast.ArrayType")
+		return e2t(arrayType.Elt)
+	case T_STRING:
+		return tUint8
+	default:
+		throw(t)
+	}
+	return nil
+}
+
+func getSizeOfType(t *Type) int {
+	var varSize int
+	switch kind(t) {
+	case T_SLICE:
+		return sliceSize
+	case T_STRING:
+		return gString.Data.(int)
+	case T_INT, T_UINTPTR, T_POINTER:
+		return gInt.Data.(int)
+	case T_UINT8:
+		return gUint8.Data.(int)
+	case T_BOOL:
+		return gInt.Data.(int)
+	case T_ARRAY:
+		arrayType, ok := t.e.(*ast.ArrayType)
+		assert(ok, "expect *ast.ArrayType")
+		elmSize := getSizeOfType(e2t(arrayType.Elt))
+		return elmSize * evalInt(arrayType.Len)
+	case T_STRUCT:
+		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
+	default:
+		throw(t)
+	}
+	return varSize
+}
+
+type localoffsetint int
+
+type Variable struct {
+	name         string
+	isGlobal     bool
+	globalSymbol string
+	localOffset  localoffsetint
+}
+
+
+type Type struct {
+	e ast.Expr // original expr
+}
+
+type Arg struct {
+	e      ast.Expr
+	t      *Type // expected type
+	offset int
+}
+
+func getPushSizeOfType(t *Type) int {
+	switch kind(t) {
+	case T_SLICE:
+		return sliceSize
+	case T_STRING:
+		return stringSize
+	case T_UINT8, T_UINT16, T_INT, T_BOOL:
+		return intSize
+	case T_UINTPTR, T_POINTER:
+		return ptrSize
+	case T_ARRAY, T_STRUCT:
+		return ptrSize
+	default:
+		throw(t)
+	}
+	throw(t)
+	return 0
+}
+
 
 type sliteral struct {
 	label  string
@@ -2349,136 +2484,6 @@ func kind(t *Type) TypeKind {
 		throw(t)
 	}
 	return ""
-}
-
-func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
-	typeKind := kind(t)
-	fmt.Printf("%s: # T %s\n", name, typeKind)
-	switch typeKind {
-	case T_STRING:
-		switch vl := val.(type) {
-		case *ast.BasicLit:
-			sl := getStringLiteral(vl)
-			fmt.Printf("  .quad %s\n", sl.label)
-			fmt.Printf("  .quad %d\n", sl.strlen)
-		case nil:
-			fmt.Printf("  .quad 0\n")
-			fmt.Printf("  .quad 0\n")
-		default:
-			panic("Unexpected case")
-		}
-	case T_POINTER:
-		fmt.Printf("  .quad 0 # pointer \n") // @TODO
-	case T_UINTPTR:
-		switch vl := val.(type) {
-		case *ast.BasicLit:
-			fmt.Printf("  .quad %s\n", vl.Value)
-		case nil:
-			fmt.Printf("  .quad 0\n")
-		default:
-			throw(val)
-		}
-	case T_BOOL:
-		fmt.Printf("  .quad 0 # bool zero value\n") // @TODO
-	case T_INT:
-		switch vl := val.(type) {
-		case *ast.BasicLit:
-			fmt.Printf("  .quad %s\n", vl.Value)
-		case nil:
-			fmt.Printf("  .quad 0\n")
-		default:
-			throw(val)
-		}
-	case T_UINT8:
-		switch vl := val.(type) {
-		case *ast.BasicLit:
-			fmt.Printf("  .byte %s\n", vl.Value)
-		case nil:
-			fmt.Printf("  .byte 0\n")
-		default:
-			throw(val)
-		}
-	case T_UINT16:
-		switch vl := val.(type) {
-		case *ast.BasicLit:
-			fmt.Printf("  .word %s\n", vl.Value)
-		case nil:
-			fmt.Printf("  .word 0\n")
-		default:
-			throw(val)
-		}
-	case T_SLICE:
-		fmt.Printf("  .quad 0 # ptr\n")
-		fmt.Printf("  .quad 0 # len\n")
-		fmt.Printf("  .quad 0 # cap\n")
-	case T_ARRAY:
-		// emit global zero values
-		if val != nil {
-			panic("TBI")
-		}
-		arrayType, ok := t.e.(*ast.ArrayType)
-		assert(ok, "should be *ast.ArrayType")
-		assert(arrayType.Len != nil, "slice type is not expected")
-		basicLit, ok := arrayType.Len.(*ast.BasicLit)
-		assert(ok, "should be *ast.BasicLit")
-		length, err := strconv.Atoi(basicLit.Value)
-		if err != nil {
-			panic(err)
-		}
-		var zeroValue string
-		switch kind(e2t(arrayType.Elt)) {
-		case T_INT:
-			zeroValue = fmt.Sprintf("  .quad 0 # int zero value\n")
-		case T_UINT8:
-			zeroValue = fmt.Sprintf("  .byte 0 # uint8 zero value\n")
-		case T_STRING:
-			zeroValue = fmt.Sprintf("  .quad 0 # string zero value (ptr)\n")
-			zeroValue += fmt.Sprintf("  .quad 0 # string zero value (len)\n")
-		default:
-			throw(arrayType.Elt)
-		}
-		for i := 0; i < length; i++ {
-			fmt.Printf(zeroValue)
-		}
-	default:
-		throw(typeKind)
-	}
-}
-
-func emitData(pkgName string) {
-	fmt.Printf(".data\n")
-	for _, sl := range stringLiterals {
-		fmt.Printf("# string literals\n")
-		fmt.Printf("%s:\n", sl.label)
-		fmt.Printf("  .string %s\n", sl.value)
-	}
-
-	fmt.Printf("# ===== Global Variables =====\n")
-	for _, spec := range globalVars {
-		var val ast.Expr
-		if len(spec.Values) > 0 {
-			val = spec.Values[0]
-		}
-		var t *Type
-		if spec.Type != nil {
-			t = e2t(spec.Type)
-		}
-		emitGlobalVariable(spec.Names[0], t, val)
-	}
-	fmt.Printf("# ==============================\n")
-}
-
-func emitText(pkgName string) {
-	fmt.Printf(".text\n")
-	var fnc *Func
-	for _, fnc = range globalFuncs {
-		emitFuncDecl(pkgName, fnc)
-	}
-}
-
-func generateCode(pkgName string) {
-	emitData(pkgName)
-	emitText(pkgName)
 }
 
 var pkgName string
