@@ -1342,7 +1342,7 @@ func registerStringLiteral(lit *astBasicLit) {
 }
 
 func walkExpr(expr *astExpr) {
-	fmtPrintf("[walkExpr] dtype=%s\n", expr.dtype)
+	fmtPrintf("# [walkExpr] dtype=%s\n", expr.dtype)
 	switch expr.dtype {
 	case "*astBasicLit":
 		switch expr.basicLit.Kind {
@@ -1473,9 +1473,15 @@ func emitExpr(e *astExpr) {
 			os.Exit(1)
 		}
 	case "*astCallExpr":
+		var fun string = e.callExpr.Fun
 		var callExpr *astCallExpr = e.callExpr
-		emitExpr(callExpr.Args[0])
-		fmtPrintf("  callq %s\n", callExpr.Fun)
+		if fun == "print" {
+			emitExpr(callExpr.Args[0])
+			fmtPrintf("  callq runtime.printstring\n")
+		} else {
+			emitExpr(callExpr.Args[0])
+			fmtPrintf("  callq %s\n", fun)
+		}
 	case "*astUnaryExpr":
 		switch e.unaryExpr.Op {
 		case "-":
