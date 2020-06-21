@@ -839,35 +839,95 @@ func parserResolve(ident *astIdent) {
 	os.Exit(1)
 }
 
-func parsePrimaryExpr() *astExpr {
-	fmtPrintf("#   begin parsePrimaryExpr()\n")
-	var r *astExpr = new(astExpr)
+func parseOperand() *astExpr {
 	switch ptok.tok {
 	case "IDENT":
-		fmtPrintf("# [parsePrimaryExpr] IDENT\n")
-		var identToken *TokenContainer = ptok
 		var eIdent *astExpr = new(astExpr)
 		eIdent.dtype = "*astIdent"
 		var ident *astIdent =  parseIdent()
+		eIdent.ident = ident
 		parserResolve(ident)
+		return eIdent
+	case "INT":
+		var basicLit *astBasicLit = new(astBasicLit)
+		basicLit.Kind = "INT"
+		basicLit.Value = ptok.lit
+		var r *astExpr = new(astExpr)
+		r.dtype = "*astBasicLit"
+		r.basicLit = basicLit
+		parserNext()
+		return r
+	case "STRING":
+		var basicLit *astBasicLit = new(astBasicLit)
+		basicLit.Kind = "STRING"
+		basicLit.Value = ptok.lit
+		var r *astExpr = new(astExpr)
+		r.dtype = "*astBasicLit"
+		r.basicLit = basicLit
+		parserNext()
+		return r
+	}
+	fmtPrintf("# [parsePrimaryExpr] TBI: ptok.tok=%s\n", ptok.tok)
+	os.Exit(1)
+	var r *astExpr
+	return r
+}
+
+func parsePrimaryExpr() *astExpr {
+	fmtPrintf("#   begin parsePrimaryExpr()\n")
+	var x *astExpr = parseOperand()
+	var r *astExpr = new(astExpr)
+	switch x.dtype {
+	case "*astIdent":
+		fmtPrintf("# [parsePrimaryExpr] IDENT\n")
+		var eIdent *astExpr = x
+		var ident *astIdent = eIdent.ident
+
 		if ident.Obj == nil && ident.Name == "x" {
 			fmtPrintf("# [parsePrimaryExpr] Resolve failed: %s \n", ident.Name)
 			os.Exit(1)
 		}
-		eIdent.ident = ident
 		if ptok.tok == "." {
 			parserNext() // consume "."
 			if ptok.tok != "IDENT" {
 				fmtPrintf("tok should be IDENT")
 				os.Exit(1)
 			}
+			// Assume CallExpr
 			var secondIdent string = ptok.lit
 			parserNext() // consume IDENT
+			if ptok.tok == "(" {
+				parserExpect("(", "parsePrimaryExpr")
+				var callExpr *astCallExpr = new(astCallExpr)
+				callExpr.Fun = eIdent.ident.Name + "." + secondIdent
+				fmtPrintf("# [parsePrimaryExpr] callExpr.Fun=%s\n", callExpr.Fun)
+				fmtPrintf("# [parsePrimaryExpr] ptok.tok=%s\n", ptok.tok)
+				var list []*astExpr
+				for ptok.tok != ")" {
+					var arg *astExpr= parseExpr()
+					list = append(list ,arg)
+					if ptok.tok == "," {
+						parserNext()
+					} else if ptok.tok == ")" {
+						break
+					}
+				}
+				parserExpect(")", "parsePrimaryExpr") // consume ")"
+				callExpr.Args = list
+				r.dtype = "*astCallExpr"
+				r.callExpr = callExpr
+				fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
+			} else {
+				fmtPrintf("#   end parsePrimaryExpr()\n")
+				return eIdent
+			}
+		} else if ptok.tok == "(" {
+			var secondIdent string = eIdent.ident.Name
+			parserExpect("(", "parsePrimaryExpr")
 			var callExpr *astCallExpr = new(astCallExpr)
-			callExpr.Fun = eIdent.ident.Name + "." + secondIdent
+			callExpr.Fun = "main" + "." + secondIdent
 			fmtPrintf("# [parsePrimaryExpr] callExpr.Fun=%s\n", callExpr.Fun)
 			fmtPrintf("# [parsePrimaryExpr] ptok.tok=%s\n", ptok.tok)
-			parserExpect("(", "parsePrimaryExpr")
 			var list []*astExpr
 			for ptok.tok != ")" {
 				var arg *astExpr= parseExpr()
@@ -883,33 +943,12 @@ func parsePrimaryExpr() *astExpr {
 			r.dtype = "*astCallExpr"
 			r.callExpr = callExpr
 			fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
-		} else if ptok.tok == "(" {
-			parserNext() // consume "("
-			var callExpr *astCallExpr = new(astCallExpr)
-			callExpr.Fun = identToken.lit
-			var arg *astExpr = parseExpr()
-			parserNext() // consume ")"
-			callExpr.Args = append(callExpr.Args, arg)
-			r.dtype = "*astCallExpr"
-			r.callExpr = callExpr
 		} else  {
 			fmtPrintf("#   end parsePrimaryExpr()\n")
 			return eIdent
 		}
-	case "INT":
-		var basicLit *astBasicLit = new(astBasicLit)
-		basicLit.Kind = "INT"
-		basicLit.Value = ptok.lit
-		r.dtype = "*astBasicLit"
-		r.basicLit = basicLit
-		parserNext()
-	case "STRING":
-		var basicLit *astBasicLit = new(astBasicLit)
-		basicLit.Kind = "STRING"
-		basicLit.Value = ptok.lit
-		r.dtype = "*astBasicLit"
-		r.basicLit = basicLit
-		parserNext()
+	case "*astBasicLit":
+		return x
 	default:
 		fmtPrintf("# [parsePrimaryExpr] TBI: ptok.tok=%s\n", ptok.tok)
 		os.Exit(1)
@@ -1512,7 +1551,7 @@ func emitExpr(e *astExpr) {
 			fmtPrintf("  callq runtime.printstring\n")
 		} else {
 			emitExpr(callExpr.Args[0])
-			fmtPrintf("  callq main.%s\n", fun)
+			fmtPrintf("  callq %s\n", fun)
 		}
 	case "*astUnaryExpr":
 		switch e.unaryExpr.Op {

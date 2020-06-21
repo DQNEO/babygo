@@ -1,10 +1,18 @@
 package main
 
-func f(x string) {
-	print(x)
+import "os"
+
+func exit(x int) {
+	os.Exit(x)
 }
+
+func sum(x int, y int) {
+	os.Exit(x)
+}
+
 func main() {
-	var s1 string
-	s1 = "hello world\n"
-	f(s1)
+	exit(3)
+	//var i1 int
+	//i1 = 7
+	//sum(i1, 5)
 }
