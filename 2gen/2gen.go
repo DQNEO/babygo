@@ -880,13 +880,6 @@ func parsePrimaryExpr() *astExpr {
 	switch x.dtype {
 	case "*astIdent":
 		fmtPrintf("# [parsePrimaryExpr] IDENT\n")
-		var eIdent *astExpr = x
-		var ident *astIdent = eIdent.ident
-
-		if ident.Obj == nil && ident.Name == "x" {
-			fmtPrintf("# [parsePrimaryExpr] Resolve failed: %s \n", ident.Name)
-			os.Exit(1)
-		}
 		if ptok.tok == "." {
 			parserNext() // consume "."
 			if ptok.tok != "IDENT" {
@@ -899,7 +892,7 @@ func parsePrimaryExpr() *astExpr {
 			if ptok.tok == "(" {
 				parserExpect("(", "parsePrimaryExpr")
 				var callExpr *astCallExpr = new(astCallExpr)
-				callExpr.Fun = eIdent.ident.Name + "." + secondIdent
+				callExpr.Fun = x.ident.Name + "." + secondIdent
 				fmtPrintf("# [parsePrimaryExpr] callExpr.Fun=%s\n", callExpr.Fun)
 				fmtPrintf("# [parsePrimaryExpr] ptok.tok=%s\n", ptok.tok)
 				var list []*astExpr
@@ -919,10 +912,10 @@ func parsePrimaryExpr() *astExpr {
 				fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
 			} else {
 				fmtPrintf("#   end parsePrimaryExpr()\n")
-				return eIdent
+				return x
 			}
 		} else if ptok.tok == "(" {
-			var secondIdent string = eIdent.ident.Name
+			var secondIdent string = x.ident.Name
 			parserExpect("(", "parsePrimaryExpr")
 			var callExpr *astCallExpr = new(astCallExpr)
 			callExpr.Fun = "main" + "." + secondIdent
@@ -945,7 +938,7 @@ func parsePrimaryExpr() *astExpr {
 			fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
 		} else  {
 			fmtPrintf("#   end parsePrimaryExpr()\n")
-			return eIdent
+			return x
 		}
 	case "*astBasicLit":
 		return x
