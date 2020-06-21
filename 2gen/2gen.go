@@ -1292,7 +1292,8 @@ func walkStmt(stmt *astStmt) {
 		var typ *astExpr = valSpec.Type // ident "int"
 		fmtPrintf("# [walkStmt] valSpec Name=%s, Type=%s\n",
 			valSpec.Name.Name, typ.dtype)
-		localoffset = localoffset - 8 // 8 = int size
+		var sizeOfType int = 8
+		localoffset = localoffset - sizeOfType
 
 		valSpec.Name.Obj.Variable = newLocalVariable(valSpec.Name.Name, localoffset)
 		fmtPrintf("# var %s offset = %d\n", valSpec.Name.Obj.Name,
