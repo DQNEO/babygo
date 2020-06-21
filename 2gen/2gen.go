@@ -714,9 +714,11 @@ func parseParameterList() []*astField {
 		field.Name = ident
 		field.Type = typ
 //		fmtPrintf("debug 3\n")
-		fmtPrintf("[parser] parseParameterList: Field %s %s\n", field.Name.Name, field.Type.dtype)
+		fmtPrintf("# [parser] parseParameterList: Field %s %s\n", field.Name.Name, field.Type.dtype)
 //		fmtPrintf("debug 4\n")
 		params = append(params, field)
+
+		declareField(field, topScope, "Var", ident)
 		if ptok.tok == "," {
 			parserNext()
 			continue
@@ -774,6 +776,23 @@ func scopeInsert(s *astScope, obj *astObject) {
 	topScope.Objects = append(topScope.Objects, oe)
 }
 
+func declareField(decl *astField, scope *astScope, kind string, ident *astIdent) {
+	// delcare
+	var obj *astObject = new(astObject)
+	var objDecl *ObjDecl = new(ObjDecl)
+	objDecl.dtype = "*astField"
+	objDecl.field = decl
+	obj.Decl = objDecl
+	obj.Name = ident.Name
+	obj.Kind = kind
+	ident.Obj = obj
+
+	// scope insert
+	if ident.Name != "_" {
+		scopeInsert(scope, obj)
+	}
+}
+
 func declare(decl *astValueSpec, scope *astScope, kind string, ident *astIdent) {
 	// delcare
 	var obj *astObject = new(astObject) //valSpec.Name.Obj
@@ -789,7 +808,6 @@ func declare(decl *astValueSpec, scope *astScope, kind string, ident *astIdent) 
 	if ident.Name != "_" {
 		scopeInsert(scope, obj)
 	}
-
 }
 
 func scopeLookup(s *astScope, name string) *astObject {
@@ -832,6 +850,10 @@ func parsePrimaryExpr() *astExpr {
 		eIdent.dtype = "*astIdent"
 		var ident *astIdent =  parseIdent()
 		parserResolve(ident)
+		if ident.Obj == nil && ident.Name == "x" {
+			fmtPrintf("# [parsePrimaryExpr] Resolve failed: %s \n", ident.Name)
+			os.Exit(1)
+		}
 		eIdent.ident = ident
 		if ptok.tok == "." {
 			parserNext() // consume "."
@@ -1221,7 +1243,7 @@ func throw(s string) {
 
 func kind(t *Type) string {
 	if t == nil {
-		fmtPrintf("nil type is not expected")
+		fmtPrintf("nil type is not expected\n")
 		os.Exit(1)
 	}
 	switch t.e.dtype {
@@ -1363,18 +1385,27 @@ func newLocalVariable(name string, localoffset int) *Variable {
 }
 
 func semanticAnalyze(file *astFile) string {
-	var decl *astDecl
+	var funcDecl *astDecl
 
-	for _, decl = range file.Decls {
-		fmtPrintf("# [sema] decl func = %s\n", decl.Name.Name)
+	for _, funcDecl = range file.Decls {
+		fmtPrintf("# [sema] funcdef %s\n", funcDecl.Name.Name)
 		localoffset  = 0
+		var paramoffset int = 16
+		var field *astField
+		for _, field = range funcDecl.Sig.params.List {
+			var obj *astObject = field.Name.Obj
+			obj.Variable = newLocalVariable(obj.Name, paramoffset)
+			paramoffset = paramoffset + 8 // @FIXME
+			fmtPrintf("# field.Name.Obj.Name=%s\n", obj.Name)
+			//fmtPrintf("#   field.Type=%#v\n", field.Type)
+		}
 		var stmt *astStmt
-		for _, stmt = range decl.Body.List {
+		for _, stmt = range funcDecl.Body.List {
 			walkStmt(stmt)
 		}
 		var fnc *Func = new(Func)
-		fnc.name = decl.Name.Name
-		fnc.Body = decl.Body
+		fnc.name = funcDecl.Name.Name
+		fnc.Body = funcDecl.Body
 		fnc.localarea = localoffset
 		globalFuncs = append(globalFuncs, fnc)
 	}
@@ -1439,7 +1470,7 @@ func emitExpr(e *astExpr) {
 	case "*astIdent":
 		var ident *astIdent = e.ident
 		if ident.Obj == nil {
-			fmtPrintf("ident %s is unresolved", ident.Name)
+			fmtPrintf("[emitExpr] ident %s is unresolved\n", ident.Name)
 			os.Exit(1)
 		}
 		switch ident.Obj.Kind {
@@ -1480,7 +1511,7 @@ func emitExpr(e *astExpr) {
 			fmtPrintf("  callq runtime.printstring\n")
 		} else {
 			emitExpr(callExpr.Args[0])
-			fmtPrintf("  callq %s\n", fun)
+			fmtPrintf("  callq main.%s\n", fun)
 		}
 	case "*astUnaryExpr":
 		switch e.unaryExpr.Op {
@@ -1572,6 +1603,10 @@ func emitAddr(expr *astExpr) {
 }
 
 func emitLoad(t *Type) {
+	if (t == nil) {
+		fmtPrintf("[emitLoad] nil type error\n")
+		os.Exit(1)
+	}
 	emitPopAddress(kind(t))
 	switch kind(t) {
 	case T_INT:
@@ -1700,6 +1735,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				t.e = decl.Type
 				return t
 			case "*astField":
+				var decl *astField = expr.ident.Obj.Decl.field
+				var t *Type = new(Type)
+				t.e = decl.Type
+				return t
 			default:
 				fmtPrintf("[getTypeOfExpr] ERROR 0\n")
 				os.Exit(1)
@@ -1713,6 +1752,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		fmtPrintf("[getTypeOfExpr] ERROR 2\n")
 		os.Exit(1)
 	}
+	fmtPrintf("[getTypeOfExpr] nil type is not allowed\n")
+	os.Exit(1)
 	var r *Type
 	return r
 }
