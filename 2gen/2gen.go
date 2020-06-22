@@ -1317,32 +1317,6 @@ func throw(s string) {
 	syscall.Write(2, []uint8(s))
 }
 
-func kind(t *Type) string {
-	if t == nil {
-		fmtPrintf("nil type is not expected\n")
-		os.Exit(1)
-	}
-	switch t.e.dtype {
-	case "*astIdent":
-		var ident = t.e.ident
-		switch ident.Name {
-		case "int":
-			return T_INT
-		case "string":
-			return T_STRING
-		default:
-			fmtPrintf("[kind] unsupported type %s\n", ident.Name)
-			os.Exit(1)
-		}
-	default:
-		fmtPrintf("error")
-		os.Exit(1)
-	}
-	fmtPrintf("error")
-	os.Exit(1)
-	return ""
-}
-
 //type localoffsetint int //@TODO
 var localoffset int
 
@@ -1918,11 +1892,35 @@ type sliteral struct {
 var globalVars []*astValueSpec
 var globalFuncs []*Func
 
-var _garbage string
-
 type astFile struct {
 	Name string
 	Decls []*astDecl
+}
+
+func kind(t *Type) string {
+	if t == nil {
+		fmtPrintf("nil type is not expected\n")
+		os.Exit(1)
+	}
+	switch t.e.dtype {
+	case "*astIdent":
+		var ident = t.e.ident
+		switch ident.Name {
+		case "int":
+			return T_INT
+		case "string":
+			return T_STRING
+		default:
+			fmtPrintf("[kind] unsupported type %s\n", ident.Name)
+			os.Exit(1)
+		}
+	default:
+		fmtPrintf("error")
+		os.Exit(1)
+	}
+	fmtPrintf("error")
+	os.Exit(1)
+	return ""
 }
 
 func main() {

@@ -95,7 +95,16 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
 
-// --- codd gen ---
+// --- parser ---
+func parseFile(fset *token.FileSet, filename string) *ast.File {
+	f, err := parser.ParseFile(fset, filename, nil, 0)
+	if err != nil {
+		panic(err)
+	}
+	return f
+}
+
+// --- code gen ---
 func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }
@@ -303,7 +312,6 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 	}
 	return
 }
-
 
 func emitZeroValue(t *Type) {
 	switch kind(t) {
@@ -1562,7 +1570,7 @@ func generateCode(pkgName string) {
 	emitText(pkgName)
 }
 
-// -- semantic analyzer
+// --- semantic analyzer ---
 func newNumberLiteral(x int) *ast.BasicLit {
 	e := &ast.BasicLit{
 		ValuePos: 0,
@@ -1604,6 +1612,11 @@ func getElementTypeOfListType(t *Type) *Type {
 	return nil
 }
 
+const sliceSize int = 24
+const stringSize int = 16
+const intSize int = 8
+const ptrSize int = 8
+
 func getSizeOfType(t *Type) int {
 	var varSize int
 	switch kind(t) {
@@ -1630,26 +1643,6 @@ func getSizeOfType(t *Type) int {
 	return varSize
 }
 
-type localoffsetint int
-
-type Variable struct {
-	name         string
-	isGlobal     bool
-	globalSymbol string
-	localOffset  localoffsetint
-}
-
-
-type Type struct {
-	e ast.Expr // original expr
-}
-
-type Arg struct {
-	e      ast.Expr
-	t      *Type // expected type
-	offset int
-}
-
 func getPushSizeOfType(t *Type) int {
 	switch kind(t) {
 	case T_SLICE:
@@ -1668,7 +1661,6 @@ func getPushSizeOfType(t *Type) int {
 	throw(t)
 	return 0
 }
-
 
 type sliteral struct {
 	label  string
@@ -1721,8 +1713,6 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	cont.lit = lit
 	stringLiterals = append(stringLiterals, cont)
 }
-
-var localoffset localoffsetint
 
 func getStructFieldOffset(field *ast.Field) int {
 	if field.Doc == nil {
@@ -1789,6 +1779,26 @@ func calcStructSizeAndSetFieldOffset(structTypeSpec *ast.TypeSpec) int {
 	}
 	return offset
 }
+
+type ForStmt struct {
+	kind      int    // 1:for 2:range
+	labelPost string // for continue
+	labelExit string // for break
+	outer     *ForStmt
+	astFor    *ast.ForStmt
+	astRange  *ast.RangeStmt
+}
+
+type RangeStmtMisc struct {
+	lenvar   *Variable
+	indexvar *Variable
+}
+
+var currentFor *ForStmt
+var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
+var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
+var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
+var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
 
 func walkStmt(stmt ast.Stmt) {
 	switch s := stmt.(type) {
@@ -1906,28 +1916,6 @@ func walkStmt(stmt ast.Stmt) {
 	}
 }
 
-type ForStmt struct {
-	kind      int    // 1:for 2:range
-	labelPost string // for continue
-	labelExit string // for break
-	outer     *ForStmt
-	astFor    *ast.ForStmt
-	astRange  *ast.RangeStmt
-}
-
-var currentFor *ForStmt
-
-var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
-var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
-var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
-
-type RangeStmtMisc struct {
-	lenvar   *Variable
-	indexvar *Variable
-}
-
-var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
-
 func walkExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -1980,10 +1968,57 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
-const sliceSize int = 24
-const stringSize int = 16
-const intSize int = 8
-const ptrSize int = 8
+// --- semantic analyzer ---
+func newGlobalVariable(name string) *Variable {
+	return &Variable{
+		name:         name,
+		isGlobal:     true,
+		globalSymbol: name,
+		localOffset:  0,
+	}
+}
+
+func newLocalVariable(name string, localoffset localoffsetint) *Variable {
+	return &Variable{
+		name:         name,
+		isGlobal:     false,
+		globalSymbol: "",
+		localOffset:  localoffset,
+	}
+}
+
+type localoffsetint int
+
+var localoffset localoffsetint
+
+type Variable struct {
+	name         string
+	isGlobal     bool
+	globalSymbol string
+	localOffset  localoffsetint
+}
+
+type Type struct {
+	e ast.Expr // original expr
+}
+
+type Arg struct {
+	e      ast.Expr
+	t      *Type // expected type
+	offset int
+}
+
+var pkgName string
+
+var globalVars []*ast.ValueSpec
+var globalFuncs []*Func
+
+type Func struct {
+	name      string
+	stmts     []ast.Stmt
+	localarea localoffsetint
+	argsarea  localoffsetint
+}
 
 var gTrue = &ast.Object{
 	Kind: ast.Con,
@@ -2101,24 +2136,6 @@ var gCap = &ast.Object{
 	Type: nil,
 }
 
-func newGlobalVariable(name string) *Variable {
-	return &Variable{
-		name:         name,
-		isGlobal:     true,
-		globalSymbol: name,
-		localOffset:  0,
-	}
-}
-
-func newLocalVariable(name string, localoffset localoffsetint) *Variable {
-	return &Variable{
-		name:         name,
-		isGlobal:     false,
-		globalSymbol: "",
-		localOffset:  localoffset,
-	}
-}
-
 func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 	universe := &ast.Scope{
 		Outer:   nil,
@@ -2232,13 +2249,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 	return pkgName
 }
 
-type Func struct {
-	name      string
-	stmts     []ast.Stmt
-	localarea localoffsetint
-	argsarea  localoffsetint
-}
-
+// --- type ---
 type TypeKind string
 
 var T_STRING TypeKind
@@ -2485,19 +2496,6 @@ func kind(t *Type) TypeKind {
 		throw(t)
 	}
 	return ""
-}
-
-var pkgName string
-
-var globalVars []*ast.ValueSpec
-var globalFuncs []*Func
-
-func parseFile(fset *token.FileSet, filename string) *ast.File {
-	f, err := parser.ParseFile(fset, filename, nil, 0)
-	if err != nil {
-		panic(err)
-	}
-	return f
 }
 
 func main() {
