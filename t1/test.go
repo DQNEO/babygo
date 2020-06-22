@@ -2,6 +2,15 @@ package main
 
 import "syscall"
 
+func testInfer() {
+	var s = "infer string literal"
+	writeln(s)
+
+	var i = 3 + 5
+	var j = i
+	writeln(Itoa(j))
+}
+
 func testEscapedChar() {
 	var chars []uint8 = []uint8{'\\', '\t', '\r', '\'', '\n'}
 	write("start")
@@ -1105,6 +1114,7 @@ func write(s string) {
 var globalptr *int
 
 func test() {
+	testInfer()
 	testSwitchString()
 	testEscapedChar()
 	testOpenRead()

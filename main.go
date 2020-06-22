@@ -1804,8 +1804,19 @@ func walkStmt(stmt ast.Stmt) {
 			case *ast.ValueSpec:
 				varSpec := ds
 				obj := varSpec.Names[0].Obj
-				if varSpec.Type == nil {
-					panic("type inference is not supported: " + obj.Name)
+				if varSpec.Type == nil { // var x
+					if len(ds.Values) > 0 {
+						// infer type from rhs
+						val := ds.Values[0]
+						typ := getTypeOfExpr(val)
+						if typ != nil && typ.e != nil {
+							varSpec.Type = typ.e
+						} else {
+							panic("type inference is not supported: " + obj.Name)
+						}
+					} else {
+						panic("type inference is not supported: " + obj.Name)
+					}
 				}
 				t := e2t(varSpec.Type)
 				localoffset -= localoffsetint(getSizeOfType(t))
