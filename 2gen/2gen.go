@@ -873,6 +873,27 @@ func parseOperand() *astExpr {
 	return r
 }
 
+func parseCallExpr(fn string) *astCallExpr {
+	parserExpect("(", "parsePrimaryExpr")
+	var callExpr *astCallExpr = new(astCallExpr)
+	callExpr.Fun = fn
+	fmtPrintf("# [parsePrimaryExpr] callExpr.Fun=%s\n", callExpr.Fun)
+	fmtPrintf("# [parsePrimaryExpr] ptok.tok=%s\n", ptok.tok)
+	var list []*astExpr
+	for ptok.tok != ")" {
+		var arg *astExpr = parseExpr()
+		list = append(list, arg)
+		if ptok.tok == "," {
+			parserNext()
+		} else if ptok.tok == ")" {
+			break
+		}
+	}
+	parserExpect(")", "parsePrimaryExpr") // consume ")"
+	callExpr.Args = list
+	return callExpr
+}
+
 func parsePrimaryExpr() *astExpr {
 	fmtPrintf("#   begin parsePrimaryExpr()\n")
 	var x *astExpr = parseOperand()
@@ -888,51 +909,18 @@ func parsePrimaryExpr() *astExpr {
 		var secondIdent string = ptok.lit
 		parserNext() // consume IDENT
 		if ptok.tok == "(" {
-			parserExpect("(", "parsePrimaryExpr")
-			var callExpr *astCallExpr = new(astCallExpr)
-			callExpr.Fun = x.ident.Name + "." + secondIdent
-			fmtPrintf("# [parsePrimaryExpr] callExpr.Fun=%s\n", callExpr.Fun)
-			fmtPrintf("# [parsePrimaryExpr] ptok.tok=%s\n", ptok.tok)
-			var list []*astExpr
-			for ptok.tok != ")" {
-				var arg *astExpr = parseExpr()
-				list = append(list, arg)
-				if ptok.tok == "," {
-					parserNext()
-				} else if ptok.tok == ")" {
-					break
-				}
-			}
-			parserExpect(")", "parsePrimaryExpr") // consume ")"
-			callExpr.Args = list
+			var fn string = x.ident.Name + "." + secondIdent
 			r.dtype = "*astCallExpr"
-			r.callExpr = callExpr
+			r.callExpr = parseCallExpr(fn)
 			fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
 		} else {
 			fmtPrintf("#   end parsePrimaryExpr()\n")
 			return x
 		}
 	case "(":
-		var secondIdent string = x.ident.Name
-		parserExpect("(", "parsePrimaryExpr")
-		var callExpr *astCallExpr = new(astCallExpr)
-		callExpr.Fun = "main" + "." + secondIdent
-		fmtPrintf("# [parsePrimaryExpr] callExpr.Fun=%s\n", callExpr.Fun)
-		fmtPrintf("# [parsePrimaryExpr] ptok.tok=%s\n", ptok.tok)
-		var list []*astExpr
-		for ptok.tok != ")" {
-			var arg *astExpr = parseExpr()
-			list = append(list, arg)
-			if ptok.tok == "," {
-				parserNext()
-			} else if ptok.tok == ")" {
-				break
-			}
-		}
-		parserExpect(")", "parsePrimaryExpr") // consume ")"
-		callExpr.Args = list
+		var fn string =  "main" + "." + x.ident.Name
 		r.dtype = "*astCallExpr"
-		r.callExpr = callExpr
+		r.callExpr = parseCallExpr(fn)
 		fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
 	default:
 		fmtPrintf("#   end parsePrimaryExpr()\n")
