@@ -442,7 +442,14 @@ type astImportSpec struct {
 	Path string
 }
 
+// Pseudo interface for *ast.Decl
 type astDecl struct {
+	dtype string
+	genDecl *astGenDecl
+	funcDecl *astFuncDecl
+}
+
+type astFuncDecl struct {
 	Name *astIdent
 	Sig  *signature
 	Body *astBlockStmt
@@ -1141,9 +1148,11 @@ func parserParseFuncDecl() *astDecl {
 		parserExpectSemi("parserParseFuncDecl")
 	}
 	var decl *astDecl = new(astDecl)
-	decl.Name = ident
-	decl.Sig = sig
-	decl.Body = body
+	decl.dtype = "*astFuncDecl"
+	decl.funcDecl = new(astFuncDecl)
+	decl.funcDecl.Name = ident
+	decl.funcDecl.Sig = sig
+	decl.funcDecl.Body = body
 	topScope = nil
 	return decl
 }
@@ -1166,7 +1175,7 @@ func parserParseFile() *astFile {
 		switch ptok.tok {
 		case "func":
 			decl  = parserParseFuncDecl()
-			fmtPrintf("# func decl parsed:%s\n", decl.Name.Name)
+			fmtPrintf("# func decl parsed:%s\n", decl.funcDecl.Name.Name)
 		default:
 			fmtPrintf("# parserParseFile:TBI:%s\n", ptok.tok)
 			os.Exit(1)
@@ -1405,32 +1414,43 @@ func newLocalVariable(name string, localoffset int) *Variable {
 	return vr
 }
 
-func semanticAnalyze(file *astFile) string {
-	var funcDecl *astDecl
+var pkgName string
 
-	for _, funcDecl = range file.Decls {
-		fmtPrintf("# [sema] funcdef %s\n", funcDecl.Name.Name)
-		localoffset  = 0
-		var paramoffset int = 16
-		var field *astField
-		for _, field = range funcDecl.Sig.params.List {
-			var obj *astObject = field.Name.Obj
-			obj.Variable = newLocalVariable(obj.Name, paramoffset)
-			paramoffset = paramoffset + 8 // @FIXME
-			fmtPrintf("# field.Name.Obj.Name=%s\n", obj.Name)
-			//fmtPrintf("#   field.Type=%#v\n", field.Type)
+func semanticAnalyze(file *astFile) string {
+	var decl *astDecl
+
+	pkgName = file.Name
+
+	for _, decl = range file.Decls {
+		switch decl.dtype {
+		case "*astFuncDecl":
+			var funcDecl *astFuncDecl = decl.funcDecl
+			fmtPrintf("# [sema] funcdef %s\n", funcDecl.Name.Name)
+			localoffset  = 0
+			var paramoffset int = 16
+			var field *astField
+			for _, field = range funcDecl.Sig.params.List {
+				var obj *astObject = field.Name.Obj
+				obj.Variable = newLocalVariable(obj.Name, paramoffset)
+				paramoffset = paramoffset + 8 // @FIXME
+				fmtPrintf("# field.Name.Obj.Name=%s\n", obj.Name)
+				//fmtPrintf("#   field.Type=%#v\n", field.Type)
+			}
+			var stmt *astStmt
+			for _, stmt = range funcDecl.Body.List {
+				walkStmt(stmt)
+			}
+			var fnc *Func = new(Func)
+			fnc.name = funcDecl.Name.Name
+			fnc.Body = funcDecl.Body
+			fnc.localarea = localoffset
+			globalFuncs = append(globalFuncs, fnc)
+		default:
+			fmtPrintf("[semanticAnalyze] TBI: %s\n", decl.dtype)
+			os.Exit(1)
 		}
-		var stmt *astStmt
-		for _, stmt = range funcDecl.Body.List {
-			walkStmt(stmt)
-		}
-		var fnc *Func = new(Func)
-		fnc.name = funcDecl.Name.Name
-		fnc.Body = funcDecl.Body
-		fnc.localarea = localoffset
-		globalFuncs = append(globalFuncs, fnc)
 	}
-	return file.Name
+	return pkgName
 }
 
 
@@ -1843,8 +1863,8 @@ func main() {
 		stringLiterals = nil
 		stringIndex = 0
 		var f *astFile = parseFile(sourceFile)
-		semanticAnalyze(f)
-		generateCode(f.Name)
+		var pkgName string = semanticAnalyze(f)
+		generateCode(pkgName)
 	}
 
 }

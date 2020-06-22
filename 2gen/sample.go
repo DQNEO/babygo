@@ -11,8 +11,10 @@ func sum(x int, y int) {
 }
 
 func main() {
-	exit(3)
-	//var i1 int
-	//i1 = 7
-	//sum(i1, 5)
+	var s1 string
+	s1 = "hello world\n"
+	print(s1)
+	var i int
+	i = 7
+	exit(i)
 }
