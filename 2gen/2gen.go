@@ -1416,6 +1416,27 @@ func newLocalVariable(name string, localoffset int) *Variable {
 
 var pkgName string
 
+func getSizeOfType(t *Type) int {
+	switch kind(t) {
+	case T_INT:
+		return 8
+	default:
+		fmtPrintf("[getSizeOfType] TBI:%s\n", kind(t))
+		os.Exit(1)
+	}
+	return 0
+}
+
+func e2t(typeExpr *astExpr) *Type {
+	if typeExpr == nil {
+		panic("nil is not allowed")
+	}
+	var r *Type = new(Type)
+	r.e = typeExpr
+	return r
+}
+
+
 func semanticAnalyze(file *astFile) string {
 	var decl *astDecl
 
@@ -1432,7 +1453,8 @@ func semanticAnalyze(file *astFile) string {
 			for _, field = range funcDecl.Sig.params.List {
 				var obj *astObject = field.Name.Obj
 				obj.Variable = newLocalVariable(obj.Name, paramoffset)
-				paramoffset = paramoffset + 8 // @FIXME
+				var varSize int = getSizeOfType(e2t(field.Type))
+				paramoffset = paramoffset + varSize
 				fmtPrintf("# field.Name.Obj.Name=%s\n", obj.Name)
 				//fmtPrintf("#   field.Type=%#v\n", field.Type)
 			}
