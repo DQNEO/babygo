@@ -2512,7 +2512,7 @@ func main() {
 	 T_STRUCT  = "T_STRUCT"
 	 T_POINTER  = "T_POINTER"
 
-	var sourceFiles []string = []string{"./runtime.go", "./t/source.go"}
+	var sourceFiles = []string{"./runtime.go", "./t/source.go"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil
