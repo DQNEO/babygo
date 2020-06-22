@@ -505,13 +505,14 @@ type astValueSpec struct {
 }
 
 type astExpr struct {
-	dtype      string
-	ident      *astIdent
-	arrayType  *astArrayType
-	basicLit   *astBasicLit
-	callExpr   *astCallExpr
-	binaryExpr *astBinaryExpr
-	unaryExpr  *astUnaryExpr
+	dtype           string
+	ident           *astIdent
+	arrayType       *astArrayType
+	basicLit        *astBasicLit
+	callExpr        *astCallExpr
+	binaryExpr      *astBinaryExpr
+	unaryExpr       *astUnaryExpr
+	selectorExpr *astSelectorExpr
 }
 
 type astObject struct {
@@ -536,8 +537,13 @@ type astBasicLit struct {
 	Value    string
 }
 
+type astSelectorExpr struct {
+	X *astExpr
+	Sel *astIdent
+}
+
 type astCallExpr struct {
-	Fun      string      // function expression
+	Fun      *astExpr      // function expression
 	Args     []*astExpr    // function arguments; or nil
 }
 
@@ -873,11 +879,10 @@ func parseOperand() *astExpr {
 	return r
 }
 
-func parseCallExpr(fn string) *astCallExpr {
-	parserExpect("(", "parsePrimaryExpr")
+func parseCallExpr(fn *astExpr) *astCallExpr {
+	parserExpect("(", "parseCallExpr")
 	var callExpr *astCallExpr = new(astCallExpr)
 	callExpr.Fun = fn
-	fmtPrintf("# [parsePrimaryExpr] callExpr.Fun=%s\n", callExpr.Fun)
 	fmtPrintf("# [parsePrimaryExpr] ptok.tok=%s\n", ptok.tok)
 	var list []*astExpr
 	for ptok.tok != ")" {
@@ -906,10 +911,14 @@ func parsePrimaryExpr() *astExpr {
 			os.Exit(1)
 		}
 		// Assume CallExpr
-		var secondIdent string = ptok.lit
-		parserNext() // consume IDENT
+		var secondIdent *astIdent = parseIdent()
 		if ptok.tok == "(" {
-			var fn string = x.ident.Name + "." + secondIdent
+			var fn *astExpr = new(astExpr)
+			fn.dtype = "*astSelectorExpr"
+			fn.selectorExpr = new(astSelectorExpr)
+			fn.selectorExpr.X = x
+			fn.selectorExpr.Sel = secondIdent
+			// string = x.ident.Name + "." + secondIdent
 			r.dtype = "*astCallExpr"
 			r.callExpr = parseCallExpr(fn)
 			fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
@@ -918,9 +927,8 @@ func parsePrimaryExpr() *astExpr {
 			return x
 		}
 	case "(":
-		var fn string =  "main" + "." + x.ident.Name
 		r.dtype = "*astCallExpr"
-		r.callExpr = parseCallExpr(fn)
+		r.callExpr = parseCallExpr(x)
 		fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
 	default:
 		fmtPrintf("#   end parsePrimaryExpr()\n")
@@ -1517,14 +1525,26 @@ func emitExpr(e *astExpr) {
 			os.Exit(1)
 		}
 	case "*astCallExpr":
-		var fun string = e.callExpr.Fun
-		var callExpr *astCallExpr = e.callExpr
-		if fun == "print" {
-			emitExpr(callExpr.Args[0])
-			fmtPrintf("  callq runtime.printstring\n")
-		} else {
-			emitExpr(callExpr.Args[0])
-			fmtPrintf("  callq %s\n", fun)
+		var fun *astExpr = e.callExpr.Fun
+		emitExpr(e.callExpr.Args[0])
+		switch fun.dtype {
+		case "*astSelectorExpr":
+			var selector *astSelectorExpr = fun.selectorExpr
+			if selector.X.dtype != "*astIdent" {
+				fmtPrintf("[emitExpr] TBI selector.X.dtype=%s\n", selector.X.dtype)
+				os.Exit(1)
+			}
+			fmtPrintf("  callq %s.%s\n", selector.X.ident.Name, selector.Sel.Name)
+		case "*astIdent":
+			var ident *astIdent = fun.ident
+			if ident.Name == "print" {
+				fmtPrintf("  callq runtime.printstring\n")
+			} else {
+				fmtPrintf("  callq main.%s\n", ident.Name)
+			}
+		default:
+			fmtPrintf("[emitExpr] TBI fun.dtype=%s\n", fun.dtype)
+			os.Exit(1)
 		}
 	case "*astUnaryExpr":
 		switch e.unaryExpr.Op {
