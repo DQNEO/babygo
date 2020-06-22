@@ -1297,7 +1297,7 @@ func kind(t *Type) string {
 }
 
 //type localoffsetint int //@TODO
-var localoffset int = 0
+var localoffset int
 
 type Variable struct {
 	name         string

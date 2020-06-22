@@ -2177,8 +2177,8 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 				//fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
 				nameIdent := valSpec.Names[0]
 				nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
-				if len(valSpec.Values) > 0 {
-					// ignore values
+				if nameIdent.Obj.Kind == ast.Var && len(valSpec.Values) > 0 {
+					panic("initializer of global variables cannot be set: name=" + nameIdent.Obj.Name)
 				}
 				globalVars = append(globalVars, valSpec)
 			case *ast.ImportSpec:
