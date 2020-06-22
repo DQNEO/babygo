@@ -730,7 +730,9 @@ func parseParameterList() []*astField {
 		fmtPrintf("# [parser] parseParameterList: Field %s %s\n", field.Name.Name, field.Type.dtype)
 //		fmtPrintf("debug 4\n")
 		params = append(params, field)
-
+		if topScope == nil {
+			panic("topScope should not be nil")
+		}
 		declareField(field, topScope, "Var", ident)
 		if ptok.tok == "," {
 			parserNext()
@@ -783,10 +785,13 @@ func parseSignature() *signature {
 }
 
 func scopeInsert(s *astScope, obj *astObject) {
+	if s == nil {
+		panic("[scopeInsert] s sholud not be nil\n")
+	}
 	var oe *objectEntry = new(objectEntry)
 	oe.name = obj.Name
 	oe.obj = obj
-	topScope.Objects = append(topScope.Objects, oe)
+	s.Objects = append(s.Objects, oe)
 }
 
 func declareField(decl *astField, scope *astScope, kind string, ident *astIdent) {
@@ -807,7 +812,8 @@ func declareField(decl *astField, scope *astScope, kind string, ident *astIdent)
 }
 
 func declare(decl *astValueSpec, scope *astScope, kind string, ident *astIdent) {
-	// delcare
+	fmtPrintf("# [declare] ident %s\n", ident.Name)
+
 	var obj *astObject = new(astObject) //valSpec.Name.Obj
 	var objDecl *ObjDecl = new(ObjDecl)
 	objDecl.dtype = "*astValueSpec"
@@ -819,8 +825,12 @@ func declare(decl *astValueSpec, scope *astScope, kind string, ident *astIdent) 
 
 	// scope insert
 	if ident.Name != "_" {
+		fmtPrintf("# [declare] middle 1\n")
 		scopeInsert(scope, obj)
+		fmtPrintf("# [declare] middle 2\n")
 	}
+	fmtPrintf("# [declare] end\n")
+
 }
 
 func scopeLookup(s *astScope, name string) *astObject {
@@ -1133,10 +1143,32 @@ func parseDecl(keyword string) *astGenDecl {
 	return r
 }
 
+type astSpec struct {
+	dtype string
+	valueSpec *astValueSpec
+}
+
+func parserParseValueSpec() *astSpec {
+	fmtPrintf("# [parserParseValueSpec] start\n")
+	parserExpect("var", "parserParseValueSpec")
+	var ident *astIdent = parseIdent()
+	fmtPrintf("# [parserParseValueSpec] ident = %s\n", ident.Name)
+	var typ *astExpr= parseType()
+	parserExpectSemi("parserParseValueSpec")
+	var spec *astValueSpec = new(astValueSpec)
+	spec.Name = ident
+	spec.Type = typ
+	var r *astSpec = new(astSpec)
+	r.dtype = "*astValueSpec"
+	r.valueSpec = spec
+	declare(spec, topScope, "Var", ident)
+	fmtPrintf("# [parserParseValueSpec] end\n")
+	return r
+}
+
 func parserParseFuncDecl() *astDecl {
 	parserExpect("func", "parserParseFuncDecl")
 
-	topScope = new(astScope)
 
 	var ident *astIdent = parseIdent()
 	var sig *signature = parseSignature()
@@ -1153,7 +1185,7 @@ func parserParseFuncDecl() *astDecl {
 	decl.funcDecl.Name = ident
 	decl.funcDecl.Sig = sig
 	decl.funcDecl.Body = body
-	topScope = nil
+
 	return decl
 }
 
@@ -1162,17 +1194,32 @@ func parserParseFile() *astFile {
 	parserExpect("package", "parserParseFile")
 
 	var ident *astIdent = parseIdent()
-	fmtPrintf("# parser: package name = %s\n", ident.Name)
 	parserExpectSemi("parserParseFile")
 
 	for ptok.tok == "import" {
 		parserParseImportDecl()
 	}
 
+	fmtPrintf("#\n")
+	fmtPrintf("# [parser] Parsing Top level decls\n")
 	var decls []*astDecl
 	var decl *astDecl
+
+	topScope = new(astScope) // open scope
+
 	for ptok.tok != "EOF" {
 		switch ptok.tok {
+		case "var":
+			var spec *astSpec = parserParseValueSpec()
+			fmtPrintf("# [parserParseFile] debug 1\n")
+			var genDecl *astGenDecl = new(astGenDecl)
+			fmtPrintf("# [parserParseFile] debug 2\n")
+			genDecl.Spec = spec.valueSpec
+			fmtPrintf("# [parserParseFile] debug 3\n")
+			decl = new(astDecl)
+			decl.dtype = "*astGenDecl"
+			decl.genDecl = genDecl
+			fmtPrintf("# [parserParseFile] debug 9\n")
 		case "func":
 			decl  = parserParseFuncDecl()
 			fmtPrintf("# func decl parsed:%s\n", decl.funcDecl.Name.Name)
@@ -1182,7 +1229,7 @@ func parserParseFile() *astFile {
 		}
 		decls = append(decls, decl)
 	}
-
+	topScope = nil
 	var f *astFile = new(astFile)
 	f.Name = ident.Name
 	f.Decls = decls
@@ -1406,6 +1453,14 @@ func walkExpr(expr *astExpr) {
 }
 
 
+func newGlobalVariable(name string) *Variable {
+	var vr *Variable = new(Variable)
+	vr.name = name
+	vr.isGlobal = true
+	vr.globalSymbol = name
+	return vr
+}
+
 func newLocalVariable(name string, localoffset int) *Variable {
 	var vr *Variable = new(Variable)
 	vr.name = name
@@ -1444,6 +1499,12 @@ func semanticAnalyze(file *astFile) string {
 
 	for _, decl = range file.Decls {
 		switch decl.dtype {
+		case "*astGenDecl":
+			var genDecl *astGenDecl = decl.genDecl
+			var valSpec *astValueSpec = genDecl.Spec
+			var nameIdent *astIdent = valSpec.Name
+			nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
+			globalVars = append(globalVars, valSpec)
 		case "*astFuncDecl":
 			var funcDecl *astFuncDecl = decl.funcDecl
 			fmtPrintf("# [sema] funcdef %s\n", funcDecl.Name.Name)
@@ -1489,20 +1550,17 @@ var T_POINTER string
 
 
 
-func emitGlobalVariable(name string, t *Type, val string) {
-	var typeKind string
-	if t != nil {
-		typeKind = T_INT
-	}
-	fmtPrintf("%s: # T %s \n", name, typeKind)
+func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
+	var typeKind string = kind(t)
+	fmtPrintf("%s: # T %s \n", name.Name, typeKind)
 	switch typeKind {
 	case T_STRING:
 		fmtPrintf("  .quad 0\n")
 		fmtPrintf("  .quad 0\n")
 	case T_INT:
-		fmtPrintf("  .quad %s\n", val)
+		fmtPrintf("  .quad 0\n")
 	default:
-		fmtPrintf("ERROR\n")
+		panic("[emitGlobalVariable] ERROR\n")
 	}
 }
 
@@ -1518,13 +1576,15 @@ func emitData(pkgName string) {
 
 	fmtPrintf("# ===== Global Variables =====\n")
 
-	/*
 	var spec *astValueSpec
 	for _, spec = range globalVars {
-		//emitGlobalVariable(spec.Name.Name, spec.Type, spec.Value)
-		//emitGlobalVariable(spec.Name.Name, nil, "")
+		var t *Type
+		if spec.Type != nil {
+			t = e2t(spec.Type)
+		}
+		emitGlobalVariable(spec.Name, t, spec.Value)
 	}
-*/
+
 	fmtPrintf("# ==============================\n")
 }
 
