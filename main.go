@@ -270,6 +270,21 @@ func emitAddr(expr ast.Expr) {
 	}
 }
 
+func isType(expr ast.Expr) bool {
+	switch e := expr.(type) {
+	case *ast.ArrayType:
+		return true
+	case *ast.Ident:
+		if e.Obj == nil {
+			panic("unresolved ident: " + e.String())
+		}
+		return e.Obj.Kind == ast.Typ
+	case *ast.ParenExpr: // We assume (T)(e) is conversion
+		return true
+	}
+	return false
+}
+
 func emitConversion(tp *Type, arg0 ast.Expr) {
 	fmt.Printf("  # Conversion %s <= %s\n", tp.e, getTypeOfExpr(arg0))
 	switch typeExpr := tp.e.(type) {
@@ -554,18 +569,12 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 	case *ast.CallExpr:
 		fun := e.Fun
 		fmt.Printf("  # callExpr=%#v\n", fun)
+		if isType(fun) {
+			emitConversion(e2t(fun), e.Args[0])
+			return
+		}
 		switch fn := fun.(type) {
-		case *ast.ArrayType: // Conversion
-			emitConversion(e2t(fn), e.Args[0])
 		case *ast.Ident:
-			if fn.Obj == nil {
-				panic("unresolved ident: " + fn.String())
-			}
-			if fn.Obj.Kind == ast.Typ {
-				// Conversion
-				emitConversion(e2t(fn), e.Args[0])
-				return
-			}
 			switch fn.Obj {
 			case gLen:
 				assert(len(e.Args) == 1, "builtin len should take only 1 args")
@@ -799,9 +808,6 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			default:
 				panic(symbol)
 			}
-		case *ast.ParenExpr: // (T)(e)
-			// we assume this is conversion
-			emitConversion(e2t(fn), e.Args[0])
 		default:
 			throw(fun)
 		}
