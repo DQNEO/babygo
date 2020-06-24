@@ -2381,6 +2381,11 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				switch fn.Obj {
 				case gLen, gCap:
 					return tInt
+				case gNew:
+					return e2t(&ast.StarExpr{
+						Star: 0,
+						X:    e.Args[0],
+					})
 				}
 				switch decl := fn.Obj.Decl.(type) {
 				case *ast.FuncDecl:

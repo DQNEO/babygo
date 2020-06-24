@@ -532,8 +532,7 @@ func testForrange() {
 }
 
 func _testNew() *MyStruct {
-	var strct *MyStruct
-	strct = new(MyStruct)
+	var strct = new(MyStruct)
 	writeln(Itoa(strct.field2))
 	strct.field2 = 2
 	return strct
