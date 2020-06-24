@@ -201,8 +201,7 @@ func scannerSkipWhitespace() {
 
 func scannerScan() *TokenContainer {
 	scannerSkipWhitespace()
-	var tc *TokenContainer
-	tc = new(TokenContainer)
+	var tc = new(TokenContainer)
 	var lit string
 	var tok string
 	var insertSemi bool
@@ -648,7 +647,7 @@ func parseIdent() *astIdent {
 		os.Exit(1)
 	}
 
-	var r *astIdent = new(astIdent)
+	var r = new(astIdent)
 	r.Name = name
 	return r
 }
@@ -659,7 +658,7 @@ func parserParseImportDecl() *astImportSpec {
 	var path = ptok.lit
 	parserNext()
 	parserExpectSemi("parserParseImportDecl")
-	var spec *astImportSpec = new(astImportSpec)
+	var spec = new(astImportSpec)
 	spec.Path = path
 	return spec
 }
@@ -675,7 +674,7 @@ func parseType() *astExpr {
 }
 
 func eFromArrayType(t *astArrayType) *astExpr {
-	var r *astExpr = new(astExpr)
+	var r = new(astExpr)
 	r.dtype = "*astArrayType"
 	r.arrayType = t
 	return r
@@ -689,13 +688,13 @@ func parseArrayType() *astExpr {
 	}
 	parserExpect("]", "parseArrayTypes")
 	var elt = parseType()
-	var arrayType *astArrayType = new(astArrayType)
+	var arrayType = new(astArrayType)
 	arrayType.Elt = elt
 	return eFromArrayType(arrayType)
 }
 
 func tryIdentOrType() *astExpr {
-	var typ *astExpr = new(astExpr)
+	var typ = new(astExpr)
 	fmtPrintf("# debug 1-1\n")
 	switch ptok.tok {
 	case "IDENT":
@@ -719,7 +718,7 @@ func parseParameterList() []*astField {
 	var params []*astField
 	//var list []*astExpr
 	for ptok.tok != ")" {
-		var field *astField = new(astField)
+		var field = new(astField)
 		var ident = parseIdent()
 //		fmtPrintf("debug 1\n")
 		var typ = parseVarType()
@@ -755,19 +754,19 @@ func parseParameters() *astFieldList {
 		params = parseParameterList()
 	}
 	parserExpect(")", "parseParameters")
-	var afl *astFieldList = new(astFieldList)
+	var afl = new(astFieldList)
 	afl.List = params
 	return afl
 }
 
 func parserResult() *astFieldList {
-	var r *astFieldList = new(astFieldList)
+	var r = new(astFieldList)
 	if ptok.tok == "{" {
 		r = nil
 		return r
 	}
 	var typ = parseType()
-	var field *astField = new(astField)
+	var field = new(astField)
 	field.Type = typ
 	r.List = append(r.List, field)
 	return r
@@ -778,7 +777,7 @@ func parseSignature() *signature {
 	var results *astFieldList
 	params = parseParameters()
 	results = parserResult()
-	var sig *signature = new(signature)
+	var sig = new(signature)
 	sig.params = params
 	sig.results = results
 	return sig
@@ -788,7 +787,7 @@ func scopeInsert(s *astScope, obj *astObject) {
 	if s == nil {
 		panic("[scopeInsert] s sholud not be nil\n")
 	}
-	var oe *objectEntry = new(objectEntry)
+	var oe = new(objectEntry)
 	oe.name = obj.Name
 	oe.obj = obj
 	s.Objects = append(s.Objects, oe)
@@ -796,8 +795,8 @@ func scopeInsert(s *astScope, obj *astObject) {
 
 func declareField(decl *astField, scope *astScope, kind string, ident *astIdent) {
 	// delcare
-	var obj *astObject = new(astObject)
-	var objDecl *ObjDecl = new(ObjDecl)
+	var obj = new(astObject)
+	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astField"
 	objDecl.field = decl
 	obj.Decl = objDecl
@@ -814,8 +813,8 @@ func declareField(decl *astField, scope *astScope, kind string, ident *astIdent)
 func declare(decl *astValueSpec, scope *astScope, kind string, ident *astIdent) {
 	fmtPrintf("# [declare] ident %s\n", ident.Name)
 
-	var obj *astObject = new(astObject) //valSpec.Name.Obj
-	var objDecl *ObjDecl = new(ObjDecl)
+	var obj = new(astObject) //valSpec.Name.Obj
+	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astValueSpec"
 	objDecl.valueSpec = decl
 	obj.Decl = objDecl
@@ -865,26 +864,26 @@ func parserResolve(ident *astIdent) {
 func parseOperand() *astExpr {
 	switch ptok.tok {
 	case "IDENT":
-		var eIdent *astExpr = new(astExpr)
+		var eIdent = new(astExpr)
 		eIdent.dtype = "*astIdent"
 		var ident  =  parseIdent()
 		eIdent.ident = ident
 		parserResolve(ident)
 		return eIdent
 	case "INT":
-		var basicLit *astBasicLit = new(astBasicLit)
+		var basicLit = new(astBasicLit)
 		basicLit.Kind = "INT"
 		basicLit.Value = ptok.lit
-		var r *astExpr = new(astExpr)
+		var r = new(astExpr)
 		r.dtype = "*astBasicLit"
 		r.basicLit = basicLit
 		parserNext()
 		return r
 	case "STRING":
-		var basicLit *astBasicLit = new(astBasicLit)
+		var basicLit = new(astBasicLit)
 		basicLit.Kind = "STRING"
 		basicLit.Value = ptok.lit
-		var r *astExpr = new(astExpr)
+		var r = new(astExpr)
 		r.dtype = "*astBasicLit"
 		r.basicLit = basicLit
 		parserNext()
@@ -898,7 +897,7 @@ func parseOperand() *astExpr {
 
 func parseCallExpr(fn *astExpr) *astCallExpr {
 	parserExpect("(", "parseCallExpr")
-	var callExpr *astCallExpr = new(astCallExpr)
+	var callExpr = new(astCallExpr)
 	callExpr.Fun = fn
 	fmtPrintf("# [parsePrimaryExpr] ptok.tok=%s\n", ptok.tok)
 	var list []*astExpr
@@ -919,7 +918,7 @@ func parseCallExpr(fn *astExpr) *astCallExpr {
 func parsePrimaryExpr() *astExpr {
 	fmtPrintf("#   begin parsePrimaryExpr()\n")
 	var x = parseOperand()
-	var r *astExpr = new(astExpr)
+	var r = new(astExpr)
 	switch ptok.tok {
 	case ".":
 		parserNext() // consume "."
@@ -930,7 +929,7 @@ func parsePrimaryExpr() *astExpr {
 		// Assume CallExpr
 		var secondIdent = parseIdent()
 		if ptok.tok == "(" {
-			var fn *astExpr = new(astExpr)
+			var fn = new(astExpr)
 			fn.dtype = "*astSelectorExpr"
 			fn.selectorExpr = new(astSelectorExpr)
 			fn.selectorExpr.X = x
@@ -1011,11 +1010,11 @@ func parseBinaryExpr(prec1 int) *astExpr {
 		}
 		parserExpect(op, "parseBinaryExpr")
 		var y = parseBinaryExpr(oprec+1)
-		var binaryExpr *astBinaryExpr = new(astBinaryExpr)
+		var binaryExpr = new(astBinaryExpr)
 		binaryExpr.X = x
 		binaryExpr.Y = y
 		binaryExpr.Op = op
-		var r *astExpr = new(astExpr)
+		var r = new(astExpr)
 		r.dtype = "*astBinaryExpr"
 		r.binaryExpr = binaryExpr
 		x = r
@@ -1039,8 +1038,7 @@ func nop1() {
 
 func parseStmt() *astStmt {
 	fmtPrintf("# = begin parseStmt()\n")
-	var s *astStmt
-	s = new(astStmt)
+	var s = new(astStmt)
 	switch ptok.tok {
 	case "var":
 		var decl = parseDecl("var")
@@ -1059,7 +1057,7 @@ func parseStmt() *astStmt {
 			//fmtPrintf("# [parseStmt] ERROR:%s\n",stok)
 			//os.Exit(1)
 			var y = parseExpr() // rhs
-			var as *astAssignStmt = new(astAssignStmt)
+			var as = new(astAssignStmt)
 			as.Tok = "="
 			as.Lhs = x
 			as.Rhs = y
@@ -1070,7 +1068,7 @@ func parseStmt() *astStmt {
 			return s
 		case ";":
 			s.dtype = "*astExprStmt"
-			var exprStmt *astExprStmt = new(astExprStmt)
+			var exprStmt = new(astExprStmt)
 			exprStmt.X = x
 			s.exprStmt = exprStmt
 			parserExpectSemi("parseStmt:,")
@@ -1110,7 +1108,7 @@ func parseBody() *astBlockStmt {
 	fmtPrintf("# end parseStmtList()\n")
 	parserExpect("}", "parseBody")
 
-	var r *astBlockStmt = new(astBlockStmt)
+	var r = new(astBlockStmt)
 	r.List = list
 	return r
 }
@@ -1128,7 +1126,7 @@ func parseDecl(keyword string) *astGenDecl {
 			value = parseExpr()
 		}
 		parserExpectSemi("parseDecl:var:2")
-		var spec *astValueSpec = new(astValueSpec)
+		var spec = new(astValueSpec)
 		spec.Name = ident
 		spec.Type = typ
 		spec.Value = value
@@ -1151,14 +1149,14 @@ type astSpec struct {
 func parserParseValueSpec() *astSpec {
 	fmtPrintf("# [parserParseValueSpec] start\n")
 	parserExpect("var", "parserParseValueSpec")
-	var ident *astIdent = parseIdent()
+	var ident = parseIdent()
 	fmtPrintf("# [parserParseValueSpec] ident = %s\n", ident.Name)
-	var typ *astExpr= parseType()
+	var typ = parseType()
 	parserExpectSemi("parserParseValueSpec")
-	var spec *astValueSpec = new(astValueSpec)
+	var spec = new(astValueSpec)
 	spec.Name = ident
 	spec.Type = typ
-	var r *astSpec = new(astSpec)
+	var r = new(astSpec)
 	r.dtype = "*astValueSpec"
 	r.valueSpec = spec
 	declare(spec, topScope, "Var", ident)
@@ -1179,7 +1177,7 @@ func parserParseFuncDecl() *astDecl {
 		fmtPrintf("# end parseBody()\n")
 		parserExpectSemi("parserParseFuncDecl")
 	}
-	var decl *astDecl = new(astDecl)
+	var decl = new(astDecl)
 	decl.dtype = "*astFuncDecl"
 	decl.funcDecl = new(astFuncDecl)
 	decl.funcDecl.Name = ident
@@ -1210,9 +1208,9 @@ func parserParseFile() *astFile {
 	for ptok.tok != "EOF" {
 		switch ptok.tok {
 		case "var":
-			var spec *astSpec = parserParseValueSpec()
+			var spec = parserParseValueSpec()
 			fmtPrintf("# [parserParseFile] debug 1\n")
-			var genDecl *astGenDecl = new(astGenDecl)
+			var genDecl = new(astGenDecl)
 			fmtPrintf("# [parserParseFile] debug 2\n")
 			genDecl.Spec = spec.valueSpec
 			fmtPrintf("# [parserParseFile] debug 3\n")
@@ -1230,7 +1228,7 @@ func parserParseFile() *astFile {
 		decls = append(decls, decl)
 	}
 	topScope = nil
-	var f *astFile = new(astFile)
+	var f = new(astFile)
 	f.Name = ident.Name
 	f.Decls = decls
 	return f
@@ -1403,12 +1401,12 @@ func registerStringLiteral(lit *astBasicLit) {
 	var label = fmtSprintf(".%s.S%d", []string{pkgName, Itoa(stringIndex)})
 	stringIndex++
 
-	var sl *sliteral = new(sliteral)
+	var sl = new(sliteral)
 	sl.label = label
 	sl.strlen = strlen - 2
 	sl.value = lit.Value
 	fmtPrintf("# [registerStringLiteral] label=%s, strlen=%s\n", sl.label, Itoa(sl.strlen))
-	var cont *stringLiteralsContainer = new(stringLiteralsContainer)
+	var cont = new(stringLiteralsContainer)
 	cont.sl = sl
 	cont.lit = lit
 	stringLiterals = append(stringLiterals, cont)
@@ -1428,7 +1426,7 @@ func walkExpr(expr *astExpr) {
 
 
 func newGlobalVariable(name string) *Variable {
-	var vr *Variable = new(Variable)
+	var vr = new(Variable)
 	vr.name = name
 	vr.isGlobal = true
 	vr.globalSymbol = name
@@ -1436,7 +1434,7 @@ func newGlobalVariable(name string) *Variable {
 }
 
 func newLocalVariable(name string, localoffset int) *Variable {
-	var vr *Variable = new(Variable)
+	var vr = new(Variable)
 	vr.name = name
 	vr.isGlobal = false
 	vr.localOffset = localoffset
@@ -1460,7 +1458,7 @@ func e2t(typeExpr *astExpr) *Type {
 	if typeExpr == nil {
 		panic("nil is not allowed")
 	}
-	var r *Type = new(Type)
+	var r = new(Type)
 	r.e = typeExpr
 	return r
 }
@@ -1497,7 +1495,7 @@ func semanticAnalyze(file *astFile) string {
 			for _, stmt = range funcDecl.Body.List {
 				walkStmt(stmt)
 			}
-			var fnc *Func = new(Func)
+			var fnc = new(Func)
 			fnc.name = funcDecl.Name.Name
 			fnc.Body = funcDecl.Body
 			fnc.localarea = localoffset
@@ -1809,7 +1807,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	}
 
 	fmtPrintf("  # func body\n")
-	var stmt *astStmt = new(astStmt)
+	var stmt = new(astStmt)
 	stmt.dtype = "*astBlockStmt"
 	stmt.blockStmt = fnc.Body
 	emitStmt(stmt)
@@ -1839,13 +1837,13 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "Var":
 			switch expr.ident.Obj.Decl.dtype {
 			case "*astValueSpec":
-				var decl *astValueSpec = expr.ident.Obj.Decl.valueSpec
-				var t *Type = new(Type)
+				var decl = expr.ident.Obj.Decl.valueSpec
+				var t = new(Type)
 				t.e = decl.Type
 				return t
 			case "*astField":
-				var decl *astField = expr.ident.Obj.Decl.field
-				var t *Type = new(Type)
+				var decl = expr.ident.Obj.Decl.field
+				var t = new(Type)
 				t.e = decl.Type
 				return t
 			default:
