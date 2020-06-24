@@ -440,7 +440,7 @@ func emitReverseArgs(args []*Arg) {
 			t = getTypeOfExpr(arg.e)
 		}
 		switch kind(t) {
-		case T_INT, T_UINT8, T_POINTER, T_UINTPTR:
+		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
 			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
 			fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", arg.offset)
 		case T_STRING:
@@ -2177,16 +2177,14 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 		Type: nil,
 	})
 
+	// inject os identifier @TODO this should come from imports
 	universe.Insert(&ast.Object{
 		Kind: ast.Pkg,
-		Name: "os", // why ???
+		Name: "os",
 		Decl: nil,
 		Data: nil,
 		Type: nil,
 	})
-	//fmt.Printf("Universer:    %#v\n", types.Universe)
-	ap, _ := ast.NewPackage(fset, map[string]*ast.File{"": fiile}, nil, universe)
-	pkgName = ap.Name
 
 	var unresolved []*ast.Ident
 	for _, ident := range fiile.Unresolved {
@@ -2196,6 +2194,9 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 			unresolved = append(unresolved, ident)
 		}
 	}
+
+	ap, _ := ast.NewPackage(fset, map[string]*ast.File{"": fiile}, nil, universe)
+	pkgName = ap.Name
 
 	fmt.Printf("# Unresolved: %#v\n", unresolved)
 	fmt.Printf("# Package:   %s\n", ap.Name)
@@ -2320,7 +2321,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			case *ast.Field:
 				return e2t(dcl.Type)
 			default:
-				throw(e.Obj)
+				throw(e.Obj.Decl)
 			}
 		case ast.Con:
 			if e.Obj == gTrue {

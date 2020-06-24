@@ -501,6 +501,7 @@ type astGenDecl struct {
 type ObjDecl struct {
 	dtype string
 	valueSpec *astValueSpec
+	funcDecl *astFuncDecl
 	field *astField
 }
 
@@ -665,6 +666,9 @@ func parserParseImportDecl() *astImportSpec {
 
 func parseVarType() *astExpr {
 	var e = tryIdentOrType()
+	if e != nil {
+		parserResolve(e.ident, true)
+	}
 	return e
 }
 
@@ -810,13 +814,10 @@ func declareField(decl *astField, scope *astScope, kind string, ident *astIdent)
 	}
 }
 
-func declare(decl *astValueSpec, scope *astScope, kind string, ident *astIdent) {
+func declare(objDecl *ObjDecl, scope *astScope, kind string, ident *astIdent) {
 	fmtPrintf("# [declare] ident %s\n", ident.Name)
 
 	var obj = new(astObject) //valSpec.Name.Obj
-	var objDecl = new(ObjDecl)
-	objDecl.dtype = "*astValueSpec"
-	objDecl.valueSpec = decl
 	obj.Decl = objDecl
 	obj.Name = ident.Name
 	obj.Kind = kind
@@ -843,7 +844,9 @@ func scopeLookup(s *astScope, name string) *astObject {
 	return r
 }
 
-func parserResolve(ident *astIdent) {
+var parserUnresolved []*astIdent
+
+func parserResolve(ident *astIdent, collectUnresolved bool) {
 	if ident.Name == "-" {
 		return
 	}
@@ -852,12 +855,15 @@ func parserResolve(ident *astIdent) {
 		var obj = scopeLookup(topScope, ident.Name)
 		if obj != nil {
 			ident.Obj = obj
+			return
 		}
 
-		return
 	}
-	fmtPrintf("cannot Resovle\n")
-	os.Exit(1)
+
+	if collectUnresolved {
+		parserUnresolved = append(parserUnresolved, ident)
+		fmtPrintf("# collected unresolved ident %s\n", ident.Name)
+	}
 }
 
 func parseOperand() *astExpr {
@@ -867,7 +873,7 @@ func parseOperand() *astExpr {
 		eIdent.dtype = "*astIdent"
 		var ident  =  parseIdent()
 		eIdent.ident = ident
-		parserResolve(ident)
+		parserResolve(ident, true)
 		return eIdent
 	case "INT":
 		var basicLit = new(astBasicLit)
@@ -1129,7 +1135,10 @@ func parseDecl(keyword string) *astGenDecl {
 		spec.Name = ident
 		spec.Type = typ
 		spec.Value = value
-		declare(spec, topScope, "Var", ident)
+		var objDecl = new(ObjDecl)
+		objDecl.dtype = "*astValueSpec"
+		objDecl.valueSpec = spec
+		declare(objDecl, topScope, "Var", ident)
 		r = new(astGenDecl)
 		r.Spec = spec
 		return r
@@ -1158,14 +1167,16 @@ func parserParseValueSpec() *astSpec {
 	var r = new(astSpec)
 	r.dtype = "*astValueSpec"
 	r.valueSpec = spec
-	declare(spec, topScope, "Var", ident)
+	var objDecl = new(ObjDecl)
+	objDecl.dtype = "*astValueSpec"
+	objDecl.valueSpec = spec
+	declare(objDecl, topScope, "Var", ident)
 	fmtPrintf("# [parserParseValueSpec] end\n")
 	return r
 }
 
 func parserParseFuncDecl() *astDecl {
 	parserExpect("func", "parserParseFuncDecl")
-
 
 	var ident = parseIdent()
 	var sig = parseSignature()
@@ -1178,20 +1189,27 @@ func parserParseFuncDecl() *astDecl {
 	}
 	var decl = new(astDecl)
 	decl.dtype = "*astFuncDecl"
-	decl.funcDecl = new(astFuncDecl)
+	var funcDecl = new(astFuncDecl)
+	decl.funcDecl = funcDecl
 	decl.funcDecl.Name = ident
 	decl.funcDecl.Sig = sig
 	decl.funcDecl.Body = body
-
+	var objDecl = new(ObjDecl)
+	objDecl.dtype = "*astFuncDecl"
+	objDecl.funcDecl = funcDecl
+	declare(objDecl, topScope, "Fun", ident)
 	return decl
 }
 
 func parserParseFile() *astFile {
 	// expect "package" keyword
 	parserExpect("package", "parserParseFile")
-
+	parserUnresolved = nil
 	var ident = parseIdent()
+
 	parserExpectSemi("parserParseFile")
+
+	topScope = new(astScope) // open scope
 
 	for ptok.tok == "import" {
 		parserParseImportDecl()
@@ -1201,8 +1219,6 @@ func parserParseFile() *astFile {
 	fmtPrintf("# [parser] Parsing Top level decls\n")
 	var decls []*astDecl
 	var decl *astDecl
-
-	topScope = new(astScope) // open scope
 
 	for ptok.tok != "EOF" {
 		switch ptok.tok {
@@ -1230,6 +1246,7 @@ func parserParseFile() *astFile {
 	var f = new(astFile)
 	f.Name = ident.Name
 	f.Decls = decls
+	f.Unresolved = parserUnresolved
 	return f
 }
 
@@ -1462,12 +1479,40 @@ func e2t(typeExpr *astExpr) *Type {
 	return r
 }
 
+var gString *astObject
+var gInt *astObject
 
 func semanticAnalyze(file *astFile) string {
-	var decl *astDecl
+	gString = new(astObject)
+	gInt = new(astObject)
+	gInt.Kind = "Typ"
+	gInt.Name = "int"
+
+	var universe = new(astScope)
+	scopeInsert(universe, gInt)
+	scopeInsert(universe, gString)
+
+	var osPkg = new(astObject)
+	osPkg.Kind = "Pkg"
+	osPkg.Name = "os"
+	scopeInsert(universe, osPkg) // @FIXME not universe
 
 	pkgName = file.Name
 
+
+	var unresolved []*astIdent
+	var ident *astIdent
+	for _, ident = range file.Unresolved {
+		var obj *astObject = scopeLookup(universe,ident.Name)
+		if obj != nil {
+			ident.Obj = obj
+		} else {
+			panic("[semanticAnalyze] Unresolved : " + ident.Name)
+			unresolved = append(unresolved, ident)
+		}
+	}
+
+	var decl *astDecl
 	for _, decl = range file.Decls {
 		switch decl.dtype {
 		case "*astGenDecl":
@@ -1599,6 +1644,10 @@ func emitExpr(e *astExpr) {
 		}
 	case "*astCallExpr":
 		var fun = e.callExpr.Fun
+		if isType(fun) {
+			emitConversion(e2t(fun), e.callExpr.Args[0])
+			return
+		}
 		emitExpr(e.callExpr.Args[0])
 		switch fun.dtype {
 		case "*astSelectorExpr":
@@ -1674,7 +1723,7 @@ func emitExpr(e *astExpr) {
 
 
 func emitVariableAddr(variable *Variable) {
-	fmtPrintf("  # variable %#v\n", variable.name)
+	fmtPrintf("  # variable %s\n", variable.name)
 
 	var addr string
 	if variable.isGlobal {
@@ -1708,9 +1757,43 @@ func emitAddr(expr *astExpr) {
 	}
 }
 
+func isType(expr *astExpr) bool {
+	switch expr.dtype {
+	case "*astIdent":
+		if expr.ident == nil {
+			panic("[isType] ident should not be nil")
+		}
+		if expr.ident.Obj == nil {
+			panic("[isType] unresolved ident:" + expr.ident.Name)
+		}
+		return expr.ident.Obj.Kind == "Typ"
+	case "*astParentExpr":
+		return true
+	}
+
+	return false
+}
+
+func emitConversion(tp *Type, arg0 *astExpr) {
+	fmtPrintf("# [emitConversion]\n")
+	var typeExpr = tp.e
+	switch typeExpr.dtype {
+	case "*astIdent":
+		switch typeExpr.ident.Obj {
+		case gInt:
+			fmtPrintf("# [emitConversion] to int \n")
+			emitExpr(arg0)
+		default:
+			panic("[emitConversion] TBI 1")
+		}
+	default:
+		panic("[emitConversion] TBI 2")
+	}
+}
+
 func emitLoad(t *Type) {
 	if (t == nil) {
-		fmtPrintf("[emitLoad] nil type error\n")
+		fmtPrintf("# [emitLoad] nil type error\n")
 		os.Exit(1)
 	}
 	emitPopAddress(kind(t))
@@ -1892,6 +1975,7 @@ var globalFuncs []*Func
 type astFile struct {
 	Name string
 	Decls []*astDecl
+	Unresolved []*astIdent
 }
 
 func kind(t *Type) string {
@@ -1903,10 +1987,18 @@ func kind(t *Type) string {
 	case "*astIdent":
 		var ident = t.e.ident
 		switch ident.Name {
+		case "uintptr":
+			return T_UINTPTR
 		case "int":
 			return T_INT
 		case "string":
 			return T_STRING
+		case "uinit8":
+			return T_UINT8
+		case "uint16":
+			return T_UINT16
+		case "bool":
+			return T_BOOL
 		default:
 			fmtPrintf("[kind] unsupported type %s\n", ident.Name)
 			os.Exit(1)
