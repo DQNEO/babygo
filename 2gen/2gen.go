@@ -839,7 +839,7 @@ func scopeLookup(s *astScope, name string) *astObject {
 			return oe.obj
 		}
 	}
-	var r *astObject = nil
+	var r *astObject
 	return r
 }
 
@@ -849,8 +849,7 @@ func parserResolve(ident *astIdent) {
 	}
 
 	if topScope != nil {
-		var obj *astObject
-		obj = scopeLookup(topScope, ident.Name)
+		var obj = scopeLookup(topScope, ident.Name)
 		if obj != nil {
 			ident.Obj = obj
 		}
@@ -1330,7 +1329,7 @@ func walkStmt(stmt *astStmt) {
 	switch stmt.dtype {
 	case "*astDeclStmt":
 		fmtPrintf("# [walkStmt] *ast.DeclStmt\n")
-		var declStmt *astDeclStmt = stmt.DeclStmt
+		var declStmt = stmt.DeclStmt
 		if declStmt.GenDecl == nil {
 			fmtPrintf("[walkStmt] ERROR\n")
 			os.Exit(1)
@@ -1340,14 +1339,14 @@ func walkStmt(stmt *astStmt) {
 		var typ = valSpec.Type // ident "int"
 		fmtPrintf("# [walkStmt] valSpec Name=%s, Type=%s\n",
 			valSpec.Name.Name, typ.dtype)
-		var sizeOfType int = 8
+		var sizeOfType = 8
 		localoffset = localoffset - sizeOfType
 
 		valSpec.Name.Obj.Variable = newLocalVariable(valSpec.Name.Name, localoffset)
 		fmtPrintf("# var %s offset = %d\n", valSpec.Name.Obj.Name,
 			Itoa(valSpec.Name.Obj.Variable.localOffset))
 	case "*astAssignStmt":
-		var rhs *astExpr = stmt.assignStmt.Rhs
+		var rhs = stmt.assignStmt.Rhs
 		walkExpr(rhs)
 	default:
 
@@ -1391,7 +1390,7 @@ func registerStringLiteral(lit *astBasicLit) {
 
 	var strlen int
 	var c uint8
-	var vl []uint8 = []uint8(lit.Value)
+	var vl = []uint8(lit.Value)
 	for _, c = range vl {
 		if c != '\\' {
 			strlen++
@@ -1523,7 +1522,7 @@ var T_POINTER string
 
 
 func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
-	var typeKind string = kind(t)
+	var typeKind = kind(t)
 	fmtPrintf("%s: # T %s \n", name.Name, typeKind)
 	switch typeKind {
 	case T_STRING:
@@ -1563,7 +1562,7 @@ func emitData(pkgName string) {
 func emitExpr(e *astExpr) {
 	switch e.dtype {
 	case "*astIdent":
-		var ident *astIdent = e.ident
+		var ident = e.ident
 		if ident.Obj == nil {
 			fmtPrintf("[emitExpr] ident %s is unresolved\n", ident.Name)
 			os.Exit(1)
@@ -1571,7 +1570,7 @@ func emitExpr(e *astExpr) {
 		switch ident.Obj.Kind {
 		case "Var":
 			emitAddr(e)
-			var t *Type = getTypeOfExpr(e)
+			var t = getTypeOfExpr(e)
 			emitLoad(t)
 		default:
 			fmtPrintf("unknown Kind=%s\n", ident.Obj.Kind)
@@ -1583,7 +1582,7 @@ func emitExpr(e *astExpr) {
 		case "INT":
 			fmtPrintf("  pushq $%s # \n", e.basicLit.Value)
 		case "STRING":
-			var sl *sliteral = getStringLiteral(e.basicLit)
+			var sl = getStringLiteral(e.basicLit)
 			if sl.strlen == 0 {
 				// zero value
 				//emitZeroValue(tString)
@@ -1599,18 +1598,18 @@ func emitExpr(e *astExpr) {
 			os.Exit(1)
 		}
 	case "*astCallExpr":
-		var fun *astExpr = e.callExpr.Fun
+		var fun = e.callExpr.Fun
 		emitExpr(e.callExpr.Args[0])
 		switch fun.dtype {
 		case "*astSelectorExpr":
-			var selector *astSelectorExpr = fun.selectorExpr
+			var selector = fun.selectorExpr
 			if selector.X.dtype != "*astIdent" {
 				fmtPrintf("[emitExpr] TBI selector.X.dtype=%s\n", selector.X.dtype)
 				os.Exit(1)
 			}
 			fmtPrintf("  callq %s.%s\n", selector.X.ident.Name, selector.Sel.Name)
 		case "*astIdent":
-			var ident *astIdent = fun.ident
+			var ident = fun.ident
 			if ident.Name == "print" {
 				fmtPrintf("  callq runtime.printstring\n")
 			} else {
@@ -1781,8 +1780,8 @@ func emitStmt(stmt *astStmt) {
 	case "*astAssignStmt":
 		switch stmt.assignStmt.Tok {
 		case "=":
-			var lhs *astExpr = stmt.assignStmt.Lhs
-			var rhs *astExpr = stmt.assignStmt.Rhs
+			var lhs = stmt.assignStmt.Lhs
+			var rhs = stmt.assignStmt.Rhs
 			emitAssign(lhs, rhs)
 		default:
 			fmtPrintf("TBI: assignment of " + stmt.assignStmt.Tok)
@@ -1795,9 +1794,9 @@ func emitStmt(stmt *astStmt) {
 }
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
-	var localarea int = fnc.localarea
+	var localarea = fnc.localarea
 	fmtPrintf("\n")
-	var fname string = fnc.name
+	var fname = fnc.name
 	fmtPrintf(pkgPrefix + "." + fname + ":\n")
 
 	fmtPrintf("  pushq %%rbp\n")
@@ -1820,7 +1819,7 @@ func emitText(pkgName string) {
 	fmtPrintf(".text\n")
 	var i int
 	for i = 0; i < len(globalFuncs); i++ {
-		var fnc *Func = globalFuncs[i]
+		var fnc = globalFuncs[i]
 		emitFuncDecl(pkgName, fnc)
 	}
 }
