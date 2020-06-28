@@ -1600,6 +1600,7 @@ func emitData(pkgName string) {
 }
 
 func emitExpr(e *astExpr) {
+	fmtPrintf("# [emitExpr] dtype=%s\n", e.dtype)
 	switch e.dtype {
 	case "*astIdent":
 		var ident = e.ident
@@ -1638,12 +1639,15 @@ func emitExpr(e *astExpr) {
 			os.Exit(1)
 		}
 	case "*astCallExpr":
+		fmtPrintf("# [*astCallExpr]\n")
 		var fun = e.callExpr.Fun
 		if isType(fun) {
 			emitConversion(e2t(fun), e.callExpr.Args[0])
 			return
 		}
-		emitExpr(e.callExpr.Args[0])
+		if len(e.callExpr.Args) > 0 {
+			emitExpr(e.callExpr.Args[0])
+		}
 		switch fun.dtype {
 		case "*astSelectorExpr":
 			var selector = fun.selectorExpr
@@ -1836,6 +1840,7 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 
 
 func emitStmt(stmt *astStmt) {
+	fmtPrintf("# [emitStmt] dtype=%s\n", stmt.dtype)
 	switch stmt.dtype {
 	case "*astBlockStmt":
 		var stmt2 *astStmt
