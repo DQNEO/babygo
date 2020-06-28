@@ -1700,8 +1700,10 @@ func emitExpr(e *astExpr) {
 			emitConversion(e2t(fun), e.callExpr.Args[0])
 			return
 		}
+		var pushed int = 0
 		if len(e.callExpr.Args) > 0 {
 			emitExpr(e.callExpr.Args[0])
+			pushed = pushed + 8
 		}
 		switch fun.dtype {
 		case "*astSelectorExpr":
@@ -1715,8 +1717,29 @@ func emitExpr(e *astExpr) {
 			var ident = fun.ident
 			if ident.Name == "print" {
 				fmtPrintf("  callq runtime.printstring\n")
+				fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(16))
 			} else {
 				fmtPrintf("  callq main.%s\n", ident.Name)
+				fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(pushed))
+				var obj = ident.Obj
+				var decl = obj.Decl
+				if decl == nil {
+					panic("[emitExpr][*astCallExpr] decl is nil")
+				}
+				if decl.dtype !=  "*astFuncDecl" {
+					panic("[emitExpr][*astCallExpr] decl.dtype is invalid")
+				}
+				var fndecl = decl.funcDecl
+				if fndecl == nil {
+					panic("[emitExpr][*astCallExpr] fndecl is nil")
+				}
+				if fndecl.Sig == nil {
+					panic("[emitExpr][*astCallExpr] fndecl.Sig is nil")
+				}
+				var results = fndecl.Sig.results
+				if results != nil && len(results.List) == 1 {
+					fmtPrintf("  pushq %%rax\n")
+				}
 			}
 		default:
 			fmtPrintf("[emitExpr] TBI fun.dtype=%s\n", fun.dtype)
@@ -2005,7 +2028,11 @@ type Type struct {
 	e *astExpr
 }
 
+var tInt *Type
+var tString *Type
+
 func getTypeOfExpr(expr *astExpr) *Type {
+
 	switch expr.dtype {
 	case "*astIdent":
 		switch expr.ident.Obj.Kind {
@@ -2030,7 +2057,18 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			fmtPrintf("[getTypeOfExpr] ERROR 1\n")
 			os.Exit(1)
 		}
+	case "*astBasicLit":
+		switch expr.basicLit.Kind {
+		case "STRING":
+			return tString
+		case "INT":
+			return tInt
+		case "CHAR":
+			return tInt
 		default:
+			panic("[getTypeOfExpr] TBI:" + expr.basicLit.Kind)
+		}
+	default:
 		fmtPrintf("[getTypeOfExpr] ERROR 2\n")
 		os.Exit(1)
 	}
@@ -2133,7 +2171,22 @@ func initGlobals() {
 	T_POINTER  = "T_POINTER"
 
 	gString = new(astObject)
+	gString.Kind = "Typ"
+	gString.Name = "string"
+	tString = new(Type)
+	tString.e = new(astExpr)
+	tString.e.dtype = "*astIdent"
+	tString.e.ident = new(astIdent)
+	tString.e.ident.Name = "string"
+	tString.e.ident.Obj = gString
+
 	gInt = new(astObject)
 	gInt.Kind = "Typ"
 	gInt.Name = "int"
+	tInt = new(Type)
+	tInt.e = new(astExpr)
+	tInt.e.dtype = "*astIdent"
+	tInt.e.ident = new(astIdent)
+	tInt.e.ident.Name = "int"
+	tInt.e.ident.Obj = gInt
 }

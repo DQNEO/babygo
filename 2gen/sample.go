@@ -11,15 +11,15 @@ func testArgAssign(x int) int {
 	return x
 }
 
-func testVoid() {
-	return
+func testMinus() int {
+	return 5
 }
 
 func testMisc() {
-	//testVoid()
-	var i int = 12
-	//i = testArgAssign(i)
-	exit(i)
+	var i13 int = 12
+	i13 = testArgAssign(i13)
+	var i5 int = testMinus()
+	exit(i5)
 }
 
 func test() {
@@ -27,8 +27,5 @@ func test() {
 }
 
 func main() {
-//	test()
-	var i int = 14
-	var j int
-	exit(i + j)
+	test()
 }
