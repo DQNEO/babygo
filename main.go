@@ -2026,14 +2026,6 @@ type Func struct {
 	argsarea  localoffsetint
 }
 
-var gTrue = &ast.Object{
-	Kind: ast.Con,
-	Name: "true",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
-}
-
 var gNil = &ast.Object{
 	Kind: ast.Con, // is nil a constant ?
 	Name: "nil",
@@ -2044,6 +2036,14 @@ var gNil = &ast.Object{
 
 var eNil = &ast.Ident{
 	Obj: gNil,
+}
+
+var gTrue = &ast.Object{
+	Kind: ast.Con,
+	Name: "true",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
 }
 
 var gFalse = &ast.Object{
