@@ -1172,9 +1172,13 @@ func emitStmt(stmt ast.Stmt) {
 			panic("TBI: assignment of " + s.Tok.String())
 		}
 	case *ast.ReturnStmt:
-		if len(s.Results) == 1 {
+		if len(s.Results) == 0 {
+			fmtPrintf("  leave\n")
+			fmtPrintf("  ret\n")
+		} else if len(s.Results) == 1 {
 			emitExpr(s.Results[0], nil) // @FIXME
-			switch kind(getTypeOfExpr(s.Results[0])) {
+			var knd = kind(getTypeOfExpr(s.Results[0]))
+			switch knd {
 			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 				fmt.Printf("  popq %%rax # return 64bit\n")
 			case T_STRING:
@@ -1185,12 +1189,9 @@ func emitStmt(stmt ast.Stmt) {
 				fmt.Printf("  popq %%rdi # return string (len)\n")
 				fmt.Printf("  popq %%rsi # return string (cap)\n")
 			default:
-				panic("TBI")
+				panic("TBI:" + knd)
 			}
 
-			fmt.Printf("  leave\n")
-			fmt.Printf("  ret\n")
-		} else if len(s.Results) == 0 {
 			fmt.Printf("  leave\n")
 			fmt.Printf("  ret\n")
 		} else if len(s.Results) == 3 {
@@ -1204,7 +1205,8 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  popq %%rax # return 64bit\n")
 			fmt.Printf("  popq %%rdi # return 64bit\n")
 			fmt.Printf("  popq %%rsi # return 64bit\n")
-
+		} else {
+			panic("TBI")
 		}
 	case *ast.IfStmt:
 		fmt.Printf("  # if\n")

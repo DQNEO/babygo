@@ -6,12 +6,24 @@ func exit(x int) {
 	os.Exit(x)
 }
 
-func test() {
+func testArgAssign(x int) int {
+	x = 13
+	return x
+}
+
+func testVoid() {
+	return
+}
+
+func testMisc() {
+	testVoid()
 	var i int
-	var x uint8
-	x = 10
-	i = int(x)
+	i = testArgAssign(i)
 	exit(i)
+}
+
+func test() {
+	testMisc()
 }
 
 func main() {

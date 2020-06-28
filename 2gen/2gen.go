@@ -474,6 +474,7 @@ type astStmt struct {
 	exprStmt   *astExprStmt
 	blockStmt  *astBlockStmt
 	assignStmt *astAssignStmt
+	returnStmt *astReturnStmt
 }
 
 type astDeclStmt struct {
@@ -1083,12 +1084,52 @@ func parseStmt() *astStmt {
 			fmtPrintf("parseStmt:TBI 2:%s\n", ptok.tok)
 			os.Exit(1)
 		}
+	case "return":
+		var s = parseReturnStmt()
+		return s
 	default:
 		fmtPrintf("parseStmt:TBI 3:%s\n", ptok.tok)
 		os.Exit(1)
 	}
 	fmtPrintf("# = end parseStmt()\n")
 	return s
+}
+
+func parseExprList() []*astExpr {
+	var list []*astExpr
+	var e = parseExpr()
+	list = append(list, e)
+	for ptok.tok == "," {
+		parserNext() // consume ","
+		e = parseExpr()
+		list = append(list, e)
+	}
+
+	return list
+}
+
+func parseRhsList() []*astExpr {
+	var list = parseExprList()
+	return list
+}
+
+type astReturnStmt struct {
+	Results []*astExpr
+}
+
+func parseReturnStmt() *astStmt {
+	parserExpect("return", "parseReturnStmt")
+	var x []*astExpr
+	if ptok.tok != ";" && ptok.tok != "}" {
+		x = parseRhsList()
+	}
+	parserExpectSemi("parseReturnStmt")
+	var returnStmt = new(astReturnStmt)
+	returnStmt.Results = x
+	var r = new(astStmt)
+	r.dtype = "*astReturnStmt"
+	r.returnStmt = returnStmt
+	return r
 }
 
 func parseStmtList() []*astStmt {
@@ -1869,6 +1910,22 @@ func emitStmt(stmt *astStmt) {
 		default:
 			fmtPrintf("TBI: assignment of " + stmt.assignStmt.Tok)
 			os.Exit(1)
+		}
+	case "*astReturnStmt":
+		if len(stmt.returnStmt.Results) == 0 {
+			fmtPrintf("  leave\n")
+			fmtPrintf("  ret\n")
+		} else if len(stmt.returnStmt.Results) == 1 {
+			emitExpr(stmt.returnStmt.Results[0])
+			var knd = kind(getTypeOfExpr(stmt.returnStmt.Results[0]))
+			switch knd {
+			case T_INT:
+				fmtPrintf("  popq %%rax # return 64bit\n")
+			default:
+				panic("[emitStmt][*astReturnStmt] TBI:" + knd)
+			}
+		} else {
+			panic("[emitStmt][*astReturnStmt] TBI\n")
 		}
 	default:
 		fmtPrintf("[emitStmt] TBI:%s\n", stmt.dtype)
