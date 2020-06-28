@@ -338,7 +338,7 @@ func emitZeroValue(t *Type) {
 		fmt.Printf("  pushq $0 # string zero value\n")
 		fmt.Printf("  pushq $0 # string zero value\n")
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
-		fmt.Printf("  pushq $0 # %s zero value\n", kind(t))
+		fmtPrintf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
 		//@FIXME
 	default:
@@ -1136,17 +1136,17 @@ func emitStmt(stmt ast.Stmt) {
 			declSpec := dcl.Specs[0]
 			switch ds := declSpec.(type) {
 			case *ast.ValueSpec:
-				t := e2t(ds.Type)
+				var valSpec = ds
+				var t = e2t(valSpec.Type)
 				fmt.Printf("  # Decl.Specs[0]: Names[0]=%#v, Type=%#v\n", ds.Names[0], t.e)
-				valSpec := ds
 				lhs := valSpec.Names[0]
 				var rhs ast.Expr
 				if len(valSpec.Values) == 0 {
-					fmt.Printf("  # lhs addresss\n")
+					fmtPrintf("  # lhs addresss\n")
 					emitAddr(lhs)
-					fmt.Printf("  # emitZeroValue\n")
+					fmtPrintf("  # emitZeroValue\n")
 					emitZeroValue(t)
-					fmt.Printf("  # Assignment: zero value\n")
+					fmtPrintf("  # Assignment: zero value\n")
 					emitStore(t)
 				} else if len(valSpec.Values) == 1 {
 					// assignment

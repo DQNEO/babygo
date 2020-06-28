@@ -478,7 +478,7 @@ type astStmt struct {
 }
 
 type astDeclStmt struct {
-	GenDecl *astGenDecl
+	Decl *astDecl
 }
 
 type astExprStmt struct {
@@ -826,9 +826,7 @@ func declare(objDecl *ObjDecl, scope *astScope, kind string, ident *astIdent) {
 
 	// scope insert
 	if ident.Name != "_" {
-		fmtPrintf("# [declare] middle 1\n")
 		scopeInsert(scope, obj)
-		fmtPrintf("# [declare] middle 2\n")
 	}
 	fmtPrintf("# [declare] end\n")
 
@@ -1047,10 +1045,13 @@ func parseStmt() *astStmt {
 	var s = new(astStmt)
 	switch ptok.tok {
 	case "var":
-		var decl = parseDecl("var")
+		var genDecl = parseDecl("var")
 		s.dtype = "*astDeclStmt"
 		s.DeclStmt = new(astDeclStmt)
-		s.DeclStmt.GenDecl = decl
+		var decl = new(astDecl)
+		decl.dtype = "*astGenDecl"
+		decl.genDecl = genDecl
+		s.DeclStmt.Decl = decl
 		fmtPrintf("# = end parseStmt()\n")
 		return s
 	case "IDENT":
@@ -1388,12 +1389,16 @@ func walkStmt(stmt *astStmt) {
 	case "*astDeclStmt":
 		fmtPrintf("# [walkStmt] *ast.DeclStmt\n")
 		var declStmt = stmt.DeclStmt
-		if declStmt.GenDecl == nil {
+		if declStmt.Decl == nil {
 			fmtPrintf("[walkStmt] ERROR\n")
 			os.Exit(1)
 		}
-		var dcl = declStmt.GenDecl
-		var valSpec = dcl.Spec
+		var dcl = declStmt.Decl
+		if dcl.dtype != "*astGenDecl" {
+			panic("[walkStmt][dcl.dtype] internal error")
+		}
+
+		var valSpec = dcl.genDecl.Spec
 		var typ = valSpec.Type // ident "int"
 		fmtPrintf("# [walkStmt] valSpec Name=%s, Type=%s\n",
 			valSpec.Name.Name, typ.dtype)
@@ -1638,6 +1643,15 @@ func emitData(pkgName string) {
 	}
 
 	fmtPrintf("# ==============================\n")
+}
+
+func emitZeroValue(t *Type) {
+	switch kind(t) {
+	case T_INT:
+		fmtPrintf("  pushq $0 # %s zero value\n", kind(t))
+	default:
+		panic("[emitZeroValue] TBI:" + kind(t))
+	}
 }
 
 func emitExpr(e *astExpr) {
@@ -1891,8 +1905,30 @@ func emitStmt(stmt *astStmt) {
 	case "*astExprStmt":
 		emitExpr(stmt.exprStmt.X)
 	case "*astDeclStmt":
+		var decl *astDecl = stmt.DeclStmt.Decl
+		if decl.dtype != "*astGenDecl" {
+			panic("[emitStmt][*astDeclStmt] internal error")
+		}
+		var genDecl = decl.genDecl
+		var valSpec = genDecl.Spec
+		var t = e2t(valSpec.Type)
+		var ident = valSpec.Name
+		var lhs = new(astExpr)
+		lhs.dtype = "*astIdent"
+		lhs.ident = ident
+		var rhs *astExpr
+		if valSpec.Value == nil {
+			fmtPrintf("  # lhs addresss\n")
+			emitAddr(lhs)
+			fmtPrintf("  # emitZeroValue for %s\n", t.e.dtype)
+			emitZeroValue(t)
+			fmtPrintf("  # Assignment: zero value\n")
+			emitStore(t)
+		} else {
+			rhs = valSpec.Value
+			emitAssign(lhs, rhs)
+		}
 		/*
-		var genDecl *astGenDecl = stmt.DeclStmt.GenDecl
 		var valueSpec *astValueSpec = genDecl.Specs[0]
 		var obj *astObject = valueSpec.Name.Obj
 		var typ *astExpr = valueSpec.Type

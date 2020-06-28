@@ -16,9 +16,9 @@ func testVoid() {
 }
 
 func testMisc() {
-	testVoid()
-	var i int
-	i = testArgAssign(i)
+	//testVoid()
+	var i int = 12
+	//i = testArgAssign(i)
 	exit(i)
 }
 
@@ -27,5 +27,8 @@ func test() {
 }
 
 func main() {
-	test()
+//	test()
+	var i int = 14
+	var j int
+	exit(i + j)
 }
