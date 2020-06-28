@@ -1483,11 +1483,6 @@ var gString *astObject
 var gInt *astObject
 
 func semanticAnalyze(file *astFile) string {
-	gString = new(astObject)
-	gInt = new(astObject)
-	gInt.Kind = "Typ"
-	gInt.Name = "int"
-
 	var universe = new(astScope)
 	scopeInsert(universe, gInt)
 	scopeInsert(universe, gString)
@@ -2013,17 +2008,7 @@ func kind(t *Type) string {
 }
 
 func main() {
-	 T_STRING  = "T_STRING"
-	 T_SLICE  = "T_SLICE"
-	 T_BOOL  = "T_BOOL"
-	 T_INT  = "T_INT"
-	 T_UINT8  = "T_UINT8"
-	 T_UINT16  = "T_UINT16"
-	 T_UINTPTR  = "T_UINTPTR"
-	 T_ARRAY  = "T_ARRAY"
-	 T_STRUCT  = "T_STRUCT"
-	 T_POINTER  = "T_POINTER"
-	
+	initGlobals()
 	var sourceFiles = []string{"2gen/sample.go"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
@@ -2035,5 +2020,22 @@ func main() {
 		var pkgName = semanticAnalyze(f)
 		generateCode(pkgName)
 	}
+}
 
+func initGlobals() {
+	T_STRING  = "T_STRING"
+	T_SLICE  = "T_SLICE"
+	T_BOOL  = "T_BOOL"
+	T_INT  = "T_INT"
+	T_UINT8  = "T_UINT8"
+	T_UINT16  = "T_UINT16"
+	T_UINTPTR  = "T_UINTPTR"
+	T_ARRAY  = "T_ARRAY"
+	T_STRUCT  = "T_STRUCT"
+	T_POINTER  = "T_POINTER"
+
+	gString = new(astObject)
+	gInt = new(astObject)
+	gInt.Kind = "Typ"
+	gInt.Name = "int"
 }
