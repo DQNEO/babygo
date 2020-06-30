@@ -12,7 +12,7 @@ func testArgAssign(x int) int {
 }
 
 func testMinus() int {
-	return 5
+	return -1
 }
 
 func testMisc() {

@@ -2068,10 +2068,18 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		default:
 			panic("[getTypeOfExpr] TBI:" + expr.basicLit.Kind)
 		}
+	case "*astUnaryExpr":
+		switch expr.unaryExpr.Op {
+		case "-":
+			return getTypeOfExpr(expr.unaryExpr.X)
+		default:
+			panic("[getTypeOfExpr] TBI: Op=" + expr.unaryExpr.Op)
+		}
 	default:
-		fmtPrintf("[getTypeOfExpr] ERROR 2\n")
+		fmtPrintf("[getTypeOfExpr] TBI %s\n", expr.dtype)
 		os.Exit(1)
 	}
+
 	fmtPrintf("[getTypeOfExpr] nil type is not allowed\n")
 	os.Exit(1)
 	var r *Type
