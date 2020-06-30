@@ -566,6 +566,38 @@ type astBinaryExpr struct {
 	Op string
 }
 
+type astScope struct {
+	Outer *astScope
+	Objects []*objectEntry
+}
+
+func astNewScope(outer *astScope) *astScope {
+	var r = new(astScope)
+	r.Outer = outer
+	return r
+}
+
+func scopeInsert(s *astScope, obj *astObject) {
+	if s == nil {
+		panic("[scopeInsert] s sholud not be nil\n")
+	}
+	var oe = new(objectEntry)
+	oe.name = obj.Name
+	oe.obj = obj
+	s.Objects = append(s.Objects, oe)
+}
+
+func scopeLookup(s *astScope, name string) *astObject {
+	var oe *objectEntry
+	for _, oe =  range s.Objects {
+		if oe.name == name {
+			return oe.obj
+		}
+	}
+	var r *astObject
+	return r
+}
+
 // --- parser ---
 
 const O_READONLY int = 0
@@ -598,13 +630,14 @@ type objectEntry struct {
 	obj *astObject
 }
 
-type astScope struct {
-	Outer *astScope
-	Objects []*objectEntry
-}
-
 var ptok *TokenContainer
+
 var parserTopScope *astScope
+var parserPkgScope *astScope
+
+func closeScope() {
+	parserTopScope = parserTopScope.Outer
+}
 
 func parserNext() {
 	//fmtPrintf("parserNext\n")
@@ -719,7 +752,7 @@ func tryIdentOrType() *astExpr {
 }
 
 
-func parseParameterList() []*astField {
+func parseParameterList(scope *astScope) []*astField {
 	var params []*astField
 	//var list []*astExpr
 	for ptok.tok != ")" {
@@ -737,7 +770,7 @@ func parseParameterList() []*astField {
 		if parserTopScope == nil {
 			panic("parserTopScope should not be nil")
 		}
-		declareField(field, parserTopScope, "Var", ident)
+		declareField(field, scope, "Var", ident)
 		if ptok.tok == "," {
 			parserNext()
 			continue
@@ -752,11 +785,11 @@ func parseParameterList() []*astField {
 	return params
 }
 
-func parseParameters() *astFieldList {
+func parseParameters(scope *astScope) *astFieldList {
 	var params []*astField
 	parserExpect("(", "parseParameters")
 	if ptok.tok != ")" {
-		params = parseParameterList()
+		params = parseParameterList(scope)
 	}
 	parserExpect(")", "parseParameters")
 	var afl = new(astFieldList)
@@ -764,7 +797,7 @@ func parseParameters() *astFieldList {
 	return afl
 }
 
-func parserResult() *astFieldList {
+func parserResult(scope *astScope) *astFieldList {
 	var r = new(astFieldList)
 	if ptok.tok == "{" {
 		r = nil
@@ -777,25 +810,15 @@ func parserResult() *astFieldList {
 	return r
 }
 
-func parseSignature() *signature {
+func parseSignature(scope *astScope) *signature {
 	var params *astFieldList
 	var results *astFieldList
-	params = parseParameters()
-	results = parserResult()
+	params = parseParameters(scope)
+	results = parserResult(scope)
 	var sig = new(signature)
 	sig.params = params
 	sig.results = results
 	return sig
-}
-
-func scopeInsert(s *astScope, obj *astObject) {
-	if s == nil {
-		panic("[scopeInsert] s sholud not be nil\n")
-	}
-	var oe = new(objectEntry)
-	oe.name = obj.Name
-	oe.obj = obj
-	s.Objects = append(s.Objects, oe)
 }
 
 func declareField(decl *astField, scope *astScope, kind string, ident *astIdent) {
@@ -832,17 +855,6 @@ func declare(objDecl *ObjDecl, scope *astScope, kind string, ident *astIdent) {
 
 }
 
-func scopeLookup(s *astScope, name string) *astObject {
-	var oe *objectEntry
-	for _, oe =  range s.Objects {
-		if oe.name == name {
-			return oe.obj
-		}
-	}
-	var r *astObject
-	return r
-}
-
 var parserUnresolved []*astIdent
 
 func parserResolve(ident *astIdent, collectUnresolved bool) {
@@ -850,13 +862,13 @@ func parserResolve(ident *astIdent, collectUnresolved bool) {
 		return
 	}
 
-	if parserTopScope != nil {
-		var obj = scopeLookup(parserTopScope, ident.Name)
+	var s *astScope
+	for s = parserTopScope; s != nil; s = s.Outer {
+		var obj = scopeLookup(s, ident.Name)
 		if obj != nil {
 			ident.Obj = obj
 			return
 		}
-
 	}
 
 	if collectUnresolved {
@@ -1146,15 +1158,16 @@ func parseStmtList() []*astStmt {
 	return list
 }
 
-func parseBody() *astBlockStmt {
+func parseBody(scope *astScope) *astBlockStmt {
 	parserExpect("{", "parseBody")
-
+	parserTopScope = scope
 	var list  []*astStmt
 	fmtPrintf("# begin parseStmtList()\n")
 	list = parseStmtList()
 	fmtPrintf("# end parseStmtList()\n")
-	parserExpect("}", "parseBody")
 
+	closeScope()
+	parserExpect("}", "parseBody")
 	var r = new(astBlockStmt)
 	r.List = list
 	return r
@@ -1219,13 +1232,19 @@ func parserParseValueSpec() *astSpec {
 
 func parserParseFuncDecl() *astDecl {
 	parserExpect("func", "parserParseFuncDecl")
+	var scope = astNewScope(parserTopScope) // function scope
 
 	var ident = parseIdent()
-	var sig = parseSignature()
+	var sig = parseSignature(scope)
+	if sig.results == nil {
+		fmtPrintf("# [parserParseFuncDecl] %s sig.results is nil\n", ident.Name)
+	} else {
+		fmtPrintf("# [parserParseFuncDecl] %s sig.results.List = %s\n", ident.Name, Itoa(len(sig.results.List)))
+	}
 	var body *astBlockStmt
 	if ptok.tok == "{" {
 		fmtPrintf("# begin parseBody()\n")
-		body = parseBody()
+		body = parseBody(scope)
 		fmtPrintf("# end parseBody()\n")
 		parserExpectSemi("parserParseFuncDecl")
 	}
@@ -1239,7 +1258,7 @@ func parserParseFuncDecl() *astDecl {
 	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astFuncDecl"
 	objDecl.funcDecl = funcDecl
-	declare(objDecl, parserTopScope, "Fun", ident)
+	declare(objDecl, parserPkgScope, "Fun", ident)
 	return decl
 }
 
@@ -1252,6 +1271,7 @@ func parserParseFile() *astFile {
 	parserExpectSemi("parserParseFile")
 
 	parserTopScope = new(astScope) // open scope
+	parserPkgScope = parserTopScope
 
 	for ptok.tok == "import" {
 		parserParseImportDecl()
@@ -1284,11 +1304,25 @@ func parserParseFile() *astFile {
 		}
 		decls = append(decls, decl)
 	}
+
 	parserTopScope = nil
+
+	var unresolved []*astIdent
+	var idnt *astIdent
+	for _, idnt = range parserUnresolved {
+		var obj *astObject = scopeLookup(parserPkgScope ,ident.Name)
+		if obj != nil {
+			idnt.Obj = obj
+		} else {
+			unresolved = append(unresolved, idnt)
+		}
+	}
+
+
 	var f = new(astFile)
 	f.Name = ident.Name
 	f.Decls = decls
-	f.Unresolved = parserUnresolved
+	f.Unresolved = unresolved
 	return f
 }
 
@@ -1737,8 +1771,14 @@ func emitExpr(e *astExpr) {
 					panic("[emitExpr][*astCallExpr] fndecl.Sig is nil")
 				}
 				var results = fndecl.Sig.results
+				if fndecl.Sig.results == nil {
+					fmtPrintf("# [emitExpr] %s sig.results is nil\n", ident.Name)
+				} else {
+					fmtPrintf("# [emitExpr] %s sig.results.List = %s\n", ident.Name, Itoa(len(fndecl.Sig.results.List)))
+				}
+
 				if results != nil && len(results.List) == 1 {
-					fmtPrintf("  pushq %%rax # results.List = 1\n")
+					fmtPrintf("  pushq %%rax # return value\n")
 				} else {
 					fmtPrintf("   # No results\n")
 				}
