@@ -1738,7 +1738,9 @@ func emitExpr(e *astExpr) {
 				}
 				var results = fndecl.Sig.results
 				if results != nil && len(results.List) == 1 {
-					fmtPrintf("  pushq %%rax\n")
+					fmtPrintf("  pushq %%rax # results.List = 1\n")
+				} else {
+					fmtPrintf("   # No results\n")
 				}
 			}
 		default:
