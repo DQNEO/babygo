@@ -604,7 +604,7 @@ type astScope struct {
 }
 
 var ptok *TokenContainer
-var topScope *astScope
+var parserTopScope *astScope
 
 func parserNext() {
 	//fmtPrintf("parserNext\n")
@@ -734,10 +734,10 @@ func parseParameterList() []*astField {
 		fmtPrintf("# [parser] parseParameterList: Field %s %s\n", field.Name.Name, field.Type.dtype)
 //		fmtPrintf("debug 4\n")
 		params = append(params, field)
-		if topScope == nil {
-			panic("topScope should not be nil")
+		if parserTopScope == nil {
+			panic("parserTopScope should not be nil")
 		}
-		declareField(field, topScope, "Var", ident)
+		declareField(field, parserTopScope, "Var", ident)
 		if ptok.tok == "," {
 			parserNext()
 			continue
@@ -850,8 +850,8 @@ func parserResolve(ident *astIdent, collectUnresolved bool) {
 		return
 	}
 
-	if topScope != nil {
-		var obj = scopeLookup(topScope, ident.Name)
+	if parserTopScope != nil {
+		var obj = scopeLookup(parserTopScope, ident.Name)
 		if obj != nil {
 			ident.Obj = obj
 			return
@@ -1180,7 +1180,7 @@ func parseDecl(keyword string) *astGenDecl {
 		var objDecl = new(ObjDecl)
 		objDecl.dtype = "*astValueSpec"
 		objDecl.valueSpec = spec
-		declare(objDecl, topScope, "Var", ident)
+		declare(objDecl, parserTopScope, "Var", ident)
 		r = new(astGenDecl)
 		r.Spec = spec
 		return r
@@ -1212,7 +1212,7 @@ func parserParseValueSpec() *astSpec {
 	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astValueSpec"
 	objDecl.valueSpec = spec
-	declare(objDecl, topScope, "Var", ident)
+	declare(objDecl, parserTopScope, "Var", ident)
 	fmtPrintf("# [parserParseValueSpec] end\n")
 	return r
 }
@@ -1239,7 +1239,7 @@ func parserParseFuncDecl() *astDecl {
 	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astFuncDecl"
 	objDecl.funcDecl = funcDecl
-	declare(objDecl, topScope, "Fun", ident)
+	declare(objDecl, parserTopScope, "Fun", ident)
 	return decl
 }
 
@@ -1251,7 +1251,7 @@ func parserParseFile() *astFile {
 
 	parserExpectSemi("parserParseFile")
 
-	topScope = new(astScope) // open scope
+	parserTopScope = new(astScope) // open scope
 
 	for ptok.tok == "import" {
 		parserParseImportDecl()
@@ -1284,7 +1284,7 @@ func parserParseFile() *astFile {
 		}
 		decls = append(decls, decl)
 	}
-	topScope = nil
+	parserTopScope = nil
 	var f = new(astFile)
 	f.Name = ident.Name
 	f.Decls = decls
