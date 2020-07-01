@@ -1561,6 +1561,7 @@ func e2t(typeExpr *astExpr) *Type {
 
 var gString *astObject
 var gInt *astObject
+var gBool *astObject
 
 func semanticAnalyze(file *astFile) string {
 	var universe = new(astScope)
@@ -1735,8 +1736,9 @@ func emitExpr(e *astExpr) {
 			return
 		}
 		var pushed int = 0
-		if len(e.callExpr.Args) > 0 {
-			emitExpr(e.callExpr.Args[0])
+		var arg *astExpr
+		for _, arg = range e.callExpr.Args {
+			emitExpr(arg)
 			pushed = pushed + 8
 		}
 		switch fun.dtype {
@@ -2072,6 +2074,7 @@ type Type struct {
 
 var tInt *Type
 var tString *Type
+var tBool *Type
 
 func getTypeOfExpr(expr *astExpr) *Type {
 
@@ -2117,8 +2120,15 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		default:
 			panic("[getTypeOfExpr] TBI: Op=" + expr.unaryExpr.Op)
 		}
+	case "*astBinaryExpr":
+		switch expr.binaryExpr.Op {
+		case "==", "!=", "<", ">", "<=", ">=":
+			return tBool
+		default:
+			return getTypeOfExpr(expr.binaryExpr.X)
+		}
 	default:
-		fmtPrintf("[getTypeOfExpr] TBI %s\n", expr.dtype)
+		fmtPrintf("[getTypeOfExpr] 2130 TBI %s\n", expr.dtype)
 		os.Exit(1)
 	}
 
@@ -2239,4 +2249,14 @@ func initGlobals() {
 	tInt.e.ident = new(astIdent)
 	tInt.e.ident.Name = "int"
 	tInt.e.ident.Obj = gInt
+
+	gBool = new(astObject)
+	gBool.Kind = "Typ"
+	gBool.Name = "bool"
+	tBool = new(Type)
+	tBool.e = new(astExpr)
+	tBool.e.dtype = "*astIdent"
+	tBool.e.ident = new(astIdent)
+	tBool.e.ident.Name = "bool"
+	tBool.e.ident.Obj = gBool
 }

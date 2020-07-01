@@ -966,10 +966,10 @@ func testElse() {
 var globalbool1 bool // = true // @TODO
 var globalbool2 bool = false
 var globalbool3 bool
-var globalint int = 30
-var globalint2 int = 0
-var globaluint8 uint8 = 8
-var globaluint16 uint16 = 16
+var globalint int
+var globalint2 int
+var globaluint8 uint8
+var globaluint16 uint16
 
 var globalstring string
 var globalstring2 string

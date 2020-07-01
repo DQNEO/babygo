@@ -12,17 +12,23 @@ func testArgAssign(x int) int {
 }
 
 func testMinus() int {
-	var x int = 3
-	//x = x * -5
+	var x int = -1
+	x = x * -5
 	return x
 }
 
-func testMisc() {
-	var i13 int = 12
-	i13 = testArgAssign(i13)
+func sum(x int, y int) int {
+	return x + y
+}
 
+var globalint2 int
+
+func testMisc() {
+	var i13 int = 0
+	i13 = testArgAssign(i13)
 	var i5 int = testMinus()
-	exit(i5)
+	globalint2 = sum(1, i13 * i5)
+	exit(globalint2)
 }
 
 func test() {
