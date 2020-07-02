@@ -28,7 +28,10 @@ func testMisc() {
 	i13 = testArgAssign(i13)
 	var i5 int = testMinus()
 	globalint2 = sum(1, i13 * i5)
-	exit(globalint2)
+//	var locali3 int
+	var tmp int
+	tmp = int(uint8('9' - '7'))
+	exit(tmp)
 }
 
 func test() {

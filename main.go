@@ -569,12 +569,14 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 	case *ast.CallExpr:
 		fun := e.Fun
 		fmt.Printf("  # callExpr=%#v\n", fun)
+		// check if it's a conversion
 		if isType(fun) {
 			emitConversion(e2t(fun), e.Args[0])
 			return
 		}
 		switch fn := fun.(type) {
 		case *ast.Ident:
+			// check if it's a builtin func
 			switch fn.Obj {
 			case gLen:
 				assert(len(e.Args) == 1, "builtin len should take only 1 args")
@@ -816,8 +818,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 	case *ast.BasicLit:
 		switch e.Kind.String() {
 		case "CHAR":
-			val := e.Value
-			var char uint8 = val[1]
+			var val = e.Value
+			var char = val[1]
 			if val[1] == '\\' {
 				switch val[2] {
 				case '\'':
@@ -832,7 +834,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					char = '\r'
 				}
 			}
-			fmt.Printf("  pushq $%d # convert char literal to int\n", int(char))
+			fmtPrintf("  pushq $%d # convert char literal to int\n", Itoa(int(char)))
 		case "INT":
 			val := e.Value
 			ival, _ := strconv.Atoi(val)

@@ -904,6 +904,15 @@ func parseOperand() *astExpr {
 		r.basicLit = basicLit
 		parserNext()
 		return r
+	case "CHAR":
+		var basicLit = new(astBasicLit)
+		basicLit.Kind = "CHAR"
+		basicLit.Value = ptok.lit
+		var r = new(astExpr)
+		r.dtype = "*astBasicLit"
+		r.basicLit = basicLit
+		parserNext()
+		return r
 	}
 	fmtPrintf("# [parsePrimaryExpr] TBI: ptok.tok=%s\n", ptok.tok)
 	os.Exit(1)
@@ -1267,7 +1276,7 @@ func parserParseFile() *astFile {
 	parserExpect("package", "parserParseFile")
 	parserUnresolved = nil
 	var ident = parseIdent()
-
+	var packageName = ident.Name
 	parserExpectSemi("parserParseFile")
 
 	parserTopScope = new(astScope) // open scope
@@ -1309,18 +1318,21 @@ func parserParseFile() *astFile {
 
 	var unresolved []*astIdent
 	var idnt *astIdent
+	fmtPrintf("# [parserParseFile] resolving parserUnresolved (n=%s)\n", Itoa(len(parserUnresolved)))
 	for _, idnt = range parserUnresolved {
-		var obj *astObject = scopeLookup(parserPkgScope ,ident.Name)
+		fmtPrintf("# [parserParseFile] resolving ident %s \n", idnt.Name)
+		var obj *astObject = scopeLookup(parserPkgScope ,idnt.Name)
 		if obj != nil {
+			fmtPrintf("# [parserParseFile] obj matched %s \n", obj.Name)
 			idnt.Obj = obj
 		} else {
 			unresolved = append(unresolved, idnt)
 		}
 	}
-
+	fmtPrintf("# [parserParseFile] Unresolved (n=%s)\n", Itoa(len(unresolved)))
 
 	var f = new(astFile)
-	f.Name = ident.Name
+	f.Name = packageName
 	f.Decls = decls
 	f.Unresolved = unresolved
 	return f
@@ -1561,11 +1573,15 @@ func e2t(typeExpr *astExpr) *Type {
 
 var gString *astObject
 var gInt *astObject
+var gUint8 *astObject
 var gBool *astObject
 
 func semanticAnalyze(file *astFile) string {
+	// create universe scope
 	var universe = new(astScope)
+	// inject predeclared identifers
 	scopeInsert(universe, gInt)
+	scopeInsert(universe, gUint8)
 	scopeInsert(universe, gString)
 
 	var osPkg = new(astObject)
@@ -1578,9 +1594,12 @@ func semanticAnalyze(file *astFile) string {
 
 	var unresolved []*astIdent
 	var ident *astIdent
+	fmtPrintf("# [SEMA] resolving file.Unresolved (n=%s)\n", Itoa(len(file.Unresolved)))
 	for _, ident = range file.Unresolved {
+		fmtPrintf("# [SEMA] resolving ident %s \n", ident.Name)
 		var obj *astObject = scopeLookup(universe,ident.Name)
 		if obj != nil {
+			fmtPrintf("# [SEMA] obj matched %s \n", obj.Name)
 			ident.Obj = obj
 		} else {
 			panic("[semanticAnalyze] Unresolved : " + ident.Name)
@@ -1724,8 +1743,26 @@ func emitExpr(e *astExpr) {
 				fmtPrintf("  leaq %s, %%rax # str ptr\n", sl.label)
 				fmtPrintf("  pushq %%rax # str ptr\n")
 			}
+		case "CHAR":
+			var val = e.basicLit.Value
+			var char = val[1]
+			if val[1] == '\\' {
+				switch val[2] {
+				case '\'':
+					char = '\''
+				case 'n':
+					char = '\n'
+				case '\\':
+					char = '\\'
+				case 't':
+					char = '\t'
+				case 'r':
+					char = '\r'
+				}
+			}
+			fmtPrintf("  pushq $%d # convert char literal to int\n", Itoa(int(char)))
 		default:
-			fmtPrintf("[emitExpr] TBI\n")
+			fmtPrintf("[emitExpr][*astBasicLit] TBI : %s\n", e.basicLit.Kind)
 			os.Exit(1)
 		}
 	case "*astCallExpr":
@@ -1887,6 +1924,9 @@ func isType(expr *astExpr) bool {
 		if expr.ident.Obj == nil {
 			panic("[isType] unresolved ident:" + expr.ident.Name)
 		}
+		fmtPrintf("# [isType][DEBUG] expr.ident.Name = %s\n", expr.ident.Name)
+		fmtPrintf("# [isType][DEBUG] expr.ident.Obj = %s,%s\n",
+			expr.ident.Obj.Name, expr.ident.Obj.Kind )
 		return expr.ident.Obj.Kind == "Typ"
 	case "*astParentExpr":
 		return true
@@ -1901,11 +1941,11 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 	switch typeExpr.dtype {
 	case "*astIdent":
 		switch typeExpr.ident.Obj {
-		case gInt:
+		case gInt, gUint8:
 			fmtPrintf("# [emitConversion] to int \n")
 			emitExpr(arg0)
 		default:
-			panic("[emitConversion] TBI 1")
+			panic("[emitConversion] TBI : " + typeExpr.ident.Obj.Name)
 		}
 	default:
 		panic("[emitConversion] TBI 2")
@@ -2073,6 +2113,7 @@ type Type struct {
 }
 
 var tInt *Type
+var tUint8 *Type
 var tString *Type
 var tBool *Type
 
@@ -2249,6 +2290,16 @@ func initGlobals() {
 	tInt.e.ident = new(astIdent)
 	tInt.e.ident.Name = "int"
 	tInt.e.ident.Obj = gInt
+
+	gUint8 = new(astObject)
+	gUint8.Kind = "Typ"
+	gUint8.Name = "uint8"
+	tUint8 = new(Type)
+	tUint8.e = new(astExpr)
+	tUint8.e.dtype = "*astIdent"
+	tUint8.e.ident = new(astIdent)
+	tUint8.e.ident.Name = "uint8"
+	tUint8.e.ident.Obj = gUint8
 
 	gBool = new(astObject)
 	gBool.Kind = "Typ"
