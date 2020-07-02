@@ -1574,6 +1574,8 @@ func e2t(typeExpr *astExpr) *Type {
 var gString *astObject
 var gInt *astObject
 var gUint8 *astObject
+var gUint16 *astObject
+var gUintptr *astObject
 var gBool *astObject
 
 func semanticAnalyze(file *astFile) string {
@@ -1668,10 +1670,18 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 	case T_STRING:
 		fmtPrintf("  .quad 0\n")
 		fmtPrintf("  .quad 0\n")
+	case T_UINTPTR:
+		fmtPrintf("  .quad 0\n")
+	case T_BOOL:
+		fmtPrintf("  .quad 0 # bool zero value\n") // @TODO
 	case T_INT:
 		fmtPrintf("  .quad 0\n")
+	case T_UINT8:
+		fmtPrintf("  .byte 0\n")
+	case T_UINT16:
+		fmtPrintf("  .word 0\n")
 	default:
-		panic("[emitGlobalVariable] ERROR\n")
+		panic("[emitGlobalVariable] TBI:kind=" + typeKind)
 	}
 }
 
@@ -1941,7 +1951,7 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 	switch typeExpr.dtype {
 	case "*astIdent":
 		switch typeExpr.ident.Obj {
-		case gInt, gUint8:
+		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			fmtPrintf("# [emitConversion] to int \n")
 			emitExpr(arg0)
 		default:
@@ -1959,17 +1969,23 @@ func emitLoad(t *Type) {
 	}
 	emitPopAddress(kind(t))
 	switch kind(t) {
-	case T_INT:
-		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", Itoa(0))
-		fmtPrintf("  pushq %%rax\n")
 	case T_STRING:
 		fmtPrintf("  movq %d(%%rax), %%rdx\n", Itoa(8))
 		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
 		fmtPrintf("  pushq %%rdx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
+	case T_UINT8:
+		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", Itoa(0))
+		fmtPrintf("  pushq %%rax\n")
+	case T_UINT16:
+		fmtPrintf("  movzwq %d(%%rax), %%rax # load uint16\n", Itoa(0))
+		fmtPrintf("  pushq %%rax\n")
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
+		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", Itoa(0))
+		fmtPrintf("  pushq %%rax\n")
 
 	default:
-		fmtPrintf("[emitLoad] TBI\n")
+		fmtPrintf("[emitLoad] TBI:kind=%s\n", kind(t))
 		os.Exit(1)
 	}
 }
@@ -2114,6 +2130,8 @@ type Type struct {
 
 var tInt *Type
 var tUint8 *Type
+var tUint16 *Type
+var tUintptr *Type
 var tString *Type
 var tBool *Type
 
@@ -2225,7 +2243,7 @@ func kind(t *Type) string {
 			return T_INT
 		case "string":
 			return T_STRING
-		case "uinit8":
+		case "uint8":
 			return T_UINT8
 		case "uint16":
 			return T_UINT16
@@ -2300,6 +2318,26 @@ func initGlobals() {
 	tUint8.e.ident = new(astIdent)
 	tUint8.e.ident.Name = "uint8"
 	tUint8.e.ident.Obj = gUint8
+
+	gUint16 = new(astObject)
+	gUint16.Kind = "Typ"
+	gUint16.Name = "uint16"
+	tUint16 = new(Type)
+	tUint16.e = new(astExpr)
+	tUint16.e.dtype = "*astIdent"
+	tUint16.e.ident = new(astIdent)
+	tUint16.e.ident.Name = "uint16"
+	tUint16.e.ident.Obj = gUint16
+
+	gUintptr = new(astObject)
+	gUintptr.Kind = "Typ"
+	gUintptr.Name = "uintptr"
+	tUintptr = new(Type)
+	tUintptr.e = new(astExpr)
+	tUintptr.e.dtype = "*astIdent"
+	tUintptr.e.ident = new(astIdent)
+	tUintptr.e.ident.Name = "uintptr"
+	tUintptr.e.ident.Obj = gUintptr
 
 	gBool = new(astObject)
 	gBool.Kind = "Typ"
