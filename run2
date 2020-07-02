@@ -1,0 +1,13 @@
+#!/bin/bash
+make self
+./self > a.s
+if [[ $? -ne 0 ]]; then
+    echo "----- Compile Error --------"
+    tail a.s
+    exit 1
+fi
+set -e
+as -o a.o runtime.s a.s
+ld a.o
+./a.out
+echo $?
