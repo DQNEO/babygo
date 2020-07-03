@@ -306,17 +306,16 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 		}
 	case *ast.ArrayType: // Conversion to slice
 		arrayType := typeExpr
-		if arrayType.Len == nil {
-			assert(kind(getTypeOfExpr(arg0)) == T_STRING, "arrayType should be slice")
-			fmt.Printf("  # Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
-			emitExpr(arg0, tp)
-			emitPopString()
-			fmt.Printf("  pushq %%rcx # cap\n")
-			fmt.Printf("  pushq %%rcx # len\n")
-			fmt.Printf("  pushq %%rax # ptr\n")
-		} else {
+		if arrayType.Len != nil {
 			throw(typeExpr)
 		}
+		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice")
+		fmt.Printf("  # Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
+		emitExpr(arg0, tp)
+		emitPopString()
+		fmt.Printf("  pushq %%rcx # cap\n")
+		fmt.Printf("  pushq %%rcx # len\n")
+		fmt.Printf("  pushq %%rax # ptr\n")
 	case *ast.ParenExpr: // (T)(arg0)
 		emitConversion(e2t(typeExpr.X), arg0)
 	case *ast.StarExpr: // (*T)(arg0)

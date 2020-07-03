@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 make self
 ./self > a.s
 if [[ $? -ne 0 ]]; then
@@ -9,5 +10,4 @@ fi
 set -e
 as -o a.o runtime.s a.s
 ld a.o
-./a.out
-echo $?
+./a.out || echo $?

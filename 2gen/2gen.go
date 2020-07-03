@@ -738,12 +738,10 @@ func tryIdentOrType() *astExpr {
 		typ.ident = ident
 		typ.dtype = "*astIdent"
 	case "[":
-		fmtPrintf("debug 1-2\n")
 		typ = parseArrayType()
-		fmtPrintf("debug 1-3\n")
 		return typ
 	default:
-		fmtPrintf("TBI\n")
+		fmtPrintf("[tryIdentOrType] TBI:%s\n", ptok.tok)
 		os.Exit(1)
 	}
 	return typ
@@ -912,10 +910,13 @@ func parseOperand() *astExpr {
 		parserNext()
 		return r
 	}
-	fmtPrintf("# [parsePrimaryExpr] TBI: ptok.tok=%s\n", ptok.tok)
-	os.Exit(1)
-	var r *astExpr
-	return r
+
+	var typ = tryIdentOrType()
+	if typ == nil {
+		fmtPrintf("# [parseOperand] typ should not be nil\n")
+		os.Exit(1)
+	}
+	return typ
 }
 
 func parseCallExpr(fn *astExpr) *astCallExpr {
@@ -1452,6 +1453,9 @@ func walkStmt(stmt *astStmt) {
 		valSpec.Name.Obj.Variable = newLocalVariable(valSpec.Name.Name, localoffset)
 		fmtPrintf("# var %s offset = %d\n", valSpec.Name.Obj.Name,
 			Itoa(valSpec.Name.Obj.Variable.localOffset))
+		if valSpec.Value != nil {
+			walkExpr(valSpec.Value)
+		}
 	case "*astAssignStmt":
 		var rhs = stmt.assignStmt.Rhs
 		walkExpr(rhs)
@@ -1483,13 +1487,15 @@ func getStringLiteral(lit *astBasicLit) *sliteral {
 		}
 	}
 
-	fmtPrintf("error: %s\n" , lit.Value)
+	fmtPrintf("[getStringLiteral] string literal not found: %s\n" , lit.Value)
 	os.Exit(1)
 	var r *sliteral
 	return r
 }
 
 func registerStringLiteral(lit *astBasicLit) {
+	fmtPrintf("# [registerStringLiteral] begin\n")
+
 	var pkgName = "main"
 	if pkgName == "" {
 		panic("no pkgName")
@@ -1584,13 +1590,18 @@ func semanticAnalyze(file *astFile) string {
 	scopeInsert(universe, gUint8)
 	scopeInsert(universe, gString)
 
-	var osPkg = new(astObject)
-	osPkg.Kind = "Pkg"
-	osPkg.Name = "os"
-	scopeInsert(universe, osPkg) // @FIXME not universe
+	// @FIXME package names should be be in universe
+	var pkgOs = new(astObject)
+	pkgOs.Kind = "Pkg"
+	pkgOs.Name = "os"
+	scopeInsert(universe, pkgOs)
+
+	var pkgSyscall= new(astObject)
+	pkgSyscall.Kind = "Pkg"
+	pkgSyscall.Name = "syscall"
+	scopeInsert(universe, pkgSyscall)
 
 	pkgName = file.Name
-
 
 	var unresolved []*astIdent
 	var ident *astIdent
@@ -1644,6 +1655,11 @@ func semanticAnalyze(file *astFile) string {
 			os.Exit(1)
 		}
 	}
+
+	if len(stringLiterals) == 0 {
+		panic("# [sema] stringLiterals is empty\n")
+	}
+
 	return pkgName
 }
 
@@ -1781,9 +1797,10 @@ func emitExpr(e *astExpr) {
 			return
 		}
 		var pushed int = 0
-		var arg *astExpr
-		for _, arg = range e.callExpr.Args {
-			emitExpr(arg)
+		//var arg *astExpr
+		var i int
+		for i=len(e.callExpr.Args)-1;i>=0;i-- {
+			emitExpr(e.callExpr.Args[i])
 			pushed = pushed + 8
 		}
 		switch fun.dtype {
@@ -1925,6 +1942,8 @@ func emitAddr(expr *astExpr) {
 
 func isType(expr *astExpr) bool {
 	switch expr.dtype {
+	case "*astArrayType":
+		return true
 	case "*astIdent":
 		if expr.ident == nil {
 			panic("[isType] ident should not be nil")
@@ -1955,8 +1974,22 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 		default:
 			panic("[emitConversion] TBI : " + typeExpr.ident.Obj.Name)
 		}
+	case "*astArrayType": // Conversion to slice
+		var arrayType = typeExpr.arrayType
+		if arrayType.Len != nil {
+			panic("[emitConversion] internal error")
+		}
+		if (kind(getTypeOfExpr(arg0))) != T_STRING {
+			panic("source type should be string")
+		}
+		fmtPrintf("  # Conversion of string => slice \n")
+		emitExpr(arg0)
+		emitPopString()
+		fmtPrintf("  pushq %%rcx # cap\n")
+		fmtPrintf("  pushq %%rcx # len\n")
+		fmtPrintf("  pushq %%rax # ptr\n")
 	default:
-		panic("[emitConversion] TBI 2")
+		panic("[emitConversion] TBI :" + typeExpr.dtype)
 	}
 }
 
@@ -1967,6 +2000,13 @@ func emitLoad(t *Type) {
 	}
 	emitPopAddress(kind(t))
 	switch kind(t) {
+	case T_SLICE:
+		fmtPrintf("  movq %d(%%rax), %%rdx\n", Itoa(16))
+		fmtPrintf("  movq %d(%%rax), %%rcx\n", Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
+		fmtPrintf("  pushq %%rdx # cap\n")
+		fmtPrintf("  pushq %%rcx # len\n")
+		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_STRING:
 		fmtPrintf("  movq %d(%%rax), %%rdx\n", Itoa(8))
 		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
@@ -1991,6 +2031,12 @@ func emitLoad(t *Type) {
 func emitStore(t *Type) {
 	fmtPrintf("  # emitStore(%s)\n", kind(t))
 	switch kind(t) {
+	case T_SLICE:
+		emitPopSlice()
+		fmtPrintf("  popq %%rsi # lhs ptr addr\n")
+		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
+		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
+		fmtPrintf("  movq %%rdx, %d(%%rsi) # cap to cap\n", Itoa(16))
 	case T_STRING:
 		emitPopString()
 		fmtPrintf("  popq %%rsi # lhs ptr addr\n")
@@ -2001,7 +2047,7 @@ func emitStore(t *Type) {
 		fmtPrintf("  popq %%rax # lhs addr\n")
 		fmtPrintf("  movq %%rdi, (%%rax) # assign\n")
 	default:
-		fmtPrintf("TBI:" + kind(t))
+		fmtPrintf("[emitStore] TBI:" + kind(t))
 		os.Exit(1)
 	}
 }
@@ -2231,6 +2277,7 @@ func kind(t *Type) string {
 		fmtPrintf("nil type is not expected\n")
 		os.Exit(1)
 	}
+	var e = t.e
 	switch t.e.dtype {
 	case "*astIdent":
 		var ident = t.e.ident
@@ -2251,9 +2298,14 @@ func kind(t *Type) string {
 			fmtPrintf("[kind] unsupported type %s\n", ident.Name)
 			os.Exit(1)
 		}
+	case "*astArrayType":
+		if e.arrayType.Len == nil {
+			return T_SLICE
+		} else {
+			return T_ARRAY
+		}
 	default:
-		fmtPrintf("error")
-		os.Exit(1)
+		panic("[kind] Unkown dtype:" + t.e.dtype)
 	}
 	fmtPrintf("error")
 	os.Exit(1)
