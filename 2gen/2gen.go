@@ -1,9 +1,7 @@
 package main
 
-import (
-	"os"
-)
 import "syscall"
+import "os"
 
 // --- libs ---
 func fmtSprintf(format string, a []string) string {
