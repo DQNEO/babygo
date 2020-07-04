@@ -460,6 +460,12 @@ func emitReverseArgs(args []*Arg) {
 	}
 }
 
+type Arg struct {
+	e      ast.Expr
+	t      *Type // expected type
+	offset int
+}
+
 // Call without using func decl
 func emitCallNonDecl(symbol string, eArgs []ast.Expr) {
 	var args []*Arg
@@ -476,7 +482,7 @@ func emitCallNonDecl(symbol string, eArgs []ast.Expr) {
 func emitCall(symbol string, args []*Arg) {
 	totalPushedSize := emitFuncallArgs(args)
 	emitReverseArgs(args)
-	fmt.Printf("  callq %s\n", symbol)
+	fmtPrintf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
 }
 
@@ -785,7 +791,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 
 			}
 		case *ast.SelectorExpr:
-			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel) // syscall.Write() or unsafe.Pointer(x)
+			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
 			switch symbol {
 			case "unsafe.Pointer":
 				emitExpr(e.Args[0], nil)
@@ -2009,12 +2015,6 @@ type Variable struct {
 
 type Type struct {
 	e ast.Expr // original expr
-}
-
-type Arg struct {
-	e      ast.Expr
-	t      *Type // expected type
-	offset int
 }
 
 var pkgName string

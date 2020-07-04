@@ -1447,7 +1447,8 @@ func walkStmt(stmt *astStmt) {
 		var typ = valSpec.Type // ident "int"
 		fmtPrintf("# [walkStmt] valSpec Name=%s, Type=%s\n",
 			valSpec.Name.Name, typ.dtype)
-		var sizeOfType = 8
+		var t = e2t(typ)
+		var sizeOfType = getSizeOfType(t)
 		localoffset = localoffset - sizeOfType
 
 		valSpec.Name.Obj.Variable = newLocalVariable(valSpec.Name.Name, localoffset)
@@ -1557,6 +1558,10 @@ var pkgName string
 
 func getSizeOfType(t *Type) int {
 	switch kind(t) {
+	case T_SLICE:
+		return sliceSize
+	case T_STRING:
+		return 16
 	case T_INT:
 		return 8
 	default:
@@ -1732,6 +1737,38 @@ func emitZeroValue(t *Type) {
 	}
 }
 
+type Arg struct {
+	e      *astExpr
+	t      *Type // expected type
+	offset int
+}
+
+func emitCallNonDecl(symbol string, eArgs []*astExpr) {
+	var args []*Arg
+	var eArg *astExpr
+	for _, eArg = range eArgs {
+		var arg = new(Arg)
+		arg.e = eArg
+		arg.t = nil
+		args = append(args, arg)
+	}
+	emitCall(symbol, args)
+}
+
+func emitCall(symbol string, args []*Arg) {
+	var pushed int = 0
+	//var arg *astExpr
+	var i int
+	for i=len(args)-1;i>=0;i-- {
+		emitExpr(args[i].e)
+		var typ = getTypeOfExpr(args[i].e)
+		var size = getSizeOfType(typ)
+		pushed = pushed + size
+	}
+	fmtPrintf("  callq %s\n", symbol)
+	fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(pushed))
+}
+
 func emitExpr(e *astExpr) {
 	fmtPrintf("# [emitExpr] dtype=%s\n", e.dtype)
 	switch e.dtype {
@@ -1801,16 +1838,11 @@ func emitExpr(e *astExpr) {
 		var i int
 		for i=len(e.callExpr.Args)-1;i>=0;i-- {
 			emitExpr(e.callExpr.Args[i])
-			pushed = pushed + 8
+			var typ = getTypeOfExpr(e.callExpr.Args[i])
+			var size = getSizeOfType(typ)
+			pushed = pushed + size
 		}
 		switch fun.dtype {
-		case "*astSelectorExpr":
-			var selector = fun.selectorExpr
-			if selector.X.dtype != "*astIdent" {
-				fmtPrintf("[emitExpr] TBI selector.X.dtype=%s\n", selector.X.dtype)
-				os.Exit(1)
-			}
-			fmtPrintf("  callq %s.%s\n", selector.X.ident.Name, selector.Sel.Name)
 		case "*astIdent":
 			var ident = fun.ident
 			if ident.Name == "print" {
@@ -1846,6 +1878,22 @@ func emitExpr(e *astExpr) {
 				} else {
 					fmtPrintf("   # No results\n")
 				}
+			}
+		case "*astSelectorExpr":
+			var selectorExpr = fun.selectorExpr
+			if selectorExpr.X.dtype != "*astIdent" {
+				fmtPrintf("[emitExpr] TBI selectorExpr.X.dtype=%s\n", selectorExpr.X.dtype)
+				os.Exit(1)
+			}
+			var symbol string = selectorExpr.X.ident.Name + "." + selectorExpr.Sel.Name
+			switch symbol {
+			case "os.Exit":
+				emitCallNonDecl(symbol, e.callExpr.Args)
+			case "syscall.Write":
+				emitCallNonDecl(symbol, e.callExpr.Args)
+			default:
+				fmtPrintf("  callq %s.%s\n", selectorExpr.X.ident.Name, selectorExpr.Sel.Name)
+				panic("[emitExpr][*astSelectorExpr] Unsupported call to " + symbol)
 			}
 		default:
 			fmtPrintf("[emitExpr] TBI fun.dtype=%s\n", fun.dtype)
