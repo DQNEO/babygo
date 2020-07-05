@@ -3,6 +3,17 @@ package main
 import "os"
 import "syscall"
 
+func writeln(s string) {
+	//var s2 string = s + "\n"
+	var s2 string = "\n"
+	write(s)
+	write(s2)
+}
+
+func write(s string) {
+	var slc []uint8 = []uint8(s)
+	syscall.Write(1, slc)
+}
 
 func exit(x int) {
 	os.Exit(x)
@@ -33,14 +44,9 @@ var globaluint8 uint8
 var globaluint16 uint16
 var globaluintptr uintptr
 
-func write(s string) {
-	var slc []uint8 = []uint8(s)
-	syscall.Write(1, slc)
-}
-
 func testString() {
-	var s string = "hello string\n"
-	write(s)
+	var s string = "hello string"
+	writeln(s)
 }
 
 func testMisc() {

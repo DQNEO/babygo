@@ -2,6 +2,17 @@ package main
 
 import "syscall"
 
+func writeln(s string) {
+	var s2 = s + "\n"
+	write(s2)
+}
+
+func write(s string) {
+	var slc []uint8 = []uint8(s)
+	syscall.Write(1, slc)
+}
+
+
 func testInfer() {
 	var s = "infer string literal"
 	writeln(s)
@@ -1099,15 +1110,6 @@ func testMisc() {
 	i42 = sum(globalint, globalint2) + locali3
 
 	writeln(Itoa(i42))
-}
-
-func writeln(s string) {
-	var s2 string = s + "\n"
-	write(s2)
-}
-func write(s string) {
-	var slc []uint8 = []uint8(s)
-	syscall.Write(1, slc)
 }
 
 var globalptr *int

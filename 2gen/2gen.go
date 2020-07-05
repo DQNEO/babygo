@@ -1528,12 +1528,25 @@ func registerStringLiteral(lit *astBasicLit) {
 func walkExpr(expr *astExpr) {
 	fmtPrintf("# [walkExpr] dtype=%s\n", expr.dtype)
 	switch expr.dtype {
+	case "*astIdent":
+		// what to do ?
+	case "*astCallExpr":
+		var arg *astExpr
+		for _, arg = range expr.callExpr.Args {
+			walkExpr(arg)
+		}
 	case "*astBasicLit":
 		switch expr.basicLit.Kind {
 		case "STRING":
 			registerStringLiteral(expr.basicLit)
 		}
+	case "*astUnaryExpr":
+		walkExpr(expr.unaryExpr.X)
+	case "*astBinaryExpr":
+		walkExpr(expr.binaryExpr.X)
+		walkExpr(expr.binaryExpr.Y)
 	default:
+		panic("[walkExpr] TBI:" + expr.dtype)
 	}
 }
 
@@ -1634,7 +1647,7 @@ func semanticAnalyze(file *astFile) string {
 			globalVars = append(globalVars, valSpec)
 		case "*astFuncDecl":
 			var funcDecl = decl.funcDecl
-			fmtPrintf("# [sema] funcdef %s\n", funcDecl.Name.Name)
+			fmtPrintf("# [sema] == astFuncDecl %s ==\n", funcDecl.Name.Name)
 			localoffset  = 0
 			var paramoffset = 16
 			var field *astField
@@ -1911,6 +1924,9 @@ func emitExpr(e *astExpr) {
 			os.Exit(1)
 		}
 	case "*astBinaryExpr":
+		if kind(getTypeOfExpr(e.binaryExpr.X)) == T_STRING {
+			panic("[emitExpr][*astBinaryExpr] TBI T_STRING")
+		}
 		emitExpr(e.binaryExpr.X) // left
 		emitExpr(e.binaryExpr.Y) // right
 		switch e.binaryExpr.Op {
@@ -2371,6 +2387,7 @@ func main() {
 		stringIndex = 0
 		var f = parseFile(sourceFile)
 		var pkgName = semanticAnalyze(f)
+		//panic("[main] STOP for debug")
 		generateCode(pkgName)
 	}
 }
