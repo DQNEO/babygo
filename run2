@@ -1,6 +1,7 @@
 #!/bin/bash
 set -x
 make self
+echo > a.s
 ./self > a.s
 if [[ $? -ne 0 ]]; then
     echo "----- Compile Error --------"
