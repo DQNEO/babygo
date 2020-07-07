@@ -321,12 +321,20 @@ func scannerScan() *TokenContainer {
 				tok = "*"
 			}
 		case '/':
-			// @TODO block comment
 			if scannerCh == '/' {
+				// comment
+				// @TODO block comment
+				if scannerInsertSemi {
+					scannerCh = '/'
+					scannerOffset = scannerOffset - 1
+					scannerNextOffset = scannerOffset + 1
+					tc.lit = "\n"
+					tc.tok = ";"
+					scannerInsertSemi = false
+					return tc
+				}
 				lit = scannerrScanComment()
 				tok = "COMMENT"
-				scannerInsertSemi = false
-				return scannerScan()
 			} else if scannerCh == '=' {
 				tok = "/="
 			} else {
@@ -653,13 +661,27 @@ func closeScope() {
 	parserTopScope = parserTopScope.Outer
 }
 
-func parserNext() {
-	//fmtPrintf("parserNext\n")
+func parserConsumeComment() {
+	parserNext0()
+}
+
+func parserNext0() {
 	ptok = scannerScan()
+}
+
+func parserNext() {
+	parserNext0()
+	//fmtPrintf("parserNext\n")
 	if ptok.tok == ";" {
 		fmtPrintf("# [parser] looking at : [%s] newline (%s)\n", ptok.tok , Itoa(scannerOffset))
 	} else {
 		fmtPrintf("# [parser] looking at: [%s] %s (%s)\n", ptok.tok, ptok.lit, Itoa(scannerOffset))
+	}
+
+	if ptok.tok == "COMMENT" {
+		for ptok.tok == "COMMENT" {
+			parserConsumeComment()
+		}
 	}
 	//fmtPrintf("current ptok: tok=%s, lit=%s\n", ptok.tok, ptok.lit)
 }
@@ -680,7 +702,7 @@ func parserExpectSemi(caller string) {
 		case ";":
 			parserNext()
 		default:
-			var s = fmtSprintf("[%s] ; expected, but got %s(%s)\n", []string{caller, ptok.tok, ptok.lit})
+			var s = fmtSprintf("[%s] ; expected, but got token %s\n", []string{caller, ptok.tok})
 			panic(s)
 		}
 	}
@@ -1130,7 +1152,7 @@ func parseStmt() *astStmt {
 			as.Rhs = y
 			s.dtype = "*astAssignStmt"
 			s.assignStmt = as
-			parserExpectSemi("parseStmt:IDENT")
+			parserExpectSemi(__func__ +  "case IDENT")
 			fmtPrintf("# = end parseStmt()\n")
 			return s
 		case ";":
