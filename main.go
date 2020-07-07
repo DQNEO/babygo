@@ -2158,7 +2158,7 @@ var gCap = &ast.Object{
 
 var currentFuncDecl *ast.FuncDecl
 
-func resolveUniverse(fiile *ast.File) *ast.Scope {
+func createUniverse() *ast.Scope {
 	universe := &ast.Scope{
 		Outer:   nil,
 		Objects: make(map[string]*ast.Object),
@@ -2202,6 +2202,10 @@ func resolveUniverse(fiile *ast.File) *ast.Scope {
 		Type: nil,
 	})
 
+	return universe
+}
+
+func resolveUniverse(fiile *ast.File, universe *ast.Scope) {
 	var unresolved []*ast.Ident
 	for _, ident := range fiile.Unresolved {
 		if obj := universe.Lookup(ident.Name); obj != nil {
@@ -2211,7 +2215,6 @@ func resolveUniverse(fiile *ast.File) *ast.Scope {
 		}
 	}
 	fmt.Printf("# Unresolved: %#v\n", unresolved)
-	return universe
 }
 
 func semanticAnalyze(f *ast.File) {
@@ -2537,6 +2540,9 @@ func main() {
 
 	var sourceFiles = []string{"./runtime.go", "./t/source.go"}
 	var sourceFile string
+
+	var universe = createUniverse()
+
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil
 		globalFuncs = nil
@@ -2544,10 +2550,10 @@ func main() {
 		stringLiterals = nil
 		fset := &token.FileSet{}
 		f := parseFile(fset, sourceFile)
-		var universe = resolveUniverse(f)
-		ap, _ := ast.NewPackage(fset, map[string]*ast.File{"": f}, nil, universe)
-		pkgName = ap.Name
-		fmt.Printf("# Package:   %s\n", ap.Name)
+		resolveUniverse(f, universe)
+		pkgName = f.Name.Name
+		//ast.NewPackage(fset, map[string]*ast.File{"": f}, nil, universe)
+		fmt.Printf("# Package:   %s\n", pkgName)
 		semanticAnalyze(f)
 		generateCode(pkgName)
 	}
