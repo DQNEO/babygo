@@ -39,8 +39,8 @@ self: 2gen.o
 	ld -o self 2gen.o
 
 test2: self
-	./self > 2gen_out.s
-	go run 2gen/2gen.go > /tmp/2gen_out.s
+	./self | sed -e '/^#/d' > 2gen_out.s
+	go run 2gen/2gen.go |  sed -e '/^#/d' > /tmp/2gen_out.s
 	diff 2gen_out.s /tmp/2gen_out.s && echo 'ok'
 
 test3: self runtime.s

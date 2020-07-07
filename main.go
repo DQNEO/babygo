@@ -1937,7 +1937,19 @@ func walkExpr(expr ast.Expr) {
 	case *ast.SelectorExpr:
 		walkExpr(e.X)
 	case *ast.CallExpr:
-		for _, arg := range e.Args {
+		for i, arg := range e.Args {
+			ident, ok := arg.(*ast.Ident)
+			if ok {
+				if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
+					basicLit := &ast.BasicLit{
+						ValuePos: 0,
+						Kind:     token.STRING,
+						Value:    "\"" + currentFuncDecl.Name.Name + "\"" ,
+					}
+					arg = basicLit
+					e.Args[i] = arg
+				}
+			}
 			walkExpr(arg)
 		}
 	case *ast.ParenExpr:
@@ -2144,6 +2156,8 @@ var gCap = &ast.Object{
 	Type: nil,
 }
 
+var currentFuncDecl *ast.FuncDecl
+
 func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 	universe := &ast.Scope{
 		Outer:   nil,
@@ -2226,6 +2240,7 @@ func semanticAnalyze(fset *token.FileSet, fiile *ast.File) string {
 
 		case *ast.FuncDecl:
 			funcDecl := decl.(*ast.FuncDecl)
+			currentFuncDecl = funcDecl
 			fmt.Printf("# funcdef %s\n", funcDecl.Name.Name)
 			localoffset = 0
 			var paramoffset localoffsetint = 16

@@ -4,9 +4,15 @@ import "syscall"
 import "os"
 
 // -- foundation --
+var __func__ string
+
 func panic(x string) {
 	fmtPrintf("panic: " + x+"\n\n")
 	os.Exit(1)
+}
+
+func panic2(caller string, x string) {
+	panic("[" + caller + "] " + x)
 }
 
 // --- libs ---
@@ -1474,14 +1480,15 @@ type Variable struct {
 	localOffset  int
 }
 
+
 func walkStmt(stmt *astStmt) {
-	fmtPrintf("# [walkStmt] begin dtype=%s\n", stmt.dtype)
+	fmtPrintf("# [%s] begin dtype=%s\n", __func__, stmt.dtype)
 	switch stmt.dtype {
 	case "*astDeclStmt":
-		fmtPrintf("# [walkStmt] *ast.DeclStmt\n")
+		fmtPrintf("# [%s] *ast.DeclStmt\n", __func__)
 		var declStmt = stmt.DeclStmt
 		if declStmt.Decl == nil {
-			panic("[walkStmt] ERROR\n")
+			panic2(__func__ , "ERROR\n")
 		}
 		var dcl = declStmt.Decl
 		if dcl.dtype != "*astGenDecl" {
@@ -2480,7 +2487,7 @@ func kind(t *Type) string {
 		case "bool":
 			return T_BOOL
 		default:
-			panic("[kind] unsupported type:" + ident.Name)
+			panic2(__func__, "unsupported type:" + ident.Name)
 		}
 	case "*astArrayType":
 		if e.arrayType.Len == nil {
@@ -2489,7 +2496,7 @@ func kind(t *Type) string {
 			return T_ARRAY
 		}
 	default:
-		panic("[kind] Unkown dtype:" + t.e.dtype)
+		panic2(__func__, "Unkown dtype:" + t.e.dtype)
 	}
 	panic("error")
 	return ""
@@ -2512,6 +2519,7 @@ func main() {
 }
 
 func initGlobals() {
+	__func__ = "__func__"
 	T_STRING  = "T_STRING"
 	T_SLICE  = "T_SLICE"
 	T_BOOL  = "T_BOOL"
