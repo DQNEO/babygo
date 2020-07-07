@@ -52,6 +52,10 @@ func testString() {
 
 func testChar() {
 	globalarray[0] = 'A'
+	globalarray[1] = 'B'
+	globalarray[2] = globalarray[0]
+	globalarray[3] = 100 / 10 // '\n'
+
 }
 
 func testMisc() {

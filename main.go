@@ -1974,6 +1974,7 @@ func walkExpr(expr ast.Expr) {
 		walkExpr(e.Y) // right
 	case *ast.IndexExpr:
 		walkExpr(e.Index)
+		walkExpr(e.X)
 	case *ast.SliceExpr:
 		if e.Low != nil {
 			walkExpr(e.Low)

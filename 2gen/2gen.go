@@ -1591,6 +1591,9 @@ func walkExpr(expr *astExpr) {
 	case "*astBinaryExpr":
 		walkExpr(expr.binaryExpr.X)
 		walkExpr(expr.binaryExpr.Y)
+	case "*astIndexExpr":
+		walkExpr(expr.indexExpr.Index)
+		walkExpr(expr.indexExpr.X)
 	default:
 		panic("[walkExpr] TBI:" + expr.dtype)
 	}
