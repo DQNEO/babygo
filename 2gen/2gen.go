@@ -511,14 +511,15 @@ type astValueSpec struct {
 }
 
 type astExpr struct {
-	dtype           string
-	ident           *astIdent
-	arrayType       *astArrayType
-	basicLit        *astBasicLit
-	callExpr        *astCallExpr
-	binaryExpr      *astBinaryExpr
-	unaryExpr       *astUnaryExpr
+	dtype        string
+	ident        *astIdent
+	arrayType    *astArrayType
+	basicLit     *astBasicLit
+	callExpr     *astCallExpr
+	binaryExpr   *astBinaryExpr
+	unaryExpr    *astUnaryExpr
 	selectorExpr *astSelectorExpr
+	indexExpr    *astIndexExpr
 }
 
 type astObject struct {
@@ -562,6 +563,11 @@ type astBinaryExpr struct {
 	X *astExpr
 	Y *astExpr
 	Op string
+}
+
+type astIndexExpr struct {
+	X *astExpr
+	Index *astExpr
 }
 
 type astScope struct {
@@ -718,14 +724,15 @@ func eFromArrayType(t *astArrayType) *astExpr {
 
 func parseArrayType() *astExpr {
 	parserExpect("[", "parseArrayType")
+	var ln *astExpr
 	if ptok.tok != "]" {
-		fmtPrintf("[parseArrayType] TBI:%s\n",ptok.tok)
-		os.Exit(1)
+		ln = parseRhs()
 	}
 	parserExpect("]", "parseArrayTypes")
 	var elt = parseType()
 	var arrayType = new(astArrayType)
 	arrayType.Elt = elt
+	arrayType.Len = ln
 	return eFromArrayType(arrayType)
 }
 
@@ -853,6 +860,9 @@ func declare(objDecl *ObjDecl, scope *astScope, kind string, ident *astIdent) {
 
 var parserUnresolved []*astIdent
 
+func parserResolveEx(ident *astIdent) {
+	parserResolve(ident, true)
+}
 func parserResolve(ident *astIdent, collectUnresolved bool) {
 	if ident.Name == "-" {
 		return
@@ -916,6 +926,7 @@ func parseOperand() *astExpr {
 		fmtPrintf("# [parseOperand] typ should not be nil\n")
 		os.Exit(1)
 	}
+
 	return typ
 }
 
@@ -970,6 +981,10 @@ func parsePrimaryExpr() *astExpr {
 		r.dtype = "*astCallExpr"
 		r.callExpr = parseCallExpr(x)
 		fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
+	case "[":
+		parserResolveEx(x.ident)
+		x = parseIndexOrSlice(x)
+		return x
 	default:
 		fmtPrintf("#   end parsePrimaryExpr()\n")
 		return x
@@ -977,6 +992,23 @@ func parsePrimaryExpr() *astExpr {
 	fmtPrintf("#   end parsePrimaryExpr()\n")
 	return r
 
+}
+
+func parseIndexOrSlice(x *astExpr) *astExpr {
+	parserExpect("[", "parseIndexOrSlice")
+	var index0 *astExpr
+	if ptok.tok != ":" {
+		index0 = parseRhs()
+	}
+
+	parserExpect("]", "parseIndexOrSlice")
+	var indexExpr = new(astIndexExpr)
+	indexExpr.X = x
+	indexExpr.Index = index0
+	var r = new(astExpr)
+	r.dtype = "*astIndexExpr"
+	r.indexExpr = indexExpr
+	return r
 }
 
 func parseUnaryExpr() *astExpr {
@@ -1054,6 +1086,11 @@ func parseExpr() *astExpr {
 	return e
 }
 
+func parseRhs() *astExpr {
+	var x = parseExpr()
+	return x
+}
+
 func nop() {
 }
 
@@ -1102,7 +1139,7 @@ func parseStmt() *astStmt {
 			fmtPrintf("# = end parseStmt()\n")
 			return s
 		default:
-			fmtPrintf("parseStmt:TBI 2:%s\n", ptok.tok)
+			fmtPrintf("parseStmt:Ident:TBI:%s\n", ptok.tok)
 			os.Exit(1)
 		}
 	case "return":
@@ -1409,6 +1446,23 @@ func getPushSizeOfType(t *Type) int {
 	return 0
 }
 
+func getElementTypeOfListType(t *Type) *Type {
+	switch kind(t) {
+	case T_SLICE, T_ARRAY:
+		var arrayType =  t.e.arrayType
+		if arrayType == nil {
+			panic("[getElementTypeOfListType] should not be nil")
+		}
+		return e2t(arrayType.Elt)
+	case T_STRING:
+		return tUint8
+	default:
+		panic("[getElementTypeOfListType] TBI kind=" +  kind(t))
+	}
+	var r *Type
+	return r
+}
+
 const sliceSize int = 24
 const stringSize int = 16
 const intSize int = 8
@@ -1577,6 +1631,8 @@ func getSizeOfType(t *Type) int {
 		return 16
 	case T_INT:
 		return 8
+	case T_UINT8:
+		return 1
 	default:
 		fmtPrintf("[getSizeOfType] TBI:%s\n", kind(t))
 		os.Exit(1)
@@ -1712,6 +1768,39 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 		fmtPrintf("  .byte 0\n")
 	case T_UINT16:
 		fmtPrintf("  .word 0\n")
+	case T_ARRAY:
+		if val != nil {
+			panic("[emitGlobalVariable] TBI")
+		}
+		if t.e.dtype != "*astArrayType" {
+			panic("[emitGlobalVariable] Unexpected type:" + t.e.dtype)
+		}
+		var arrayType = t.e.arrayType
+		if arrayType.Len == nil {
+			panic("[emitGlobalVariable] global slice is not supported")
+		}
+		if arrayType.Len.dtype != "*astBasicLit" {
+			panic("[emitGlobalVariable] shoulbe basic literal")
+		}
+		var basicLit = arrayType.Len.basicLit
+		var v = basicLit.Value[0]
+		var length = int(v - '0')
+		fmtPrintf("# [emitGlobalVariable] array length uint8=%d\n" , Itoa(length))
+		var zeroValue string
+		var kind string = kind(e2t(arrayType.Elt))
+		switch kind {
+		case T_UINT8:
+			zeroValue = "  .byte 0 # uint8 zero value\n"
+		default:
+			panic("[emitGlobalVariable] Unexpected kind:" + kind)
+		}
+
+		fmtPrintf("# -- debug 8 \n")
+		var i int
+		for i = 0; i< length ; i++ {
+			fmtPrintf(zeroValue)
+		}
+		fmtPrintf("# -- debug 9 \n")
 	default:
 		panic("[emitGlobalVariable] TBI:kind=" + typeKind)
 	}
@@ -1800,6 +1889,9 @@ func emitExpr(e *astExpr) {
 			fmtPrintf("unknown Kind=%s\n", ident.Obj.Kind)
 			os.Exit(1)
 		}
+	case "*astIndexExpr":
+		emitAddr(e)
+		emitLoad(getTypeOfExpr(e))
 	case "*astBasicLit":
 		fmtPrintf("# basicLit.Kind = %s \n", e.basicLit.Kind)
 		switch e.basicLit.Kind {
@@ -1968,6 +2060,34 @@ func emitExpr(e *astExpr) {
 	}
 }
 
+func emitListHeadAddr(list *astExpr) {
+	var t = getTypeOfExpr(list)
+	switch kind(t) {
+	case T_ARRAY:
+		emitAddr(list) // array head
+	case T_SLICE:
+		emitExpr(list)
+		emitPopSlice()
+		fmtPrintf("  pushq %%rax # slice.ptr\n")
+	case T_STRING:
+		emitExpr(list)
+		emitPopString()
+		fmtPrintf("  pushq %%rax # string.ptr\n")
+	default:
+		panic("[emitListHeadAddr] kind=" + kind(getTypeOfExpr(list)))
+	}
+}
+
+func emitListElementAddr(list *astExpr, elmType *Type) {
+	emitListHeadAddr(list)
+	emitPopAddress("list head")
+	fmtPrintf("  popq %%rcx # index id\n")
+	fmtPrintf("  movq $%s, %%rdx # elm size\n", Itoa(getSizeOfType(elmType)))
+	fmtPrintf("  imulq %%rdx, %%rcx\n")
+	fmtPrintf("  addq %%rcx, %%rax\n")
+	fmtPrintf("  pushq %%rax # addr of element\n")
+}
+
 
 func emitVariableAddr(variable *Variable) {
 	fmtPrintf("  # variable %s\n", variable.name)
@@ -1998,9 +2118,13 @@ func emitAddr(expr *astExpr) {
 		} else {
 			fmtPrintf("[emitAddr] Unexpected Kind %s \n" ,expr.ident.Obj.Kind)
 		}
+	case "*astIndexExpr":
+		emitExpr(expr.indexExpr.Index) // index number
+		var list = expr.indexExpr.X
+		var elmType = getTypeOfExpr(expr)
+		emitListElementAddr(list, elmType)
 	default:
-		fmtPrintf("[emitAddr] TBI %s \n" ,expr.dtype)
-		os.Exit(1)
+		panic("[emitAddr] TBI " + expr.dtype)
 	}
 }
 
@@ -2110,14 +2234,17 @@ func emitStore(t *Type) {
 		fmtPrintf("  popq %%rdi # rhs evaluated\n")
 		fmtPrintf("  popq %%rax # lhs addr\n")
 		fmtPrintf("  movq %%rdi, (%%rax) # assign\n")
+	case T_UINT8:
+		fmtPrintf("  popq %%rdi # rhs evaluated\n")
+		fmtPrintf("  popq %%rax # lhs addr\n")
+		fmtPrintf("  movb %%dil, (%%rax) # assign byte\n")
 	default:
-		fmtPrintf("[emitStore] TBI:" + kind(t))
-		os.Exit(1)
+		panic("[emitStore] TBI:" + kind(t))
 	}
 }
 
 func emitAssign(lhs *astExpr, rhs *astExpr) {
-	fmtPrintf("  # Assignment: emitAddr(lhs)\n")
+	fmtPrintf("  # Assignment: emitAddr(lhs:%s)\n", lhs.dtype)
 	emitAddr(lhs)
 	fmtPrintf("  # Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs)
@@ -2244,7 +2371,6 @@ var tString *Type
 var tBool *Type
 
 func getTypeOfExpr(expr *astExpr) *Type {
-
 	switch expr.dtype {
 	case "*astIdent":
 		switch expr.ident.Obj.Kind {
@@ -2263,7 +2389,6 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			default:
 				fmtPrintf("[getTypeOfExpr] ERROR 0\n")
 				os.Exit(1)
-
 			}
 		default:
 			fmtPrintf("[getTypeOfExpr] ERROR 1\n")
@@ -2280,12 +2405,43 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		default:
 			panic("[getTypeOfExpr] TBI:" + expr.basicLit.Kind)
 		}
+	case "*astIndexExpr":
+		var list = expr.indexExpr.X
+		return getElementTypeOfListType(getTypeOfExpr(list))
 	case "*astUnaryExpr":
 		switch expr.unaryExpr.Op {
 		case "-":
 			return getTypeOfExpr(expr.unaryExpr.X)
 		default:
 			panic("[getTypeOfExpr] TBI: Op=" + expr.unaryExpr.Op)
+		}
+	case "*astCallExpr":
+		var fun = expr.callExpr.Fun
+		switch fun.dtype {
+		case "*astIdent":
+			var fn = fun.ident
+			if fn.Obj == nil {
+				panic("[getTypeOfExpr][astCallExpr] nil Obj is not allowed")
+			}
+			switch fn.Obj.Kind {
+			case "Typ":
+				return e2t(fun)
+			case "Fun":
+				var decl = fn.Obj.Decl
+				switch decl.dtype {
+				case "*astFuncDecl":
+					var resultList = decl.funcDecl.Sig.results.List
+					if len(resultList) != 1 {
+						panic("[getTypeOfExpr][astCallExpr] len results.List is not 1")
+					}
+					return e2t(decl.funcDecl.Sig.results.List[0].Type)
+				default:
+					panic("[getTypeOfExpr][astCallExpr] decl.dtype=" + decl.dtype)
+				}
+				panic("[getTypeOfExpr][astCallExpr] Fun ident " + fn.Name)
+			}
+		default:
+			panic("[getTypeOfExpr][astCallExpr] dtype=" + expr.callExpr.Fun.dtype)
 		}
 	case "*astBinaryExpr":
 		switch expr.binaryExpr.Op {
@@ -2295,7 +2451,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			return getTypeOfExpr(expr.binaryExpr.X)
 		}
 	default:
-		fmtPrintf("[getTypeOfExpr] 2130 TBI %s\n", expr.dtype)
+		fmtPrintf("[getTypeOfExpr] dtype=%s\n", expr.dtype)
 		os.Exit(1)
 	}
 
@@ -2304,6 +2460,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	var r *Type
 	return r
 }
+
 func generateCode(pkgName string) {
 	fmtPrintf("")
 	fmtPrintf("runtime.heapInit:\n")

@@ -224,7 +224,6 @@ func emitListHeadAddr(list ast.Expr) {
 	default:
 		panic(kind(getTypeOfExpr(list)))
 	}
-
 }
 
 func emitAddr(expr ast.Expr) {
@@ -1048,11 +1047,11 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 func emitListElementAddr(list ast.Expr, elmType *Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
-	fmt.Printf("  popq %%rcx # index id\n")
-	fmt.Printf("  movq $%d, %%rdx # elm size %s\n", getSizeOfType(elmType), elmType)
-	fmt.Printf("  imulq %%rdx, %%rcx\n")
-	fmt.Printf("  addq %%rcx, %%rax\n")
-	fmt.Printf("  pushq %%rax # addr of element\n")
+	fmtPrintf("  popq %%rcx # index id\n")
+	fmtPrintf("  movq $%s, %%rdx # elm size\n", Itoa(getSizeOfType(elmType)))
+	fmtPrintf("  imulq %%rdx, %%rcx\n")
+	fmtPrintf("  addq %%rcx, %%rax\n")
+	fmtPrintf("  pushq %%rax # addr of element\n")
 }
 func emitCompEq(t *Type) {
 	switch kind(t) {
@@ -1098,9 +1097,9 @@ func emitStore(t *Type) {
 		fmt.Printf("  popq %%rax # lhs addr\n")
 		fmt.Printf("  movq %%rdi, (%%rax) # assign\n")
 	case T_UINT8:
-		fmt.Printf("  popq %%rdi # rhs evaluated\n")
-		fmt.Printf("  popq %%rax # lhs addr\n")
-		fmt.Printf("  movb %%dil, (%%rax) # assign byte\n")
+		fmtPrintf("  popq %%rdi # rhs evaluated\n")
+		fmtPrintf("  popq %%rax # lhs addr\n")
+		fmtPrintf("  movb %%dil, (%%rax) # assign byte\n")
 	case T_UINT16:
 		fmt.Printf("  popq %%rdi # rhs evaluated\n")
 		fmt.Printf("  popq %%rax # lhs addr\n")

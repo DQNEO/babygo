@@ -42,6 +42,7 @@ var globalint int
 var globalint2 int
 var globaluint8 uint8
 var globaluint16 uint16
+var globalarray [9]uint8
 var globaluintptr uintptr
 
 func testString() {
@@ -49,11 +50,16 @@ func testString() {
 	writeln(s)
 }
 
+func testChar() {
+	globalarray[0] = 'A'
+}
+
 func testMisc() {
 	var i13 int = 0
 	i13 = testArgAssign(i13)
 	var i5 int = testMinus()
 	globalint2 = sum(1, i13 * i5)
+
 	var locali3 int
 	var tmp int
 	tmp = int(uint8('3' - '1'))
@@ -67,6 +73,7 @@ func testMisc() {
 }
 
 func test() {
+	testChar()
 	testString()
 	testMisc()
 }
