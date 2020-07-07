@@ -3,6 +3,12 @@ package main
 import "syscall"
 import "os"
 
+// -- foundation --
+func panic(x string) {
+	fmtPrintf("panic: " + x+"\n\n")
+	os.Exit(1)
+}
+
 // --- libs ---
 func fmtSprintf(format string, a []string) string {
 	var buf []uint8
@@ -39,7 +45,6 @@ func fmtPrintf(format string, a ...string) {
 	var s = fmtSprintf(format, a)
 	syscall.Write(1, []uint8(s))
 }
-
 
 func Itoa(ival int) string {
 	var __itoa_buf []uint8 = make([]uint8, 100,100)
@@ -421,8 +426,7 @@ func scannerScan() *TokenContainer {
 		case 1:
 			tok = "EOF"
 		default:
-			fmtPrintf("unknown char:%s:%s\n", string([]uint8{ch}), Itoa(int(ch)))
-			os.Exit(1)
+			panic("unknown char:" + string([]uint8{ch}) + ":" + Itoa(int(ch)))
 			tok = "UNKNOWN"
 		}
 	}
@@ -656,8 +660,8 @@ func parserNext() {
 
 func parserExpect(tok string, who string) {
 	if ptok.tok != tok {
-		fmtPrintf("# [%s] %s expected, but got %s\n", who, tok, ptok.tok)
-		os.Exit(1)
+		var s = fmtSprintf("# [%s] %s expected, but got %s", []string{who, tok, ptok.tok})
+		panic(s)
 	}
 	fmtPrintf("# [%s] got expected tok %s\n", who, ptok.tok)
 	parserNext()
@@ -670,8 +674,8 @@ func parserExpectSemi(caller string) {
 		case ";":
 			parserNext()
 		default:
-			fmtPrintf("[%s] ; expected, but got %s(%s)\n", caller, ptok.tok, ptok.lit)
-			os.Exit(1)
+			var s = fmtSprintf("[%s] ; expected, but got %s(%s)\n", []string{caller, ptok.tok, ptok.lit})
+			panic(s)
 		}
 	}
 }
@@ -682,8 +686,7 @@ func parseIdent() *astIdent {
 		name = ptok.lit
 		parserNext()
 	} else {
-		fmtPrintf("IDENT expected, but got %s\n", ptok.tok)
-		os.Exit(1)
+		panic("IDENT expected, but got " +  ptok.tok)
 	}
 
 	var r = new(astIdent)
@@ -748,8 +751,7 @@ func tryIdentOrType() *astExpr {
 		typ = parseArrayType()
 		return typ
 	default:
-		fmtPrintf("[tryIdentOrType] TBI:%s\n", ptok.tok)
-		os.Exit(1)
+		panic("[tryIdentOrType] TBI:" +  ptok.tok)
 	}
 	return typ
 }
@@ -780,8 +782,7 @@ func parseParameterList(scope *astScope) []*astField {
 		} else if ptok.tok == ")" {
 			break
 		} else {
-			fmtPrintf("[parseParameterList] Syntax Error\n")
-			os.Exit(1)
+			panic("[parseParameterList] Syntax Error\n")
 		}
 	}
 
@@ -923,8 +924,7 @@ func parseOperand() *astExpr {
 
 	var typ = tryIdentOrType()
 	if typ == nil {
-		fmtPrintf("# [parseOperand] typ should not be nil\n")
-		os.Exit(1)
+		panic("# [parseOperand] typ should not be nil\n")
 	}
 
 	return typ
@@ -958,8 +958,7 @@ func parsePrimaryExpr() *astExpr {
 	case ".":
 		parserNext() // consume "."
 		if ptok.tok != "IDENT" {
-			fmtPrintf("tok should be IDENT")
-			os.Exit(1)
+			panic("tok should be IDENT")
 		}
 		// Assume CallExpr
 		var secondIdent = parseIdent()
@@ -1118,8 +1117,6 @@ func parseStmt() *astStmt {
 		switch stok {
 		case "=":
 			parserNext() // consume =
-			//fmtPrintf("# [parseStmt] ERROR:%s\n",stok)
-			//os.Exit(1)
 			var y = parseExpr() // rhs
 			var as = new(astAssignStmt)
 			as.Tok = "="
@@ -1139,15 +1136,13 @@ func parseStmt() *astStmt {
 			fmtPrintf("# = end parseStmt()\n")
 			return s
 		default:
-			fmtPrintf("parseStmt:Ident:TBI:%s\n", ptok.tok)
-			os.Exit(1)
+			panic("parseStmt:Ident:TBI:" + ptok.tok)
 		}
 	case "return":
 		var s = parseReturnStmt()
 		return s
 	default:
-		fmtPrintf("parseStmt:TBI 3:%s\n", ptok.tok)
-		os.Exit(1)
+		panic("parseStmt:TBI 3:" +  ptok.tok)
 	}
 	fmtPrintf("# = end parseStmt()\n")
 	return s
@@ -1194,8 +1189,7 @@ func parseStmtList() []*astStmt {
 	var list []*astStmt
 	for ptok.tok != "}" {
 		if ptok.tok == "EOF" {
-			fmtPrintf("#[parseStmtList] unexpected EOF\n")
-			os.Exit(1)
+			panic("#[parseStmtList] unexpected EOF\n")
 		}
 		var stmt = parseStmt()
 		list = append(list, stmt)
@@ -1243,8 +1237,7 @@ func parseDecl(keyword string) *astGenDecl {
 		r.Spec = spec
 		return r
 	default:
-		fmtPrintf("[parseDecl] TBI\n")
-		os.Exit(1)
+		panic("[parseDecl] TBI\n")
 	}
 	return r
 }
@@ -1344,8 +1337,7 @@ func parserParseFile() *astFile {
 			decl  = parserParseFuncDecl()
 			fmtPrintf("# func decl parsed:%s\n", decl.funcDecl.Name.Name)
 		default:
-			fmtPrintf("# parserParseFile:TBI:%s\n", ptok.tok)
-			os.Exit(1)
+			panic("# parserParseFile:TBI:%s\n" + ptok.tok)
 		}
 		decls = append(decls, decl)
 	}
@@ -1489,8 +1481,7 @@ func walkStmt(stmt *astStmt) {
 		fmtPrintf("# [walkStmt] *ast.DeclStmt\n")
 		var declStmt = stmt.DeclStmt
 		if declStmt.Decl == nil {
-			fmtPrintf("[walkStmt] ERROR\n")
-			os.Exit(1)
+			panic("[walkStmt] ERROR\n")
 		}
 		var dcl = declStmt.Decl
 		if dcl.dtype != "*astGenDecl" {
@@ -1519,11 +1510,6 @@ func walkStmt(stmt *astStmt) {
 	}
 }
 
-func panic(x string) {
-	fmtPrintf(x+"\n")
-	os.Exit(1)
-}
-
 var stringLiterals []*stringLiteralsContainer
 
 type stringLiteralsContainer struct {
@@ -1542,8 +1528,7 @@ func getStringLiteral(lit *astBasicLit) *sliteral {
 		}
 	}
 
-	fmtPrintf("[getStringLiteral] string literal not found: %s\n" , lit.Value)
-	os.Exit(1)
+	panic("[getStringLiteral] string literal not found:"  + lit.Value)
 	var r *sliteral
 	return r
 }
@@ -1634,8 +1619,7 @@ func getSizeOfType(t *Type) int {
 	case T_UINT8:
 		return 1
 	default:
-		fmtPrintf("[getSizeOfType] TBI:%s\n", kind(t))
-		os.Exit(1)
+		panic("[getSizeOfType] TBI:%s\n" + kind(t))
 	}
 	return 0
 }
@@ -1725,8 +1709,7 @@ func semanticAnalyze(file *astFile) string {
 			fnc.localarea = localoffset
 			globalFuncs = append(globalFuncs, fnc)
 		default:
-			fmtPrintf("[semanticAnalyze] TBI: %s\n", decl.dtype)
-			os.Exit(1)
+			panic("[semanticAnalyze] TBI: " + decl.dtype)
 		}
 	}
 
@@ -1877,8 +1860,7 @@ func emitExpr(e *astExpr) {
 	case "*astIdent":
 		var ident = e.ident
 		if ident.Obj == nil {
-			fmtPrintf("[emitExpr] ident %s is unresolved\n", ident.Name)
-			os.Exit(1)
+			panic("[emitExpr] ident unresolved:" + ident.Name)
 		}
 		switch ident.Obj.Kind {
 		case "Var":
@@ -1886,8 +1868,7 @@ func emitExpr(e *astExpr) {
 			var t = getTypeOfExpr(e)
 			emitLoad(t)
 		default:
-			fmtPrintf("unknown Kind=%s\n", ident.Obj.Kind)
-			os.Exit(1)
+			panic("[emitExpr][*astIdent] unknown Kind=" + ident.Obj.Kind)
 		}
 	case "*astIndexExpr":
 		emitAddr(e)
@@ -1902,8 +1883,7 @@ func emitExpr(e *astExpr) {
 			if sl.strlen == 0 {
 				// zero value
 				//emitZeroValue(tString)
-				fmtPrintf("[emitExpr] TBI: empty string literal\n")
-				os.Exit(1)
+				panic("[emitExpr] TBI: empty string literal\n")
 			} else {
 				fmtPrintf("  pushq $%d # str len\n", Itoa(sl.strlen))
 				fmtPrintf("  leaq %s, %%rax # str ptr\n", sl.label)
@@ -1928,8 +1908,7 @@ func emitExpr(e *astExpr) {
 			}
 			fmtPrintf("  pushq $%d # convert char literal to int\n", Itoa(int(char)))
 		default:
-			fmtPrintf("[emitExpr][*astBasicLit] TBI : %s\n", e.basicLit.Kind)
-			os.Exit(1)
+			panic("[emitExpr][*astBasicLit] TBI : " +  e.basicLit.Kind)
 		}
 	case "*astCallExpr":
 		fmtPrintf("# [*astCallExpr]\n")
@@ -1987,8 +1966,7 @@ func emitExpr(e *astExpr) {
 		case "*astSelectorExpr":
 			var selectorExpr = fun.selectorExpr
 			if selectorExpr.X.dtype != "*astIdent" {
-				fmtPrintf("[emitExpr] TBI selectorExpr.X.dtype=%s\n", selectorExpr.X.dtype)
-				os.Exit(1)
+				panic("[emitExpr] TBI selectorExpr.X.dtype=" + selectorExpr.X.dtype)
 			}
 			var symbol string = selectorExpr.X.ident.Name + "." + selectorExpr.Sel.Name
 			switch symbol {
@@ -2001,8 +1979,7 @@ func emitExpr(e *astExpr) {
 				panic("[emitExpr][*astSelectorExpr] Unsupported call to " + symbol)
 			}
 		default:
-			fmtPrintf("[emitExpr] TBI fun.dtype=%s\n", fun.dtype)
-			os.Exit(1)
+			panic("[emitExpr] TBI fun.dtype=" + fun.dtype)
 		}
 	case "*astUnaryExpr":
 		switch e.unaryExpr.Op {
@@ -2012,8 +1989,7 @@ func emitExpr(e *astExpr) {
 			fmtPrintf("  imulq $-1, %%rax\n")
 			fmtPrintf("  pushq %%rax\n")
 		default:
-			fmtPrintf("[emitExpr] `TBI:astUnaryExpr:%s\n", e.dtype)
-			os.Exit(1)
+			panic("[emitExpr] `TBI:astUnaryExpr:" + e.dtype)
 		}
 	case "*astBinaryExpr":
 		if kind(getTypeOfExpr(e.binaryExpr.X)) == T_STRING {
@@ -2051,12 +2027,10 @@ func emitExpr(e *astExpr) {
 			fmtPrintf("  divq %%rcx\n")
 			fmtPrintf("  pushq %%rax\n")
 		default:
-			fmtPrintf("# TBI: binary operation for '%s'", e.binaryExpr.Op)
-			os.Exit(1)
+			panic("# TBI: binary operation for '%s'" + e.binaryExpr.Op)
 		}
 	default:
-		fmtPrintf("[emitExpr] `TBI:%s\n", e.dtype)
-		os.Exit(1)
+		panic("[emitExpr] `TBI:" + e.dtype)
 	}
 }
 
@@ -2111,8 +2085,7 @@ func emitAddr(expr *astExpr) {
 		if expr.ident.Obj.Kind == "Var" {
 			fmtPrintf("  # is Var\n")
 			if expr.ident.Obj.Variable == nil {
-				fmtPrintf("ERROR: Variable is nil for name %s\n", expr.ident.Obj.Name)
-				os.Exit(1)
+				panic("ERROR: Variable is nil for name : " + expr.ident.Obj.Name)
 			}
 			emitVariableAddr(expr.ident.Obj.Variable)
 		} else {
@@ -2183,8 +2156,7 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 
 func emitLoad(t *Type) {
 	if (t == nil) {
-		fmtPrintf("# [emitLoad] nil type error\n")
-		os.Exit(1)
+		panic("# [emitLoad] nil type error\n")
 	}
 	emitPopAddress(kind(t))
 	switch kind(t) {
@@ -2211,8 +2183,7 @@ func emitLoad(t *Type) {
 		fmtPrintf("  pushq %%rax\n")
 
 	default:
-		fmtPrintf("[emitLoad] TBI:kind=%s\n", kind(t))
-		os.Exit(1)
+		panic("[emitLoad] TBI:kind=" + kind(t))
 	}
 }
 
@@ -2302,8 +2273,7 @@ func emitStmt(stmt *astStmt) {
 			var rhs = stmt.assignStmt.Rhs
 			emitAssign(lhs, rhs)
 		default:
-			fmtPrintf("TBI: assignment of " + stmt.assignStmt.Tok)
-			os.Exit(1)
+			panic("TBI: assignment of " + stmt.assignStmt.Tok)
 		}
 	case "*astReturnStmt":
 		if len(stmt.returnStmt.Results) == 0 {
@@ -2322,8 +2292,7 @@ func emitStmt(stmt *astStmt) {
 			panic("[emitStmt][*astReturnStmt] TBI\n")
 		}
 	default:
-		fmtPrintf("[emitStmt] TBI:%s\n", stmt.dtype)
-		os.Exit(1)
+		panic("[emitStmt] TBI:" + stmt.dtype)
 	}
 }
 
@@ -2387,12 +2356,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				t.e = decl.Type
 				return t
 			default:
-				fmtPrintf("[getTypeOfExpr] ERROR 0\n")
-				os.Exit(1)
+				panic("[getTypeOfExpr] ERROR 0\n")
 			}
 		default:
-			fmtPrintf("[getTypeOfExpr] ERROR 1\n")
-			os.Exit(1)
+			panic("[getTypeOfExpr] ERROR 1\n")
 		}
 	case "*astBasicLit":
 		switch expr.basicLit.Kind {
@@ -2451,12 +2418,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			return getTypeOfExpr(expr.binaryExpr.X)
 		}
 	default:
-		fmtPrintf("[getTypeOfExpr] dtype=%s\n", expr.dtype)
-		os.Exit(1)
+		panic("[getTypeOfExpr] dtype=" +  expr.dtype)
 	}
 
-	fmtPrintf("[getTypeOfExpr] nil type is not allowed\n")
-	os.Exit(1)
+	panic("[getTypeOfExpr] nil type is not allowed\n")
 	var r *Type
 	return r
 }
@@ -2495,8 +2460,7 @@ type astFile struct {
 
 func kind(t *Type) string {
 	if t == nil {
-		fmtPrintf("nil type is not expected\n")
-		os.Exit(1)
+		panic("nil type is not expected\n")
 	}
 	var e = t.e
 	switch t.e.dtype {
@@ -2516,8 +2480,7 @@ func kind(t *Type) string {
 		case "bool":
 			return T_BOOL
 		default:
-			fmtPrintf("[kind] unsupported type %s\n", ident.Name)
-			os.Exit(1)
+			panic("[kind] unsupported type:" + ident.Name)
 		}
 	case "*astArrayType":
 		if e.arrayType.Len == nil {
@@ -2528,8 +2491,7 @@ func kind(t *Type) string {
 	default:
 		panic("[kind] Unkown dtype:" + t.e.dtype)
 	}
-	fmtPrintf("error")
-	os.Exit(1)
+	panic("error")
 	return ""
 }
 
