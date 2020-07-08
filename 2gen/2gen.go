@@ -538,6 +538,7 @@ type astExpr struct {
 	unaryExpr    *astUnaryExpr
 	selectorExpr *astSelectorExpr
 	indexExpr    *astIndexExpr
+	sliceExpr    *astSliceExpr
 }
 
 type astObject struct {
@@ -581,6 +582,14 @@ type astBinaryExpr struct {
 	X *astExpr
 	Y *astExpr
 	Op string
+}
+
+type astSliceExpr struct {
+	X *astExpr
+	Low *astExpr
+	High *astExpr
+	Max *astExpr
+	Slice3 bool
 }
 
 type astIndexExpr struct {
@@ -1023,15 +1032,39 @@ func parsePrimaryExpr() *astExpr {
 
 func parseIndexOrSlice(x *astExpr) *astExpr {
 	parserExpect("[", "parseIndexOrSlice")
-	var index0 *astExpr
+	var index []*astExpr = make([]*astExpr,3,3)
 	if ptok.tok != ":" {
-		index0 = parseRhs()
+		index[0] = parseRhs()
+	}
+	var ncolons int
+	for ptok.tok == ":" && ncolons < 2 {
+		ncolons++
+		parserNext() // consume ":"
+		if ptok.tok != ":" && ptok.tok != "]" {
+			index[ncolons] = parseRhs()
+		}
+	}
+	parserExpect("]", "parseIndexOrSlice")
+
+	if ncolons > 0 {
+		// slice expression
+		if ncolons == 2 {
+			panic2(__func__, "TBI: ncolons=2")
+		}
+		var sliceExpr = new(astSliceExpr)
+		sliceExpr.Slice3 = false
+		sliceExpr.X = x
+		sliceExpr.Low = index[0]
+		sliceExpr.High = index[1]
+		var r = new(astExpr)
+		r.dtype = "*astSliceExpr"
+		r.sliceExpr = sliceExpr
+		return r
 	}
 
-	parserExpect("]", "parseIndexOrSlice")
 	var indexExpr = new(astIndexExpr)
 	indexExpr.X = x
-	indexExpr.Index = index0
+	indexExpr.Index = index[0]
 	var r = new(astExpr)
 	r.dtype = "*astIndexExpr"
 	r.indexExpr = indexExpr
@@ -1616,6 +1649,17 @@ func walkExpr(expr *astExpr) {
 	case "*astIndexExpr":
 		walkExpr(expr.indexExpr.Index)
 		walkExpr(expr.indexExpr.X)
+	case "*astSliceExpr":
+		if expr.sliceExpr.Low != nil {
+			walkExpr(expr.sliceExpr.Low)
+		}
+		if expr.sliceExpr.High != nil {
+			walkExpr(expr.sliceExpr.High)
+		}
+		if expr.sliceExpr.Max != nil {
+			walkExpr(expr.sliceExpr.Max)
+		}
+		walkExpr(expr.sliceExpr.X)
 	default:
 		panic("[walkExpr] TBI:" + expr.dtype)
 	}
@@ -2013,6 +2057,29 @@ func emitExpr(e *astExpr) {
 		default:
 			panic("[emitExpr] TBI fun.dtype=" + fun.dtype)
 		}
+	case "*astSliceExpr":
+		var list = e.sliceExpr.X
+		var listType = getTypeOfExpr(list)
+		emitExpr(e.sliceExpr.High)
+		emitExpr(e.sliceExpr.Low)
+		fmtPrintf("  popq %%rcx # low\n")
+		fmtPrintf("  popq %%rax # high\n")
+		fmtPrintf("  subq %%rcx, %%rax # high - low\n")
+		switch kind(listType) {
+		case T_SLICE, T_ARRAY:
+			fmtPrintf("  pushq %%rax # cap\n")
+			fmtPrintf("  pushq %%rax # len\n")
+		case T_STRING:
+			fmtPrintf("  pushq %%rax # len\n")
+			// no cap
+		default:
+			panic2(__func__, "Unknown kind=" + kind(listType))
+		}
+
+		emitExpr(e.sliceExpr.Low)
+		var elmType = getElementTypeOfListType(listType)
+		emitListElementAddr(list, elmType)
+
 	case "*astUnaryExpr":
 		switch e.unaryExpr.Op {
 		case "-":
@@ -2161,11 +2228,19 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 	switch typeExpr.dtype {
 	case "*astIdent":
 		switch typeExpr.ident.Obj {
+		case gString: // string(e)
+			switch kind(getTypeOfExpr(arg0)) {
+			case T_SLICE: // string(slice)
+				emitExpr(arg0) // slice
+				emitPopSlice()
+				fmtPrintf("  pushq %%rcx # str len\n")
+				fmtPrintf("  pushq %%rax # str ptr\n")
+			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			fmtPrintf("# [emitConversion] to int \n")
 			emitExpr(arg0)
 		default:
-			panic("[emitConversion] TBI : " + typeExpr.ident.Obj.Name)
+			panic("[emitConversion][*astIdent] TBI : " + typeExpr.ident.Obj.Name)
 		}
 	case "*astArrayType": // Conversion to slice
 		var arrayType = typeExpr.arrayType

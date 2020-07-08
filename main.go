@@ -295,8 +295,8 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 			case T_SLICE: // string(slice)
 				emitExpr(arg0, e2t(ident)) // slice
 				emitPopSlice()
-				fmt.Printf("  pushq %%rcx # str len\n")
-				fmt.Printf("  pushq %%rax # str ptr\n")
+				fmtPrintf("  pushq %%rcx # str len\n")
+				fmtPrintf("  pushq %%rax # str ptr\n")
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			emitExpr(arg0, e2t(ident))
@@ -1021,16 +1021,15 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		listType := getTypeOfExpr(list)
 		emitExpr(e.High, tInt) // intval
 		emitExpr(e.Low, tInt)  // intval
-		//emitExpr(e.Max) // @TODO
-		fmt.Printf("  popq %%rcx # low\n")
-		fmt.Printf("  popq %%rax # high\n")
-		fmt.Printf("  subq %%rcx, %%rax # high - low\n")
+		fmtPrintf("  popq %%rcx # low\n")
+		fmtPrintf("  popq %%rax # high\n")
+		fmtPrintf("  subq %%rcx, %%rax # high - low\n")
 		switch kind(listType) {
 		case T_SLICE, T_ARRAY:
-			fmt.Printf("  pushq %%rax # cap\n")
-			fmt.Printf("  pushq %%rax # len\n")
+			fmtPrintf("  pushq %%rax # cap\n")
+			fmtPrintf("  pushq %%rax # len\n")
 		case T_STRING:
-			fmt.Printf("  pushq %%rax # len\n")
+			fmtPrintf("  pushq %%rax # len\n")
 			// no cap
 		default:
 			throw(list)
