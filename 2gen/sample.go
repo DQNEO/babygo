@@ -54,6 +54,14 @@ func nop() {
 
 }
 
+func testIf() {
+	var tr bool = true
+	//if tr {
+	//	writeln("ok true")
+	//}
+}
+
+
 var globalslice []uint8
 
 func testChar() {
@@ -87,6 +95,7 @@ func testMisc() {
 }
 
 func test() {
+	testIf()
 	testChar()
 	testString()
 	testMisc()

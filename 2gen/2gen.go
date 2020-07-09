@@ -1563,8 +1563,13 @@ func walkStmt(stmt *astStmt) {
 		walkExpr(rhs)
 	case "*astExprStmt":
 		walkExpr(stmt.exprStmt.X)
+	case "*astReturnStmt":
+		var rt *astExpr
+		for _, rt = range stmt.returnStmt.Results {
+			walkExpr(rt)
+		}
 	default:
-
+		panic2(__func__, "TBI: stmt.dtype=" + stmt.dtype)
 	}
 }
 
@@ -1681,17 +1686,18 @@ func newLocalVariable(name string, localoffset int) *Variable {
 var pkgName string
 
 func getSizeOfType(t *Type) int {
+	var knd = kind(t)
 	switch kind(t) {
 	case T_SLICE:
 		return sliceSize
 	case T_STRING:
 		return 16
-	case T_INT:
+	case T_INT, T_BOOL:
 		return 8
 	case T_UINT8:
 		return 1
 	default:
-		panic("[getSizeOfType] TBI:%s\n" + kind(t))
+		panic("[getSizeOfType] TBI:" + knd)
 	}
 	return 0
 }
@@ -1705,6 +1711,8 @@ func e2t(typeExpr *astExpr) *Type {
 	return r
 }
 
+var gTrue *astObject
+var gFalse *astObject
 var gString *astObject
 var gInt *astObject
 var gUint8 *astObject
@@ -1719,6 +1727,9 @@ func semanticAnalyze(file *astFile) string {
 	scopeInsert(universe, gInt)
 	scopeInsert(universe, gUint8)
 	scopeInsert(universe, gString)
+	scopeInsert(universe, gBool)
+	scopeInsert(universe, gTrue)
+	scopeInsert(universe, gFalse)
 
 	// @FIXME package names should be be in universe
 	var pkgOs = new(astObject)
@@ -1904,6 +1915,14 @@ type Arg struct {
 	offset int
 }
 
+func emitTrue() {
+	fmtPrintf("  pushq $1 # true\n")
+}
+
+func emitFalse() {
+	fmtPrintf("  pushq $0 # true\n")
+}
+
 func emitCallNonDecl(symbol string, eArgs []*astExpr) {
 	var args []*Arg
 	var eArg *astExpr
@@ -1937,6 +1956,14 @@ func emitExpr(e *astExpr) {
 		var ident = e.ident
 		if ident.Obj == nil {
 			panic("[emitExpr] ident unresolved:" + ident.Name)
+		}
+		switch e.ident.Obj {
+		case gTrue:
+			emitTrue()
+			return
+		case gFalse:
+			emitFalse()
+			return
 		}
 		switch ident.Obj.Kind {
 		case "Var":
@@ -2308,7 +2335,7 @@ func emitStore(t *Type) {
 		fmtPrintf("  popq %%rsi # lhs ptr addr\n")
 		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
 		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
-	case T_INT:
+	case T_INT, T_BOOL:
 		fmtPrintf("  popq %%rdi # rhs evaluated\n")
 		fmtPrintf("  popq %%rax # lhs addr\n")
 		fmtPrintf("  movq %%rdi, (%%rax) # assign\n")
@@ -2644,6 +2671,14 @@ func initGlobals() {
 	T_ARRAY  = "T_ARRAY"
 	T_STRUCT  = "T_STRUCT"
 	T_POINTER  = "T_POINTER"
+
+	gTrue = new(astObject)
+	gTrue.Kind = "Con"
+	gTrue.Name = "true"
+
+	gFalse = new(astObject)
+	gFalse.Kind = "Con"
+	gFalse.Name = "false"
 
 	gString = new(astObject)
 	gString.Kind = "Typ"
