@@ -1567,6 +1567,8 @@ func walkStmt(stmt *astStmt) {
 	case "*astAssignStmt":
 		var rhs = stmt.assignStmt.Rhs
 		walkExpr(rhs)
+	case "*astExprStmt":
+		walkExpr(stmt.exprStmt.X)
 	default:
 
 	}
