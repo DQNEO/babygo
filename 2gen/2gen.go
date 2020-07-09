@@ -1827,6 +1827,10 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 		fmtPrintf("  .byte 0\n")
 	case T_UINT16:
 		fmtPrintf("  .word 0\n")
+	case T_SLICE:
+		fmtPrintf("  .quad 0 # ptr\n")
+		fmtPrintf("  .quad 0 # len\n")
+		fmtPrintf("  .quad 0 # cap\n")
 	case T_ARRAY:
 		if val != nil {
 			panic("[emitGlobalVariable] TBI")
@@ -2517,6 +2521,20 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		default:
 			panic("[getTypeOfExpr][astCallExpr] dtype=" + expr.callExpr.Fun.dtype)
 		}
+	case "*astSliceExpr":
+		var underlyingCollectionType = getTypeOfExpr(expr.sliceExpr.X)
+		var elementTyp *astExpr
+		switch underlyingCollectionType.e.dtype {
+		case "*astArrayType":
+			elementTyp = underlyingCollectionType.e.arrayType.Elt
+		}
+		var t = new(astArrayType)
+		t.Len = nil
+		t.Elt = elementTyp
+		var e = new(astExpr)
+		e.dtype = "*astArrayType"
+		e.arrayType = t
+		return e2t(e)
 	case "*astBinaryExpr":
 		switch expr.binaryExpr.Op {
 		case "==", "!=", "<", ">", "<=", ">=":

@@ -54,6 +54,8 @@ func nop() {
 
 }
 
+var globalslice []uint8
+
 func testChar() {
 	globalarray[0] = 'A'
 	globalarray[1] = 'B'
@@ -63,6 +65,8 @@ func testChar() {
 	nop()
 	var chars []uint8 = globalarray[0:4]
 	write(string(chars))
+	globalslice = chars
+	write(string(globalarray[0:4]))
 }
 
 func testMisc() {

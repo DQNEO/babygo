@@ -1510,9 +1510,9 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 			throw(val)
 		}
 	case T_SLICE:
-		fmt.Printf("  .quad 0 # ptr\n")
-		fmt.Printf("  .quad 0 # len\n")
-		fmt.Printf("  .quad 0 # cap\n")
+		fmtPrintf("  .quad 0 # ptr\n")
+		fmtPrintf("  .quad 0 # len\n")
+		fmtPrintf("  .quad 0 # cap\n")
 	case T_ARRAY:
 		// emit global zero values
 		if val != nil {
