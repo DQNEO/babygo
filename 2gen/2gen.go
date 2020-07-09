@@ -778,7 +778,6 @@ func parseArrayType() *astExpr {
 
 func tryIdentOrType() *astExpr {
 	var typ = new(astExpr)
-	fmtPrintf("# debug 1-1\n")
 	switch ptok.tok {
 	case "IDENT":
 		var ident = parseIdent()
@@ -800,14 +799,10 @@ func parseParameterList(scope *astScope) []*astField {
 	for ptok.tok != ")" {
 		var field = new(astField)
 		var ident = parseIdent()
-//		fmtPrintf("debug 1\n")
 		var typ = parseVarType()
-//		fmtPrintf("debug 2\n")
 		field.Name = ident
 		field.Type = typ
-//		fmtPrintf("debug 3\n")
 		fmtPrintf("# [parser] parseParameterList: Field %s %s\n", field.Name.Name, field.Type.dtype)
-//		fmtPrintf("debug 4\n")
 		params = append(params, field)
 		if parserTopScope == nil {
 			panic("parserTopScope should not be nil")
@@ -1534,7 +1529,6 @@ type Variable struct {
 	globalSymbol string
 	localOffset  int
 }
-
 
 func walkStmt(stmt *astStmt) {
 	fmtPrintf("# [%s] begin dtype=%s\n", __func__, stmt.dtype)
