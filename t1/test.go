@@ -1025,7 +1025,7 @@ func testChar() {
 	globalarray[1] = 'B'
 	globalarray[2] = globalarray[0]
 	globalarray[3] = 100 / 10 // '\n'
-
+	globalarray[1] = 'B'
 	var chars []uint8 = globalarray[0:4]
 	write(string(chars))
 	globalslice = chars
