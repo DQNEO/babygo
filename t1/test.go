@@ -950,7 +950,6 @@ func testCmpInt() {
 func testIf() {
 	var tr bool = true
 	var fls bool = false
-
 	if tr {
 		writeln("ok true")
 	}

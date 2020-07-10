@@ -491,6 +491,7 @@ type astStmt struct {
 	blockStmt  *astBlockStmt
 	assignStmt *astAssignStmt
 	returnStmt *astReturnStmt
+	ifStmt     *astIfStmt
 }
 
 type astDeclStmt struct {
@@ -665,6 +666,10 @@ var ptok *TokenContainer
 
 var parserTopScope *astScope
 var parserPkgScope *astScope
+
+func openScope() {
+	parserTopScope = astNewScope(parserTopScope)
+}
 
 func closeScope() {
 	parserTopScope = parserTopScope.Outer
@@ -1152,8 +1157,71 @@ func nop() {
 func nop1() {
 }
 
+type astIfStmt struct {
+	Init *astStmt
+	Cond *astExpr
+	Body *astBlockStmt
+	Else *astStmt
+}
+
+func parserIfStmt() *astStmt {
+	parserExpect("if", __func__)
+	var condStmt *astStmt = parseSimpleStmt()
+
+	if condStmt.dtype != "*astExprStmt" {
+		panic2(__func__, "unexpected dtype=" + condStmt.dtype)
+	}
+	var cond = condStmt.exprStmt.X
+	var body = parseBlockStmt()
+	parserExpectSemi(__func__)
+
+	var ifStmt = new(astIfStmt)
+	ifStmt.Cond = cond
+	ifStmt.Body = body
+	var r = new(astStmt)
+	r.dtype = "*astIfStmt"
+	r.ifStmt = ifStmt
+	return r
+}
+
+func parseSimpleStmt() *astStmt {
+	fmtPrintf("# begin %s\n", __func__)
+	var s = new(astStmt)
+	var x = parseExpr()
+	var stok = ptok.tok
+	switch stok {
+	case "=":
+		parserNext() // consume =
+		var y = parseExpr() // rhs
+		var as = new(astAssignStmt)
+		as.Tok = "="
+		as.Lhs = x
+		as.Rhs = y
+		s.dtype = "*astAssignStmt"
+		s.assignStmt = as
+		parserExpectSemi(__func__ +  "case IDENT")
+		fmtPrintf("# end %s\n", __func__)
+		return s
+	case ";":
+		s.dtype = "*astExprStmt"
+		var exprStmt = new(astExprStmt)
+		exprStmt.X = x
+		s.exprStmt = exprStmt
+		parserExpectSemi("parseStmt:,")
+		fmtPrintf("# end %s\n", __func__)
+		return s
+	}
+
+	var exprStmt = new(astExprStmt)
+	exprStmt.X = x
+	var r = new(astStmt)
+	r.dtype = "*astExprStmt"
+	r.exprStmt = exprStmt
+	return r
+}
+
 func parseStmt() *astStmt {
-	fmtPrintf("# = begin parseStmt()\n")
+	fmtPrintf("# = begin %s\n", __func__)
 	var s = new(astStmt)
 	switch ptok.tok {
 	case "var":
@@ -1168,34 +1236,12 @@ func parseStmt() *astStmt {
 		return s
 	case "IDENT":
 		fmtPrintf("# [parseStmt] is IDENT:%s\n",ptok.lit)
-		var x = parseExpr()
-		var stok = ptok.tok
-		switch stok {
-		case "=":
-			parserNext() // consume =
-			var y = parseExpr() // rhs
-			var as = new(astAssignStmt)
-			as.Tok = "="
-			as.Lhs = x
-			as.Rhs = y
-			s.dtype = "*astAssignStmt"
-			s.assignStmt = as
-			parserExpectSemi(__func__ +  "case IDENT")
-			fmtPrintf("# = end parseStmt()\n")
-			return s
-		case ";":
-			s.dtype = "*astExprStmt"
-			var exprStmt = new(astExprStmt)
-			exprStmt.X = x
-			s.exprStmt = exprStmt
-			parserExpectSemi("parseStmt:,")
-			fmtPrintf("# = end parseStmt()\n")
-			return s
-		default:
-			panic("parseStmt:Ident:TBI:" + ptok.tok)
-		}
+		return parseSimpleStmt()
 	case "return":
 		var s = parseReturnStmt()
+		return s
+	case "if":
+		var s = parserIfStmt()
 		return s
 	default:
 		panic("parseStmt:TBI 3:" +  ptok.tok)
@@ -1256,11 +1302,23 @@ func parseStmtList() []*astStmt {
 func parseBody(scope *astScope) *astBlockStmt {
 	parserExpect("{", "parseBody")
 	parserTopScope = scope
-	var list  []*astStmt
 	fmtPrintf("# begin parseStmtList()\n")
-	list = parseStmtList()
+	var list = parseStmtList()
 	fmtPrintf("# end parseStmtList()\n")
 
+	closeScope()
+	parserExpect("}", "parseBody")
+	var r = new(astBlockStmt)
+	r.List = list
+	return r
+}
+
+func parseBlockStmt() *astBlockStmt {
+	parserExpect("{", "parseBody")
+	openScope()
+	fmtPrintf("# begin parseStmtList()\n")
+	var list = parseStmtList()
+	fmtPrintf("# end parseStmtList()\n")
 	closeScope()
 	parserExpect("}", "parseBody")
 	var r = new(astBlockStmt)
@@ -1567,6 +1625,18 @@ func walkStmt(stmt *astStmt) {
 		var rt *astExpr
 		for _, rt = range stmt.returnStmt.Results {
 			walkExpr(rt)
+		}
+	case "*astIfStmt":
+		if stmt.ifStmt.Init != nil {
+			walkStmt(stmt.ifStmt.Init)
+		}
+		walkExpr(stmt.ifStmt.Cond)
+		var s *astStmt
+		for _, s = range stmt.ifStmt.Body.List {
+			walkStmt(s)
+		}
+		if stmt.ifStmt.Else != nil {
+			walkStmt(stmt.ifStmt.Else)
 		}
 	default:
 		panic2(__func__, "TBI: stmt.dtype=" + stmt.dtype)
@@ -2356,6 +2426,7 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 	emitStore(getTypeOfExpr(lhs))
 }
 
+var labelid int
 
 func emitStmt(stmt *astStmt) {
 	fmtPrintf("# [emitStmt] dtype=%s\n", stmt.dtype)
@@ -2425,6 +2496,32 @@ func emitStmt(stmt *astStmt) {
 		} else {
 			panic("[emitStmt][*astReturnStmt] TBI\n")
 		}
+	case "*astIfStmt":
+		fmtPrintf("  # if\n")
+
+		labelid++
+		var labelEndif = ".L.endif." +  Itoa(labelid)
+		var labelElse = ".L.else." + Itoa(labelid)
+
+		emitExpr(stmt.ifStmt.Cond)
+		emitPopBool("if condition")
+		fmtPrintf("  cmpq $1, %%rax\n")
+		var bodyStmt = new(astStmt)
+		bodyStmt.dtype = "*astBlockStmt"
+		bodyStmt.blockStmt = stmt.ifStmt.Body
+		if stmt.ifStmt.Else != nil {
+			fmtPrintf("  jne %s # jmp if false\n", labelElse)
+			emitStmt(bodyStmt) // then
+			fmtPrintf("  jmp %s\n", labelEndif)
+			fmtPrintf("  %s:\n", labelElse)
+			emitStmt(stmt.ifStmt.Else) // then
+		} else {
+			fmtPrintf("  jne %s # jmp if false\n", labelEndif)
+			emitStmt(bodyStmt) // then
+		}
+		fmtPrintf("  %s:\n", labelEndif)
+		fmtPrintf("  # end if\n")
+
 	default:
 		panic("[emitStmt] TBI:" + stmt.dtype)
 	}

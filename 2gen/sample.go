@@ -56,9 +56,14 @@ func nop() {
 
 func testIf() {
 	var tr bool = true
-	//if tr {
-	//	writeln("ok true")
-	//}
+	var fls bool = false
+	if tr {
+		writeln("ok true")
+	}
+	if fls {
+		writeln("ERROR")
+	}
+	writeln("ok false")
 }
 
 
