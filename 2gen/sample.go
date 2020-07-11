@@ -66,6 +66,19 @@ func testIf() {
 	writeln("ok false")
 }
 
+func testElse() {
+	if true {
+		writeln("ok true")
+	} else {
+		writeln("ERROR")
+	}
+
+	if false {
+		writeln("ERROR")
+	} else {
+		writeln("ok false")
+	}
+}
 
 var globalslice []uint8
 
@@ -101,6 +114,7 @@ func testMisc() {
 
 func test() {
 	testIf()
+	testElse()
 	testChar()
 	testString()
 	testMisc()

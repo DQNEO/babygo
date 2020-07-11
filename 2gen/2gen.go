@@ -494,6 +494,7 @@ type astStmt struct {
 	ifStmt     *astIfStmt
 }
 
+
 type astDeclStmt struct {
 	Decl *astDecl
 }
@@ -1173,11 +1174,22 @@ func parserIfStmt() *astStmt {
 	}
 	var cond = condStmt.exprStmt.X
 	var body = parseBlockStmt()
-	parserExpectSemi(__func__)
-
+	var else_ *astStmt
+	if ptok.tok == "else" {
+		parserNext()
+		var elseblock = parseBlockStmt()
+		parserExpectSemi(__func__)
+		else_ = new(astStmt)
+		else_.dtype = "*astBlockStmt"
+		else_.blockStmt = elseblock
+	} else {
+		parserExpectSemi(__func__)
+	}
 	var ifStmt = new(astIfStmt)
 	ifStmt.Cond = cond
 	ifStmt.Body = body
+	ifStmt.Else = else_
+
 	var r = new(astStmt)
 	r.dtype = "*astIfStmt"
 	r.ifStmt = ifStmt
@@ -1637,6 +1649,11 @@ func walkStmt(stmt *astStmt) {
 		}
 		if stmt.ifStmt.Else != nil {
 			walkStmt(stmt.ifStmt.Else)
+		}
+	case "*astBlockStmt":
+		var s *astStmt
+		for _, s = range stmt.blockStmt.List {
+			walkStmt(s)
 		}
 	default:
 		panic2(__func__, "TBI: stmt.dtype=" + stmt.dtype)
