@@ -26,5 +26,8 @@ jobs:
       - name: Test
         run: GOPATH=/home/runner/work/babygo/babygo  make -C ./src/github.com/DQNEO/babygo test
 
-      - name: Test selfhost
+      - name: Test 2gen
         run: GOPATH=/home/runner/work/babygo/babygo  make -C ./src/github.com/DQNEO/babygo test2
+
+      - name: Test output of 2gen
+        run: GOPATH=/home/runner/work/babygo/babygo  make -C ./src/github.com/DQNEO/babygo test3

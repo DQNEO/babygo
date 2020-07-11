@@ -45,10 +45,12 @@ test2: self
 
 test3: self runtime.s
 	./self | as -o a.o runtime.s - && ld a.o
-	./a.out
+	./a.out > /tmp/a.txt
+	go run 2gen/sample.go > /tmp/b.txt
+	diff /tmp/a.txt /tmp/b.txt && echo 'ok'
 
 test-all:
-	make test test2
+	make test test2 test3
 
 fmt: *.go t1/*.go 2gen/*.go
 	gofmt -w *.go t1/*.go 2gen/*.go
