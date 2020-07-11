@@ -1100,9 +1100,9 @@ func emitStore(t *Type) {
 		fmtPrintf("  popq %%rax # lhs addr\n")
 		fmtPrintf("  movb %%dil, (%%rax) # assign byte\n")
 	case T_UINT16:
-		fmt.Printf("  popq %%rdi # rhs evaluated\n")
-		fmt.Printf("  popq %%rax # lhs addr\n")
-		fmt.Printf("  movw %%di, (%%rax) # assign word\n")
+		fmtPrintf("  popq %%rdi # rhs evaluated\n")
+		fmtPrintf("  popq %%rax # lhs addr\n")
+		fmtPrintf("  movw %%di, (%%rax) # assign word\n")
 	case T_STRUCT:
 		// @FXIME
 	case T_ARRAY:

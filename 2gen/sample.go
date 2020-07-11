@@ -49,17 +49,6 @@ func returnstring() string {
 	return "i am a local 1\n"
 }
 
-func testString() {
-	var s string = "hello string"
-	writeln(s)
-	var localstring1 string = returnstring()
-	write(localstring1)
-}
-
-func nop() {
-
-}
-
 func testFor() {
 	var i int
 	for i = 0; i < 3; i = i + 1 {
@@ -169,6 +158,26 @@ func testChar() {
 	write(string(chars))
 	globalslice = chars
 	write(string(globalarray[0:4]))
+}
+
+var globalstring string
+
+func assignGlobal() {
+	globalint = 22
+	globaluint8 = 1
+	globaluint16 = 5
+	globaluintptr = 7
+	globalstring = "globalstring changed\n"
+}
+
+func testString() {
+	write(globalstring)
+	assignGlobal()
+
+	var s string = "hello string"
+	writeln(s)
+	var localstring1 string = returnstring()
+	write(localstring1)
 }
 
 func testMisc() {

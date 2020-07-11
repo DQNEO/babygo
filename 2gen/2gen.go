@@ -2551,7 +2551,7 @@ func emitStore(t *Type) {
 		fmtPrintf("  popq %%rsi # lhs ptr addr\n")
 		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
 		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
-	case T_INT, T_BOOL:
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmtPrintf("  popq %%rdi # rhs evaluated\n")
 		fmtPrintf("  popq %%rax # lhs addr\n")
 		fmtPrintf("  movq %%rdi, (%%rax) # assign\n")
@@ -2559,6 +2559,10 @@ func emitStore(t *Type) {
 		fmtPrintf("  popq %%rdi # rhs evaluated\n")
 		fmtPrintf("  popq %%rax # lhs addr\n")
 		fmtPrintf("  movb %%dil, (%%rax) # assign byte\n")
+	case T_UINT16:
+		fmtPrintf("  popq %%rdi # rhs evaluated\n")
+		fmtPrintf("  popq %%rax # lhs addr\n")
+		fmtPrintf("  movw %%di, (%%rax) # assign word\n")
 	default:
 		panic("[emitStore] TBI:" + kind(t))
 	}
