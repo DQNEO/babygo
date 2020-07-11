@@ -333,8 +333,8 @@ func emitZeroValue(t *Type) {
 		fmt.Printf("  pushq $0 # slice zero value\n")
 		fmt.Printf("  pushq $0 # slice zero valuer\n")
 	case T_STRING:
-		fmt.Printf("  pushq $0 # string zero value\n")
-		fmt.Printf("  pushq $0 # string zero value\n")
+		fmtPrintf("  pushq $0 # string zero value\n")
+		fmtPrintf("  pushq $0 # string zero value\n")
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmtPrintf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:

@@ -170,14 +170,25 @@ func assignGlobal() {
 	globalstring = "globalstring changed\n"
 }
 
+func print1(a string) {
+	write(a)
+	return
+}
+
 func testString() {
 	write(globalstring)
 	assignGlobal()
 
+	print1("hello string literal\n")
+
 	var s string = "hello string"
 	writeln(s)
 	var localstring1 string = returnstring()
-	write(localstring1)
+	var localstring2 string
+	localstring2 = "i m local2\n"
+	print1(localstring1)
+	print1(localstring2)
+	write(globalstring)
 }
 
 func testMisc() {

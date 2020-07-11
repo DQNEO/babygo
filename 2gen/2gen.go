@@ -2068,6 +2068,9 @@ func emitData(pkgName string) {
 
 func emitZeroValue(t *Type) {
 	switch kind(t) {
+	case T_STRING:
+		fmtPrintf("  pushq $0 # string zero value\n")
+		fmtPrintf("  pushq $0 # string zero value\n")
 	case T_INT:
 		fmtPrintf("  pushq $0 # %s zero value\n", kind(t))
 	default:
