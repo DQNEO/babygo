@@ -387,8 +387,8 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 
 func emitInvertBoolValue() {
 	emitPopBool("")
-	fmt.Printf("  xor $1, %%rax\n")
-	fmt.Printf("  pushq %%rax\n")
+	fmtPrintf("  xor $1, %%rax\n")
+	fmtPrintf("  pushq %%rax\n")
 }
 
 func emitTrue() {
@@ -1069,12 +1069,12 @@ func emitCompEq(t *Type) {
 
 //@TODO handle larger types than int
 func emitCompExpr(inst string) {
-	fmt.Printf("  popq %%rcx # right\n")
-	fmt.Printf("  popq %%rax # left\n")
-	fmt.Printf("  cmpq %%rcx, %%rax\n")
-	fmt.Printf("  %s %%al\n", inst)
-	fmt.Printf("  movzbq %%al, %%rax\n") // true:1, false:0
-	fmt.Printf("  pushq %%rax\n")
+	fmtPrintf("  popq %%rcx # right\n")
+	fmtPrintf("  popq %%rax # left\n")
+	fmtPrintf("  cmpq %%rcx, %%rax\n")
+	fmtPrintf("  %s %%al\n", inst)
+	fmtPrintf("  movzbq %%al, %%rax\n") // true:1, false:0
+	fmtPrintf("  pushq %%rax\n")
 }
 
 func emitStore(t *Type) {

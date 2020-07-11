@@ -54,6 +54,37 @@ func nop() {
 
 }
 
+func testCmpInt() {
+	var a int = 1
+	if a == 1 {
+		writeln("int cmp == ok")
+	}
+	if a != 1 {
+		writeln("ERROR")
+	} else {
+		writeln("int cmp != ok")
+	}
+	if a > 0 {
+		writeln("int cmp > ok")
+	}
+	if a < 0 {
+		writeln("ERROR")
+	} else {
+		writeln("int cmp < ok")
+	}
+
+	if a >= 1 {
+		writeln("int cmp >= ok")
+	}
+	if a <= 1 {
+		writeln("int cmp <= ok")
+	}
+	a = 101
+	if a == 'A' {
+		writeln("int cmp == A ok")
+	}
+}
+
 func testIf() {
 	var tr bool = true
 	var fls bool = false
@@ -109,10 +140,13 @@ func testMisc() {
 	locali3 = add1(tmp)
 	var i42 int
 	i42 = sum(globalint, globalint2) + locali3
-	exit(i42)
+	if i42 == 69 {
+		writeln("test misc ok")
+	}
 }
 
 func test() {
+	testCmpInt()
 	testIf()
 	testElse()
 	testChar()

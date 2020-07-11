@@ -2002,6 +2002,12 @@ type Arg struct {
 	offset int
 }
 
+func emitInvertBoolValue() {
+	emitPopBool("")
+	fmtPrintf("  xor $1, %%rax\n")
+	fmtPrintf("  pushq %%rax\n")
+}
+
 func emitTrue() {
 	fmtPrintf("  pushq $1 # true\n")
 }
@@ -2208,6 +2214,7 @@ func emitExpr(e *astExpr) {
 		if kind(getTypeOfExpr(e.binaryExpr.X)) == T_STRING {
 			panic("[emitExpr][*astBinaryExpr] TBI T_STRING")
 		}
+		var t = getTypeOfExpr(e.binaryExpr.X)
 		emitExpr(e.binaryExpr.X) // left
 		emitExpr(e.binaryExpr.Y) // right
 		switch e.binaryExpr.Op {
@@ -2239,8 +2246,21 @@ func emitExpr(e *astExpr) {
 			fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
 			fmtPrintf("  divq %%rcx\n")
 			fmtPrintf("  pushq %%rax\n")
+		case "==":
+			emitCompEq(t)
+		case "!=":
+			emitCompEq(t)
+			emitInvertBoolValue()
+		case "<":
+			emitCompExpr("setl")
+		case "<=":
+			emitCompExpr("setle")
+		case ">":
+			emitCompExpr("setg")
+		case ">=":
+			emitCompExpr("setge")
 		default:
-			panic("# TBI: binary operation for '%s'" + e.binaryExpr.Op)
+			panic2(__func__, "# TBI: binary operation for " + e.binaryExpr.Op)
 		}
 	default:
 		panic("[emitExpr] `TBI:" + e.dtype)
@@ -2275,6 +2295,24 @@ func emitListElementAddr(list *astExpr, elmType *Type) {
 	fmtPrintf("  pushq %%rax # addr of element\n")
 }
 
+func emitCompEq(t *Type) {
+	switch kind(t) {
+	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
+		emitCompExpr("sete")
+	default:
+		panic2(__func__, "Unexpected kind=" + kind(t))
+	}
+}
+
+//@TODO handle larger types than int
+func emitCompExpr(inst string) {
+	fmtPrintf("  popq %%rcx # right\n")
+	fmtPrintf("  popq %%rax # left\n")
+	fmtPrintf("  cmpq %%rcx, %%rax\n")
+	fmtPrintf("  %s %%al\n", inst)
+	fmtPrintf("  movzbq %%al, %%rax\n") // true:1, false:0
+	fmtPrintf("  pushq %%rax\n")
+}
 
 func emitVariableAddr(variable *Variable) {
 	fmtPrintf("  # variable %s\n", variable.name)
