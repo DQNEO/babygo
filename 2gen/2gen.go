@@ -2233,7 +2233,19 @@ func emitExpr(e *astExpr) {
 				}
 
 				if results != nil && len(results.List) == 1 {
-					fmtPrintf("  pushq %%rax # return value\n")
+					var retval0 = fndecl.Sig.results.List[0]
+					var knd = kind(e2t(retval0.Type))
+					switch knd {
+					case T_STRING:
+						fmtPrintf("  # fn.Obj=%s\n", obj.Name)
+						fmtPrintf("  pushq %%rdi # str len\n")
+						fmtPrintf("  pushq %%rax # str ptr\n")
+					case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+						fmtPrintf("  # fn.Obj=%s\n", obj.Name)
+						fmtPrintf("  pushq %%rax\n")
+					default:
+						panic2(__func__, "Unexpected kind=" + knd)
+					}
 				} else {
 					fmtPrintf("   # No results\n")
 				}
@@ -2624,9 +2636,14 @@ func emitStmt(stmt *astStmt) {
 			switch knd {
 			case T_INT:
 				fmtPrintf("  popq %%rax # return 64bit\n")
+			case T_STRING:
+				fmtPrintf("  popq %%rax # return string (ptr)\n")
+				fmtPrintf("  popq %%rdi # return string (len)\n")
 			default:
 				panic("[emitStmt][*astReturnStmt] TBI:" + knd)
 			}
+			fmtPrintf("  leave\n")
+			fmtPrintf("  ret\n")
 		} else {
 			panic("[emitStmt][*astReturnStmt] TBI\n")
 		}

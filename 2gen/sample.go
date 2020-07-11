@@ -45,9 +45,15 @@ var globaluint16 uint16
 var globalarray [9]uint8
 var globaluintptr uintptr
 
+func returnstring() string {
+	return "i am a local 1\n"
+}
+
 func testString() {
 	var s string = "hello string"
 	writeln(s)
+	var localstring1 string = returnstring()
+	write(localstring1)
 }
 
 func nop() {
@@ -186,13 +192,13 @@ func testMisc() {
 }
 
 func test() {
+	testString()
 	testFor()
 	testCmpUint8()
 	testCmpInt()
 	testIf()
 	testElse()
 	testChar()
-	testString()
 	testMisc()
 }
 

@@ -1185,10 +1185,10 @@ func emitStmt(stmt ast.Stmt) {
 			var knd = kind(getTypeOfExpr(s.Results[0]))
 			switch knd {
 			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-				fmt.Printf("  popq %%rax # return 64bit\n")
+				fmtPrintf("  popq %%rax # return 64bit\n")
 			case T_STRING:
-				fmt.Printf("  popq %%rax # return string (ptr)\n")
-				fmt.Printf("  popq %%rdi # return string (len)\n")
+				fmtPrintf("  popq %%rax # return string (ptr)\n")
+				fmtPrintf("  popq %%rdi # return string (len)\n")
 			case T_SLICE:
 				fmt.Printf("  popq %%rax # return string (ptr)\n")
 				fmt.Printf("  popq %%rdi # return string (len)\n")
