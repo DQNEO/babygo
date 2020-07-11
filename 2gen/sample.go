@@ -54,6 +54,46 @@ func nop() {
 
 }
 
+func testFor() {
+	var i int
+	for i = 0; i < 3; i = i + 1 {
+		write("A")
+	}
+	write("\n")
+}
+
+func testCmpUint8() {
+	var localuint8 uint8 = 1
+	if localuint8 == 1 {
+		writeln("uint8 cmp == ok")
+	}
+	if localuint8 != 1 {
+		writeln("ERROR")
+	} else {
+		writeln("uint8 cmp != ok")
+	}
+	if localuint8 > 0 {
+		writeln("uint8 cmp > ok")
+	}
+	if localuint8 < 0 {
+		writeln("ERROR")
+	} else {
+		writeln("uint8 cmp < ok")
+	}
+
+	if localuint8 >= 1 {
+		writeln("uint8 cmp >= ok")
+	}
+	if localuint8 <= 1 {
+		writeln("uint8 cmp <= ok")
+	}
+
+	localuint8 = 101
+	if localuint8 == 'A' {
+		writeln("uint8 cmp == A ok")
+	}
+}
+
 func testCmpInt() {
 	var a int = 1
 	if a == 1 {
@@ -146,6 +186,8 @@ func testMisc() {
 }
 
 func test() {
+	testFor()
+	testCmpUint8()
 	testCmpInt()
 	testIf()
 	testElse()

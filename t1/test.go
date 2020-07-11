@@ -813,14 +813,6 @@ func Itoa(ival int) string {
 	return string(r[0:ix])
 }
 
-func testFor() {
-	var i int
-	for i = 0; i < 3; i = i + 1 {
-		write("A")
-	}
-	write("\n")
-}
-
 func testForOmissible() {
 	var i int
 	for {
@@ -882,6 +874,14 @@ func testForBreakContinue() {
 	}
 	write("exit")
 	writeln(Itoa(i))
+}
+
+func testFor() {
+	var i int
+	for i = 0; i < 3; i = i + 1 {
+		write("A")
+	}
+	write("\n")
 }
 
 func testCmpUint8() {
