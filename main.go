@@ -1485,18 +1485,18 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 	case T_INT:
 		switch vl := val.(type) {
 		case *ast.BasicLit:
-			fmt.Printf("  .quad %s\n", vl.Value)
+			fmtPrintf("  .quad %s\n", vl.Value)
 		case nil:
-			fmt.Printf("  .quad 0\n")
+			fmtPrintf("  .quad 0\n")
 		default:
 			throw(val)
 		}
 	case T_UINT8:
 		switch vl := val.(type) {
 		case *ast.BasicLit:
-			fmt.Printf("  .byte %s\n", vl.Value)
+			fmtPrintf("  .byte %s\n", vl.Value)
 		case nil:
-			fmt.Printf("  .byte 0\n")
+			fmtPrintf("  .byte 0\n")
 		default:
 			throw(val)
 		}
@@ -1530,7 +1530,7 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 		var zeroValue string
 		switch kind(e2t(arrayType.Elt)) {
 		case T_INT:
-			zeroValue = fmt.Sprintf("  .quad 0 # int zero value\n")
+			zeroValue = "  .quad 0 # int zero value\n"
 		case T_UINT8:
 			zeroValue = fmt.Sprintf("  .byte 0 # uint8 zero value\n")
 		case T_STRING:

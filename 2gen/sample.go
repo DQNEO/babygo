@@ -3,6 +3,27 @@ package main
 import "os"
 import "syscall"
 
+var globalintarray [4]int
+
+func testIndexExprOfSlice() {
+	var intslice []int = globalintarray[0:4]
+	intslice[0] = 66
+	intslice[1] = 77
+	intslice[2] = intslice[1]
+	intslice[3] = 88
+
+	var i int
+	for i = 0; i < 4; i = i + 1 {
+		write(Itoa(intslice[i]))
+	}
+	write("\n")
+
+	for i = 0; i < 4; i = i + 1 {
+		write(Itoa(globalintarray[i]))
+	}
+	write("\n")
+}
+
 func testItoa() {
 	writeln(Itoa(0))
 	writeln(Itoa(1))
@@ -259,12 +280,11 @@ func testMisc() {
 	locali3 = add1(tmp)
 	var i42 int
 	i42 = sum(globalint, globalint2) + locali3
-	if i42 == 69 {
-		writeln("test misc ok")
-	}
+	writeln(Itoa(i42))
 }
 
 func test() {
+	testIndexExprOfSlice()
 	testItoa()
 	testString()
 	testFor()

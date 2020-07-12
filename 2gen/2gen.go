@@ -2028,6 +2028,8 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 		var zeroValue string
 		var kind string = kind(e2t(arrayType.Elt))
 		switch kind {
+		case T_INT:
+			zeroValue = "  .quad 0 # int zero value\n"
 		case T_UINT8:
 			zeroValue = "  .byte 0 # uint8 zero value\n"
 		default:
