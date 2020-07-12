@@ -542,22 +542,26 @@ func testForrange() {
 	writeln("")
 }
 
-func _testNew() *MyStruct {
+func newStruct() *MyStruct {
 	var strct = new(MyStruct)
 	writeln(Itoa(strct.field2))
 	strct.field2 = 2
 	return strct
 }
 
-func testNew() {
+func testNewStruct() {
 	var strct *MyStruct
-	strct = _testNew()
+	strct = newStruct()
 	writeln(Itoa(strct.field1))
 	writeln(Itoa(strct.field2))
+}
+
+func testNew() {
 	var i *int
 	i = new(int)
 	writeln(Itoa(*i)) // 0
 }
+
 
 var testNilSlice []*MyStruct
 
@@ -750,17 +754,12 @@ func testLen() {
 	writeln(Itoa(len(s))) // 6
 }
 
-func testMalloc() {
+func testMakeSlice() {
 	var x []uint8 = make([]uint8, 3, 20)
 	x[0] = 'A'
 	x[1] = 'B'
 	x[2] = 'C'
 	writeln(string(x))
-}
-
-func testMakaSlice() []uint8 {
-	var slc []uint8 = make([]uint8, 0, 10)
-	return slc
 }
 
 func testItoa() {
@@ -1018,19 +1017,6 @@ func returnstring() string {
 	return "i am a local 1\n"
 }
 
-// test global chars
-func testChar() {
-	globalarray[0] = 'A'
-	globalarray[1] = 'B'
-	globalarray[2] = globalarray[0]
-	globalarray[3] = 100 / 10 // '\n'
-	globalarray[1] = 'B'
-	var chars []uint8 = globalarray[0:4]
-	write(string(chars))
-	globalslice = chars
-	write(string(globalarray[0:4]))
-}
-
 var globalintarray [4]int
 
 func testIndexExprOfArray() {
@@ -1038,14 +1024,6 @@ func testIndexExprOfArray() {
 	globalintarray[1] = 22
 	globalintarray[2] = globalintarray[1]
 	globalintarray[3] = 44
-	/*
-			var i int
-		for i = 0; i<4 ;i= i+1 {
-			//write("x")
-			Itoa(globalintarray[i])
-		}
-
-	*/
 	write("\n")
 }
 
@@ -1068,15 +1046,17 @@ func testIndexExprOfSlice() {
 	write("\n")
 }
 
-func testArgAssign(x int) int {
-	x = 13
-	return x
-}
-
-func testMinus() int {
-	var x int = -1
-	x = x * -5
-	return x
+// test global chars
+func testChar() {
+	globalarray[0] = 'A'
+	globalarray[1] = 'B'
+	globalarray[2] = globalarray[0]
+	globalarray[3] = 100 / 10 // '\n'
+	globalarray[1] = 'B'
+	var chars []uint8 = globalarray[0:4]
+	write(string(chars))
+	globalslice = chars
+	write(string(globalarray[0:4]))
 }
 
 func testString() {
@@ -1090,6 +1070,17 @@ func testString() {
 	localstring2 = "i m local2\n"
 	print2(localstring1, localstring2)
 	write(globalstring)
+}
+
+func testArgAssign(x int) int {
+	x = 13
+	return x
+}
+
+func testMinus() int {
+	var x int = -1
+	x = x * -5
+	return x
 }
 
 func testMisc() {
@@ -1142,7 +1133,7 @@ func test() {
 	testAppendByte()
 	testSliceOfSlice()
 	testForrange()
-	testNew()
+	testNewStruct()
 	testNil()
 	testZeroValues()
 	testIncrDecr()
@@ -1155,17 +1146,19 @@ func test() {
 	testDeclValue()
 	testConcateStrings()
 	testLen()
-	testMalloc()
+	testMakeSlice()
+	testNew()
+
+	testItoa()
 	testIndexExprOfArray()
 	testIndexExprOfSlice()
-	testItoa()
+	testString()
 	testFor()
 	testCmpUint8()
 	testCmpInt()
 	testIf()
 	testElse()
 	testChar()
-	testString()
 	testMisc()
 	print("test end\n")
 }

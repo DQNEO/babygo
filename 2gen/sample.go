@@ -1,27 +1,17 @@
 package main
 
-import "os"
 import "syscall"
 
-var globalintarray [4]int
+func writeln(s string) {
+	//var s2 string = s + "\n"
+	var s2 string = "\n"
+	write(s)
+	write(s2)
+}
 
-func testIndexExprOfSlice() {
-	var intslice []int = globalintarray[0:4]
-	intslice[0] = 66
-	intslice[1] = 77
-	intslice[2] = intslice[1]
-	intslice[3] = 88
-
-	var i int
-	for i = 0; i < 4; i = i + 1 {
-		write(Itoa(intslice[i]))
-	}
-	write("\n")
-
-	for i = 0; i < 4; i = i + 1 {
-		write(Itoa(globalintarray[i]))
-	}
-	write("\n")
+func write(s string) {
+	var slc []uint8 = []uint8(s)
+	syscall.Write(1, slc)
 }
 
 func testItoa() {
@@ -77,20 +67,33 @@ func Itoa(ival int) string {
 	return string(__itoa_r[0:ix])
 }
 
-func writeln(s string) {
-	//var s2 string = s + "\n"
-	var s2 string = "\n"
-	write(s)
-	write(s2)
+func testIndexExprOfArray() {
+	globalintarray[0] = 11
+	globalintarray[1] = 22
+	globalintarray[2] = globalintarray[1]
+	globalintarray[3] = 44
+	write("\n")
 }
 
-func write(s string) {
-	var slc []uint8 = []uint8(s)
-	syscall.Write(1, slc)
-}
+var globalintarray [4]int
 
-func exit(x int) {
-	os.Exit(x)
+func testIndexExprOfSlice() {
+	var intslice []int = globalintarray[0:4]
+	intslice[0] = 66
+	intslice[1] = 77
+	intslice[2] = intslice[1]
+	intslice[3] = 88
+
+	var i int
+	for i = 0; i < 4; i = i + 1 {
+		write(Itoa(intslice[i]))
+	}
+	write("\n")
+
+	for i = 0; i < 4; i = i + 1 {
+		write(Itoa(globalintarray[i]))
+	}
+	write("\n")
 }
 
 func testArgAssign(x int) int {
@@ -284,8 +287,9 @@ func testMisc() {
 }
 
 func test() {
-	testIndexExprOfSlice()
 	testItoa()
+	testIndexExprOfArray()
+	testIndexExprOfSlice()
 	testString()
 	testFor()
 	testCmpUint8()
