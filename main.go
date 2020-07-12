@@ -1197,8 +1197,8 @@ func emitStmt(stmt ast.Stmt) {
 				panic("TBI:" + knd)
 			}
 
-			fmt.Printf("  leave\n")
-			fmt.Printf("  ret\n")
+			fmtPrintf("  leave\n")
+			fmtPrintf("  ret\n")
 		} else if len(s.Results) == 3 {
 			// Special treatment to return a slice
 			for _, result := range s.Results {

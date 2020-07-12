@@ -3,6 +3,59 @@ package main
 import "os"
 import "syscall"
 
+func testItoa() {
+	writeln(Itoa(0))
+	writeln(Itoa(1))
+	writeln(Itoa(12))
+	writeln(Itoa(123))
+	writeln(Itoa(12345))
+	writeln(Itoa(12345678))
+	writeln(Itoa(54321))
+	writeln(Itoa(-1))
+	writeln(Itoa(-54321))
+	writeln(Itoa(-7654321))
+	//writeln(Itoa(-1234567890))
+}
+
+var __itoa_buf [9]uint8
+var __itoa_r [9]uint8
+
+func Itoa(ival int) string {
+	if ival == 0 {
+		return "0"
+	}
+	var next int
+	var right int
+	var ix int = 0
+	var minus bool
+	minus = false
+	for ix = 0; ival != 0; ix = ix + 1 {
+		if ival < 0 {
+			ival = -1 * ival
+			minus = true
+			__itoa_r[0] = '-'
+		} else {
+			next = ival / 10
+			right = ival - next*10
+			ival = next
+			__itoa_buf[ix] = uint8('0' + right)
+		}
+	}
+
+	var j int
+	var c uint8
+	for j = 0; j < ix; j = j + 1 {
+		c = __itoa_buf[ix-j-1]
+		if minus {
+			__itoa_r[j+1] = c
+		} else {
+			__itoa_r[j] = c
+		}
+	}
+
+	return string(__itoa_r[0:ix])
+}
+
 func writeln(s string) {
 	//var s2 string = s + "\n"
 	var s2 string = "\n"
@@ -212,6 +265,7 @@ func testMisc() {
 }
 
 func test() {
+	testItoa()
 	testString()
 	testFor()
 	testCmpUint8()

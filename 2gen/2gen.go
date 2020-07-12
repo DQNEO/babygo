@@ -55,13 +55,13 @@ func fmtPrintf(format string, a ...string) {
 func Itoa(ival int) string {
 	var __itoa_buf []uint8 = make([]uint8, 100,100)
 	var __itoa_r []uint8 = make([]uint8, 100, 100)
+	if ival == 0 {
+		return "0"
+	}
 
 	var next int
 	var right int
 	var ix = 0
-	if ival == 0 {
-		return "0"
-	}
 	var minus bool
 	minus = false
 	for ix = 0; ival != 0; ix = ix + 1 {
@@ -2074,7 +2074,7 @@ func emitZeroValue(t *Type) {
 	case T_STRING:
 		fmtPrintf("  pushq $0 # string zero value\n")
 		fmtPrintf("  pushq $0 # string zero value\n")
-	case T_INT:
+	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmtPrintf("  pushq $0 # %s zero value\n", kind(t))
 	default:
 		panic("[emitZeroValue] TBI:" + kind(t))
