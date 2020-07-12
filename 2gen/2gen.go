@@ -2019,9 +2019,12 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 			panic("[emitGlobalVariable] shoulbe basic literal")
 		}
 		var basicLit = arrayType.Len.basicLit
+		if len(basicLit.Value) > 1 {
+			panic("[emitGlobalVariable] array length >= 10 is not supported yet.")
+		}
 		var v = basicLit.Value[0]
 		var length = int(v - '0')
-		fmtPrintf("# [emitGlobalVariable] array length uint8=%d\n" , Itoa(length))
+		fmtPrintf("# [emitGlobalVariable] array length uint8=%s\n" , Itoa(length))
 		var zeroValue string
 		var kind string = kind(e2t(arrayType.Elt))
 		switch kind {
