@@ -1765,7 +1765,6 @@ func getStringLiteral(lit *astBasicLit) *sliteral {
 func registerStringLiteral(lit *astBasicLit) {
 	fmtPrintf("# [registerStringLiteral] begin\n")
 
-	var pkgName = "main"
 	if pkgName == "" {
 		panic("no pkgName")
 	}
@@ -1858,10 +1857,12 @@ func getSizeOfType(t *Type) int {
 		return sliceSize
 	case T_STRING:
 		return 16
-	case T_INT, T_BOOL:
+	case T_INT, T_UINTPTR, T_POINTER:
 		return 8
 	case T_UINT8:
 		return 1
+	case T_BOOL:
+		return 8
 	default:
 		panic("[getSizeOfType] TBI:" + knd)
 	}
@@ -1892,6 +1893,7 @@ func semanticAnalyze(file *astFile) string {
 	// inject predeclared identifers
 	scopeInsert(universe, gInt)
 	scopeInsert(universe, gUint8)
+	scopeInsert(universe, gUintptr)
 	scopeInsert(universe, gString)
 	scopeInsert(universe, gBool)
 	scopeInsert(universe, gTrue)
@@ -2216,7 +2218,7 @@ func emitExpr(e *astExpr) {
 				fmtPrintf("  callq runtime.printstring\n")
 				fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(16))
 			} else {
-				fmtPrintf("  callq main.%s\n", ident.Name)
+				fmtPrintf("  callq %s.%s\n", pkgName, ident.Name)
 				fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(pushed))
 				var obj = ident.Obj
 				var decl = obj.Decl
@@ -2646,7 +2648,7 @@ func emitStmt(stmt *astStmt) {
 			emitExpr(stmt.returnStmt.Results[0])
 			var knd = kind(getTypeOfExpr(stmt.returnStmt.Results[0]))
 			switch knd {
-			case T_INT:
+			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 				fmtPrintf("  popq %%rax # return 64bit\n")
 			case T_STRING:
 				fmtPrintf("  popq %%rax # return string (ptr)\n")
@@ -2867,10 +2869,6 @@ func getTypeOfExpr(expr *astExpr) *Type {
 }
 
 func generateCode(pkgName string) {
-	fmtPrintf("")
-	fmtPrintf("runtime.heapInit:\n")
-	fmtPrintf("ret\n")
-
 	emitData(pkgName)
 	emitText(pkgName)
 }
@@ -2937,7 +2935,7 @@ func kind(t *Type) string {
 
 func main() {
 	initGlobals()
-	var sourceFiles = []string{"2gen/sample.go"}
+	var sourceFiles = []string{"2gen/runtime.go", "2gen/sample.go"}
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil

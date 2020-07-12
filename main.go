@@ -1190,9 +1190,9 @@ func emitStmt(stmt ast.Stmt) {
 				fmtPrintf("  popq %%rax # return string (ptr)\n")
 				fmtPrintf("  popq %%rdi # return string (len)\n")
 			case T_SLICE:
-				fmt.Printf("  popq %%rax # return string (ptr)\n")
-				fmt.Printf("  popq %%rdi # return string (len)\n")
-				fmt.Printf("  popq %%rsi # return string (cap)\n")
+				fmtPrintf("  popq %%rax # return string (ptr)\n")
+				fmtPrintf("  popq %%rdi # return string (len)\n")
+				fmtPrintf("  popq %%rsi # return string (cap)\n")
 			default:
 				panic("TBI:" + knd)
 			}
