@@ -2122,6 +2122,7 @@ func emitCall(symbol string, args []*Arg) {
 	//var arg *astExpr
 	var i int
 	for i=len(args)-1;i>=0;i-- {
+		fmtPrintf("  # [emitCall] %s arg i=%s\n", symbol, Itoa(i))
 		emitExpr(args[i].e)
 		var typ = getTypeOfExpr(args[i].e)
 		var size = getSizeOfType(typ)
@@ -2202,17 +2203,17 @@ func emitExpr(e *astExpr) {
 			emitConversion(e2t(fun), e.callExpr.Args[0])
 			return
 		}
-		var pushed int = 0
-		//var arg *astExpr
-		var i int
-		for i=len(e.callExpr.Args)-1;i>=0;i-- {
-			emitExpr(e.callExpr.Args[i])
-			var typ = getTypeOfExpr(e.callExpr.Args[i])
-			var size = getSizeOfType(typ)
-			pushed = pushed + size
-		}
 		switch fun.dtype {
 		case "*astIdent":
+			var pushed int = 0
+			//var arg *astExpr
+			var i int
+			for i=len(e.callExpr.Args)-1;i>=0;i-- {
+				emitExpr(e.callExpr.Args[i])
+				var typ = getTypeOfExpr(e.callExpr.Args[i])
+				var size = getSizeOfType(typ)
+				pushed = pushed + size
+			}
 			var ident = fun.ident
 			if ident.Name == "print" {
 				fmtPrintf("  callq runtime.printstring\n")
@@ -2271,6 +2272,10 @@ func emitExpr(e *astExpr) {
 				emitCallNonDecl(symbol, e.callExpr.Args)
 			case "syscall.Write":
 				emitCallNonDecl(symbol, e.callExpr.Args)
+			case "syscall.Syscall":
+				fmtPrintf("   # calling syscall.Syscall\n")
+				emitCallNonDecl(symbol, e.callExpr.Args)
+				fmtPrintf("  pushq %%rax # ret\n")
 			default:
 				fmtPrintf("  callq %s.%s\n", selectorExpr.X.ident.Name, selectorExpr.Sel.Name)
 				panic("[emitExpr][*astSelectorExpr] Unsupported call to " + symbol)
