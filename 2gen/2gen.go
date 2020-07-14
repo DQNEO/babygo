@@ -53,11 +53,12 @@ func fmtPrintf(format string, a ...string) {
 }
 
 func Itoa(ival int) string {
-	var __itoa_buf []uint8 = make([]uint8, 100,100)
-	var __itoa_r []uint8 = make([]uint8, 100, 100)
 	if ival == 0 {
 		return "0"
 	}
+
+	var __itoa_buf []uint8 = make([]uint8, 100,100)
+	var __itoa_r []uint8 = make([]uint8, 100, 100)
 
 	var next int
 	var right int
