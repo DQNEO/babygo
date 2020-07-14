@@ -543,6 +543,7 @@ type astExpr struct {
 	indexExpr    *astIndexExpr
 	sliceExpr    *astSliceExpr
 	starExpr     *astStarExpr
+	parenExpr    *astParenExpr
 }
 
 type astObject struct {
@@ -599,6 +600,10 @@ type astSliceExpr struct {
 type astIndexExpr struct {
 	X *astExpr
 	Index *astExpr
+}
+
+type astParenExpr struct {
+	X *astExpr
 }
 
 type astScope struct {
@@ -734,7 +739,7 @@ func parseIdent() *astIdent {
 	} else {
 		panic("IDENT expected, but got " +  ptok.tok)
 	}
-
+	fmtPrintf("# [%s] ident name = %s\n", __func__, name)
 	var r = new(astIdent)
 	r.Name = name
 	return r
@@ -754,13 +759,21 @@ func parserParseImportDecl() *astImportSpec {
 func parseVarType() *astExpr {
 	var e = tryIdentOrType()
 	if e != nil {
-		parserResolve(e.ident, true)
+		tryResolve(e, true)
 	}
 	return e
 }
 
-func parseType() *astExpr {
+func tryType() *astExpr {
 	var typ = tryIdentOrType()
+	if typ != nil {
+		parserResolve(typ)
+	}
+	return typ
+}
+
+func parseType() *astExpr {
+	var typ = tryType()
 	return typ
 }
 
@@ -801,30 +814,51 @@ func parseArrayType() *astExpr {
 }
 
 func tryIdentOrType() *astExpr {
-	var typ = new(astExpr)
 	switch ptok.tok {
 	case "IDENT":
 		var ident = parseIdent()
+		var typ = new(astExpr)
 		typ.ident = ident
 		typ.dtype = "*astIdent"
+		return typ
 	case "[":
 		return parseArrayType()
 	case "*":
 		return parsePointerType()
+	case "(":
+		parserNext()
+		var _typ = parseType()
+		parserExpect(")", __func__)
+		var parenExpr = new(astParenExpr)
+		parenExpr.X = _typ
+		var typ = new(astExpr)
+		typ.dtype = "*astParenExpr"
+		typ.parenExpr = parenExpr
+		return typ
 	default:
 		panic("[tryIdentOrType] TBI:" +  ptok.tok)
 	}
-	return typ
+	var _nil *astExpr
+	return _nil
 }
 
 
 func parseParameterList(scope *astScope) []*astField {
+	fmtPrintf("#  begin %s\n", __func__)
 	var params []*astField
 	//var list []*astExpr
 	for ptok.tok != ")" {
 		var field = new(astField)
 		var ident = parseIdent()
+		if ident == nil {
+			panic2(__func__, "Ident should not be nil")
+		}
+		fmtPrintf("# [%s] ident.Name=%s\n", __func__, ident.Name)
 		var typ = parseVarType()
+		if typ == nil {
+			panic2(__func__,"#  typ is nil\n")
+		}
+		fmtPrintf("# [parser] parseParameterList: typ=%s\n", typ.dtype)
 		field.Name = ident
 		field.Type = typ
 		fmtPrintf("# [parser] parseParameterList: Field %s %s\n", field.Name.Name, field.Type.dtype)
@@ -843,6 +877,7 @@ func parseParameterList(scope *astScope) []*astField {
 		}
 	}
 
+	fmtPrintf("#  end %s\n", __func__)
 	return params
 }
 
@@ -918,10 +953,14 @@ func declare(objDecl *ObjDecl, scope *astScope, kind string, ident *astIdent) {
 
 var parserUnresolved []*astIdent
 
-func parserResolveEx(ident *astIdent) {
-	parserResolve(ident, true)
+func parserResolve(x *astExpr) {
+	tryResolve(x, true)
 }
-func parserResolve(ident *astIdent, collectUnresolved bool) {
+func tryResolve(x *astExpr, collectUnresolved bool) {
+	if x.dtype != "*astIdent" {
+		return
+	}
+	var ident = x.ident
 	if ident.Name == "-" {
 		return
 	}
@@ -948,7 +987,7 @@ func parseOperand() *astExpr {
 		eIdent.dtype = "*astIdent"
 		var ident  =  parseIdent()
 		eIdent.ident = ident
-		parserResolve(ident, true)
+		tryResolve(eIdent, true)
 		return eIdent
 	case "INT":
 		var basicLit = new(astBasicLit)
@@ -1038,7 +1077,7 @@ func parsePrimaryExpr() *astExpr {
 		r.callExpr = parseCallExpr(x)
 		fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
 	case "[":
-		parserResolveEx(x.ident)
+		parserResolve(x)
 		x = parseIndexOrSlice(x)
 		return x
 	default:
@@ -1332,8 +1371,7 @@ func parseStmt() *astStmt {
 		s.DeclStmt.Decl = decl
 		fmtPrintf("# = end parseStmt()\n")
 		return s
-	case "IDENT":
-		fmtPrintf("# [parseStmt] is IDENT:%s\n",ptok.lit)
+	case "IDENT","*":
 		var s = parseSimpleStmt()
 		parserExpectSemi(__func__)
 		return s
@@ -1825,6 +1863,7 @@ func walkExpr(expr *astExpr) {
 		// what to do ?
 	case "*astCallExpr":
 		var arg *astExpr
+		walkExpr(expr.callExpr.Fun)
 		for _, arg = range expr.callExpr.Args {
 			walkExpr(arg)
 		}
@@ -1854,6 +1893,12 @@ func walkExpr(expr *astExpr) {
 		walkExpr(expr.sliceExpr.X)
 	case "*astStarExpr":
 		walkExpr(expr.starExpr.X)
+	case "*astSelectorExpr":
+		walkExpr(expr.selectorExpr.X)
+	case "*astArrayType": // []T(e)
+	    // do nothing ?
+	case "*astParenExpr":
+		walkExpr(expr.parenExpr.X)
 	default:
 		panic("[walkExpr] TBI:" + expr.dtype)
 	}
@@ -1922,6 +1967,7 @@ func semanticAnalyze(file *astFile) string {
 	// inject predeclared identifers
 	scopeInsert(universe, gInt)
 	scopeInsert(universe, gUint8)
+	scopeInsert(universe, gUint16)
 	scopeInsert(universe, gUintptr)
 	scopeInsert(universe, gString)
 	scopeInsert(universe, gBool)
@@ -1940,16 +1986,21 @@ func semanticAnalyze(file *astFile) string {
 	pkgSyscall.Name = "syscall"
 	scopeInsert(universe, pkgSyscall)
 
+	var pkgUnsafe = new(astObject)
+	pkgUnsafe.Kind = "Pkg"
+	pkgUnsafe.Name = "unsafe"
+	scopeInsert(universe, pkgUnsafe)
+
 	pkgName = file.Name
 
 	var unresolved []*astIdent
 	var ident *astIdent
 	fmtPrintf("# [SEMA] resolving file.Unresolved (n=%s)\n", Itoa(len(file.Unresolved)))
 	for _, ident = range file.Unresolved {
-		fmtPrintf("# [SEMA] resolving ident %s \n", ident.Name)
+		fmtPrintf("# [SEMA] resolving ident %s ... ", ident.Name)
 		var obj *astObject = scopeLookup(universe,ident.Name)
 		if obj != nil {
-			fmtPrintf("# [SEMA] obj matched %s \n", obj.Name)
+			fmtPrintf(" matched\n")
 			ident.Obj = obj
 		} else {
 			panic("[semanticAnalyze] Unresolved : " + ident.Name)
@@ -2327,14 +2378,19 @@ func emitExpr(e *astExpr) {
 				fmtPrintf("   # calling syscall.Syscall\n")
 				emitCallNonDecl(symbol, e.callExpr.Args)
 				fmtPrintf("  pushq %%rax # ret\n")
+			case "unsafe.Pointer":
+				emitExpr(e.callExpr.Args[0])
 			default:
 				fmtPrintf("  callq %s.%s\n", selectorExpr.X.ident.Name, selectorExpr.Sel.Name)
 				panic("[emitExpr][*astSelectorExpr] Unsupported call to " + symbol)
 			}
+		case "*astParenExpr":
+			panic("[emitExpr][*astCallExpr][*astParenExpr] TBI ")
 		default:
-			panic("[emitExpr] TBI fun.dtype=" + fun.dtype)
+			panic("[emitExpr][*astCallExpr] TBI fun.dtype=" + fun.dtype)
 		}
-
+	case "*astParenExpr":
+		emitExpr(e.parenExpr.X)
 	case "*astSliceExpr":
 		var list = e.sliceExpr.X
 		var listType = getTypeOfExpr(list)
@@ -2527,11 +2583,16 @@ func isType(expr *astExpr) bool {
 		fmtPrintf("# [isType][DEBUG] expr.ident.Obj = %s,%s\n",
 			expr.ident.Obj.Name, expr.ident.Obj.Kind )
 		return expr.ident.Obj.Kind == "Typ"
-	case "*astParentExpr":
-		return true
+	case "*astParenExpr":
+		return isType(expr.parenExpr.X)
+	case "*astStarExpr":
+		return isType(expr.starExpr.X)
+	default:
+		fmtPrintf("# [isType][%s] is not considered a type\n", expr.dtype)
 	}
 
 	return false
+
 }
 
 func emitConversion(tp *Type, arg0 *astExpr) {
@@ -2568,6 +2629,11 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 		fmtPrintf("  pushq %%rcx # cap\n")
 		fmtPrintf("  pushq %%rcx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
+	case "*astParenExpr":
+		emitConversion(e2t(typeExpr.parenExpr.X), arg0)
+	case "*astStarExpr": // (*T)(e)
+		fmtPrintf("# [emitConversion] to pointer \n")
+		emitExpr(arg0)
 	default:
 		panic("[emitConversion] TBI :" + typeExpr.dtype)
 	}

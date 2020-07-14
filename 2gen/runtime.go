@@ -1,6 +1,7 @@
 package runtime
 
 import "syscall"
+import "unsafe"
 
 var SYS_BRK int
 
@@ -40,6 +41,18 @@ func panic(s string) {
 	syscall.Syscall(arg0, arg1, arg2, arg3)
 }
 
+func memzeropad(addr uintptr, size uintptr) {
+	var p *uint8 = (*uint8)(unsafe.Pointer(addr))
+	var isize int = int(size)
+	var i int
+	var up uintptr
+	for i = 0; i < isize; i = i+1 {
+		*p = 0
+		up = uintptr(unsafe.Pointer(p)) + 1
+		p = (*uint8)(unsafe.Pointer(up))
+	}
+}
+
 func malloc(size uintptr) uintptr {
 	if heapCurrent+size > heapTail {
 		panic("malloc exceeds heap capacity")
@@ -48,6 +61,6 @@ func malloc(size uintptr) uintptr {
 	var r uintptr
 	r = heapCurrent
 	heapCurrent = heapCurrent + size
-	//memzeropad(r, size)
+	memzeropad(r, size)
 	return r
 }
