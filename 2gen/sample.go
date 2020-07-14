@@ -14,6 +14,12 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testNew() {
+	var i *int
+	i = new(int)
+	writeln(Itoa(*i)) // 0
+}
+
 func testItoa() {
 	writeln(Itoa(0))
 	writeln(Itoa(1))
@@ -287,6 +293,7 @@ func testMisc() {
 }
 
 func test() {
+	testNew()
 	testItoa()
 	testIndexExprOfArray()
 	testIndexExprOfSlice()

@@ -542,6 +542,7 @@ type astExpr struct {
 	selectorExpr *astSelectorExpr
 	indexExpr    *astIndexExpr
 	sliceExpr    *astSliceExpr
+	starExpr     *astStarExpr
 }
 
 type astObject struct {
@@ -770,8 +771,23 @@ func eFromArrayType(t *astArrayType) *astExpr {
 	return r
 }
 
+type astStarExpr struct {
+	X *astExpr
+}
+
+func parsePointerType() *astExpr {
+	parserExpect("*", __func__)
+	var base = parseType()
+	var starExpr = new(astStarExpr)
+	starExpr.X = base
+	var r = new(astExpr)
+	r.dtype = "*astStarExpr"
+	r.starExpr = starExpr
+	return r
+}
+
 func parseArrayType() *astExpr {
-	parserExpect("[", "parseArrayType")
+	parserExpect("[", __func__)
 	var ln *astExpr
 	if ptok.tok != "]" {
 		ln = parseRhs()
@@ -792,8 +808,9 @@ func tryIdentOrType() *astExpr {
 		typ.ident = ident
 		typ.dtype = "*astIdent"
 	case "[":
-		typ = parseArrayType()
-		return typ
+		return parseArrayType()
+	case "*":
+		return parsePointerType()
 	default:
 		panic("[tryIdentOrType] TBI:" +  ptok.tok)
 	}
@@ -1088,6 +1105,15 @@ func parseUnaryExpr() *astExpr {
 		r.unaryExpr.Op = tok
 		r.unaryExpr.X = x
 		return r
+	case "*":
+		parserNext() // consume "*"
+		var x = parseUnaryExpr()
+		r = new(astExpr)
+		r.dtype = "*astStarExpr"
+		r.starExpr = new(astStarExpr)
+		r.starExpr.X = x
+		return r
+
 	}
 	r  = parsePrimaryExpr()
 	fmtPrintf("#   end parseUnaryExpr()\n")
@@ -1826,6 +1852,8 @@ func walkExpr(expr *astExpr) {
 			walkExpr(expr.sliceExpr.Max)
 		}
 		walkExpr(expr.sliceExpr.X)
+	case "*astStarExpr":
+		walkExpr(expr.starExpr.X)
 	default:
 		panic("[walkExpr] TBI:" + expr.dtype)
 	}
@@ -1886,6 +1914,7 @@ var gUint8 *astObject
 var gUint16 *astObject
 var gUintptr *astObject
 var gBool *astObject
+var gNew *astObject
 
 func semanticAnalyze(file *astFile) string {
 	// create universe scope
@@ -1898,6 +1927,7 @@ func semanticAnalyze(file *astFile) string {
 	scopeInsert(universe, gBool)
 	scopeInsert(universe, gTrue)
 	scopeInsert(universe, gFalse)
+	scopeInsert(universe, gNew)
 
 	// @FIXME package names should be be in universe
 	var pkgOs = new(astObject)
@@ -2132,6 +2162,14 @@ func emitCall(symbol string, args []*Arg) {
 	fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(pushed))
 }
 
+func emitCallMalloc(size int) {
+	fmtPrintf("  pushq $%s\n", Itoa(size))
+	// call malloc and return pointer
+	fmtPrintf("  callq runtime.malloc\n") // no need to invert args orders
+	emitRevertStackPointer(intSize)
+	fmtPrintf("  pushq %%rax # addr\n")
+}
+
 func emitExpr(e *astExpr) {
 	fmtPrintf("# [emitExpr] dtype=%s\n", e.dtype)
 	switch e.dtype {
@@ -2153,10 +2191,15 @@ func emitExpr(e *astExpr) {
 			emitAddr(e)
 			var t = getTypeOfExpr(e)
 			emitLoad(t)
+		case "Typ":
+			panic("[emitExpr][*astIdent] Kind Typ should not come here")
 		default:
-			panic("[emitExpr][*astIdent] unknown Kind=" + ident.Obj.Kind)
+			panic("[emitExpr][*astIdent] unknown Kind=" + ident.Obj.Kind + " Name=" + ident.Obj.Name)
 		}
 	case "*astIndexExpr":
+		emitAddr(e)
+		emitLoad(getTypeOfExpr(e))
+	case "*astStarExpr":
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case "*astBasicLit":
@@ -2205,6 +2248,14 @@ func emitExpr(e *astExpr) {
 		}
 		switch fun.dtype {
 		case "*astIdent":
+			var fnIdent = fun.ident
+			switch fnIdent.Obj {
+			case gNew:
+				var typeArg = e2t(e.callExpr.Args[0])
+				var size = getSizeOfType(typeArg)
+				emitCallMalloc(size)
+				return
+			}
 			var pushed int = 0
 			//var arg *astExpr
 			var i int
@@ -2283,6 +2334,7 @@ func emitExpr(e *astExpr) {
 		default:
 			panic("[emitExpr] TBI fun.dtype=" + fun.dtype)
 		}
+
 	case "*astSliceExpr":
 		var list = e.sliceExpr.X
 		var listType = getTypeOfExpr(list)
@@ -2453,6 +2505,8 @@ func emitAddr(expr *astExpr) {
 		var list = expr.indexExpr.X
 		var elmType = getTypeOfExpr(expr)
 		emitListElementAddr(list, elmType)
+	case "*astStarExpr":
+		emitExpr(expr.starExpr.X)
 	default:
 		panic("[emitAddr] TBI " + expr.dtype)
 	}
@@ -2857,6 +2911,13 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		e.dtype = "*astArrayType"
 		e.arrayType = t
 		return e2t(e)
+	case "*astStarExpr":
+		var t = getTypeOfExpr(expr.starExpr.X)
+		var ptrType = t.e.starExpr
+		if ptrType == nil {
+			panic2(__func__, "starExpr shoud not be nil")
+		}
+		return e2t(ptrType.X)
 	case "*astBinaryExpr":
 		switch expr.binaryExpr.Op {
 		case "==", "!=", "<", ">", "<=", ">=":
@@ -2931,6 +2992,8 @@ func kind(t *Type) string {
 		} else {
 			return T_ARRAY
 		}
+	case "*astStarExpr":
+		return T_POINTER
 	default:
 		panic2(__func__, "Unkown dtype:" + t.e.dtype)
 	}
@@ -3034,4 +3097,8 @@ func initGlobals() {
 	tBool.e.ident = new(astIdent)
 	tBool.e.ident.Name = "bool"
 	tBool.e.ident.Obj = gBool
+	
+	gNew = new(astObject)
+	gNew.Kind = "Fun"
+	gNew.Name = "new"
 }

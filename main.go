@@ -364,11 +364,11 @@ func emitLen(arg ast.Expr) {
 }
 
 func emitCallMalloc(size int) {
-	fmt.Printf("  pushq $%d\n", size)
+	fmtPrintf("  pushq $%s\n", Itoa(size))
 	// call malloc and return pointer
-	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
+	fmtPrintf("  callq runtime.malloc\n") // no need to invert args orders
 	emitRevertStackPointer(intSize)
-	fmt.Printf("  pushq %%rax # addr\n")
+	fmtPrintf("  pushq %%rax # addr\n")
 }
 
 func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
