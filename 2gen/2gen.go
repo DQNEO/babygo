@@ -750,7 +750,7 @@ func parserParseImportDecl() *astImportSpec {
 	parserExpect("import", "parserParseImportDecl")
 	var path = ptok.lit
 	parserNext()
-	parserExpectSemi("parserParseImportDecl")
+	parserExpectSemi(__func__)
 	var spec = new(astImportSpec)
 	spec.Path = path
 	return spec
@@ -1476,7 +1476,7 @@ func parseReturnStmt() *astStmt {
 	if ptok.tok != ";" && ptok.tok != "}" {
 		x = parseRhsList()
 	}
-	parserExpectSemi("parseReturnStmt")
+	parserExpectSemi(__func__)
 	var returnStmt = new(astReturnStmt)
 	returnStmt.Results = x
 	var r = new(astStmt)
@@ -1536,7 +1536,7 @@ func parseDecl(keyword string) *astGenDecl {
 			parserNext()
 			value = parseExpr()
 		}
-		parserExpectSemi("parseDecl:var:2")
+		parserExpectSemi(__func__)
 		var spec = new(astValueSpec)
 		spec.Name = ident
 		spec.Type = typ
@@ -1565,7 +1565,7 @@ func parserParseValueSpec() *astSpec {
 	var ident = parseIdent()
 	fmtPrintf("# [parserParseValueSpec] ident = %s\n", ident.Name)
 	var typ = parseType()
-	parserExpectSemi("parserParseValueSpec")
+	parserExpectSemi(__func__)
 	var spec = new(astValueSpec)
 	spec.Name = ident
 	spec.Type = typ
@@ -1596,7 +1596,7 @@ func parserParseFuncDecl() *astDecl {
 		fmtPrintf("# begin parseBody()\n")
 		body = parseBody(scope)
 		fmtPrintf("# end parseBody()\n")
-		parserExpectSemi("parserParseFuncDecl")
+		parserExpectSemi(__func__)
 	}
 	var decl = new(astDecl)
 	decl.dtype = "*astFuncDecl"
@@ -1618,7 +1618,7 @@ func parserParseFile() *astFile {
 	parserUnresolved = nil
 	var ident = parseIdent()
 	var packageName = ident.Name
-	parserExpectSemi("parserParseFile")
+	parserExpectSemi(__func__)
 
 	parserTopScope = new(astScope) // open scope
 	parserPkgScope = parserTopScope
