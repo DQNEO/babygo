@@ -14,6 +14,14 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testMakeSlice() {
+	var x []uint8 = make([]uint8, 3, 20)
+	x[0] = 'A'
+	x[1] = 'B'
+	x[2] = 'C'
+	writeln(string(x))
+}
+
 func testNew() {
 	var i *int
 	i = new(int)
@@ -293,6 +301,8 @@ func testMisc() {
 }
 
 func test() {
+	testMakeSlice()
+
 	testNew()
 	testItoa()
 	testIndexExprOfArray()

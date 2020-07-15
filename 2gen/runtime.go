@@ -21,10 +21,10 @@ func heapInit() {
 	s = "runtime"
 }
 
-func brk(addr uintptr) uintptr {
+func brk(addr0 uintptr) uintptr {
 	var ret uintptr = 0
 	var arg0 uintptr = uintptr(SYS_BRK)
-	var arg1 uintptr = addr
+	var arg1 uintptr = addr0
 	var arg2 uintptr = uintptr(0)
 	var arg3 uintptr = uintptr(0)
 	// @FIXME
@@ -42,8 +42,8 @@ func panic(s string) {
 	syscall.Syscall(arg0, arg1, arg2, arg3)
 }
 
-func memzeropad(addr uintptr, size uintptr) {
-	var p *uint8 = (*uint8)(unsafe.Pointer(addr))
+func memzeropad(addr1 uintptr, size uintptr) {
+	var p *uint8 = (*uint8)(unsafe.Pointer(addr1))
 	var isize int = int(size)
 	var i int
 	var up uintptr
@@ -52,6 +52,12 @@ func memzeropad(addr uintptr, size uintptr) {
 		up = uintptr(unsafe.Pointer(p)) + 1
 		p = (*uint8)(unsafe.Pointer(up))
 	}
+}
+
+func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
+	var size uintptr = uintptr(elmSize * scap)
+	var addr2 uintptr = malloc(size)
+	return addr2, slen, scap
 }
 
 func malloc(size uintptr) uintptr {

@@ -758,18 +758,19 @@ func parserParseImportDecl() *astImportSpec {
 }
 
 func parseVarType() *astExpr {
+	fmtPrintf("# [%s] begin\n", __func__)
 	var e = tryIdentOrType()
-	if e != nil {
-		tryResolve(e, true)
-	}
+	fmtPrintf("# [%s] end\n", __func__)
 	return e
 }
 
 func tryType() *astExpr {
+	fmtPrintf("# [%s] begin\n", __func__)
 	var typ = tryIdentOrType()
 	if typ != nil {
 		parserResolve(typ)
 	}
+	fmtPrintf("# [%s] end\n", __func__)
 	return typ
 }
 
@@ -814,14 +815,21 @@ func parseArrayType() *astExpr {
 	return eFromArrayType(arrayType)
 }
 
+func parseTypeName() *astExpr {
+	fmtPrintf("# [%s] begin\n", __func__)
+	var ident = parseIdent()
+	var typ = new(astExpr)
+	typ.ident = ident
+	typ.dtype = "*astIdent"
+	fmtPrintf("# [%s] end\n", __func__)
+	return typ
+}
+
 func tryIdentOrType() *astExpr {
+	fmtPrintf("# [%s] begin\n", __func__)
 	switch ptok.tok {
 	case "IDENT":
-		var ident = parseIdent()
-		var typ = new(astExpr)
-		typ.ident = ident
-		typ.dtype = "*astIdent"
-		return typ
+		return parseTypeName()
 	case "[":
 		return parseArrayType()
 	case "*":
@@ -836,8 +844,6 @@ func tryIdentOrType() *astExpr {
 		typ.dtype = "*astParenExpr"
 		typ.parenExpr = parenExpr
 		return typ
-	default:
-		panic("[tryIdentOrType] TBI:" +  ptok.tok)
 	}
 	var _nil *astExpr
 	return _nil
@@ -845,69 +851,120 @@ func tryIdentOrType() *astExpr {
 
 
 func parseParameterList(scope *astScope) []*astField {
-	fmtPrintf("#  begin %s\n", __func__)
-	var params []*astField
-	//var list []*astExpr
-	for ptok.tok != ")" {
-		var field = new(astField)
-		var ident = parseIdent()
-		if ident == nil {
-			panic2(__func__, "Ident should not be nil")
-		}
-		fmtPrintf("# [%s] ident.Name=%s\n", __func__, ident.Name)
-		var typ = parseVarType()
-		if typ == nil {
-			panic2(__func__,"#  typ is nil\n")
-		}
-		fmtPrintf("# [parser] parseParameterList: typ=%s\n", typ.dtype)
-		field.Name = ident
-		field.Type = typ
-		fmtPrintf("# [parser] parseParameterList: Field %s %s\n", field.Name.Name, field.Type.dtype)
-		params = append(params, field)
-		if parserTopScope == nil {
-			panic("parserTopScope should not be nil")
-		}
-		declareField(field, scope, "Var", ident)
-		if ptok.tok == "," {
-			parserNext()
-			continue
-		} else if ptok.tok == ")" {
+	fmtPrintf("# [%s] begin\n", __func__)
+	var list []*astExpr
+	for {
+		var varType = parseVarType()
+		list = append(list, varType)
+		if ptok.tok != "," {
 			break
-		} else {
-			panic("[parseParameterList] Syntax Error\n")
+		}
+		parserNext()
+		if ptok.tok == ")" {
+			break
 		}
 	}
+	fmtPrintf("# [%s] collected list n=%s\n", __func__, Itoa(len(list)))
 
+	var params []*astField
+
+	var typ = tryType()
+	if typ != nil {
+			if len(list) > 1 {
+				panic2(__func__, "Ident list is not supported")
+			}
+			var eIdent = list[0]
+			if eIdent.dtype != "*astIdent" {
+				panic2(__func__, "Unexpected dtype")
+			}
+			var ident = eIdent.ident
+			var field = new(astField)
+			if ident == nil {
+				panic2(__func__, "Ident should not be nil")
+			}
+			fmtPrintf("# [%s] ident.Name=%s\n", __func__, ident.Name)
+			fmtPrintf("# [%s] typ=%s\n", __func__, typ.dtype)
+			field.Name = ident
+			field.Type = typ
+			fmtPrintf("# [%s]: Field %s %s\n", __func__, field.Name.Name, field.Type.dtype)
+			params = append(params, field)
+			declareField(field, scope, "Var", ident)
+			parserResolve(typ)
+			if ptok.tok != "," {
+				fmtPrintf("#  end %s\n", __func__)
+				return params
+			}
+			parserNext()
+			for ptok.tok != ")" && ptok.tok != "EOF" {
+				ident = parseIdent()
+				typ = parseVarType()
+				field = new(astField)
+				field.Name = ident
+				field.Type = typ
+				params = append(params, field)
+				declareField(field, scope, "Var", ident)
+				parserResolve(typ)
+				if ptok.tok != "," {
+					break
+				}
+				parserNext()
+			}
+		fmtPrintf("#  end %s\n", __func__)
+		return params
+	}
+
+	// Type { "," Type } (anonymous parameters)
+	params = make([]*astField, len(list), len(list))
+	var i int
+	for i, typ = range list {
+		parserResolve(typ)
+		var field = new(astField)
+		field.Type = typ
+		params[i] = field
+	}
 	fmtPrintf("#  end %s\n", __func__)
 	return params
 }
 
 func parseParameters(scope *astScope) *astFieldList {
+	fmtPrintf("# [%s] begin\n", __func__)
 	var params []*astField
-	parserExpect("(", "parseParameters")
+	parserExpect("(",  __func__)
 	if ptok.tok != ")" {
 		params = parseParameterList(scope)
 	}
-	parserExpect(")", "parseParameters")
+	parserExpect(")", __func__)
 	var afl = new(astFieldList)
 	afl.List = params
+	fmtPrintf("# [%s] end\n", __func__)
 	return afl
 }
 
 func parserResult(scope *astScope) *astFieldList {
+	fmtPrintf("# [%s] begin\n", __func__)
+
+	if ptok.tok == "(" {
+		var r = parseParameters(scope)
+		fmtPrintf("# [%s] end\n", __func__)
+		return r
+	}
+
 	var r = new(astFieldList)
 	if ptok.tok == "{" {
 		r = nil
+		fmtPrintf("# [%s] end\n", __func__)
 		return r
 	}
-	var typ = parseType()
+	var typ = tryType()
 	var field = new(astField)
 	field.Type = typ
 	r.List = append(r.List, field)
+	fmtPrintf("# [%s] end\n", __func__)
 	return r
 }
 
 func parseSignature(scope *astScope) *signature {
+	fmtPrintf("# [%s] begin\n", __func__)
 	var params *astFieldList
 	var results *astFieldList
 	params = parseParameters(scope)
@@ -977,7 +1034,7 @@ func tryResolve(x *astExpr, collectUnresolved bool) {
 
 	if collectUnresolved {
 		parserUnresolved = append(parserUnresolved, ident)
-		fmtPrintf("# collected unresolved ident %s\n", ident.Name)
+		fmtPrintf("# appended unresolved ident %s\n", ident.Name)
 	}
 }
 
@@ -1590,6 +1647,7 @@ func parserParseFile() *astFile {
 			decl.genDecl = genDecl
 			fmtPrintf("# [parserParseFile] debug 9\n")
 		case "func":
+			fmtPrintf("\n\n")
 			decl  = parserParseFuncDecl()
 			fmtPrintf("# func decl parsed:%s\n", decl.funcDecl.Name.Name)
 		default:
@@ -1619,6 +1677,7 @@ func parserParseFile() *astFile {
 	f.Name = packageName
 	f.Decls = decls
 	f.Unresolved = unresolved
+	fmtPrintf("# [%s] end\n", __func__)
 	return f
 }
 
@@ -1961,8 +2020,10 @@ var gUint16 *astObject
 var gUintptr *astObject
 var gBool *astObject
 var gNew *astObject
+var gMake *astObject
 
 func semanticAnalyze(file *astFile) string {
+	fmtPrintf("# [%s] start\n", __func__)
 	// create universe scope
 	var universe = new(astScope)
 	// inject predeclared identifers
@@ -1975,6 +2036,9 @@ func semanticAnalyze(file *astFile) string {
 	scopeInsert(universe, gTrue)
 	scopeInsert(universe, gFalse)
 	scopeInsert(universe, gNew)
+	scopeInsert(universe, gMake)
+
+	fmtPrintf("# [%s] scope insertion of predefined identifiers complete\n", __func__)
 
 	// @FIXME package names should be be in universe
 	var pkgOs = new(astObject)
@@ -1992,6 +2056,7 @@ func semanticAnalyze(file *astFile) string {
 	pkgUnsafe.Name = "unsafe"
 	scopeInsert(universe, pkgUnsafe)
 
+	fmtPrintf("# [%s] scope insertion complete\n", __func__)
 	pkgName = file.Name
 
 	var unresolved []*astIdent
@@ -2222,6 +2287,13 @@ func emitCallMalloc(size int) {
 	fmtPrintf("  pushq %%rax # addr\n")
 }
 
+func newNumberLiteral(x int) *astBasicLit {
+	var r = new(astBasicLit)
+	r.Kind = "INT"
+	r.Value = Itoa(x)
+	return r
+}
+
 func emitExpr(e *astExpr) {
 	fmtPrintf("# [emitExpr] dtype=%s\n", e.dtype)
 	switch e.dtype {
@@ -2306,6 +2378,44 @@ func emitExpr(e *astExpr) {
 				var typeArg = e2t(e.callExpr.Args[0])
 				var size = getSizeOfType(typeArg)
 				emitCallMalloc(size)
+				return
+			case gMake:
+				var typeArg = e2t(e.callExpr.Args[0])
+				switch kind(typeArg) {
+				case T_SLICE:
+					// make([]T, ...)
+					var arrayType = typeArg.e.arrayType
+					//assert(ok, "should be *ast.ArrayType")
+					var elmSize = getSizeOfType(e2t(arrayType.Elt))
+					var numlit = newNumberLiteral(elmSize)
+					var eNumLit = new(astExpr)
+					eNumLit.dtype = "*astBasicLit"
+					eNumLit.basicLit = numlit
+					var args []*Arg
+					var arg0 *Arg // elmSize
+					var arg1 *Arg
+					var arg2 *Arg
+					arg0 = new(Arg)
+					arg0.e = eNumLit
+					arg0.t = tInt
+					arg1 = new(Arg) // len
+					arg1.e = e.callExpr.Args[1]
+					arg1.t = tInt
+					arg2 = new(Arg) // cap
+					arg2.e = e.callExpr.Args[2]
+					arg2.t = tInt
+					args = append(args, arg0)
+					args = append(args, arg1)
+					args = append(args, arg2)
+
+					emitCall("runtime.makeSlice", args)
+					fmtPrintf("  pushq %%rsi # slice cap\n")
+					fmtPrintf("  pushq %%rdi # slice len\n")
+					fmtPrintf("  pushq %%rax # slice ptr\n")
+				default:
+					panic2(__func__, "TBI")
+				}
+
 				return
 			}
 			var pushed int = 0
@@ -2784,6 +2894,14 @@ func emitStmt(stmt *astStmt) {
 			}
 			fmtPrintf("  leave\n")
 			fmtPrintf("  ret\n")
+		} else if len(stmt.returnStmt.Results) == 3 {
+			// Special treatment to return a slice
+			emitExpr(stmt.returnStmt.Results[2]) // @FIXME
+			emitExpr(stmt.returnStmt.Results[1]) // @FIXME
+			emitExpr(stmt.returnStmt.Results[0]) // @FIXME
+			fmtPrintf("  popq %%rax # return 64bit\n")
+			fmtPrintf("  popq %%rdi # return 64bit\n")
+			fmtPrintf("  popq %%rsi # return 64bit\n")
 		} else {
 			panic("[emitStmt][*astReturnStmt] TBI\n")
 		}
@@ -3168,4 +3286,8 @@ func initGlobals() {
 	gNew = new(astObject)
 	gNew.Kind = "Fun"
 	gNew.Name = "new"
+
+	gMake = new(astObject)
+	gMake.Kind = "Fun"
+	gMake.Name = "make"
 }

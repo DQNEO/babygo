@@ -616,8 +616,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 					// make([]T, ...)
 					arrayType, ok := typeArg.e.(*ast.ArrayType)
 					assert(ok, "should be *ast.ArrayType")
-					elmSize := getSizeOfType(e2t(arrayType.Elt))
-					numlit := newNumberLiteral(elmSize)
+					var elmSize = getSizeOfType(e2t(arrayType.Elt))
+					var numlit = newNumberLiteral(elmSize)
 
 					var args []*Arg = []*Arg{
 						// elmSize
