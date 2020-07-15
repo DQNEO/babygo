@@ -365,6 +365,23 @@ func emitLen(arg ast.Expr) {
 	}
 }
 
+func emitCap(arg ast.Expr) {
+	switch kind(getTypeOfExpr(arg)) {
+	case T_ARRAY:
+		arrayType, ok := getTypeOfExpr(arg).e.(*ast.ArrayType)
+		assert(ok, "should be *ast.ArrayType")
+		emitExpr(arrayType.Len, tInt)
+	case T_SLICE:
+		emitExpr(arg, nil)
+		emitPopSlice()
+		fmt.Printf("  pushq %%rdx # cap\n")
+	case T_STRING:
+		panic("cap() cannot accept string type")
+	default:
+		throw(kind(getTypeOfExpr(arg)))
+	}
+}
+
 func emitCallMalloc(size int) {
 	fmtPrintf("  pushq $%s\n", Itoa(size))
 	// call malloc and return pointer
@@ -582,20 +599,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			case gCap:
 				assert(len(e.Args) == 1, "builtin len should take only 1 args")
 				var arg ast.Expr = e.Args[0]
-				switch kind(getTypeOfExpr(arg)) {
-				case T_ARRAY:
-					arrayType, ok := getTypeOfExpr(arg).e.(*ast.ArrayType)
-					assert(ok, "should be *ast.ArrayType")
-					emitExpr(arrayType.Len, tInt)
-				case T_SLICE:
-					emitExpr(arg, nil)
-					emitPopSlice()
-					fmt.Printf("  pushq %%rdx # cap\n")
-				case T_STRING:
-					panic("cap() cannot accept string type")
-				default:
-					throw(kind(getTypeOfExpr(arg)))
-				}
+				emitCap(arg)
 			case gNew:
 				typeArg := e2t(e.Args[0])
 				// size to malloc
