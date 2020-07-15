@@ -9,6 +9,17 @@ import (
 	"syscall"
 )
 
+// --- foundation ---
+func assert(bol bool, msg string) {
+	if !bol {
+		panic(msg)
+	}
+}
+
+func throw(x interface{}) {
+	panic(fmt.Sprintf("%#v", x))
+}
+
 // --- libs ---
 func fmtSprintf(format string, a []string) string {
 	var buf []uint8
@@ -86,16 +97,6 @@ func Itoa(ival int) string {
 	return string(__itoa_r[0:ix])
 }
 
-func assert(bol bool, msg string) {
-	if !bol {
-		panic(msg)
-	}
-}
-
-func throw(x interface{}) {
-	panic(fmt.Sprintf("%#v", x))
-}
-
 // --- parser ---
 func parseFile(fset *token.FileSet, filename string) *ast.File {
 	f, err := parser.ParseFile(fset, filename, nil, 0)
@@ -105,7 +106,7 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 	return f
 }
 
-// --- code gen ---
+// --- codegen ---
 func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }

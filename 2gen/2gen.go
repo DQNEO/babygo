@@ -3,7 +3,7 @@ package main
 import "syscall"
 import "os"
 
-// -- foundation --
+// --- foundation ---
 var __func__ string
 
 func panic(x string) {
@@ -13,6 +13,12 @@ func panic(x string) {
 
 func panic2(caller string, x string) {
 	panic("[" + caller + "] " + x)
+}
+
+func assert(bol bool, msg string, caller string) {
+	if !bol {
+		panic2(caller, msg)
+	}
 }
 
 // --- libs ---
