@@ -14,6 +14,29 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testLenCap() {
+	var x []uint8
+	x = make([]uint8, 0, 0)
+	var ln int
+	ln = len(x)
+	writeln(itoa(ln))
+
+//	writeln(Itoa(cap(x)))
+
+	x = make([]uint8, 12, 24)
+	ln = len(x)
+	writeln(itoa(ln))
+
+//	writeln(Itoa(cap(x)))
+
+//	writeln(Itoa(len(globalintarray)))
+
+	//writeln(Itoa(cap(globalintarray)))
+//	var s string
+//	s = "hello\n"
+	//writeln(Itoa(len(s))) // 6
+}
+
 func testMakeSlice() {
 	var x []uint8 = make([]uint8, 3, 20)
 	x[0] = 'A'
@@ -304,6 +327,8 @@ func testMisc() {
 }
 
 func test() {
+	testLenCap()
+	return
 	testMakeSlice()
 
 	testNew()

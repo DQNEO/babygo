@@ -726,7 +726,7 @@ func testConcateStrings() {
 	writeln(concatenated)
 }
 
-func testLen() {
+func testLenCap() {
 	var x []uint8
 	x = make([]uint8, 0, 0)
 	writeln(Itoa(len(x)))
@@ -1144,7 +1144,7 @@ func test() {
 	testPointer()
 	testDeclValue()
 	testConcateStrings()
-	testLen()
+	testLenCap()
 	testMakeSlice()
 	testNew()
 

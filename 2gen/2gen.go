@@ -1898,6 +1898,10 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 
 func emitZeroValue(t *Type) {
 	switch kind(t) {
+	case T_SLICE:
+		fmtPrintf("  pushq $0 # slice zero value\n")
+		fmtPrintf("  pushq $0 # slice zero value\n")
+		fmtPrintf("  pushq $0 # slice zero valuer\n")
 	case T_STRING:
 		fmtPrintf("  pushq $0 # string zero value\n")
 		fmtPrintf("  pushq $0 # string zero value\n")
@@ -1907,6 +1911,26 @@ func emitZeroValue(t *Type) {
 		panic2(__func__, "TBI:" + kind(t))
 	}
 }
+
+func emitLen(arg *astExpr) {
+	switch kind(getTypeOfExpr(arg)) {
+	case T_ARRAY:
+		var typ = getTypeOfExpr(arg)
+		var arrayType = typ.e.arrayType
+		emitExpr(arrayType.Len)
+	case T_SLICE:
+		emitExpr(arg)
+		emitPopSlice()
+		fmtPrintf("  pushq %%rcx # len\n")
+	case T_STRING:
+		emitExpr(arg)
+		emitPopString()
+		fmtPrintf("  pushq %%rcx # len\n")
+	default:
+		throw(kind(getTypeOfExpr(arg)))
+	}
+}
+
 
 func emitCallMalloc(size int) {
 	fmtPrintf("  pushq $%s\n", Itoa(size))
@@ -2047,6 +2071,10 @@ func emitExpr(e *astExpr) {
 				var typeArg = e2t(e.callExpr.Args[0])
 				var size = getSizeOfType(typeArg)
 				emitCallMalloc(size)
+				return
+			case gLen:
+				var arg = e.callExpr.Args[0]
+				emitLen(arg)
 				return
 			case gMake:
 				var typeArg = e2t(e.callExpr.Args[0])
@@ -3118,6 +3146,7 @@ var gUintptr *astObject
 var gBool *astObject
 var gNew *astObject
 var gMake *astObject
+var gLen *astObject
 
 func createUniverse() *astScope {
 	var universe = new(astScope)
@@ -3132,6 +3161,7 @@ func createUniverse() *astScope {
 	scopeInsert(universe, gFalse)
 	scopeInsert(universe, gNew)
 	scopeInsert(universe, gMake)
+	scopeInsert(universe, gLen)
 
 	fmtPrintf("# [%s] scope insertion of predefined identifiers complete\n", __func__)
 
@@ -3262,6 +3292,10 @@ func initGlobals() {
 	gMake = new(astObject)
 	gMake.Kind = "Fun"
 	gMake.Name = "make"
+
+	gLen = new(astObject)
+	gLen.Kind = "Fun"
+	gLen.Name = "len"
 }
 
 var pkgName string

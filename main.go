@@ -331,9 +331,9 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 func emitZeroValue(t *Type) {
 	switch kind(t) {
 	case T_SLICE:
-		fmt.Printf("  pushq $0 # slice zero value\n")
-		fmt.Printf("  pushq $0 # slice zero value\n")
-		fmt.Printf("  pushq $0 # slice zero valuer\n")
+		fmtPrintf("  pushq $0 # slice zero value\n")
+		fmtPrintf("  pushq $0 # slice zero value\n")
+		fmtPrintf("  pushq $0 # slice zero valuer\n")
 	case T_STRING:
 		fmtPrintf("  pushq $0 # string zero value\n")
 		fmtPrintf("  pushq $0 # string zero value\n")
