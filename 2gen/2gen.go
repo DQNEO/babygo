@@ -2665,7 +2665,7 @@ func emitAddr(expr *astExpr) {
 				"ERROR: Variable is nil for name : " + expr.ident.Obj.Name, __func__)
 			emitVariableAddr(expr.ident.Obj.Variable)
 		} else {
-			fmtPrintf("[emitAddr] Unexpected Kind %s \n" ,expr.ident.Obj.Kind)
+			panic2(__func__, "Unexpected Kind " + expr.ident.Obj.Kind)
 		}
 	case "*astIndexExpr":
 		emitExpr(expr.indexExpr.Index) // index number
