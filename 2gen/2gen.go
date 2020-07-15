@@ -2661,9 +2661,8 @@ func emitAddr(expr *astExpr) {
 		fmtPrintf("  # %s\n", expr.ident.Name)
 		if expr.ident.Obj.Kind == "Var" {
 			fmtPrintf("  # is Var\n")
-			if expr.ident.Obj.Variable == nil {
-				panic2(__func__, "ERROR: Variable is nil for name : " + expr.ident.Obj.Name)
-			}
+			assert(expr.ident.Obj.Variable != nil,
+				"ERROR: Variable is nil for name : " + expr.ident.Obj.Name, __func__)
 			emitVariableAddr(expr.ident.Obj.Variable)
 		} else {
 			fmtPrintf("[emitAddr] Unexpected Kind %s \n" ,expr.ident.Obj.Kind)
