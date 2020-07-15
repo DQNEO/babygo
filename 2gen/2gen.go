@@ -3186,21 +3186,6 @@ func kind(t *Type) string {
 	return ""
 }
 
-func main() {
-	initGlobals()
-	var sourceFiles = []string{"2gen/runtime.go", "2gen/sample.go"}
-	var sourceFile string
-	for _, sourceFile = range sourceFiles {
-		globalVars = nil
-		globalFuncs = nil
-		stringLiterals = nil
-		stringIndex = 0
-		var f = parseFile(sourceFile)
-		var pkgName = semanticAnalyze(f)
-		generateCode(pkgName)
-	}
-}
-
 func initGlobals() {
 	__func__ = "__func__"
 	T_STRING  = "T_STRING"
@@ -3281,7 +3266,7 @@ func initGlobals() {
 	tBool.e.ident = new(astIdent)
 	tBool.e.ident.Name = "bool"
 	tBool.e.ident.Obj = gBool
-	
+
 	gNew = new(astObject)
 	gNew.Kind = "Fun"
 	gNew.Name = "new"
@@ -3289,4 +3274,20 @@ func initGlobals() {
 	gMake = new(astObject)
 	gMake.Kind = "Fun"
 	gMake.Name = "make"
+}
+
+func main() {
+	initGlobals()
+
+	var sourceFiles = []string{"2gen/runtime.go", "2gen/sample.go"}
+	var sourceFile string
+	for _, sourceFile = range sourceFiles {
+		globalVars = nil
+		globalFuncs = nil
+		stringLiterals = nil
+		stringIndex = 0
+		var f = parseFile(sourceFile)
+		var pkgName = semanticAnalyze(f)
+		generateCode(pkgName)
+	}
 }
