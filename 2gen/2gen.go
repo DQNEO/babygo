@@ -4,21 +4,26 @@ import "syscall"
 import "os"
 
 // --- foundation ---
+func assert(bol bool, msg string, caller string) {
+	if !bol {
+		panic2(caller, msg)
+	}
+}
+
+func throw(s string) {
+	panic(s)
+}
+
 var __func__ string
 
 func panic(x string) {
-	fmtPrintf("panic: " + x+"\n\n")
+	var s = "panic: " + x+"\n\n"
+	syscall.Write(1, []uint8(s))
 	os.Exit(1)
 }
 
 func panic2(caller string, x string) {
 	panic("[" + caller + "] " + x)
-}
-
-func assert(bol bool, msg string, caller string) {
-	if !bol {
-		panic2(caller, msg)
-	}
 }
 
 // --- libs ---
@@ -1775,10 +1780,6 @@ const sliceSize int = 24
 const stringSize int = 16
 const intSize int = 8
 const ptrSize int = 8
-
-func throw(s string) {
-	syscall.Write(2, []uint8(s))
-}
 
 //type localoffsetint int //@TODO
 var localoffset int
