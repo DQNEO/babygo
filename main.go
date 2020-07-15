@@ -1045,6 +1045,15 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 	}
 }
 
+func newNumberLiteral(x int) *ast.BasicLit {
+	e := &ast.BasicLit{
+		ValuePos: 0,
+		Kind:     token.INT,
+		Value:    fmt.Sprintf("%d", x),
+	}
+	return e
+}
+
 func emitListElementAddr(list ast.Expr, elmType *Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
@@ -1585,46 +1594,9 @@ func generateCode(pkgName string) {
 	emitText(pkgName)
 }
 
-// --- semantic analyzer ---
-func newNumberLiteral(x int) *ast.BasicLit {
-	e := &ast.BasicLit{
-		ValuePos: 0,
-		Kind:     token.INT,
-		Value:    fmt.Sprintf("%d", x),
-	}
-	return e
-}
-
-func getStructTypeOfX(e *ast.SelectorExpr) *Type {
-	typeOfX := getTypeOfExpr(e.X)
-	var structType *Type
-	switch kind(typeOfX) {
-	case T_STRUCT:
-		// strct.field => e.X . e.Sel
-		structType = typeOfX
-	case T_POINTER:
-		// ptr.field => e.X . e.Sel
-		ptrType, ok := typeOfX.e.(*ast.StarExpr)
-		assert(ok, "should be *ast.StarExpr")
-		structType = e2t(ptrType.X)
-	default:
-		throw("TBI")
-	}
-	return structType
-}
-
-func getElementTypeOfListType(t *Type) *Type {
-	switch kind(t) {
-	case T_SLICE, T_ARRAY:
-		arrayType, ok := t.e.(*ast.ArrayType)
-		assert(ok, "expect *ast.ArrayType")
-		return e2t(arrayType.Elt)
-	case T_STRING:
-		return tUint8
-	default:
-		throw(t)
-	}
-	return nil
+// --- type ---
+type Type struct {
+	e ast.Expr // original expr
 }
 
 const sliceSize int = 24
@@ -1632,649 +1604,6 @@ const stringSize int = 16
 const intSize int = 8
 const ptrSize int = 8
 
-func getSizeOfType(t *Type) int {
-	var varSize int
-	switch kind(t) {
-	case T_SLICE:
-		return sliceSize
-	case T_STRING:
-		return gString.Data.(int)
-	case T_INT, T_UINTPTR, T_POINTER:
-		return gInt.Data.(int)
-	case T_UINT8:
-		return gUint8.Data.(int)
-	case T_BOOL:
-		return gInt.Data.(int)
-	case T_ARRAY:
-		arrayType, ok := t.e.(*ast.ArrayType)
-		assert(ok, "expect *ast.ArrayType")
-		elmSize := getSizeOfType(e2t(arrayType.Elt))
-		return elmSize * evalInt(arrayType.Len)
-	case T_STRUCT:
-		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
-	default:
-		throw(t)
-	}
-	return varSize
-}
-
-func getPushSizeOfType(t *Type) int {
-	switch kind(t) {
-	case T_SLICE:
-		return sliceSize
-	case T_STRING:
-		return stringSize
-	case T_UINT8, T_UINT16, T_INT, T_BOOL:
-		return intSize
-	case T_UINTPTR, T_POINTER:
-		return ptrSize
-	case T_ARRAY, T_STRUCT:
-		return ptrSize
-	default:
-		throw(t)
-	}
-	throw(t)
-	return 0
-}
-
-type sliteral struct {
-	label  string
-	strlen int
-	value  string // raw value
-}
-
-var stringLiterals []*stringLiteralsContainer
-
-type stringLiteralsContainer struct {
-	lit *ast.BasicLit
-	sl  *sliteral
-}
-
-var stringIndex int
-
-func getStringLiteral(lit *ast.BasicLit) *sliteral {
-	for _, container := range stringLiterals {
-		if container.lit == lit {
-			return container.sl
-		}
-	}
-
-	panic(lit.Value)
-	return nil
-}
-
-func registerStringLiteral(lit *ast.BasicLit) {
-	if pkgName == "" {
-		panic("no pkgName")
-	}
-
-	var strlen int
-	for _, c := range []uint8(lit.Value) {
-		if c != '\\' {
-			strlen++
-		}
-	}
-
-	label := fmt.Sprintf(".%s.S%d", pkgName, stringIndex)
-	stringIndex++
-
-	sl := &sliteral{
-		label:  label,
-		strlen: strlen - 2,
-		value:  lit.Value,
-	}
-	var cont *stringLiteralsContainer = new(stringLiteralsContainer)
-	cont.sl = sl
-	cont.lit = lit
-	stringLiterals = append(stringLiterals, cont)
-}
-
-func getStructFieldOffset(field *ast.Field) int {
-	if field.Doc == nil {
-		panic("Doc is nil:" + field.Names[0].Name)
-	}
-	text := field.Doc.List[0].Text
-	offset, err := strconv.Atoi(text)
-	if err != nil {
-		panic(text)
-	}
-	return offset
-}
-
-func setStructFieldOffset(field *ast.Field, offset int) {
-	comment := &ast.Comment{
-		Text: strconv.Itoa(offset),
-	}
-	commentGroup := &ast.CommentGroup{
-		List: []*ast.Comment{comment},
-	}
-	field.Doc = commentGroup
-}
-
-func getStructFields(structTypeSpec *ast.TypeSpec) []*ast.Field {
-	structType, ok := structTypeSpec.Type.(*ast.StructType)
-	if !ok {
-		throw(structTypeSpec.Type)
-	}
-
-	return structType.Fields.List
-}
-
-func getStructTypeSpec(namedStructType *Type) *ast.TypeSpec {
-	if kind(namedStructType) != T_STRUCT {
-		throw(namedStructType)
-	}
-	ident, ok := namedStructType.e.(*ast.Ident)
-	if !ok {
-		throw(namedStructType)
-	}
-	typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec)
-	if !ok {
-		throw(ident.Obj.Decl)
-	}
-	return typeSpec
-}
-
-func lookupStructField(structTypeSpec *ast.TypeSpec, selName string) *ast.Field {
-	for _, field := range getStructFields(structTypeSpec) {
-		if field.Names[0].Name == selName {
-			return field
-		}
-	}
-	panic("Unexpected flow: struct field not found:" + selName)
-	return nil
-}
-
-func calcStructSizeAndSetFieldOffset(structTypeSpec *ast.TypeSpec) int {
-	var offset int = 0
-	for _, field := range getStructFields(structTypeSpec) {
-		setStructFieldOffset(field, offset)
-		size := getSizeOfType(e2t(field.Type))
-		offset += size
-	}
-	return offset
-}
-
-type ForStmt struct {
-	kind      int    // 1:for 2:range
-	labelPost string // for continue
-	labelExit string // for break
-	outer     *ForStmt
-	astFor    *ast.ForStmt
-	astRange  *ast.RangeStmt
-}
-
-type RangeStmtMisc struct {
-	lenvar   *Variable
-	indexvar *Variable
-}
-
-var currentFor *ForStmt
-var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
-var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
-var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
-var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
-
-func walkStmt(stmt ast.Stmt) {
-	switch s := stmt.(type) {
-	case *ast.ExprStmt:
-		expr := s.X
-		walkExpr(expr)
-	case *ast.DeclStmt:
-		decl := s.Decl
-		switch dcl := decl.(type) {
-		case *ast.GenDecl:
-			declSpec := dcl.Specs[0]
-			switch ds := declSpec.(type) {
-			case *ast.ValueSpec:
-				varSpec := ds
-				obj := varSpec.Names[0].Obj
-				if varSpec.Type == nil { // var x
-					if len(ds.Values) > 0 {
-						// infer type from rhs
-						val := ds.Values[0]
-						typ := getTypeOfExpr(val)
-						if typ != nil && typ.e != nil {
-							varSpec.Type = typ.e
-						} else {
-							panic("type inference is not supported: " + obj.Name)
-						}
-					} else {
-						panic("type inference is not supported: " + obj.Name)
-					}
-				}
-				t := e2t(varSpec.Type)
-				localoffset -= localoffsetint(getSizeOfType(t))
-				obj.Data = newLocalVariable(obj.Name, localoffset)
-				for _, v := range ds.Values {
-					walkExpr(v)
-				}
-			}
-		default:
-			throw(decl)
-		}
-
-	case *ast.AssignStmt:
-		//lhs := s.Lhs[0]
-		rhs := s.Rhs[0]
-		walkExpr(rhs)
-	case *ast.ReturnStmt:
-		for _, r := range s.Results {
-			walkExpr(r)
-		}
-	case *ast.IfStmt:
-		walkExpr(s.Cond)
-		walkStmt(s.Body)
-		if s.Else != nil {
-			walkStmt(s.Else)
-		}
-	case *ast.BlockStmt:
-		for _, stmt := range s.List {
-			walkStmt(stmt)
-		}
-	case *ast.ForStmt:
-		forStmt := new(ForStmt)
-		forStmt.astFor = s
-		forStmt.outer = currentFor
-		currentFor = forStmt
-		mapForNodeToFor[s] = forStmt
-		if s.Init != nil {
-			walkStmt(s.Init)
-		}
-		if s.Cond != nil {
-			walkExpr(s.Cond)
-		}
-		if s.Post != nil {
-			walkStmt(s.Post)
-		}
-		walkStmt(s.Body)
-		currentFor = forStmt.outer
-	case *ast.RangeStmt:
-		forStmt := new(ForStmt)
-		forStmt.astRange = s
-		forStmt.outer = currentFor
-		currentFor = forStmt
-		mapRangeNodeToFor[s] = forStmt
-		walkExpr(s.X)
-		walkStmt(s.Body)
-		localoffset -= localoffsetint(gInt.Data.(int))
-		lenvar := newLocalVariable(".range.len", localoffset)
-		localoffset -= localoffsetint(gInt.Data.(int))
-		indexvar := newLocalVariable(".range.index", localoffset)
-		mapRangeStmt[s] = &RangeStmtMisc{
-			lenvar:   lenvar,
-			indexvar: indexvar,
-		}
-		currentFor = forStmt.outer
-	case *ast.IncDecStmt:
-		walkExpr(s.X)
-	case *ast.SwitchStmt:
-		if s.Init != nil {
-			walkStmt(s.Init)
-		}
-		if s.Tag != nil {
-			walkExpr(s.Tag)
-		}
-		walkStmt(s.Body)
-	case *ast.CaseClause:
-		for _, e := range s.List {
-			walkExpr(e)
-		}
-		for _, stmt := range s.Body {
-			walkStmt(stmt)
-		}
-	case *ast.BranchStmt:
-		assert(currentFor != nil, "break or continue should be in for body")
-		mapBranchToFor[s] = currentFor
-	default:
-		throw(stmt)
-	}
-}
-
-func walkExpr(expr ast.Expr) {
-	switch e := expr.(type) {
-	case *ast.Ident:
-		// what to do ?
-	case *ast.SelectorExpr:
-		walkExpr(e.X)
-	case *ast.CallExpr:
-		for i, arg := range e.Args {
-			ident, ok := arg.(*ast.Ident)
-			if ok {
-				if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
-					basicLit := &ast.BasicLit{
-						ValuePos: 0,
-						Kind:     token.STRING,
-						Value:    "\"" + currentFuncDecl.Name.Name + "\"" ,
-					}
-					arg = basicLit
-					e.Args[i] = arg
-				}
-			}
-			walkExpr(arg)
-		}
-	case *ast.ParenExpr:
-		walkExpr(e.X)
-	case *ast.BasicLit:
-		switch e.Kind.String() {
-		case "INT":
-		case "CHAR":
-		case "STRING":
-			registerStringLiteral(e)
-		default:
-			panic("Unexpected literal kind:" + e.Kind.String())
-		}
-	case *ast.CompositeLit:
-		for _, v := range e.Elts {
-			walkExpr(v)
-		}
-	case *ast.UnaryExpr:
-		walkExpr(e.X)
-	case *ast.BinaryExpr:
-		walkExpr(e.X) // left
-		walkExpr(e.Y) // right
-	case *ast.IndexExpr:
-		walkExpr(e.Index)
-		walkExpr(e.X)
-	case *ast.SliceExpr:
-		if e.Low != nil {
-			walkExpr(e.Low)
-		}
-		if e.High != nil {
-			walkExpr(e.High)
-		}
-		if e.Max != nil {
-			walkExpr(e.Max)
-		}
-		walkExpr(e.X)
-	case *ast.ArrayType: // first argument of builtin func like make()
-		// do nothing
-	case *ast.StarExpr:
-		walkExpr(e.X)
-	default:
-		throw(expr)
-	}
-}
-
-// --- semantic analyzer ---
-func newGlobalVariable(name string) *Variable {
-	return &Variable{
-		name:         name,
-		isGlobal:     true,
-		globalSymbol: name,
-		localOffset:  0,
-	}
-}
-
-func newLocalVariable(name string, localoffset localoffsetint) *Variable {
-	return &Variable{
-		name:         name,
-		isGlobal:     false,
-		globalSymbol: "",
-		localOffset:  localoffset,
-	}
-}
-
-type localoffsetint int
-
-var localoffset localoffsetint
-
-type Variable struct {
-	name         string
-	isGlobal     bool
-	globalSymbol string
-	localOffset  localoffsetint
-}
-
-type Type struct {
-	e ast.Expr // original expr
-}
-
-var pkgName string
-
-var globalVars []*ast.ValueSpec
-var globalFuncs []*Func
-
-type Func struct {
-	name      string
-	stmts     []ast.Stmt
-	localarea localoffsetint
-	argsarea  localoffsetint
-}
-
-var gNil = &ast.Object{
-	Kind: ast.Con, // is nil a constant ?
-	Name: "nil",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
-}
-
-var eNil = &ast.Ident{
-	Obj: gNil,
-}
-
-var gTrue = &ast.Object{
-	Kind: ast.Con,
-	Name: "true",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
-}
-
-var gFalse = &ast.Object{
-	Kind: ast.Con,
-	Name: "false",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
-}
-
-var gString = &ast.Object{
-	Kind: ast.Typ,
-	Name: "string",
-	Decl: nil,
-	Data: 16,
-	Type: nil,
-}
-
-var gUintptr = &ast.Object{
-	Kind: ast.Typ,
-	Name: "uintptr",
-	Decl: nil,
-	Data: 8,
-	Type: nil,
-}
-
-var gBool = &ast.Object{
-	Kind: ast.Typ,
-	Name: "bool",
-	Decl: nil,
-	Data: 8, // same as int for now
-	Type: nil,
-}
-
-var gInt = &ast.Object{
-	Kind: ast.Typ,
-	Name: "int",
-	Decl: nil,
-	Data: 8,
-	Type: nil,
-}
-
-var gUint8 = &ast.Object{
-	Kind: ast.Typ,
-	Name: "uint8",
-	Decl: nil,
-	Data: 1,
-	Type: nil,
-}
-
-var gUint16 = &ast.Object{
-	Kind: ast.Typ,
-	Name: "uint16",
-	Decl: nil,
-	Data: 2,
-	Type: nil,
-}
-
-var gNew = &ast.Object{
-	Kind: ast.Fun,
-	Name: "new",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
-}
-
-var gMake = &ast.Object{
-	Kind: ast.Fun,
-	Name: "make",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
-}
-
-var gAppend = &ast.Object{
-	Kind: ast.Fun,
-	Name: "append",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
-}
-
-var gLen = &ast.Object{
-	Kind: ast.Fun,
-	Name: "len",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
-}
-
-var gCap = &ast.Object{
-	Kind: ast.Fun,
-	Name: "cap",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
-}
-
-var currentFuncDecl *ast.FuncDecl
-
-func createUniverse() *ast.Scope {
-	universe := &ast.Scope{
-		Outer:   nil,
-		Objects: make(map[string]*ast.Object),
-	}
-
-	// predeclared types
-	universe.Insert(gString)
-	universe.Insert(gUintptr)
-	universe.Insert(gBool)
-	universe.Insert(gInt)
-	universe.Insert(gUint8)
-	universe.Insert(gUint16)
-
-	// predeclared constants
-	universe.Insert(gTrue)
-	universe.Insert(gFalse)
-
-	universe.Insert(gNil)
-
-	// predeclared funcs
-	universe.Insert(gNew)
-	universe.Insert(gMake)
-	universe.Insert(gAppend)
-	universe.Insert(gLen)
-	universe.Insert(gCap)
-
-	universe.Insert(&ast.Object{
-		Kind: ast.Fun,
-		Name: "print",
-		Decl: nil,
-		Data: nil,
-		Type: nil,
-	})
-
-	// inject os identifier @TODO this should come from imports
-	universe.Insert(&ast.Object{
-		Kind: ast.Pkg,
-		Name: "os",
-		Decl: nil,
-		Data: nil,
-		Type: nil,
-	})
-
-	return universe
-}
-
-func resolveUniverse(fiile *ast.File, universe *ast.Scope) {
-	var unresolved []*ast.Ident
-	for _, ident := range fiile.Unresolved {
-		if obj := universe.Lookup(ident.Name); obj != nil {
-			ident.Obj = obj
-		} else {
-			unresolved = append(unresolved, ident)
-		}
-	}
-	fmt.Printf("# Unresolved: %#v\n", unresolved)
-}
-
-func walk(f *ast.File) {
-	for _, decl := range f.Decls {
-		switch dcl := decl.(type) {
-		case *ast.GenDecl:
-			spec := dcl.Specs[0]
-			switch spc := spec.(type) {
-			case *ast.ValueSpec:
-				valSpec := spc
-				//println(fmt.Sprintf("spec=%s", dcl.Tok))
-				//fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
-				nameIdent := valSpec.Names[0]
-				nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
-				globalVars = append(globalVars, valSpec)
-			case *ast.ImportSpec:
-			case *ast.TypeSpec:
-				typeSpec := spc
-				assert(kind(e2t(typeSpec.Type)) == T_STRUCT, "should be T_STRUCT")
-				calcStructSizeAndSetFieldOffset(typeSpec)
-			default:
-				throw(spec)
-			}
-
-		case *ast.FuncDecl:
-			funcDecl := decl.(*ast.FuncDecl)
-			currentFuncDecl = funcDecl
-			fmt.Printf("# funcdef %s\n", funcDecl.Name.Name)
-			localoffset = 0
-			var paramoffset localoffsetint = 16
-			for _, field := range funcDecl.Type.Params.List {
-				obj := field.Names[0].Obj
-				obj.Data = newLocalVariable(obj.Name, paramoffset)
-				var varSize int = getSizeOfType(e2t(field.Type))
-				paramoffset += localoffsetint(varSize)
-				fmt.Printf("# field.Names[0].Obj=%#v\n", obj)
-				fmt.Printf("#   field.Type=%#v\n", field.Type)
-			}
-			if funcDecl.Body == nil {
-				break
-			}
-			for _, stmt := range funcDecl.Body.List {
-				walkStmt(stmt)
-			}
-			fnc := &Func{
-				name:      funcDecl.Name.Name,
-				stmts:     funcDecl.Body.List,
-				localarea: localoffset,
-				argsarea:  paramoffset,
-			}
-			globalFuncs = append(globalFuncs, fnc)
-		default:
-			throw(decl)
-		}
-	}
-}
-
-// --- type ---
 type TypeKind string
 
 var T_STRING TypeKind
@@ -2528,6 +1857,676 @@ func kind(t *Type) TypeKind {
 	return ""
 }
 
+func getStructTypeOfX(e *ast.SelectorExpr) *Type {
+	typeOfX := getTypeOfExpr(e.X)
+	var structType *Type
+	switch kind(typeOfX) {
+	case T_STRUCT:
+		// strct.field => e.X . e.Sel
+		structType = typeOfX
+	case T_POINTER:
+		// ptr.field => e.X . e.Sel
+		ptrType, ok := typeOfX.e.(*ast.StarExpr)
+		assert(ok, "should be *ast.StarExpr")
+		structType = e2t(ptrType.X)
+	default:
+		throw("TBI")
+	}
+	return structType
+}
+
+func getElementTypeOfListType(t *Type) *Type {
+	switch kind(t) {
+	case T_SLICE, T_ARRAY:
+		arrayType, ok := t.e.(*ast.ArrayType)
+		assert(ok, "expect *ast.ArrayType")
+		return e2t(arrayType.Elt)
+	case T_STRING:
+		return tUint8
+	default:
+		throw(t)
+	}
+	return nil
+}
+
+func getSizeOfType(t *Type) int {
+	var varSize int
+	switch kind(t) {
+	case T_SLICE:
+		return sliceSize
+	case T_STRING:
+		return gString.Data.(int)
+	case T_INT, T_UINTPTR, T_POINTER:
+		return gInt.Data.(int)
+	case T_UINT8:
+		return gUint8.Data.(int)
+	case T_BOOL:
+		return gInt.Data.(int)
+	case T_ARRAY:
+		arrayType, ok := t.e.(*ast.ArrayType)
+		assert(ok, "expect *ast.ArrayType")
+		elmSize := getSizeOfType(e2t(arrayType.Elt))
+		return elmSize * evalInt(arrayType.Len)
+	case T_STRUCT:
+		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
+	default:
+		throw(t)
+	}
+	return varSize
+}
+
+func getPushSizeOfType(t *Type) int {
+	switch kind(t) {
+	case T_SLICE:
+		return sliceSize
+	case T_STRING:
+		return stringSize
+	case T_UINT8, T_UINT16, T_INT, T_BOOL:
+		return intSize
+	case T_UINTPTR, T_POINTER:
+		return ptrSize
+	case T_ARRAY, T_STRUCT:
+		return ptrSize
+	default:
+		throw(t)
+	}
+	throw(t)
+	return 0
+}
+
+func getStructFieldOffset(field *ast.Field) int {
+	if field.Doc == nil {
+		panic("Doc is nil:" + field.Names[0].Name)
+	}
+	text := field.Doc.List[0].Text
+	offset, err := strconv.Atoi(text)
+	if err != nil {
+		panic(text)
+	}
+	return offset
+}
+
+func setStructFieldOffset(field *ast.Field, offset int) {
+	comment := &ast.Comment{
+		Text: strconv.Itoa(offset),
+	}
+	commentGroup := &ast.CommentGroup{
+		List: []*ast.Comment{comment},
+	}
+	field.Doc = commentGroup
+}
+
+func getStructFields(structTypeSpec *ast.TypeSpec) []*ast.Field {
+	structType, ok := structTypeSpec.Type.(*ast.StructType)
+	if !ok {
+		throw(structTypeSpec.Type)
+	}
+
+	return structType.Fields.List
+}
+
+func getStructTypeSpec(namedStructType *Type) *ast.TypeSpec {
+	if kind(namedStructType) != T_STRUCT {
+		throw(namedStructType)
+	}
+	ident, ok := namedStructType.e.(*ast.Ident)
+	if !ok {
+		throw(namedStructType)
+	}
+	typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec)
+	if !ok {
+		throw(ident.Obj.Decl)
+	}
+	return typeSpec
+}
+
+func lookupStructField(structTypeSpec *ast.TypeSpec, selName string) *ast.Field {
+	for _, field := range getStructFields(structTypeSpec) {
+		if field.Names[0].Name == selName {
+			return field
+		}
+	}
+	panic("Unexpected flow: struct field not found:" + selName)
+	return nil
+}
+
+func calcStructSizeAndSetFieldOffset(structTypeSpec *ast.TypeSpec) int {
+	var offset int = 0
+	for _, field := range getStructFields(structTypeSpec) {
+		setStructFieldOffset(field, offset)
+		size := getSizeOfType(e2t(field.Type))
+		offset += size
+	}
+	return offset
+}
+
+// --- walk ---
+type sliteral struct {
+	label  string
+	strlen int
+	value  string // raw value
+}
+
+var stringLiterals []*stringLiteralsContainer
+
+type stringLiteralsContainer struct {
+	lit *ast.BasicLit
+	sl  *sliteral
+}
+
+var stringIndex int
+
+func getStringLiteral(lit *ast.BasicLit) *sliteral {
+	for _, container := range stringLiterals {
+		if container.lit == lit {
+			return container.sl
+		}
+	}
+
+	panic(lit.Value)
+	return nil
+}
+
+func registerStringLiteral(lit *ast.BasicLit) {
+	if pkgName == "" {
+		panic("no pkgName")
+	}
+
+	var strlen int
+	for _, c := range []uint8(lit.Value) {
+		if c != '\\' {
+			strlen++
+		}
+	}
+
+	label := fmt.Sprintf(".%s.S%d", pkgName, stringIndex)
+	stringIndex++
+
+	sl := &sliteral{
+		label:  label,
+		strlen: strlen - 2,
+		value:  lit.Value,
+	}
+	var cont *stringLiteralsContainer = new(stringLiteralsContainer)
+	cont.sl = sl
+	cont.lit = lit
+	stringLiterals = append(stringLiterals, cont)
+}
+
+type ForStmt struct {
+	kind      int    // 1:for 2:range
+	labelPost string // for continue
+	labelExit string // for break
+	outer     *ForStmt
+	astFor    *ast.ForStmt
+	astRange  *ast.RangeStmt
+}
+
+type RangeStmtMisc struct {
+	lenvar   *Variable
+	indexvar *Variable
+}
+
+var currentFor *ForStmt
+var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
+var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
+var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
+var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
+
+var globalVars []*ast.ValueSpec
+var globalFuncs []*Func
+
+type Func struct {
+	name      string
+	stmts     []ast.Stmt
+	localarea localoffsetint
+	argsarea  localoffsetint
+}
+
+func newGlobalVariable(name string) *Variable {
+	return &Variable{
+		name:         name,
+		isGlobal:     true,
+		globalSymbol: name,
+		localOffset:  0,
+	}
+}
+
+func newLocalVariable(name string, localoffset localoffsetint) *Variable {
+	return &Variable{
+		name:         name,
+		isGlobal:     false,
+		globalSymbol: "",
+		localOffset:  localoffset,
+	}
+}
+
+type localoffsetint int
+
+var localoffset localoffsetint
+
+type Variable struct {
+	name         string
+	isGlobal     bool
+	globalSymbol string
+	localOffset  localoffsetint
+}
+
+func walkStmt(stmt ast.Stmt) {
+	switch s := stmt.(type) {
+	case *ast.ExprStmt:
+		expr := s.X
+		walkExpr(expr)
+	case *ast.DeclStmt:
+		decl := s.Decl
+		switch dcl := decl.(type) {
+		case *ast.GenDecl:
+			declSpec := dcl.Specs[0]
+			switch ds := declSpec.(type) {
+			case *ast.ValueSpec:
+				varSpec := ds
+				obj := varSpec.Names[0].Obj
+				if varSpec.Type == nil { // var x
+					if len(ds.Values) > 0 {
+						// infer type from rhs
+						val := ds.Values[0]
+						typ := getTypeOfExpr(val)
+						if typ != nil && typ.e != nil {
+							varSpec.Type = typ.e
+						} else {
+							panic("type inference is not supported: " + obj.Name)
+						}
+					} else {
+						panic("type inference is not supported: " + obj.Name)
+					}
+				}
+				t := e2t(varSpec.Type)
+				localoffset -= localoffsetint(getSizeOfType(t))
+				obj.Data = newLocalVariable(obj.Name, localoffset)
+				for _, v := range ds.Values {
+					walkExpr(v)
+				}
+			}
+		default:
+			throw(decl)
+		}
+
+	case *ast.AssignStmt:
+		//lhs := s.Lhs[0]
+		rhs := s.Rhs[0]
+		walkExpr(rhs)
+	case *ast.ReturnStmt:
+		for _, r := range s.Results {
+			walkExpr(r)
+		}
+	case *ast.IfStmt:
+		walkExpr(s.Cond)
+		walkStmt(s.Body)
+		if s.Else != nil {
+			walkStmt(s.Else)
+		}
+	case *ast.BlockStmt:
+		for _, stmt := range s.List {
+			walkStmt(stmt)
+		}
+	case *ast.ForStmt:
+		forStmt := new(ForStmt)
+		forStmt.astFor = s
+		forStmt.outer = currentFor
+		currentFor = forStmt
+		mapForNodeToFor[s] = forStmt
+		if s.Init != nil {
+			walkStmt(s.Init)
+		}
+		if s.Cond != nil {
+			walkExpr(s.Cond)
+		}
+		if s.Post != nil {
+			walkStmt(s.Post)
+		}
+		walkStmt(s.Body)
+		currentFor = forStmt.outer
+	case *ast.RangeStmt:
+		forStmt := new(ForStmt)
+		forStmt.astRange = s
+		forStmt.outer = currentFor
+		currentFor = forStmt
+		mapRangeNodeToFor[s] = forStmt
+		walkExpr(s.X)
+		walkStmt(s.Body)
+		localoffset -= localoffsetint(gInt.Data.(int))
+		lenvar := newLocalVariable(".range.len", localoffset)
+		localoffset -= localoffsetint(gInt.Data.(int))
+		indexvar := newLocalVariable(".range.index", localoffset)
+		mapRangeStmt[s] = &RangeStmtMisc{
+			lenvar:   lenvar,
+			indexvar: indexvar,
+		}
+		currentFor = forStmt.outer
+	case *ast.IncDecStmt:
+		walkExpr(s.X)
+	case *ast.SwitchStmt:
+		if s.Init != nil {
+			walkStmt(s.Init)
+		}
+		if s.Tag != nil {
+			walkExpr(s.Tag)
+		}
+		walkStmt(s.Body)
+	case *ast.CaseClause:
+		for _, e := range s.List {
+			walkExpr(e)
+		}
+		for _, stmt := range s.Body {
+			walkStmt(stmt)
+		}
+	case *ast.BranchStmt:
+		assert(currentFor != nil, "break or continue should be in for body")
+		mapBranchToFor[s] = currentFor
+	default:
+		throw(stmt)
+	}
+}
+
+func walkExpr(expr ast.Expr) {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		// what to do ?
+	case *ast.SelectorExpr:
+		walkExpr(e.X)
+	case *ast.CallExpr:
+		for i, arg := range e.Args {
+			ident, ok := arg.(*ast.Ident)
+			if ok {
+				if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
+					basicLit := &ast.BasicLit{
+						ValuePos: 0,
+						Kind:     token.STRING,
+						Value:    "\"" + currentFuncDecl.Name.Name + "\"" ,
+					}
+					arg = basicLit
+					e.Args[i] = arg
+				}
+			}
+			walkExpr(arg)
+		}
+	case *ast.ParenExpr:
+		walkExpr(e.X)
+	case *ast.BasicLit:
+		switch e.Kind.String() {
+		case "INT":
+		case "CHAR":
+		case "STRING":
+			registerStringLiteral(e)
+		default:
+			panic("Unexpected literal kind:" + e.Kind.String())
+		}
+	case *ast.CompositeLit:
+		for _, v := range e.Elts {
+			walkExpr(v)
+		}
+	case *ast.UnaryExpr:
+		walkExpr(e.X)
+	case *ast.BinaryExpr:
+		walkExpr(e.X) // left
+		walkExpr(e.Y) // right
+	case *ast.IndexExpr:
+		walkExpr(e.Index)
+		walkExpr(e.X)
+	case *ast.SliceExpr:
+		if e.Low != nil {
+			walkExpr(e.Low)
+		}
+		if e.High != nil {
+			walkExpr(e.High)
+		}
+		if e.Max != nil {
+			walkExpr(e.Max)
+		}
+		walkExpr(e.X)
+	case *ast.ArrayType: // first argument of builtin func like make()
+		// do nothing
+	case *ast.StarExpr:
+		walkExpr(e.X)
+	default:
+		throw(expr)
+	}
+}
+
+var currentFuncDecl *ast.FuncDecl
+
+func walk(f *ast.File) {
+	for _, decl := range f.Decls {
+		switch dcl := decl.(type) {
+		case *ast.GenDecl:
+			spec := dcl.Specs[0]
+			switch spc := spec.(type) {
+			case *ast.ValueSpec:
+				valSpec := spc
+				//println(fmt.Sprintf("spec=%s", dcl.Tok))
+				//fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
+				nameIdent := valSpec.Names[0]
+				nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
+				globalVars = append(globalVars, valSpec)
+			case *ast.ImportSpec:
+			case *ast.TypeSpec:
+				typeSpec := spc
+				assert(kind(e2t(typeSpec.Type)) == T_STRUCT, "should be T_STRUCT")
+				calcStructSizeAndSetFieldOffset(typeSpec)
+			default:
+				throw(spec)
+			}
+
+		case *ast.FuncDecl:
+			funcDecl := decl.(*ast.FuncDecl)
+			currentFuncDecl = funcDecl
+			fmt.Printf("# funcdef %s\n", funcDecl.Name.Name)
+			localoffset = 0
+			var paramoffset localoffsetint = 16
+			for _, field := range funcDecl.Type.Params.List {
+				obj := field.Names[0].Obj
+				obj.Data = newLocalVariable(obj.Name, paramoffset)
+				var varSize int = getSizeOfType(e2t(field.Type))
+				paramoffset += localoffsetint(varSize)
+				fmt.Printf("# field.Names[0].Obj=%#v\n", obj)
+				fmt.Printf("#   field.Type=%#v\n", field.Type)
+			}
+			if funcDecl.Body == nil {
+				break
+			}
+			for _, stmt := range funcDecl.Body.List {
+				walkStmt(stmt)
+			}
+			fnc := &Func{
+				name:      funcDecl.Name.Name,
+				stmts:     funcDecl.Body.List,
+				localarea: localoffset,
+				argsarea:  paramoffset,
+			}
+			globalFuncs = append(globalFuncs, fnc)
+		default:
+			throw(decl)
+		}
+	}
+}
+
+// --- universe ---
+var gNil = &ast.Object{
+	Kind: ast.Con, // is nil a constant ?
+	Name: "nil",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var eNil = &ast.Ident{
+	Obj: gNil,
+}
+
+var gTrue = &ast.Object{
+	Kind: ast.Con,
+	Name: "true",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gFalse = &ast.Object{
+	Kind: ast.Con,
+	Name: "false",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gString = &ast.Object{
+	Kind: ast.Typ,
+	Name: "string",
+	Decl: nil,
+	Data: 16,
+	Type: nil,
+}
+
+var gUintptr = &ast.Object{
+	Kind: ast.Typ,
+	Name: "uintptr",
+	Decl: nil,
+	Data: 8,
+	Type: nil,
+}
+
+var gBool = &ast.Object{
+	Kind: ast.Typ,
+	Name: "bool",
+	Decl: nil,
+	Data: 8, // same as int for now
+	Type: nil,
+}
+
+var gInt = &ast.Object{
+	Kind: ast.Typ,
+	Name: "int",
+	Decl: nil,
+	Data: 8,
+	Type: nil,
+}
+
+var gUint8 = &ast.Object{
+	Kind: ast.Typ,
+	Name: "uint8",
+	Decl: nil,
+	Data: 1,
+	Type: nil,
+}
+
+var gUint16 = &ast.Object{
+	Kind: ast.Typ,
+	Name: "uint16",
+	Decl: nil,
+	Data: 2,
+	Type: nil,
+}
+
+var gNew = &ast.Object{
+	Kind: ast.Fun,
+	Name: "new",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gMake = &ast.Object{
+	Kind: ast.Fun,
+	Name: "make",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gAppend = &ast.Object{
+	Kind: ast.Fun,
+	Name: "append",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gLen = &ast.Object{
+	Kind: ast.Fun,
+	Name: "len",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+var gCap = &ast.Object{
+	Kind: ast.Fun,
+	Name: "cap",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
+func createUniverse() *ast.Scope {
+	universe := &ast.Scope{
+		Outer:   nil,
+		Objects: make(map[string]*ast.Object),
+	}
+
+	// predeclared types
+	universe.Insert(gString)
+	universe.Insert(gUintptr)
+	universe.Insert(gBool)
+	universe.Insert(gInt)
+	universe.Insert(gUint8)
+	universe.Insert(gUint16)
+
+	// predeclared constants
+	universe.Insert(gTrue)
+	universe.Insert(gFalse)
+
+	universe.Insert(gNil)
+
+	// predeclared funcs
+	universe.Insert(gNew)
+	universe.Insert(gMake)
+	universe.Insert(gAppend)
+	universe.Insert(gLen)
+	universe.Insert(gCap)
+
+	universe.Insert(&ast.Object{
+		Kind: ast.Fun,
+		Name: "print",
+		Decl: nil,
+		Data: nil,
+		Type: nil,
+	})
+
+	// inject os identifier @TODO this should come from imports
+	universe.Insert(&ast.Object{
+		Kind: ast.Pkg,
+		Name: "os",
+		Decl: nil,
+		Data: nil,
+		Type: nil,
+	})
+
+	return universe
+}
+
+func resolveUniverse(fiile *ast.File, universe *ast.Scope) {
+	var unresolved []*ast.Ident
+	for _, ident := range fiile.Unresolved {
+		if obj := universe.Lookup(ident.Name); obj != nil {
+			ident.Obj = obj
+		} else {
+			unresolved = append(unresolved, ident)
+		}
+	}
+	fmt.Printf("# Unresolved: %#v\n", unresolved)
+}
+
+// --- main ---
 func initGlobals() {
 	T_STRING  = "T_STRING"
 	T_SLICE  = "T_SLICE"
@@ -2540,6 +2539,8 @@ func initGlobals() {
 	T_STRUCT  = "T_STRUCT"
 	T_POINTER  = "T_POINTER"
 }
+
+var pkgName string
 
 func main() {
 	initGlobals()
