@@ -401,15 +401,6 @@ func emitFalse() {
 	fmt.Printf("  pushq $0 # false\n")
 }
 
-func emitPushArgs2(arg0 ast.Expr, t0 *Type, arg1 ast.Expr, t1 *Type) {
-	emitExpr(arg0, t0)
-	emitExpr(arg1, t1)
-	// pop arg1
-	// pop arg0
-	// push arg1
-	// push arg0
-}
-
 func emitFuncallArgs(args []*Arg) int {
 	var totalPushedSize int
 	for _, arg := range args {
