@@ -401,6 +401,12 @@ func emitFalse() {
 	fmt.Printf("  pushq $0 # false\n")
 }
 
+type Arg struct {
+	e      ast.Expr
+	t      *Type // expected type
+	offset int
+}
+
 func emitFuncallArgs(args []*Arg) int {
 	var totalPushedSize int
 	for _, arg := range args {
@@ -450,12 +456,6 @@ func emitReverseArgs(args []*Arg) {
 			throw(kind(t))
 		}
 	}
-}
-
-type Arg struct {
-	e      ast.Expr
-	t      *Type // expected type
-	offset int
 }
 
 // Call without using func decl
@@ -1054,6 +1054,7 @@ func emitListElementAddr(list ast.Expr, elmType *Type) {
 	fmtPrintf("  addq %%rcx, %%rax\n")
 	fmtPrintf("  pushq %%rax # addr of element\n")
 }
+
 func emitCompEq(t *Type) {
 	switch kind(t) {
 	case T_STRING:
@@ -1586,14 +1587,14 @@ func generateCode(pkgName string) {
 }
 
 // --- type ---
-type Type struct {
-	e ast.Expr // original expr
-}
-
 const sliceSize int = 24
 const stringSize int = 16
 const intSize int = 8
 const ptrSize int = 8
+
+type Type struct {
+	e ast.Expr // original expr
+}
 
 type TypeKind string
 
@@ -1998,14 +1999,52 @@ type sliteral struct {
 	value  string // raw value
 }
 
-var stringLiterals []*stringLiteralsContainer
-
 type stringLiteralsContainer struct {
 	lit *ast.BasicLit
 	sl  *sliteral
 }
 
+type ForStmt struct {
+	kind      int    // 1:for 2:range
+	labelPost string // for continue
+	labelExit string // for break
+	outer     *ForStmt
+	astFor    *ast.ForStmt
+	astRange  *ast.RangeStmt
+}
+
+type RangeStmtMisc struct {
+	lenvar   *Variable
+	indexvar *Variable
+}
+
+type Func struct {
+	name      string
+	stmts     []ast.Stmt
+	localarea localoffsetint
+	argsarea  localoffsetint
+}
+
+type Variable struct {
+	name         string
+	isGlobal     bool
+	globalSymbol string
+	localOffset  localoffsetint
+}
+
+type localoffsetint int
+
+var stringLiterals []*stringLiteralsContainer
 var stringIndex int
+var currentFor *ForStmt
+var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
+var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
+var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
+var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
+var globalVars []*ast.ValueSpec
+var globalFuncs []*Func
+var localoffset localoffsetint
+var currentFuncDecl *ast.FuncDecl
 
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
 	for _, container := range stringLiterals {
@@ -2044,36 +2083,6 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	stringLiterals = append(stringLiterals, cont)
 }
 
-type ForStmt struct {
-	kind      int    // 1:for 2:range
-	labelPost string // for continue
-	labelExit string // for break
-	outer     *ForStmt
-	astFor    *ast.ForStmt
-	astRange  *ast.RangeStmt
-}
-
-type RangeStmtMisc struct {
-	lenvar   *Variable
-	indexvar *Variable
-}
-
-var currentFor *ForStmt
-var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
-var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
-var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
-var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
-
-var globalVars []*ast.ValueSpec
-var globalFuncs []*Func
-
-type Func struct {
-	name      string
-	stmts     []ast.Stmt
-	localarea localoffsetint
-	argsarea  localoffsetint
-}
-
 func newGlobalVariable(name string) *Variable {
 	return &Variable{
 		name:         name,
@@ -2090,17 +2099,6 @@ func newLocalVariable(name string, localoffset localoffsetint) *Variable {
 		globalSymbol: "",
 		localOffset:  localoffset,
 	}
-}
-
-type localoffsetint int
-
-var localoffset localoffsetint
-
-type Variable struct {
-	name         string
-	isGlobal     bool
-	globalSymbol string
-	localOffset  localoffsetint
 }
 
 func walkStmt(stmt ast.Stmt) {
@@ -2283,8 +2281,6 @@ func walkExpr(expr ast.Expr) {
 		throw(expr)
 	}
 }
-
-var currentFuncDecl *ast.FuncDecl
 
 func walk(f *ast.File) {
 	for _, decl := range f.Decls {
