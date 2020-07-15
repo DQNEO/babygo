@@ -556,13 +556,6 @@ func testNewStruct() {
 	writeln(Itoa(strct.field2))
 }
 
-func testNew() {
-	var i *int
-	i = new(int)
-	writeln(Itoa(*i)) // 0
-}
-
-
 var testNilSlice []*MyStruct
 
 func testNil() {
@@ -760,6 +753,12 @@ func testMakeSlice() {
 	x[1] = 'B'
 	x[2] = 'C'
 	writeln(string(x))
+}
+
+func testNew() {
+	var i *int
+	i = new(int)
+	writeln(Itoa(*i)) // 0
 }
 
 func testItoa() {
