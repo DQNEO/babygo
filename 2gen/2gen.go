@@ -696,9 +696,9 @@ func parserNext() {
 	parserNext0()
 	//fmtPrintf("parserNext\n")
 	if ptok.tok == ";" {
-		fmtPrintf("# [parser] looking at : [%s] newline (%s)\n", ptok.tok , Itoa(scannerOffset))
+		fmtPrintf("# [parser] pointing at : [%s] newline (%s)\n", ptok.tok , Itoa(scannerOffset))
 	} else {
-		fmtPrintf("# [parser] looking at: [%s] %s (%s)\n", ptok.tok, ptok.lit, Itoa(scannerOffset))
+		fmtPrintf("# [parser] pointing at: [%s] %s (%s)\n", ptok.tok, ptok.lit, Itoa(scannerOffset))
 	}
 
 	if ptok.tok == "COMMENT" {
@@ -714,7 +714,7 @@ func parserExpect(tok string, who string) {
 		var s = fmtSprintf("# [%s] %s expected, but got %s", []string{who, tok, ptok.tok})
 		panic(s)
 	}
-	fmtPrintf("# [%s] got expected tok %s\n", who, ptok.tok)
+	fmtPrintf("# [%s] consumed \"%s\"\n", who, ptok.tok)
 	parserNext()
 }
 
