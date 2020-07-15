@@ -1931,6 +1931,23 @@ func emitLen(arg *astExpr) {
 	}
 }
 
+func emitCap(arg *astExpr) {
+	switch kind(getTypeOfExpr(arg)) {
+	case T_ARRAY:
+		var typ = getTypeOfExpr(arg)
+		var arrayType = typ.e.arrayType
+		emitExpr(arrayType.Len)
+	case T_SLICE:
+		emitExpr(arg)
+		emitPopSlice()
+		fmtPrintf("  pushq %%rdx # cap\n")
+	case T_STRING:
+		panic("cap() cannot accept string type")
+	default:
+		throw(kind(getTypeOfExpr(arg)))
+	}
+}
+
 
 func emitCallMalloc(size int) {
 	fmtPrintf("  pushq $%s\n", Itoa(size))
@@ -2075,6 +2092,10 @@ func emitExpr(e *astExpr) {
 			case gLen:
 				var arg = e.callExpr.Args[0]
 				emitLen(arg)
+				return
+			case gCap:
+				var arg = e.callExpr.Args[0]
+				emitCap(arg)
 				return
 			case gMake:
 				var typeArg = e2t(e.callExpr.Args[0])
@@ -3147,6 +3168,7 @@ var gBool *astObject
 var gNew *astObject
 var gMake *astObject
 var gLen *astObject
+var gCap *astObject
 
 func createUniverse() *astScope {
 	var universe = new(astScope)
@@ -3162,6 +3184,7 @@ func createUniverse() *astScope {
 	scopeInsert(universe, gNew)
 	scopeInsert(universe, gMake)
 	scopeInsert(universe, gLen)
+	scopeInsert(universe, gCap)
 
 	fmtPrintf("# [%s] scope insertion of predefined identifiers complete\n", __func__)
 
@@ -3296,6 +3319,10 @@ func initGlobals() {
 	gLen = new(astObject)
 	gLen.Kind = "Fun"
 	gLen.Name = "len"
+
+	gCap = new(astObject)
+	gCap.Kind = "Fun"
+	gCap.Name = "cap"
 }
 
 var pkgName string

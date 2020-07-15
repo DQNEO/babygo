@@ -14,7 +14,7 @@ var s string
 
 func heapInit() {
 	SYS_BRK = 12
-	heapSize = 10205360
+	heapSize = 40205360
 	heapHead = brk(0)
 	heapTail = brk(heapHead + heapSize)
 	heapCurrent = heapHead
