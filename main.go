@@ -2219,7 +2219,7 @@ func resolveUniverse(fiile *ast.File, universe *ast.Scope) {
 	fmt.Printf("# Unresolved: %#v\n", unresolved)
 }
 
-func semanticAnalyze(f *ast.File) {
+func walk(f *ast.File) {
 	for _, decl := range f.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
@@ -2558,9 +2558,8 @@ func main() {
 		f := parseFile(fset, sourceFile)
 		resolveUniverse(f, universe)
 		pkgName = f.Name.Name
-		//ast.NewPackage(fset, map[string]*ast.File{"": f}, nil, universe)
 		fmt.Printf("# Package:   %s\n", pkgName)
-		semanticAnalyze(f)
+		walk(f)
 		generateCode(pkgName)
 	}
 }

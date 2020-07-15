@@ -2023,11 +2023,9 @@ var gBool *astObject
 var gNew *astObject
 var gMake *astObject
 
-func semanticAnalyze(file *astFile) string {
-	fmtPrintf("# [%s] start\n", __func__)
-	// create universe scope
+func createUniverse() *astScope {
 	var universe = new(astScope)
-	// inject predeclared identifers
+
 	scopeInsert(universe, gInt)
 	scopeInsert(universe, gUint8)
 	scopeInsert(universe, gUint16)
@@ -2047,7 +2045,7 @@ func semanticAnalyze(file *astFile) string {
 	pkgOs.Name = "os"
 	scopeInsert(universe, pkgOs)
 
-	var pkgSyscall= new(astObject)
+	var pkgSyscall = new(astObject)
 	pkgSyscall.Kind = "Pkg"
 	pkgSyscall.Name = "syscall"
 	scopeInsert(universe, pkgSyscall)
@@ -2056,25 +2054,31 @@ func semanticAnalyze(file *astFile) string {
 	pkgUnsafe.Kind = "Pkg"
 	pkgUnsafe.Name = "unsafe"
 	scopeInsert(universe, pkgUnsafe)
-
 	fmtPrintf("# [%s] scope insertion complete\n", __func__)
-	pkgName = file.Name
+	return universe
+}
 
+func resolveUniverse(file *astFile, universe *astScope) {
+	fmtPrintf("# [%s] start\n", __func__)
+	// create universe scope
+	// inject predeclared identifers
 	var unresolved []*astIdent
 	var ident *astIdent
 	fmtPrintf("# [SEMA] resolving file.Unresolved (n=%s)\n", Itoa(len(file.Unresolved)))
 	for _, ident = range file.Unresolved {
 		fmtPrintf("# [SEMA] resolving ident %s ... ", ident.Name)
-		var obj *astObject = scopeLookup(universe,ident.Name)
+		var obj *astObject = scopeLookup(universe, ident.Name)
 		if obj != nil {
 			fmtPrintf(" matched\n")
 			ident.Obj = obj
 		} else {
-			panic2(__func__, "Unresolved : " + ident.Name)
+			panic2(__func__, "Unresolved : "+ident.Name)
 			unresolved = append(unresolved, ident)
 		}
 	}
+}
 
+func walk(file *astFile) string {
 	var decl *astDecl
 	for _, decl = range file.Decls {
 		switch decl.dtype {
@@ -3281,13 +3285,18 @@ func main() {
 
 	var sourceFiles = []string{"2gen/runtime.go", "2gen/sample.go"}
 	var sourceFile string
+
+	var universe = createUniverse()
+
 	for _, sourceFile = range sourceFiles {
 		globalVars = nil
 		globalFuncs = nil
-		stringLiterals = nil
 		stringIndex = 0
+		stringLiterals = nil
 		var f = parseFile(sourceFile)
-		var pkgName = semanticAnalyze(f)
+		resolveUniverse(f, universe)
+		pkgName = f.Name
+		walk(f)
 		generateCode(pkgName)
 	}
 }
