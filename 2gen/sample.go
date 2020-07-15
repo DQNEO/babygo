@@ -35,20 +35,23 @@ func testItoa() {
 	writeln(Itoa(123))
 	writeln(Itoa(12345))
 	writeln(Itoa(12345678))
+	writeln(Itoa(1234567890))
 	writeln(Itoa(54321))
 	writeln(Itoa(-1))
 	writeln(Itoa(-54321))
 	writeln(Itoa(-7654321))
-	//writeln(Itoa(-1234567890))
+	writeln(Itoa(-1234567890))
 }
 
-var __itoa_buf [9]uint8
-var __itoa_r [9]uint8
 
 func Itoa(ival int) string {
 	if ival == 0 {
 		return "0"
 	}
+
+	var __itoa_buf []uint8 = make([]uint8, 100, 100)
+	var __itoa_r []uint8 = make([]uint8, 100, 100)
+
 	var next int
 	var right int
 	var ix int = 0
