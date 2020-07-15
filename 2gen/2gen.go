@@ -647,12 +647,12 @@ const FILE_SIZE int = 20000
 func readFile(filename string) []uint8 {
 	var fd int
 	fd, _ = syscall.Open(filename, O_READONLY, 0)
-	//fmtPrintf(Itoa(fd))
+	//fmtPrintf(itoa(fd))
 	//fmtPrintf("\n")
 	var buf []uint8 = make([]uint8, FILE_SIZE, FILE_SIZE)
 	var n int
 	n, _ = syscall.Read(fd, buf)
-	//fmtPrintf(Itoa(n))
+	//fmtPrintf(itoa(n))
 	var readbytes = buf[0:n]
 	return readbytes
 }

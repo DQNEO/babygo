@@ -25,26 +25,26 @@ func testMakeSlice() {
 func testNew() {
 	var i *int
 	i = new(int)
-	writeln(Itoa(*i)) // 0
+	writeln(itoa(*i)) // 0
 }
 
 func testItoa() {
-	writeln(Itoa(0))
-	writeln(Itoa(1))
-	writeln(Itoa(12))
-	writeln(Itoa(123))
-	writeln(Itoa(12345))
-	writeln(Itoa(12345678))
-	writeln(Itoa(1234567890))
-	writeln(Itoa(54321))
-	writeln(Itoa(-1))
-	writeln(Itoa(-54321))
-	writeln(Itoa(-7654321))
-	writeln(Itoa(-1234567890))
+	writeln(itoa(0))
+	writeln(itoa(1))
+	writeln(itoa(12))
+	writeln(itoa(123))
+	writeln(itoa(12345))
+	writeln(itoa(12345678))
+	writeln(itoa(1234567890))
+	writeln(itoa(54321))
+	writeln(itoa(-1))
+	writeln(itoa(-54321))
+	writeln(itoa(-7654321))
+	writeln(itoa(-1234567890))
 }
 
 
-func Itoa(ival int) string {
+func itoa(ival int) string {
 	if ival == 0 {
 		return "0"
 	}
@@ -103,12 +103,12 @@ func testIndexExprOfSlice() {
 
 	var i int
 	for i = 0; i < 4; i = i + 1 {
-		write(Itoa(intslice[i]))
+		write(itoa(intslice[i]))
 	}
 	write("\n")
 
 	for i = 0; i < 4; i = i + 1 {
-		write(Itoa(globalintarray[i]))
+		write(itoa(globalintarray[i]))
 	}
 	write("\n")
 }
@@ -300,7 +300,7 @@ func testMisc() {
 	locali3 = add1(tmp)
 	var i42 int
 	i42 = sum(globalint, globalint2) + locali3
-	writeln(Itoa(i42))
+	writeln(itoa(i42))
 }
 
 func test() {
