@@ -464,7 +464,6 @@ func scannerScan() *TokenContainer {
 }
 
 // --- ast ---
-
 type astImportSpec struct {
 	Path string
 }
@@ -506,7 +505,6 @@ type astStmt struct {
 	ifStmt     *astIfStmt
 	forStmt    *astForStmt
 }
-
 
 type astDeclStmt struct {
 	Decl *astDecl
@@ -618,9 +616,44 @@ type astParenExpr struct {
 	X *astExpr
 }
 
+type astStarExpr struct {
+	X *astExpr
+}
+
+type astIfStmt struct {
+	Init *astStmt
+	Cond *astExpr
+	Body *astBlockStmt
+	Else *astStmt
+}
+
+type astForStmt struct {
+	Init      *astStmt
+	Cond      *astExpr
+	Post      *astStmt
+	Body      *astBlockStmt
+	labelPost string
+	labelExit string
+}
+
+type astReturnStmt struct {
+	Results []*astExpr
+}
+
+type astSpec struct {
+	dtype string
+	valueSpec *astValueSpec
+}
+
 type astScope struct {
 	Outer *astScope
 	Objects []*objectEntry
+}
+
+type astFile struct {
+	Name string
+	Decls []*astDecl
+	Unresolved []*astIdent
 }
 
 func astNewScope(outer *astScope) *astScope {
@@ -787,10 +820,6 @@ func tryType() *astExpr {
 func parseType() *astExpr {
 	var typ = tryType()
 	return typ
-}
-
-type astStarExpr struct {
-	X *astExpr
 }
 
 func parsePointerType() *astExpr {
@@ -1289,22 +1318,6 @@ func nop() {
 func nop1() {
 }
 
-type astIfStmt struct {
-	Init *astStmt
-	Cond *astExpr
-	Body *astBlockStmt
-	Else *astStmt
-}
-
-type astForStmt struct {
-	Init      *astStmt
-	Cond      *astExpr
-	Post      *astStmt
-	Body      *astBlockStmt
-	labelPost string
-	labelExit string
-}
-
 func makeExpr(s *astStmt) *astExpr {
 	if s.dtype != "*astExprStmt" {
 		panic2(__func__, "unexpected dtype=" + s.dtype)
@@ -1473,10 +1486,6 @@ func parseRhsList() []*astExpr {
 	return list
 }
 
-type astReturnStmt struct {
-	Results []*astExpr
-}
-
 func parseReturnStmt() *astStmt {
 	parserExpect("return", __func__)
 	var x []*astExpr
@@ -1559,11 +1568,6 @@ func parseDecl(keyword string) *astGenDecl {
 		panic2(__func__, "TBI\n")
 	}
 	return r
-}
-
-type astSpec struct {
-	dtype string
-	valueSpec *astValueSpec
 }
 
 func parserParseValueSpec() *astSpec {
@@ -3145,12 +3149,6 @@ type sliteral struct {
 
 var globalVars []*astValueSpec
 var globalFuncs []*Func
-
-type astFile struct {
-	Name string
-	Decls []*astDecl
-	Unresolved []*astIdent
-}
 
 func kind(t *Type) string {
 	if t == nil {
