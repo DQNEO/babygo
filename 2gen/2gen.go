@@ -778,13 +778,6 @@ func parseType() *astExpr {
 	return typ
 }
 
-func eFromArrayType(t *astArrayType) *astExpr {
-	var r = new(astExpr)
-	r.dtype = "*astArrayType"
-	r.arrayType = t
-	return r
-}
-
 type astStarExpr struct {
 	X *astExpr
 }
@@ -811,7 +804,10 @@ func parseArrayType() *astExpr {
 	var arrayType = new(astArrayType)
 	arrayType.Elt = elt
 	arrayType.Len = ln
-	return eFromArrayType(arrayType)
+	var r = new(astExpr)
+	r.dtype = "*astArrayType"
+	r.arrayType = arrayType
+	return r
 }
 
 func parseTypeName() *astExpr {
