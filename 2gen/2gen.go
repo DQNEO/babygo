@@ -684,7 +684,6 @@ func scopeLookup(s *astScope, name string) *astObject {
 }
 
 // --- parser ---
-
 const O_READONLY int = 0
 const FILE_SIZE int = 20000
 
@@ -716,6 +715,8 @@ type objectEntry struct {
 }
 
 var ptok *TokenContainer
+
+var parserUnresolved []*astIdent
 
 var parserTopScope *astScope
 var parserPkgScope *astScope
@@ -884,7 +885,6 @@ func tryIdentOrType() *astExpr {
 	return _nil
 }
 
-
 func parseParameterList(scope *astScope) []*astField {
 	fmtPrintf("# [%s] begin\n", __func__)
 	var list []*astExpr
@@ -1043,8 +1043,6 @@ func declare(objDecl *ObjDecl, scope *astScope, kind string, ident *astIdent) {
 	fmtPrintf("# [declare] end\n")
 
 }
-
-var parserUnresolved []*astIdent
 
 func parserResolve(x *astExpr) {
 	tryResolve(x, true)
@@ -1310,12 +1308,6 @@ func parseExpr() *astExpr {
 func parseRhs() *astExpr {
 	var x = parseExpr()
 	return x
-}
-
-func nop() {
-}
-
-func nop1() {
 }
 
 func makeExpr(s *astStmt) *astExpr {
@@ -1690,7 +1682,6 @@ func parserParseFile() *astFile {
 	fmtPrintf("# [%s] end\n", __func__)
 	return f
 }
-
 
 func parseFile(filename string) *astFile {
 	var text = readSource(filename)
