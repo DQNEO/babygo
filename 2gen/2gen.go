@@ -747,7 +747,7 @@ func parseIdent() *astIdent {
 
 func parserParseImportDecl() *astImportSpec {
 	//fmtPrintf("parserParseImportDecl\n")
-	parserExpect("import", "parserParseImportDecl")
+	parserExpect("import", __func__)
 	var path = ptok.lit
 	parserNext()
 	parserExpectSemi(__func__)
@@ -806,7 +806,7 @@ func parseArrayType() *astExpr {
 	if ptok.tok != "]" {
 		ln = parseRhs()
 	}
-	parserExpect("]", "parseArrayTypes")
+	parserExpect("]", __func__)
 	var elt = parseType()
 	var arrayType = new(astArrayType)
 	arrayType.Elt = elt
@@ -1084,7 +1084,7 @@ func parseOperand() *astExpr {
 }
 
 func parseCallExpr(fn *astExpr) *astCallExpr {
-	parserExpect("(", "parseCallExpr")
+	parserExpect("(", __func__)
 	var callExpr = new(astCallExpr)
 	callExpr.Fun = fn
 	fmtPrintf("# [parsePrimaryExpr] ptok.tok=%s\n", ptok.tok)
@@ -1098,7 +1098,7 @@ func parseCallExpr(fn *astExpr) *astCallExpr {
 			break
 		}
 	}
-	parserExpect(")", "parsePrimaryExpr") // consume ")"
+	parserExpect(")", __func__)
 	callExpr.Args = list
 	return callExpr
 }
@@ -1147,7 +1147,7 @@ func parsePrimaryExpr() *astExpr {
 }
 
 func parseIndexOrSlice(x *astExpr) *astExpr {
-	parserExpect("[", "parseIndexOrSlice")
+	parserExpect("[", __func__)
 	var index []*astExpr = make([]*astExpr,3,3)
 	if ptok.tok != ":" {
 		index[0] = parseRhs()
@@ -1160,7 +1160,7 @@ func parseIndexOrSlice(x *astExpr) *astExpr {
 			index[ncolons] = parseRhs()
 		}
 	}
-	parserExpect("]", "parseIndexOrSlice")
+	parserExpect("]", __func__)
 
 	if ncolons > 0 {
 		// slice expression
@@ -1249,7 +1249,7 @@ func parseBinaryExpr(prec1 int) *astExpr {
 			fmtPrintf("#   end parseBinaryExpr() (NonBinary)\n")
 			return x
 		}
-		parserExpect(op, "parseBinaryExpr")
+		parserExpect(op, __func__)
 		var y = parseBinaryExpr(oprec+1)
 		var binaryExpr = new(astBinaryExpr)
 		binaryExpr.X = x
@@ -1471,7 +1471,7 @@ type astReturnStmt struct {
 }
 
 func parseReturnStmt() *astStmt {
-	parserExpect("return", "parseReturnStmt")
+	parserExpect("return", __func__)
 	var x []*astExpr
 	if ptok.tok != ";" && ptok.tok != "}" {
 		x = parseRhsList()
@@ -1498,27 +1498,27 @@ func parseStmtList() []*astStmt {
 }
 
 func parseBody(scope *astScope) *astBlockStmt {
-	parserExpect("{", "parseBody")
+	parserExpect("{", __func__)
 	parserTopScope = scope
 	fmtPrintf("# begin parseStmtList()\n")
 	var list = parseStmtList()
 	fmtPrintf("# end parseStmtList()\n")
 
 	closeScope()
-	parserExpect("}", "parseBody")
+	parserExpect("}", __func__)
 	var r = new(astBlockStmt)
 	r.List = list
 	return r
 }
 
 func parseBlockStmt() *astBlockStmt {
-	parserExpect("{", "parseBody")
+	parserExpect("{", __func__)
 	openScope()
 	fmtPrintf("# begin parseStmtList()\n")
 	var list = parseStmtList()
 	fmtPrintf("# end parseStmtList()\n")
 	closeScope()
-	parserExpect("}", "parseBody")
+	parserExpect("}", __func__)
 	var r = new(astBlockStmt)
 	r.List = list
 	return r
@@ -1528,7 +1528,7 @@ func parseDecl(keyword string) *astGenDecl {
 	var r *astGenDecl
 	switch ptok.tok {
 	case "var":
-		parserExpect(keyword, "parseDecl:var:1")
+		parserExpect(keyword, __func__)
 		var ident = parseIdent()
 		var typ = parseType()
 		var value *astExpr
@@ -1561,7 +1561,7 @@ type astSpec struct {
 
 func parserParseValueSpec() *astSpec {
 	fmtPrintf("# [parserParseValueSpec] start\n")
-	parserExpect("var", "parserParseValueSpec")
+	parserExpect("var", __func__)
 	var ident = parseIdent()
 	fmtPrintf("# [parserParseValueSpec] ident = %s\n", ident.Name)
 	var typ = parseType()
@@ -1581,7 +1581,7 @@ func parserParseValueSpec() *astSpec {
 }
 
 func parserParseFuncDecl() *astDecl {
-	parserExpect("func", "parserParseFuncDecl")
+	parserExpect("func", __func__)
 	var scope = astNewScope(parserTopScope) // function scope
 
 	var ident = parseIdent()
@@ -1614,7 +1614,7 @@ func parserParseFuncDecl() *astDecl {
 
 func parserParseFile() *astFile {
 	// expect "package" keyword
-	parserExpect("package", "parserParseFile")
+	parserExpect("package", __func__)
 	parserUnresolved = nil
 	var ident = parseIdent()
 	var packageName = ident.Name
