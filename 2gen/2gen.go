@@ -1913,6 +1913,7 @@ func emitZeroValue(t *Type) {
 }
 
 func emitLen(arg *astExpr) {
+	fmtPrintf("# [%s] begin\n", __func__)
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
 		var typ = getTypeOfExpr(arg)
@@ -1929,6 +1930,7 @@ func emitLen(arg *astExpr) {
 	default:
 		throw(kind(getTypeOfExpr(arg)))
 	}
+	fmtPrintf("# [%s] end\n", __func__)
 }
 
 func emitCap(arg *astExpr) {
@@ -2074,7 +2076,7 @@ func emitExpr(e *astExpr) {
 			panic2(__func__, "[*astBasicLit] TBI : " +  e.basicLit.Kind)
 		}
 	case "*astCallExpr":
-		fmtPrintf("# [*astCallExpr]\n")
+		fmtPrintf("# [%s][*astCallExpr]\n", __func__)
 		var fun = e.callExpr.Fun
 		if isType(fun) {
 			emitConversion(e2t(fun), e.callExpr.Args[0])
@@ -2082,6 +2084,7 @@ func emitExpr(e *astExpr) {
 		}
 		switch fun.dtype {
 		case "*astIdent":
+			fmtPrintf("# [%s][*astCallExpr][*astIdent]\n", __func__)
 			var fnIdent = fun.ident
 			switch fnIdent.Obj {
 			case gNew:
@@ -2136,15 +2139,21 @@ func emitExpr(e *astExpr) {
 
 				return
 			}
+			fmtPrintf("# [%s][*astCallExpr][default] start\n", __func__)
 			var pushed int = 0
 			//var arg *astExpr
 			var i int
 			for i=len(e.callExpr.Args)-1;i>=0;i-- {
+				fmtPrintf("# [%s][*astCallExpr][default] arg %s\n", __func__, Itoa(i))
 				emitExpr(e.callExpr.Args[i])
+				fmtPrintf("# [%s] debug 100\n", __func__)
 				var typ = getTypeOfExpr(e.callExpr.Args[i])
+				fmtPrintf("# [%s] debug 200\n", __func__)
 				var size = getSizeOfType(typ)
 				pushed = pushed + size
+				fmtPrintf("# [%s] debug 300\n", __func__)
 			}
+			fmtPrintf("# [%s][*astCallExpr][default] emitted args\n", __func__)
 			var ident = fun.ident
 			if ident.Name == "print" {
 				fmtPrintf("  callq runtime.printstring\n")
@@ -2685,6 +2694,7 @@ var tString *Type
 var tBool *Type
 
 func getTypeOfExpr(expr *astExpr) *Type {
+	fmtPrintf("# [%s] start\n", __func__)
 	switch expr.dtype {
 	case "*astIdent":
 		switch expr.ident.Obj.Kind {
@@ -2728,6 +2738,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			panic2(__func__, "TBI: Op=" + expr.unaryExpr.Op)
 		}
 	case "*astCallExpr":
+		fmtPrintf("# [%s] *astCallExpr\n", __func__)
 		var fun = expr.callExpr.Fun
 		switch fun.dtype {
 		case "*astIdent":
@@ -2739,7 +2750,14 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			case "Typ":
 				return e2t(fun)
 			case "Fun":
+				switch fn.Obj {
+				case gLen, gCap:
+					return tInt
+				}
 				var decl = fn.Obj.Decl
+				if decl == nil {
+					panic2(__func__, "decl is nil")
+				}
 				switch decl.dtype {
 				case "*astFuncDecl":
 					var resultList = decl.funcDecl.Sig.results.List

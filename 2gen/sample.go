@@ -15,34 +15,24 @@ func write(s string) {
 }
 
 func testLenCap() {
-	var ln int
-	var cp int
-
 	var x []uint8
 	x = make([]uint8, 0, 0)
-	ln = len(x)
-	writeln(itoa(ln))
+	writeln(itoa(len(x)))
 
-	cp = cap(x)
-	writeln(itoa(cp))
+	writeln(itoa(cap(x)))
 
 	x = make([]uint8, 12, 24)
-	ln = len(x)
-	writeln(itoa(ln))
+	writeln(itoa(len(x)))
 
-	cp = cap(x)
-	writeln(itoa(cp))
+	writeln(itoa(cap(x)))
 
-	ln = len(globalintarray)
-	writeln(itoa(ln))
+	writeln(itoa(len(globalintarray)))
 
-	cp = cap(globalintarray)
-	writeln(itoa(cp))
+	writeln(itoa(cap(globalintarray)))
 
 	var s string
 	s = "hello\n"
-	ln = len(s)
-	writeln(itoa(ln)) // 6
+	writeln(itoa(len(s))) // 6
 }
 
 func testMakeSlice() {
