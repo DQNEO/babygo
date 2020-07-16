@@ -495,6 +495,235 @@ func emitCall(symbol string, args []*Arg) {
 	emitRevertStackPointer(totalPushedSize)
 }
 
+func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
+	switch fn := fun.(type) {
+	case *ast.Ident:
+		// check if it's a builtin func
+		switch fn.Obj {
+		case gLen:
+			assert(len(eArgs) == 1, "builtin len should take only 1 args")
+			var arg ast.Expr = eArgs[0]
+			emitLen(arg)
+		case gCap:
+			assert(len(eArgs) == 1, "builtin len should take only 1 args")
+			var arg ast.Expr = eArgs[0]
+			emitCap(arg)
+		case gNew:
+			typeArg := e2t(eArgs[0])
+			// size to malloc
+			size := getSizeOfType(typeArg)
+			emitCallMalloc(size)
+		case gMake:
+			var typeArg = e2t(eArgs[0])
+			switch kind(typeArg) {
+			case T_SLICE:
+				// make([]T, ...)
+				arrayType, ok := typeArg.e.(*ast.ArrayType)
+				assert(ok, "should be *ast.ArrayType")
+				var elmSize = getSizeOfType(e2t(arrayType.Elt))
+				var numlit = newNumberLiteral(elmSize)
+
+				var args []*Arg = []*Arg{
+					// elmSize
+					&Arg{
+						e: numlit,
+						t: tInt,
+					},
+					// len
+					&Arg{
+						e: eArgs[1],
+						t: tInt,
+					},
+					// cap
+					&Arg{
+						e: eArgs[2],
+						t: tInt,
+					},
+				}
+
+				emitCall("runtime.makeSlice", args)
+				fmt.Printf("  pushq %%rsi # slice cap\n")
+				fmt.Printf("  pushq %%rdi # slice len\n")
+				fmt.Printf("  pushq %%rax # slice ptr\n")
+			default:
+				throw(typeArg)
+			}
+		case gAppend:
+			var sliceArg ast.Expr = eArgs[0]
+			var elemArg ast.Expr = eArgs[1]
+			var elmType *Type = getElementTypeOfListType(getTypeOfExpr(sliceArg))
+			var elmSize int = getSizeOfType(elmType)
+
+			var args []*Arg = []*Arg{
+				// slice
+				&Arg{
+					e: sliceArg,
+					t: nil,
+				},
+				// elm
+				&Arg{
+					e: elemArg,
+					t: elmType,
+				},
+			}
+
+			var symbol string
+			switch elmSize {
+			case 1:
+				symbol = "runtime.append1"
+			case 8:
+				symbol = "runtime.append8"
+			case 16:
+				symbol = "runtime.append16"
+			case 24:
+				symbol = "runtime.append24"
+			default:
+				throw(elmSize)
+			}
+			emitCall(symbol, args)
+			fmt.Printf("  pushq %%rsi # slice cap\n")
+			fmt.Printf("  pushq %%rdi # slice len\n")
+			fmt.Printf("  pushq %%rax # slice ptr\n")
+		default:
+			if fn.Name == "print" {
+				// builtin print
+				_args := []*Arg{&Arg{
+					e: eArgs[0],
+				}}
+				var symbol string
+				switch kind(getTypeOfExpr(eArgs[0])) {
+				case T_STRING:
+					symbol = "runtime.printstring"
+				case T_INT:
+					symbol = "runtime.printint"
+				default:
+					panic("TBI")
+				}
+				emitCall(symbol, _args)
+			} else {
+				if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
+					fn.Name = "makeSlice"
+				}
+				// general function call
+				obj := fn.Obj //.Kind == FN
+				fndecl, ok := obj.Decl.(*ast.FuncDecl)
+				if !ok {
+					throw(fn.Obj)
+				}
+				params := fndecl.Type.Params.List
+				var variadicArgs []ast.Expr // nil means there is no varadic in funcdecl
+				var variadicElp *ast.Ellipsis
+				var args []*Arg
+				var argIndex int
+				var eArg ast.Expr
+				var param *ast.Field
+				for argIndex, eArg = range eArgs {
+					if argIndex < len(params) {
+						param = params[argIndex]
+						elp, ok := param.Type.(*ast.Ellipsis)
+						if ok {
+							variadicElp = elp
+							variadicArgs = make([]ast.Expr, 0)
+						}
+					}
+					if variadicArgs != nil {
+						variadicArgs = append(variadicArgs, eArg)
+						continue
+					}
+
+					paramType := e2t(param.Type)
+					arg := &Arg{
+						e: eArg,
+						t: paramType,
+					}
+					args = append(args, arg)
+				}
+
+				if variadicArgs != nil {
+					sliceType := &ast.ArrayType{Elt: variadicElp.Elt}
+					slicelite := &ast.CompositeLit{
+						Type:       sliceType,
+						Lbrace:     0,
+						Elts:       variadicArgs,
+						Rbrace:     0,
+						Incomplete: false,
+					}
+					args = append(args, &Arg{
+						e:      slicelite,
+						t:      e2t(sliceType),
+						offset: 0,
+					})
+				} else if len(args) < len(params) {
+					// Add nil as a variadic arg
+					param := params[argIndex+1]
+					elp, ok := param.Type.(*ast.Ellipsis)
+					assert(ok, "compile error")
+					//variadicArgs = make([]ast.Expr, 0,0)
+					args = append(args, &Arg{
+						e:      eNil,
+						t:      e2t(elp),
+						offset: 0,
+					})
+				}
+
+				symbol := pkgName + "." + fn.Name
+				emitCall(symbol, args)
+
+				if fndecl.Type.Results != nil {
+					if len(fndecl.Type.Results.List) > 2 {
+						panic("TBI")
+					} else if len(fndecl.Type.Results.List) == 1 {
+						retval0 := fndecl.Type.Results.List[0]
+						switch kind(e2t(retval0.Type)) {
+						case T_STRING:
+							fmt.Printf("  # fn.Obj=%#v\n", obj)
+							fmt.Printf("  pushq %%rdi # str len\n")
+							fmt.Printf("  pushq %%rax # str ptr\n")
+						case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+							fmt.Printf("  # fn.Obj=%#v\n", obj)
+							fmt.Printf("  pushq %%rax\n")
+						case T_SLICE:
+							fmt.Printf("  pushq %%rsi # slice cap\n")
+							fmt.Printf("  pushq %%rdi # slice len\n")
+							fmt.Printf("  pushq %%rax # slice ptr\n")
+						default:
+							throw(kind(e2t(retval0.Type)))
+						}
+					}
+				}
+			}
+
+		}
+	case *ast.SelectorExpr:
+		symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
+		switch symbol {
+		case "unsafe.Pointer":
+			emitExpr(eArgs[0], nil)
+		case "os.Exit":
+			emitCallNonDecl(symbol, eArgs)
+		case "syscall.Syscall":
+			// func decl is in runtime
+			emitCallNonDecl(symbol, eArgs)
+			fmt.Printf("  pushq %%rax # ret\n")
+		case "syscall.Write":
+			// func decl is in runtime
+			emitCallNonDecl(symbol, eArgs)
+		case "syscall.Open":
+			// func decl is in runtime
+			emitCallNonDecl(symbol, eArgs)
+			fmt.Printf("  pushq %%rax # fd\n")
+		case "syscall.Read":
+			// func decl is in runtime
+			emitCallNonDecl(symbol, eArgs)
+			fmt.Printf("  pushq %%rax # fd\n")
+		default:
+			panic(symbol)
+		}
+	default:
+		throw(fun)
+	}
+}
+
 // ABI of stack layout
 //
 // string:
@@ -588,232 +817,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			emitConversion(e2t(fun), e.Args[0])
 			return
 		}
-		switch fn := fun.(type) {
-		case *ast.Ident:
-			// check if it's a builtin func
-			switch fn.Obj {
-			case gLen:
-				assert(len(e.Args) == 1, "builtin len should take only 1 args")
-				var arg ast.Expr = e.Args[0]
-				emitLen(arg)
-			case gCap:
-				assert(len(e.Args) == 1, "builtin len should take only 1 args")
-				var arg ast.Expr = e.Args[0]
-				emitCap(arg)
-			case gNew:
-				typeArg := e2t(e.Args[0])
-				// size to malloc
-				size := getSizeOfType(typeArg)
-				emitCallMalloc(size)
-			case gMake:
-				var typeArg = e2t(e.Args[0])
-				switch kind(typeArg) {
-				case T_SLICE:
-					// make([]T, ...)
-					arrayType, ok := typeArg.e.(*ast.ArrayType)
-					assert(ok, "should be *ast.ArrayType")
-					var elmSize = getSizeOfType(e2t(arrayType.Elt))
-					var numlit = newNumberLiteral(elmSize)
-
-					var args []*Arg = []*Arg{
-						// elmSize
-						&Arg{
-							e: numlit,
-							t: tInt,
-						},
-						// len
-						&Arg{
-							e: e.Args[1],
-							t: tInt,
-						},
-						// cap
-						&Arg{
-							e: e.Args[2],
-							t: tInt,
-						},
-					}
-
-					emitCall("runtime.makeSlice", args)
-					fmt.Printf("  pushq %%rsi # slice cap\n")
-					fmt.Printf("  pushq %%rdi # slice len\n")
-					fmt.Printf("  pushq %%rax # slice ptr\n")
-				default:
-					throw(typeArg)
-				}
-			case gAppend:
-				var sliceArg ast.Expr = e.Args[0]
-				var elemArg ast.Expr = e.Args[1]
-				var elmType *Type = getElementTypeOfListType(getTypeOfExpr(sliceArg))
-				var elmSize int = getSizeOfType(elmType)
-
-				var args []*Arg = []*Arg{
-					// slice
-					&Arg{
-						e: sliceArg,
-						t: nil,
-					},
-					// elm
-					&Arg{
-						e: elemArg,
-						t: elmType,
-					},
-				}
-
-				var symbol string
-				switch elmSize {
-				case 1:
-					symbol = "runtime.append1"
-				case 8:
-					symbol = "runtime.append8"
-				case 16:
-					symbol = "runtime.append16"
-				case 24:
-					symbol = "runtime.append24"
-				default:
-					throw(elmSize)
-				}
-				emitCall(symbol, args)
-				fmt.Printf("  pushq %%rsi # slice cap\n")
-				fmt.Printf("  pushq %%rdi # slice len\n")
-				fmt.Printf("  pushq %%rax # slice ptr\n")
-			default:
-				if fn.Name == "print" {
-					// builtin print
-					args := []*Arg{&Arg{
-						e: e.Args[0],
-					}}
-					var symbol string
-					switch kind(getTypeOfExpr(e.Args[0])) {
-					case T_STRING:
-						symbol = "runtime.printstring"
-					case T_INT:
-						symbol = "runtime.printint"
-					default:
-						panic("TBI")
-					}
-					emitCall(symbol, args)
-				} else {
-					if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
-						fn.Name = "makeSlice"
-					}
-					// general function call
-					obj := fn.Obj //.Kind == FN
-					fndecl, ok := obj.Decl.(*ast.FuncDecl)
-					if !ok {
-						throw(fn.Obj)
-					}
-					params := fndecl.Type.Params.List
-					var variadicArgs []ast.Expr // nil means there is no varadic in funcdecl
-					var variadicElp *ast.Ellipsis
-					var args []*Arg
-					var argIndex int
-					var eArg ast.Expr
-					var param *ast.Field
-					for argIndex, eArg = range e.Args {
-						if argIndex < len(params) {
-							param = params[argIndex]
-							elp, ok := param.Type.(*ast.Ellipsis)
-							if ok {
-								variadicElp = elp
-								variadicArgs = make([]ast.Expr, 0)
-							}
-						}
-						if variadicArgs != nil {
-							variadicArgs = append(variadicArgs, eArg)
-							continue
-						}
-
-						paramType := e2t(param.Type)
-						arg := &Arg{
-							e: eArg,
-							t: paramType,
-						}
-						args = append(args, arg)
-					}
-
-					if variadicArgs != nil {
-						sliceType := &ast.ArrayType{Elt: variadicElp.Elt}
-						slicelite := &ast.CompositeLit{
-							Type:       sliceType,
-							Lbrace:     0,
-							Elts:       variadicArgs,
-							Rbrace:     0,
-							Incomplete: false,
-						}
-						args = append(args, &Arg{
-							e:      slicelite,
-							t:      e2t(sliceType),
-							offset: 0,
-						})
-					} else if len(e.Args) < len(params) {
-						// Add nil as a variadic arg
-						param := params[argIndex+1]
-						elp, ok := param.Type.(*ast.Ellipsis)
-						assert(ok, "compile error")
-						//variadicArgs = make([]ast.Expr, 0,0)
-						args = append(args, &Arg{
-							e:      eNil,
-							t:      e2t(elp),
-							offset: 0,
-						})
-					}
-
-					symbol := pkgName + "." + fn.Name
-					emitCall(symbol, args)
-
-					if fndecl.Type.Results != nil {
-						if len(fndecl.Type.Results.List) > 2 {
-							panic("TBI")
-						} else if len(fndecl.Type.Results.List) == 1 {
-							retval0 := fndecl.Type.Results.List[0]
-							switch kind(e2t(retval0.Type)) {
-							case T_STRING:
-								fmt.Printf("  # fn.Obj=%#v\n", obj)
-								fmt.Printf("  pushq %%rdi # str len\n")
-								fmt.Printf("  pushq %%rax # str ptr\n")
-							case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-								fmt.Printf("  # fn.Obj=%#v\n", obj)
-								fmt.Printf("  pushq %%rax\n")
-							case T_SLICE:
-								fmt.Printf("  pushq %%rsi # slice cap\n")
-								fmt.Printf("  pushq %%rdi # slice len\n")
-								fmt.Printf("  pushq %%rax # slice ptr\n")
-							default:
-								throw(kind(e2t(retval0.Type)))
-							}
-						}
-					}
-				}
-
-			}
-		case *ast.SelectorExpr:
-			symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
-			switch symbol {
-			case "unsafe.Pointer":
-				emitExpr(e.Args[0], nil)
-			case "os.Exit":
-				emitCallNonDecl(symbol, e.Args)
-			case "syscall.Syscall":
-				// func decl is in runtime
-				emitCallNonDecl(symbol, e.Args)
-				fmt.Printf("  pushq %%rax # ret\n")
-			case "syscall.Write":
-				// func decl is in runtime
-				emitCallNonDecl(symbol, e.Args)
-			case "syscall.Open":
-				// func decl is in runtime
-				emitCallNonDecl(symbol, e.Args)
-				fmt.Printf("  pushq %%rax # fd\n")
-			case "syscall.Read":
-				// func decl is in runtime
-				emitCallNonDecl(symbol, e.Args)
-				fmt.Printf("  pushq %%rax # fd\n")
-			default:
-				panic(symbol)
-			}
-		default:
-			throw(fun)
-		}
+		emitFuncall(fun, e.Args)
 	case *ast.ParenExpr:
 		emitExpr(e.X, getTypeOfExpr(e))
 	case *ast.BasicLit:
