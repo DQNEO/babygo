@@ -504,15 +504,18 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			assert(len(eArgs) == 1, "builtin len should take only 1 args")
 			var arg ast.Expr = eArgs[0]
 			emitLen(arg)
+			return
 		case gCap:
 			assert(len(eArgs) == 1, "builtin len should take only 1 args")
 			var arg ast.Expr = eArgs[0]
 			emitCap(arg)
+			return
 		case gNew:
 			typeArg := e2t(eArgs[0])
 			// size to malloc
 			size := getSizeOfType(typeArg)
 			emitCallMalloc(size)
+			return
 		case gMake:
 			var typeArg = e2t(eArgs[0])
 			switch kind(typeArg) {
@@ -545,6 +548,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 				fmt.Printf("  pushq %%rsi # slice cap\n")
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
+				return
 			default:
 				throw(typeArg)
 			}
@@ -584,6 +588,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			fmt.Printf("  pushq %%rsi # slice cap\n")
 			fmt.Printf("  pushq %%rdi # slice len\n")
 			fmt.Printf("  pushq %%rax # slice ptr\n")
+			return
 		default:
 			if fn.Name == "print" {
 				// builtin print
@@ -600,6 +605,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 					panic("TBI")
 				}
 				emitCall(symbol, _args)
+				return
 			} else {
 				if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
 					fn.Name = "makeSlice"
@@ -691,6 +697,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 						}
 					}
 				}
+				return
 			}
 
 		}
@@ -699,23 +706,29 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		switch symbol {
 		case "unsafe.Pointer":
 			emitExpr(eArgs[0], nil)
+			return
 		case "os.Exit":
 			emitCallNonDecl(symbol, eArgs)
+			return
 		case "syscall.Syscall":
 			// func decl is in runtime
 			emitCallNonDecl(symbol, eArgs)
 			fmt.Printf("  pushq %%rax # ret\n")
+			return
 		case "syscall.Write":
 			// func decl is in runtime
 			emitCallNonDecl(symbol, eArgs)
+			return
 		case "syscall.Open":
 			// func decl is in runtime
 			emitCallNonDecl(symbol, eArgs)
 			fmt.Printf("  pushq %%rax # fd\n")
+			return
 		case "syscall.Read":
 			// func decl is in runtime
 			emitCallNonDecl(symbol, eArgs)
 			fmt.Printf("  pushq %%rax # fd\n")
+			return
 		default:
 			panic(symbol)
 		}
