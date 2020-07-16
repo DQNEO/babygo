@@ -581,7 +581,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case *ast.CallExpr:
-		fun := e.Fun
+		var fun = e.Fun
 		fmt.Printf("  # callExpr=%#v\n", fun)
 		// check if it's a conversion
 		if isType(fun) {

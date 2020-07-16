@@ -2076,8 +2076,8 @@ func emitExpr(e *astExpr) {
 			panic2(__func__, "[*astBasicLit] TBI : " +  e.basicLit.Kind)
 		}
 	case "*astCallExpr":
-		fmtPrintf("# [%s][*astCallExpr]\n", __func__)
 		var fun = e.callExpr.Fun
+		fmtPrintf("# [%s][*astCallExpr]\n", __func__)
 		if isType(fun) {
 			emitConversion(e2t(fun), e.callExpr.Args[0])
 			return
@@ -2087,11 +2087,6 @@ func emitExpr(e *astExpr) {
 			fmtPrintf("# [%s][*astCallExpr][*astIdent]\n", __func__)
 			var fnIdent = fun.ident
 			switch fnIdent.Obj {
-			case gNew:
-				var typeArg = e2t(e.callExpr.Args[0])
-				var size = getSizeOfType(typeArg)
-				emitCallMalloc(size)
-				return
 			case gLen:
 				var arg = e.callExpr.Args[0]
 				emitLen(arg)
@@ -2099,6 +2094,11 @@ func emitExpr(e *astExpr) {
 			case gCap:
 				var arg = e.callExpr.Args[0]
 				emitCap(arg)
+				return
+			case gNew:
+				var typeArg = e2t(e.callExpr.Args[0])
+				var size = getSizeOfType(typeArg)
+				emitCallMalloc(size)
 				return
 			case gMake:
 				var typeArg = e2t(e.callExpr.Args[0])
