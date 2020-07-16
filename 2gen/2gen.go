@@ -2058,13 +2058,16 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 				fmtPrintf("  pushq %%rsi # slice cap\n")
 				fmtPrintf("  pushq %%rdi # slice len\n")
 				fmtPrintf("  pushq %%rax # slice ptr\n")
+				return
 			default:
 				panic2(__func__, "TBI")
 			}
 
 			return
 		}
+
 		fmtPrintf("# [%s][*astCallExpr][default] start\n", __func__)
+
 		var pushed int = 0
 		//var arg *astExpr
 		var i int
@@ -2081,51 +2084,54 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		fmtPrintf("# [%s][*astCallExpr][default] emitted args\n", __func__)
 		var ident = fun.ident
 		if ident.Name == "print" {
+			emitExpr(eArgs[0])
 			fmtPrintf("  callq runtime.printstring\n")
 			fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(16))
-		} else {
-			fmtPrintf("  callq %s.%s\n", pkgName, ident.Name)
-			fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(pushed))
-			var obj = ident.Obj
-			var decl = obj.Decl
-			if decl == nil {
-				panic2(__func__, "[*astCallExpr] decl is nil")
-			}
-			if decl.dtype !=  "*astFuncDecl" {
-				panic2(__func__, "[*astCallExpr] decl.dtype is invalid")
-			}
-			var fndecl = decl.funcDecl
-			if fndecl == nil {
-				panic2(__func__, "[*astCallExpr] fndecl is nil")
-			}
-			if fndecl.Sig == nil {
-				panic2(__func__, "[*astCallExpr] fndecl.Sig is nil")
-			}
-			var results = fndecl.Sig.results
-			if fndecl.Sig.results == nil {
-				fmtPrintf("# [emitExpr] %s sig.results is nil\n", ident.Name)
-			} else {
-				fmtPrintf("# [emitExpr] %s sig.results.List = %s\n", ident.Name, Itoa(len(fndecl.Sig.results.List)))
-			}
-
-			if results != nil && len(results.List) == 1 {
-				var retval0 = fndecl.Sig.results.List[0]
-				var knd = kind(e2t(retval0.Type))
-				switch knd {
-				case T_STRING:
-					fmtPrintf("  # fn.Obj=%s\n", obj.Name)
-					fmtPrintf("  pushq %%rdi # str len\n")
-					fmtPrintf("  pushq %%rax # str ptr\n")
-				case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-					fmtPrintf("  # fn.Obj=%s\n", obj.Name)
-					fmtPrintf("  pushq %%rax\n")
-				default:
-					panic2(__func__, "Unexpected kind=" + knd)
-				}
-			} else {
-				fmtPrintf("   # No results\n")
-			}
+			return
 		}
+
+		fmtPrintf("  callq %s.%s\n", pkgName, ident.Name)
+		fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(pushed))
+		var obj = ident.Obj
+		var decl = obj.Decl
+		if decl == nil {
+			panic2(__func__, "[*astCallExpr] decl is nil")
+		}
+		if decl.dtype != "*astFuncDecl" {
+			panic2(__func__, "[*astCallExpr] decl.dtype is invalid")
+		}
+		var fndecl = decl.funcDecl
+		if fndecl == nil {
+			panic2(__func__, "[*astCallExpr] fndecl is nil")
+		}
+		if fndecl.Sig == nil {
+			panic2(__func__, "[*astCallExpr] fndecl.Sig is nil")
+		}
+		var results = fndecl.Sig.results
+		if fndecl.Sig.results == nil {
+			fmtPrintf("# [emitExpr] %s sig.results is nil\n", ident.Name)
+		} else {
+			fmtPrintf("# [emitExpr] %s sig.results.List = %s\n", ident.Name, Itoa(len(fndecl.Sig.results.List)))
+		}
+
+		if results != nil && len(results.List) == 1 {
+			var retval0 = fndecl.Sig.results.List[0]
+			var knd = kind(e2t(retval0.Type))
+			switch knd {
+			case T_STRING:
+				fmtPrintf("  # fn.Obj=%s\n", obj.Name)
+				fmtPrintf("  pushq %%rdi # str len\n")
+				fmtPrintf("  pushq %%rax # str ptr\n")
+			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+				fmtPrintf("  # fn.Obj=%s\n", obj.Name)
+				fmtPrintf("  pushq %%rax\n")
+			default:
+				panic2(__func__, "Unexpected kind="+knd)
+			}
+		} else {
+			fmtPrintf("   # No results\n")
+		}
+		return
 	case "*astSelectorExpr":
 		var selectorExpr = fun.selectorExpr
 		if selectorExpr.X.dtype != "*astIdent" {
