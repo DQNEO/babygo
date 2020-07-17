@@ -902,8 +902,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			switch e.Op.String() {
 			case "+":
 				emitCall("runtime.catstrings", args)
-				fmt.Printf("  pushq %%rdi # slice len\n")
-				fmt.Printf("  pushq %%rax # slice ptr\n")
+				fmtPrintf("  pushq %%rdi # slice len\n")
+				fmtPrintf("  pushq %%rax # slice ptr\n")
 			case "==":
 				emitArgs(args)
 				emitCompEq(getTypeOfExpr(e.X))

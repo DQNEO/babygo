@@ -2284,7 +2284,22 @@ func emitExpr(e *astExpr) {
 		}
 	case "*astBinaryExpr":
 		if kind(getTypeOfExpr(e.binaryExpr.X)) == T_STRING {
-			panic2(__func__, "[emitExpr][*astBinaryExpr] TBI T_STRING")
+			var args []*Arg
+			var argX = new(Arg)
+			var argY = new(Arg)
+			argX.e = e.binaryExpr.X
+			argY.e = e.binaryExpr.Y
+			args = append(args, argX)
+			args = append(args, argY)
+			switch e.binaryExpr.Op {
+			case "+":
+				emitCall("runtime.catstrings", args)
+				fmtPrintf("  pushq %%rdi # slice len\n")
+				fmtPrintf("  pushq %%rax # slice ptr\n")
+			default:
+				panic2(__func__, "[emitExpr][*astBinaryExpr] string : TBI T_STRING")
+			}
+			return
 		}
 		var t = getTypeOfExpr(e.binaryExpr.X)
 		emitExpr(e.binaryExpr.X) // left

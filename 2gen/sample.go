@@ -2,6 +2,23 @@ package main
 
 import "syscall"
 
+func catstrings(a string, b string) string {
+	var totallen int
+	var r []uint8
+	totallen = len(a) + len(b)
+	r = make([]uint8, totallen, totallen)
+	var i int
+	for i = 0; i < len(a); i = i + 1 {
+		r[i] = a[i]
+	}
+	var j int
+	for j = 0; j < len(b); j = j + 1 {
+		r[i+j] = b[j]
+	}
+	return string(r)
+}
+
+
 func writeln(s string) {
 	//var s2 string = s + "\n"
 	var s2 string = "\n"
@@ -12,6 +29,11 @@ func writeln(s string) {
 func write(s string) {
 	var slc []uint8 = []uint8(s)
 	syscall.Write(1, slc)
+}
+
+func testConcateStrings() {
+	var concatenated string = "foo" + "bar" + "1234"
+	writeln(concatenated)
 }
 
 func testLenCap() {
@@ -325,6 +347,7 @@ func testMisc() {
 }
 
 func test() {
+	testConcateStrings()
 	testLenCap()
 	testMakeSlice()
 
