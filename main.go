@@ -1075,9 +1075,9 @@ func emitListElementAddr(list ast.Expr, elmType *Type) {
 func emitCompEq(t *Type) {
 	switch kind(t) {
 	case T_STRING:
-		fmt.Printf("  callq runtime.cmpstrings\n")
+		fmtPrintf("  callq runtime.cmpstrings\n")
 		emitRevertStackPointer(stringSize * 2)
-		fmt.Printf("  pushq %%rax # cmp result (1 or 0)\n")
+		fmtPrintf("  pushq %%rax # cmp result (1 or 0)\n")
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
 	case T_SLICE:

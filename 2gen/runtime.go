@@ -88,3 +88,15 @@ func catstrings(a string, b string) string {
 	return string(r)
 }
 
+func cmpstrings(a string, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	var i int
+	for i = 0; i < len(a); i = i + 1 {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}

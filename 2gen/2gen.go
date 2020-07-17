@@ -2211,8 +2211,7 @@ func emitExpr(e *astExpr) {
 			var sl = getStringLiteral(e.basicLit)
 			if sl.strlen == 0 {
 				// zero value
-				//emitZeroValue(tString)
-				panic2(__func__, "TBI: empty string literal\n")
+				emitZeroValue(tString)
 			} else {
 				fmtPrintf("  pushq $%d # str len\n", Itoa(sl.strlen))
 				fmtPrintf("  leaq %s, %%rax # str ptr\n", sl.label)
@@ -2296,6 +2295,13 @@ func emitExpr(e *astExpr) {
 				emitCall("runtime.catstrings", args)
 				fmtPrintf("  pushq %%rdi # slice len\n")
 				fmtPrintf("  pushq %%rax # slice ptr\n")
+			case "==":
+				emitArgs(args)
+				emitCompEq(getTypeOfExpr(e.binaryExpr.X))
+			case "!=":
+				emitArgs(args)
+				emitCompEq(getTypeOfExpr(e.binaryExpr.X))
+				emitInvertBoolValue()
 			default:
 				panic2(__func__, "[emitExpr][*astBinaryExpr] string : TBI T_STRING")
 			}
@@ -2373,6 +2379,10 @@ func emitListElementAddr(list *astExpr, elmType *Type) {
 
 func emitCompEq(t *Type) {
 	switch kind(t) {
+	case T_STRING:
+		fmtPrintf("  callq runtime.cmpstrings\n")
+		emitRevertStackPointer(stringSize * 2)
+		fmtPrintf("  pushq %%rax # cmp result (1 or 0)\n")
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
 	default:
@@ -2748,8 +2758,15 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			default:
 				panic2(__func__, "ERROR 0\n")
 			}
+		case "Con":
+			switch expr.ident.Obj {
+			case gTrue, gFalse:
+				return tBool
+			default:
+				panic2(__func__, "1:Obj.Kind=" + expr.ident.Obj.Kind)
+			}
 		default:
-			panic2(__func__, "ERROR 1\n")
+			panic2(__func__, "2:Obj.Kind=" + expr.ident.Obj.Kind)
 		}
 	case "*astBasicLit":
 		switch expr.basicLit.Kind {

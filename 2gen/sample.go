@@ -31,6 +31,52 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testStringComparison() {
+	var s string
+	if s == "" {
+		writeln("string cmp 1 ok")
+	} else {
+		writeln("ERROR")
+	}
+	var s2 string = ""
+	if s2 == s {
+		writeln("string cmp 2 ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	var s3 string = "abc"
+	s3 = s3 + "def"
+	var s4 string = "1abcdef1"
+	var s5 string = s4[1:7]
+	if s3 == s5 {
+		writeln("string cmp 3 ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	if "abcdef" == s5 {
+		writeln("string cmp 4 ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	if s3 != s5 {
+		writeln(s3)
+		writeln(s5)
+		writeln("ERROR")
+		return
+	} else {
+		writeln("string cmp not 1 ok")
+	}
+
+	if s4 != s3 {
+		writeln("string cmp not 2 ok")
+	} else {
+		writeln("ERROR")
+	}
+}
+
 func testConcateStrings() {
 	var concatenated string = "foo" + "bar" + "1234"
 	writeln(concatenated)
@@ -347,6 +393,7 @@ func testMisc() {
 }
 
 func test() {
+	testStringComparison()
 	testConcateStrings()
 	testLenCap()
 	testMakeSlice()
