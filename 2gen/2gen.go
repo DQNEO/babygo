@@ -1998,11 +1998,17 @@ func emitCall(symbol string, args []*Arg) {
 	//var arg *astExpr
 	var i int
 	for i=len(args)-1;i>=0;i-- {
-		fmtPrintf("  # [emitCall] %s arg i=%s\n", symbol, Itoa(i))
-		emitExpr(args[i].e)
-		var typ = getTypeOfExpr(args[i].e)
-		var size = getSizeOfType(typ)
+		var arg = args[i]
+		var t *Type
+		if arg.t != nil {
+			t = arg.t
+		} else {
+			t = getTypeOfExpr(arg.e)
+		}
+		var size = getSizeOfType(t)
 		totalPushedSize = totalPushedSize + size
+		fmtPrintf("  # [emitCall] %s arg i=%s\n", symbol, Itoa(i))
+		emitExpr(arg.e)
 	}
 	fmtPrintf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
@@ -2085,7 +2091,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		for i=0;i<len(eArgs);i++ {
 			_arg = new(Arg)
 			_arg.e = eArgs[i]
-			_arg.t = e2t(eArgs[i])
+			_arg.t = getTypeOfExpr(eArgs[i])
 			args = append(args, _arg)
 		}
 
