@@ -677,6 +677,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		symbol := pkgName + "." + fn.Name
 		emitCall(symbol, args)
 
+		// push results
 		if fndecl.Type.Results != nil {
 			if len(fndecl.Type.Results.List) > 2 {
 				panic("TBI")

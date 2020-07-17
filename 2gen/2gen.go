@@ -1991,8 +1991,10 @@ func emitCallNonDecl(symbol string, eArgs []*astExpr) {
 	emitCall(symbol, args)
 }
 
+
 func emitCall(symbol string, args []*Arg) {
-	var pushed int = 0
+	fmtPrintf("# [%s] %s\n", __func__, symbol)
+	var totalPushedSize int = 0
 	//var arg *astExpr
 	var i int
 	for i=len(args)-1;i>=0;i-- {
@@ -2000,10 +2002,10 @@ func emitCall(symbol string, args []*Arg) {
 		emitExpr(args[i].e)
 		var typ = getTypeOfExpr(args[i].e)
 		var size = getSizeOfType(typ)
-		pushed = pushed + size
+		totalPushedSize = totalPushedSize + size
 	}
 	fmtPrintf("  callq %s\n", symbol)
-	fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(pushed))
+	emitRevertStackPointer(totalPushedSize)
 }
 
 func emitFuncall(fun *astExpr, eArgs []*astExpr) {
@@ -2066,22 +2068,6 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			return
 		}
 
-		fmtPrintf("# [%s][*astCallExpr][default] start\n", __func__)
-
-		var pushed int = 0
-		//var arg *astExpr
-		var i int
-		for i=len(eArgs)-1;i>=0;i-- {
-			fmtPrintf("# [%s][*astCallExpr][default] arg %s\n", __func__, Itoa(i))
-			emitExpr(eArgs[i])
-			fmtPrintf("# [%s] debug 100\n", __func__)
-			var typ = getTypeOfExpr(eArgs[i])
-			fmtPrintf("# [%s] debug 200\n", __func__)
-			var size = getSizeOfType(typ)
-			pushed = pushed + size
-			fmtPrintf("# [%s] debug 300\n", __func__)
-		}
-		fmtPrintf("# [%s][*astCallExpr][default] emitted args\n", __func__)
 		var ident = fun.ident
 		if ident.Name == "print" {
 			emitExpr(eArgs[0])
@@ -2090,8 +2076,23 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			return
 		}
 
-		fmtPrintf("  callq %s.%s\n", pkgName, ident.Name)
-		fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(pushed))
+		// general function call
+		fmtPrintf("# [%s][*astCallExpr][default] start\n", __func__)
+
+		var args []*Arg
+		var _arg *Arg
+		var i int
+		for i=0;i<len(eArgs);i++ {
+			_arg = new(Arg)
+			_arg.e = eArgs[i]
+			_arg.t = e2t(eArgs[i])
+			args = append(args, _arg)
+		}
+
+		var symbol = pkgName + "." + ident.Name
+		emitCall(symbol, args)
+
+		// push results
 		var obj = ident.Obj
 		var decl = obj.Decl
 		if decl == nil {
