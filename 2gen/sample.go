@@ -31,6 +31,11 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testDeclValue() {
+	var i int = 123
+	writeln(itoa(i))
+}
+
 func testStringComparison() {
 	var s string
 	if s == "" {
@@ -393,12 +398,13 @@ func testMisc() {
 }
 
 func test() {
+	testDeclValue()
 	testStringComparison()
 	testConcateStrings()
 	testLenCap()
 	testMakeSlice()
-
 	testNew()
+
 	testItoa()
 	testIndexExprOfArray()
 	testIndexExprOfSlice()
