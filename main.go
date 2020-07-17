@@ -424,7 +424,7 @@ type Arg struct {
 	offset int
 }
 
-func emitFuncallArgs(args []*Arg) int {
+func emitArgs(args []*Arg) int {
 	var totalPushedSize int
 	for _, arg := range args {
 		arg.offset = totalPushedSize
@@ -441,11 +441,7 @@ func emitFuncallArgs(args []*Arg) int {
 		emitExpr(arg.e, arg.t)
 	}
 	fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
-	return totalPushedSize
-}
 
-// copy args on stack in reversed order
-func emitReverseArgs(args []*Arg) {
 	for _, arg := range args {
 		var t *Type
 		if arg.t != nil {
@@ -473,6 +469,8 @@ func emitReverseArgs(args []*Arg) {
 			throw(kind(t))
 		}
 	}
+
+	return totalPushedSize
 }
 
 // Call without using func decl
@@ -489,8 +487,7 @@ func emitCallNonDecl(symbol string, eArgs []ast.Expr) {
 }
 
 func emitCall(symbol string, args []*Arg) {
-	totalPushedSize := emitFuncallArgs(args)
-	emitReverseArgs(args)
+	totalPushedSize := emitArgs(args)
 	fmtPrintf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
 }
@@ -908,12 +905,10 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				fmt.Printf("  pushq %%rdi # slice len\n")
 				fmt.Printf("  pushq %%rax # slice ptr\n")
 			case "==":
-				emitFuncallArgs(args)
-				emitReverseArgs(args)
+				emitArgs(args)
 				emitCompEq(getTypeOfExpr(e.X))
 			case "!=":
-				emitFuncallArgs(args)
-				emitReverseArgs(args)
+				emitArgs(args)
 				emitCompEq(getTypeOfExpr(e.X))
 				emitInvertBoolValue()
 			default:
