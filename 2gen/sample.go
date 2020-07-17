@@ -31,6 +31,26 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testPointer() {
+	var i int = 12
+	var j int
+	var p *int
+	p = &i
+	j = *p
+	writeln(itoa(j))
+	*p = 11
+	writeln(itoa(i))
+
+	var c uint8 = 'A'
+	var pc *uint8
+	pc = &c
+	*pc = 'B'
+	var slc []uint8
+	slc = make([]uint8, 1, 1)
+	slc[0] = c
+	writeln(string(slc))
+}
+
 func testDeclValue() {
 	var i int = 123
 	writeln(itoa(i))
@@ -398,6 +418,7 @@ func testMisc() {
 }
 
 func test() {
+	testPointer()
 	testDeclValue()
 	testStringComparison()
 	testConcateStrings()

@@ -1225,7 +1225,7 @@ func parseUnaryExpr() *astExpr {
 	var r *astExpr
 	fmtPrintf("#   begin parseUnaryExpr()\n")
 	switch ptok.tok {
-	case "+","-", "!":
+	case "+","-","!","&":
 		var tok = ptok.tok
 		parserNext()
 		var x = parseUnaryExpr()
@@ -1243,7 +1243,6 @@ func parseUnaryExpr() *astExpr {
 		r.starExpr = new(astStarExpr)
 		r.starExpr.X = x
 		return r
-
 	}
 	r  = parsePrimaryExpr()
 	fmtPrintf("#   end parseUnaryExpr()\n")
@@ -2278,8 +2277,10 @@ func emitExpr(e *astExpr) {
 			fmtPrintf("  popq %%rax # e.X\n")
 			fmtPrintf("  imulq $-1, %%rax\n")
 			fmtPrintf("  pushq %%rax\n")
+		case "&":
+			emitAddr(e.unaryExpr.X)
 		default:
-			panic2(__func__, "[emitExpr] `TBI:astUnaryExpr:" + e.dtype)
+			panic2(__func__, "TBI:astUnaryExpr:" + e.unaryExpr.Op)
 		}
 	case "*astBinaryExpr":
 		if kind(getTypeOfExpr(e.binaryExpr.X)) == T_STRING {
