@@ -1979,21 +1979,7 @@ type Arg struct {
 	offset int
 }
 
-func emitCallNonDecl(symbol string, eArgs []*astExpr) {
-	var args []*Arg
-	var eArg *astExpr
-	for _, eArg = range eArgs {
-		var arg = new(Arg)
-		arg.e = eArg
-		arg.t = nil
-		args = append(args, arg)
-	}
-	emitCall(symbol, args)
-}
-
-
-func emitCall(symbol string, args []*Arg) {
-	fmtPrintf("# [%s] %s\n", __func__, symbol)
+func emitArgs(args []*Arg) int {
 	var totalPushedSize int = 0
 	//var arg *astExpr
 	var i int
@@ -2007,9 +1993,26 @@ func emitCall(symbol string, args []*Arg) {
 		}
 		var size = getSizeOfType(t)
 		totalPushedSize = totalPushedSize + size
-		fmtPrintf("  # [emitCall] %s arg i=%s\n", symbol, Itoa(i))
 		emitExpr(arg.e)
 	}
+	return totalPushedSize
+}
+
+func emitCallNonDecl(symbol string, eArgs []*astExpr) {
+	var args []*Arg
+	var eArg *astExpr
+	for _, eArg = range eArgs {
+		var arg = new(Arg)
+		arg.e = eArg
+		arg.t = nil
+		args = append(args, arg)
+	}
+	emitCall(symbol, args)
+}
+
+func emitCall(symbol string, args []*Arg) {
+	fmtPrintf("# [%s] %s\n", __func__, symbol)
+	var totalPushedSize = emitArgs(args)
 	fmtPrintf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
 }
