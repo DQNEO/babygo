@@ -229,6 +229,7 @@ func emitListHeadAddr(list ast.Expr) {
 }
 
 func emitAddr(expr ast.Expr) {
+	fmt.Printf("  # [emitAddr] %T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
 		if e.Obj.Kind == ast.Var {

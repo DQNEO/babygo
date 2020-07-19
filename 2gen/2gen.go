@@ -484,6 +484,7 @@ type astFuncDecl struct {
 type astField struct {
 	Name *astIdent
 	Type *astExpr
+	Offset int
 }
 
 type astFieldList struct {
@@ -525,14 +526,20 @@ type astAssignStmt struct {
 }
 
 type astGenDecl struct {
-	Spec *astValueSpec
+	Spec *astSpec
 }
 
 type ObjDecl struct {
-	dtype string
+	dtype     string
 	valueSpec *astValueSpec
-	funcDecl *astFuncDecl
-	field *astField
+	funcDecl  *astFuncDecl
+	typeSpec  *astTypeSpec
+	field     *astField
+}
+
+type astTypeSpec struct {
+	Name *astIdent
+	Type *astExpr
 }
 
 type astValueSpec struct {
@@ -554,6 +561,7 @@ type astExpr struct {
 	sliceExpr    *astSliceExpr
 	starExpr     *astStarExpr
 	parenExpr    *astParenExpr
+	structType   *astStructType
 }
 
 type astObject struct {
@@ -571,6 +579,10 @@ type astIdent struct {
 type astArrayType struct {
 	Len *astExpr
 	Elt *astExpr
+}
+
+type astStructType struct {
+	Fields     *astFieldList
 }
 
 type astBasicLit struct {
@@ -643,6 +655,7 @@ type astReturnStmt struct {
 type astSpec struct {
 	dtype string
 	valueSpec *astValueSpec
+	typeSpec *astTypeSpec
 }
 
 type astScope struct {
@@ -801,6 +814,10 @@ func parserParseImportDecl() *astImportSpec {
 	return spec
 }
 
+func tryVarType() *astExpr {
+	return tryIdentOrType()
+}
+
 func parseVarType() *astExpr {
 	fmtPrintf("# [%s] begin\n", __func__)
 	var e = tryIdentOrType()
@@ -851,6 +868,45 @@ func parseArrayType() *astExpr {
 	return r
 }
 
+func parseFieldDecl(scope *astScope) *astField {
+
+	var varType = parseVarType()
+	var typ = tryVarType()
+
+	parserExpectSemi(__func__)
+
+	var field = new(astField)
+	field.Type = typ
+	field.Name = varType.ident
+	declareField(field, scope, "Var", varType.ident)
+	parserResolve(typ)
+	return field
+}
+
+func parseStructType() *astExpr {
+	parserExpect("struct", __func__)
+	parserExpect("{", __func__)
+
+	var _nil *astScope
+	var scope = astNewScope(_nil)
+
+	var structType = new(astStructType)
+	var list []*astField
+	for ptok.tok == "IDENT" || ptok.tok == "*" {
+		var field *astField = parseFieldDecl(scope)
+		list = append(list, field)
+	}
+	parserExpect("}", __func__)
+
+	var fields =  new(astFieldList)
+	fields.List = list
+	structType.Fields = fields
+	var r = new(astExpr)
+	r.dtype = "*astStructType"
+	r.structType = structType
+	return r
+}
+
 func parseTypeName() *astExpr {
 	fmtPrintf("# [%s] begin\n", __func__)
 	var ident = parseIdent()
@@ -868,6 +924,8 @@ func tryIdentOrType() *astExpr {
 		return parseTypeName()
 	case "[":
 		return parseArrayType()
+	case "struct":
+		return parseStructType()
 	case "*":
 		return parsePointerType()
 	case "(":
@@ -1149,19 +1207,22 @@ func parsePrimaryExpr() *astExpr {
 		}
 		// Assume CallExpr
 		var secondIdent = parseIdent()
+		var sel = new(astSelectorExpr)
+		sel.X = x
+		sel.Sel = secondIdent
 		if ptok.tok == "(" {
 			var fn = new(astExpr)
 			fn.dtype = "*astSelectorExpr"
-			fn.selectorExpr = new(astSelectorExpr)
-			fn.selectorExpr.X = x
-			fn.selectorExpr.Sel = secondIdent
+			fn.selectorExpr = sel
 			// string = x.ident.Name + "." + secondIdent
 			r.dtype = "*astCallExpr"
 			r.callExpr = parseCallExpr(fn)
 			fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
 		} else {
 			fmtPrintf("#   end parsePrimaryExpr()\n")
-			return x
+			r.dtype = "*astSelectorExpr"
+			r.selectorExpr = sel
+			return r
 		}
 	case "(":
 		r.dtype = "*astCallExpr"
@@ -1394,6 +1455,7 @@ func parseSimpleStmt() *astStmt {
 	fmtPrintf("# begin %s\n", __func__)
 	var s = new(astStmt)
 	var x = parseExpr()
+	fmtPrintf("# [DEBUG][parseSimpleStmt]x.dtype=%s\n", x.dtype)
 	var stok = ptok.tok
 	switch stok {
 	case "=":
@@ -1544,13 +1606,16 @@ func parseDecl(keyword string) *astGenDecl {
 			value = parseExpr()
 		}
 		parserExpectSemi(__func__)
-		var spec = new(astValueSpec)
-		spec.Name = ident
-		spec.Type = typ
-		spec.Value = value
+		var valSpec = new(astValueSpec)
+		valSpec.Name = ident
+		valSpec.Type = typ
+		valSpec.Value = value
+		var spec = new(astSpec)
+		spec.dtype = "*astValueSpec"
+		spec.valueSpec = valSpec
 		var objDecl = new(ObjDecl)
 		objDecl.dtype = "*astValueSpec"
-		objDecl.valueSpec = spec
+		objDecl.valueSpec = valSpec
 		declare(objDecl, parserTopScope, "Var", ident)
 		r = new(astGenDecl)
 		r.Spec = spec
@@ -1561,11 +1626,32 @@ func parseDecl(keyword string) *astGenDecl {
 	return r
 }
 
+func parserParseTypeSpec() *astSpec {
+	fmtPrintf("# [%s] start\n", __func__)
+	parserExpect("type", __func__)
+	var ident = parseIdent()
+	fmtPrintf("# decl type %s\n", ident.Name)
+
+	var spec = new(astTypeSpec)
+	spec.Name = ident
+	var objDecl = new(ObjDecl)
+	objDecl.dtype = "*astTypeSpec"
+	objDecl.typeSpec = spec
+	declare(objDecl, parserTopScope, "Typ", ident)
+	var typ = parseType()
+	parserExpectSemi(__func__)
+	spec.Type = typ
+	var r = new(astSpec)
+	r.dtype = "*astTypeSpec"
+	r.typeSpec = spec
+	return r
+}
+
 func parserParseValueSpec() *astSpec {
 	fmtPrintf("# [parserParseValueSpec] start\n")
 	parserExpect("var", __func__)
 	var ident = parseIdent()
-	fmtPrintf("# [parserParseValueSpec] ident = %s\n", ident.Name)
+	fmtPrintf("# var = %s\n", ident.Name)
 	var typ = parseType()
 	parserExpectSemi(__func__)
 	var spec = new(astValueSpec)
@@ -1641,7 +1727,7 @@ func parserParseFile() *astFile {
 			fmtPrintf("# [parserParseFile] debug 1\n")
 			var genDecl = new(astGenDecl)
 			fmtPrintf("# [parserParseFile] debug 2\n")
-			genDecl.Spec = spec.valueSpec
+			genDecl.Spec = spec
 			fmtPrintf("# [parserParseFile] debug 3\n")
 			decl = new(astDecl)
 			decl.dtype = "*astGenDecl"
@@ -1649,10 +1735,18 @@ func parserParseFile() *astFile {
 			fmtPrintf("# [parserParseFile] debug 9\n")
 		case "func":
 			fmtPrintf("\n\n")
-			decl  = parserParseFuncDecl()
+			decl = parserParseFuncDecl()
 			fmtPrintf("# func decl parsed:%s\n", decl.funcDecl.Name.Name)
+		case "type":
+			var spec = parserParseTypeSpec()
+			var genDecl = new(astGenDecl)
+			genDecl.Spec = spec
+			decl = new(astDecl)
+			decl.dtype = "*astGenDecl"
+			decl.genDecl = genDecl
+			fmtPrintf("# type parsed:%s\n", "")
 		default:
-			panic2(__func__, "TBI:%s\n" + ptok.tok)
+			panic2(__func__, "TBI:" + ptok.tok)
 		}
 		decls = append(decls, decl)
 	}
@@ -1800,7 +1894,7 @@ func emitListHeadAddr(list *astExpr) {
 }
 
 func emitAddr(expr *astExpr) {
-	fmtPrintf("  # emitAddr %s\n", expr.dtype)
+	fmtPrintf("  # [emitAddr] %s\n", expr.dtype)
 	switch expr.dtype {
 	case "*astIdent":
 		fmtPrintf("  # %s\n", expr.ident.Name)
@@ -1819,6 +1913,20 @@ func emitAddr(expr *astExpr) {
 		emitListElementAddr(list, elmType)
 	case "*astStarExpr":
 		emitExpr(expr.starExpr.X)
+	case "*astSelectorExpr": // X.Sel
+		var typeOfX = getTypeOfExpr(expr.selectorExpr.X)
+		var structType *Type
+		switch kind(typeOfX) {
+		case T_STRUCT:
+			// strct.field
+			structType = typeOfX
+			emitAddr(expr.selectorExpr.X)
+		default:
+			panic2(__func__, "TBI:" + kind(typeOfX))
+		}
+		var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
+		var offset = getStructFieldOffset(field)
+		emitAddConst(offset, "struct head address + struct.field offset")
 	default:
 		panic2(__func__, "TBI " + expr.dtype)
 	}
@@ -1906,6 +2014,8 @@ func emitZeroValue(t *Type) {
 		fmtPrintf("  pushq $0 # string zero value\n")
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmtPrintf("  pushq $0 # %s zero value\n", kind(t))
+	case T_STRUCT:
+		//@FIXME
 	default:
 		panic2(__func__, "TBI:" + kind(t))
 	}
@@ -2201,6 +2311,9 @@ func emitExpr(e *astExpr) {
 	case "*astStarExpr":
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
+	case "*astSelectorExpr":
+		emitAddr(e)
+		emitLoad(getTypeOfExpr(e))
 	case "*astBasicLit":
 		fmtPrintf("# basicLit.Kind = %s \n", e.basicLit.Kind)
 		switch e.basicLit.Kind {
@@ -2269,7 +2382,6 @@ func emitExpr(e *astExpr) {
 		emitExpr(e.sliceExpr.Low)
 		var elmType = getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
-
 	case "*astUnaryExpr":
 		switch e.unaryExpr.Op {
 		case "-":
@@ -2427,6 +2539,8 @@ func emitStore(t *Type) {
 		fmtPrintf("  popq %%rdi # rhs evaluated\n")
 		fmtPrintf("  popq %%rax # lhs addr\n")
 		fmtPrintf("  movw %%di, (%%rax) # assign word\n")
+	case T_STRUCT:
+		// @FXIME
 	default:
 		panic2(__func__, "TBI:" + kind(t))
 	}
@@ -2456,7 +2570,7 @@ func emitStmt(stmt *astStmt) {
 			panic2(__func__, "[*astDeclStmt] internal error")
 		}
 		var genDecl = decl.genDecl
-		var valSpec = genDecl.Spec
+		var valSpec = genDecl.Spec.valueSpec
 		var t = e2t(valSpec.Type)
 		var ident = valSpec.Name
 		var lhs = new(astExpr)
@@ -2854,8 +2968,12 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		default:
 			return getTypeOfExpr(expr.binaryExpr.X)
 		}
+	case "*astSelectorExpr":
+		var structType = getStructTypeOfX(expr.selectorExpr)
+		var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
+		return e2t(field.Type)
 	default:
-		panic2(__func__, "dtype=" +  expr.dtype)
+		panic2(__func__, "TBI:dtype=" +  expr.dtype)
 	}
 
 	panic2(__func__, "nil type is not allowed\n")
@@ -2894,8 +3012,16 @@ func kind(t *Type) string {
 		case "bool":
 			return T_BOOL
 		default:
-			panic2(__func__, "unsupported type:" + ident.Name)
+			// named type
+			var decl = ident.Obj.Decl
+			if decl.dtype != "*astTypeSpec" {
+				panic2(__func__, "unsupported decl :" + decl.dtype)
+			}
+			var typeSpec = decl.typeSpec
+			return kind(e2t(typeSpec.Type))
 		}
+	case "*astStructType":
+		return T_STRUCT
 	case "*astArrayType":
 		if e.arrayType.Len == nil {
 			return T_SLICE
@@ -2910,6 +3036,25 @@ func kind(t *Type) string {
 	panic2(__func__, "error")
 	return ""
 }
+
+func getStructTypeOfX(e *astSelectorExpr) *Type {
+	var typeOfX = getTypeOfExpr(e.X)
+	var structType *Type
+	switch kind(typeOfX) {
+	case T_STRUCT:
+		// strct.field => e.X . e.Sel
+		structType = typeOfX
+	case T_POINTER:
+		// ptr.field => e.X . e.Sel
+		assert(typeOfX.e.dtype == "*astStarExpr", "should be astStarExpr", __func__)
+		var ptrType = typeOfX.e.starExpr
+		structType = e2t(ptrType.X)
+	default:
+		panic2(__func__, "TBI")
+	}
+	return structType
+}
+
 
 func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
@@ -2941,6 +3086,8 @@ func getSizeOfType(t *Type) int {
 		return 1
 	case T_BOOL:
 		return 8
+	case T_STRUCT:
+		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
 	default:
 		panic2(__func__, "TBI:" + knd)
 	}
@@ -2964,6 +3111,65 @@ func getPushSizeOfType(t *Type) int {
 	}
 	throw(kind(t))
 	return 0
+}
+
+func getStructFieldOffset(field *astField) int {
+	var offset = field.Offset
+	return offset
+}
+
+func setStructFieldOffset(field *astField, offset int) {
+	field.Offset = offset
+}
+
+func getStructFields(structTypeSpec *astTypeSpec) []*astField {
+	if structTypeSpec.Type.dtype != "*astStructType" {
+		panic2(__func__, "Unexpected dtype")
+	}
+	var structType = structTypeSpec.Type.structType
+	return structType.Fields.List
+}
+
+func getStructTypeSpec(namedStructType *Type) *astTypeSpec {
+	if kind(namedStructType) != T_STRUCT {
+		panic2(__func__ , "not T_STRUCT")
+	}
+	if namedStructType.e.dtype != "*astIdent" {
+		panic2(__func__, "not ident")
+	}
+
+	var ident = namedStructType.e.ident
+
+	if ident.Obj.Decl.dtype != "*astTypeSpec" {
+		panic2(__func__, "not *astTypeSpec")
+	}
+
+	var typeSpec = ident.Obj.Decl.typeSpec
+	return typeSpec
+}
+
+func lookupStructField(structTypeSpec *astTypeSpec, selName string) *astField {
+	var field *astField
+	for _, field = range getStructFields(structTypeSpec) {
+		if field.Name.Name == selName {
+			return field
+		}
+	}
+	panic("Unexpected flow: struct field not found:" + selName)
+	return field
+}
+
+func calcStructSizeAndSetFieldOffset(structTypeSpec *astTypeSpec) int {
+	var offset int = 0
+
+	var fields = getStructFields(structTypeSpec)
+	var field *astField
+	for _, field = range fields {
+		setStructFieldOffset(field, offset)
+		var size = getSizeOfType(e2t(field.Type))
+		offset = offset + size
+	}
+	return offset
 }
 
 // --- walk ---
@@ -3074,7 +3280,7 @@ func walkStmt(stmt *astStmt) {
 			panic2(__func__, "[dcl.dtype] internal error")
 		}
 
-		var valSpec = dcl.genDecl.Spec
+		var valSpec = dcl.genDecl.Spec.valueSpec
 		var typ = valSpec.Type // ident "int"
 		fmtPrintf("# [walkStmt] valSpec Name=%s, Type=%s\n",
 			valSpec.Name.Name, typ.dtype)
@@ -3188,7 +3394,10 @@ func walk(file *astFile) string {
 		switch decl.dtype {
 		case "*astGenDecl":
 			var genDecl = decl.genDecl
-			var valSpec = genDecl.Spec
+			if genDecl.Spec.dtype != "*astValueSpec" {
+				continue
+			}
+			var valSpec = genDecl.Spec.valueSpec
 			var nameIdent = valSpec.Name
 			nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
 			globalVars = append(globalVars, valSpec)

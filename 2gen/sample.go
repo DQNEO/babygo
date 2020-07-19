@@ -31,6 +31,29 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+type T int
+
+type MyStruct struct {
+	field1 int
+	field2 int
+}
+
+func testStruct() {
+	var strct MyStruct
+	strct.field1 = 123
+
+	var i int
+	i = strct.field1
+	writeln(itoa(i))
+
+	strct.field2 = 456
+	writeln(itoa(strct.field2))
+
+	strct.field1 = 777
+	strct.field2 = strct.field1
+	writeln(itoa(strct.field2))
+}
+
 func testPointer() {
 	var i int = 12
 	var j int
@@ -418,6 +441,7 @@ func testMisc() {
 }
 
 func test() {
+	testStruct()
 	testPointer()
 	testDeclValue()
 	testStringComparison()
