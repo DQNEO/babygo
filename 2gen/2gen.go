@@ -1921,6 +1921,12 @@ func emitAddr(expr *astExpr) {
 			// strct.field
 			structType = typeOfX
 			emitAddr(expr.selectorExpr.X)
+		case T_POINTER:
+			// ptr.field
+			assert(typeOfX.e.dtype == "*astStarExpr", "should be *astStarExpr", __func__)
+			var ptrType = typeOfX.e.starExpr
+			structType = e2t(ptrType.X)
+			emitExpr(expr.selectorExpr.X)
 		default:
 			panic2(__func__, "TBI:" + kind(typeOfX))
 		}
