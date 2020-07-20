@@ -1899,11 +1899,11 @@ func emitListHeadAddr(list *astExpr) {
 	case T_ARRAY:
 		emitAddr(list) // array head
 	case T_SLICE:
-		emitExpr(list)
+		emitExpr(list, nil)
 		emitPopSlice()
 		fmtPrintf("  pushq %%rax # slice.ptr\n")
 	case T_STRING:
-		emitExpr(list)
+		emitExpr(list, nil)
 		emitPopString()
 		fmtPrintf("  pushq %%rax # string.ptr\n")
 	default:
@@ -1925,12 +1925,12 @@ func emitAddr(expr *astExpr) {
 			panic2(__func__, "Unexpected Kind " + expr.ident.Obj.Kind)
 		}
 	case "*astIndexExpr":
-		emitExpr(expr.indexExpr.Index) // index number
+		emitExpr(expr.indexExpr.Index, nil) // index number
 		var list = expr.indexExpr.X
 		var elmType = getTypeOfExpr(expr)
 		emitListElementAddr(list, elmType)
 	case "*astStarExpr":
-		emitExpr(expr.starExpr.X)
+		emitExpr(expr.starExpr.X, nil)
 	case "*astSelectorExpr": // X.Sel
 		var typeOfX = getTypeOfExpr(expr.selectorExpr.X)
 		var structType *Type
@@ -1944,7 +1944,7 @@ func emitAddr(expr *astExpr) {
 			assert(typeOfX.e.dtype == "*astStarExpr", "should be *astStarExpr", __func__)
 			var ptrType = typeOfX.e.starExpr
 			structType = e2t(ptrType.X)
-			emitExpr(expr.selectorExpr.X)
+			emitExpr(expr.selectorExpr.X, nil)
 		default:
 			panic2(__func__, "TBI:" + kind(typeOfX))
 		}
@@ -1992,14 +1992,14 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 		case gString: // string(e)
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
-				emitExpr(arg0) // slice
+				emitExpr(arg0, nil) // slice
 				emitPopSlice()
 				fmtPrintf("  pushq %%rcx # str len\n")
 				fmtPrintf("  pushq %%rax # str ptr\n")
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			fmtPrintf("# [emitConversion] to int \n")
-			emitExpr(arg0)
+			emitExpr(arg0, nil)
 		default:
 			panic2(__func__, "[*astIdent] TBI : " + typeExpr.ident.Obj.Name)
 		}
@@ -2012,7 +2012,7 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 			panic2(__func__, "source type should be string")
 		}
 		fmtPrintf("  # Conversion of string => slice \n")
-		emitExpr(arg0)
+		emitExpr(arg0, nil)
 		emitPopString()
 		fmtPrintf("  pushq %%rcx # cap\n")
 		fmtPrintf("  pushq %%rcx # len\n")
@@ -2021,7 +2021,7 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 		emitConversion(e2t(typeExpr.parenExpr.X), arg0)
 	case "*astStarExpr": // (*T)(e)
 		fmtPrintf("# [emitConversion] to pointer \n")
-		emitExpr(arg0)
+		emitExpr(arg0, nil)
 	default:
 		panic2(__func__, "TBI :" + typeExpr.dtype)
 	}
@@ -2051,13 +2051,13 @@ func emitLen(arg *astExpr) {
 	case T_ARRAY:
 		var typ = getTypeOfExpr(arg)
 		var arrayType = typ.e.arrayType
-		emitExpr(arrayType.Len)
+		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
-		emitExpr(arg)
+		emitExpr(arg, nil)
 		emitPopSlice()
 		fmtPrintf("  pushq %%rcx # len\n")
 	case T_STRING:
-		emitExpr(arg)
+		emitExpr(arg, nil)
 		emitPopString()
 		fmtPrintf("  pushq %%rcx # len\n")
 	default:
@@ -2071,9 +2071,9 @@ func emitCap(arg *astExpr) {
 	case T_ARRAY:
 		var typ = getTypeOfExpr(arg)
 		var arrayType = typ.e.arrayType
-		emitExpr(arrayType.Len)
+		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
-		emitExpr(arg)
+		emitExpr(arg, nil)
 		emitPopSlice()
 		fmtPrintf("  pushq %%rdx # cap\n")
 	case T_STRING:
@@ -2126,7 +2126,7 @@ func emitArgs(args []*Arg) int {
 		}
 		var size = getSizeOfType(t)
 		totalPushedSize = totalPushedSize + size
-		emitExpr(arg.e)
+		emitExpr(arg.e, nil) // @TODO forceType should be fetched func decl
 	}
 	return totalPushedSize
 }
@@ -2212,7 +2212,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 
 		var ident = fun.ident
 		if ident.Name == "print" {
-			emitExpr(eArgs[0])
+			emitExpr(eArgs[0],nil)
 			fmtPrintf("  callq runtime.printstring\n")
 			fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(16))
 			return
@@ -2291,7 +2291,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			emitCallNonDecl(symbol, eArgs)
 			fmtPrintf("  pushq %%rax # ret\n")
 		case "unsafe.Pointer":
-			emitExpr(eArgs[0])
+			emitExpr(eArgs[0], nil)
 		default:
 			fmtPrintf("  callq %s.%s\n", selectorExpr.X.ident.Name, selectorExpr.Sel.Name)
 			panic2(__func__, "[*astSelectorExpr] Unsupported call to " + symbol)
@@ -2303,7 +2303,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 	}
 }
 
-func emitExpr(e *astExpr) {
+func emitExpr(e *astExpr, forceType *Type) {
 	fmtPrintf("# [emitExpr] dtype=%s\n", e.dtype)
 	switch e.dtype {
 	case "*astIdent":
@@ -2317,6 +2317,17 @@ func emitExpr(e *astExpr) {
 			return
 		case gFalse:
 			emitFalse()
+			return
+		case gNil:
+			if forceType == nil {
+				panic2(__func__, "Type is required to emit nil")
+			}
+			switch kind(forceType) {
+			case T_SLICE, T_POINTER:
+				emitZeroValue(forceType)
+			default:
+				panic2(__func__, "Unexpected kind=" +  kind(forceType))
+			}
 			return
 		}
 		switch ident.Obj.Kind {
@@ -2383,12 +2394,12 @@ func emitExpr(e *astExpr) {
 		}
 		emitFuncall(fun, e.callExpr.Args)
 	case "*astParenExpr":
-		emitExpr(e.parenExpr.X)
+		emitExpr(e.parenExpr.X, nil)
 	case "*astSliceExpr":
 		var list = e.sliceExpr.X
 		var listType = getTypeOfExpr(list)
-		emitExpr(e.sliceExpr.High)
-		emitExpr(e.sliceExpr.Low)
+		emitExpr(e.sliceExpr.High, nil)
+		emitExpr(e.sliceExpr.Low, nil)
 		fmtPrintf("  popq %%rcx # low\n")
 		fmtPrintf("  popq %%rax # high\n")
 		fmtPrintf("  subq %%rcx, %%rax # high - low\n")
@@ -2403,13 +2414,13 @@ func emitExpr(e *astExpr) {
 			panic2(__func__, "Unknown kind=" + kind(listType))
 		}
 
-		emitExpr(e.sliceExpr.Low)
+		emitExpr(e.sliceExpr.Low, nil)
 		var elmType = getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
 	case "*astUnaryExpr":
 		switch e.unaryExpr.Op {
 		case "-":
-			emitExpr(e.unaryExpr.X)
+			emitExpr(e.unaryExpr.X, nil)
 			fmtPrintf("  popq %%rax # e.X\n")
 			fmtPrintf("  imulq $-1, %%rax\n")
 			fmtPrintf("  pushq %%rax\n")
@@ -2445,8 +2456,8 @@ func emitExpr(e *astExpr) {
 			return
 		}
 		var t = getTypeOfExpr(e.binaryExpr.X)
-		emitExpr(e.binaryExpr.X) // left
-		emitExpr(e.binaryExpr.Y) // right
+		emitExpr(e.binaryExpr.X, nil) // left
+		emitExpr(e.binaryExpr.Y, nil) // right
 		switch e.binaryExpr.Op {
 		case "+":
 			fmtPrintf("  popq %%rcx # right\n")
@@ -2574,7 +2585,7 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 	fmtPrintf("  # Assignment: emitAddr(lhs:%s)\n", lhs.dtype)
 	emitAddr(lhs)
 	fmtPrintf("  # Assignment: emitExpr(rhs)\n")
-	emitExpr(rhs)
+	emitExpr(rhs, getTypeOfExpr(lhs))
 	emitStore(getTypeOfExpr(lhs))
 }
 
@@ -2587,7 +2598,7 @@ func emitStmt(stmt *astStmt) {
 			emitStmt(stmt2)
 		}
 	case "*astExprStmt":
-		emitExpr(stmt.exprStmt.X)
+		emitExpr(stmt.exprStmt.X, nil)
 	case "*astDeclStmt":
 		var decl *astDecl = stmt.DeclStmt.Decl
 		if decl.dtype != "*astGenDecl" {
@@ -2635,7 +2646,7 @@ func emitStmt(stmt *astStmt) {
 			fmtPrintf("  leave\n")
 			fmtPrintf("  ret\n")
 		} else if len(stmt.returnStmt.Results) == 1 {
-			emitExpr(stmt.returnStmt.Results[0])
+			emitExpr(stmt.returnStmt.Results[0],nil) // @TODO forceType should be fetched from func decl
 			var knd = kind(getTypeOfExpr(stmt.returnStmt.Results[0]))
 			switch knd {
 			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
@@ -2650,9 +2661,9 @@ func emitStmt(stmt *astStmt) {
 			fmtPrintf("  ret\n")
 		} else if len(stmt.returnStmt.Results) == 3 {
 			// Special treatment to return a slice
-			emitExpr(stmt.returnStmt.Results[2]) // @FIXME
-			emitExpr(stmt.returnStmt.Results[1]) // @FIXME
-			emitExpr(stmt.returnStmt.Results[0]) // @FIXME
+			emitExpr(stmt.returnStmt.Results[2], nil) // @FIXME
+			emitExpr(stmt.returnStmt.Results[1], nil) // @FIXME
+			emitExpr(stmt.returnStmt.Results[0], nil) // @FIXME
 			fmtPrintf("  popq %%rax # return 64bit\n")
 			fmtPrintf("  popq %%rdi # return 64bit\n")
 			fmtPrintf("  popq %%rsi # return 64bit\n")
@@ -2666,7 +2677,7 @@ func emitStmt(stmt *astStmt) {
 		var labelEndif = ".L.endif." +  Itoa(labelid)
 		var labelElse = ".L.else." + Itoa(labelid)
 
-		emitExpr(stmt.ifStmt.Cond)
+		emitExpr(stmt.ifStmt.Cond, nil)
 		emitPopBool("if condition")
 		fmtPrintf("  cmpq $1, %%rax\n")
 		var bodyStmt = new(astStmt)
@@ -2700,7 +2711,7 @@ func emitStmt(stmt *astStmt) {
 
 		fmtPrintf("  %s:\n", labelCond)
 		if stmt.forStmt.Cond != nil {
-			emitExpr(stmt.forStmt.Cond)
+			emitExpr(stmt.forStmt.Cond, nil)
 			emitPopBool("for condition")
 			fmtPrintf("  cmpq $1, %%rax\n")
 			fmtPrintf("  jne %s # jmp if false\n", labelExit)
@@ -2723,7 +2734,7 @@ func emitStmt(stmt *astStmt) {
 			panic2(__func__, "Unexpected Tok=" + stmt.incDecStmt.Tok)
 		}
 		emitAddr(stmt.incDecStmt.X)
-		emitExpr(stmt.incDecStmt.X)
+		emitExpr(stmt.incDecStmt.X, nil)
 		emitAddConst(addValue, "rhs ++ or --")
 		emitStore(getTypeOfExpr(stmt.incDecStmt.X))
 	default:
@@ -3479,6 +3490,7 @@ func walk(file *astFile) string {
 }
 
 // --- universe ---
+var gNil *astObject
 var gTrue *astObject
 var gFalse *astObject
 var gString *astObject
@@ -3501,6 +3513,7 @@ func createUniverse() *astScope {
 	scopeInsert(universe, gUintptr)
 	scopeInsert(universe, gString)
 	scopeInsert(universe, gBool)
+	scopeInsert(universe, gNil)
 	scopeInsert(universe, gTrue)
 	scopeInsert(universe, gFalse)
 	scopeInsert(universe, gNew)
@@ -3561,6 +3574,10 @@ func initGlobals() {
 	T_ARRAY  = "T_ARRAY"
 	T_STRUCT  = "T_STRUCT"
 	T_POINTER  = "T_POINTER"
+
+	gNil  = new(astObject)
+	gNil.Kind = "Con" // is it Con ?
+	gNil.Name = "nil"
 
 	gTrue = new(astObject)
 	gTrue.Kind = "Con"

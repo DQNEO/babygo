@@ -14,6 +14,19 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+var nilSlice []*MyStruct
+
+func testNilSlice() {
+	writeln("-- testNilSlice()")
+	nilSlice = make([]*MyStruct, 2, 2)
+	writeln(itoa(len(nilSlice)))
+	writeln(itoa(cap(nilSlice)))
+
+	nilSlice = nil
+	writeln(itoa(len(nilSlice)))
+	writeln(itoa(cap(nilSlice)))
+}
+
 func testZeroValues() {
 	writeln("-- testZeroValues()")
 	var s string
@@ -510,6 +523,7 @@ func testMisc() {
 }
 
 func test() {
+	testNilSlice()
 	testZeroValues()
 	testIncrDecr()
 	testGlobalStrings()

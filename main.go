@@ -775,12 +775,10 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			return
 		case gNil:
 			if forceType == nil {
-				panic("Type is required for nil")
+				panic("Type is required to emit nil")
 			}
 			switch kind(forceType) {
-			case T_SLICE:
-				emitZeroValue(forceType)
-			case T_POINTER:
+			case T_SLICE, T_POINTER:
 				emitZeroValue(forceType)
 			default:
 				throw(kind(forceType))
