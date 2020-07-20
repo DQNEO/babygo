@@ -1201,45 +1201,45 @@ func parseCallExpr(fn *astExpr) *astExpr {
 func parsePrimaryExpr() *astExpr {
 	fmtPrintf("#   begin parsePrimaryExpr()\n")
 	var x = parseOperand()
-	switch ptok.tok {
-	case ".":
-		parserNext() // consume "."
-		if ptok.tok != "IDENT" {
-			panic2(__func__, "tok should be IDENT")
-		}
-		// Assume CallExpr
-		var secondIdent = parseIdent()
-		var sel = new(astSelectorExpr)
-		sel.X = x
-		sel.Sel = secondIdent
-		if ptok.tok == "(" {
-			var fn = new(astExpr)
-			fn.dtype = "*astSelectorExpr"
-			fn.selectorExpr = sel
-			// string = x.ident.Name + "." + secondIdent
-			return parseCallExpr(fn)
-			fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
-		} else {
-			fmtPrintf("#   end parsePrimaryExpr()\n")
-			var r = new(astExpr)
-			r.dtype = "*astSelectorExpr"
-			r.selectorExpr = sel
-			return r
-		}
-	case "(":
-		return parseCallExpr(x)
-	case "[":
-		parserResolve(x)
-		x = parseIndexOrSlice(x)
-		return x
-	default:
-		fmtPrintf("#   end parsePrimaryExpr()\n")
-		return x
-	}
-	fmtPrintf("#   end parsePrimaryExpr()\n")
 
-	var r *astExpr
-	return r
+	for {
+		switch ptok.tok {
+		case ".":
+			parserNext() // consume "."
+			if ptok.tok != "IDENT" {
+				panic2(__func__, "tok should be IDENT")
+			}
+			// Assume CallExpr
+			var secondIdent = parseIdent()
+			var sel = new(astSelectorExpr)
+			sel.X = x
+			sel.Sel = secondIdent
+			if ptok.tok == "(" {
+				var fn = new(astExpr)
+				fn.dtype = "*astSelectorExpr"
+				fn.selectorExpr = sel
+				// string = x.ident.Name + "." + secondIdent
+				x = parseCallExpr(fn)
+				fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
+			} else {
+				fmtPrintf("#   end parsePrimaryExpr()\n")
+				x = new(astExpr)
+				x.dtype = "*astSelectorExpr"
+				x.selectorExpr = sel
+			}
+		case "(":
+			x = parseCallExpr(x)
+		case "[":
+			parserResolve(x)
+			x = parseIndexOrSlice(x)
+		default:
+			fmtPrintf("#   end parsePrimaryExpr()\n")
+			return x
+		}
+	}
+
+	fmtPrintf("#   end parsePrimaryExpr()\n")
+	return x
 }
 
 func parseIndexOrSlice(x *astExpr) *astExpr {

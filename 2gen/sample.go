@@ -38,6 +38,28 @@ type MyStruct struct {
 	field2 int
 }
 
+var sp []*MyStruct
+
+func testSliceOfPointers() {
+	var strct1 MyStruct
+	var strct2 MyStruct
+	var p1 *MyStruct = &strct1
+	var p2 *MyStruct = &strct2
+
+	strct1.field2 = 11
+	strct2.field2 = 22
+	sp = make([]*MyStruct, 2, 2)
+	sp[0] = p1
+	sp[1] = p2
+
+	var i int
+	var x int
+	for i = 0; i < 2; i = i + 1 {
+		x = sp[i].field2
+		writeln(itoa(x))
+	}
+}
+
 func testStructPointer() {
 	var _strct MyStruct
 	var strct *MyStruct
@@ -458,6 +480,7 @@ func testMisc() {
 }
 
 func test() {
+	testSliceOfPointers()
 	testStructPointer()
 	testStruct()
 	testPointer()
