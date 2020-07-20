@@ -506,6 +506,7 @@ type astStmt struct {
 	ifStmt     *astIfStmt
 	forStmt    *astForStmt
 	incDecStmt *astIncDecStmt
+	isRange bool
 }
 
 type astDeclStmt struct {
@@ -1391,24 +1392,26 @@ func parseForStmt() *astStmt {
 	fmtPrintf("# begin %s\n", __func__)
 	parserExpect("for", __func__)
 	openScope()
+
 	var s1 *astStmt
 	var s2 *astStmt
 	var s3 *astStmt
-
+	var isRange bool
 	if ptok.tok != "{" {
 		if ptok.tok != ";" {
-			s2 = parseSimpleStmt()
+			s2 = parseSimpleStmt(true)
+			isRange = s2.isRange
 		}
-		if ptok.tok == ";" {
+		if !isRange && ptok.tok == ";" {
 			parserNext() // consume ";"
 			s1 = s2
 			s2 = nil
 			if ptok.tok != ";" {
-				s2 = parseSimpleStmt()
+				s2 = parseSimpleStmt(false)
 			}
 			parserExpectSemi(__func__)
 			if ptok.tok != "{" {
-				s3 = parseSimpleStmt()
+				s3 = parseSimpleStmt(false)
 			}
 		}
 	}
@@ -1430,7 +1433,7 @@ func parseForStmt() *astStmt {
 
 func parserIfStmt() *astStmt {
 	parserExpect("if", __func__)
-	var condStmt *astStmt = parseSimpleStmt()
+	var condStmt *astStmt = parseSimpleStmt(false)
 	if condStmt.dtype != "*astExprStmt" {
 		panic2(__func__, "unexpected dtype=" + condStmt.dtype)
 	}
@@ -1458,11 +1461,17 @@ func parserIfStmt() *astStmt {
 	return r
 }
 
-func parseSimpleStmt() *astStmt {
+func parseLhsList() []*astExpr {
+	var x = parseExpr()
+	var r []*astExpr
+	r = append(r, x)
+	return r
+}
+
+func parseSimpleStmt(isRangeOK bool) *astStmt {
 	fmtPrintf("# begin %s\n", __func__)
 	var s = new(astStmt)
-	var x = parseExpr()
-	fmtPrintf("# [DEBUG][parseSimpleStmt]x.dtype=%s\n", x.dtype)
+	var x = parseLhsList()
 	var stok = ptok.tok
 	switch stok {
 	case "=":
@@ -1470,7 +1479,7 @@ func parseSimpleStmt() *astStmt {
 		var y = parseExpr() // rhs
 		var as = new(astAssignStmt)
 		as.Tok = "="
-		as.Lhs = x
+		as.Lhs = x[0]
 		as.Rhs = y
 		s.dtype = "*astAssignStmt"
 		s.assignStmt = as
@@ -1479,7 +1488,7 @@ func parseSimpleStmt() *astStmt {
 	case ";":
 		s.dtype = "*astExprStmt"
 		var exprStmt = new(astExprStmt)
-		exprStmt.X = x
+		exprStmt.X = x[0]
 		s.exprStmt = exprStmt
 		fmtPrintf("# end %s\n", __func__)
 		return s
@@ -1489,7 +1498,7 @@ func parseSimpleStmt() *astStmt {
 	case "++", "--":
 		var s = new(astStmt)
 		var sInc = new(astIncDecStmt)
-		sInc.X = x
+		sInc.X = x[0]
 		sInc.Tok = stok
 		s.dtype = "*astIncDecStmt"
 		s.incDecStmt = sInc
@@ -1497,7 +1506,7 @@ func parseSimpleStmt() *astStmt {
 		return s
 	}
 	var exprStmt = new(astExprStmt)
-	exprStmt.X = x
+	exprStmt.X = x[0]
 	var r = new(astStmt)
 	r.dtype = "*astExprStmt"
 	r.exprStmt = exprStmt
@@ -1520,7 +1529,7 @@ func parseStmt() *astStmt {
 		fmtPrintf("# = end parseStmt()\n")
 		return s
 	case "IDENT","*":
-		var s = parseSimpleStmt()
+		var s = parseSimpleStmt(false)
 		parserExpectSemi(__func__)
 		return s
 	case "return":
