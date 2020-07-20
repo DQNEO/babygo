@@ -505,6 +505,7 @@ type astStmt struct {
 	returnStmt *astReturnStmt
 	ifStmt     *astIfStmt
 	forStmt    *astForStmt
+	incDecStmt *astIncDecStmt
 }
 
 type astDeclStmt struct {
@@ -523,6 +524,11 @@ type astAssignStmt struct {
 	Lhs *astExpr
 	Tok string
 	Rhs *astExpr
+}
+
+type astIncDecStmt struct {
+	X   *astExpr
+	Tok string
 }
 
 type astGenDecl struct {
@@ -1479,6 +1485,17 @@ func parseSimpleStmt() *astStmt {
 		return s
 	}
 
+	switch stok {
+	case "++", "--":
+		var s = new(astStmt)
+		var sInc = new(astIncDecStmt)
+		sInc.X = x
+		sInc.Tok = stok
+		s.dtype = "*astIncDecStmt"
+		s.incDecStmt = sInc
+		parserNext() // consume "++" or "--"
+		return s
+	}
 	var exprStmt = new(astExprStmt)
 	exprStmt.X = x
 	var r = new(astStmt)
@@ -2695,7 +2712,20 @@ func emitStmt(stmt *astStmt) {
 		}
 		fmtPrintf("  jmp %s\n", labelCond)
 		fmtPrintf("  %s:\n", labelExit)
-
+	case "*astIncDecStmt":
+		var addValue int
+		switch stmt.incDecStmt.Tok {
+		case "++":
+			addValue = 1
+		case "--":
+			addValue = -1
+		default:
+			panic2(__func__, "Unexpected Tok=" + stmt.incDecStmt.Tok)
+		}
+		emitAddr(stmt.incDecStmt.X)
+		emitExpr(stmt.incDecStmt.X)
+		emitAddConst(addValue, "rhs ++ or --")
+		emitStore(getTypeOfExpr(stmt.incDecStmt.X))
 	default:
 		panic2(__func__, "TBI:" + stmt.dtype)
 	}
@@ -3340,6 +3370,8 @@ func walkStmt(stmt *astStmt) {
 		_s.dtype = "*astBlockStmt"
 		_s.blockStmt = stmt.forStmt.Body
 		walkStmt(_s)
+	case "*astIncDecStmt":
+		walkExpr(stmt.incDecStmt.X)
 	case "*astBlockStmt":
 		var s *astStmt
 		for _, s = range stmt.blockStmt.List {

@@ -31,6 +31,16 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testIncrDecr() {
+	var i int = 0
+	i++
+	writeln(itoa(i))
+
+	i--
+	i--
+	writeln(itoa(i))
+}
+
 type T int
 
 type MyStruct struct {
@@ -496,6 +506,7 @@ func testMisc() {
 }
 
 func test() {
+	testIncrDecr()
 	testGlobalStrings()
 	testSliceOfPointers()
 	testStructPointer()
