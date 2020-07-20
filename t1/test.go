@@ -556,17 +556,17 @@ func testNewStruct() {
 	writeln(itoa(strct.field2))
 }
 
-var testNilSlice []*MyStruct
+var nilSlice []*MyStruct
 
-func testNil() {
-	writeln("-- testNil()")
-	testNilSlice = make([]*MyStruct, 2, 2)
-	writeln(itoa(len(testNilSlice)))
-	writeln(itoa(cap(testNilSlice)))
+func testNilSlice() {
+	writeln("-- testNilSlice()")
+	nilSlice = make([]*MyStruct, 2, 2)
+	writeln(itoa(len(nilSlice)))
+	writeln(itoa(cap(nilSlice)))
 
-	testNilSlice = nil
-	writeln(itoa(len(testNilSlice)))
-	writeln(itoa(cap(testNilSlice)))
+	nilSlice = nil
+	writeln(itoa(len(nilSlice)))
+	writeln(itoa(cap(nilSlice)))
 }
 
 func testZeroValues() {
@@ -1132,7 +1132,7 @@ func test() {
 	testSliceOfSlice()
 	testForrange()
 	testNewStruct()
-	testNil()
+	testNilSlice()
 	testZeroValues()
 	testIncrDecr()
 	testGlobalStrings()
