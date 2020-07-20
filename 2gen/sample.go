@@ -14,6 +14,43 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testForrange() {
+	var slc []string
+	var s string
+
+	writeln("going to loop 0 times")
+	for _, s = range slc {
+		write(s)
+		write("ERROR")
+	}
+
+	slc = make([]string, 2, 2)
+	slc[0] = ""
+	slc[1] = ""
+
+	writeln("going to loop 2 times")
+	for _, s = range slc {
+		write(s)
+		writeln(" in loop")
+	}
+
+	writeln("going to loop 4 times")
+	var a int
+	for _, a = range globalintarray {
+		write(itoa(a))
+	}
+	writeln("")
+
+	slc = make([]string, 3, 3)
+	slc[0] = "hello"
+	slc[1] = "for"
+	slc[2] = "range"
+	for _, s = range slc {
+		write(s)
+	}
+	writeln("")
+}
+
 func newStruct() *MyStruct {
 	var strct *MyStruct = new(MyStruct)
 	writeln(itoa(strct.field2))
@@ -31,7 +68,7 @@ func testNewStruct() {
 var nilSlice []*MyStruct
 
 func testNilSlice() {
-	writeln("-- testNilSlice()")
+ 	writeln("-- testNilSlice()")
 	nilSlice = make([]*MyStruct, 2, 2)
 	writeln(itoa(len(nilSlice)))
 	writeln(itoa(cap(nilSlice)))
@@ -537,6 +574,7 @@ func testMisc() {
 }
 
 func test() {
+	testForrange()
 	testNewStruct()
 	testNilSlice()
 	testZeroValues()

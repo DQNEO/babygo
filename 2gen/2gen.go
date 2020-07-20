@@ -506,7 +506,8 @@ type astStmt struct {
 	ifStmt     *astIfStmt
 	forStmt    *astForStmt
 	incDecStmt *astIncDecStmt
-	isRange bool
+	isRange    bool
+	rangeStmt  *astRangeStmt
 }
 
 type astDeclStmt struct {
@@ -522,9 +523,9 @@ type astBlockStmt struct {
 }
 
 type astAssignStmt struct {
-	Lhs *astExpr
+	Lhs []*astExpr
 	Tok string
-	Rhs *astExpr
+	Rhs []*astExpr
 }
 
 type astIncDecStmt struct {
@@ -655,6 +656,19 @@ type astForStmt struct {
 	labelExit string
 }
 
+type astRangeStmt struct {
+	Key       *astExpr
+	Value     *astExpr
+	X         *astExpr
+	Body      *astBlockStmt
+	labelPost string
+	labelExit string
+	lenvar   *Variable
+	indexvar *Variable
+}
+
+
+
 type astReturnStmt struct {
 	Results []*astExpr
 }
@@ -695,6 +709,7 @@ func scopeInsert(s *astScope, obj *astObject) {
 func scopeLookup(s *astScope, name string) *astObject {
 	var oe *objectEntry
 	for _, oe =  range s.Objects {
+		//fmtPrintf("#    object %s\n", oe.name)
 		if oe.name == name {
 			return oe.obj
 		}
@@ -1401,6 +1416,7 @@ func parseForStmt() *astStmt {
 		if ptok.tok != ";" {
 			s2 = parseSimpleStmt(true)
 			isRange = s2.isRange
+			fmtPrintf("# [%s] isRange=true\n", __func__)
 		}
 		if !isRange && ptok.tok == ";" {
 			parserNext() // consume ";"
@@ -1418,6 +1434,38 @@ func parseForStmt() *astStmt {
 
 	var body = parseBlockStmt()
 	parserExpectSemi(__func__)
+
+	var as *astAssignStmt
+	var rangeX *astExpr
+	if isRange {
+		assert(s2.dtype == "*astAssignStmt", "type mismatch", __func__)
+		as = s2.assignStmt
+		fmtPrintf("# [DEBUG] range as len lhs=%s\n", Itoa(len(as.Lhs)))
+		var key *astExpr
+		var value *astExpr
+		switch len(as.Lhs) {
+		case 0:
+		case 1:
+			key = as.Lhs[0]
+		case 2:
+			key = as.Lhs[0]
+			value = as.Lhs[1]
+		default:
+			panic2(__func__, "Unexpected len of as.Lhs")
+		}
+		rangeX = as.Rhs[0].unaryExpr.X
+		var rangeStmt = new(astRangeStmt)
+		rangeStmt.Key = key
+		rangeStmt.Value = value
+		rangeStmt.X = rangeX
+		rangeStmt.Body = body
+		var r = new(astStmt)
+		r.dtype = "*astRangeStmt"
+		r.rangeStmt = rangeStmt
+		closeScope()
+		fmtPrintf("# end %s\n", __func__)
+		return r
+	}
 	var forStmt = new(astForStmt)
 	forStmt.Init = s1
 	forStmt.Cond = makeExpr(s2)
@@ -1484,16 +1532,34 @@ func parseSimpleStmt(isRangeOK bool) *astStmt {
 	var s = new(astStmt)
 	var x = parseLhsList()
 	var stok = ptok.tok
+	var isRange = false
+	var y *astExpr
+	var rangeX *astExpr
+	var rangeUnary *astUnaryExpr
 	switch stok {
 	case "=":
 		parserNext() // consume =
-		var y = parseExpr() // rhs
+		if isRangeOK && ptok.tok == "range" {
+			parserNext() // consume "range"
+			rangeX = parseRhs()
+			rangeUnary = new(astUnaryExpr)
+			rangeUnary.Op = "range"
+			rangeUnary.X = rangeX
+			y = new(astExpr)
+			y.dtype = "*astUnaryExpr"
+			y.unaryExpr = rangeUnary
+			isRange = true
+		} else {
+			y = parseExpr() // rhs
+		}
 		var as = new(astAssignStmt)
 		as.Tok = "="
-		as.Lhs = x[0]
-		as.Rhs = y
+		as.Lhs = x
+		as.Rhs = make([]*astExpr, 1,1)
+		as.Rhs[0] = y
 		s.dtype = "*astAssignStmt"
 		s.assignStmt = as
+		s.isRange = isRange
 		fmtPrintf("# end %s\n", __func__)
 		return s
 	case ";":
@@ -1792,16 +1858,24 @@ func parserParseFile() *astFile {
 
 	parserTopScope = nil
 
+	// dump parserPkgScope
+	fmtPrintf("#[DEBUG] Dump objects in the package scope\n")
+	var oe *objectEntry
+	for _, oe =  range parserPkgScope.Objects {
+		fmtPrintf("#    object %s\n", oe.name)
+	}
+
 	var unresolved []*astIdent
 	var idnt *astIdent
 	fmtPrintf("# [parserParseFile] resolving parserUnresolved (n=%s)\n", Itoa(len(parserUnresolved)))
 	for _, idnt = range parserUnresolved {
-		fmtPrintf("# [parserParseFile] resolving ident %s \n", idnt.Name)
+		fmtPrintf("# [parserParseFile] resolving ident %s ...\n", idnt.Name)
 		var obj *astObject = scopeLookup(parserPkgScope ,idnt.Name)
 		if obj != nil {
-			fmtPrintf("# [parserParseFile] obj matched %s \n", obj.Name)
+			fmtPrintf("# resolved \n")
 			idnt.Obj = obj
 		} else {
+			fmtPrintf("# unresolved \n")
 			unresolved = append(unresolved, idnt)
 		}
 	}
@@ -2658,7 +2732,7 @@ func emitStmt(stmt *astStmt) {
 		case "=":
 			var lhs = stmt.assignStmt.Lhs
 			var rhs = stmt.assignStmt.Rhs
-			emitAssign(lhs, rhs)
+			emitAssign(lhs[0], rhs[0])
 		default:
 			panic2(__func__, "TBI: assignment of " + stmt.assignStmt.Tok)
 		}
@@ -2744,6 +2818,76 @@ func emitStmt(stmt *astStmt) {
 		}
 		fmtPrintf("  jmp %s\n", labelCond)
 		fmtPrintf("  %s:\n", labelExit)
+	case "*astRangeStmt":// only for array and slice
+		labelid++
+		var labelCond = ".L.range.cond." + Itoa(labelid)
+		var labelPost = ".L.range.post." + Itoa(labelid)
+		var labelExit = ".L.range.exit." + Itoa(labelid)
+
+		stmt.rangeStmt.labelPost = labelPost
+		stmt.rangeStmt.labelExit = labelExit
+		// initialization: store len(rangeexpr)
+		fmtPrintf("  # ForRange Initialization\n")
+
+		fmtPrintf("  #   assign to lenvar\n")
+
+		// emit len of rangeexpr
+		// lenvar = len(s.X)
+		emitVariableAddr(stmt.rangeStmt.lenvar)
+		emitLen(stmt.rangeStmt.X)
+		emitStore(tInt)
+
+		fmtPrintf("  #   assign to indexvar\n")
+		// indexvar = 0
+		emitVariableAddr(stmt.rangeStmt.indexvar)
+		emitZeroValue(tInt)
+		emitStore(tInt)
+
+		// Condition
+		// if (indexvar < lenvar) then
+		//   execute body
+		// else
+		//   exit
+		fmtPrintf("  # ForRange Condition\n")
+		fmtPrintf("  %s:\n", labelCond)
+
+		emitVariableAddr(stmt.rangeStmt.indexvar)
+		emitLoad(tInt)
+		emitVariableAddr(stmt.rangeStmt.lenvar)
+		emitLoad(tInt)
+		emitCompExpr("setl")
+		emitPopBool(" indexvar < lenvar")
+		fmtPrintf("  cmpq $1, %%rax\n")
+		fmtPrintf("  jne %s # jmp if false\n", labelExit)
+
+		fmtPrintf("  # assign list[indexvar] value variables\n")
+		var elemType = getTypeOfExpr(stmt.rangeStmt.Value)
+		emitAddr(stmt.rangeStmt.Value) // lhs
+
+		emitVariableAddr(stmt.rangeStmt.indexvar)
+		emitLoad(tInt) // index value
+		emitListElementAddr(stmt.rangeStmt.X, elemType)
+
+		emitLoad(elemType)
+		emitStore(elemType)
+
+		// Body
+		fmtPrintf("  # ForRange Body\n")
+		emitStmt(blockStmt2Stmt(stmt.rangeStmt.Body))
+
+		// Post statement: Increment indexvar and go next
+		fmtPrintf("  # ForRange Post statement\n")
+		fmtPrintf("  %s:\n", labelPost)   // used for "continue"
+		emitVariableAddr(stmt.rangeStmt.indexvar) // lhs
+		emitVariableAddr(stmt.rangeStmt.indexvar) // rhs
+		emitLoad(tInt)
+		emitAddConst(1, "indexvar value ++")
+		emitStore(tInt)
+
+		fmtPrintf("  jmp %s\n", labelCond)
+
+		fmtPrintf("  %s:\n", labelExit)
+
 	case "*astIncDecStmt":
 		var addValue int
 		switch stmt.incDecStmt.Tok {
@@ -3370,7 +3514,10 @@ func walkStmt(stmt *astStmt) {
 		}
 	case "*astAssignStmt":
 		var rhs = stmt.assignStmt.Rhs
-		walkExpr(rhs)
+		var rhsE *astExpr
+		for _, rhsE = range rhs {
+			walkExpr(rhsE)
+		}
 	case "*astExprStmt":
 		walkExpr(stmt.exprStmt.X)
 	case "*astReturnStmt":
@@ -3404,6 +3551,16 @@ func walkStmt(stmt *astStmt) {
 		_s.dtype = "*astBlockStmt"
 		_s.blockStmt = stmt.forStmt.Body
 		walkStmt(_s)
+	case "*astRangeStmt":
+		walkExpr(stmt.rangeStmt.X)
+		var _s = blockStmt2Stmt(stmt.rangeStmt.Body)
+		walkStmt(_s)
+		localoffset = localoffset - intSize
+		var lenvar = newLocalVariable(".range.len", localoffset)
+		localoffset = localoffset - intSize
+		var indexvar = newLocalVariable(".range.index", localoffset)
+		stmt.rangeStmt.lenvar = lenvar
+		stmt.rangeStmt.indexvar = indexvar
 	case "*astIncDecStmt":
 		walkExpr(stmt.incDecStmt.X)
 	case "*astBlockStmt":
@@ -3573,10 +3730,10 @@ func resolveUniverse(file *astFile, universe *astScope) {
 	var ident *astIdent
 	fmtPrintf("# [SEMA] resolving file.Unresolved (n=%s)\n", Itoa(len(file.Unresolved)))
 	for _, ident = range file.Unresolved {
-		fmtPrintf("# [SEMA] resolving ident %s ... ", ident.Name)
+		fmtPrintf("# [SEMA] resolving ident %s ... \n", ident.Name)
 		var obj *astObject = scopeLookup(universe, ident.Name)
 		if obj != nil {
-			fmtPrintf(" matched\n")
+			fmtPrintf("# matched\n")
 			ident.Obj = obj
 		} else {
 			panic2(__func__, "Unresolved : "+ident.Name)

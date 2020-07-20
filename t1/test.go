@@ -515,6 +515,7 @@ func testForrange() {
 		write(s)
 		write("ERROR")
 	}
+
 	slc = make([]string, 2, 2)
 	slc[0] = ""
 	slc[1] = ""
