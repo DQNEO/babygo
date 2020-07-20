@@ -14,6 +14,20 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func newStruct() *MyStruct {
+	var strct *MyStruct = new(MyStruct)
+	writeln(itoa(strct.field2))
+	strct.field2 = 2
+	return strct
+}
+
+func testNewStruct() {
+	var strct *MyStruct
+	strct = newStruct()
+	writeln(itoa(strct.field1))
+	writeln(itoa(strct.field2))
+}
+
 var nilSlice []*MyStruct
 
 func testNilSlice() {
@@ -523,6 +537,7 @@ func testMisc() {
 }
 
 func test() {
+	testNewStruct()
 	testNilSlice()
 	testZeroValues()
 	testIncrDecr()

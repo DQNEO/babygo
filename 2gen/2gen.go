@@ -3322,6 +3322,9 @@ func walkStmt(stmt *astStmt) {
 	switch stmt.dtype {
 	case "*astDeclStmt":
 		fmtPrintf("# [%s] *ast.DeclStmt\n", __func__)
+		if stmt.DeclStmt == nil {
+			panic2(__func__ , "nil pointer exception\n")
+		}
 		var declStmt = stmt.DeclStmt
 		if declStmt.Decl == nil {
 			panic2(__func__ , "ERROR\n")
@@ -3330,7 +3333,6 @@ func walkStmt(stmt *astStmt) {
 		if dcl.dtype != "*astGenDecl" {
 			panic2(__func__, "[dcl.dtype] internal error")
 		}
-
 		var valSpec = dcl.genDecl.Spec.valueSpec
 		var typ = valSpec.Type // ident "int"
 		fmtPrintf("# [walkStmt] valSpec Name=%s, Type=%s\n",
