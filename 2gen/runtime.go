@@ -28,7 +28,7 @@ func brk(addr0 uintptr) uintptr {
 	var arg2 uintptr = uintptr(0)
 	var arg3 uintptr = uintptr(0)
 	// @FIXME
-	ret = syscall.Syscall(arg0, arg1, arg2, arg3)
+	ret, _, _ = syscall.Syscall(arg0, arg1, arg2, arg3)
 	return ret
 }
 

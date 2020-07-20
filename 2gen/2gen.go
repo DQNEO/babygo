@@ -1117,7 +1117,7 @@ func tryResolve(x *astExpr, collectUnresolved bool) {
 		return
 	}
 	var ident = x.ident
-	if ident.Name == "-" {
+	if ident.Name == "_" {
 		return
 	}
 
@@ -1462,9 +1462,20 @@ func parserIfStmt() *astStmt {
 }
 
 func parseLhsList() []*astExpr {
-	var x = parseExpr()
+	fmtPrintf("# begin %s\n", __func__)
 	var r []*astExpr
-	r = append(r, x)
+	var x *astExpr
+	for {
+		x = parseExpr()
+		r = append(r, x)
+		if ptok.tok == "," {
+			parserNext()
+			continue
+		} else {
+			break
+		}
+	}
+	fmtPrintf("# end %s\n", __func__)
 	return r
 }
 
@@ -1515,6 +1526,7 @@ func parseSimpleStmt(isRangeOK bool) *astStmt {
 }
 
 func parseStmt() *astStmt {
+	fmtPrintf("\n")
 	fmtPrintf("# = begin %s\n", __func__)
 	var s = new(astStmt)
 	switch ptok.tok {
