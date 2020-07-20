@@ -54,6 +54,17 @@ func memzeropad(addr1 uintptr, size uintptr) {
 	}
 }
 
+func memcopy(src uintptr, dst uintptr, length int) {
+	var i int
+	var srcp *uint8
+	var dstp *uint8
+	for i = 0; i < length; i++ {
+		srcp = (*uint8)(unsafe.Pointer(src + uintptr(i)))
+		dstp = (*uint8)(unsafe.Pointer(dst + uintptr(i)))
+		*dstp = *srcp
+	}
+}
+
 func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
 	var size uintptr = uintptr(elmSize * scap)
 	var addr2 uintptr = malloc(size)
@@ -70,6 +81,35 @@ func malloc(size uintptr) uintptr {
 	heapCurrent = heapCurrent + size
 	memzeropad(r, size)
 	return r
+}
+
+func makeSlice1(elmSize int, slen int, scap int) []uint8
+
+func append1(old []uint8, elm uint8) (uintptr, int, int) {
+	var new_ []uint8
+	var elmSize int = 1
+
+	var oldlen int = len(old)
+	var newlen int = oldlen + 1
+
+	if cap(old) >= newlen {
+		new_ = old[0:newlen]
+	} else {
+		var newcap int
+		if oldlen == 0 {
+			newcap = 1
+		} else {
+			newcap = oldlen * 2
+		}
+		new_ = makeSlice1(elmSize, newlen, newcap)
+		var oldSize int = oldlen * elmSize
+		if oldlen > 0 {
+			memcopy(uintptr(unsafe.Pointer(&old[0])), uintptr(unsafe.Pointer(&new_[0])), oldSize)
+		}
+	}
+
+	new_[oldlen] = elm
+	return uintptr(unsafe.Pointer(&new_[0])), newlen, cap(new_)
 }
 
 func catstrings(a string, b string) string {

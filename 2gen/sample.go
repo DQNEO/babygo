@@ -14,6 +14,16 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testAppendByte() {
+	var slc []uint8
+	var char uint8
+	for char = 'a'; char <= 'z'; char++ {
+		slc = append(slc, char)
+	}
+	slc = append(slc, 10) // '\n'
+	write(string(slc))
+	writeln(itoa(len(slc))) // 27
+}
 
 func testSringIndex() {
 	var s string = "abcde"
@@ -604,6 +614,7 @@ func testMisc() {
 }
 
 func test() {
+	testAppendByte()
 	testSringIndex()
 	testSubstring()
 	testSliceOfSlice()

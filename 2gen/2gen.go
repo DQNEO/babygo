@@ -1790,6 +1790,8 @@ func parserParseFuncDecl() *astDecl {
 		body = parseBody(scope)
 		fmtPrintf("# end parseBody()\n")
 		parserExpectSemi(__func__)
+	} else {
+		parserExpectSemi(__func__)
 	}
 	var decl = new(astDecl)
 	decl.dtype = "*astFuncDecl"
@@ -2219,7 +2221,7 @@ func emitArgs(args []*Arg) int {
 		} else {
 			t = getTypeOfExpr(arg.e)
 		}
-		var size = getSizeOfType(t)
+		var size = getPushSizeOfType(t)
 		totalPushedSize = totalPushedSize + size
 		emitExpr(arg.e, nil) // @TODO forceType should be fetched func decl
 	}
@@ -2303,16 +2305,53 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			}
 
 			return
+		case gAppend:
+			var sliceArg = eArgs[0]
+			var elemArg = eArgs[1]
+			var elmType = getElementTypeOfListType(getTypeOfExpr(sliceArg))
+			var elmSize = getSizeOfType(elmType)
+
+			var args []*Arg
+			var arg0 = new(Arg) // slice
+			arg0.e = sliceArg
+			args = append(args, arg0)
+
+			var arg1 = new(Arg) // element
+			arg1.e = elemArg
+			arg1.t = elmType
+			args = append(args, arg1)
+
+			var symbol string
+			switch elmSize {
+			case 1:
+				symbol = "runtime.append1"
+			case 8:
+				symbol = "runtime.append8"
+			case 16:
+				symbol = "runtime.append16"
+			case 24:
+				symbol = "runtime.append24"
+			default:
+				panic2(__func__, "Unexpected elmSize")
+			}
+			emitCall(symbol, args)
+			fmtPrintf("  pushq %%rsi # slice cap\n")
+			fmtPrintf("  pushq %%rdi # slice len\n")
+			fmtPrintf("  pushq %%rax # slice ptr\n")
+			return
 		}
 
-		var ident = fun.ident
-		if ident.Name == "print" {
+		var fn = fun.ident
+		if fn.Name == "print" {
 			emitExpr(eArgs[0],nil)
 			fmtPrintf("  callq runtime.printstring\n")
 			fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(16))
 			return
 		}
 
+		if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
+			fn.Name = "makeSlice"
+		}
 		// general function call
 		fmtPrintf("# [%s][*astCallExpr][default] start\n", __func__)
 
@@ -2326,11 +2365,11 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			args = append(args, _arg)
 		}
 
-		var symbol = pkgName + "." + ident.Name
+		var symbol = pkgName + "." + fn.Name
 		emitCall(symbol, args)
 
 		// push results
-		var obj = ident.Obj
+		var obj = fn.Obj
 		var decl = obj.Decl
 		if decl == nil {
 			panic2(__func__, "[*astCallExpr] decl is nil")
@@ -2347,9 +2386,9 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		}
 		var results = fndecl.Sig.results
 		if fndecl.Sig.results == nil {
-			fmtPrintf("# [emitExpr] %s sig.results is nil\n", ident.Name)
+			fmtPrintf("# [emitExpr] %s sig.results is nil\n", fn.Name)
 		} else {
-			fmtPrintf("# [emitExpr] %s sig.results.List = %s\n", ident.Name, Itoa(len(fndecl.Sig.results.List)))
+			fmtPrintf("# [emitExpr] %s sig.results.List = %s\n", fn.Name, Itoa(len(fndecl.Sig.results.List)))
 		}
 
 		if results != nil && len(results.List) == 1 {
@@ -2363,6 +2402,10 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 				fmtPrintf("  # fn.Obj=%s\n", obj.Name)
 				fmtPrintf("  pushq %%rax\n")
+			case T_SLICE:
+				fmtPrintf("  pushq %%rsi # slice cap\n")
+				fmtPrintf("  pushq %%rdi # slice len\n")
+				fmtPrintf("  pushq %%rax # slice ptr\n")
 			default:
 				panic2(__func__, "Unexpected kind="+knd)
 			}
@@ -2929,7 +2972,9 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	}
 
 	fmtPrintf("  # func body\n")
-	emitStmt(blockStmt2Stmt(fnc.Body))
+	if fnc.Body != nil {
+		emitStmt(blockStmt2Stmt(fnc.Body))
+	}
 
 	fmtPrintf("  leave\n")
 	fmtPrintf("  ret\n")
@@ -3649,8 +3694,10 @@ func walk(file *astFile) string {
 				//fmtPrintf("#   field.Type=%#v\n", field.Type)
 			}
 			var stmt *astStmt
-			for _, stmt = range funcDecl.Body.List {
-				walkStmt(stmt)
+			if funcDecl.Body != nil {
+				for _, stmt = range funcDecl.Body.List {
+					walkStmt(stmt)
+				}
 			}
 			var fnc = new(Func)
 			fnc.name = funcDecl.Name.Name
@@ -3681,6 +3728,7 @@ var gUintptr *astObject
 var gBool *astObject
 var gNew *astObject
 var gMake *astObject
+var gAppend *astObject
 var gLen *astObject
 var gCap *astObject
 
@@ -3698,6 +3746,7 @@ func createUniverse() *astScope {
 	scopeInsert(universe, gFalse)
 	scopeInsert(universe, gNew)
 	scopeInsert(universe, gMake)
+	scopeInsert(universe, gAppend)
 	scopeInsert(universe, gLen)
 	scopeInsert(universe, gCap)
 
@@ -3834,6 +3883,10 @@ func initGlobals() {
 	gMake = new(astObject)
 	gMake.Kind = "Fun"
 	gMake.Name = "make"
+
+	gAppend = new(astObject)
+	gAppend.Kind = "Fun"
+	gAppend.Name = "append"
 
 	gLen = new(astObject)
 	gLen.Kind = "Fun"
