@@ -1135,6 +1135,7 @@ func test() {
 	testNil()
 	testZeroValues()
 	testIncrDecr()
+	testGlobalStrings()
 	testSliceOfStrings()
 	testSliceOfStrings()
 	testSliceOfPointers()
