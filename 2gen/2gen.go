@@ -2778,6 +2778,9 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 			zeroValue = "  .quad 0 # int zero value\n"
 		case T_UINT8:
 			zeroValue = "  .byte 0 # uint8 zero value\n"
+		case T_STRING:
+			zeroValue = "  .quad 0 # string zero value (ptr)\n"
+			zeroValue = zeroValue + "  .quad 0 # string zero value (len)\n"
 		default:
 			panic2(__func__, "Unexpected kind:" + kind)
 		}
