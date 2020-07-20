@@ -14,6 +14,27 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testZeroValues() {
+	writeln("-- testZeroValues()")
+	var s string
+	write(s)
+
+	var s2 string = ""
+	write(s2)
+	var h int = 1
+	var i int
+	var j int = 2
+	writeln(itoa(h))
+	writeln(itoa(i))
+	writeln(itoa(j))
+
+	if i == 0 {
+		writeln("int zero ok")
+	} else {
+		writeln("ERROR")
+	}
+}
+
 func testIncrDecr() {
 	var i int = 0
 	i++
@@ -489,6 +510,7 @@ func testMisc() {
 }
 
 func test() {
+	testZeroValues()
 	testIncrDecr()
 	testGlobalStrings()
 	testSliceOfPointers()
