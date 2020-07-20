@@ -14,6 +14,36 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+
+func testSringIndex() {
+	var s string = "abcde"
+	var char uint8 = s[3]
+	writeln(itoa(int(char)))
+}
+
+func testSubstring() {
+	var s string = "abcdefghi"
+	var subs string = s[2:5] // "cde"
+	writeln(subs)
+}
+
+func testSliceOfSlice() {
+	var slc []uint8 = make([]uint8, 3, 3)
+	slc[0] = 'a'
+	slc[1] = 'b'
+	slc[2] = 'c'
+	writeln(string(slc))
+
+	var slc1 []uint8 = slc[0:3]
+	writeln(string(slc1))
+
+	var slc2 []uint8 = slc[0:2]
+	writeln(string(slc2))
+
+	var slc3 []uint8 = slc[1:3]
+	writeln(string(slc3))
+}
+
 func testForrange() {
 	var slc []string
 	var s string
@@ -574,6 +604,9 @@ func testMisc() {
 }
 
 func test() {
+	testSringIndex()
+	testSubstring()
+	testSliceOfSlice()
 	testForrange()
 	testNewStruct()
 	testNilSlice()

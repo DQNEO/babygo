@@ -404,18 +404,6 @@ func testSprintf() {
 	write("|\n")
 }
 
-func testSringIndex() {
-	var s string = "abcde"
-	var char uint8 = s[3]
-	writeln(itoa(int(char)))
-}
-
-func testSubstring() {
-	var s string = "abcdefghi"
-	var subs string = s[2:5] // "cde"
-	writeln(subs)
-}
-
 func testAppendSlice() {
 	var slcslc [][]string
 	var slc []string
@@ -487,6 +475,18 @@ func testAppendByte() {
 	slc = append(slc, 10) // '\n'
 	write(string(slc))
 	writeln(itoa(len(slc))) // 27
+}
+
+func testSringIndex() {
+	var s string = "abcde"
+	var char uint8 = s[3]
+	writeln(itoa(int(char)))
+}
+
+func testSubstring() {
+	var s string = "abcdefghi"
+	var subs string = s[2:5] // "cde"
+	writeln(subs)
 }
 
 func testSliceOfSlice() {
@@ -1123,13 +1123,13 @@ func test() {
 	testArrayCopy()
 	testArrayLiteral()
 	testSprintf()
-	testSringIndex()
-	testSubstring()
 	testAppendSlice()
 	testAppendPtr()
 	testAppendInt()
 	testAppendString()
 	testAppendByte()
+	testSringIndex()
+	testSubstring()
 	testSliceOfSlice()
 	testForrange()
 	testNewStruct()
