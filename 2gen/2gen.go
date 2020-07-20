@@ -1175,7 +1175,7 @@ func parseOperand() *astExpr {
 	return typ
 }
 
-func parseCallExpr(fn *astExpr) *astCallExpr {
+func parseCallExpr(fn *astExpr) *astExpr {
 	parserExpect("(", __func__)
 	var callExpr = new(astCallExpr)
 	callExpr.Fun = fn
@@ -1192,13 +1192,15 @@ func parseCallExpr(fn *astExpr) *astCallExpr {
 	}
 	parserExpect(")", __func__)
 	callExpr.Args = list
-	return callExpr
+	var r = new(astExpr)
+	r.dtype = "*astCallExpr"
+	r.callExpr = callExpr
+	return r
 }
 
 func parsePrimaryExpr() *astExpr {
 	fmtPrintf("#   begin parsePrimaryExpr()\n")
 	var x = parseOperand()
-	var r = new(astExpr)
 	switch ptok.tok {
 	case ".":
 		parserNext() // consume "."
@@ -1215,19 +1217,17 @@ func parsePrimaryExpr() *astExpr {
 			fn.dtype = "*astSelectorExpr"
 			fn.selectorExpr = sel
 			// string = x.ident.Name + "." + secondIdent
-			r.dtype = "*astCallExpr"
-			r.callExpr = parseCallExpr(fn)
+			return parseCallExpr(fn)
 			fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
 		} else {
 			fmtPrintf("#   end parsePrimaryExpr()\n")
+			var r = new(astExpr)
 			r.dtype = "*astSelectorExpr"
 			r.selectorExpr = sel
 			return r
 		}
 	case "(":
-		r.dtype = "*astCallExpr"
-		r.callExpr = parseCallExpr(x)
-		fmtPrintf("# [parsePrimaryExpr] 741 ptok.tok=%s\n", ptok.tok)
+		return parseCallExpr(x)
 	case "[":
 		parserResolve(x)
 		x = parseIndexOrSlice(x)
@@ -1237,8 +1237,9 @@ func parsePrimaryExpr() *astExpr {
 		return x
 	}
 	fmtPrintf("#   end parsePrimaryExpr()\n")
-	return r
 
+	var r *astExpr
+	return r
 }
 
 func parseIndexOrSlice(x *astExpr) *astExpr {
