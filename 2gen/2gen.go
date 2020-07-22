@@ -2223,7 +2223,7 @@ func emitArgs(args []*Arg) int {
 		}
 		var size = getPushSizeOfType(t)
 		totalPushedSize = totalPushedSize + size
-		emitExpr(arg.e, nil) // @TODO forceType should be fetched func decl
+		emitExpr(arg.e, t)
 	}
 	return totalPushedSize
 }
@@ -2355,20 +2355,6 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		// general function call
 		fmtPrintf("# [%s][*astCallExpr][default] start\n", __func__)
 
-		var args []*Arg
-		var _arg *Arg
-		var i int
-		for i=0;i<len(eArgs);i++ {
-			_arg = new(Arg)
-			_arg.e = eArgs[i]
-			_arg.t = getTypeOfExpr(eArgs[i])
-			args = append(args, _arg)
-		}
-
-		var symbol = pkgName + "." + fn.Name
-		emitCall(symbol, args)
-
-		// push results
 		var obj = fn.Obj
 		var decl = obj.Decl
 		if decl == nil {
@@ -2384,6 +2370,24 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		if fndecl.Sig == nil {
 			panic2(__func__, "[*astCallExpr] fndecl.Sig is nil")
 		}
+
+		var params = fndecl.Sig.params.List
+
+		var symbol = pkgName + "." + fn.Name
+		var args []*Arg
+		var _arg *Arg
+		var i int
+		for i=0;i<len(eArgs);i++ {
+			var param = params[i]
+			var paramType = e2t(param.Type)
+			_arg = new(Arg)
+			_arg.e = eArgs[i]
+			_arg.t = paramType
+			args = append(args, _arg)
+		}
+		emitCall(symbol, args)
+
+		// push results
 		var results = fndecl.Sig.results
 		if fndecl.Sig.results == nil {
 			fmtPrintf("# [emitExpr] %s sig.results is nil\n", fn.Name)

@@ -54,9 +54,9 @@ func testSprintf() {
 	var s string = Sprintf("%sab%sd%s", a)
 	write(s)
 
-	//var s2 string = Sprintf("%%rax", nil)
-	//write(s2)
-	//write("|\n")
+	var s2 string = Sprintf("%%rax", nil)
+	write(s2)
+	write("|\n")
 }
 
 func testAppendSlice() {
