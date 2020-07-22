@@ -438,6 +438,20 @@ func testAppendPtr() {
 	write("\n")
 }
 
+
+func testAppendString() {
+	var slc []string
+	slc = append(slc, "a")
+	slc = append(slc, "bcde")
+	var elm string = "fghijklmn\n"
+	slc = append(slc, elm)
+	var s string
+	for _, s = range slc {
+		write(s)
+	}
+	writeln(itoa(len(slc))) // 3
+}
+
 func testAppendInt() {
 	var slc []int
 	slc = append(slc, 1)
@@ -451,19 +465,6 @@ func testAppendInt() {
 		write(itoa(i)) // 12345678910
 	}
 	write("\n")
-}
-
-func testAppendString() {
-	var slc []string
-	slc = append(slc, "a")
-	slc = append(slc, "bcde")
-	var elm string = "fghijklmn\n"
-	slc = append(slc, elm)
-	var s string
-	for _, s = range slc {
-		write(s)
-	}
-	writeln(itoa(len(slc))) // 3
 }
 
 func testAppendByte() {
@@ -1125,8 +1126,8 @@ func test() {
 	testSprintf()
 	testAppendSlice()
 	testAppendPtr()
-	testAppendInt()
 	testAppendString()
+	testAppendInt()
 	testAppendByte()
 	testSringIndex()
 	testSubstring()

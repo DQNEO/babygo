@@ -14,6 +14,69 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func testAppendSlice() {
+	var slcslc [][]string
+	var slc []string
+	slc = append(slc, "aa")
+	slc = append(slc, "bb")
+	slcslc = append(slcslc, slc)
+	slcslc = append(slcslc, slc)
+	slcslc = append(slcslc, slc)
+	var s string
+	for _, slc = range slcslc {
+		for _, s = range slc {
+			write(s)
+		}
+		write("|")
+	}
+	write("\n")
+}
+
+func testAppendPtr() {
+	var slc []*MyStruct
+	var p *MyStruct
+	var i int
+	for i = 0; i < 10; i++ {
+		p = new(MyStruct)
+		p.field1 = i
+		slc = append(slc, p)
+	}
+
+	for _, p = range slc {
+		write(itoa(p.field1)) // 123456789
+	}
+	write("\n")
+}
+
+
+func testAppendString() {
+	var slc []string
+	slc = append(slc, "a")
+	slc = append(slc, "bcde")
+	var elm string = "fghijklmn\n"
+	slc = append(slc, elm)
+	var s string
+	for _, s = range slc {
+		write(s)
+	}
+	writeln(itoa(len(slc))) // 3
+}
+
+func testAppendInt() {
+	var slc []int
+	slc = append(slc, 1)
+	var i int
+	for i = 2; i < 10; i++ {
+		slc = append(slc, i)
+	}
+	slc = append(slc, 10)
+
+	for _, i = range slc {
+		write(itoa(i)) // 12345678910
+	}
+	write("\n")
+}
+
 func testAppendByte() {
 	var slc []uint8
 	var char uint8
@@ -614,6 +677,10 @@ func testMisc() {
 }
 
 func test() {
+	testAppendSlice()
+	testAppendPtr()
+	testAppendString()
+	testAppendInt()
 	testAppendByte()
 	testSringIndex()
 	testSubstring()
