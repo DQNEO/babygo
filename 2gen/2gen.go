@@ -1479,7 +1479,7 @@ func parseForStmt() *astStmt {
 	return r
 }
 
-func parserIfStmt() *astStmt {
+func parseIfStmt() *astStmt {
 	parserExpect("if", __func__)
 	var condStmt *astStmt = parseSimpleStmt(false)
 	if condStmt.dtype != "*astExprStmt" {
@@ -1614,7 +1614,7 @@ func parseStmt() *astStmt {
 		var s = parseReturnStmt()
 		return s
 	case "if":
-		var s = parserIfStmt()
+		var s = parseIfStmt()
 		return s
 	case "for":
 		var s = parseForStmt()
