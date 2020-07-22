@@ -3139,7 +3139,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			case gTrue, gFalse:
 				return tBool
 			default:
-				panic2(__func__, "1:Obj.Kind=" + expr.ident.Obj.Kind)
+				panic2(__func__, "1:Obj.Name=" + expr.ident.Obj.Name)
 			}
 		default:
 			panic2(__func__, "2:Obj.Kind=" + expr.ident.Obj.Kind)
@@ -3198,6 +3198,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				}
 				panic2(__func__, "[astCallExpr] Fun ident " + fn.Name)
 			}
+		case "*astArrayType":
+			return e2t(fun)
 		default:
 			panic2(__func__, "[astCallExpr] dtype=" + expr.callExpr.Fun.dtype)
 		}

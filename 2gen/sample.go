@@ -14,6 +14,51 @@ func write(s string) {
 	syscall.Write(1, slc)
 }
 
+func Sprintf(format string, a []string) string {
+
+	var buf []uint8
+	var inPercent bool
+	var argIndex int
+	var c uint8
+	for _, c = range []uint8(format) {
+		if inPercent {
+			if c == '%' {
+				buf = append(buf, c)
+			} else {
+				var arg string = a[argIndex]
+				argIndex++
+				var s string = arg // // p.printArg(arg, c)
+				var _c uint8
+				for _, _c = range []uint8(s) {
+					buf = append(buf, _c)
+				}
+			}
+			inPercent = false
+		} else {
+			if c == '%' {
+				inPercent = true
+			} else {
+				buf = append(buf, c)
+			}
+		}
+	}
+
+	return string(buf)
+}
+
+func testSprintf() {
+	var a []string = make([]string, 3, 3)
+	a[0] = itoa(1234)
+	a[1] = "c"
+	a[2] = "efg"
+	var s string = Sprintf("%sab%sd%s", a)
+	write(s)
+
+	//var s2 string = Sprintf("%%rax", nil)
+	//write(s2)
+	//write("|\n")
+}
+
 func testAppendSlice() {
 	var slcslc [][]string
 	var slc []string
@@ -677,6 +722,7 @@ func testMisc() {
 }
 
 func test() {
+	testSprintf()
 	testAppendSlice()
 	testAppendPtr()
 	testAppendString()
