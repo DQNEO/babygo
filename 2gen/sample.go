@@ -46,6 +46,25 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testLocalArrayWithMoreTypes() {
+	var aInt [3]int = [3]int{1, 2, 3}
+	var i int
+	for _, i = range aInt {
+		writeln(itoa(i))
+	}
+
+	var aString [3]string = [3]string{"a", "bb", "ccc"}
+	var s string
+	for _, s = range aString {
+		write(s)
+	}
+	write("\n")
+
+	var aByte [4]uint8 = [4]uint8{'x', 'y', 'z', 10}
+	var buf []uint8 = aByte[0:4]
+	write(string(buf))
+}
+
 func testLocalArray() {
 	var aInt [3]int = [3]int{1, 2, 3,}
 	write(itoa(aInt[0]))
@@ -730,6 +749,7 @@ func testMisc() {
 }
 
 func test() {
+	testLocalArrayWithMoreTypes()
 	testLocalArray()
 	testSprintf()
 	testAppendSlice()

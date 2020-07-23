@@ -340,7 +340,7 @@ func testArrayCopy() {
 	write("\n")
 }
 
-func testArrayLiteral() {
+func testLocalArrayWithMoreTypes() {
 	var aInt [3]int = [3]int{1, 2, 3}
 	var i int
 	for _, i = range aInt {
@@ -1130,7 +1130,7 @@ func test() {
 	testNilComparison()
 	testSliceLiteral()
 	testArrayCopy()
-	testArrayLiteral()
+	testLocalArrayWithMoreTypes()
 	testLocalArray()
 	testSprintf()
 	testAppendSlice()
