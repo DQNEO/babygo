@@ -1039,13 +1039,12 @@ func parseParameterList(scope *astScope) []*astField {
 	// Type { "," Type } (anonymous parameters)
 	params = make([]*astField, len(list), len(list))
 	var i int
-	for _, typ = range list {
+	for i, typ = range list {
 		parserResolve(typ)
 		var field = new(astField)
 		field.Type = typ
 		params[i] = field
 		fmtPrintf("# [DEBUG] range i = %s\n", Itoa(i))
-		i++
 	}
 	fmtPrintf("#  end %s\n", __func__)
 	return params
@@ -2276,13 +2275,12 @@ func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []*astExpr) {
 	emitCallMalloc(memSize) // push
 	var i int
 	var elm *astExpr
-	for _, elm = range elts {
+	for i, elm = range elts {
 		// emit lhs
 		emitPushStackTop(tUintptr, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index (" + Itoa(i) + ")")
 		emitExpr(elm, elmType)
 		emitStore(elmType)
-		i++
 	}
 }
 
