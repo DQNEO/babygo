@@ -46,6 +46,14 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testLocalArray() {
+	var aInt [3]int = [3]int{1, 2, 3,}
+	write(itoa(aInt[0]))
+	write(itoa(aInt[1]))
+	write(itoa(aInt[2]))
+	write("\n")
+}
+
 func testSprintf() {
 	var a []string = make([]string, 3, 3)
 	a[0] = itoa(1234)
@@ -722,6 +730,7 @@ func testMisc() {
 }
 
 func test() {
+	testLocalArray()
 	testSprintf()
 	testAppendSlice()
 	testAppendPtr()

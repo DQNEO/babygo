@@ -359,6 +359,14 @@ func testArrayLiteral() {
 	write(string(buf))
 }
 
+func testLocalArray() {
+	var aInt [3]int = [3]int{1, 2, 3,}
+	write(itoa(aInt[0]))
+	write(itoa(aInt[1]))
+	write(itoa(aInt[2]))
+	write("\n")
+}
+
 func Sprintf(format string, a []string) string {
 
 	var buf []uint8
@@ -1123,6 +1131,7 @@ func test() {
 	testSliceLiteral()
 	testArrayCopy()
 	testArrayLiteral()
+	testLocalArray()
 	testSprintf()
 	testAppendSlice()
 	testAppendPtr()

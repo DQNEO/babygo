@@ -570,6 +570,7 @@ type astExpr struct {
 	starExpr     *astStarExpr
 	parenExpr    *astParenExpr
 	structType   *astStructType
+	compositeLit *astCompositeLit
 }
 
 type astObject struct {
@@ -638,6 +639,11 @@ type astParenExpr struct {
 
 type astStarExpr struct {
 	X *astExpr
+}
+
+type astCompositeLit struct {
+	Type *astExpr
+	Elts []*astExpr
 }
 
 type astIfStmt struct {
@@ -1222,6 +1228,8 @@ func parseCallExpr(fn *astExpr) *astExpr {
 	return r
 }
 
+var parserExprLev int // < 0: in control clause, >= 0: in expression
+
 func parsePrimaryExpr() *astExpr {
 	fmtPrintf("#   begin %s\n", __func__)
 	var x = parseOperand()
@@ -1256,6 +1264,12 @@ func parsePrimaryExpr() *astExpr {
 		case "[":
 			parserResolve(x)
 			x = parseIndexOrSlice(x)
+		case "{":
+			if isLiteralType(x) && parserExprLev >= 0 {
+				x = parseLiteralValue(x)
+			} else {
+				return x
+			}
 		default:
 			fmtPrintf("#   end %s\n", __func__)
 			return x
@@ -1264,6 +1278,48 @@ func parsePrimaryExpr() *astExpr {
 
 	fmtPrintf("#   end %s\n", __func__)
 	return x
+}
+
+
+func parseLiteralValue(x *astExpr) *astExpr {
+	fmtPrintf("#   start %s\n", __func__)
+	parserExpect("{", __func__)
+	var elts []*astExpr
+	var e *astExpr
+	for ptok.tok != "}" {
+		e = parseExpr()
+		elts = append(elts, e)
+		if ptok.tok == "}" {
+			break
+		} else {
+			parserExpect(",", __func__)
+		}
+	}
+	parserExpect("}", __func__)
+
+	var compositeLit = new(astCompositeLit)
+	compositeLit.Type = x
+	compositeLit.Elts = elts
+	var r = new(astExpr)
+	r.dtype = "*astCompositeLit"
+	r.compositeLit = compositeLit
+	fmtPrintf("#   end %s\n", __func__)
+	return r
+}
+
+func isLiteralType(x *astExpr) bool {
+	switch x.dtype {
+	case "*astIdent":
+	case "*astSelectorExpr":
+		panic2(__func__, "TBI:*astSelectorExpr")
+	case "*astArrayType":
+	case "*astStructType":
+	case "*astMapType":
+	default:
+		return false
+	}
+
+	return true
 }
 
 func parseIndexOrSlice(x *astExpr) *astExpr {
@@ -1414,6 +1470,7 @@ func parseForStmt() *astStmt {
 	var s2 *astStmt
 	var s3 *astStmt
 	var isRange bool
+	parserExprLev = -1
 	if ptok.tok != "{" {
 		if ptok.tok != ";" {
 			s2 = parseSimpleStmt(true)
@@ -1434,6 +1491,7 @@ func parseForStmt() *astStmt {
 		}
 	}
 
+	parserExprLev = 0
 	var body = parseBlockStmt()
 	parserExpectSemi(__func__)
 
@@ -1483,11 +1541,13 @@ func parseForStmt() *astStmt {
 
 func parseIfStmt() *astStmt {
 	parserExpect("if", __func__)
+	parserExprLev = -1
 	var condStmt *astStmt = parseSimpleStmt(false)
 	if condStmt.dtype != "*astExprStmt" {
 		panic2(__func__, "unexpected dtype=" + condStmt.dtype)
 	}
 	var cond = condStmt.exprStmt.X
+	parserExprLev = 0
 	var body = parseBlockStmt()
 	var else_ *astStmt
 	if ptok.tok == "else" {
@@ -2191,6 +2251,24 @@ func emitCallMalloc(size int) {
 	fmtPrintf("  pushq %%rax # addr\n")
 }
 
+func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []*astExpr) {
+	var elmType = e2t(arrayType.Elt)
+	var elmSize = getSizeOfType(elmType)
+	var memSize = elmSize * arrayLen
+	emitCallMalloc(memSize) // push
+	var i int
+	var elm *astExpr
+	for _, elm = range elts {
+		// emit lhs
+		emitPushStackTop(tUintptr, "malloced address")
+		emitAddConst(elmSize*i, "malloced address + elmSize * index (" + Itoa(i) + ")")
+		emitExpr(elm, elmType)
+		emitStore(elmType)
+		i++
+	}
+}
+
+
 func emitInvertBoolValue() {
 	emitPopBool("")
 	fmtPrintf("  xor $1, %%rax\n")
@@ -2647,6 +2725,27 @@ func emitExpr(e *astExpr, forceType *Type) {
 		default:
 			panic2(__func__, "# TBI: binary operation for " + e.binaryExpr.Op)
 		}
+	case "*astCompositeLit":
+		// slice , array, map or struct
+		var k = kind(e2t(e.compositeLit.Type))
+		switch k {
+		case T_ARRAY:
+			assert(e.compositeLit.Type.dtype == "*astArrayType", "expect *ast.ArrayType", __func__)
+			var arrayType = e.compositeLit.Type.arrayType
+			var arrayLen = evalInt(arrayType.Len)
+			emitArrayLiteral(arrayType, arrayLen, e.compositeLit.Elts)
+		case T_SLICE:
+			assert(e.compositeLit.Type.dtype == "*astArrayType", "expect *ast.ArrayType", __func__)
+			var arrayType = e.compositeLit.Type.arrayType
+			var length = len(e.compositeLit.Elts)
+			emitArrayLiteral(arrayType, length, e.compositeLit.Elts)
+			emitPopAddress("malloc")
+			fmtPrintf("  pushq $%d # slice.cap\n", Itoa(length))
+			fmtPrintf("  pushq $%d # slice.len\n", Itoa(length))
+			fmtPrintf("  pushq %%rax # slice.ptr\n")
+		default:
+			panic2(__func__, "Unexpected kind=" + k)
+		}
 	default:
 		panic2(__func__, "[emitExpr] `TBI:" + e.dtype)
 	}
@@ -2720,6 +2819,14 @@ func emitStore(t *Type) {
 		fmtPrintf("  movw %%di, (%%rax) # assign word\n")
 	case T_STRUCT:
 		// @FXIME
+	case T_ARRAY:
+		fmtPrintf("  popq %%rdi # rhs: addr of data\n")
+		fmtPrintf("  popq %%rax # lhs: addr to store\n")
+		fmtPrintf("  pushq $%d # size\n", Itoa(getSizeOfType(t)))
+		fmtPrintf("  pushq %%rax # dst lhs\n")
+		fmtPrintf("  pushq %%rdi # src rhs\n")
+		fmtPrintf("  callq runtime.memcopy\n")
+		emitRevertStackPointer(ptrSize*2 + intSize)
 	default:
 		panic2(__func__, "TBI:" + kind(t))
 	}
@@ -3025,8 +3132,7 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 		if len(basicLit.Value) > 1 {
 			panic2(__func__, "array length >= 10 is not supported yet.")
 		}
-		var v = basicLit.Value[0]
-		var length = int(v - '0')
+		var length = evalInt(arrayType.Len)
 		fmtPrintf("# [emitGlobalVariable] array length uint8=%s\n" , Itoa(length))
 		var zeroValue string
 		var kind string = kind(e2t(arrayType.Elt))
@@ -3342,6 +3448,14 @@ func getElementTypeOfListType(t *Type) *Type {
 	return r
 }
 
+func evalInt(expr *astExpr) int {
+	if expr.dtype == "*astBasicLit" {
+		var v uint8 = expr.basicLit.Value[0]
+		return int(v - '0')
+	}
+	return 0
+}
+
 func getSizeOfType(t *Type) int {
 	var knd = kind(t)
 	switch kind(t) {
@@ -3349,6 +3463,9 @@ func getSizeOfType(t *Type) int {
 		return sliceSize
 	case T_STRING:
 		return 16
+	case T_ARRAY:
+		var elemSize = getSizeOfType(e2t(t.e.arrayType.Elt))
+		return elemSize * evalInt(t.e.arrayType.Len)
 	case T_INT, T_UINTPTR, T_POINTER:
 		return 8
 	case T_UINT8:
@@ -3641,6 +3758,11 @@ func walkExpr(expr *astExpr) {
 		switch expr.basicLit.Kind {
 		case "STRING":
 			registerStringLiteral(expr.basicLit)
+		}
+	case "*astCompositeLit":
+		var v *astExpr
+		for _, v = range expr.compositeLit.Elts {
+			walkExpr(v)
 		}
 	case "*astUnaryExpr":
 		walkExpr(expr.unaryExpr.X)

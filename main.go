@@ -1125,12 +1125,12 @@ func emitStore(t *Type) {
 	case T_STRUCT:
 		// @FXIME
 	case T_ARRAY:
-		fmt.Printf("  popq %%rdi # rhs: addr of data\n")
-		fmt.Printf("  popq %%rax # lhs: addr to store\n")
-		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
-		fmt.Printf("  pushq %%rax # dst lhs\n")
-		fmt.Printf("  pushq %%rdi # src rhs\n")
-		fmt.Printf("  callq runtime.memcopy\n")
+		fmtPrintf("  popq %%rdi # rhs: addr of data\n")
+		fmtPrintf("  popq %%rax # lhs: addr to store\n")
+		fmtPrintf("  pushq $%d # size\n", Itoa(getSizeOfType(t)))
+		fmtPrintf("  pushq %%rax # dst lhs\n")
+		fmtPrintf("  pushq %%rdi # src rhs\n")
+		fmtPrintf("  callq runtime.memcopy\n")
 		emitRevertStackPointer(ptrSize*2 + intSize)
 	default:
 		panic("TBI:" + kind(t))
