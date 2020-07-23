@@ -46,6 +46,34 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testNilComparison() {
+	var p *MyStruct
+	if p == nil {
+		writeln("nil pointer 1 ok")
+	} else {
+		writeln("ERROR")
+	}
+	p = nil
+	if p == nil {
+		writeln("nil pointer 2 ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	var slc []string
+	if slc == nil {
+		writeln("nil pointer 3 ok")
+	} else {
+		writeln("ERROR")
+	}
+	slc = nil
+	if slc == nil {
+		writeln("nil pointer 4 ok")
+	} else {
+		writeln("ERROR")
+	}
+}
+
 func testSliceLiteral() {
 	var slc []string = []string{"this is ", "slice literal"}
 	writeln(slc[0] + slc[1])
@@ -764,6 +792,7 @@ func testMisc() {
 }
 
 func test() {
+	testNilComparison()
 	testSliceLiteral()
 	testArrayCopy()
 	testLocalArrayWithMoreTypes()

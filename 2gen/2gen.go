@@ -2695,9 +2695,10 @@ func emitExpr(e *astExpr, forceType *Type) {
 			}
 			return
 		}
+
 		var t = getTypeOfExpr(e.binaryExpr.X)
 		emitExpr(e.binaryExpr.X, nil) // left
-		emitExpr(e.binaryExpr.Y, nil) // right
+		emitExpr(e.binaryExpr.Y, t) // right
 		switch e.binaryExpr.Op {
 		case "+":
 			fmtPrintf("  popq %%rcx # right\n")
@@ -2794,6 +2795,8 @@ func emitCompEq(t *Type) {
 		fmtPrintf("  pushq %%rax # cmp result (1 or 0)\n")
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
+	case T_SLICE:
+		emitCompExpr("sete") // @FIXME this is not correct
 	default:
 		panic2(__func__, "Unexpected kind=" + kind(t))
 	}

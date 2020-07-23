@@ -955,7 +955,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			return
 		}
 
-		t := getTypeOfExpr(e.X)
+		var t = getTypeOfExpr(e.X)
 		fmt.Printf("  # start %T\n", e)
 		emitExpr(e.X, nil) // left
 		emitExpr(e.Y, t)   // right
