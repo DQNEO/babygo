@@ -46,6 +46,16 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testArrayCopy() {
+	var aInt [3]int = [3]int{1, 2, 3}
+	var bInt [3]int = aInt
+	aInt[1] = 20
+
+	write(itoa(aInt[1]))
+	write(itoa(bInt[1]))
+	write("\n")
+}
+
 func testLocalArrayWithMoreTypes() {
 	var aInt [3]int = [3]int{1, 2, 3}
 	var i int
@@ -749,6 +759,7 @@ func testMisc() {
 }
 
 func test() {
+	testArrayCopy()
 	testLocalArrayWithMoreTypes()
 	testLocalArray()
 	testSprintf()
