@@ -776,9 +776,11 @@ func parserNext() {
 	parserNext0()
 	//fmtPrintf("parserNext\n")
 	if ptok.tok == ";" {
-		fmtPrintf("# [parser] pointing at : [%s] newline (%s)\n", ptok.tok , Itoa(scannerOffset))
+		fmtPrintf("# [parser] pointing at : \"%s\" newline (%s)\n", ptok.tok , Itoa(scannerOffset))
+	} else if ptok.tok == "IDENT"{
+		fmtPrintf("# [parser] pointing at: IDENT \"%s\" (%s)\n", ptok.lit, Itoa(scannerOffset))
 	} else {
-		fmtPrintf("# [parser] pointing at: [%s] %s (%s)\n", ptok.tok, ptok.lit, Itoa(scannerOffset))
+		fmtPrintf("# [parser] pointing at: \"%s\" %s (%s)\n", ptok.tok, ptok.lit, Itoa(scannerOffset))
 	}
 
 	if ptok.tok == "COMMENT" {
@@ -1221,7 +1223,7 @@ func parseCallExpr(fn *astExpr) *astExpr {
 }
 
 func parsePrimaryExpr() *astExpr {
-	fmtPrintf("#   begin parsePrimaryExpr()\n")
+	fmtPrintf("#   begin %s\n", __func__)
 	var x = parseOperand()
 
 	for {
@@ -1255,12 +1257,12 @@ func parsePrimaryExpr() *astExpr {
 			parserResolve(x)
 			x = parseIndexOrSlice(x)
 		default:
-			fmtPrintf("#   end parsePrimaryExpr()\n")
+			fmtPrintf("#   end %s\n", __func__)
 			return x
 		}
 	}
 
-	fmtPrintf("#   end parsePrimaryExpr()\n")
+	fmtPrintf("#   end %s\n", __func__)
 	return x
 }
 
