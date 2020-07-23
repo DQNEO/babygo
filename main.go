@@ -232,6 +232,9 @@ func emitAddr(expr ast.Expr) {
 	fmt.Printf("  # [emitAddr] %T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
+		if e.Obj == nil {
+			throw(expr)
+		}
 		if e.Obj.Kind == ast.Var {
 			vr, ok := e.Obj.Data.(*Variable)
 			assert(ok, "should be *Variable")
@@ -1166,7 +1169,6 @@ func emitStmt(stmt ast.Stmt) {
 				lhs := valSpec.Names[0]
 				var rhs ast.Expr
 				if len(valSpec.Values) == 0 {
-					fmtPrintf("  # lhs addresss\n")
 					emitAddr(lhs)
 					fmtPrintf("  # emitZeroValue\n")
 					emitZeroValue(t)
@@ -1314,6 +1316,17 @@ func emitStmt(stmt ast.Stmt) {
 		emitZeroValue(tInt)
 		emitStore(tInt)
 
+		// init key variable
+		if s.Key != nil {
+			keyIdent, ok := s.Key.(*ast.Ident)
+			assert(ok, "key expr should be an ident")
+			if keyIdent.Name != "_" {
+				emitAddr(s.Key) // lhs
+				emitZeroValue(tInt)
+				emitStore(tInt)
+			}
+		}
+
 		// Condition
 		// if (indexvar < lenvar) then
 		//   execute body
@@ -1354,6 +1367,18 @@ func emitStmt(stmt ast.Stmt) {
 		emitLoad(tInt)
 		emitAddConst(1, "indexvar value ++")
 		emitStore(tInt)
+
+		// init key variable
+		if s.Key != nil {
+			keyIdent, ok := s.Key.(*ast.Ident)
+			assert(ok, "key expr should be an ident")
+			if keyIdent.Name != "_" {
+				emitAddr(s.Key) // lhs
+				emitVariableAddr(rngMisc.indexvar) // rhs
+				emitLoad(tInt)
+				emitStore(tInt)
+			}
+		}
 
 		fmt.Printf("  jmp %s\n", labelCond)
 
