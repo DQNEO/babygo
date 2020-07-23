@@ -1160,6 +1160,7 @@ func tryResolve(x *astExpr, collectUnresolved bool) {
 }
 
 func parseOperand() *astExpr {
+	fmtPrintf("#   begin %s\n", __func__)
 	switch ptok.tok {
 	case "IDENT":
 		var eIdent = new(astExpr)
@@ -1167,6 +1168,7 @@ func parseOperand() *astExpr {
 		var ident  =  parseIdent()
 		eIdent.ident = ident
 		tryResolve(eIdent, true)
+		fmtPrintf("#   end %s\n", __func__)
 		return eIdent
 	case "INT":
 		var basicLit = new(astBasicLit)
@@ -1176,6 +1178,7 @@ func parseOperand() *astExpr {
 		r.dtype = "*astBasicLit"
 		r.basicLit = basicLit
 		parserNext()
+		fmtPrintf("#   end %s\n", __func__)
 		return r
 	case "STRING":
 		var basicLit = new(astBasicLit)
@@ -1185,6 +1188,7 @@ func parseOperand() *astExpr {
 		r.dtype = "*astBasicLit"
 		r.basicLit = basicLit
 		parserNext()
+		fmtPrintf("#   end %s\n", __func__)
 		return r
 	case "CHAR":
 		var basicLit = new(astBasicLit)
@@ -1194,6 +1198,7 @@ func parseOperand() *astExpr {
 		r.dtype = "*astBasicLit"
 		r.basicLit = basicLit
 		parserNext()
+		fmtPrintf("#   end %s\n", __func__)
 		return r
 	}
 
@@ -1201,6 +1206,7 @@ func parseOperand() *astExpr {
 	if typ == nil {
 		panic2(__func__, "# typ should not be nil\n")
 	}
+	fmtPrintf("#   end %s\n", __func__)
 
 	return typ
 }
@@ -1234,7 +1240,15 @@ func parsePrimaryExpr() *astExpr {
 	fmtPrintf("#   begin %s\n", __func__)
 	var x = parseOperand()
 
+	var cnt int
+
 	for {
+		cnt++
+		fmtPrintf("#    [%s] tok=%s\n", __func__, ptok.tok)
+		if cnt > 100 {
+			panic2(__func__, "too many iteration")
+		}
+
 		switch ptok.tok {
 		case ".":
 			parserNext() // consume "."
