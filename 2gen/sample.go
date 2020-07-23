@@ -46,6 +46,11 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testSliceLiteral() {
+	var slc []string = []string{"this is ", "slice literal"}
+	writeln(slc[0] + slc[1])
+}
+
 func testArrayCopy() {
 	var aInt [3]int = [3]int{1, 2, 3}
 	var bInt [3]int = aInt
@@ -759,6 +764,7 @@ func testMisc() {
 }
 
 func test() {
+	testSliceLiteral()
 	testArrayCopy()
 	testLocalArrayWithMoreTypes()
 	testLocalArray()
