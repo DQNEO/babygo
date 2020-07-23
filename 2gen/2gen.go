@@ -1039,11 +1039,13 @@ func parseParameterList(scope *astScope) []*astField {
 	// Type { "," Type } (anonymous parameters)
 	params = make([]*astField, len(list), len(list))
 	var i int
-	for i, typ = range list {
+	for _, typ = range list {
 		parserResolve(typ)
 		var field = new(astField)
 		field.Type = typ
 		params[i] = field
+		fmtPrintf("# [DEBUG] range i = %s\n", Itoa(i))
+		i++
 	}
 	fmtPrintf("#  end %s\n", __func__)
 	return params
