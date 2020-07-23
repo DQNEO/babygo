@@ -3204,9 +3204,8 @@ func emitData(pkgName string) {
 
 func emitText(pkgName string) {
 	fmtPrintf(".text\n")
-	var i int
-	for i = 0; i < len(globalFuncs); i++ {
-		var fnc = globalFuncs[i]
+	var fnc *Func
+	for _, fnc = range globalFuncs {
 		emitFuncDecl(pkgName, fnc)
 	}
 }
