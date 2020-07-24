@@ -508,6 +508,7 @@ type astStmt struct {
 	incDecStmt *astIncDecStmt
 	isRange    bool
 	rangeStmt  *astRangeStmt
+	branchStmt *astBranchStmt
 }
 
 type astDeclStmt struct {
@@ -658,6 +659,7 @@ type astForStmt struct {
 	Cond      *astExpr
 	Post      *astStmt
 	Body      *astBlockStmt
+	Outer     *astStmt // outer loop
 	labelPost string
 	labelExit string
 }
@@ -667,6 +669,7 @@ type astRangeStmt struct {
 	Value     *astExpr
 	X         *astExpr
 	Body      *astBlockStmt
+	Outer     *astStmt // outer loop
 	labelPost string
 	labelExit string
 	lenvar   *Variable
@@ -1690,6 +1693,9 @@ func parseStmt() *astStmt {
 	case "return":
 		var s = parseReturnStmt()
 		return s
+	case "break", "continue":
+		var s = parseBranchStmt(ptok.tok)
+		return s
 	case "if":
 		var s = parseIfStmt()
 		return s
@@ -1719,6 +1725,25 @@ func parseExprList() []*astExpr {
 func parseRhsList() []*astExpr {
 	var list = parseExprList()
 	return list
+}
+
+type astBranchStmt struct {
+	Tok        string
+	Label      string
+	currentFor *astStmt
+}
+
+func parseBranchStmt(tok string) *astStmt {
+	parserExpect(tok, __func__)
+
+	parserExpectSemi(__func__)
+
+	var branchStmt = new(astBranchStmt)
+	branchStmt.Tok = tok
+	var s = new(astStmt)
+	s.dtype = "*astBranchStmt"
+	s.branchStmt = branchStmt
+	return s
 }
 
 func parseReturnStmt() *astStmt {
@@ -3081,6 +3106,33 @@ func emitStmt(stmt *astStmt) {
 		emitExpr(stmt.incDecStmt.X, nil)
 		emitAddConst(addValue, "rhs ++ or --")
 		emitStore(getTypeOfExpr(stmt.incDecStmt.X))
+	case "*astBranchStmt":
+		var containerFor = stmt.branchStmt.currentFor
+		var labelToGo string
+		switch stmt.branchStmt.Tok {
+		case "continue":
+			switch containerFor.dtype {
+			case "*astForStmt":
+				labelToGo = containerFor.forStmt.labelPost
+			case "*astRangeStmt":
+				labelToGo = containerFor.rangeStmt.labelPost
+			default:
+				panic2(__func__, "unexpected container dtype=" + containerFor.dtype)
+			}
+			fmtPrintf("jmp %s # continue\n", labelToGo)
+		case "break":
+			switch containerFor.dtype {
+			case "*astForStmt":
+				labelToGo = containerFor.forStmt.labelExit
+			case "*astRangeStmt":
+				labelToGo = containerFor.rangeStmt.labelExit
+			default:
+				panic2(__func__, "unexpected container dtype=" + containerFor.dtype)
+			}
+			fmtPrintf("jmp %s # break\n", labelToGo)
+		default:
+			panic2(__func__, "unexpected tok=" + stmt.branchStmt.Tok)
+		}
 	default:
 		panic2(__func__, "TBI:" + stmt.dtype)
 	}
@@ -3732,6 +3784,8 @@ func walkStmt(stmt *astStmt) {
 			walkStmt(stmt.ifStmt.Else)
 		}
 	case "*astForStmt":
+		stmt.forStmt.Outer = currentFor
+		currentFor = stmt
 		if stmt.forStmt.Init != nil {
 			walkStmt(stmt.forStmt.Init)
 		}
@@ -3745,8 +3799,11 @@ func walkStmt(stmt *astStmt) {
 		_s.dtype = "*astBlockStmt"
 		_s.blockStmt = stmt.forStmt.Body
 		walkStmt(_s)
+		currentFor = stmt.forStmt.Outer
 	case "*astRangeStmt":
 		walkExpr(stmt.rangeStmt.X)
+		stmt.rangeStmt.Outer = currentFor
+		currentFor = stmt
 		var _s = blockStmt2Stmt(stmt.rangeStmt.Body)
 		walkStmt(_s)
 		localoffset = localoffset - intSize
@@ -3755,6 +3812,7 @@ func walkStmt(stmt *astStmt) {
 		var indexvar = newLocalVariable(".range.index", localoffset)
 		stmt.rangeStmt.lenvar = lenvar
 		stmt.rangeStmt.indexvar = indexvar
+		currentFor = stmt.rangeStmt.Outer
 	case "*astIncDecStmt":
 		walkExpr(stmt.incDecStmt.X)
 	case "*astBlockStmt":
@@ -3762,10 +3820,14 @@ func walkStmt(stmt *astStmt) {
 		for _, s = range stmt.blockStmt.List {
 			walkStmt(s)
 		}
+	case "*astBranchStmt":
+		stmt.branchStmt.currentFor = currentFor
 	default:
 		panic2(__func__, "TBI: stmt.dtype=" + stmt.dtype)
 	}
 }
+
+var currentFor *astStmt
 
 func walkExpr(expr *astExpr) {
 	fmtPrintf("# [walkExpr] dtype=%s\n", expr.dtype)

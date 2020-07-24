@@ -1462,9 +1462,9 @@ func emitStmt(stmt ast.Stmt) {
 		assert(ok, "map value should exist")
 		switch s.Tok {
 		case token.CONTINUE:
-			fmt.Printf("jmp %s # continue\n", containerFor.labelPost)
+			fmtPrintf("jmp %s # continue\n", containerFor.labelPost)
 		case token.BREAK:
-			fmt.Printf("jmp %s # break\n", containerFor.labelExit)
+			fmtPrintf("jmp %s # break\n", containerFor.labelExit)
 		default:
 			throw(s.Tok)
 		}

@@ -46,6 +46,45 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testForBreakContinue() {
+	var i int
+	for i = 0; i < 10; i = i + 1 {
+		if i == 3 {
+			break
+		}
+		write(itoa(i))
+	}
+	write("exit")
+	writeln(itoa(i))
+
+	for i = 0; i < 10; i = i + 1 {
+		if i < 7 {
+			continue
+		}
+		write(itoa(i))
+	}
+	write("exit")
+	writeln(itoa(i))
+
+	var ary []int = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+	for _, i = range ary {
+		if i == 3 {
+			break
+		}
+		write(itoa(i))
+	}
+	write("exit")
+	writeln(itoa(i))
+	for _, i = range ary {
+		if i < 7 {
+			continue
+		}
+		write(itoa(i))
+	}
+	write("exit")
+	writeln(itoa(i))
+}
+
 func returnTrue1() bool {
 	var bol bool
 	bol = true
@@ -854,6 +893,7 @@ func testMisc() {
 }
 
 func test() {
+	testForBreakContinue()
 	testGlobalBool()
 	testBool()
 	testNilComparison()
