@@ -62,6 +62,31 @@ func returnFalse() bool {
 	return !bol
 }
 
+var globalbool1 bool // = true // @TODO
+var globalbool2 bool
+var globalbool3 bool
+
+func testGlobalBool() {
+	globalbool1 = true
+	if globalbool1 {
+		writeln("globalbool 1 ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	if globalbool2 {
+		writeln("ERROR")
+	} else {
+		writeln("globalbool 2 ok")
+	}
+
+	if globalbool3 {
+		writeln("ERROR")
+	} else {
+		writeln("globalbool 3 ok")
+	}
+}
+
 func testBool() {
 	var bol bool = returnTrue1()
 	if bol {
@@ -829,6 +854,7 @@ func testMisc() {
 }
 
 func test() {
+	testGlobalBool()
 	testBool()
 	testNilComparison()
 	testSliceLiteral()
