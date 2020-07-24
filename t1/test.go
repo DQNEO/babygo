@@ -90,8 +90,6 @@ func testLogicalAndOr() {
 	}
 }
 
-const sliceSize int = 24
-
 func testVaargNotPassed(a int, b ...int) {
 	if b == nil {
 		write(itoa(a))
@@ -111,8 +109,10 @@ func testVaargs() {
 	_vaprintf("%s %s %s\n", "a", "bc", "def")
 }
 
+const MY_CONST_INT_VALUE int = 24
+
 func testConst() {
-	write(itoa(sliceSize))
+	writeln(itoa(MY_CONST_INT_VALUE))
 }
 
 func testSwitchString() {
@@ -1133,10 +1133,10 @@ func test() {
 	testEscapedChar()
 	testOpenRead()
 	testVaargs()
-	testLogicalAndOr()
-	testConst()
 	testSwitchByte()
 	testSwitchInt()
+	testLogicalAndOr()
+	testConst()
 	testForOmissible()
 	testForBreakContinue()
 	testBool()

@@ -1859,23 +1859,33 @@ func parserParseTypeSpec() *astSpec {
 	return r
 }
 
-func parserParseValueSpec() *astSpec {
+func parserParseValueSpec(keyword string) *astSpec {
 	fmtPrintf("# [parserParseValueSpec] start\n")
-	parserExpect("var", __func__)
+	parserExpect(keyword, __func__)
 	var ident = parseIdent()
 	fmtPrintf("# var = %s\n", ident.Name)
 	var typ = parseType()
+	var value *astExpr
+	if ptok.tok == "=" {
+		parserNext()
+		value = parseExpr()
+	}
 	parserExpectSemi(__func__)
 	var spec = new(astValueSpec)
 	spec.Name = ident
 	spec.Type = typ
+	spec.Value = value
 	var r = new(astSpec)
 	r.dtype = "*astValueSpec"
 	r.valueSpec = spec
 	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astValueSpec"
 	objDecl.valueSpec = spec
-	declare(objDecl, parserTopScope, "Var", ident)
+	var kind = "Con"
+	if keyword == "var" {
+		kind = "Var"
+	}
+	declare(objDecl, parserTopScope, kind, ident)
 	fmtPrintf("# [parserParseValueSpec] end\n")
 	return r
 }
@@ -1936,8 +1946,8 @@ func parserParseFile() *astFile {
 
 	for ptok.tok != "EOF" {
 		switch ptok.tok {
-		case "var":
-			var spec = parserParseValueSpec()
+		case "var", "const":
+			var spec = parserParseValueSpec(ptok.tok )
 			fmtPrintf("# [parserParseFile] debug 1\n")
 			var genDecl = new(astGenDecl)
 			fmtPrintf("# [parserParseFile] debug 2\n")
@@ -2603,6 +2613,18 @@ func emitExpr(e *astExpr, forceType *Type) {
 			emitAddr(e)
 			var t = getTypeOfExpr(e)
 			emitLoad(t)
+		case "Con":
+			var valSpec = ident.Obj.Decl.valueSpec
+			assert(valSpec != nil, "valSpec should not be nil", __func__)
+			assert(valSpec.Value != nil, "valSpec should not be nil", __func__)
+			assert(valSpec.Value.dtype == "*astBasicLit", "const value should be a literal", __func__)
+			var t *Type
+			if valSpec.Type != nil {
+				t = e2t(valSpec.Type)
+			} else {
+				t  = forceType
+			}
+			emitExpr(valSpec.Value, t)
 		case "Typ":
 			panic2(__func__, "[*astIdent] Kind Typ should not come here")
 		default:

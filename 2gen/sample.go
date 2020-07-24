@@ -46,6 +46,12 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+const MY_CONST_INT_VALUE int = 24
+
+func testConst() {
+	writeln(itoa(MY_CONST_INT_VALUE))
+}
+
 func testForOmissible() {
 	var i int
 	for {
@@ -918,6 +924,7 @@ func testMisc() {
 }
 
 func test() {
+	testConst()
 	testForOmissible()
 	testForBreakContinue()
 	testGlobalBool()
