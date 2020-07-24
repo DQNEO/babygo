@@ -46,6 +46,31 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testForOmissible() {
+	var i int
+	for {
+		i++
+		if i == 2 {
+			break
+		}
+	}
+	write(itoa(i))
+
+	i = 0
+	for i < 3 {
+		i++
+	}
+	write(itoa(i))
+
+	i = 0
+	for i < 4 {
+		i++
+	}
+	write(itoa(i))
+
+	write("\n")
+}
+
 func testForBreakContinue() {
 	var i int
 	for i = 0; i < 10; i = i + 1 {
@@ -893,6 +918,7 @@ func testMisc() {
 }
 
 func test() {
+	testForOmissible()
 	testForBreakContinue()
 	testGlobalBool()
 	testBool()

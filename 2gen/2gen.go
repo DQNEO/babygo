@@ -1470,6 +1470,11 @@ func parseRhs() *astExpr {
 }
 
 func makeExpr(s *astStmt) *astExpr {
+	fmtPrintf("# begin %s\n", __func__)
+	if s == nil {
+		var r *astExpr
+		return r
+	}
 	if s.dtype != "*astExprStmt" {
 		panic2(__func__, "unexpected dtype=" + s.dtype)
 	}
