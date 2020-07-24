@@ -2664,6 +2664,10 @@ func emitExpr(e *astExpr, forceType *Type) {
 			fmtPrintf("  pushq %%rax\n")
 		case "&":
 			emitAddr(e.unaryExpr.X)
+		case "!":
+			emitAddr(e.unaryExpr.X)
+			emitExpr(e.unaryExpr.X, nil)
+			emitInvertBoolValue()
 		default:
 			panic2(__func__, "TBI:astUnaryExpr:" + e.unaryExpr.Op)
 		}
@@ -3292,6 +3296,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		switch expr.unaryExpr.Op {
 		case "-":
 			return getTypeOfExpr(expr.unaryExpr.X)
+		case "!":
+			return tBool
 		default:
 			panic2(__func__, "TBI: Op=" + expr.unaryExpr.Op)
 		}

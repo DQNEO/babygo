@@ -46,6 +46,43 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func returnTrue1() bool {
+	var bol bool
+	bol = true
+	return bol
+}
+
+func returnTrue2() bool {
+	var bol bool
+	return !bol
+}
+
+func returnFalse() bool {
+	var bol bool = true
+	return !bol
+}
+
+func testBool() {
+	var bol bool = returnTrue1()
+	if bol {
+		writeln("bool 1 ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	if returnTrue2() {
+		writeln("bool 2 ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	if returnFalse() {
+		writeln("ERROR")
+	} else {
+		writeln("bool 3 ok")
+	}
+}
+
 func testNilComparison() {
 	var p *MyStruct
 	if p == nil {
@@ -792,6 +829,7 @@ func testMisc() {
 }
 
 func test() {
+	testBool()
 	testNilComparison()
 	testSliceLiteral()
 	testArrayCopy()
