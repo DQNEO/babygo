@@ -3,18 +3,16 @@ package runtime
 import "syscall"
 import "unsafe"
 
-var SYS_BRK int
+const SYS_BRK int = 12
+const heapSize uintptr = 40205360
 
 var heapHead uintptr
 var heapCurrent uintptr
 var heapTail uintptr
-var heapSize uintptr
 
 var s string
 
 func heapInit() {
-	SYS_BRK = 12
-	heapSize = 40205360
 	heapHead = brk(0)
 	heapTail = brk(heapHead + heapSize)
 	heapCurrent = heapHead
