@@ -1128,10 +1128,10 @@ func testMisc() {
 var globalptr *int
 
 func test() {
+	testVaargs()
+	testOpenRead()
 	testInfer()
 	testEscapedChar()
-	testOpenRead()
-	testVaargs()
 	testSwitchString()
 	testSwitchByte()
 	testSwitchInt()
