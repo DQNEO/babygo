@@ -3971,9 +3971,21 @@ func walkStmt(stmt *astStmt) {
 			panic2(__func__, "[dcl.dtype] internal error")
 		}
 		var valSpec = dcl.genDecl.Spec.valueSpec
-		var typ = valSpec.Type // ident "int"
+		if valSpec.Type == nil {
+			if valSpec.Value == nil {
+				panic2(__func__, "type inference requires a value")
+			}
+			var _typ = getTypeOfExpr(valSpec.Value)
+			if _typ != nil && _typ.e != nil {
+				valSpec.Type = _typ.e
+			} else {
+				panic2(__func__, "type inference failed")
+			}
+		}
+		var typ = valSpec.Type // Type can be nil
 		fmtPrintf("# [walkStmt] valSpec Name=%s, Type=%s\n",
 			valSpec.Name.Name, typ.dtype)
+
 		var t = e2t(typ)
 		var sizeOfType = getSizeOfType(t)
 		localoffset = localoffset - sizeOfType

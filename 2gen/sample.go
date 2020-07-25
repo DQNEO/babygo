@@ -46,6 +46,16 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+
+func testInfer() {
+	var s = "infer string literal"
+	writeln(s)
+
+	var i = 3 + 5
+	var j = i
+	writeln(itoa(j))
+}
+
 func testEscapedChar() {
 	var chars []uint8 = []uint8{'\\', '\t', '\r', '\'', '\n'}
 	writeln("start")
@@ -1072,6 +1082,7 @@ func testMisc() {
 }
 
 func test() {
+	testInfer()
 	testEscapedChar()
 	testSwitchString()
 	testSwitchByte()
