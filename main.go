@@ -185,7 +185,7 @@ func emitLoad(t *Type) {
 }
 
 func emitVariableAddr(variable *Variable) {
-	//fmt.Printf("  # variable %#v\n", variable)
+	fmtPrintf("  # emit Addr of variable \"%s\" \n", variable.name)
 
 	var addr string
 	if variable.isGlobal {
@@ -767,6 +767,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 //   slc.cap
 //   --
 func emitExpr(expr ast.Expr, forceType *Type) {
+	fmt.Printf("  # [emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
 		switch e.Obj {
@@ -1150,7 +1151,7 @@ func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 }
 
 func emitStmt(stmt ast.Stmt) {
-	fmt.Printf("  \n")
+	fmtPrintf("  \n")
 	fmt.Printf("  # == Stmt %T ==\n", stmt)
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:

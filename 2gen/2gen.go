@@ -1713,6 +1713,7 @@ func parseStmt() *astStmt {
 }
 
 func parseExprList() []*astExpr {
+	fmtPrintf("# [%s] start\n", __func__)
 	var list []*astExpr
 	var e = parseExpr()
 	list = append(list, e)
@@ -1722,6 +1723,7 @@ func parseExprList() []*astExpr {
 		list = append(list, e)
 	}
 
+	fmtPrintf("# [%s] end\n", __func__)
 	return list
 }
 
@@ -2094,7 +2096,7 @@ func emitLoad(t *Type) {
 }
 
 func emitVariableAddr(variable *Variable) {
-	fmtPrintf("  # variable %s\n", variable.name)
+	fmtPrintf("  # emit Addr of variable \"%s\" \n", variable.name)
 
 	var addr string
 	if variable.isGlobal {
@@ -2129,9 +2131,7 @@ func emitAddr(expr *astExpr) {
 	fmtPrintf("  # [emitAddr] %s\n", expr.dtype)
 	switch expr.dtype {
 	case "*astIdent":
-		fmtPrintf("  # %s\n", expr.ident.Name)
 		if expr.ident.Obj.Kind == "Var" {
-			fmtPrintf("  # is Var\n")
 			assert(expr.ident.Obj.Variable != nil,
 				"ERROR: Variable is nil for name : " + expr.ident.Obj.Name, __func__)
 			emitVariableAddr(expr.ident.Obj.Variable)
@@ -2580,7 +2580,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 }
 
 func emitExpr(e *astExpr, forceType *Type) {
-	fmtPrintf("# [emitExpr] dtype=%s\n", e.dtype)
+	fmtPrintf("  # [emitExpr] dtype=%s\n", e.dtype)
 	switch e.dtype {
 	case "*astIdent":
 		var ident = e.ident
@@ -2638,7 +2638,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case "*astBasicLit":
-		fmtPrintf("# basicLit.Kind = %s \n", e.basicLit.Kind)
+//		fmtPrintf("# basicLit.Kind = %s \n", e.basicLit.Kind)
 		switch e.basicLit.Kind {
 		case "INT":
 			fmtPrintf("  pushq $%s # \n", e.basicLit.Value)
@@ -2955,7 +2955,8 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 }
 
 func emitStmt(stmt *astStmt) {
-	fmtPrintf("# [emitStmt] dtype=%s\n", stmt.dtype)
+	fmtPrintf("  \n")
+	fmtPrintf("  # == Stmt %s ==\n", stmt.dtype)
 	switch stmt.dtype {
 	case "*astBlockStmt":
 		var stmt2 *astStmt
@@ -3245,7 +3246,6 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 		fmtPrintf("  subq $%d, %%rsp # local area\n", Itoa(-localarea))
 	}
 
-	fmtPrintf("  # func body\n")
 	if fnc.Body != nil {
 		emitStmt(blockStmt2Stmt(fnc.Body))
 	}
@@ -3387,7 +3387,7 @@ var tString *Type
 var tBool *Type
 
 func getTypeOfExpr(expr *astExpr) *Type {
-	fmtPrintf("# [%s] start\n", __func__)
+	//fmtPrintf("# [%s] start\n", __func__)
 	switch expr.dtype {
 	case "*astIdent":
 		switch expr.ident.Obj.Kind {
