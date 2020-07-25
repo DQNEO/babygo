@@ -46,6 +46,54 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testLogicalAndOr() {
+	var t bool = true
+	var f bool = false
+
+	if t && t {
+		writeln("true && true ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	if t && f {
+		writeln("ERROR")
+	} else {
+		writeln("true && false ok")
+	}
+	if f && t {
+		writeln("ERROR")
+	} else {
+		writeln("false && true ok")
+	}
+	if f && f {
+		writeln("ERROR")
+	} else {
+		writeln("false && false ok")
+	}
+
+	if t || t {
+		writeln("true || true ok")
+	} else {
+		writeln("ERROR")
+	}
+	if t || f {
+		writeln("true || false ok")
+	} else {
+		writeln("ERROR")
+	}
+	if f || t {
+		writeln("false || true ok")
+	} else {
+		writeln("ERROR")
+	}
+	if f || f {
+		writeln("ERROR")
+	} else {
+		writeln("false || false ok")
+	}
+}
+
 const MY_CONST_INT_VALUE int = 24
 
 func testConst() {
@@ -924,6 +972,7 @@ func testMisc() {
 }
 
 func test() {
+	testLogicalAndOr()
 	testConst()
 	testForOmissible()
 	testForBreakContinue()

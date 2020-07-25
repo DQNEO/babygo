@@ -422,8 +422,10 @@ func scannerScan() *TokenContainer {
 		case '&': // & &= && &^ &^=
 			switch scannerCh {
 			case '=':
+				scannerNext()
 				tok = "&="
 			case '&':
+				scannerNext()
 				tok = "&&"
 			case '^':
 				var peekCh = scannerSrc[scannerNextOffset]
@@ -2749,6 +2751,46 @@ func emitExpr(e *astExpr, forceType *Type) {
 			}
 			return
 		}
+
+		switch e.binaryExpr.Op {
+		case "&&":
+			labelid++
+			var labelExitWithFalse = fmtSprintf(".L.%s.false", []string{Itoa(labelid)})
+			var labelExit = fmtSprintf(".L.%d.exit", []string{Itoa(labelid)})
+			emitExpr(e.binaryExpr.X, nil) // left
+			emitPopBool("left")
+			fmtPrintf("  cmpq $1, %%rax\n")
+			// exit with false if left is false
+			fmtPrintf("  jne %s\n", labelExitWithFalse)
+
+			// if left is true, then eval right and exit
+			emitExpr(e.binaryExpr.Y, nil) // right
+			fmtPrintf("  jmp %s\n", labelExit)
+
+			fmtPrintf("  %s:\n", labelExitWithFalse)
+			emitFalse()
+			fmtPrintf("  %s:\n", labelExit)
+			return
+		case "||":
+			labelid++
+			var labelExitWithTrue = fmtSprintf(".L.%d.true", []string{Itoa(labelid)})
+			var labelExit = fmtSprintf(".L.%d.exit", []string{Itoa(labelid)})
+			emitExpr(e.binaryExpr.X, nil) // left
+			emitPopBool("left")
+			fmtPrintf("  cmpq $1, %%rax\n")
+			// exit with true if left is true
+			fmtPrintf("  je %s\n", labelExitWithTrue)
+
+			// if left is false, then eval right and exit
+			emitExpr(e.binaryExpr.Y, nil) // right
+			fmtPrintf("  jmp %s\n", labelExit)
+
+			fmtPrintf("  %s:\n", labelExitWithTrue)
+			emitTrue()
+			fmtPrintf("  %s:\n", labelExit)
+			return
+		}
+
 
 		var t = getTypeOfExpr(e.binaryExpr.X)
 		emitExpr(e.binaryExpr.X, nil) // left
