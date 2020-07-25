@@ -875,9 +875,12 @@ func tryVarType() *astExpr {
 
 func parseVarType() *astExpr {
 	fmtPrintf("# [%s] begin\n", __func__)
-	var e = tryIdentOrType()
+	var typ = tryIdentOrType()
+	if typ == nil {
+		panic2(__func__, "nil is not expected")
+	}
 	fmtPrintf("# [%s] end\n", __func__)
-	return e
+	return typ
 }
 
 func tryType() *astExpr {
@@ -1016,7 +1019,7 @@ func parseParameterList(scope *astScope) []*astField {
 
 	var params []*astField
 
-	var typ = tryType()
+	var typ = tryVarType()
 	if typ != nil {
 			if len(list) > 1 {
 				panic2(__func__, "Ident list is not supported")
