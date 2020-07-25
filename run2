@@ -2,12 +2,14 @@
 set -x
 make self
 echo > a.s
-./self | cat > /tmp/a.s ; cp /tmp/a.s .
+./self | cat > /tmp/a.s
 if [[ $? -ne 0 ]]; then
     echo "----- Compile Error --------"
+    cp /tmp/a.s .
     tail a.s
     exit 1
 fi
+cp /tmp/a.s .
 set -e
 as -o /tmp/a.o runtime.s /tmp/a.s
 ld /tmp/a.o
