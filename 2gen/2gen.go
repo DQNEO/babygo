@@ -1682,10 +1682,11 @@ func parseSimpleStmt(isRangeOK bool) *astStmt {
 func parseStmt() *astStmt {
 	fmtPrintf("\n")
 	fmtPrintf("# = begin %s\n", __func__)
-	var s = new(astStmt)
+	var s *astStmt
 	switch ptok.tok {
 	case "var":
 		var genDecl = parseDecl("var")
+		s = new(astStmt)
 		s.dtype = "*astDeclStmt"
 		s.DeclStmt = new(astDeclStmt)
 		var decl = new(astDecl)
@@ -1693,23 +1694,17 @@ func parseStmt() *astStmt {
 		decl.genDecl = genDecl
 		s.DeclStmt.Decl = decl
 		fmtPrintf("# = end parseStmt()\n")
-		return s
 	case "IDENT","*":
-		var s = parseSimpleStmt(false)
+		s = parseSimpleStmt(false)
 		parserExpectSemi(__func__)
-		return s
 	case "return":
-		var s = parseReturnStmt()
-		return s
+		s = parseReturnStmt()
 	case "break", "continue":
-		var s = parseBranchStmt(ptok.tok)
-		return s
+		s = parseBranchStmt(ptok.tok)
 	case "if":
-		var s = parseIfStmt()
-		return s
+		s = parseIfStmt()
 	case "for":
-		var s = parseForStmt()
-		return s
+		s = parseForStmt()
 	default:
 		panic2(__func__, "TBI 3:" +  ptok.tok)
 	}
