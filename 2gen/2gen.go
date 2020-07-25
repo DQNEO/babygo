@@ -190,12 +190,20 @@ func scannerScanString() string {
 
 func scannerScanChar() string {
 	//fmtPrintf("begin: scannerScanString\n")
+	// '\'' opening already consumed
 	var offset = scannerOffset - 1
-	for scannerCh != '\'' {
-		//fmtPrintf("in loop char:%s\n", string([]uint8{scannerCh}))
+	var ch uint8
+	for {
+		ch = scannerCh
 		scannerNext()
+		if ch == '\'' {
+			break
+		}
+		if ch == '\\' {
+			scannerNext()
+		}
 	}
-	scannerNext() // consume ending '""
+
 	return string(scannerSrc[offset:scannerOffset])
 }
 

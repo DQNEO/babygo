@@ -46,6 +46,13 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testEscapedChar() {
+	var chars []uint8 = []uint8{'\\', '\t', '\r', '\'', '\n'}
+	writeln("start")
+	write(string(chars))
+	writeln("end")
+}
+
 func testSwitchString() {
 	var testVar string = "foo"
 	var caseVar string = "fo"
@@ -1065,6 +1072,7 @@ func testMisc() {
 }
 
 func test() {
+	testEscapedChar()
 	testSwitchString()
 	testSwitchByte()
 	testSwitchInt()
