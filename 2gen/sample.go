@@ -412,6 +412,21 @@ func testSliceOfSlice() {
 	writeln(string(slc3))
 }
 
+func testForrangeKey() {
+	var i int
+	var slc []string
+	var s string
+	slc = make([]string, 3, 3)
+	slc[0] = "a"
+	slc[1] = "b"
+	slc[2] = "c"
+	for i, s = range slc {
+		write(itoa(i))
+		writeln(s)
+	}
+}
+
+
 func testForrange() {
 	var slc []string
 	var s string
@@ -992,6 +1007,7 @@ func test() {
 	testSringIndex()
 	testSubstring()
 	testSliceOfSlice()
+	testForrangeKey()
 	testForrange()
 	testNewStruct()
 	testNilSlice()

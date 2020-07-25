@@ -1301,8 +1301,8 @@ func emitStmt(stmt ast.Stmt) {
 		// initialization: store len(rangeexpr)
 		fmt.Printf("  # ForRange Initialization\n")
 
-		fmt.Printf("  #   assign to lenvar\n")
-		// emit len of rangeexpr
+		fmt.Printf("  #   assign length to lenvar\n")
+		// lenvar = len(s.X)
 		rngMisc, ok := mapRangeStmt[s]
 		assert(ok, "lenVar should exist")
 		// lenvar = len(s.X)
@@ -1310,13 +1310,13 @@ func emitStmt(stmt ast.Stmt) {
 		emitLen(s.X)
 		emitStore(tInt)
 
-		fmt.Printf("  #   assign to indexvar\n")
+		fmt.Printf("  #   assign 0 to indexvar\n")
 		// indexvar = 0
 		emitVariableAddr(rngMisc.indexvar)
 		emitZeroValue(tInt)
 		emitStore(tInt)
 
-		// init key variable
+		// init key variable with 0
 		if s.Key != nil {
 			keyIdent, ok := s.Key.(*ast.Ident)
 			assert(ok, "key expr should be an ident")
@@ -1368,7 +1368,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitAddConst(1, "indexvar value ++")
 		emitStore(tInt)
 
-		// init key variable
+		// incr key variable
 		if s.Key != nil {
 			keyIdent, ok := s.Key.(*ast.Ident)
 			assert(ok, "key expr should be an ident")

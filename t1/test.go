@@ -1135,6 +1135,7 @@ func test() {
 	testSwitchString()
 	testSwitchByte()
 	testSwitchInt()
+
 	testLogicalAndOr()
 	testConst()
 	testForOmissible()

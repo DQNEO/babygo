@@ -3104,19 +3104,28 @@ func emitStmt(stmt *astStmt) {
 		// initialization: store len(rangeexpr)
 		fmtPrintf("  # ForRange Initialization\n")
 
-		fmtPrintf("  #   assign to lenvar\n")
-
-		// emit len of rangeexpr
+		fmtPrintf("  #   assign length to lenvar\n")
 		// lenvar = len(s.X)
 		emitVariableAddr(stmt.rangeStmt.lenvar)
 		emitLen(stmt.rangeStmt.X)
 		emitStore(tInt)
 
-		fmtPrintf("  #   assign to indexvar\n")
+		fmtPrintf("  #   assign 0 to indexvar\n")
 		// indexvar = 0
 		emitVariableAddr(stmt.rangeStmt.indexvar)
 		emitZeroValue(tInt)
 		emitStore(tInt)
+
+		// init key variable with 0
+		if stmt.rangeStmt.Key != nil {
+			assert(stmt.rangeStmt.Key.dtype == "*astIdent", "key expr should be an ident", __func__)
+			var keyIdent = stmt.rangeStmt.Key.ident
+			if keyIdent.Name != "_" {
+				emitAddr(stmt.rangeStmt.Key) // lhs
+				emitZeroValue(tInt)
+				emitStore(tInt)
+			}
+		}
 
 		// Condition
 		// if (indexvar < lenvar) then
@@ -3158,6 +3167,17 @@ func emitStmt(stmt *astStmt) {
 		emitLoad(tInt)
 		emitAddConst(1, "indexvar value ++")
 		emitStore(tInt)
+
+		if stmt.rangeStmt.Key != nil {
+			assert(stmt.rangeStmt.Key.dtype == "*astIdent", "key expr should be an ident", __func__)
+			var keyIdent = stmt.rangeStmt.Key.ident
+			if keyIdent.Name != "_" {
+				emitAddr(stmt.rangeStmt.Key) // lhs
+				emitVariableAddr(stmt.rangeStmt.indexvar) // rhs
+				emitLoad(tInt)
+				emitStore(tInt)
+			}
+		}
 
 		fmtPrintf("  jmp %s\n", labelCond)
 
