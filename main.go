@@ -724,7 +724,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		case "syscall.Open":
 			// func decl is in runtime
 			emitCallNonDecl(symbol, eArgs)
-			fmt.Printf("  pushq %%rax # fd\n")
+			fmtPrintf("  pushq %%rax # fd\n")
 			return
 		case "syscall.Read":
 			// func decl is in runtime

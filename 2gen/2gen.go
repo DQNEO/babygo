@@ -2638,6 +2638,14 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			emitCallNonDecl(symbol, eArgs)
 		case "syscall.Write":
 			emitCallNonDecl(symbol, eArgs)
+		case "syscall.Open":
+			// func decl is in runtime
+			emitCallNonDecl(symbol, eArgs)
+			fmtPrintf("  pushq %%rax # fd\n")
+		case "syscall.Read":
+			// func decl is in runtime
+			emitCallNonDecl(symbol, eArgs)
+			fmtPrintf("  pushq %%rax # fd\n")
 		case "syscall.Syscall":
 			fmtPrintf("   # calling syscall.Syscall\n")
 			emitCallNonDecl(symbol, eArgs)
@@ -3550,8 +3558,12 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			switch expr.ident.Obj {
 			case gTrue, gFalse:
 				return tBool
+			}
+			switch expr.ident.Obj.Decl.dtype {
+			case "*astValueSpec":
+				return e2t(expr.ident.Obj.Decl.valueSpec.Type)
 			default:
-				panic2(__func__, "1:Obj.Name=" + expr.ident.Obj.Name)
+				panic2(__func__, "cannot decide type of cont =" + expr.ident.Obj.Name)
 			}
 		default:
 			panic2(__func__, "2:Obj.Kind=" + expr.ident.Obj.Kind)

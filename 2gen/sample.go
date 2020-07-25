@@ -46,6 +46,19 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+const O_READONLY_ int = 0
+
+func testOpenRead() {
+	var fd int
+	fd , _ = syscall.Open("t1/text.txt", O_READONLY_, 0)
+	writeln(itoa(fd)) // should be 3
+	var buf []uint8 = make([]uint8, 300, 300)
+	var n int
+	n, _ = syscall.Read(fd, buf)
+	writeln(itoa(n)) // should be 280
+	var readbytes []uint8 = buf[0:n]
+	writeln(string(readbytes))
+}
 
 func testInfer() {
 	var s = "infer string literal"
@@ -1082,6 +1095,7 @@ func testMisc() {
 }
 
 func test() {
+	testOpenRead()
 	testInfer()
 	testEscapedChar()
 	testSwitchString()
