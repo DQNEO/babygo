@@ -1413,6 +1413,7 @@ func emitStmt(stmt ast.Stmt) {
 		cases := s.Body.List
 		var labels []string = make([]string, len(cases))
 		var defaultLabel string
+		fmtPrintf("  # Start comparison with cases\n")
 		for i, c := range cases {
 			cc, ok := c.(*ast.CaseClause)
 			assert(ok, "should be *ast.CaseClause")
@@ -1432,8 +1433,8 @@ func emitStmt(stmt ast.Stmt) {
 				fmt.Printf("  cmpq $1, %%rax\n")
 				fmt.Printf("  je %s # jump if match\n", labelCase)
 			}
-
 		}
+		fmtPrintf("  # End comparison with cases\n")
 
 		// if no case matches, then jump to
 		if defaultLabel != "" {
@@ -1455,9 +1456,6 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  jmp %s\n", labelEnd)
 		}
 		fmt.Printf("%s:\n", labelEnd)
-		/*
-			case *ast.CaseClause:
-		*/
 	case *ast.BranchStmt:
 		containerFor, ok := mapBranchToFor[s]
 		assert(ok, "map value should exist")
@@ -1475,7 +1473,7 @@ func emitStmt(stmt ast.Stmt) {
 }
 
 func emitRevertStackTop(t *Type) {
-	fmt.Printf("  addq $%d, %%rsp # revert stack top\n", getSizeOfType(t))
+	fmtPrintf("  addq $%s, %%rsp # revert stack top\n", Itoa(getSizeOfType(t)))
 }
 
 var labelid int

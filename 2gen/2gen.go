@@ -511,6 +511,8 @@ type astStmt struct {
 	isRange    bool
 	rangeStmt  *astRangeStmt
 	branchStmt *astBranchStmt
+	switchStmt *astSwitchStmt
+	caseClause *astCaseClause
 }
 
 type astDeclStmt struct {
@@ -678,6 +680,16 @@ type astRangeStmt struct {
 	indexvar *Variable
 }
 
+type astCaseClause struct {
+	List []*astExpr
+	Body []*astStmt
+}
+
+type astSwitchStmt struct {
+	Tag *astExpr
+	Body *astBlockStmt
+	// lableExit string
+}
 
 
 type astReturnStmt struct {
@@ -1472,6 +1484,7 @@ func parseRhs() *astExpr {
 	return x
 }
 
+// Extract Expr from ExprStmt. Returns nil if input is nil
 func makeExpr(s *astStmt) *astExpr {
 	fmtPrintf("# begin %s\n", __func__)
 	if s == nil {
@@ -1597,6 +1610,62 @@ func parseIfStmt() *astStmt {
 	return r
 }
 
+func parseCaseClause() *astCaseClause {
+	fmtPrintf("# [%s] start\n", __func__)
+	var list []*astExpr
+	if ptok.tok == "case" {
+		parserNext() // consume "case"
+		list = parseRhsList()
+	} else {
+		parserExpect("default", __func__)
+	}
+
+	parserExpect(":", __func__)
+	openScope()
+	var body = parseStmtList()
+	var r = new(astCaseClause)
+	r.Body = body
+	r.List = list
+	closeScope()
+	fmtPrintf("# [%s] end\n", __func__)
+	return r
+}
+
+func parseSwitchStmt() *astStmt {
+	parserExpect("switch", __func__)
+	openScope()
+
+	var s2 *astStmt
+	parserExprLev = -1
+	s2 = parseSimpleStmt(false)
+	parserExprLev = 0
+
+	parserExpect("{", __func__)
+	var list []*astStmt
+	var cc *astCaseClause
+	var ccs *astStmt
+	for ptok.tok == "case" || ptok.tok == "default" {
+		cc = parseCaseClause()
+		ccs = new(astStmt)
+		ccs.dtype = "*astCaseClause"
+		ccs.caseClause = cc
+		list = append(list, ccs)
+	}
+	parserExpect("}", __func__)
+	parserExpectSemi(__func__)
+	var body = new(astBlockStmt)
+	body.List = list
+
+	var switchStmt = new(astSwitchStmt)
+	switchStmt.Body = body
+	switchStmt.Tag = makeExpr(s2)
+	var s = new(astStmt)
+	s.dtype = "*astSwitchStmt"
+	s.switchStmt = switchStmt
+	closeScope()
+	return s
+}
+
 func parseLhsList() []*astExpr {
 	fmtPrintf("# begin %s\n", __func__)
 	var r []*astExpr
@@ -1703,6 +1772,8 @@ func parseStmt() *astStmt {
 		s = parseBranchStmt(ptok.tok)
 	case "if":
 		s = parseIfStmt()
+	case "switch":
+		s = parseSwitchStmt()
 	case "for":
 		s = parseForStmt()
 	default:
@@ -1768,10 +1839,7 @@ func parseReturnStmt() *astStmt {
 
 func parseStmtList() []*astStmt {
 	var list []*astStmt
-	for ptok.tok != "}" {
-		if ptok.tok == "EOF" {
-			panic2(__func__, "unexpected EOF\n")
-		}
+	for ptok.tok != "}" && ptok.tok != "EOF" && ptok.tok != "case" && ptok.tok != "default" {
 		var stmt = parseStmt()
 		list = append(list, stmt)
 	}
@@ -3193,6 +3261,66 @@ func emitStmt(stmt *astStmt) {
 		emitExpr(stmt.incDecStmt.X, nil)
 		emitAddConst(addValue, "rhs ++ or --")
 		emitStore(getTypeOfExpr(stmt.incDecStmt.X))
+	case "*astSwitchStmt":
+		labelid++
+		var labelEnd = fmtSprintf(".L.switch.%s.exit", []string{Itoa(labelid)})
+		if stmt.switchStmt.Tag == nil {
+			panic2(__func__, "Omitted tag is not supported yet")
+		}
+		emitExpr(stmt.switchStmt.Tag, nil)
+		var condType = getTypeOfExpr(stmt.switchStmt.Tag)
+		var cases = stmt.switchStmt.Body.List
+		fmtPrintf("  # [DEBUG] cases len=%s\n", Itoa(len(cases)))
+		var labels []string = make([]string, len(cases), len(cases))
+		var defaultLabel string
+		var i int
+		var c *astStmt
+		fmtPrintf("  # Start comparison with cases\n")
+		for i, c = range cases {
+			fmtPrintf("  # CASES idx=%s\n", Itoa(i))
+			assert(c.dtype == "*astCaseClause", "should be *astCaseClause", __func__)
+			var cc = c.caseClause
+			labelid++
+			var labelCase = ".L.case." + Itoa(labelid)
+			labels[i] = labelCase
+			if len(cc.List) == 0 { // @TODO implement slice nil comparison
+				defaultLabel = labelCase
+				continue
+			}
+			var e *astExpr
+			for _, e = range cc.List {
+				assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string", __func__)
+				emitPushStackTop(condType, "switch expr")
+				emitExpr(e, nil)
+				emitCompEq(condType)
+				emitPopBool(" of switch-case comparison")
+				fmtPrintf("  cmpq $1, %%rax\n")
+				fmtPrintf("  je %s # jump if match\n", labelCase)
+			}
+		}
+		fmtPrintf("  # End comparison with cases\n")
+
+		// if no case matches, then jump to
+		if defaultLabel != "" {
+			// default
+			fmtPrintf("  jmp %s\n", defaultLabel)
+		} else {
+			// exit
+			fmtPrintf("  jmp %s\n", labelEnd)
+		}
+
+		emitRevertStackTop(condType)
+		for i, c = range cases {
+			assert(c.dtype == "*astCaseClause", "should be *astCaseClause", __func__)
+			var cc = c.caseClause
+			fmtPrintf("%s:\n", labels[i])
+			var _s *astStmt
+			for _, _s = range cc.Body {
+				emitStmt(_s)
+			}
+			fmtPrintf("  jmp %s\n", labelEnd)
+		}
+		fmtPrintf("%s:\n", labelEnd)
 	case "*astBranchStmt":
 		var containerFor = stmt.branchStmt.currentFor
 		var labelToGo string
@@ -3230,6 +3358,10 @@ func blockStmt2Stmt(block *astBlockStmt) *astStmt {
 	stmt.dtype = "*astBlockStmt"
 	stmt.blockStmt = block
 	return stmt
+}
+
+func emitRevertStackTop(t *Type) {
+	fmtPrintf("  addq $%s, %%rsp # revert stack top\n", Itoa(getSizeOfType(t)))
 }
 
 var labelid int
@@ -3908,6 +4040,20 @@ func walkStmt(stmt *astStmt) {
 		}
 	case "*astBranchStmt":
 		stmt.branchStmt.currentFor = currentFor
+	case "*astSwitchStmt":
+		if stmt.switchStmt.Tag != nil {
+			walkExpr(stmt.switchStmt.Tag)
+		}
+		walkStmt(blockStmt2Stmt(stmt.switchStmt.Body))
+	case "*astCaseClause":
+		var e_ *astExpr
+		var s_ *astStmt
+		for _, e_ = range stmt.caseClause.List {
+			walkExpr(e_)
+		}
+		for _, s_ = range stmt.caseClause.Body {
+			walkStmt(s_)
+		}
 	default:
 		panic2(__func__, "TBI: stmt.dtype=" + stmt.dtype)
 	}
