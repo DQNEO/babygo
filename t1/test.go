@@ -1129,10 +1129,10 @@ var globalptr *int
 
 func test() {
 	testInfer()
-	testSwitchString()
 	testEscapedChar()
 	testOpenRead()
 	testVaargs()
+	testSwitchString()
 	testSwitchByte()
 	testSwitchInt()
 	testLogicalAndOr()

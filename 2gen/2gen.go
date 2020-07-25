@@ -1394,6 +1394,7 @@ func parseUnaryExpr() *astExpr {
 		r = new(astExpr)
 		r.dtype = "*astUnaryExpr"
 		r.unaryExpr = new(astUnaryExpr)
+		fmtPrintf("# [DEBUG] unary op = %s\n", tok)
 		r.unaryExpr.Op = tok
 		r.unaryExpr.X = x
 		return r
@@ -2710,6 +2711,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 		var elmType = getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
 	case "*astUnaryExpr":
+		fmtPrintf("# [DEBUG] unary op = %s\n", e.unaryExpr.Op)
 		switch e.unaryExpr.Op {
 		case "-":
 			emitExpr(e.unaryExpr.X, nil)
