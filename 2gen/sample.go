@@ -46,6 +46,60 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testSwitchString() {
+	var testVar string = "foo"
+	var caseVar string = "fo"
+
+	switch testVar {
+	case "dummy":
+		writeln("ERROR")
+	}
+
+	switch testVar {
+	case "x", caseVar + "o":
+		writeln("swithc string 1 ok")
+	case "", "y":
+		writeln("ERROR")
+	default:
+		writeln("ERROR")
+	}
+
+	switch testVar {
+	case "":
+		writeln("ERROR")
+	case "fo":
+		writeln("ERROR")
+	default:
+		writeln("switch string default ok")
+	case "fooo":
+		writeln("ERROR")
+	}
+}
+
+func testSwitchByte() {
+	var testVar uint8 = 'c'
+	var caseVar uint8 = 'a'
+	switch testVar {
+	case 'b':
+		writeln("ERROR")
+	case caseVar + 2:
+		writeln("switch uint8 ok")
+	default:
+		writeln("ERROR")
+	}
+
+	switch testVar {
+	case 0:
+		writeln("ERROR")
+	case 'b':
+		writeln("ERROR")
+	default:
+		writeln("switch default ok")
+	case 'd':
+		writeln("ERROR")
+	}
+}
+
 func testSwitchInt() {
 	var testVar int = 7
 	var caseVar int = 5
@@ -1011,6 +1065,8 @@ func testMisc() {
 }
 
 func test() {
+	testSwitchString()
+	testSwitchByte()
 	testSwitchInt()
 
 	testLogicalAndOr()
