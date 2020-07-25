@@ -1012,6 +1012,7 @@ func testMisc() {
 
 func test() {
 	testSwitchInt()
+
 	testLogicalAndOr()
 	testConst()
 	testForOmissible()
@@ -1059,6 +1060,7 @@ func test() {
 	testCmpInt()
 	testIf()
 	testElse()
+
 	testChar()
 	testMisc()
 }
