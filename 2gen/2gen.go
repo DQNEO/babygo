@@ -764,7 +764,7 @@ func scopeLookup(s *astScope, name string) *astObject {
 
 // --- parser ---
 const O_READONLY int = 0
-const FILE_SIZE int = 20000
+const FILE_SIZE int = 2000000
 
 func readFile(filename string) []uint8 {
 	var fd int
