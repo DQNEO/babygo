@@ -1250,6 +1250,18 @@ func parseOperand() *astExpr {
 		parserNext()
 		fmtPrintf("#   end %s\n", __func__)
 		return r
+	case "(":
+		parserNext() // consume "("
+		parserExprLev++
+		var x = parserRhsOrType()
+		parserExprLev--
+		parserExpect(")", __func__)
+		var p = new(astParenExpr)
+		p.X = x
+		var r = new(astExpr)
+		r.dtype = "*astParenExpr"
+		r.parenExpr = p
+		return r
 	}
 
 	var typ = tryIdentOrType()
@@ -1259,6 +1271,11 @@ func parseOperand() *astExpr {
 	fmtPrintf("#   end %s\n", __func__)
 
 	return typ
+}
+
+func parserRhsOrType() *astExpr {
+	var x = parseExpr()
+	return x
 }
 
 func parseCallExpr(fn *astExpr) *astExpr {
@@ -3731,6 +3748,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		var structType = getStructTypeOfX(expr.selectorExpr)
 		var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
 		return e2t(field.Type)
+	case "*astParenExpr":
+		return getTypeOfExpr(expr.parenExpr.X)
 	default:
 		panic2(__func__, "TBI:dtype=" +  expr.dtype)
 	}

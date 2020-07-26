@@ -45,6 +45,22 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func isLetter_(ch uint8) bool {
+	if ch == '_' {
+		return true
+	}
+	return ('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z')
+}
+
+func testIsLetter() {
+	if isLetter_('A') {
+		writeln("OK isLetter A")
+	} else {
+		writeln("ERROR isLetter")
+	}
+
+}
+
 func funcVaarg1(f string, a ...string) {
 	write(Sprintf(f, a))
 }
@@ -1128,6 +1144,7 @@ func testMisc() {
 var globalptr *int
 
 func test() {
+	testIsLetter()
 	testVaargs()
 	testOpenRead()
 	testInfer()
