@@ -1640,11 +1640,15 @@ func parseIfStmt() *astStmt {
 	var else_ *astStmt
 	if ptok.tok == "else" {
 		parserNext()
-		var elseblock = parseBlockStmt()
-		parserExpectSemi(__func__)
-		else_ = new(astStmt)
-		else_.dtype = "*astBlockStmt"
-		else_.blockStmt = elseblock
+		if ptok.tok == "if" {
+			else_ = parseIfStmt()
+		} else {
+			var elseblock = parseBlockStmt()
+			parserExpectSemi(__func__)
+			else_ = new(astStmt)
+			else_.dtype = "*astBlockStmt"
+			else_.blockStmt = elseblock
+		}
 	} else {
 		parserExpectSemi(__func__)
 	}

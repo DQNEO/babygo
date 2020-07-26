@@ -1039,6 +1039,24 @@ func testCmpInt() {
 	}
 }
 
+func testElseIf() {
+	if false {
+		writeln("ERROR")
+	} else if true {
+		writeln("ok else if")
+	} else {
+		writeln("ERROR")
+	}
+
+	if false {
+		writeln("ERROR")
+	} else if false {
+		writeln("ERROR")
+	} else {
+		writeln("ok else if else")
+	}
+}
+
 func testIf() {
 	var tr bool = true
 	var fls bool = false
@@ -1183,8 +1201,9 @@ func test() {
 	testFor()
 	testCmpUint8()
 	testCmpInt()
-	testIf()
+	testElseIf()
 	testElse()
+	testIf()
 
 	testChar()
 	testMisc()
