@@ -3174,15 +3174,13 @@ func emitStmt(stmt *astStmt) {
 			rhs = valSpec.Value
 			emitAssign(lhs, rhs)
 		}
-		/*
-		var valueSpec *astValueSpec = genDecl.Specs[0]
-		var obj *astObject = valueSpec.Name.Obj
-		var typ *astExpr = valueSpec.Type
 
-		fmtPrintf("[emitStmt] TBI declSpec:%s\n", valueSpec.Name.Name)
-		os.Exit(1)
+		//var valueSpec *astValueSpec = genDecl.Specs[0]
+		//var obj *astObject = valueSpec.Name.Obj
+		//var typ *astExpr = valueSpec.Type
+		//fmtPrintf("[emitStmt] TBI declSpec:%s\n", valueSpec.Name.Name)
+		//os.Exit(1)
 
-		 */
 	case "*astAssignStmt":
 		switch stmt.assignStmt.Tok {
 		case "=":
