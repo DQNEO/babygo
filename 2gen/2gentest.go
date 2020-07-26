@@ -45,7 +45,11 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
-func testVaargNotPassed(a int, b ...int) {
+func funcVaarg1(f string, a ...string) {
+	write(Sprintf(f, a))
+}
+
+func funcVaarg2(a int, b ...int) {
 	if b == nil {
 		write(itoa(a))
 		writeln(" nil vaargs ok")
@@ -54,21 +58,17 @@ func testVaargNotPassed(a int, b ...int) {
 	}
 }
 
-func _vaprintf(f string, a ...string) {
-	write(Sprintf(f, a))
-}
-
 func testVaargs() {
-	testVaargNotPassed(777)
-	_vaprintf("pass nil slice\n")
-	_vaprintf("%s %s %s\n", "a", "bc", "def")
+	funcVaarg1("pass nil slice\n")
+	funcVaarg1("%s %s %s\n", "a", "bc", "def")
+	funcVaarg2(777)
 }
 
 const O_READONLY_ int = 0
 
 func testOpenRead() {
 	var fd int
-	fd , _ = syscall.Open("t1/text.txt", O_READONLY_, 0)
+	fd, _ = syscall.Open("t1/text.txt", O_READONLY_, 0)
 	writeln(itoa(fd)) // should be 3
 	var buf []uint8 = make([]uint8, 300, 300)
 	var n int

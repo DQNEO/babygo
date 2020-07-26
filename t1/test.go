@@ -45,6 +45,39 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func funcVaarg1(f string, a ...string) {
+	write(Sprintf(f, a))
+}
+
+func funcVaarg2(a int, b ...int) {
+	if b == nil {
+		write(itoa(a))
+		writeln(" nil vaargs ok")
+	} else {
+		writeln("ERROR")
+	}
+}
+
+func testVaargs() {
+	funcVaarg1("pass nil slice\n")
+	funcVaarg1("%s %s %s\n", "a", "bc", "def")
+	funcVaarg2(777)
+}
+
+const O_READONLY_ int = 0
+
+func testOpenRead() {
+	var fd int
+	fd, _ = syscall.Open("t1/text.txt", O_READONLY_, 0)
+	writeln(itoa(fd)) // should be 3
+	var buf []uint8 = make([]uint8, 300, 300)
+	var n int
+	n, _ = syscall.Read(fd, buf)
+	writeln(itoa(n)) // should be 280
+	var readbytes []uint8 = buf[0:n]
+	writeln(string(readbytes))
+}
+
 func testInfer() {
 	var s = "infer string literal"
 	writeln(s)
@@ -56,95 +89,9 @@ func testInfer() {
 
 func testEscapedChar() {
 	var chars []uint8 = []uint8{'\\', '\t', '\r', '\'', '\n'}
-	write("start")
+	writeln("start")
 	write(string(chars))
 	writeln("end")
-}
-
-const O_READONLY int = 0
-
-func testOpenRead() {
-	var fd int
-	fd, _ = syscall.Open("t1/text.txt", O_READONLY, 0)
-	writeln(itoa(fd))
-	var buf []uint8 = make([]uint8, 300, 300)
-	var n int
-	n, _ = syscall.Read(fd, buf)
-	writeln(itoa(n)) // should be 280
-	var readbytes []uint8 = buf[0:n]
-	writeln(string(readbytes))
-}
-
-func testLogicalAndOr() {
-	var t bool = true
-	var f bool = false
-
-	if t && t {
-		writeln("true && true ok")
-	} else {
-		writeln("ERROR")
-	}
-	if t && f {
-		writeln("ERROR")
-	} else {
-		writeln("true && false ok")
-	}
-	if f && t {
-		writeln("ERROR")
-	} else {
-		writeln("false && true ok")
-	}
-	if f && f {
-		writeln("ERROR")
-	} else {
-		writeln("false && false ok")
-	}
-
-	if t || t {
-		writeln("true || true ok")
-	} else {
-		writeln("ERROR")
-	}
-	if t || f {
-		writeln("true || false ok")
-	} else {
-		writeln("ERROR")
-	}
-	if f || t {
-		writeln("false || true ok")
-	} else {
-		writeln("ERROR")
-	}
-	if f || f {
-		writeln("ERROR")
-	} else {
-		writeln("false || false ok")
-	}
-}
-
-func testVaargNotPassed(a int, b ...int) {
-	if b == nil {
-		write(itoa(a))
-		writeln(" nil vaargs ok")
-	} else {
-		writeln("ERROR")
-	}
-}
-
-func _vaprintf(f string, a ...string) {
-	write(Sprintf(f, a))
-}
-
-func testVaargs() {
-	testVaargNotPassed(777)
-	_vaprintf("pass nil slice\n")
-	_vaprintf("%s %s %s\n", "a", "bc", "def")
-}
-
-const MY_CONST_INT_VALUE int = 24
-
-func testConst() {
-	writeln(itoa(MY_CONST_INT_VALUE))
 }
 
 func testSwitchString() {
@@ -223,6 +170,59 @@ func testSwitchInt() {
 	case 8:
 		writeln("ERROR")
 	}
+}
+
+func testLogicalAndOr() {
+	var t bool = true
+	var f bool = false
+
+	if t && t {
+		writeln("true && true ok")
+	} else {
+		writeln("ERROR")
+	}
+	if t && f {
+		writeln("ERROR")
+	} else {
+		writeln("true && false ok")
+	}
+	if f && t {
+		writeln("ERROR")
+	} else {
+		writeln("false && true ok")
+	}
+	if f && f {
+		writeln("ERROR")
+	} else {
+		writeln("false && false ok")
+	}
+
+	if t || t {
+		writeln("true || true ok")
+	} else {
+		writeln("ERROR")
+	}
+	if t || f {
+		writeln("true || false ok")
+	} else {
+		writeln("ERROR")
+	}
+	if f || t {
+		writeln("false || true ok")
+	} else {
+		writeln("ERROR")
+	}
+	if f || f {
+		writeln("ERROR")
+	} else {
+		writeln("false || false ok")
+	}
+}
+
+const MY_CONST_INT_VALUE int = 24
+
+func testConst() {
+	writeln(itoa(MY_CONST_INT_VALUE))
 }
 
 func testStringComparison() {
