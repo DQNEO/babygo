@@ -2,16 +2,48 @@ package main
 
 import "syscall"
 
-func writeln(s string) {
-	var s2 = s + "\n"
-	write(s2)
-}
-
+// --- utils ---
 func write(s string) {
 	var slc []uint8 = []uint8(s)
 	syscall.Write(1, slc)
 }
 
+func writeln(s string) {
+	var s2 string = s + "\n"
+	write(s2)
+}
+
+func Sprintf(format string, a []string) string {
+
+	var buf []uint8
+	var inPercent bool
+	var argIndex int
+	var c uint8
+	for _, c = range []uint8(format) {
+		if inPercent {
+			if c == '%' {
+				buf = append(buf, c)
+			} else {
+				var arg string = a[argIndex]
+				argIndex++
+				var s string = arg // // p.printArg(arg, c)
+				var _c uint8
+				for _, _c = range []uint8(s) {
+					buf = append(buf, _c)
+				}
+			}
+			inPercent = false
+		} else {
+			if c == '%' {
+				inPercent = true
+			} else {
+				buf = append(buf, c)
+			}
+		}
+	}
+
+	return string(buf)
+}
 
 func testInfer() {
 	var s = "infer string literal"
@@ -365,38 +397,6 @@ func testLocalArray() {
 	write(itoa(aInt[1]))
 	write(itoa(aInt[2]))
 	write("\n")
-}
-
-func Sprintf(format string, a []string) string {
-
-	var buf []uint8
-	var inPercent bool
-	var argIndex int
-	var c uint8
-	for _, c = range []uint8(format) {
-		if inPercent {
-			if c == '%' {
-				buf = append(buf, c)
-			} else {
-				var arg string = a[argIndex]
-				argIndex++
-				var s string = arg // // p.printArg(arg, c)
-				var _c uint8
-				for _, _c = range []uint8(s) {
-					buf = append(buf, _c)
-				}
-			}
-			inPercent = false
-		} else {
-			if c == '%' {
-				inPercent = true
-			} else {
-				buf = append(buf, c)
-			}
-		}
-	}
-
-	return string(buf)
 }
 
 func testSprintf() {

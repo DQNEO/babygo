@@ -2,16 +2,15 @@ package main
 
 import "syscall"
 
-func writeln(s string) {
-	//var s2 string = s + "\n"
-	var s2 string = "\n"
-	write(s)
-	write(s2)
-}
-
+// --- utils ---
 func write(s string) {
 	var slc []uint8 = []uint8(s)
 	syscall.Write(1, slc)
+}
+
+func writeln(s string) {
+	var s2 string = s + "\n"
+	write(s2)
 }
 
 func Sprintf(format string, a []string) string {
