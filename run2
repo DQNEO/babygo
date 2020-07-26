@@ -2,7 +2,7 @@
 set -x
 make self
 echo > a.s
-./self | cat > /tmp/a.s
+./self > /tmp/a.s
 if [[ $? -ne 0 ]]; then
     echo "----- Compile Error --------"
     cp /tmp/a.s .
