@@ -2048,15 +2048,11 @@ func parserParseFile() *astFile {
 		switch ptok.tok {
 		case "var", "const":
 			var spec = parserParseValueSpec(ptok.tok )
-			fmtPrintf("# [parserParseFile] debug 1\n")
 			var genDecl = new(astGenDecl)
-			fmtPrintf("# [parserParseFile] debug 2\n")
 			genDecl.Spec = spec
-			fmtPrintf("# [parserParseFile] debug 3\n")
 			decl = new(astDecl)
 			decl.dtype = "*astGenDecl"
 			decl.genDecl = genDecl
-			fmtPrintf("# [parserParseFile] debug 9\n")
 		case "func":
 			fmtPrintf("\n\n")
 			decl = parserParseFuncDecl()
@@ -3533,12 +3529,10 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 			panic2(__func__, "Unexpected kind:" + kind)
 		}
 
-		fmtPrintf("# -- debug 8 \n")
 		var i int
 		for i = 0; i< length ; i++ {
 			fmtPrintf(zeroValue)
 		}
-		fmtPrintf("# -- debug 9 \n")
 	default:
 		panic2(__func__, "TBI:kind=" + typeKind)
 	}
