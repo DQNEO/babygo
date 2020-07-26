@@ -28,7 +28,7 @@ t1/expected.1: t1/test
 	t1/test 1> t1/expected.1
 
 # 2nd gen compiler
-2gen.s: main.go runtime.go runtime.s 2gen/2gen.go 2gen/sample.go
+2gen.s: main.go runtime.go runtime.s 2gen/2gen.go 2gen/2gentest.go
 	ln -sf ../2gen/2gen.go t/source.go
 	go run main.go > /tmp/2gen.s && cp /tmp/2gen.s 2gen.s
 
@@ -46,7 +46,7 @@ test2: self
 test3: self runtime.s
 	./self | as -o a.o runtime.s - && ld a.o
 	./a.out > /tmp/a.txt
-	go run 2gen/sample.go > /tmp/b.txt
+	go run 2gen/2gentest.go > /tmp/b.txt
 	diff /tmp/a.txt /tmp/b.txt && echo 'ok'
 
 test-all:
