@@ -1392,7 +1392,7 @@ func isLiteralType(x *astExpr) bool {
 	switch x.dtype {
 	case "*astIdent":
 	case "*astSelectorExpr":
-		panic2(__func__, "TBI:*astSelectorExpr")
+		return x.selectorExpr.X.dtype == "*astIdent"
 	case "*astArrayType":
 	case "*astStructType":
 	case "*astMapType":
