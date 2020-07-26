@@ -620,6 +620,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		if !ok {
 			throw(fn.Obj)
 		}
+
 		params := fndecl.Type.Params.List
 		var variadicArgs []ast.Expr // nil means there is no varadic in funcdecl
 		var variadicElp *ast.Ellipsis
@@ -650,8 +651,9 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		}
 
 		if variadicArgs != nil {
+			// collect args as a slice
 			sliceType := &ast.ArrayType{Elt: variadicElp.Elt}
-			slicelite := &ast.CompositeLit{
+			sliceLiteral := &ast.CompositeLit{
 				Type:       sliceType,
 				Lbrace:     0,
 				Elts:       variadicArgs,
@@ -659,7 +661,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 				Incomplete: false,
 			}
 			args = append(args, &Arg{
-				e:      slicelite,
+				e:      sliceLiteral,
 				t:      e2t(sliceType),
 				offset: 0,
 			})
@@ -668,7 +670,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			param := params[argIndex+1]
 			elp, ok := param.Type.(*ast.Ellipsis)
 			assert(ok, "compile error")
-			//variadicArgs = make([]ast.Expr, 0,0)
 			args = append(args, &Arg{
 				e:      eNil,
 				t:      e2t(elp),
@@ -2387,6 +2388,7 @@ var gNil = &ast.Object{
 }
 
 var eNil = &ast.Ident{
+	Name: "nil",
 	Obj: gNil,
 }
 

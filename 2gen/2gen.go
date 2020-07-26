@@ -584,6 +584,7 @@ type astExpr struct {
 	parenExpr    *astParenExpr
 	structType   *astStructType
 	compositeLit *astCompositeLit
+	ellipsis     *astEllipsis
 }
 
 type astObject struct {
@@ -652,6 +653,10 @@ type astParenExpr struct {
 
 type astStarExpr struct {
 	X *astExpr
+}
+
+type astEllipsis struct {
+	Elt *astExpr
 }
 
 type astCompositeLit struct {
@@ -869,13 +874,29 @@ func parserParseImportDecl() *astImportSpec {
 	return spec
 }
 
-func tryVarType() *astExpr {
+
+func tryVarType(ellipsisOK bool) *astExpr {
+	if ellipsisOK && ptok.tok == "..." {
+		parserNext() // consume "..."
+		var typ = tryIdentOrType()
+		if typ != nil {
+			parserResolve(typ)
+		} else {
+			panic2(__func__, "Syntax error")
+		}
+		var elps = new(astEllipsis)
+		elps.Elt = typ
+		var r = new(astExpr)
+		r.dtype = "*astEllipsis"
+		r.ellipsis = elps
+		return r
+	}
 	return tryIdentOrType()
 }
 
-func parseVarType() *astExpr {
+func parseVarType(ellipsisOK bool) *astExpr {
 	fmtPrintf("# [%s] begin\n", __func__)
-	var typ = tryIdentOrType()
+	var typ = tryVarType(ellipsisOK)
 	if typ == nil {
 		panic2(__func__, "nil is not expected")
 	}
@@ -928,8 +949,8 @@ func parseArrayType() *astExpr {
 
 func parseFieldDecl(scope *astScope) *astField {
 
-	var varType = parseVarType()
-	var typ = tryVarType()
+	var varType = parseVarType(false)
+	var typ = tryVarType(false)
 
 	parserExpectSemi(__func__)
 
@@ -1001,11 +1022,11 @@ func tryIdentOrType() *astExpr {
 	return _nil
 }
 
-func parseParameterList(scope *astScope) []*astField {
+func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 	fmtPrintf("# [%s] begin\n", __func__)
 	var list []*astExpr
 	for {
-		var varType = parseVarType()
+		var varType = parseVarType(ellipsisOK)
 		list = append(list, varType)
 		if ptok.tok != "," {
 			break
@@ -1019,7 +1040,7 @@ func parseParameterList(scope *astScope) []*astField {
 
 	var params []*astField
 
-	var typ = tryVarType()
+	var typ = tryVarType(ellipsisOK)
 	if typ != nil {
 			if len(list) > 1 {
 				panic2(__func__, "Ident list is not supported")
@@ -1048,7 +1069,7 @@ func parseParameterList(scope *astScope) []*astField {
 			parserNext()
 			for ptok.tok != ")" && ptok.tok != "EOF" {
 				ident = parseIdent()
-				typ = parseVarType()
+				typ = parseVarType(ellipsisOK)
 				field = new(astField)
 				field.Name = ident
 				field.Type = typ
@@ -1078,12 +1099,12 @@ func parseParameterList(scope *astScope) []*astField {
 	return params
 }
 
-func parseParameters(scope *astScope) *astFieldList {
+func parseParameters(scope *astScope, ellipsisOk bool) *astFieldList {
 	fmtPrintf("# [%s] begin\n", __func__)
 	var params []*astField
 	parserExpect("(",  __func__)
 	if ptok.tok != ")" {
-		params = parseParameterList(scope)
+		params = parseParameterList(scope, ellipsisOk)
 	}
 	parserExpect(")", __func__)
 	var afl = new(astFieldList)
@@ -1096,7 +1117,7 @@ func parserResult(scope *astScope) *astFieldList {
 	fmtPrintf("# [%s] begin\n", __func__)
 
 	if ptok.tok == "(" {
-		var r = parseParameters(scope)
+		var r = parseParameters(scope, false)
 		fmtPrintf("# [%s] end\n", __func__)
 		return r
 	}
@@ -1119,7 +1140,7 @@ func parseSignature(scope *astScope) *signature {
 	fmtPrintf("# [%s] begin\n", __func__)
 	var params *astFieldList
 	var results *astFieldList
-	params = parseParameters(scope)
+	params = parseParameters(scope, true)
 	results = parserResult(scope)
 	var sig = new(signature)
 	sig.params = params
@@ -2463,7 +2484,7 @@ func emitCall(symbol string, args []*Arg) {
 func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 	switch fun.dtype {
 	case "*astIdent":
-		fmtPrintf("# [%s][*astCallExpr][*astIdent]\n", __func__)
+		fmtPrintf("# [%s][*astIdent]\n", __func__)
 		var fnIdent = fun.ident
 		switch fnIdent.Obj {
 		case gLen:
@@ -2567,7 +2588,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		}
 		// general function call
 		var symbol = pkgName + "." + fn.Name
-		fmtPrintf("# [%s][*astCallExpr][default] start\n", __func__)
+		fmtPrintf("# [%s][*astIdent][default] start\n", __func__)
 
 		var obj = fn.Obj
 		var decl = obj.Decl
@@ -2586,15 +2607,27 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		}
 
 		var params = fndecl.Sig.params.List
-
+		var variadicArgs []*astExpr
+		var variadicElp *astEllipsis
 		var args []*Arg
-		var argIndex int
 		var eArg *astExpr
 		var param *astField
+		var argIndex int
 		var arg *Arg
+		var lenParams = len(params)
 		for argIndex , eArg = range eArgs {
-			eArg = eArgs[argIndex]
-			param = params[argIndex]
+			fmtPrintf("# [%s][*astIdent][default] loop idx %s, len params %s\n", __func__, Itoa(argIndex), Itoa(lenParams))
+			if argIndex < lenParams {
+				param = params[argIndex]
+				if param.Type.dtype == "*astEllipsis" {
+					variadicElp = param.Type.ellipsis
+					variadicArgs = make([]*astExpr, 0, 20)
+				}
+			}
+			if variadicElp != nil {
+				variadicArgs = append(variadicArgs, eArg)
+				continue
+			}
 
 			var paramType = e2t(param.Type)
 			arg = new(Arg)
@@ -2602,6 +2635,42 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			arg.t = paramType
 			args = append(args, arg)
 		}
+
+		if variadicElp != nil {
+			// collect args as a slice
+			var sliceType = new(astArrayType)
+			sliceType.Elt =  variadicElp.Elt
+			var eSliceType = new(astExpr)
+			eSliceType.dtype = "*astArrayType"
+			eSliceType.arrayType = sliceType
+			var sliceLiteral = new(astCompositeLit)
+			sliceLiteral.Type = eSliceType
+			sliceLiteral.Elts = variadicArgs
+			var eSliceLiteral = new(astExpr)
+			eSliceLiteral.compositeLit = sliceLiteral
+			eSliceLiteral.dtype = "*astCompositeLit"
+			var _arg = new(Arg)
+			_arg.e = eSliceLiteral
+			_arg.t = e2t(eSliceType)
+			args = append(args, _arg)
+		} else if len(args) < len(params) {
+			// Add nil as a variadic arg
+			fmtPrintf("# len(args)=%s, len(params)=%s\n", Itoa(len(args)), Itoa(len(params)))
+			var param = params[len(args)]
+			if param == nil {
+				panic2(__func__, "param should not be nil")
+			}
+			if param.Type == nil {
+				panic2(__func__, "param.Type should not be nil")
+			}
+			assert(param.Type.dtype == "*astEllipsis", "internal error", __func__)
+
+			var _arg = new(Arg)
+			_arg.e = eNil
+			_arg.t = e2t(param.Type)
+			args = append(args, _arg)
+		}
+
 		emitCall(symbol, args)
 
 		// push results
@@ -2664,9 +2733,9 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			panic2(__func__, "[*astSelectorExpr] Unsupported call to " + symbol)
 		}
 	case "*astParenExpr":
-		panic2(__func__, "[emitExpr][*astCallExpr][*astParenExpr] TBI ")
+		panic2(__func__, "[astParenExpr] TBI ")
 	default:
-		panic2(__func__, "[emitExpr][*astCallExpr] TBI fun.dtype=" + fun.dtype)
+		panic2(__func__, "TBI fun.dtype=" + fun.dtype)
 	}
 }
 
@@ -3726,6 +3795,8 @@ func kind(t *Type) string {
 		}
 	case "*astStarExpr":
 		return T_POINTER
+	case "*astEllipsis": // x ...T
+		return T_SLICE // @TODO is this right ?
 	default:
 		panic2(__func__, "Unkown dtype:" + t.e.dtype)
 	}
@@ -4205,6 +4276,8 @@ func walk(file *astFile) string {
 
 // --- universe ---
 var gNil *astObject
+var identNil *astIdent
+var eNil *astExpr
 var gTrue *astObject
 var gFalse *astObject
 var gString *astObject
@@ -4294,6 +4367,13 @@ func initGlobals() {
 	gNil  = new(astObject)
 	gNil.Kind = "Con" // is it Con ?
 	gNil.Name = "nil"
+
+	identNil = new(astIdent)
+	identNil.Obj = gNil
+	identNil.Name = "nil"
+	eNil = new(astExpr)
+	eNil.dtype = "*astIdent"
+	eNil.ident = identNil
 
 	gTrue = new(astObject)
 	gTrue.Kind = "Con"

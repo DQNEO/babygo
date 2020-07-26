@@ -46,6 +46,25 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+func testVaargNotPassed(a int, b ...int) {
+	if b == nil {
+		write(itoa(a))
+		writeln(" nil vaargs ok")
+	} else {
+		writeln("ERROR")
+	}
+}
+
+func _vaprintf(f string, a ...string) {
+	write(Sprintf(f, a))
+}
+
+func testVaargs() {
+	testVaargNotPassed(777)
+	_vaprintf("pass nil slice\n")
+	_vaprintf("%s %s %s\n", "a", "bc", "def")
+}
+
 const O_READONLY_ int = 0
 
 func testOpenRead() {
@@ -1095,6 +1114,7 @@ func testMisc() {
 }
 
 func test() {
+	testVaargs()
 	testOpenRead()
 	testInfer()
 	testEscapedChar()
