@@ -181,7 +181,15 @@ func scannerScanNumber() string {
 func scannerScanString() string {
 	//fmtPrintf("begin: scannerScanString\n")
 	var offset = scannerOffset - 1
-	for scannerCh != '"' {
+	var escaped bool
+	for !escaped && scannerCh != '"' {
+		if scannerCh == '\\' {
+			escaped = true
+			scannerNext()
+			scannerNext()
+			escaped = false
+			continue
+		}
 		scannerNext()
 	}
 	scannerNext() // consume ending '""
