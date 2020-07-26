@@ -2566,6 +2566,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			fn.Name = "makeSlice"
 		}
 		// general function call
+		var symbol = pkgName + "." + fn.Name
 		fmtPrintf("# [%s][*astCallExpr][default] start\n", __func__)
 
 		var obj = fn.Obj
@@ -2586,17 +2587,20 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 
 		var params = fndecl.Sig.params.List
 
-		var symbol = pkgName + "." + fn.Name
 		var args []*Arg
-		var _arg *Arg
-		var i int
-		for i=0;i<len(eArgs);i++ {
-			var param = params[i]
+		var argIndex int
+		var eArg *astExpr
+		var param *astField
+		var arg *Arg
+		for argIndex , eArg = range eArgs {
+			eArg = eArgs[argIndex]
+			param = params[argIndex]
+
 			var paramType = e2t(param.Type)
-			_arg = new(Arg)
-			_arg.e = eArgs[i]
-			_arg.t = paramType
-			args = append(args, _arg)
+			arg = new(Arg)
+			arg.e = eArg
+			arg.t = paramType
+			args = append(args, arg)
 		}
 		emitCall(symbol, args)
 

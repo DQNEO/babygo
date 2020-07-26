@@ -614,6 +614,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			fn.Name = "makeSlice"
 		}
 		// general function call
+		symbol := pkgName + "." + fn.Name
 		obj := fn.Obj //.Kind == FN
 		fndecl, ok := obj.Decl.(*ast.FuncDecl)
 		if !ok {
@@ -675,7 +676,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			})
 		}
 
-		symbol := pkgName + "." + fn.Name
 		emitCall(symbol, args)
 
 		// push results
