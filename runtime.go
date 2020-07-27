@@ -7,7 +7,7 @@ import (
 )
 
 const SYS_BRK int = 12
-const heapSize uintptr = 160205360
+const heapSize uintptr = 320205360
 
 var heapHead uintptr
 var heapCurrent uintptr
