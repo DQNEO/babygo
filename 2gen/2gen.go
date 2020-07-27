@@ -3508,6 +3508,8 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 	case T_STRING:
 		fmtPrintf("  .quad 0\n")
 		fmtPrintf("  .quad 0\n")
+	case T_POINTER:
+		fmtPrintf("  .quad 0 # pointer \n") // @TODO
 	case T_UINTPTR:
 		fmtPrintf("  .quad 0\n")
 	case T_BOOL:

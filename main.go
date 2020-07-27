@@ -1514,7 +1514,7 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 			panic("Unexpected case")
 		}
 	case T_POINTER:
-		fmt.Printf("  .quad 0 # pointer \n") // @TODO
+		fmtPrintf("  .quad 0 # pointer \n") // @TODO
 	case T_UINTPTR:
 		switch vl := val.(type) {
 		case *ast.BasicLit:
