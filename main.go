@@ -1211,7 +1211,7 @@ func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 }
 
 func emitStmt(stmt ast.Stmt) {
-	fmtPrintf("  \n")
+	emitComment(2, "\n")
 	emitComment(2, "== Stmt %T ==\n", stmt)
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
@@ -2625,12 +2625,13 @@ var pkgName string
 func main() {
 	initGlobals()
 
-	var sourceFiles = []string{"./runtime.go", "./t/source.go"}
+	var sourceFiles = []string{"runtime.go", "./t/source.go"}
 	var sourceFile string
 
 	var universe = createUniverse()
 
 	for _, sourceFile = range sourceFiles {
+		fmtPrintf("# file: %s\n", sourceFile)
 		globalVars = nil
 		globalFuncs = nil
 		stringIndex = 0

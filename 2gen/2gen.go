@@ -3219,7 +3219,7 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 }
 
 func emitStmt(stmt *astStmt) {
-	fmtPrintf("  \n")
+	emitComment(2, "\n")
 	emitComment(2, "== Stmt %s ==\n", stmt.dtype)
 	switch stmt.dtype {
 	case "*astBlockStmt":
@@ -4592,6 +4592,7 @@ func main() {
 	var universe = createUniverse()
 
 	for _, sourceFile = range sourceFiles {
+		fmtPrintf("# file: %s\n", sourceFile)
 		globalVars = nil
 		globalFuncs = nil
 		stringIndex = 0
