@@ -2938,6 +2938,8 @@ func emitExpr(e *astExpr, forceType *Type) {
 	case "*astUnaryExpr":
 		emitComment(0, "[DEBUG] unary op = %s\n", e.unaryExpr.Op)
 		switch e.unaryExpr.Op {
+		case "+":
+			emitExpr(e.unaryExpr.X, nil)
 		case "-":
 			emitExpr(e.unaryExpr.X, nil)
 			fmtPrintf("  popq %%rax # e.X\n")

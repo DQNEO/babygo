@@ -932,6 +932,8 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		}
 	case *ast.UnaryExpr:
 		switch e.Op.String() {
+		case "+":
+			emitExpr(e.X, nil)
 		case "-":
 			emitExpr(e.X, nil)
 			fmtPrintf("  popq %%rax # e.X\n")
@@ -943,7 +945,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			emitExpr(e.X, nil)
 			emitInvertBoolValue()
 		default:
-			throw(e)
+			throw(e.Op.String())
 		}
 	case *ast.BinaryExpr:
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
