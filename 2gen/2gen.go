@@ -2853,7 +2853,8 @@ func emitExpr(e *astExpr, forceType *Type) {
 //		fmtPrintf("# basicLit.Kind = %s \n", e.basicLit.Kind)
 		switch e.basicLit.Kind {
 		case "INT":
-			fmtPrintf("  pushq $%s # \n", e.basicLit.Value)
+			var ival = Atoi(e.basicLit.Value)
+			fmtPrintf("  pushq $%d # number literal\n", Itoa(ival))
 		case "STRING":
 			var sl = getStringLiteral(e.basicLit)
 			if sl.strlen == 0 {

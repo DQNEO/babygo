@@ -879,7 +879,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			fmtPrintf("  pushq $%d # convert char literal to int\n", Itoa(int(char)))
 		case "INT":
 			ival := Atoi(e.Value)
-			fmt.Printf("  pushq $%d # number literal\n", ival)
+			fmtPrintf("  pushq $%d # number literal\n", Itoa(ival))
 		case "STRING":
 			// e.Value == ".S%d:%d"
 			sl := getStringLiteral(e)
@@ -1586,9 +1586,7 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 		arrayType, ok := t.e.(*ast.ArrayType)
 		assert(ok, "should be *ast.ArrayType")
 		assert(arrayType.Len != nil, "slice type is not expected")
-		basicLit, ok := arrayType.Len.(*ast.BasicLit)
-		assert(ok, "should be *ast.BasicLit")
-		length := Atoi(basicLit.Value)
+		length := evalInt(arrayType.Len)
 		var zeroValue string
 		switch kind(e2t(arrayType.Elt)) {
 		case T_INT:
