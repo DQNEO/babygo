@@ -13,6 +13,33 @@ func writeln(s string) {
 	write(s2)
 }
 
+func atoi(gs string) int {
+	if len(gs) == 0 {
+		return 0
+	}
+	var b uint8
+	var n int
+
+	var isMinus bool
+	for _, b = range []uint8(gs) {
+		if b == '.' {
+			return -999 // @FIXME all no number should return error
+		}
+		if b == '-' {
+			isMinus = true
+			continue
+		}
+		var x uint8 = b - uint8('0')
+		n = n * 10
+		n = n + int(x)
+	}
+	if isMinus {
+		n = -n
+	}
+
+	return n
+}
+
 func Sprintf(format string, a []string) string {
 
 	var buf []uint8
@@ -43,6 +70,16 @@ func Sprintf(format string, a []string) string {
 	}
 
 	return string(buf)
+}
+
+func testAtoi() {
+	writeln(itoa(atoi(""))) // "0"
+	writeln(itoa(atoi("0"))) // "0"
+	writeln(itoa(atoi("1")))
+	writeln(itoa(atoi("12")))
+	writeln(itoa(atoi("1234567890")))
+	writeln(itoa(atoi("-1234567890")))
+	writeln(itoa(atoi("-7")))
 }
 
 func isLetter_(ch uint8) bool {
@@ -1147,6 +1184,7 @@ func testMisc() {
 }
 
 func test() {
+	testAtoi()
 	testIsLetter()
 	testVaargs()
 	testOpenRead()
