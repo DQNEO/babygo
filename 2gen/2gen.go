@@ -4555,7 +4555,7 @@ var pkgName string
 func main() {
 	initGlobals()
 
-	var sourceFiles = []string{"2gen/runtime.go", "2gen/input.go"}
+	var sourceFiles = []string{"runtime.go", "2gen/input.go"}
 	var sourceFile string
 
 	var universe = createUniverse()
