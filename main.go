@@ -19,6 +19,12 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
 
+var __func__ string = "__func__"
+
+func panic2(caller string, x string) {
+	panic("[" + caller + "] " + x)
+}
+
 // --- libs ---
 func fmtSprintf(format string, a []string) string {
 	var buf []uint8
@@ -189,7 +195,7 @@ func emitPushStackTop(condType *Type, comment string) {
 		fmtPrintf("  movq (%%rsp), %%rax # copy stack top value (%s) \n", comment)
 		fmtPrintf("  pushq %%rax\n")
 	default:
-		throw(condType)
+		throw(kind(condType))
 	}
 }
 
@@ -205,48 +211,49 @@ func emitAddConst(addValue int, comment string) {
 }
 
 func emitLoad(t *Type) {
+	if t == nil {
+		panic2(__func__, "nil type error\n")
+	}
 	emitPopAddress(string(kind(t)))
 	switch kind(t) {
 	case T_SLICE:
-		fmt.Printf("  movq %d(%%rax), %%rdx\n", 16)
-		fmt.Printf("  movq %d(%%rax), %%rcx\n", 8)
-		fmt.Printf("  movq %d(%%rax), %%rax\n", 0)
-		fmt.Printf("  pushq %%rdx # cap\n")
-		fmt.Printf("  pushq %%rcx # len\n")
-		fmt.Printf("  pushq %%rax # ptr\n")
+		fmtPrintf("  movq %d(%%rax), %%rdx\n", Itoa(16))
+		fmtPrintf("  movq %d(%%rax), %%rcx\n", Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
+		fmtPrintf("  pushq %%rdx # cap\n")
+		fmtPrintf("  pushq %%rcx # len\n")
+		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		fmt.Printf("  movq %d(%%rax), %%rdx\n", 8)
-		fmt.Printf("  movq %d(%%rax), %%rax\n", 0)
-		fmt.Printf("  pushq %%rdx # len\n")
-		fmt.Printf("  pushq %%rax # ptr\n")
+		fmtPrintf("  movq %d(%%rax), %%rdx\n", Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
+		fmtPrintf("  pushq %%rdx # len\n")
+		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_UINT8:
-		fmt.Printf("  movzbq %d(%%rax), %%rax # load uint8\n", 0)
-		fmt.Printf("  pushq %%rax\n")
+		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", Itoa(0))
+		fmtPrintf("  pushq %%rax\n")
 	case T_UINT16:
-		fmt.Printf("  movzwq %d(%%rax), %%rax # load uint16\n", 0)
-		fmt.Printf("  pushq %%rax\n")
+		fmtPrintf("  movzwq %d(%%rax), %%rax # load uint16\n", Itoa(0))
+		fmtPrintf("  pushq %%rax\n")
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmt.Printf("  movq %d(%%rax), %%rax # load int\n", 0)
-		fmt.Printf("  pushq %%rax\n")
+		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", Itoa(0))
+		fmtPrintf("  pushq %%rax\n")
 	case T_ARRAY:
 		// pure proxy
-		fmt.Printf("  pushq %%rax\n")
+		fmtPrintf("  pushq %%rax\n")
 	default:
-		throw(t)
+		panic2(__func__, "TBI:kind=" + string(kind(t)))
 	}
 }
 
 func emitVariableAddr(variable *Variable) {
 	emitComment(2, "emit Addr of variable \"%s\" \n", variable.name)
 
-	var addr string
 	if variable.isGlobal {
-		addr = fmt.Sprintf("%s(%%rip)", variable.globalSymbol)
+		fmtPrintf("  leaq %s(%%rip), %%rax # global variable addr\n", variable.globalSymbol)
 	} else {
-		addr = fmt.Sprintf("%d(%%rbp)", variable.localOffset)
+		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable addr\n", Itoa(int(variable.localOffset)))
 	}
 
-	fmtPrintf("  leaq %s, %%rax # addr\n", addr)
 	fmtPrintf("  pushq %%rax\n")
 }
 

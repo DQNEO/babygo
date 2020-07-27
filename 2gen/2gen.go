@@ -2185,7 +2185,6 @@ func emitComment(indent int, format string, a ...string) {
 	syscall.Write(1, []uint8(s))
 }
 
-
 func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }
@@ -2232,7 +2231,7 @@ func emitAddConst(addValue int, comment string) {
 }
 
 func emitLoad(t *Type) {
-	if (t == nil) {
+	if t == nil {
 		panic2(__func__, "nil type error\n")
 	}
 	emitPopAddress(kind(t))
@@ -2269,14 +2268,12 @@ func emitLoad(t *Type) {
 func emitVariableAddr(variable *Variable) {
 	emitComment(2, "emit Addr of variable \"%s\" \n", variable.name)
 
-	var addr string
 	if variable.isGlobal {
-		addr = fmtSprintf("%s(%%rip)", []string{variable.globalSymbol})
+		fmtPrintf("  leaq %s(%%rip), %%rax # global variable addr\n", variable.globalSymbol)
 	} else {
-		addr = fmtSprintf("%d(%%rbp)", []string{Itoa(variable.localOffset)})
+		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable addr\n", Itoa(variable.localOffset))
 	}
 
-	fmtPrintf("  leaq %s, %%rax # addr\n", addr)
 	fmtPrintf("  pushq %%rax\n")
 }
 
