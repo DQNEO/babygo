@@ -63,6 +63,33 @@ func fmtPrintf(format string, a ...string) {
 	syscall.Write(1, []uint8(s))
 }
 
+func Atoi(gs string) int {
+	if len(gs) == 0 {
+		return 0
+	}
+	var b uint8
+	var n int
+
+	var isMinus bool
+	for _, b = range []uint8(gs) {
+		if b == '.' {
+			return -999 // @FIXME all no number should return error
+		}
+		if b == '-' {
+			isMinus = true
+			continue
+		}
+		var x uint8 = b - uint8('0')
+		n = n * 10
+		n = n + int(x)
+	}
+	if isMinus {
+		n = -n
+	}
+
+	return n
+}
+
 func Itoa(ival int) string {
 	if ival == 0 {
 		return "0"
@@ -3880,8 +3907,8 @@ func getElementTypeOfListType(t *Type) *Type {
 
 func evalInt(expr *astExpr) int {
 	if expr.dtype == "*astBasicLit" {
-		var v uint8 = expr.basicLit.Value[0]
-		return int(v - '0')
+		var v = expr.basicLit.Value
+		return Atoi(v)
 	}
 	return 0
 }

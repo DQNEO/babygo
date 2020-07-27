@@ -57,6 +57,33 @@ func fmtPrintf(format string, a ...string) {
 	syscall.Write(1, []uint8(s))
 }
 
+func Atoi(gs string) int {
+	if len(gs) == 0 {
+		return 0
+	}
+	var b uint8
+	var n int
+
+	var isMinus bool
+	for _, b = range []uint8(gs) {
+		if b == '.' {
+			return -999 // @FIXME all no number should return error
+		}
+		if b == '-' {
+			isMinus = true
+			continue
+		}
+		var x uint8 = b - uint8('0')
+		n = n * 10
+		n = n + int(x)
+	}
+	if isMinus {
+		n = -n
+	}
+
+	return n
+}
+
 func Itoa(ival int) string {
 	if ival == 0 {
 		return "0"
@@ -201,11 +228,7 @@ func emitVariableAddr(variable *Variable) {
 func evalInt(expr ast.Expr) int {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
-		i, err := strconv.Atoi(e.Value)
-		if err != nil {
-			panic(err)
-		}
-		return i
+		return Atoi(e.Value)
 	}
 	return 0
 }
@@ -856,8 +879,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			}
 			fmtPrintf("  pushq $%d # convert char literal to int\n", Itoa(int(char)))
 		case "INT":
-			val := e.Value
-			ival, _ := strconv.Atoi(val)
+			ival := Atoi(e.Value)
 			fmt.Printf("  pushq $%d # number literal\n", ival)
 		case "STRING":
 			// e.Value == ".S%d:%d"
@@ -1567,10 +1589,7 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 		assert(arrayType.Len != nil, "slice type is not expected")
 		basicLit, ok := arrayType.Len.(*ast.BasicLit)
 		assert(ok, "should be *ast.BasicLit")
-		length, err := strconv.Atoi(basicLit.Value)
-		if err != nil {
-			panic(err)
-		}
+		length := Atoi(basicLit.Value)
 		var zeroValue string
 		switch kind(e2t(arrayType.Elt)) {
 		case T_INT:
@@ -1972,10 +1991,7 @@ func getStructFieldOffset(field *ast.Field) int {
 		panic("Doc is nil:" + field.Names[0].Name)
 	}
 	text := field.Doc.List[0].Text
-	offset, err := strconv.Atoi(text)
-	if err != nil {
-		panic(text)
-	}
+	offset := Atoi(text)
 	return offset
 }
 
