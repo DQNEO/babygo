@@ -2288,7 +2288,7 @@ func emitListHeadAddr(list *astExpr) {
 		emitPopString()
 		fmtPrintf("  pushq %%rax # string.ptr\n")
 	default:
-		panic2(__func__, "[emitListHeadAddr] kind=" + kind(getTypeOfExpr(list)))
+		panic2(__func__, "kind=" + kind(getTypeOfExpr(list)))
 	}
 }
 

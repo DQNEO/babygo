@@ -266,20 +266,20 @@ func emitVariableAddr(variable *Variable) {
 }
 
 func emitListHeadAddr(list ast.Expr) {
-	t := getTypeOfExpr(list)
+	var t = getTypeOfExpr(list)
 	switch kind(t) {
 	case T_ARRAY:
 		emitAddr(list) // array head
 	case T_SLICE:
-		emitExpr(list, t)
+		emitExpr(list, nil)
 		emitPopSlice()
-		fmt.Printf("  pushq %%rax # slice.ptr\n")
+		fmtPrintf("  pushq %%rax # slice.ptr\n")
 	case T_STRING:
-		emitExpr(list, t)
+		emitExpr(list, nil)
 		emitPopString()
-		fmt.Printf("  pushq %%rax # string.ptr\n")
+		fmtPrintf("  pushq %%rax # string.ptr\n")
 	default:
-		panic(kind(getTypeOfExpr(list)))
+		panic2(__func__, "kind=" + string(kind(getTypeOfExpr(list))))
 	}
 }
 
