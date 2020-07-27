@@ -2504,7 +2504,7 @@ func emitTrue() {
 }
 
 func emitFalse() {
-	fmtPrintf("  pushq $0 # true\n")
+	fmtPrintf("  pushq $0 # false\n")
 }
 
 type Arg struct {
