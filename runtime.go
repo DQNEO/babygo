@@ -1,10 +1,8 @@
 // runtime
 package runtime
 
-import (
-	"syscall"
-	"unsafe"
-)
+import "syscall"
+import "unsafe"
 
 const SYS_BRK int = 12
 const heapSize uintptr = 320205360
@@ -19,15 +17,24 @@ func heapInit() {
 	heapCurrent = heapHead
 }
 
-
 func brk(addr uintptr) uintptr {
 	var ret uintptr
 	ret,_,_ = syscall.Syscall(uintptr(SYS_BRK), addr, uintptr(0), uintptr(0))
 	return ret
 }
 
-func memzeropad(addr uintptr, size uintptr) {
-	var p *uint8 = (*uint8)(unsafe.Pointer(addr))
+func panic(s string) {
+	var buf []uint8 = []uint8(s)
+	syscall.Write(2, buf)
+	var arg0 uintptr = uintptr(60) // sys exit
+	var arg1 uintptr = 1 // status
+	var arg2 uintptr = uintptr(0)
+	var arg3 uintptr = uintptr(0)
+	syscall.Syscall(arg0, arg1, arg2, arg3)
+}
+
+func memzeropad(addr1 uintptr, size uintptr) {
+	var p *uint8 = (*uint8)(unsafe.Pointer(addr1))
 	var isize int = int(size)
 	var i int
 	var up uintptr
@@ -179,23 +186,6 @@ func append24(old [][]int, elm []int) (uintptr, int, int) {
 
 	new_[oldlen] = elm
 	return uintptr(unsafe.Pointer(&new_[0])), newlen, cap(new_)
-}
-
-func panic(s string) {
-	print(s)
-	//exit(1)
-}
-
-func nop() {
-}
-
-func nop1() {
-}
-
-func nop2() {
-}
-
-func nop3() {
 }
 
 func catstrings(a string, b string) string {

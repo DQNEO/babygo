@@ -16,14 +16,9 @@ func heapInit() {
 	heapCurrent = heapHead
 }
 
-func brk(addr0 uintptr) uintptr {
-	var ret uintptr = 0
-	var arg0 uintptr = uintptr(SYS_BRK)
-	var arg1 uintptr = addr0
-	var arg2 uintptr = uintptr(0)
-	var arg3 uintptr = uintptr(0)
-	// @FIXME
-	ret, _, _ = syscall.Syscall(arg0, arg1, arg2, arg3)
+func brk(addr uintptr) uintptr {
+	var ret uintptr
+	ret,_,_ = syscall.Syscall(uintptr(SYS_BRK), addr, uintptr(0), uintptr(0))
 	return ret
 }
 
@@ -213,7 +208,7 @@ func cmpstrings(a string, b string) bool {
 		return false
 	}
 	var i int
-	for i = 0; i < len(a); i = i + 1 {
+	for i = 0; i < len(a); i++ {
 		if a[i] != b[i] {
 			return false
 		}
