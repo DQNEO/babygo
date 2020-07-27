@@ -3765,6 +3765,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		var structType = getStructTypeOfX(expr.selectorExpr)
 		var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
 		return e2t(field.Type)
+	case "*astCompositeLit":
+		return e2t(expr.compositeLit.Type)
 	case "*astParenExpr":
 		return getTypeOfExpr(expr.parenExpr.X)
 	default:
