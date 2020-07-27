@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"strconv"
 	"syscall"
 )
 
@@ -1997,7 +1996,7 @@ func getStructFieldOffset(field *ast.Field) int {
 
 func setStructFieldOffset(field *ast.Field, offset int) {
 	comment := &ast.Comment{
-		Text: strconv.Itoa(offset),
+		Text: Itoa(offset),
 	}
 	commentGroup := &ast.CommentGroup{
 		List: []*ast.Comment{comment},
