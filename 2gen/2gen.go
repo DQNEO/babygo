@@ -2185,6 +2185,14 @@ func emitComment(indent int, format string, a ...string) {
 	syscall.Write(1, []uint8(s))
 }
 
+func evalInt(expr *astExpr) int {
+	switch expr.dtype {
+	case "*astBasicLit":
+		return Atoi(expr.basicLit.Value)
+	}
+	return 0
+}
+
 func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }
@@ -3919,14 +3927,6 @@ func getElementTypeOfListType(t *Type) *Type {
 	}
 	var r *Type
 	return r
-}
-
-func evalInt(expr *astExpr) int {
-	if expr.dtype == "*astBasicLit" {
-		var v = expr.basicLit.Value
-		return Atoi(v)
-	}
-	return 0
 }
 
 func getSizeOfType(t *Type) int {

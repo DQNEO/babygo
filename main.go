@@ -165,6 +165,14 @@ func emitComment(indent int, format string, a ...interface{}) {
 	fmt.Printf(format2, a...)
 }
 
+func evalInt(expr ast.Expr) int {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		return Atoi(e.Value)
+	}
+	return 0
+}
+
 func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }
@@ -255,14 +263,6 @@ func emitVariableAddr(variable *Variable) {
 	}
 
 	fmtPrintf("  pushq %%rax\n")
-}
-
-func evalInt(expr ast.Expr) int {
-	switch e := expr.(type) {
-	case *ast.BasicLit:
-		return Atoi(e.Value)
-	}
-	return 0
 }
 
 func emitListHeadAddr(list ast.Expr) {
