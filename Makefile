@@ -39,15 +39,22 @@ self: 2gen.o
 	ld -o self 2gen.o
 
 test2: self
+	ln -sf 2gentest.go 2gen/input.go
 	./self | sed -e '/^#/d' > 2gen_out.s
 	go run 2gen/2gen.go |  sed -e '/^#/d' > /tmp/2gen_out.s
 	diff 2gen_out.s /tmp/2gen_out.s && echo 'ok'
 
-test3: self runtime.s
+test3: self 2gen/2gentest.go
+	ln -sf 2gentest.go 2gen/input.go
 	./self | as -o a.o runtime.s - && ld a.o
 	./a.out > /tmp/a.txt
 	go run 2gen/2gentest.go > /tmp/b.txt
 	diff /tmp/a.txt /tmp/b.txt && echo 'ok'
+
+test4: self
+	ln -sf 2gen.go 2gen/input.go
+	./self > /tmp/a.s && cp /tmp/a.s .
+	diff 2gen.s  /tmp/a.s >/dev/null
 
 test-all:
 	make test test2 test3

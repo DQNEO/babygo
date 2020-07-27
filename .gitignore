@@ -10,3 +10,4 @@ sample.o
 t/source.go
 /a.s
 /a.o
+/2gen/input.go
