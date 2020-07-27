@@ -4362,18 +4362,19 @@ func walk(file *astFile) string {
 				logf(" field.Name.Obj.Name=%s\n", obj.Name)
 				//logf("   field.Type=%#v\n", field.Type)
 			}
-			var stmt *astStmt
 			if funcDecl.Body != nil {
+				var stmt *astStmt
 				for _, stmt = range funcDecl.Body.List {
 					walkStmt(stmt)
 				}
+				var fnc = new(Func)
+				fnc.name = funcDecl.Name.Name
+				fnc.Body = funcDecl.Body
+				fnc.localarea = localoffset
+				fnc.argsarea = paramoffset
+				fmtPrintf("# appending to globalFuncs %s\n", fnc.name)
+				globalFuncs = append(globalFuncs, fnc)
 			}
-			var fnc = new(Func)
-			fnc.name = funcDecl.Name.Name
-			fnc.Body = funcDecl.Body
-			fnc.localarea = localoffset
-			fnc.argsarea = paramoffset
-			globalFuncs = append(globalFuncs, fnc)
 		default:
 			panic2(__func__, "TBI: " + decl.dtype)
 		}

@@ -2411,19 +2411,19 @@ func walk(f *ast.File) {
 				var varSize int = getSizeOfType(e2t(field.Type))
 				paramoffset += localoffsetint(varSize)
 			}
-			if funcDecl.Body == nil {
-				break
+			if funcDecl.Body != nil {
+				for _, stmt := range funcDecl.Body.List {
+					walkStmt(stmt)
+				}
+				fnc := &Func{
+					name:      funcDecl.Name.Name,
+					stmts:     funcDecl.Body.List,
+					localarea: localoffset,
+					argsarea:  paramoffset,
+				}
+				fmtPrintf("# appending to globalFuncs %s\n", fnc.name)
+				globalFuncs = append(globalFuncs, fnc)
 			}
-			for _, stmt := range funcDecl.Body.List {
-				walkStmt(stmt)
-			}
-			fnc := &Func{
-				name:      funcDecl.Name.Name,
-				stmts:     funcDecl.Body.List,
-				localarea: localoffset,
-				argsarea:  paramoffset,
-			}
-			globalFuncs = append(globalFuncs, fnc)
 		default:
 			throw(decl)
 		}
