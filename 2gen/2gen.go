@@ -518,6 +518,11 @@ func scannerScan() *TokenContainer {
 }
 
 // --- ast ---
+var astCon string
+var astTyp string
+var astVar string
+var astFun string
+
 type astImportSpec struct {
 	Path string
 }
@@ -1000,7 +1005,7 @@ func parseFieldDecl(scope *astScope) *astField {
 	var field = new(astField)
 	field.Type = typ
 	field.Name = varType.ident
-	declareField(field, scope, "Var", varType.ident)
+	declareField(field, scope, astVar, varType.ident)
 	parserResolve(typ)
 	return field
 }
@@ -1103,7 +1108,7 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 			field.Type = typ
 			logf(" [%s]: Field %s %s\n", __func__, field.Name.Name, field.Type.dtype)
 			params = append(params, field)
-			declareField(field, scope, "Var", ident)
+			declareField(field, scope, astVar, ident)
 			parserResolve(typ)
 			if ptok.tok != "," {
 				logf("  end %s\n", __func__)
@@ -1117,7 +1122,7 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 				field.Name = ident
 				field.Type = typ
 				params = append(params, field)
-				declareField(field, scope, "Var", ident)
+				declareField(field, scope, astVar, ident)
 				parserResolve(typ)
 				if ptok.tok != "," {
 					break
@@ -1975,7 +1980,7 @@ func parseDecl(keyword string) *astGenDecl {
 		var objDecl = new(ObjDecl)
 		objDecl.dtype = "*astValueSpec"
 		objDecl.valueSpec = valSpec
-		declare(objDecl, parserTopScope, "Var", ident)
+		declare(objDecl, parserTopScope, astVar, ident)
 		r = new(astGenDecl)
 		r.Spec = spec
 		return r
@@ -1996,7 +2001,7 @@ func parserParseTypeSpec() *astSpec {
 	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astTypeSpec"
 	objDecl.typeSpec = spec
-	declare(objDecl, parserTopScope, "Typ", ident)
+	declare(objDecl, parserTopScope, astTyp, ident)
 	var typ = parseType()
 	parserExpectSemi(__func__)
 	spec.Type = typ
@@ -2028,9 +2033,9 @@ func parserParseValueSpec(keyword string) *astSpec {
 	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astValueSpec"
 	objDecl.valueSpec = spec
-	var kind = "Con"
+	var kind = astCon
 	if keyword == "var" {
-		kind = "Var"
+		kind = astVar
 	}
 	declare(objDecl, parserTopScope, kind, ident)
 	logf(" [parserParseValueSpec] end\n")
@@ -2067,7 +2072,7 @@ func parserParseFuncDecl() *astDecl {
 	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astFuncDecl"
 	objDecl.funcDecl = funcDecl
-	declare(objDecl, parserPkgScope, "Fun", ident)
+	declare(objDecl, parserPkgScope, astFun, ident)
 	return decl
 }
 
@@ -2296,7 +2301,7 @@ func emitAddr(expr *astExpr) {
 	emitComment(2, "[emitAddr] %s\n", expr.dtype)
 	switch expr.dtype {
 	case "*astIdent":
-		if expr.ident.Obj.Kind == "Var" {
+		if expr.ident.Obj.Kind == astVar {
 			assert(expr.ident.Obj.Variable != nil,
 				"ERROR: Variable is nil for name : " + expr.ident.Obj.Name, __func__)
 			emitVariableAddr(expr.ident.Obj.Variable)
@@ -2349,7 +2354,7 @@ func isType(expr *astExpr) bool {
 		emitComment(0, "[isType][DEBUG] expr.ident.Name = %s\n", expr.ident.Name)
 		emitComment(0, "[isType][DEBUG] expr.ident.Obj = %s,%s\n",
 			expr.ident.Obj.Name, expr.ident.Obj.Kind )
-		return expr.ident.Obj.Kind == "Typ"
+		return expr.ident.Obj.Kind == astTyp
 	case "*astParenExpr":
 		return isType(expr.parenExpr.X)
 	case "*astStarExpr":
@@ -2831,11 +2836,11 @@ func emitExpr(e *astExpr, forceType *Type) {
 			return
 		}
 		switch ident.Obj.Kind {
-		case "Var":
+		case astVar:
 			emitAddr(e)
 			var t = getTypeOfExpr(e)
 			emitLoad(t)
-		case "Con":
+		case astCon:
 			var valSpec = ident.Obj.Decl.valueSpec
 			assert(valSpec != nil, "valSpec should not be nil", __func__)
 			assert(valSpec.Value != nil, "valSpec should not be nil", __func__)
@@ -2847,7 +2852,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 				t  = forceType
 			}
 			emitExpr(valSpec.Value, t)
-		case "Typ":
+		case astTyp:
 			panic2(__func__, "[*astIdent] Kind Typ should not come here")
 		default:
 			panic2(__func__, "[*astIdent] unknown Kind=" + ident.Obj.Kind + " Name=" + ident.Obj.Name)
@@ -3682,7 +3687,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	switch expr.dtype {
 	case "*astIdent":
 		switch expr.ident.Obj.Kind {
-		case "Var":
+		case astVar:
 			switch expr.ident.Obj.Decl.dtype {
 			case "*astValueSpec":
 				var decl = expr.ident.Obj.Decl.valueSpec
@@ -3697,7 +3702,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			default:
 				panic2(__func__, "ERROR 0\n")
 			}
-		case "Con":
+		case astCon:
 			switch expr.ident.Obj {
 			case gTrue, gFalse:
 				return tBool
@@ -3744,9 +3749,9 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				panic2(__func__, "[astCallExpr] nil Obj is not allowed")
 			}
 			switch fn.Obj.Kind {
-			case "Typ":
+			case astTyp:
 				return e2t(fun)
-			case "Fun":
+			case astFun:
 				switch fn.Obj {
 				case gLen, gCap:
 					return tInt
@@ -4305,7 +4310,7 @@ func walk(file *astFile) string {
 			}
 			var valSpec = genDecl.Spec.valueSpec
 			var nameIdent = valSpec.Name
-			if nameIdent.Obj.Kind == "Var" {
+			if nameIdent.Obj.Kind == astVar {
 				nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
 				globalVars = append(globalVars, valSpec)
 			}
@@ -4437,8 +4442,13 @@ func initGlobals() {
 	T_STRUCT  = "T_STRUCT"
 	T_POINTER  = "T_POINTER"
 
+	astCon = "Con"
+	astTyp = "Typ"
+	astVar = "Var"
+	astFun = "Fun"
+
 	gNil  = new(astObject)
-	gNil.Kind = "Con" // is it Con ?
+	gNil.Kind = astCon // is it Con ?
 	gNil.Name = "nil"
 
 	identNil = new(astIdent)
@@ -4449,15 +4459,15 @@ func initGlobals() {
 	eNil.ident = identNil
 
 	gTrue = new(astObject)
-	gTrue.Kind = "Con"
+	gTrue.Kind = astCon
 	gTrue.Name = "true"
 
 	gFalse = new(astObject)
-	gFalse.Kind = "Con"
+	gFalse.Kind = astCon
 	gFalse.Name = "false"
 
 	gString = new(astObject)
-	gString.Kind = "Typ"
+	gString.Kind = astTyp
 	gString.Name = "string"
 	tString = new(Type)
 	tString.e = new(astExpr)
@@ -4467,7 +4477,7 @@ func initGlobals() {
 	tString.e.ident.Obj = gString
 
 	gInt = new(astObject)
-	gInt.Kind = "Typ"
+	gInt.Kind = astTyp
 	gInt.Name = "int"
 	tInt = new(Type)
 	tInt.e = new(astExpr)
@@ -4477,7 +4487,7 @@ func initGlobals() {
 	tInt.e.ident.Obj = gInt
 
 	gUint8 = new(astObject)
-	gUint8.Kind = "Typ"
+	gUint8.Kind = astTyp
 	gUint8.Name = "uint8"
 	tUint8 = new(Type)
 	tUint8.e = new(astExpr)
@@ -4487,7 +4497,7 @@ func initGlobals() {
 	tUint8.e.ident.Obj = gUint8
 
 	gUint16 = new(astObject)
-	gUint16.Kind = "Typ"
+	gUint16.Kind = astTyp
 	gUint16.Name = "uint16"
 	tUint16 = new(Type)
 	tUint16.e = new(astExpr)
@@ -4497,7 +4507,7 @@ func initGlobals() {
 	tUint16.e.ident.Obj = gUint16
 
 	gUintptr = new(astObject)
-	gUintptr.Kind = "Typ"
+	gUintptr.Kind = astTyp
 	gUintptr.Name = "uintptr"
 	tUintptr = new(Type)
 	tUintptr.e = new(astExpr)
@@ -4507,7 +4517,7 @@ func initGlobals() {
 	tUintptr.e.ident.Obj = gUintptr
 
 	gBool = new(astObject)
-	gBool.Kind = "Typ"
+	gBool.Kind = astTyp
 	gBool.Name = "bool"
 	tBool = new(Type)
 	tBool.e = new(astExpr)
@@ -4517,23 +4527,23 @@ func initGlobals() {
 	tBool.e.ident.Obj = gBool
 
 	gNew = new(astObject)
-	gNew.Kind = "Fun"
+	gNew.Kind = astFun
 	gNew.Name = "new"
 
 	gMake = new(astObject)
-	gMake.Kind = "Fun"
+	gMake.Kind = astFun
 	gMake.Name = "make"
 
 	gAppend = new(astObject)
-	gAppend.Kind = "Fun"
+	gAppend.Kind = astFun
 	gAppend.Name = "append"
 
 	gLen = new(astObject)
-	gLen.Kind = "Fun"
+	gLen.Kind = astFun
 	gLen.Name = "len"
 
 	gCap = new(astObject)
-	gCap.Kind = "Fun"
+	gCap.Kind = astFun
 	gCap.Name = "cap"
 }
 
