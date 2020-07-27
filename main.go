@@ -340,8 +340,11 @@ func isType(expr ast.Expr) bool {
 		}
 		return e.Obj.Kind == ast.Typ
 	case *ast.ParenExpr: // We assume (T)(e) is conversion
-		return true
+		return isType(e.X)
+	case *ast.StarExpr:
+		return isType(e.X)
 	}
+	emitComment(0, "[isType][%T] is not considered a type\n", expr)
 	return false
 }
 
