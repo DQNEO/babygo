@@ -1,3 +1,4 @@
+// runtime
 package runtime
 
 import "syscall"
@@ -37,7 +38,7 @@ func memzeropad(addr1 uintptr, size uintptr) {
 	var isize int = int(size)
 	var i int
 	var up uintptr
-	for i = 0; i < isize; i = i+1 {
+	for i = 0; i < isize; i++ {
 		*p = 0
 		up = uintptr(unsafe.Pointer(p)) + 1
 		p = (*uint8)(unsafe.Pointer(up))
@@ -55,12 +56,6 @@ func memcopy(src uintptr, dst uintptr, length int) {
 	}
 }
 
-func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
-	var size uintptr = uintptr(elmSize * scap)
-	var addr2 uintptr = malloc(size)
-	return addr2, slen, scap
-}
-
 func malloc(size uintptr) uintptr {
 	if heapCurrent+size > heapTail {
 		panic("malloc exceeds heap capacity")
@@ -71,6 +66,12 @@ func malloc(size uintptr) uintptr {
 	heapCurrent = heapCurrent + size
 	memzeropad(r, size)
 	return r
+}
+
+func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
+	var size uintptr = uintptr(elmSize * scap)
+	var addr uintptr = malloc(size)
+	return addr, slen, scap
 }
 
 // Actually this is an alias to makeSlice
