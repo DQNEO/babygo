@@ -144,6 +144,21 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 }
 
 // --- codegen ---
+var debugCodeGen bool
+
+func emitComment(indent int, format string, a ...interface{}) {
+	if !debugCodeGen {
+		return
+	}
+	var spaces []uint8
+	var i int
+	for i=0;i<indent;i++ {
+		spaces = append(spaces, ' ')
+	}
+	var format2 = string(spaces) + "# " + format
+	fmt.Printf(format2, a...)
+}
+
 func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }
@@ -262,7 +277,7 @@ func emitListHeadAddr(list ast.Expr) {
 }
 
 func emitAddr(expr ast.Expr) {
-	fmt.Printf("  # [emitAddr] %T\n", expr)
+	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
 		if e.Obj == nil {
@@ -324,7 +339,7 @@ func isType(expr ast.Expr) bool {
 }
 
 func emitConversion(tp *Type, arg0 ast.Expr) {
-	fmt.Printf("  # Conversion %s <= %s\n", tp.e, getTypeOfExpr(arg0))
+	emitComment(2, "Conversion %s <= %s\n", tp.e, getTypeOfExpr(arg0))
 	switch typeExpr := tp.e.(type) {
 	case *ast.Ident:
 		ident := typeExpr
@@ -348,7 +363,7 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 			throw(typeExpr)
 		}
 		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice")
-		fmt.Printf("  # Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
+		emitComment(2, "Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
 		emitExpr(arg0, tp)
 		emitPopString()
 		fmt.Printf("  pushq %%rcx # cap\n")
@@ -720,11 +735,11 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 				retval0 := fndecl.Type.Results.List[0]
 				switch kind(e2t(retval0.Type)) {
 				case T_STRING:
-					fmt.Printf("  # fn.Obj=%#v\n", obj)
+					emitComment(2, "fn.Obj=%#v\n", obj)
 					fmt.Printf("  pushq %%rdi # str len\n")
 					fmt.Printf("  pushq %%rax # str ptr\n")
 				case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-					fmt.Printf("  # fn.Obj=%#v\n", obj)
+					emitComment(2, "fn.Obj=%#v\n", obj)
 					fmt.Printf("  pushq %%rax\n")
 				case T_SLICE:
 					fmt.Printf("  pushq %%rsi # slice cap\n")
@@ -801,7 +816,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 //   slc.cap
 //   --
 func emitExpr(expr ast.Expr, forceType *Type) {
-	fmt.Printf("  # [emitExpr] dtype=%T\n", expr)
+	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
 		switch e.Obj {
@@ -854,12 +869,12 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case *ast.SelectorExpr: // X.Sel
-		fmt.Printf("  # emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
+		emitComment(2, "emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case *ast.CallExpr:
 		var fun = e.Fun
-		fmt.Printf("  # callExpr=%#v\n", fun)
+		emitComment(2, "callExpr=%#v\n", fun)
 		// check if it's a conversion
 		if isType(fun) {
 			emitConversion(e2t(fun), e.Args[0])
@@ -993,7 +1008,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		}
 
 		var t = getTypeOfExpr(e.X)
-		fmt.Printf("  # start %T\n", e)
+		emitComment(2, "start %T\n", e)
 		emitExpr(e.X, nil) // left
 		emitExpr(e.Y, t)   // right
 		switch e.Op.String() {
@@ -1041,7 +1056,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		default:
 			panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
 		}
-		fmt.Printf("  # end %T\n", e)
+		emitComment(2, "end %T\n", e)
 	case *ast.CompositeLit:
 		// slice , array, map or struct
 		switch kind(e2t(e.Type)) {
@@ -1134,7 +1149,7 @@ func emitCompExpr(inst string) {
 }
 
 func emitStore(t *Type) {
-	fmt.Printf("  # emitStore(%s)\n", kind(t))
+	emitComment(2, "emitStore(%s)\n", kind(t))
 	switch kind(t) {
 	case T_SLICE:
 		emitPopSlice()
@@ -1185,7 +1200,7 @@ func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 
 func emitStmt(stmt ast.Stmt) {
 	fmtPrintf("  \n")
-	fmt.Printf("  # == Stmt %T ==\n", stmt)
+	emitComment(2, "== Stmt %T ==\n", stmt)
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
 		expr := s.X
@@ -1199,7 +1214,7 @@ func emitStmt(stmt ast.Stmt) {
 			case *ast.ValueSpec:
 				var valSpec = ds
 				var t = e2t(valSpec.Type)
-				fmt.Printf("  # Decl.Specs[0]: Names[0]=%#v, Type=%#v\n", ds.Names[0], t.e)
+				emitComment(2, "Decl.Specs[0]: Names[0]=%#v, Type=%#v\n", ds.Names[0], t.e)
 				lhs := valSpec.Names[0]
 				var rhs ast.Expr
 				if len(valSpec.Values) == 0 {
@@ -1269,7 +1284,7 @@ func emitStmt(stmt ast.Stmt) {
 			panic("TBI")
 		}
 	case *ast.IfStmt:
-		fmt.Printf("  # if\n")
+		emitComment(2, "if\n")
 
 		labelid++
 		labelEndif := fmt.Sprintf(".L.endif.%d", labelid)
@@ -1289,7 +1304,7 @@ func emitStmt(stmt ast.Stmt) {
 			emitStmt(s.Body) // then
 		}
 		fmt.Printf("  %s:\n", labelEndif)
-		fmt.Printf("  # end if\n")
+		emitComment(2, "end if\n")
 	case *ast.BlockStmt:
 		for _, stmt := range s.List {
 			emitStmt(stmt)
@@ -1333,9 +1348,9 @@ func emitStmt(stmt ast.Stmt) {
 		forStmt.labelPost = labelPost
 		forStmt.labelExit = labelExit
 		// initialization: store len(rangeexpr)
-		fmt.Printf("  # ForRange Initialization\n")
+		emitComment(2, "ForRange Initialization\n")
 
-		fmt.Printf("  #   assign length to lenvar\n")
+		emitComment(2, "  assign length to lenvar\n")
 		// lenvar = len(s.X)
 		rngMisc, ok := mapRangeStmt[s]
 		assert(ok, "lenVar should exist")
@@ -1344,7 +1359,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitLen(s.X)
 		emitStore(tInt)
 
-		fmt.Printf("  #   assign 0 to indexvar\n")
+		emitComment(2, "  assign 0 to indexvar\n")
 		// indexvar = 0
 		emitVariableAddr(rngMisc.indexvar)
 		emitZeroValue(tInt)
@@ -1366,7 +1381,7 @@ func emitStmt(stmt ast.Stmt) {
 		//   execute body
 		// else
 		//   exit
-		fmt.Printf("  # ForRange Condition\n")
+		emitComment(2, "ForRange Condition\n")
 		fmt.Printf("  %s:\n", labelCond)
 
 		emitVariableAddr(rngMisc.indexvar)
@@ -1378,7 +1393,7 @@ func emitStmt(stmt ast.Stmt) {
 		fmt.Printf("  cmpq $1, %%rax\n")
 		fmt.Printf("  jne %s # jmp if false\n", labelExit)
 
-		fmt.Printf("  # assign list[indexvar] value variables\n")
+		emitComment(2, "assign list[indexvar] value variables\n")
 		elemType := getTypeOfExpr(s.Value)
 		emitAddr(s.Value) // lhs
 
@@ -1390,11 +1405,11 @@ func emitStmt(stmt ast.Stmt) {
 		emitStore(elemType)
 
 		// Body
-		fmt.Printf("  # ForRange Body\n")
+		emitComment(2, "ForRange Body\n")
 		emitStmt(s.Body)
 
 		// Post statement: Increment indexvar and go next
-		fmt.Printf("  # ForRange Post statement\n")
+		emitComment(2, "ForRange Post statement\n")
 		fmt.Printf("  %s:\n", labelPost)   // used for "continue"
 		emitVariableAddr(rngMisc.indexvar) // lhs
 		emitVariableAddr(rngMisc.indexvar) // rhs
@@ -1621,12 +1636,12 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 func emitData(pkgName string) {
 	fmt.Printf(".data\n")
 	for _, con := range stringLiterals {
-		fmt.Printf("# string literals\n")
+		emitComment(0, "string literals\n")
 		fmt.Printf("%s:\n", con.sl.label)
 		fmt.Printf("  .string %s\n", con.sl.value)
 	}
 
-	fmt.Printf("# ===== Global Variables =====\n")
+	emitComment(0, "===== Global Variables =====\n")
 	for _, spec := range globalVars {
 		var val ast.Expr
 		if len(spec.Values) > 0 {
@@ -1638,7 +1653,7 @@ func emitData(pkgName string) {
 		}
 		emitGlobalVariable(spec.Names[0], t, val)
 	}
-	fmt.Printf("# ==============================\n")
+	emitComment(0, "==============================\n")
 }
 
 func emitText(pkgName string) {
@@ -1840,7 +1855,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		}
 		return e2t(ptrType.X)
 	case *ast.SelectorExpr:
-		fmt.Printf("  # getTypeOfExpr(%s.%s)\n", e.X, e.Sel)
+		emitComment(2, "getTypeOfExpr(%s.%s)\n", e.X, e.Sel)
 		structType := getStructTypeOfX(e)
 		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		return e2t(field.Type)
@@ -2356,7 +2371,7 @@ func walk(f *ast.File) {
 			case *ast.ValueSpec:
 				valSpec := spc
 				//println(fmt.Sprintf("spec=%s", dcl.Tok))
-				//fmt.Printf("# valSpec.type=%#v\n", valSpec.Type)
+				//emitComment(0, "valSpec.type=%#v\n", valSpec.Type)
 				nameIdent := valSpec.Names[0]
 				nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
 				globalVars = append(globalVars, valSpec)

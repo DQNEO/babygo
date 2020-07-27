@@ -2169,6 +2169,7 @@ func parseFile(filename string) *astFile {
 
 // --- codegen ---
 var debugCodeGen bool
+
 func emitComment(indent int, format string, a ...string) {
 	if !debugCodeGen {
 		return
