@@ -3533,8 +3533,8 @@ var labelid int
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	var localarea = fnc.localarea
 	fmtPrintf("\n")
-	var fname = fnc.name
-	fmtPrintf(pkgPrefix + "." + fname + ":\n")
+	fmtPrintf("%s.%s: # args %d, locals %d\n",
+		pkgPrefix, fnc.name, Itoa(fnc.argsarea), Itoa(fnc.localarea))
 
 	fmtPrintf("  pushq %%rbp\n")
 	fmtPrintf("  movq %%rsp, %%rbp\n")
@@ -4346,6 +4346,7 @@ func walk(file *astFile) string {
 			fnc.name = funcDecl.Name.Name
 			fnc.Body = funcDecl.Body
 			fnc.localarea = localoffset
+			fnc.argsarea = paramoffset
 			globalFuncs = append(globalFuncs, fnc)
 		default:
 			panic2(__func__, "TBI: " + decl.dtype)

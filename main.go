@@ -1528,9 +1528,9 @@ var labelid int
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	var localarea int = int(fnc.localarea)
-	fmt.Printf("\n")
-	fmt.Printf("%s.%s: # args %d, locals %d\n",
-		pkgPrefix, fnc.name, fnc.argsarea, fnc.localarea)
+	fmtPrintf("\n")
+	fmtPrintf("%s.%s: # args %d, locals %d\n",
+		pkgPrefix, fnc.name, Itoa(int(fnc.argsarea)), Itoa(int(fnc.localarea)))
 
 	fmtPrintf("  pushq %%rbp\n")
 	fmtPrintf("  movq %%rsp, %%rbp\n")
