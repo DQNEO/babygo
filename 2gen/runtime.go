@@ -10,13 +10,10 @@ var heapHead uintptr
 var heapCurrent uintptr
 var heapTail uintptr
 
-var s string
-
 func heapInit() {
 	heapHead = brk(0)
 	heapTail = brk(heapHead + heapSize)
 	heapCurrent = heapHead
-	s = "runtime"
 }
 
 func brk(addr0 uintptr) uintptr {
