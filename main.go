@@ -489,20 +489,20 @@ type Arg struct {
 func emitArgs(args []*Arg) int {
 	var totalPushedSize int
 	for _, arg := range args {
-		arg.offset = totalPushedSize
 		var t *Type
 		if arg.t != nil {
 			t = arg.t
 		} else {
 			t = getTypeOfExpr(arg.e)
 		}
+		arg.offset = totalPushedSize
 		totalPushedSize += getPushSizeOfType(t)
 	}
-	fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
+	fmtPrintf("  subq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
 	for _, arg := range args {
 		emitExpr(arg.e, arg.t)
 	}
-	fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
+	fmtPrintf("  addq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
 
 	for _, arg := range args {
 		var t *Type
@@ -513,20 +513,20 @@ func emitArgs(args []*Arg) int {
 		}
 		switch kind(t) {
 		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
-			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
-			fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", arg.offset)
+			fmtPrintf("  movq %d-8(%%rsp) , %%rax # load\n", Itoa(-arg.offset))
+			fmtPrintf("  movq %%rax, %d(%%rsp) # store\n", Itoa(+arg.offset))
 		case T_STRING:
-			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -arg.offset)
-			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -arg.offset)
-			fmt.Printf("  movq %%rax, %d(%%rsp)\n", arg.offset)
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", arg.offset)
+			fmtPrintf("  movq %d-16(%%rsp), %%rax\n", Itoa(-arg.offset))
+			fmtPrintf("  movq %d-8(%%rsp), %%rcx\n", Itoa(-arg.offset))
+			fmtPrintf("  movq %%rax, %d(%%rsp)\n", Itoa(+arg.offset))
+			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", Itoa(+arg.offset))
 		case T_SLICE:
-			fmt.Printf("  movq %d-24(%%rsp), %%rax\n", -arg.offset) // arg1: slc.ptr
-			fmt.Printf("  movq %d-16(%%rsp), %%rcx\n", -arg.offset) // arg1: slc.len
-			fmt.Printf("  movq %d-8(%%rsp), %%rdx\n", -arg.offset)  // arg1: slc.cap
-			fmt.Printf("  movq %%rax, %d+0(%%rsp)\n", +arg.offset)  // arg1: slc.ptr
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", +arg.offset)  // arg1: slc.len
-			fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", +arg.offset) // arg1: slc.cap
+			fmtPrintf("  movq %d-24(%%rsp), %%rax\n", Itoa(-arg.offset)) // arg1: slc.ptr
+			fmtPrintf("  movq %d-16(%%rsp), %%rcx\n", Itoa(-arg.offset)) // arg1: slc.len
+			fmtPrintf("  movq %d-8(%%rsp), %%rdx\n", Itoa(-arg.offset))  // arg1: slc.cap
+			fmtPrintf("  movq %%rax, %d+0(%%rsp)\n", Itoa(+arg.offset))  // arg1: slc.ptr
+			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", Itoa(+arg.offset))  // arg1: slc.len
+			fmtPrintf("  movq %%rdx, %d+16(%%rsp)\n", Itoa(+arg.offset)) // arg1: slc.cap
 		default:
 			throw(kind(t))
 		}

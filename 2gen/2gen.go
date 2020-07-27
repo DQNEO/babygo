@@ -2514,21 +2514,53 @@ type Arg struct {
 }
 
 func emitArgs(args []*Arg) int {
-	var totalPushedSize int = 0
+	var totalPushedSize int
 	//var arg *astExpr
-	var i int
-	for i=len(args)-1;i>=0;i-- {
-		var arg = args[i]
+	var arg *Arg
+	for _, arg = range args {
 		var t *Type
 		if arg.t != nil {
 			t = arg.t
 		} else {
 			t = getTypeOfExpr(arg.e)
 		}
-		var size = getPushSizeOfType(t)
-		totalPushedSize = totalPushedSize + size
-		emitExpr(arg.e, t)
+		arg.offset = totalPushedSize
+		totalPushedSize = totalPushedSize + getPushSizeOfType(t)
 	}
+	fmtPrintf("  subq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
+	for _, arg = range args {
+		emitExpr(arg.e, arg.t)
+	}
+	fmtPrintf("  addq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
+
+	for _, arg = range args {
+		var t *Type
+		if arg.t != nil {
+			t = arg.t
+		} else {
+			t = getTypeOfExpr(arg.e)
+		}
+		switch kind(t) {
+		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
+			fmtPrintf("  movq %d-8(%%rsp) , %%rax # load\n", Itoa(-arg.offset))
+			fmtPrintf("  movq %%rax, %d(%%rsp) # store\n", Itoa(+arg.offset))
+		case T_STRING:
+			fmtPrintf("  movq %d-16(%%rsp), %%rax\n", Itoa(-arg.offset))
+			fmtPrintf("  movq %d-8(%%rsp), %%rcx\n", Itoa(-arg.offset))
+			fmtPrintf("  movq %%rax, %d(%%rsp)\n", Itoa(+arg.offset))
+			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", Itoa(+arg.offset))
+		case T_SLICE:
+			fmtPrintf("  movq %d-24(%%rsp), %%rax\n", Itoa(-arg.offset)) // arg1: slc.ptr
+			fmtPrintf("  movq %d-16(%%rsp), %%rcx\n", Itoa(-arg.offset)) // arg1: slc.len
+			fmtPrintf("  movq %d-8(%%rsp), %%rdx\n", Itoa(-arg.offset))  // arg1: slc.cap
+			fmtPrintf("  movq %%rax, %d+0(%%rsp)\n", Itoa(+arg.offset))  // arg1: slc.ptr
+			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", Itoa(+arg.offset))  // arg1: slc.len
+			fmtPrintf("  movq %%rdx, %d+16(%%rsp)\n", Itoa(+arg.offset)) // arg1: slc.cap
+		default:
+			throw(kind(t))
+		}
+	}
+
 	return totalPushedSize
 }
 
