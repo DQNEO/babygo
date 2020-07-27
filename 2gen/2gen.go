@@ -3552,7 +3552,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 
 func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 	var typeKind = kind(t)
-	fmtPrintf("%s: # T %s \n", name.Name, typeKind)
+	fmtPrintf("%s: # T %s\n", name.Name, typeKind)
 	switch typeKind {
 	case T_STRING:
 		fmtPrintf("  .quad 0\n")
