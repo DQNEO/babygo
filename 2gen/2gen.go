@@ -808,9 +808,11 @@ const FILE_SIZE int = 2000000
 
 func readFile(filename string) []uint8 {
 	var fd int
+	// @TODO check error
 	fd, _ = syscall.Open(filename, O_READONLY, 0)
 	var buf []uint8 = make([]uint8, FILE_SIZE, FILE_SIZE)
 	var n int
+	// @TODO check error
 	n, _ = syscall.Read(fd, buf)
 	var readbytes = buf[0:n]
 	return readbytes
