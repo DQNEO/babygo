@@ -3203,6 +3203,10 @@ func emitStmt(stmt *astStmt) {
 			case T_STRING:
 				fmtPrintf("  popq %%rax # return string (ptr)\n")
 				fmtPrintf("  popq %%rdi # return string (len)\n")
+			case T_SLICE:
+				fmtPrintf("  popq %%rax # return string (ptr)\n")
+				fmtPrintf("  popq %%rdi # return string (len)\n")
+				fmtPrintf("  popq %%rsi # return string (cap)\n")
 			default:
 				panic2(__func__, "[*astReturnStmt] TBI:" + knd)
 			}
