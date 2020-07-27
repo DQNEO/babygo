@@ -124,6 +124,17 @@ func Itoa(ival int) string {
 }
 
 // --- parser ---
+var debugFrontEnd bool
+
+func logf(format string, a... string) {
+	if !debugFrontEnd {
+		return
+	}
+	var f = "# " + format
+	var s = fmtSprintf(f, a)
+	syscall.Write(1, []uint8(s))
+}
+
 func parseFile(fset *token.FileSet, filename string) *ast.File {
 	f, err := parser.ParseFile(fset, filename, nil, 0)
 	if err != nil {
@@ -2361,7 +2372,7 @@ func walk(f *ast.File) {
 		case *ast.FuncDecl:
 			funcDecl := decl.(*ast.FuncDecl)
 			currentFuncDecl = funcDecl
-			fmt.Printf("# funcdef %s\n", funcDecl.Name.Name)
+			logf("funcdef %s\n", funcDecl.Name.Name)
 			localoffset = 0
 			var paramoffset localoffsetint = 16
 			for _, field := range funcDecl.Type.Params.List {
@@ -2369,8 +2380,6 @@ func walk(f *ast.File) {
 				obj.Data = newLocalVariable(obj.Name, paramoffset)
 				var varSize int = getSizeOfType(e2t(field.Type))
 				paramoffset += localoffsetint(varSize)
-				fmt.Printf("# field.Names[0].Obj=%#v\n", obj)
-				fmt.Printf("#   field.Type=%#v\n", field.Type)
 			}
 			if funcDecl.Body == nil {
 				break
@@ -2565,7 +2574,6 @@ func resolveUniverse(fiile *ast.File, universe *ast.Scope) {
 			unresolved = append(unresolved, ident)
 		}
 	}
-	fmt.Printf("# Unresolved: %#v\n", unresolved)
 }
 
 // --- main ---
@@ -2601,7 +2609,7 @@ func main() {
 		f := parseFile(fset, sourceFile)
 		resolveUniverse(f, universe)
 		pkgName = f.Name.Name
-		fmt.Printf("# Package:   %s\n", pkgName)
+		logf("Package:   %s\n", pkgName)
 		walk(f)
 		generateCode(pkgName)
 	}
