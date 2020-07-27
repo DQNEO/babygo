@@ -198,7 +198,7 @@ func emitRevertStackPointer(size int) {
 }
 
 func emitAddConst(addValue int, comment string) {
-	fmtPrintf("  # Add const: %s\n", comment)
+	emitComment(2, "Add const: %s\n", comment)
 	fmtPrintf("  popq %%rax\n")
 	fmtPrintf("  addq $%s, %%rax\n", Itoa(addValue))
 	fmtPrintf("  pushq %%rax\n")
@@ -237,7 +237,7 @@ func emitLoad(t *Type) {
 }
 
 func emitVariableAddr(variable *Variable) {
-	fmtPrintf("  # emit Addr of variable \"%s\" \n", variable.name)
+	emitComment(2, "emit Addr of variable \"%s\" \n", variable.name)
 
 	var addr string
 	if variable.isGlobal {
@@ -1190,11 +1190,11 @@ func emitStore(t *Type) {
 }
 
 func emitAssign(lhs ast.Expr, rhs ast.Expr) {
-	fmtPrintf("  # Assignment: emitAddr(lhs)\n")
+	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
-	fmtPrintf("  # Assignment: emitExpr(rhs)\n")
+	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs, getTypeOfExpr(lhs))
-	fmtPrintf("  # Assignment: emitStore(getTypeOfExpr(lhs))\n")
+	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
 	emitStore(getTypeOfExpr(lhs))
 }
 
@@ -1219,9 +1219,9 @@ func emitStmt(stmt ast.Stmt) {
 				var rhs ast.Expr
 				if len(valSpec.Values) == 0 {
 					emitAddr(lhs)
-					fmtPrintf("  # emitZeroValue\n")
+					emitComment(2, "emitZeroValue\n")
 					emitZeroValue(t)
-					fmtPrintf("  # Assignment: zero value\n")
+					emitComment(2, "Assignment: zero value\n")
 					emitStore(t)
 				} else if len(valSpec.Values) == 1 {
 					// assignment
@@ -1461,7 +1461,7 @@ func emitStmt(stmt ast.Stmt) {
 		cases := s.Body.List
 		var labels []string = make([]string, len(cases))
 		var defaultLabel string
-		fmtPrintf("  # Start comparison with cases\n")
+		emitComment(2, "Start comparison with cases\n")
 		for i, c := range cases {
 			cc, ok := c.(*ast.CaseClause)
 			assert(ok, "should be *ast.CaseClause")
@@ -1482,7 +1482,7 @@ func emitStmt(stmt ast.Stmt) {
 				fmt.Printf("  je %s # jump if match\n", labelCase)
 			}
 		}
-		fmtPrintf("  # End comparison with cases\n")
+		emitComment(2, "End comparison with cases\n")
 
 		// if no case matches, then jump to
 		if defaultLabel != "" {
