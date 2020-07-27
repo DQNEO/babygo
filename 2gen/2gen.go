@@ -748,9 +748,14 @@ type astSwitchStmt struct {
 	// lableExit string
 }
 
-
 type astReturnStmt struct {
 	Results []*astExpr
+}
+
+type astBranchStmt struct {
+	Tok        string
+	Label      string
+	currentFor *astStmt
 }
 
 type astSpec struct {
@@ -1890,12 +1895,6 @@ func parseExprList() []*astExpr {
 func parseRhsList() []*astExpr {
 	var list = parseExprList()
 	return list
-}
-
-type astBranchStmt struct {
-	Tok        string
-	Label      string
-	currentFor *astStmt
 }
 
 func parseBranchStmt(tok string) *astStmt {
