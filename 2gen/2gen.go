@@ -1763,21 +1763,10 @@ func parseSwitchStmt() *astStmt {
 }
 
 func parseLhsList() []*astExpr {
-	logf(" begin %s\n", __func__)
-	var r []*astExpr
-	var x *astExpr
-	for {
-		x = parseExpr()
-		r = append(r, x)
-		if ptok.tok == "," {
-			parserNext()
-			continue
-		} else {
-			break
-		}
-	}
+	logf(" [%s] start\n", __func__)
+	var list = parseExprList()
 	logf(" end %s\n", __func__)
-	return r
+	return list
 }
 
 func parseSimpleStmt(isRangeOK bool) *astStmt {
