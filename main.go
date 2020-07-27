@@ -2421,7 +2421,7 @@ func walk(f *ast.File) {
 					localarea: localoffset,
 					argsarea:  paramoffset,
 				}
-				fmtPrintf("# appending to globalFuncs %s\n", fnc.name)
+
 				globalFuncs = append(globalFuncs, fnc)
 			}
 		default:

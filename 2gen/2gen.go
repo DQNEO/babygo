@@ -4372,7 +4372,7 @@ func walk(file *astFile) string {
 				fnc.Body = funcDecl.Body
 				fnc.localarea = localoffset
 				fnc.argsarea = paramoffset
-				fmtPrintf("# appending to globalFuncs %s\n", fnc.name)
+
 				globalFuncs = append(globalFuncs, fnc)
 			}
 		default:
