@@ -3704,10 +3704,17 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				switch fn.Obj {
 				case gLen, gCap:
 					return tInt
+				case gNew:
+					var starExpr = new(astStarExpr)
+					starExpr.X = expr.callExpr.Args[0]
+					var eStarExpr = new(astExpr)
+					eStarExpr.dtype = "*astStarExpr"
+					eStarExpr.starExpr = starExpr
+					return e2t(eStarExpr)
 				}
 				var decl = fn.Obj.Decl
 				if decl == nil {
-					panic2(__func__, "decl is nil")
+					panic2(__func__, "decl of function " + fn.Name + " is  nil")
 				}
 				switch decl.dtype {
 				case "*astFuncDecl":
