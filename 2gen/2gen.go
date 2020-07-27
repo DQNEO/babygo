@@ -4318,8 +4318,10 @@ func walk(file *astFile) string {
 			}
 			var valSpec = genDecl.Spec.valueSpec
 			var nameIdent = valSpec.Name
-			nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
-			globalVars = append(globalVars, valSpec)
+			if nameIdent.Obj.Kind == "Var" {
+				nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
+				globalVars = append(globalVars, valSpec)
+			}
 		case "*astFuncDecl":
 			var funcDecl = decl.funcDecl
 			logf(" [sema] == astFuncDecl %s ==\n", funcDecl.Name.Name)

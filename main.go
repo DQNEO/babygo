@@ -2373,8 +2373,11 @@ func walk(f *ast.File) {
 				//println(fmt.Sprintf("spec=%s", dcl.Tok))
 				//emitComment(0, "valSpec.type=%#v\n", valSpec.Type)
 				nameIdent := valSpec.Names[0]
-				nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
-				globalVars = append(globalVars, valSpec)
+				if nameIdent.Obj.Kind == ast.Var {
+					nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
+					globalVars = append(globalVars, valSpec)
+				}
+				// do nothing for other Kind like "Con"
 			case *ast.ImportSpec:
 			case *ast.TypeSpec:
 				typeSpec := spc
