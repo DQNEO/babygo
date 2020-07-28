@@ -5,7 +5,7 @@ tmp = /tmp/babygo
 all: test
 
 .PHONY: test
-test: test0 test1 test2 test3
+test: test0 test1 test2 test-self-host
 
 $(tmp):
 	mkdir -p $(tmp)
@@ -57,8 +57,8 @@ test2: babygo2
 	./test.sh $(tmp)/test2
 
 # test self hosting in a more direct way
-.PHONY: test3
-test3: $(tmp)
+.PHONY: test-self-host
+test-self-host: $(tmp)
 	go build -o $(tmp)/bbg main.go
 	$(tmp)/bbg < main.go > $(tmp)/bbg2.s
 	as -o $(tmp)/bbg2.o $(tmp)/bbg2.s runtime.s
