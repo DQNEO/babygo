@@ -2,10 +2,10 @@
 tmp = /tmp/babygo
 
 .PHONY: all
-all: babygo2
+all: test
 
 .PHONY: test
-test: test0 test1 test2
+test: test0 test1 test2 test3
 
 $(tmp):
 	mkdir -p $(tmp)
