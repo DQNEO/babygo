@@ -19,7 +19,6 @@ $ ./docker-run
 
 #  go build -o babygo main.go # 1st generation compiler
 # ./babygo < main.go > /tmp/babygo2.s
-# as -o babygo2 /tmp/babygo2.s runtime.s
 # as -o babygo2.o /tmp/babygo2.s runtime.s
 # ld -o babygo2 babygo2.o # 2nd generation compiler
 # ./babygo2 < main.go > /tmp/babygo3.s
