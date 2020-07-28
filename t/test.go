@@ -73,7 +73,7 @@ func Sprintf(format string, a []string) string {
 }
 
 func testAtoi() {
-	writeln(itoa(atoi(""))) // "0"
+	writeln(itoa(atoi("")))  // "0"
 	writeln(itoa(atoi("0"))) // "0"
 	writeln(itoa(atoi("1")))
 	writeln(itoa(atoi("12")))
@@ -474,7 +474,7 @@ func testLocalArrayWithMoreTypes() {
 }
 
 func testLocalArray() {
-	var aInt [3]int = [3]int{1, 2, 3,}
+	var aInt [3]int = [3]int{1, 2, 3}
 	write(itoa(aInt[0]))
 	write(itoa(aInt[1]))
 	write(itoa(aInt[2]))
@@ -527,7 +527,6 @@ func testAppendPtr() {
 	}
 	write("\n")
 }
-
 
 func testAppendString() {
 	var slc []string
@@ -1198,7 +1197,7 @@ func testMisc() {
 	var i13 int = 0
 	i13 = testArgAssign(i13)
 	var i5 int = testMinus()
-	globalint2 = sum(1, i13 % i5)
+	globalint2 = sum(1, i13%i5)
 
 	var locali3 int
 	var tmp int

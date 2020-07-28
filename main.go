@@ -17,7 +17,7 @@ func throw(s string) {
 var __func__ string
 
 func panic(x string) {
-	var s = "panic: " + x+"\n\n"
+	var s = "panic: " + x + "\n\n"
 	syscall.Write(1, []uint8(s))
 	os.Exit(1)
 }
@@ -95,7 +95,7 @@ func Itoa(ival int) string {
 		return "0"
 	}
 
-	var __itoa_buf []uint8 = make([]uint8, 100,100)
+	var __itoa_buf []uint8 = make([]uint8, 100, 100)
 	var __itoa_r []uint8 = make([]uint8, 100, 100)
 
 	var next int
@@ -142,7 +142,7 @@ func inArray(x string, list []string) bool {
 
 var debugFrontEnd bool
 
-func logf(format string, a... string) {
+func logf(format string, a ...string) {
 	if !debugFrontEnd {
 		return
 	}
@@ -506,7 +506,7 @@ func scannerScan() *TokenContainer {
 		case 1:
 			tok = "EOF"
 		default:
-			panic2(__func__, "unknown char:" + string([]uint8{ch}) + ":" + Itoa(int(ch)))
+			panic2(__func__, "unknown char:"+string([]uint8{ch})+":"+Itoa(int(ch)))
 			tok = "UNKNOWN"
 		}
 	}
@@ -529,8 +529,8 @@ type astImportSpec struct {
 
 // Pseudo interface for *ast.Decl
 type astDecl struct {
-	dtype string
-	genDecl *astGenDecl
+	dtype    string
+	genDecl  *astGenDecl
 	funcDecl *astFuncDecl
 }
 
@@ -541,8 +541,8 @@ type astFuncDecl struct {
 }
 
 type astField struct {
-	Name *astIdent
-	Type *astExpr
+	Name   *astIdent
+	Type   *astExpr
 	Offset int
 }
 
@@ -551,7 +551,7 @@ type astFieldList struct {
 }
 
 type signature struct {
-	params *astFieldList
+	params  *astFieldList
 	results *astFieldList
 }
 
@@ -613,8 +613,8 @@ type astTypeSpec struct {
 }
 
 type astValueSpec struct {
-	Name *astIdent
-	Type *astExpr
+	Name  *astIdent
+	Type  *astExpr
 	Value *astExpr
 }
 
@@ -637,15 +637,15 @@ type astExpr struct {
 }
 
 type astObject struct {
-	Kind string
-	Name string
-	Decl *ObjDecl
+	Kind     string
+	Name     string
+	Decl     *ObjDecl
 	Variable *Variable
 }
 
 type astIdent struct {
 	Name string
-	Obj *astObject
+	Obj  *astObject
 }
 
 type astArrayType struct {
@@ -654,45 +654,45 @@ type astArrayType struct {
 }
 
 type astStructType struct {
-	Fields     *astFieldList
+	Fields *astFieldList
 }
 
 type astBasicLit struct {
-	Kind     string   // token.INT, token.CHAR, or token.STRING
-	Value    string
+	Kind  string // token.INT, token.CHAR, or token.STRING
+	Value string
 }
 
 type astSelectorExpr struct {
-	X *astExpr
+	X   *astExpr
 	Sel *astIdent
 }
 
 type astCallExpr struct {
-	Fun      *astExpr      // function expression
-	Args     []*astExpr    // function arguments; or nil
+	Fun  *astExpr   // function expression
+	Args []*astExpr // function arguments; or nil
 }
 
 type astUnaryExpr struct {
-	X *astExpr
+	X  *astExpr
 	Op string
 }
 
 type astBinaryExpr struct {
-	X *astExpr
-	Y *astExpr
+	X  *astExpr
+	Y  *astExpr
 	Op string
 }
 
 type astSliceExpr struct {
-	X *astExpr
-	Low *astExpr
-	High *astExpr
-	Max *astExpr
+	X      *astExpr
+	Low    *astExpr
+	High   *astExpr
+	Max    *astExpr
 	Slice3 bool
 }
 
 type astIndexExpr struct {
-	X *astExpr
+	X     *astExpr
 	Index *astExpr
 }
 
@@ -738,8 +738,8 @@ type astRangeStmt struct {
 	Outer     *astStmt // outer loop
 	labelPost string
 	labelExit string
-	lenvar   *Variable
-	indexvar *Variable
+	lenvar    *Variable
+	indexvar  *Variable
 }
 
 type astCaseClause struct {
@@ -748,7 +748,7 @@ type astCaseClause struct {
 }
 
 type astSwitchStmt struct {
-	Tag *astExpr
+	Tag  *astExpr
 	Body *astBlockStmt
 	// lableExit string
 }
@@ -764,19 +764,19 @@ type astBranchStmt struct {
 }
 
 type astSpec struct {
-	dtype string
+	dtype     string
 	valueSpec *astValueSpec
-	typeSpec *astTypeSpec
+	typeSpec  *astTypeSpec
 }
 
 type astScope struct {
-	Outer *astScope
+	Outer   *astScope
 	Objects []*objectEntry
 }
 
 type astFile struct {
-	Name string
-	Decls []*astDecl
+	Name       string
+	Decls      []*astDecl
 	Unresolved []*astIdent
 }
 
@@ -798,7 +798,7 @@ func scopeInsert(s *astScope, obj *astObject) {
 
 func scopeLookup(s *astScope, name string) *astObject {
 	var oe *objectEntry
-	for _, oe =  range s.Objects {
+	for _, oe = range s.Objects {
 		if oe.name == name {
 			return oe.obj
 		}
@@ -834,7 +834,7 @@ func parserInit(src []uint8) {
 
 type objectEntry struct {
 	name string
-	obj *astObject
+	obj  *astObject
 }
 
 var ptok *TokenContainer
@@ -863,8 +863,8 @@ func parserNext0() {
 func parserNext() {
 	parserNext0()
 	if ptok.tok == ";" {
-		logf(" [parser] pointing at : \"%s\" newline (%s)\n", ptok.tok , Itoa(scannerOffset))
-	} else if ptok.tok == "IDENT"{
+		logf(" [parser] pointing at : \"%s\" newline (%s)\n", ptok.tok, Itoa(scannerOffset))
+	} else if ptok.tok == "IDENT" {
 		logf(" [parser] pointing at: IDENT \"%s\" (%s)\n", ptok.lit, Itoa(scannerOffset))
 	} else {
 		logf(" [parser] pointing at: \"%s\" %s (%s)\n", ptok.tok, ptok.lit, Itoa(scannerOffset))
@@ -904,7 +904,7 @@ func parseIdent() *astIdent {
 		name = ptok.lit
 		parserNext()
 	} else {
-		panic2(__func__, "IDENT expected, but got " +  ptok.tok)
+		panic2(__func__, "IDENT expected, but got "+ptok.tok)
 	}
 	logf(" [%s] ident name = %s\n", __func__, name)
 	var r = new(astIdent)
@@ -921,7 +921,6 @@ func parserParseImportDecl() *astImportSpec {
 	spec.Path = path
 	return spec
 }
-
 
 func tryVarType(ellipsisOK bool) *astExpr {
 	if ellipsisOK && ptok.tok == "..." {
@@ -1025,7 +1024,7 @@ func parseStructType() *astExpr {
 	}
 	parserExpect("}", __func__)
 
-	var fields =  new(astFieldList)
+	var fields = new(astFieldList)
 	fields.List = list
 	structType.Fields = fields
 	var r = new(astExpr)
@@ -1090,45 +1089,45 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 
 	var typ = tryVarType(ellipsisOK)
 	if typ != nil {
-			if len(list) > 1 {
-				panic2(__func__, "Ident list is not supported")
-			}
-			var eIdent = list[0]
-			if eIdent.dtype != "*astIdent" {
-				panic2(__func__, "Unexpected dtype")
-			}
-			var ident = eIdent.ident
-			var field = new(astField)
-			if ident == nil {
-				panic2(__func__, "Ident should not be nil")
-			}
-			logf(" [%s] ident.Name=%s\n", __func__, ident.Name)
-			logf(" [%s] typ=%s\n", __func__, typ.dtype)
+		if len(list) > 1 {
+			panic2(__func__, "Ident list is not supported")
+		}
+		var eIdent = list[0]
+		if eIdent.dtype != "*astIdent" {
+			panic2(__func__, "Unexpected dtype")
+		}
+		var ident = eIdent.ident
+		var field = new(astField)
+		if ident == nil {
+			panic2(__func__, "Ident should not be nil")
+		}
+		logf(" [%s] ident.Name=%s\n", __func__, ident.Name)
+		logf(" [%s] typ=%s\n", __func__, typ.dtype)
+		field.Name = ident
+		field.Type = typ
+		logf(" [%s]: Field %s %s\n", __func__, field.Name.Name, field.Type.dtype)
+		params = append(params, field)
+		declareField(field, scope, astVar, ident)
+		parserResolve(typ)
+		if ptok.tok != "," {
+			logf("  end %s\n", __func__)
+			return params
+		}
+		parserNext()
+		for ptok.tok != ")" && ptok.tok != "EOF" {
+			ident = parseIdent()
+			typ = parseVarType(ellipsisOK)
+			field = new(astField)
 			field.Name = ident
 			field.Type = typ
-			logf(" [%s]: Field %s %s\n", __func__, field.Name.Name, field.Type.dtype)
 			params = append(params, field)
 			declareField(field, scope, astVar, ident)
 			parserResolve(typ)
 			if ptok.tok != "," {
-				logf("  end %s\n", __func__)
-				return params
+				break
 			}
 			parserNext()
-			for ptok.tok != ")" && ptok.tok != "EOF" {
-				ident = parseIdent()
-				typ = parseVarType(ellipsisOK)
-				field = new(astField)
-				field.Name = ident
-				field.Type = typ
-				params = append(params, field)
-				declareField(field, scope, astVar, ident)
-				parserResolve(typ)
-				if ptok.tok != "," {
-					break
-				}
-				parserNext()
-			}
+		}
 		logf("  end %s\n", __func__)
 		return params
 	}
@@ -1150,7 +1149,7 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 func parseParameters(scope *astScope, ellipsisOk bool) *astFieldList {
 	logf(" [%s] begin\n", __func__)
 	var params []*astField
-	parserExpect("(",  __func__)
+	parserExpect("(", __func__)
 	if ptok.tok != ")" {
 		params = parseParameterList(scope, ellipsisOk)
 	}
@@ -1263,7 +1262,7 @@ func parseOperand() *astExpr {
 	case "IDENT":
 		var eIdent = new(astExpr)
 		eIdent.dtype = "*astIdent"
-		var ident  =  parseIdent()
+		var ident = parseIdent()
 		eIdent.ident = ident
 		tryResolve(eIdent, true)
 		logf("   end %s\n", __func__)
@@ -1409,7 +1408,6 @@ func parsePrimaryExpr() *astExpr {
 	return x
 }
 
-
 func parseLiteralValue(x *astExpr) *astExpr {
 	logf("   start %s\n", __func__)
 	parserExpect("{", __func__)
@@ -1453,7 +1451,7 @@ func isLiteralType(x *astExpr) bool {
 
 func parseIndexOrSlice(x *astExpr) *astExpr {
 	parserExpect("[", __func__)
-	var index []*astExpr = make([]*astExpr,3,3)
+	var index []*astExpr = make([]*astExpr, 3, 3)
 	if ptok.tok != ":" {
 		index[0] = parseRhs()
 	}
@@ -1496,7 +1494,7 @@ func parseUnaryExpr() *astExpr {
 	var r *astExpr
 	logf("   begin parseUnaryExpr()\n")
 	switch ptok.tok {
-	case "+","-","!","&":
+	case "+", "-", "!", "&":
 		var tok = ptok.tok
 		parserNext()
 		var x = parseUnaryExpr()
@@ -1516,7 +1514,7 @@ func parseUnaryExpr() *astExpr {
 		r.starExpr.X = x
 		return r
 	}
-	r  = parsePrimaryExpr()
+	r = parsePrimaryExpr()
 	logf("   end parseUnaryExpr()\n")
 	return r
 }
@@ -1547,15 +1545,15 @@ func parseBinaryExpr(prec1 int) *astExpr {
 	var oprec int
 	for {
 		var op = ptok.tok
-		oprec  = precedence(op)
+		oprec = precedence(op)
 		logf(" oprec %s\n", Itoa(oprec))
-		logf(" precedence \"%s\" %s < %s\n", op, Itoa(oprec) , Itoa(prec1))
+		logf(" precedence \"%s\" %s < %s\n", op, Itoa(oprec), Itoa(prec1))
 		if oprec < prec1 {
 			logf("   end parseBinaryExpr() (NonBinary)\n")
 			return x
 		}
 		parserExpect(op, __func__)
-		var y = parseBinaryExpr(oprec+1)
+		var y = parseBinaryExpr(oprec + 1)
 		var binaryExpr = new(astBinaryExpr)
 		binaryExpr.X = x
 		binaryExpr.Y = y
@@ -1589,7 +1587,7 @@ func makeExpr(s *astStmt) *astExpr {
 		return r
 	}
 	if s.dtype != "*astExprStmt" {
-		panic2(__func__, "unexpected dtype=" + s.dtype)
+		panic2(__func__, "unexpected dtype="+s.dtype)
 	}
 	if s.exprStmt == nil {
 		panic2(__func__, "exprStmt is nil")
@@ -1680,7 +1678,7 @@ func parseIfStmt() *astStmt {
 	parserExprLev = -1
 	var condStmt *astStmt = parseSimpleStmt(false)
 	if condStmt.dtype != "*astExprStmt" {
-		panic2(__func__, "unexpected dtype=" + condStmt.dtype)
+		panic2(__func__, "unexpected dtype="+condStmt.dtype)
 	}
 	var cond = condStmt.exprStmt.X
 	parserExprLev = 0
@@ -1802,7 +1800,7 @@ func parseSimpleStmt(isRangeOK bool) *astStmt {
 		var as = new(astAssignStmt)
 		as.Tok = "="
 		as.Lhs = x
-		as.Rhs = make([]*astExpr, 1,1)
+		as.Rhs = make([]*astExpr, 1, 1)
 		as.Rhs[0] = y
 		s.dtype = "*astAssignStmt"
 		s.assignStmt = as
@@ -1853,7 +1851,7 @@ func parseStmt() *astStmt {
 		decl.genDecl = genDecl
 		s.DeclStmt.Decl = decl
 		logf(" = end parseStmt()\n")
-	case "IDENT","*":
+	case "IDENT", "*":
 		s = parseSimpleStmt(false)
 		parserExpectSemi(__func__)
 	case "return":
@@ -1867,7 +1865,7 @@ func parseStmt() *astStmt {
 	case "for":
 		s = parseForStmt()
 	default:
-		panic2(__func__, "TBI 3:" +  ptok.tok)
+		panic2(__func__, "TBI 3:"+ptok.tok)
 	}
 	logf(" = end parseStmt()\n")
 	return s
@@ -2099,7 +2097,7 @@ func parserParseFile() *astFile {
 	for ptok.tok != "EOF" {
 		switch ptok.tok {
 		case "var", "const":
-			var spec = parserParseValueSpec(ptok.tok )
+			var spec = parserParseValueSpec(ptok.tok)
 			var genDecl = new(astGenDecl)
 			genDecl.Spec = spec
 			decl = new(astDecl)
@@ -2118,7 +2116,7 @@ func parserParseFile() *astFile {
 			decl.genDecl = genDecl
 			logf(" type parsed:%s\n", "")
 		default:
-			panic2(__func__, "TBI:" + ptok.tok)
+			panic2(__func__, "TBI:"+ptok.tok)
 		}
 		decls = append(decls, decl)
 	}
@@ -2128,7 +2126,7 @@ func parserParseFile() *astFile {
 	// dump parserPkgScope
 	logf("[DEBUG] Dump objects in the package scope\n")
 	var oe *objectEntry
-	for _, oe =  range parserPkgScope.Objects {
+	for _, oe = range parserPkgScope.Objects {
 		logf("    object %s\n", oe.name)
 	}
 
@@ -2137,7 +2135,7 @@ func parserParseFile() *astFile {
 	logf(" [parserParseFile] resolving parserUnresolved (n=%s)\n", Itoa(len(parserUnresolved)))
 	for _, idnt = range parserUnresolved {
 		logf(" [parserParseFile] resolving ident %s ...\n", idnt.Name)
-		var obj *astObject = scopeLookup(parserPkgScope ,idnt.Name)
+		var obj *astObject = scopeLookup(parserPkgScope, idnt.Name)
 		if obj != nil {
 			logf(" resolved \n")
 			idnt.Obj = obj
@@ -2171,7 +2169,7 @@ func emitComment(indent int, format string, a ...string) {
 	}
 	var spaces []uint8
 	var i int
-	for i=0;i<indent;i++ {
+	for i = 0; i < indent; i++ {
 		spaces = append(spaces, ' ')
 	}
 	var format2 = string(spaces) + "# " + format
@@ -2263,7 +2261,7 @@ func emitLoad(t *Type) {
 		// pure proxy
 		fmtPrintf("  pushq %%rax\n")
 	default:
-		panic2(__func__, "TBI:kind=" + kind(t))
+		panic2(__func__, "TBI:kind="+kind(t))
 	}
 }
 
@@ -2293,7 +2291,7 @@ func emitListHeadAddr(list *astExpr) {
 		emitPopString()
 		fmtPrintf("  pushq %%rax # string.ptr\n")
 	default:
-		panic2(__func__, "kind=" + kind(getTypeOfExpr(list)))
+		panic2(__func__, "kind="+kind(getTypeOfExpr(list)))
 	}
 }
 
@@ -2303,10 +2301,10 @@ func emitAddr(expr *astExpr) {
 	case "*astIdent":
 		if expr.ident.Obj.Kind == astVar {
 			assert(expr.ident.Obj.Variable != nil,
-				"ERROR: Variable is nil for name : " + expr.ident.Obj.Name, __func__)
+				"ERROR: Variable is nil for name : "+expr.ident.Obj.Name, __func__)
 			emitVariableAddr(expr.ident.Obj.Variable)
 		} else {
-			panic2(__func__, "Unexpected Kind " + expr.ident.Obj.Kind)
+			panic2(__func__, "Unexpected Kind "+expr.ident.Obj.Kind)
 		}
 	case "*astIndexExpr":
 		emitExpr(expr.indexExpr.Index, nil) // index number
@@ -2330,13 +2328,13 @@ func emitAddr(expr *astExpr) {
 			structType = e2t(ptrType.X)
 			emitExpr(expr.selectorExpr.X, nil)
 		default:
-			panic2(__func__, "TBI:" + kind(typeOfX))
+			panic2(__func__, "TBI:"+kind(typeOfX))
 		}
 		var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
 		var offset = getStructFieldOffset(field)
 		emitAddConst(offset, "struct head address + struct.field offset")
 	default:
-		panic2(__func__, "TBI " + expr.dtype)
+		panic2(__func__, "TBI "+expr.dtype)
 	}
 }
 
@@ -2349,11 +2347,11 @@ func isType(expr *astExpr) bool {
 			panic2(__func__, "ident should not be nil")
 		}
 		if expr.ident.Obj == nil {
-			panic2(__func__, " unresolved ident:" + expr.ident.Name)
+			panic2(__func__, " unresolved ident:"+expr.ident.Name)
 		}
 		emitComment(0, "[isType][DEBUG] expr.ident.Name = %s\n", expr.ident.Name)
 		emitComment(0, "[isType][DEBUG] expr.ident.Obj = %s,%s\n",
-			expr.ident.Obj.Name, expr.ident.Obj.Kind )
+			expr.ident.Obj.Name, expr.ident.Obj.Kind)
 		return expr.ident.Obj.Kind == astTyp
 	case "*astParenExpr":
 		return isType(expr.parenExpr.X)
@@ -2385,7 +2383,7 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 			emitComment(0, "[emitConversion] to int \n")
 			emitExpr(arg0, nil)
 		default:
-			panic2(__func__, "[*astIdent] TBI : " + typeExpr.ident.Obj.Name)
+			panic2(__func__, "[*astIdent] TBI : "+typeExpr.ident.Obj.Name)
 		}
 	case "*astArrayType": // Conversion to slice
 		var arrayType = typeExpr.arrayType
@@ -2407,7 +2405,7 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 		emitComment(0, "[emitConversion] to pointer \n")
 		emitExpr(arg0, nil)
 	default:
-		panic2(__func__, "TBI :" + typeExpr.dtype)
+		panic2(__func__, "TBI :"+typeExpr.dtype)
 	}
 }
 
@@ -2425,7 +2423,7 @@ func emitZeroValue(t *Type) {
 	case T_STRUCT:
 		//@FIXME
 	default:
-		panic2(__func__, "TBI:" + kind(t))
+		panic2(__func__, "TBI:"+kind(t))
 	}
 }
 
@@ -2467,7 +2465,6 @@ func emitCap(arg *astExpr) {
 	}
 }
 
-
 func emitCallMalloc(size int) {
 	fmtPrintf("  pushq $%s\n", Itoa(size))
 	// call malloc and return pointer
@@ -2486,12 +2483,11 @@ func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []*astExpr) {
 	for i, elm = range elts {
 		// emit lhs
 		emitPushStackTop(tUintptr, "malloced address")
-		emitAddConst(elmSize*i, "malloced address + elmSize * index (" + Itoa(i) + ")")
+		emitAddConst(elmSize*i, "malloced address + elmSize * index ("+Itoa(i)+")")
 		emitExpr(elm, elmType)
 		emitStore(elmType)
 	}
 }
-
 
 func emitInvertBoolValue() {
 	emitPopBool("")
@@ -2679,7 +2675,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 
 		var fn = fun.ident
 		if fn.Name == "print" {
-			emitExpr(eArgs[0],nil)
+			emitExpr(eArgs[0], nil)
 			fmtPrintf("  callq runtime.printstring\n")
 			fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(16))
 			return
@@ -2717,7 +2713,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		var argIndex int
 		var arg *Arg
 		var lenParams = len(params)
-		for argIndex , eArg = range eArgs {
+		for argIndex, eArg = range eArgs {
 			emitComment(0, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, Itoa(argIndex), Itoa(lenParams))
 			if argIndex < lenParams {
 				param = params[argIndex]
@@ -2741,7 +2737,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		if variadicElp != nil {
 			// collect args as a slice
 			var sliceType = new(astArrayType)
-			sliceType.Elt =  variadicElp.Elt
+			sliceType.Elt = variadicElp.Elt
 			var eSliceType = new(astExpr)
 			eSliceType.dtype = "*astArrayType"
 			eSliceType.arrayType = sliceType
@@ -2808,7 +2804,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 	case "*astSelectorExpr":
 		var selectorExpr = fun.selectorExpr
 		if selectorExpr.X.dtype != "*astIdent" {
-			panic2(__func__, "TBI selectorExpr.X.dtype=" + selectorExpr.X.dtype)
+			panic2(__func__, "TBI selectorExpr.X.dtype="+selectorExpr.X.dtype)
 		}
 		var symbol string = selectorExpr.X.ident.Name + "." + selectorExpr.Sel.Name
 		switch symbol {
@@ -2831,12 +2827,12 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			emitExpr(eArgs[0], nil)
 		default:
 			fmtPrintf("  callq %s.%s\n", selectorExpr.X.ident.Name, selectorExpr.Sel.Name)
-			panic2(__func__, "[*astSelectorExpr] Unsupported call to " + symbol)
+			panic2(__func__, "[*astSelectorExpr] Unsupported call to "+symbol)
 		}
 	case "*astParenExpr":
 		panic2(__func__, "[astParenExpr] TBI ")
 	default:
-		panic2(__func__, "TBI fun.dtype=" + fun.dtype)
+		panic2(__func__, "TBI fun.dtype="+fun.dtype)
 	}
 }
 
@@ -2846,7 +2842,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 	case "*astIdent":
 		var ident = e.ident
 		if ident.Obj == nil {
-			panic2(__func__, "ident unresolved:" + ident.Name)
+			panic2(__func__, "ident unresolved:"+ident.Name)
 		}
 		switch e.ident.Obj {
 		case gTrue:
@@ -2863,7 +2859,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 			case T_SLICE, T_POINTER:
 				emitZeroValue(forceType)
 			default:
-				panic2(__func__, "Unexpected kind=" +  kind(forceType))
+				panic2(__func__, "Unexpected kind="+kind(forceType))
 			}
 			return
 		}
@@ -2881,13 +2877,13 @@ func emitExpr(e *astExpr, forceType *Type) {
 			if valSpec.Type != nil {
 				t = e2t(valSpec.Type)
 			} else {
-				t  = forceType
+				t = forceType
 			}
 			emitExpr(valSpec.Value, t)
 		case astTyp:
 			panic2(__func__, "[*astIdent] Kind Typ should not come here")
 		default:
-			panic2(__func__, "[*astIdent] unknown Kind=" + ident.Obj.Kind + " Name=" + ident.Obj.Name)
+			panic2(__func__, "[*astIdent] unknown Kind="+ident.Obj.Kind+" Name="+ident.Obj.Name)
 		}
 	case "*astIndexExpr":
 		emitAddr(e)
@@ -2899,7 +2895,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case "*astBasicLit":
-//		emitComment(0, "basicLit.Kind = %s \n", e.basicLit.Kind)
+		//		emitComment(0, "basicLit.Kind = %s \n", e.basicLit.Kind)
 		switch e.basicLit.Kind {
 		case "INT":
 			var ival = Atoi(e.basicLit.Value)
@@ -2933,7 +2929,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 			}
 			fmtPrintf("  pushq $%d # convert char literal to int\n", Itoa(int(char)))
 		default:
-			panic2(__func__, "[*astBasicLit] TBI : " +  e.basicLit.Kind)
+			panic2(__func__, "[*astBasicLit] TBI : "+e.basicLit.Kind)
 		}
 	case "*astCallExpr":
 		var fun = e.callExpr.Fun
@@ -2961,7 +2957,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 			fmtPrintf("  pushq %%rax # len\n")
 			// no cap
 		default:
-			panic2(__func__, "Unknown kind=" + kind(listType))
+			panic2(__func__, "Unknown kind="+kind(listType))
 		}
 
 		emitExpr(e.sliceExpr.Low, nil)
@@ -2983,7 +2979,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 			emitExpr(e.unaryExpr.X, nil)
 			emitInvertBoolValue()
 		default:
-			panic2(__func__, "TBI:astUnaryExpr:" + e.unaryExpr.Op)
+			panic2(__func__, "TBI:astUnaryExpr:"+e.unaryExpr.Op)
 		}
 	case "*astBinaryExpr":
 		if kind(getTypeOfExpr(e.binaryExpr.X)) == T_STRING {
@@ -3051,10 +3047,9 @@ func emitExpr(e *astExpr, forceType *Type) {
 			return
 		}
 
-
 		var t = getTypeOfExpr(e.binaryExpr.X)
 		emitExpr(e.binaryExpr.X, nil) // left
-		emitExpr(e.binaryExpr.Y, t) // right
+		emitExpr(e.binaryExpr.Y, t)   // right
 		switch e.binaryExpr.Op {
 		case "+":
 			fmtPrintf("  popq %%rcx # right\n")
@@ -3098,7 +3093,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 		case ">=":
 			emitCompExpr("setge")
 		default:
-			panic2(__func__, "# TBI: binary operation for " + e.binaryExpr.Op)
+			panic2(__func__, "# TBI: binary operation for "+e.binaryExpr.Op)
 		}
 	case "*astCompositeLit":
 		// slice , array, map or struct
@@ -3119,10 +3114,10 @@ func emitExpr(e *astExpr, forceType *Type) {
 			fmtPrintf("  pushq $%d # slice.len\n", Itoa(length))
 			fmtPrintf("  pushq %%rax # slice.ptr\n")
 		default:
-			panic2(__func__, "Unexpected kind=" + k)
+			panic2(__func__, "Unexpected kind="+k)
 		}
 	default:
-		panic2(__func__, "[emitExpr] `TBI:" + e.dtype)
+		panic2(__func__, "[emitExpr] `TBI:"+e.dtype)
 	}
 }
 
@@ -3154,7 +3149,7 @@ func emitCompEq(t *Type) {
 	case T_SLICE:
 		emitCompExpr("sete") // @FIXME this is not correct
 	default:
-		panic2(__func__, "Unexpected kind=" + kind(t))
+		panic2(__func__, "Unexpected kind="+kind(t))
 	}
 }
 
@@ -3205,7 +3200,7 @@ func emitStore(t *Type) {
 		fmtPrintf("  callq runtime.memcopy\n")
 		emitRevertStackPointer(ptrSize*2 + intSize)
 	default:
-		panic2(__func__, "TBI:" + kind(t))
+		panic2(__func__, "TBI:"+kind(t))
 	}
 }
 
@@ -3266,14 +3261,14 @@ func emitStmt(stmt *astStmt) {
 			var rhs = stmt.assignStmt.Rhs
 			emitAssign(lhs[0], rhs[0])
 		default:
-			panic2(__func__, "TBI: assignment of " + stmt.assignStmt.Tok)
+			panic2(__func__, "TBI: assignment of "+stmt.assignStmt.Tok)
 		}
 	case "*astReturnStmt":
 		if len(stmt.returnStmt.Results) == 0 {
 			fmtPrintf("  leave\n")
 			fmtPrintf("  ret\n")
 		} else if len(stmt.returnStmt.Results) == 1 {
-			emitExpr(stmt.returnStmt.Results[0],nil) // @TODO forceType should be fetched from func decl
+			emitExpr(stmt.returnStmt.Results[0], nil) // @TODO forceType should be fetched from func decl
 			var knd = kind(getTypeOfExpr(stmt.returnStmt.Results[0]))
 			switch knd {
 			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
@@ -3286,7 +3281,7 @@ func emitStmt(stmt *astStmt) {
 				fmtPrintf("  popq %%rdi # return string (len)\n")
 				fmtPrintf("  popq %%rsi # return string (cap)\n")
 			default:
-				panic2(__func__, "[*astReturnStmt] TBI:" + knd)
+				panic2(__func__, "[*astReturnStmt] TBI:"+knd)
 			}
 			fmtPrintf("  leave\n")
 			fmtPrintf("  ret\n")
@@ -3305,7 +3300,7 @@ func emitStmt(stmt *astStmt) {
 		emitComment(2, "if\n")
 
 		labelid++
-		var labelEndif = ".L.endif." +  Itoa(labelid)
+		var labelEndif = ".L.endif." + Itoa(labelid)
 		var labelElse = ".L.else." + Itoa(labelid)
 
 		emitExpr(stmt.ifStmt.Cond, nil)
@@ -3354,7 +3349,7 @@ func emitStmt(stmt *astStmt) {
 		}
 		fmtPrintf("  jmp %s\n", labelCond)
 		fmtPrintf("  %s:\n", labelExit)
-	case "*astRangeStmt":// only for array and slice
+	case "*astRangeStmt": // only for array and slice
 		labelid++
 		var labelCond = ".L.range.cond." + Itoa(labelid)
 		var labelPost = ".L.range.post." + Itoa(labelid)
@@ -3422,7 +3417,7 @@ func emitStmt(stmt *astStmt) {
 
 		// Post statement: Increment indexvar and go next
 		emitComment(2, "ForRange Post statement\n")
-		fmtPrintf("  %s:\n", labelPost)   // used for "continue"
+		fmtPrintf("  %s:\n", labelPost)           // used for "continue"
 		emitVariableAddr(stmt.rangeStmt.indexvar) // lhs
 		emitVariableAddr(stmt.rangeStmt.indexvar) // rhs
 		emitLoad(tInt)
@@ -3433,7 +3428,7 @@ func emitStmt(stmt *astStmt) {
 			assert(stmt.rangeStmt.Key.dtype == "*astIdent", "key expr should be an ident", __func__)
 			var keyIdent = stmt.rangeStmt.Key.ident
 			if keyIdent.Name != "_" {
-				emitAddr(stmt.rangeStmt.Key) // lhs
+				emitAddr(stmt.rangeStmt.Key)              // lhs
 				emitVariableAddr(stmt.rangeStmt.indexvar) // rhs
 				emitLoad(tInt)
 				emitStore(tInt)
@@ -3452,7 +3447,7 @@ func emitStmt(stmt *astStmt) {
 		case "--":
 			addValue = -1
 		default:
-			panic2(__func__, "Unexpected Tok=" + stmt.incDecStmt.Tok)
+			panic2(__func__, "Unexpected Tok="+stmt.incDecStmt.Tok)
 		}
 		emitAddr(stmt.incDecStmt.X)
 		emitExpr(stmt.incDecStmt.X, nil)
@@ -3529,7 +3524,7 @@ func emitStmt(stmt *astStmt) {
 			case "*astRangeStmt":
 				labelToGo = containerFor.rangeStmt.labelPost
 			default:
-				panic2(__func__, "unexpected container dtype=" + containerFor.dtype)
+				panic2(__func__, "unexpected container dtype="+containerFor.dtype)
 			}
 			fmtPrintf("jmp %s # continue\n", labelToGo)
 		case "break":
@@ -3539,14 +3534,14 @@ func emitStmt(stmt *astStmt) {
 			case "*astRangeStmt":
 				labelToGo = containerFor.rangeStmt.labelExit
 			default:
-				panic2(__func__, "unexpected container dtype=" + containerFor.dtype)
+				panic2(__func__, "unexpected container dtype="+containerFor.dtype)
 			}
 			fmtPrintf("jmp %s # break\n", labelToGo)
 		default:
-			panic2(__func__, "unexpected tok=" + stmt.branchStmt.Tok)
+			panic2(__func__, "unexpected tok="+stmt.branchStmt.Tok)
 		}
 	default:
-		panic2(__func__, "TBI:" + stmt.dtype)
+		panic2(__func__, "TBI:"+stmt.dtype)
 	}
 }
 
@@ -3611,7 +3606,7 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 			panic2(__func__, "TBI")
 		}
 		if t.e.dtype != "*astArrayType" {
-			panic2(__func__, "Unexpected type:" + t.e.dtype)
+			panic2(__func__, "Unexpected type:"+t.e.dtype)
 		}
 		var arrayType = t.e.arrayType
 		if arrayType.Len == nil {
@@ -3625,7 +3620,7 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 			panic2(__func__, "array length >= 10 is not supported yet.")
 		}
 		var length = evalInt(arrayType.Len)
-		emitComment(0, "[emitGlobalVariable] array length uint8=%s\n" , Itoa(length))
+		emitComment(0, "[emitGlobalVariable] array length uint8=%s\n", Itoa(length))
 		var zeroValue string
 		var kind string = kind(e2t(arrayType.Elt))
 		switch kind {
@@ -3637,15 +3632,15 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 			zeroValue = "  .quad 0 # string zero value (ptr)\n"
 			zeroValue = zeroValue + "  .quad 0 # string zero value (len)\n"
 		default:
-			panic2(__func__, "Unexpected kind:" + kind)
+			panic2(__func__, "Unexpected kind:"+kind)
 		}
 
 		var i int
-		for i = 0; i< length ; i++ {
+		for i = 0; i < length; i++ {
 			fmtPrintf(zeroValue)
 		}
 	default:
-		panic2(__func__, "TBI:kind=" + typeKind)
+		panic2(__func__, "TBI:kind="+typeKind)
 	}
 }
 
@@ -3744,10 +3739,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			case "*astValueSpec":
 				return e2t(expr.ident.Obj.Decl.valueSpec.Type)
 			default:
-				panic2(__func__, "cannot decide type of cont =" + expr.ident.Obj.Name)
+				panic2(__func__, "cannot decide type of cont ="+expr.ident.Obj.Name)
 			}
 		default:
-			panic2(__func__, "2:Obj.Kind=" + expr.ident.Obj.Kind)
+			panic2(__func__, "2:Obj.Kind="+expr.ident.Obj.Kind)
 		}
 	case "*astBasicLit":
 		switch expr.basicLit.Kind {
@@ -3758,7 +3753,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "CHAR":
 			return tInt
 		default:
-			panic2(__func__, "TBI:" + expr.basicLit.Kind)
+			panic2(__func__, "TBI:"+expr.basicLit.Kind)
 		}
 	case "*astIndexExpr":
 		var list = expr.indexExpr.X
@@ -3770,7 +3765,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "!":
 			return tBool
 		default:
-			panic2(__func__, "TBI: Op=" + expr.unaryExpr.Op)
+			panic2(__func__, "TBI: Op="+expr.unaryExpr.Op)
 		}
 	case "*astCallExpr":
 		emitComment(0, "[%s] *astCallExpr\n", __func__)
@@ -3798,7 +3793,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				}
 				var decl = fn.Obj.Decl
 				if decl == nil {
-					panic2(__func__, "decl of function " + fn.Name + " is  nil")
+					panic2(__func__, "decl of function "+fn.Name+" is  nil")
 				}
 				switch decl.dtype {
 				case "*astFuncDecl":
@@ -3808,14 +3803,14 @@ func getTypeOfExpr(expr *astExpr) *Type {
 					}
 					return e2t(decl.funcDecl.Sig.results.List[0].Type)
 				default:
-					panic2(__func__, "[astCallExpr] decl.dtype=" + decl.dtype)
+					panic2(__func__, "[astCallExpr] decl.dtype="+decl.dtype)
 				}
-				panic2(__func__, "[astCallExpr] Fun ident " + fn.Name)
+				panic2(__func__, "[astCallExpr] Fun ident "+fn.Name)
 			}
 		case "*astArrayType":
 			return e2t(fun)
 		default:
-			panic2(__func__, "[astCallExpr] dtype=" + expr.callExpr.Fun.dtype)
+			panic2(__func__, "[astCallExpr] dtype="+expr.callExpr.Fun.dtype)
 		}
 	case "*astSliceExpr":
 		var underlyingCollectionType = getTypeOfExpr(expr.sliceExpr.X)
@@ -3854,7 +3849,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	case "*astParenExpr":
 		return getTypeOfExpr(expr.parenExpr.X)
 	default:
-		panic2(__func__, "TBI:dtype=" +  expr.dtype)
+		panic2(__func__, "TBI:dtype="+expr.dtype)
 	}
 
 	panic2(__func__, "nil type is not allowed\n")
@@ -3896,7 +3891,7 @@ func kind(t *Type) string {
 			// named type
 			var decl = ident.Obj.Decl
 			if decl.dtype != "*astTypeSpec" {
-				panic2(__func__, "unsupported decl :" + decl.dtype)
+				panic2(__func__, "unsupported decl :"+decl.dtype)
 			}
 			var typeSpec = decl.typeSpec
 			return kind(e2t(typeSpec.Type))
@@ -3914,7 +3909,7 @@ func kind(t *Type) string {
 	case "*astEllipsis": // x ...T
 		return T_SLICE // @TODO is this right ?
 	default:
-		panic2(__func__, "Unkown dtype:" + t.e.dtype)
+		panic2(__func__, "Unkown dtype:"+t.e.dtype)
 	}
 	panic2(__func__, "error")
 	return ""
@@ -3938,11 +3933,10 @@ func getStructTypeOfX(e *astSelectorExpr) *Type {
 	return structType
 }
 
-
 func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
-		var arrayType =  t.e.arrayType
+		var arrayType = t.e.arrayType
 		if arrayType == nil {
 			panic2(__func__, "should not be nil")
 		}
@@ -3950,7 +3944,7 @@ func getElementTypeOfListType(t *Type) *Type {
 	case T_STRING:
 		return tUint8
 	default:
-		panic2(__func__, "TBI kind=" +  kind(t))
+		panic2(__func__, "TBI kind="+kind(t))
 	}
 	var r *Type
 	return r
@@ -3975,7 +3969,7 @@ func getSizeOfType(t *Type) int {
 	case T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
 	default:
-		panic2(__func__, "TBI:" + knd)
+		panic2(__func__, "TBI:"+knd)
 	}
 	return 0
 }
@@ -4018,7 +4012,7 @@ func getStructFields(structTypeSpec *astTypeSpec) []*astField {
 
 func getStructTypeSpec(namedStructType *Type) *astTypeSpec {
 	if kind(namedStructType) != T_STRUCT {
-		panic2(__func__ , "not T_STRUCT")
+		panic2(__func__, "not T_STRUCT")
 	}
 	if namedStructType.e.dtype != "*astIdent" {
 		panic2(__func__, "not ident")
@@ -4075,7 +4069,7 @@ type Func struct {
 	localarea int
 	argsarea  int
 	name      string
-	Body *astBlockStmt
+	Body      *astBlockStmt
 }
 
 type Variable struct {
@@ -4102,7 +4096,7 @@ func getStringLiteral(lit *astBasicLit) *sliteral {
 		}
 	}
 
-	panic2(__func__, "string literal not found:"  + lit.Value)
+	panic2(__func__, "string literal not found:"+lit.Value)
 	var r *sliteral
 	return r
 }
@@ -4159,11 +4153,11 @@ func walkStmt(stmt *astStmt) {
 	case "*astDeclStmt":
 		logf(" [%s] *ast.DeclStmt\n", __func__)
 		if stmt.DeclStmt == nil {
-			panic2(__func__ , "nil pointer exception\n")
+			panic2(__func__, "nil pointer exception\n")
 		}
 		var declStmt = stmt.DeclStmt
 		if declStmt.Decl == nil {
-			panic2(__func__ , "ERROR\n")
+			panic2(__func__, "ERROR\n")
 		}
 		var dcl = declStmt.Decl
 		if dcl.dtype != "*astGenDecl" {
@@ -4274,7 +4268,7 @@ func walkStmt(stmt *astStmt) {
 			walkStmt(s_)
 		}
 	default:
-		panic2(__func__, "TBI: stmt.dtype=" + stmt.dtype)
+		panic2(__func__, "TBI: stmt.dtype="+stmt.dtype)
 	}
 }
 
@@ -4298,7 +4292,7 @@ func walkExpr(expr *astExpr) {
 				if ident.Name == "__func__" && ident.Obj.Kind == astVar {
 					basicLit = new(astBasicLit)
 					basicLit.Kind = "STRING"
-					basicLit.Value =   "\"" + currentFuncDecl.Name.Name + "\""
+					basicLit.Value = "\"" + currentFuncDecl.Name.Name + "\""
 					newArg = new(astExpr)
 					newArg.dtype = "*astBasicLit"
 					newArg.basicLit = basicLit
@@ -4346,7 +4340,7 @@ func walkExpr(expr *astExpr) {
 	case "*astParenExpr":
 		walkExpr(expr.parenExpr.X)
 	default:
-		panic2(__func__, "TBI:" + expr.dtype)
+		panic2(__func__, "TBI:"+expr.dtype)
 	}
 }
 
@@ -4374,13 +4368,13 @@ func walk(file *astFile) string {
 					// do nothing
 				}
 			default:
-				panic2(__func__, "Unexpected dtype=" + genDecl.Spec.dtype)
+				panic2(__func__, "Unexpected dtype="+genDecl.Spec.dtype)
 			}
 		case "*astFuncDecl":
 			var funcDecl = decl.funcDecl
 			currentFuncDecl = funcDecl
 			logf(" [sema] == astFuncDecl %s ==\n", funcDecl.Name.Name)
-			localoffset  = 0
+			localoffset = 0
 			var paramoffset = 16
 			var field *astField
 			for _, field = range funcDecl.Sig.params.List {
@@ -4405,7 +4399,7 @@ func walk(file *astFile) string {
 				globalFuncs = append(globalFuncs, fnc)
 			}
 		default:
-			panic2(__func__, "TBI: " + decl.dtype)
+			panic2(__func__, "TBI: "+decl.dtype)
 		}
 	}
 
@@ -4495,23 +4489,23 @@ func resolveUniverse(file *astFile, universe *astScope) {
 
 func initGlobals() {
 	__func__ = "__func__"
-	T_STRING  = "T_STRING"
-	T_SLICE  = "T_SLICE"
-	T_BOOL  = "T_BOOL"
-	T_INT  = "T_INT"
-	T_UINT8  = "T_UINT8"
-	T_UINT16  = "T_UINT16"
-	T_UINTPTR  = "T_UINTPTR"
-	T_ARRAY  = "T_ARRAY"
-	T_STRUCT  = "T_STRUCT"
-	T_POINTER  = "T_POINTER"
+	T_STRING = "T_STRING"
+	T_SLICE = "T_SLICE"
+	T_BOOL = "T_BOOL"
+	T_INT = "T_INT"
+	T_UINT8 = "T_UINT8"
+	T_UINT16 = "T_UINT16"
+	T_UINTPTR = "T_UINTPTR"
+	T_ARRAY = "T_ARRAY"
+	T_STRUCT = "T_STRUCT"
+	T_POINTER = "T_POINTER"
 
 	astCon = "Con"
 	astTyp = "Typ"
 	astVar = "Var"
 	astFun = "Fun"
 
-	gNil  = new(astObject)
+	gNil = new(astObject)
 	gNil.Kind = astCon // is it Con ?
 	gNil.Name = "nil"
 

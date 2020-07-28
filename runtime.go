@@ -19,7 +19,7 @@ func heapInit() {
 
 func brk(addr uintptr) uintptr {
 	var ret uintptr
-	ret,_,_ = syscall.Syscall(uintptr(SYS_BRK), addr, uintptr(0), uintptr(0))
+	ret, _, _ = syscall.Syscall(uintptr(SYS_BRK), addr, uintptr(0), uintptr(0))
 	return ret
 }
 
@@ -27,7 +27,7 @@ func panic(s string) {
 	var buf []uint8 = []uint8(s)
 	syscall.Write(2, buf)
 	var arg0 uintptr = uintptr(60) // sys exit
-	var arg1 uintptr = 1 // status
+	var arg1 uintptr = 1           // status
 	var arg2 uintptr = uintptr(0)
 	var arg3 uintptr = uintptr(0)
 	syscall.Syscall(arg0, arg1, arg2, arg3)

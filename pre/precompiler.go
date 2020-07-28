@@ -94,7 +94,7 @@ func Itoa(ival int) string {
 		return "0"
 	}
 
-	var __itoa_buf []uint8 = make([]uint8, 100,100)
+	var __itoa_buf []uint8 = make([]uint8, 100, 100)
 	var __itoa_r []uint8 = make([]uint8, 100, 100)
 
 	var next int
@@ -132,7 +132,7 @@ func Itoa(ival int) string {
 // --- parser ---
 var debugFrontEnd bool
 
-func logf(format string, a... string) {
+func logf(format string, a ...string) {
 	if !debugFrontEnd {
 		return
 	}
@@ -158,7 +158,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 	}
 	var spaces []uint8
 	var i int
-	for i=0;i<indent;i++ {
+	for i = 0; i < indent; i++ {
 		spaces = append(spaces, ' ')
 	}
 	var format2 = string(spaces) + "# " + format
@@ -249,7 +249,7 @@ func emitLoad(t *Type) {
 		// pure proxy
 		fmtPrintf("  pushq %%rax\n")
 	default:
-		panic2(__func__, "TBI:kind=" + string(kind(t)))
+		panic2(__func__, "TBI:kind="+string(kind(t)))
 	}
 }
 
@@ -279,7 +279,7 @@ func emitListHeadAddr(list ast.Expr) {
 		emitPopString()
 		fmtPrintf("  pushq %%rax # string.ptr\n")
 	default:
-		panic2(__func__, "kind=" + string(kind(getTypeOfExpr(list))))
+		panic2(__func__, "kind="+string(kind(getTypeOfExpr(list))))
 	}
 }
 
@@ -1434,7 +1434,7 @@ func emitStmt(stmt ast.Stmt) {
 			keyIdent, ok := s.Key.(*ast.Ident)
 			assert(ok, "key expr should be an ident")
 			if keyIdent.Name != "_" {
-				emitAddr(s.Key) // lhs
+				emitAddr(s.Key)                    // lhs
 				emitVariableAddr(rngMisc.indexvar) // rhs
 				emitLoad(tInt)
 				emitStore(tInt)
@@ -2325,7 +2325,7 @@ func walkExpr(expr ast.Expr) {
 					basicLit := &ast.BasicLit{
 						ValuePos: 0,
 						Kind:     token.STRING,
-						Value:    "\"" + currentFuncDecl.Name.Name + "\"" ,
+						Value:    "\"" + currentFuncDecl.Name.Name + "\"",
 					}
 					arg = basicLit
 					e.Args[i] = arg
@@ -2446,7 +2446,7 @@ var gNil = &ast.Object{
 
 var eNil = &ast.Ident{
 	Name: "nil",
-	Obj: gNil,
+	Obj:  gNil,
 }
 
 var gTrue = &ast.Object{
@@ -2613,16 +2613,16 @@ func resolveUniverse(fiile *ast.File, universe *ast.Scope) {
 
 // --- main ---
 func initGlobals() {
-	T_STRING  = "T_STRING"
-	T_SLICE  = "T_SLICE"
-	T_BOOL  = "T_BOOL"
-	T_INT  = "T_INT"
-	T_UINT8  = "T_UINT8"
-	T_UINT16  = "T_UINT16"
-	T_UINTPTR  = "T_UINTPTR"
-	T_ARRAY  = "T_ARRAY"
-	T_STRUCT  = "T_STRUCT"
-	T_POINTER  = "T_POINTER"
+	T_STRING = "T_STRING"
+	T_SLICE = "T_SLICE"
+	T_BOOL = "T_BOOL"
+	T_INT = "T_INT"
+	T_UINT8 = "T_UINT8"
+	T_UINT16 = "T_UINT16"
+	T_UINTPTR = "T_UINTPTR"
+	T_ARRAY = "T_ARRAY"
+	T_STRUCT = "T_STRUCT"
+	T_POINTER = "T_POINTER"
 }
 
 var pkgName string
