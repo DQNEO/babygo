@@ -6,8 +6,8 @@ all: babygo2
 .PHONY: test
 test: test0 test1 test2
 
-t1/expected.1: t1/test.go
-	go run t1/test.go > t1/expected.1
+t1/expected.txt: t1/test.go
+	go run t1/test.go > t1/expected.txt
 
 precompiler: precompiler.go runtime.go
 	go build -o /tmp/precompiler precompiler.go && cp /tmp/precompiler .
@@ -21,7 +21,7 @@ precompiler: precompiler.go runtime.go
 	ld -o ./tmp/precompiler_test /tmp/precompiler_test.o
 
 .PHONY: test0
-test0: ./tmp/precompiler_test t1/expected.1
+test0: ./tmp/precompiler_test t1/expected.txt
 	./test.sh ./tmp/precompiler_test
 
 babygo: 2gen/main.go runtime.go runtime.s precompiler
