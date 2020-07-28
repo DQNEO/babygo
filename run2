@@ -2,6 +2,7 @@
 set -x
 make self
 echo > a.s
+ln -sf 2gentest.go 2gen/input.go
 ./self > /tmp/a.s
 if [[ $? -ne 0 ]]; then
     echo "----- Compile Error --------"
