@@ -6,14 +6,14 @@ all: babygo2
 .PHONY: test
 test: test0 test1 test2
 
-t1/expected.txt: t1/test.go
-	go run t1/test.go > t1/expected.txt
+t/expected.txt: t/test.go
+	go run t/test.go > t/expected.txt
 
 precompiler: precompiler.go runtime.go
 	go build -o /tmp/precompiler precompiler.go && cp /tmp/precompiler .
 
-./tmp/precompiler_test: precompiler t1/test.go
-	cp t1/test.go tmp/input.go
+./tmp/precompiler_test: precompiler t/test.go
+	cp t/test.go tmp/input.go
 	./precompiler > /tmp/precompiler_test.s
 	rm tmp/input.go
 	cp /tmp/precompiler_test.s ./tmp/ # for debug
@@ -21,7 +21,7 @@ precompiler: precompiler.go runtime.go
 	ld -o ./tmp/precompiler_test /tmp/precompiler_test.o
 
 .PHONY: test0
-test0: ./tmp/precompiler_test t1/expected.txt
+test0: ./tmp/precompiler_test t/expected.txt
 	./test.sh ./tmp/precompiler_test
 
 babygo: 2gen/main.go runtime.go runtime.s precompiler
@@ -34,8 +34,8 @@ babygo: 2gen/main.go runtime.go runtime.s precompiler
 	cp /tmp/babygo babygo
 
 .PHONY: test1
-test1:	babygo t1/test.go
-	cp t1/test.go tmp/input.go
+test1:	babygo t/test.go
+	cp t/test.go tmp/input.go
 	./babygo > /tmp/test.s
 	rm tmp/input.go
 	cp /tmp/test.s ./tmp/ # for debug
@@ -54,15 +54,15 @@ babygo2: babygo
 	cp /tmp/2gen babygo2
 
 test2: babygo2
-	cp t1/test.go tmp/input.go
+	cp t/test.go tmp/input.go
 	./babygo2 > /tmp/test2.s
 	rm tmp/input.go
 	as -o /tmp/test2.o /tmp/test2.s runtime.s
 	ld -o /tmp/test2 /tmp/test2.o
 	./test.sh /tmp/test2
 
-fmt: *.go t1/*.go 2gen/*.go
-	gofmt -w *.go t1/*.go 2gen/*.go
+fmt: *.go t/*.go 2gen/*.go
+	gofmt -w *.go t/*.go 2gen/*.go
 
 clean:
 	rm -f ./tmp/*

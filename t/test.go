@@ -121,7 +121,7 @@ const O_READONLY_ int = 0
 
 func testOpenRead() {
 	var fd int
-	fd, _ = syscall.Open("t1/text.txt", O_READONLY_, 0)
+	fd, _ = syscall.Open("t/text.txt", O_READONLY_, 0)
 	writeln(itoa(fd)) // should be 3
 	var buf []uint8 = make([]uint8, 300, 300)
 	var n int
