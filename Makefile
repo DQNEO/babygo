@@ -9,8 +9,8 @@ test: test0 test1 test2
 t/expected.txt: t/test.go
 	go run t/test.go > t/expected.txt
 
-precompiler: precompiler.go runtime.go
-	go build -o /tmp/precompiler precompiler.go && cp /tmp/precompiler .
+precompiler: pre/precompiler.go runtime.go
+	go build -o /tmp/precompiler pre/precompiler.go && cp /tmp/precompiler .
 
 ./tmp/precompiler_test: precompiler t/test.go
 	cp t/test.go tmp/input.go
