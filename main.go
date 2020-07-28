@@ -2316,6 +2316,8 @@ func walkExpr(expr ast.Expr) {
 	case *ast.SelectorExpr:
 		walkExpr(e.X)
 	case *ast.CallExpr:
+		walkExpr(e.Fun)
+		// Replace __func__ ident by a string literal
 		for i, arg := range e.Args {
 			ident, ok := arg.(*ast.Ident)
 			if ok {

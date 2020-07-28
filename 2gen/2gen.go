@@ -4092,6 +4092,7 @@ var stringIndex int
 var globalVars []*astValueSpec
 var globalFuncs []*Func
 var localoffset int
+var currentFuncDecl *astFuncDecl
 
 func getStringLiteral(lit *astBasicLit) *sliteral {
 	var container *stringLiteralsContainer
@@ -4287,7 +4288,24 @@ func walkExpr(expr *astExpr) {
 	case "*astCallExpr":
 		var arg *astExpr
 		walkExpr(expr.callExpr.Fun)
-		for _, arg = range expr.callExpr.Args {
+		// Replace __func__ ident by a string literal
+		var basicLit *astBasicLit
+		var i int
+		var newArg *astExpr
+		for i, arg = range expr.callExpr.Args {
+			if arg.dtype == "*astIdent" {
+				var ident = arg.ident
+				if ident.Name == "__func__" && ident.Obj.Kind == astVar {
+					basicLit = new(astBasicLit)
+					basicLit.Kind = "STRING"
+					basicLit.Value =   "\"" + currentFuncDecl.Name.Name + "\""
+					newArg = new(astExpr)
+					newArg.dtype = "*astBasicLit"
+					newArg.basicLit = basicLit
+					expr.callExpr.Args[i] = newArg
+					arg = newArg
+				}
+			}
 			walkExpr(arg)
 		}
 	case "*astBasicLit":
@@ -4349,6 +4367,7 @@ func walk(file *astFile) string {
 			}
 		case "*astFuncDecl":
 			var funcDecl = decl.funcDecl
+			currentFuncDecl = funcDecl
 			logf(" [sema] == astFuncDecl %s ==\n", funcDecl.Name.Name)
 			localoffset  = 0
 			var paramoffset = 16
