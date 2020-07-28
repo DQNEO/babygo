@@ -66,6 +66,17 @@ test2: babygo2
 	ld -o $(tmp)/test2 $(tmp)/test2.o
 	./test.sh $(tmp)/test2
 
+# test self hosting in a more direct way
+.PHONY: test3
+test3: $(tmp)
+	go build -o $(tmp)/bbg main.go
+	cp main.go tmp/input.go
+	$(tmp)/bbg > $(tmp)/bbg2.s
+	as -o $(tmp)/bbg2.o $(tmp)/bbg2.s runtime.s
+	ld -o $(tmp)/bbg2 $(tmp)/bbg2.o
+	$(tmp)/bbg2 > $(tmp)/bbg3.s
+	diff $(tmp)/bbg2.s $(tmp)/bbg3.s
+
 .PHONY: fmt
 fmt: *.go t/*.go
 	gofmt -w *.go t/*.go
