@@ -392,6 +392,12 @@ func testBool() {
 		writeln("ERROR")
 	}
 
+	if !bol {
+		writeln("ERROR")
+	} else {
+		writeln("bool ! 1 ok")
+	}
+
 	if returnTrue2() {
 		writeln("bool 2 ok")
 	} else {

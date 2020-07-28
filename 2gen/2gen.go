@@ -2980,7 +2980,6 @@ func emitExpr(e *astExpr, forceType *Type) {
 		case "&":
 			emitAddr(e.unaryExpr.X)
 		case "!":
-			emitAddr(e.unaryExpr.X)
 			emitExpr(e.unaryExpr.X, nil)
 			emitInvertBoolValue()
 		default:
