@@ -57,6 +57,7 @@ babygo2: babygo
 	ld -o $(tmp)/2gen $(tmp)/2gen.o
 	cp $(tmp)/2gen babygo2
 
+.PHONY: test2
 test2: babygo2
 	cp t/test.go tmp/input.go
 	./babygo2 > $(tmp)/test2.s
@@ -65,10 +66,11 @@ test2: babygo2
 	ld -o $(tmp)/test2 $(tmp)/test2.o
 	./test.sh $(tmp)/test2
 
-
+.PHONY: fmt
 fmt: *.go t/*.go
 	gofmt -w *.go t/*.go
 
+.PHONY: clean
 clean:
 	rm -f ./tmp/*
 	rm -fr $(tmp)
