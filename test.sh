@@ -1,6 +1,7 @@
 #!/bin/bash
 set -u
-./test.out 1>/tmp/actual.1 2> /tmp/actual.2
+program=$1
+${program} 1>/tmp/actual.1 2> /tmp/actual.2
 exit_status=$?
 diff t1/expected.1 /tmp/actual.1
 if [[ $? -ne 0 ]]; then
