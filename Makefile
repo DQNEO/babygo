@@ -24,8 +24,8 @@ precompiler: precompiler.go runtime.go
 test0: ./tmp/precompiler_test t/expected.txt
 	./test.sh ./tmp/precompiler_test
 
-babygo: 2gen/main.go runtime.go runtime.s precompiler
-	cp 2gen/main.go tmp/input.go
+babygo: main.go runtime.go runtime.s precompiler
+	cp main.go tmp/input.go
 	./precompiler > /tmp/babygo.s
 	rm tmp/input.go
 	cp /tmp/babygo.s ./tmp/ # for debug
@@ -44,7 +44,7 @@ test1:	babygo t/test.go
 	./test.sh /tmp/test
 
 babygo2: babygo
-	cp 2gen/main.go tmp/input.go
+	cp main.go tmp/input.go
 	./babygo > /tmp/2gen.s
 	rm tmp/input.go
 	diff /tmp/babygo.s /tmp/2gen.s
@@ -61,8 +61,8 @@ test2: babygo2
 	ld -o /tmp/test2 /tmp/test2.o
 	./test.sh /tmp/test2
 
-fmt: *.go t/*.go 2gen/*.go
-	gofmt -w *.go t/*.go 2gen/*.go
+fmt: *.go t/*.go
+	gofmt -w *.go t/*.go
 
 clean:
 	rm -f ./tmp/*
