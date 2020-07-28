@@ -67,8 +67,8 @@ test-self-host: $(tmp)
 	diff $(tmp)/bbg2.s $(tmp)/bbg3.s
 
 .PHONY: fmt
-fmt: *.go t/*.go
-	gofmt -w *.go t/*.go
+fmt: *.go t/*.go pre/*.go
+	gofmt -w *.go t/*.go pre/*.go
 
 .PHONY: clean
 clean:
