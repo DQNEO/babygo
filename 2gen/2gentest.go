@@ -360,7 +360,7 @@ func returnFalse() bool {
 }
 
 var globalbool1 bool // = true // @TODO
-var globalbool2 bool
+var globalbool2 bool = false
 var globalbool3 bool
 
 func testGlobalBool() {
@@ -384,7 +384,7 @@ func testGlobalBool() {
 	}
 }
 
-func testBool() {
+func testLocalBool() {
 	var bol bool = returnTrue1()
 	if bol {
 		writeln("bool 1 ok")
@@ -611,7 +611,6 @@ func testForrangeKey() {
 	}
 }
 
-
 func testForrange() {
 	var slc []string
 	var s string
@@ -666,7 +665,6 @@ func testNewStruct() {
 var nilSlice []*MyStruct
 
 func testNilSlice() {
- 	writeln("-- testNilSlice()")
 	nilSlice = make([]*MyStruct, 2, 2)
 	writeln(itoa(len(nilSlice)))
 	writeln(itoa(cap(nilSlice)))
@@ -730,7 +728,27 @@ func testGlobalStrings() {
 	write(globalstrings1[1])
 }
 
-var sp []*MyStruct
+var globalstrings [2]string
+
+func testSliceOfStrings() {
+	var s1 string = "hello"
+	var s2 string = " strings\n"
+	var strings []string = make([]string, 2, 2)
+	var i int
+	strings[0] = s1
+	strings[1] = s2
+	for i = 0; i < 2; i = i + 1 {
+		write(strings[i])
+	}
+
+	globalstrings[0] = s1
+	globalstrings[1] = " globalstrings\n"
+	for i = 0; i < 2; i = i + 1 {
+		write(globalstrings[i])
+	}
+}
+
+var structPointers []*MyStruct
 
 func testSliceOfPointers() {
 	var strct1 MyStruct
@@ -740,14 +758,14 @@ func testSliceOfPointers() {
 
 	strct1.field2 = 11
 	strct2.field2 = 22
-	sp = make([]*MyStruct, 2, 2)
-	sp[0] = p1
-	sp[1] = p2
+	structPointers = make([]*MyStruct, 2, 2)
+	structPointers[0] = p1
+	structPointers[1] = p2
 
 	var i int
 	var x int
 	for i = 0; i < 2; i = i + 1 {
-		x = sp[i].field2
+		x = structPointers[i].field2
 		writeln(itoa(x))
 	}
 }
@@ -757,6 +775,7 @@ func testStructPointer() {
 	var strct *MyStruct
 	strct = &_strct
 	strct.field1 = 123
+
 	var i int
 	i = strct.field1
 	writeln(itoa(i))
@@ -911,14 +930,13 @@ func testItoa() {
 	writeln(itoa(-1234567890))
 }
 
-
 func itoa(ival int) string {
 	if ival == 0 {
 		return "0"
 	}
 
-	var __itoa_buf []uint8 = make([]uint8, 100, 100)
-	var __itoa_r []uint8 = make([]uint8, 100, 100)
+	var buf []uint8 = make([]uint8, 100, 100)
+	var r []uint8 = make([]uint8, 100, 100)
 
 	var next int
 	var right int
@@ -929,28 +947,30 @@ func itoa(ival int) string {
 		if ival < 0 {
 			ival = -1 * ival
 			minus = true
-			__itoa_r[0] = '-'
+			r[0] = '-'
 		} else {
 			next = ival / 10
 			right = ival - next*10
 			ival = next
-			__itoa_buf[ix] = uint8('0' + right)
+			buf[ix] = uint8('0' + right)
 		}
 	}
 
 	var j int
 	var c uint8
 	for j = 0; j < ix; j = j + 1 {
-		c = __itoa_buf[ix-j-1]
+		c = buf[ix-j-1]
 		if minus {
-			__itoa_r[j+1] = c
+			r[j+1] = c
 		} else {
-			__itoa_r[j] = c
+			r[j] = c
 		}
 	}
 
-	return string(__itoa_r[0:ix])
+	return string(r[0:ix])
 }
+
+var globalintarray [4]int
 
 func testIndexExprOfArray() {
 	globalintarray[0] = 11
@@ -959,8 +979,6 @@ func testIndexExprOfArray() {
 	globalintarray[3] = 44
 	write("\n")
 }
-
-var globalintarray [4]int
 
 func testIndexExprOfSlice() {
 	var intslice []int = globalintarray[0:4]
@@ -979,36 +997,6 @@ func testIndexExprOfSlice() {
 		write(itoa(globalintarray[i]))
 	}
 	write("\n")
-}
-
-func testArgAssign(x int) int {
-	x = 13
-	return x
-}
-
-func testMinus() int {
-	var x int = -1
-	x = x * -5
-	return x
-}
-
-func sum(x int, y int) int {
-	return x + y
-}
-
-func add1(x int) int {
-	return x + 1
-}
-
-var globalint int
-var globalint2 int
-var globaluint8 uint8
-var globaluint16 uint16
-var globalarray [9]uint8
-var globaluintptr uintptr
-
-func returnstring() string {
-	return "i am a local 1\n"
 }
 
 func testFor() {
@@ -1126,9 +1114,47 @@ func testElse() {
 	}
 }
 
-var globalslice []uint8
+var globalint int
+var globalint2 int
+var globaluint8 uint8
+var globaluint16 uint16
 
-func testChar() {
+var globalstring string
+var globalarray [9]uint8
+var globalslice []uint8
+var globaluintptr uintptr
+
+func assignGlobal() {
+	globalint = 22
+	globaluint8 = 1
+	globaluint16 = 5
+	globaluintptr = 7
+	globalstring = "globalstring changed\n"
+}
+
+func add1(x int) int {
+	return x + 1
+}
+
+func sum(x int, y int) int {
+	return x + y
+}
+
+func print1(a string) {
+	write(a)
+	return
+}
+
+func print2(a string, b string) {
+	write(a)
+	write(b)
+}
+
+func returnstring() string {
+	return "i am a local 1\n"
+}
+
+func testGlobalCharArray() {
 	globalarray[0] = 'A'
 	globalarray[1] = 'B'
 	globalarray[2] = globalarray[0]
@@ -1140,21 +1166,6 @@ func testChar() {
 	write(string(globalarray[0:4]))
 }
 
-var globalstring string
-
-func assignGlobal() {
-	globalint = 22
-	globaluint8 = 1
-	globaluint16 = 5
-	globaluintptr = 7
-	globalstring = "globalstring changed\n"
-}
-
-func print1(a string) {
-	write(a)
-	return
-}
-
 func testString() {
 	write(globalstring)
 	assignGlobal()
@@ -1163,19 +1174,31 @@ func testString() {
 
 	var s string = "hello string"
 	writeln(s)
+
 	var localstring1 string = returnstring()
 	var localstring2 string
 	localstring2 = "i m local2\n"
 	print1(localstring1)
-	print1(localstring2)
+	print2(localstring1, localstring2)
 	write(globalstring)
+}
+
+func testArgAssign(x int) int {
+	x = 13
+	return x
+}
+
+func testMinus() int {
+	var x int = -1
+	x = x * -5
+	return x
 }
 
 func testMisc() {
 	var i13 int = 0
 	i13 = testArgAssign(i13)
 	var i5 int = testMinus()
-	globalint2 = sum(1, i13 * i5)
+	globalint2 = sum(1, i13 % i5)
 
 	var locali3 int
 	var tmp int
@@ -1186,6 +1209,7 @@ func testMisc() {
 	locali3 = add1(tmp)
 	var i42 int
 	i42 = sum(globalint, globalint2) + locali3
+
 	writeln(itoa(i42))
 }
 
@@ -1205,7 +1229,7 @@ func test() {
 	testForOmissible()
 	testForBreakContinue()
 	testGlobalBool()
-	testBool()
+	testLocalBool()
 	testNilComparison()
 	testSliceLiteral()
 	testArrayCopy()
@@ -1227,6 +1251,7 @@ func test() {
 	testZeroValues()
 	testIncrDecr()
 	testGlobalStrings()
+	testSliceOfStrings()
 	testSliceOfPointers()
 	testStructPointer()
 	testStruct()
@@ -1248,9 +1273,10 @@ func test() {
 	testElseIf()
 	testElse()
 	testIf()
+	testGlobalCharArray()
 
-	testChar()
 	testMisc()
+	//print("test end\n")
 }
 
 func main() {

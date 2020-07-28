@@ -234,6 +234,7 @@ func testLogicalAndOr() {
 	} else {
 		writeln("ERROR")
 	}
+
 	if t && f {
 		writeln("ERROR")
 	} else {
@@ -278,50 +279,68 @@ func testConst() {
 	writeln(itoa(MY_CONST_INT_VALUE))
 }
 
-func testStringComparison() {
-	var s string
-	if s == "" {
-		writeln("string cmp 1 ok")
-	} else {
-		writeln("ERROR")
+func testForOmissible() {
+	var i int
+	for {
+		i++
+		if i == 2 {
+			break
+		}
 	}
-	var s2 string = ""
-	if s2 == s {
-		writeln("string cmp 2 ok")
-	} else {
-		writeln("ERROR")
-	}
+	write(itoa(i))
 
-	var s3 string = "abc"
-	s3 = s3 + "def"
-	var s4 string = "1abcdef1"
-	var s5 string = s4[1:7]
-	if s3 == s5 {
-		writeln("string cmp 3 ok")
-	} else {
-		writeln("ERROR")
+	i = 0
+	for i < 3 {
+		i++
 	}
+	write(itoa(i))
 
-	if "abcdef" == s5 {
-		writeln("string cmp 4 ok")
-	} else {
-		writeln("ERROR")
+	i = 0
+	for i < 4 {
+		i++
 	}
+	write(itoa(i))
 
-	if s3 != s5 {
-		writeln(s3)
-		writeln(s5)
-		writeln("ERROR")
-		return
-	} else {
-		writeln("string cmp not 1 ok")
-	}
+	write("\n")
+}
 
-	if s4 != s3 {
-		writeln("string cmp not 2 ok")
-	} else {
-		writeln("ERROR")
+func testForBreakContinue() {
+	var i int
+	for i = 0; i < 10; i = i + 1 {
+		if i == 3 {
+			break
+		}
+		write(itoa(i))
 	}
+	write("exit")
+	writeln(itoa(i))
+
+	for i = 0; i < 10; i = i + 1 {
+		if i < 7 {
+			continue
+		}
+		write(itoa(i))
+	}
+	write("exit")
+	writeln(itoa(i))
+
+	var ary []int = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+	for _, i = range ary {
+		if i == 3 {
+			break
+		}
+		write(itoa(i))
+	}
+	write("exit")
+	writeln(itoa(i))
+	for _, i = range ary {
+		if i < 7 {
+			continue
+		}
+		write(itoa(i))
+	}
+	write("exit")
+	writeln(itoa(i))
 }
 
 func returnTrue1() bool {
@@ -339,6 +358,10 @@ func returnFalse() bool {
 	var bol bool = true
 	return !bol
 }
+
+var globalbool1 bool // = true // @TODO
+var globalbool2 bool = false
+var globalbool3 bool
 
 func testGlobalBool() {
 	globalbool1 = true
@@ -361,12 +384,18 @@ func testGlobalBool() {
 	}
 }
 
-func testBool() {
+func testLocalBool() {
 	var bol bool = returnTrue1()
 	if bol {
 		writeln("bool 1 ok")
 	} else {
 		writeln("ERROR")
+	}
+
+	if !bol {
+		writeln("ERROR")
+	} else {
+		writeln("bool ! 1 ok")
 	}
 
 	if returnTrue2() {
@@ -620,7 +649,7 @@ func testForrange() {
 }
 
 func newStruct() *MyStruct {
-	var strct = new(MyStruct)
+	var strct *MyStruct = new(MyStruct)
 	writeln(itoa(strct.field2))
 	strct.field2 = 2
 	return strct
@@ -636,7 +665,6 @@ func testNewStruct() {
 var nilSlice []*MyStruct
 
 func testNilSlice() {
-	writeln("-- testNilSlice()")
 	nilSlice = make([]*MyStruct, 2, 2)
 	writeln(itoa(len(nilSlice)))
 	writeln(itoa(cap(nilSlice)))
@@ -676,6 +704,8 @@ func testIncrDecr() {
 	i--
 	writeln(itoa(i))
 }
+
+//type T int
 
 type MyStruct struct {
 	field1 int
@@ -733,8 +763,10 @@ func testSliceOfPointers() {
 	structPointers[1] = p2
 
 	var i int
+	var x int
 	for i = 0; i < 2; i = i + 1 {
-		writeln(itoa(structPointers[i].field2))
+		x = structPointers[i].field2
+		writeln(itoa(x))
 	}
 }
 
@@ -754,7 +786,6 @@ func testStructPointer() {
 	strct.field1 = 777
 	strct.field2 = strct.field1
 	writeln(itoa(strct.field2))
-
 }
 
 func testStruct() {
@@ -798,6 +829,52 @@ func testDeclValue() {
 	writeln(itoa(i))
 }
 
+func testStringComparison() {
+	var s string
+	if s == "" {
+		writeln("string cmp 1 ok")
+	} else {
+		writeln("ERROR")
+	}
+	var s2 string = ""
+	if s2 == s {
+		writeln("string cmp 2 ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	var s3 string = "abc"
+	s3 = s3 + "def"
+	var s4 string = "1abcdef1"
+	var s5 string = s4[1:7]
+	if s3 == s5 {
+		writeln("string cmp 3 ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	if "abcdef" == s5 {
+		writeln("string cmp 4 ok")
+	} else {
+		writeln("ERROR")
+	}
+
+	if s3 != s5 {
+		writeln(s3)
+		writeln(s5)
+		writeln("ERROR")
+		return
+	} else {
+		writeln("string cmp not 1 ok")
+	}
+
+	if s4 != s3 {
+		writeln("string cmp not 2 ok")
+	} else {
+		writeln("ERROR")
+	}
+}
+
 func testConcateStrings() {
 	var concatenated string = "foo" + "bar" + "1234"
 	writeln(concatenated)
@@ -839,26 +916,31 @@ func testNew() {
 }
 
 func testItoa() {
+	writeln(itoa(0))
+	writeln(itoa(1))
+	writeln(itoa(12))
+	writeln(itoa(123))
+	writeln(itoa(12345))
+	writeln(itoa(12345678))
 	writeln(itoa(1234567890))
 	writeln(itoa(54321))
-	writeln(itoa(1))
-	writeln("0")
-	writeln(itoa(0))
 	writeln(itoa(-1))
 	writeln(itoa(-54321))
+	writeln(itoa(-7654321))
 	writeln(itoa(-1234567890))
 }
 
 func itoa(ival int) string {
-	var buf []uint8 = make([]uint8, 100,100)
+	if ival == 0 {
+		return "0"
+	}
+
+	var buf []uint8 = make([]uint8, 100, 100)
 	var r []uint8 = make([]uint8, 100, 100)
 
 	var next int
 	var right int
 	var ix int = 0
-	if ival == 0 {
-		return "0"
-	}
 	var minus bool
 	minus = false
 	for ix = 0; ival != 0; ix = ix + 1 {
@@ -888,67 +970,33 @@ func itoa(ival int) string {
 	return string(r[0:ix])
 }
 
-func testForOmissible() {
-	var i int
-	for {
-		i++
-		if i == 2 {
-			break
-		}
-	}
-	write(itoa(i))
+var globalintarray [4]int
 
-	i = 0
-	for i < 3 {
-		i++
-	}
-	write(itoa(i))
-
-	i = 0
-	for i < 4 {
-		i++
-	}
-	write(itoa(i))
-
+func testIndexExprOfArray() {
+	globalintarray[0] = 11
+	globalintarray[1] = 22
+	globalintarray[2] = globalintarray[1]
+	globalintarray[3] = 44
 	write("\n")
 }
 
-func testForBreakContinue() {
-	var i int
-	for i = 0; i < 10; i = i + 1 {
-		if i == 3 {
-			break
-		}
-		write(itoa(i))
-	}
-	write("exit")
-	writeln(itoa(i))
-	for i = 0; i < 10; i = i + 1 {
-		if i < 7 {
-			continue
-		}
-		write(itoa(i))
-	}
-	write("exit")
-	writeln(itoa(i))
+func testIndexExprOfSlice() {
+	var intslice []int = globalintarray[0:4]
+	intslice[0] = 66
+	intslice[1] = 77
+	intslice[2] = intslice[1]
+	intslice[3] = 88
 
-	var ary []int = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	for _, i = range ary {
-		if i == 3 {
-			break
-		}
-		write(itoa(i))
+	var i int
+	for i = 0; i < 4; i = i + 1 {
+		write(itoa(intslice[i]))
 	}
-	write("exit")
-	writeln(itoa(i))
-	for _, i = range ary {
-		if i < 7 {
-			continue
-		}
-		write(itoa(i))
+	write("\n")
+
+	for i = 0; i < 4; i = i + 1 {
+		write(itoa(globalintarray[i]))
 	}
-	write("exit")
-	writeln(itoa(i))
+	write("\n")
 }
 
 func testFor() {
@@ -1066,18 +1114,13 @@ func testElse() {
 	}
 }
 
-var globalbool1 bool // = true // @TODO
-var globalbool2 bool = false
-var globalbool3 bool
 var globalint int
 var globalint2 int
 var globaluint8 uint8
 var globaluint16 uint16
 
 var globalstring string
-var globalstring2 string
-var globalintslice []int
-var globalarray [10]uint8
+var globalarray [9]uint8
 var globalslice []uint8
 var globaluintptr uintptr
 
@@ -1111,37 +1154,7 @@ func returnstring() string {
 	return "i am a local 1\n"
 }
 
-var globalintarray [4]int
-
-func testIndexExprOfArray() {
-	globalintarray[0] = 11
-	globalintarray[1] = 22
-	globalintarray[2] = globalintarray[1]
-	globalintarray[3] = 44
-	write("\n")
-}
-
-func testIndexExprOfSlice() {
-	var intslice []int = globalintarray[0:4]
-	intslice[0] = 66
-	intslice[1] = 77
-	intslice[2] = intslice[1]
-	intslice[3] = 88
-
-	var i int
-	for i = 0; i < 4; i = i + 1 {
-		write(itoa(intslice[i]))
-	}
-	write("\n")
-
-	for i = 0; i < 4; i = i + 1 {
-		write(itoa(globalintarray[i]))
-	}
-	write("\n")
-}
-
-// test global chars
-func testChar() {
+func testGlobalCharArray() {
 	globalarray[0] = 'A'
 	globalarray[1] = 'B'
 	globalarray[2] = globalarray[0]
@@ -1159,9 +1172,13 @@ func testString() {
 
 	print1("hello string literal\n")
 
+	var s string = "hello string"
+	writeln(s)
+
 	var localstring1 string = returnstring()
 	var localstring2 string
 	localstring2 = "i m local2\n"
+	print1(localstring1)
 	print2(localstring1, localstring2)
 	write(globalstring)
 }
@@ -1181,7 +1198,7 @@ func testMisc() {
 	var i13 int = 0
 	i13 = testArgAssign(i13)
 	var i5 int = testMinus()
-	globalint2 = sum(1, i13%i5)
+	globalint2 = sum(1, i13 % i5)
 
 	var locali3 int
 	var tmp int
@@ -1195,8 +1212,6 @@ func testMisc() {
 
 	writeln(itoa(i42))
 }
-
-var globalptr *int
 
 func test() {
 	testAtoi()
@@ -1213,8 +1228,8 @@ func test() {
 	testConst()
 	testForOmissible()
 	testForBreakContinue()
-	testBool()
 	testGlobalBool()
+	testLocalBool()
 	testNilComparison()
 	testSliceLiteral()
 	testArrayCopy()
@@ -1237,7 +1252,6 @@ func test() {
 	testIncrDecr()
 	testGlobalStrings()
 	testSliceOfStrings()
-	testSliceOfStrings()
 	testSliceOfPointers()
 	testStructPointer()
 	testStruct()
@@ -1257,11 +1271,12 @@ func test() {
 	testCmpUint8()
 	testCmpInt()
 	testElseIf()
-	testIf()
 	testElse()
-	testChar()
+	testIf()
+	testGlobalCharArray()
+
 	testMisc()
-	print("test end\n")
+	//print("test end\n")
 }
 
 func main() {

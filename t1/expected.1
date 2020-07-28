@@ -40,12 +40,13 @@ false || false ok
 789exit10
 012exit3
 789exit9
-bool 1 ok
-bool 2 ok
-bool 3 ok
 globalbool 1 ok
 globalbool 2 ok
 globalbool 3 ok
+bool 1 ok
+bool ! 1 ok
+bool 2 ok
+bool 3 ok
 nil pointer 1 ok
 nil pointer 2 ok
 nil pointer 3 ok
@@ -85,7 +86,6 @@ helloforrange
 0
 0
 2
--- testNilSlice()
 2
 2
 0
@@ -98,8 +98,6 @@ int zero ok
 1
 -1
 aaa,bbb,aaa,bbb,hello strings
-hello globalstrings
-hello strings
 hello globalstrings
 11
 22
@@ -129,18 +127,24 @@ foobar1234
 6
 ABC
 0
+0
+1
+12
+123
+12345
+12345678
 1234567890
 54321
-1
-0
-0
 -1
 -54321
+-7654321
 -1234567890
 
 66777788
 66777788
 hello string literal
+hello string
+i am a local 1
 i am a local 1
 i m local2
 globalstring changed
