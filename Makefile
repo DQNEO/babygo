@@ -1,12 +1,13 @@
 # Run this on Linux
 
-.PHONEY: test2 test
 
-all: test
 
-test.s: main.go runtime.go t1/test.go
+precompiler: precompiler.go runtime.go
+	go build -o precompiler precompiler.go
+
+test.s: precompiler.go runtime.go t1/test.go
 	ln -sf ../t1/test.go t/source.go
-	go run main.go > /tmp/test.s && cp /tmp/test.s test.s
+	go run precompiler.go > /tmp/test.s && cp /tmp/test.s test.s
 
 test.o: test.s runtime.s
 	as -o test.o test.s runtime.s
@@ -28,9 +29,9 @@ t1/expected.1: t1/test
 	t1/test 1> t1/expected.1
 
 # 2nd gen compiler
-2gen.s: main.go runtime.go runtime.s 2gen/2gen.go 2gen/2gentest.go
-	ln -sf ../2gen/2gen.go t/source.go
-	go run main.go > /tmp/2gen.s && cp /tmp/2gen.s 2gen.s
+2gen.s: precompiler.go runtime.go runtime.s 2gen/main.go 2gen/2gentest.go
+	ln -sf ../2gen/main.go t/source.go
+	go run precompiler.go > /tmp/2gen.s && cp /tmp/2gen.s 2gen.s
 
 2gen.o: 2gen.s
 	as -o 2gen.o 2gen.s runtime.s
@@ -41,7 +42,7 @@ self: 2gen.o
 test2: self
 	ln -sf 2gentest.go 2gen/input.go
 	./self | sed -e '/^#/d' > 2gen_out.s
-	go run 2gen/2gen.go |  sed -e '/^#/d' > /tmp/2gen_out.s
+	go run 2gen/main.go |  sed -e '/^#/d' > /tmp/2gen_out.s
 	diff 2gen_out.s /tmp/2gen_out.s >/dev/null && echo 'ok'
 
 test3: self 2gen/2gentest.go
@@ -52,7 +53,7 @@ test3: self 2gen/2gentest.go
 	diff /tmp/a.txt /tmp/b.txt && echo 'ok'
 
 test4: self
-	ln -sf 2gen.go 2gen/input.go
+	ln -sf main.go 2gen/input.go
 	./self > /tmp/a.s && cp /tmp/a.s .
 	diff 2gen.s  /tmp/a.s >/dev/null
 
