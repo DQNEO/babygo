@@ -1,13 +1,7 @@
-/test.s
-/test.o
-/test.out
-sample.o
-/t1/test
-/2gen.s
-/2gen.o
-/2gen_out.s
-/self
-t/source.go
-/a.s
-/a.o
-/2gen/input.go
+# binaries
+/precompiler
+/babygo
+/babygo2
+
+# intermediate files
+/tmp/*

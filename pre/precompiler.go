@@ -2630,7 +2630,7 @@ var pkgName string
 func main() {
 	initGlobals()
 
-	var sourceFiles = []string{"runtime.go", "./t/source.go"}
+	var sourceFiles = []string{"runtime.go", "/dev/stdin"}
 	var sourceFile string
 
 	var universe = createUniverse()

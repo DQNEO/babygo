@@ -1,69 +1,82 @@
 # Run this on Linux
+tmp = /tmp/babygo
+
+.PHONY: all
+all: test
+
+.PHONY: test
+test: test0 test1 test2 test-self-host
+
+$(tmp):
+	mkdir -p $(tmp)
+
+t/expected.txt: t/test.go
+	go run t/test.go > t/expected.txt
+
+precompiler: pre/precompiler.go runtime.go $(tmp)
+	go build -o $(tmp)/precompiler pre/precompiler.go && cp $(tmp)/precompiler .
+
+./tmp/precompiler_test: precompiler t/test.go
+	./precompiler < t/test.go > $(tmp)/precompiler_test.s
+	cp $(tmp)/precompiler_test.s ./tmp/ # for debug
+	as -o $(tmp)/precompiler_test.o $(tmp)/precompiler_test.s runtime.s
+	ld -o ./tmp/precompiler_test $(tmp)/precompiler_test.o
+
+.PHONY: test0
+test0: ./tmp/precompiler_test t/expected.txt
+	./test.sh ./tmp/precompiler_test
+
+babygo: main.go runtime.go runtime.s precompiler
+	./precompiler < main.go > $(tmp)/babygo.s
+	cp $(tmp)/babygo.s ./tmp/ # for debug
+	as -o $(tmp)/babygo.o $(tmp)/babygo.s runtime.s
+	ld -o $(tmp)/babygo $(tmp)/babygo.o
+	cp $(tmp)/babygo babygo
+
+.PHONY: test1
+test1:	babygo t/test.go
+	./babygo < t/test.go > $(tmp)/test.s
+	cp $(tmp)/test.s ./tmp/ # for debug
+	as -o $(tmp)/test.o $(tmp)/test.s runtime.s
+	ld -o $(tmp)/test $(tmp)/test.o
+	./test.sh $(tmp)/test
+
+babygo2: babygo
+	./babygo < main.go > $(tmp)/2gen.s
+	diff $(tmp)/babygo.s $(tmp)/2gen.s
+	cp $(tmp)/2gen.s ./tmp/ # for debug
+	as -o $(tmp)/2gen.o $(tmp)/2gen.s runtime.s
+	ld -o $(tmp)/2gen $(tmp)/2gen.o
+	cp $(tmp)/2gen babygo2
+
+.PHONY: test2
+test2: babygo2
+	./babygo2 < t/test.go > $(tmp)/test2.s
+	as -o $(tmp)/test2.o $(tmp)/test2.s runtime.s
+	ld -o $(tmp)/test2 $(tmp)/test2.o
+	./test.sh $(tmp)/test2
+
+# test self hosting in a more direct way
+.PHONY: test-self-host
+test-self-host: $(tmp)
+	go build -o $(tmp)/bbg main.go
+	$(tmp)/bbg < main.go > $(tmp)/bbg2.s
+	as -o $(tmp)/bbg2.o $(tmp)/bbg2.s runtime.s
+	ld -o $(tmp)/bbg2 $(tmp)/bbg2.o
+	$(tmp)/bbg2 < main.go > $(tmp)/bbg3.s
+	diff $(tmp)/bbg2.s $(tmp)/bbg3.s
+
+.PHONY: fmt
+fmt: *.go t/*.go pre/*.go
+	gofmt -w *.go t/*.go pre/*.go
+
+.PHONY: clean
+clean:
+	rm -f ./tmp/*
+	rm -fr $(tmp)
+	rm -f precompiler babygo babygo2
 
 
-
-precompiler: precompiler.go runtime.go
-	go build -o precompiler precompiler.go
-
-test.s: precompiler.go runtime.go t1/test.go
-	ln -sf ../t1/test.go t/source.go
-	go run precompiler.go > /tmp/test.s && cp /tmp/test.s test.s
-
-test.o: test.s runtime.s
-	as -o test.o test.s runtime.s
-
-test.out: test.o
-	ld -o test.out test.o
-
-test: test.out t1/expected.1
-	./test.sh
-
-# to learn Go's assembly
+# to learn the official Go's assembly
 sample/sample.s: sample/sample.go
 	go tool compile -N -S sample/sample.go > sample/sample.s
-
-t1/test: t1/test.go
-	go build -o t1/test t1/test.go
-
-t1/expected.1: t1/test
-	t1/test 1> t1/expected.1
-
-# 2nd gen compiler
-2gen.s: precompiler.go runtime.go runtime.s 2gen/main.go 2gen/2gentest.go
-	ln -sf ../2gen/main.go t/source.go
-	go run precompiler.go > /tmp/2gen.s && cp /tmp/2gen.s 2gen.s
-
-2gen.o: 2gen.s
-	as -o 2gen.o 2gen.s runtime.s
-
-self: 2gen.o
-	ld -o self 2gen.o
-
-test2: self
-	ln -sf 2gentest.go 2gen/input.go
-	./self | sed -e '/^#/d' > 2gen_out.s
-	go run 2gen/main.go |  sed -e '/^#/d' > /tmp/2gen_out.s
-	diff 2gen_out.s /tmp/2gen_out.s >/dev/null && echo 'ok'
-
-test3: self 2gen/2gentest.go
-	ln -sf 2gentest.go 2gen/input.go
-	./self | as -o a.o runtime.s - && ld a.o
-	./a.out > /tmp/a.txt
-	go run 2gen/2gentest.go > /tmp/b.txt
-	diff /tmp/a.txt /tmp/b.txt && echo 'ok'
-
-test4: self
-	ln -sf main.go 2gen/input.go
-	./self > /tmp/a.s && cp /tmp/a.s .
-	diff 2gen.s  /tmp/a.s >/dev/null
-
-test-all:
-	make test test2 test3
-
-fmt: *.go t1/*.go 2gen/*.go
-	gofmt -w *.go t1/*.go 2gen/*.go
-
-clean:
-	rm -f test.s test.o test.out t1/test
-	rm -f self 2gen.o 2gen.s
-
