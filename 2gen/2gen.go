@@ -4356,14 +4356,25 @@ func walk(file *astFile) string {
 		switch decl.dtype {
 		case "*astGenDecl":
 			var genDecl = decl.genDecl
-			if genDecl.Spec.dtype != "*astValueSpec" {
-				continue
-			}
-			var valSpec = genDecl.Spec.valueSpec
-			var nameIdent = valSpec.Name
-			if nameIdent.Obj.Kind == astVar {
-				nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
-				globalVars = append(globalVars, valSpec)
+			switch genDecl.Spec.dtype {
+			case "*astValueSpec":
+				var valSpec = genDecl.Spec.valueSpec
+				var nameIdent = valSpec.Name
+				if nameIdent.Obj.Kind == astVar {
+					nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
+					globalVars = append(globalVars, valSpec)
+				}
+			case "*astTypeSpec":
+				// do nothing
+				var typeSpec = genDecl.Spec.typeSpec
+				switch kind(e2t(typeSpec.Type)) {
+				case T_STRUCT:
+					calcStructSizeAndSetFieldOffset(typeSpec)
+				default:
+					// do nothing
+				}
+			default:
+				panic2(__func__, "Unexpected dtype=" + genDecl.Spec.dtype)
 			}
 		case "*astFuncDecl":
 			var funcDecl = decl.funcDecl

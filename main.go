@@ -2393,10 +2393,13 @@ func walk(f *ast.File) {
 				}
 				// do nothing for other Kind like "Con"
 			case *ast.ImportSpec:
+				// do nothing
 			case *ast.TypeSpec:
 				typeSpec := spc
-				assert(kind(e2t(typeSpec.Type)) == T_STRUCT, "should be T_STRUCT")
-				calcStructSizeAndSetFieldOffset(typeSpec)
+				switch kind(e2t(typeSpec.Type)) {
+				case T_STRUCT:
+					calcStructSizeAndSetFieldOffset(typeSpec)
+				}
 			default:
 				throw(spec)
 			}

@@ -705,7 +705,7 @@ func testIncrDecr() {
 	writeln(itoa(i))
 }
 
-//type T int
+type T int
 
 type MyStruct struct {
 	field1 int
