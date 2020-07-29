@@ -1,4 +1,7 @@
 # Babygo, a go compiler made from scratch
+
+![Test](https://github.com/DQNEO/babygo/workflows/Test/badge.svg)
+
 Babygo is a small and simple go compiler. (Smallest and simplest in the world, I believe.)
 It is made from scratch and can compile itself.
 
