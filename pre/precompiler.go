@@ -94,8 +94,8 @@ func Itoa(ival int) string {
 		return "0"
 	}
 
-	var buf []uint8 = make([]uint8, 100, 100)
-	var r []uint8 = make([]uint8, 100, 100)
+	var buf = make([]uint8, 100, 100)
+	var r = make([]uint8, 100, 100)
 
 	var next int
 	var right int
@@ -1471,7 +1471,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitExpr(s.Tag, nil)
 		condType := getTypeOfExpr(s.Tag)
 		cases := s.Body.List
-		var labels []string = make([]string, len(cases))
+		var labels = make([]string, len(cases))
 		var defaultLabel string
 		emitComment(2, "Start comparison with cases\n")
 		for i, c := range cases {
@@ -1821,6 +1821,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 						Star: 0,
 						X:    e.Args[0],
 					})
+				case gMake:
+					return e2t(e.Args[0])
 				}
 				switch decl := fn.Obj.Decl.(type) {
 				case *ast.FuncDecl:

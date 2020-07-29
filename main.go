@@ -95,8 +95,8 @@ func Itoa(ival int) string {
 		return "0"
 	}
 
-	var buf []uint8 = make([]uint8, 100, 100)
-	var r []uint8 = make([]uint8, 100, 100)
+	var buf = make([]uint8, 100, 100)
+	var r = make([]uint8, 100, 100)
 
 	var next int
 	var right int
@@ -815,7 +815,7 @@ func readFile(filename string) []uint8 {
 	var fd int
 	// @TODO check error
 	fd, _ = syscall.Open(filename, O_READONLY, 0)
-	var buf []uint8 = make([]uint8, FILE_SIZE, FILE_SIZE)
+	var buf = make([]uint8, FILE_SIZE, FILE_SIZE)
 	var n int
 	// @TODO check error
 	n, _ = syscall.Read(fd, buf)
@@ -1451,7 +1451,7 @@ func isLiteralType(x *astExpr) bool {
 
 func parseIndexOrSlice(x *astExpr) *astExpr {
 	parserExpect("[", __func__)
-	var index []*astExpr = make([]*astExpr, 3, 3)
+	var index = make([]*astExpr, 3, 3)
 	if ptok.tok != ":" {
 		index[0] = parseRhs()
 	}
@@ -3463,7 +3463,7 @@ func emitStmt(stmt *astStmt) {
 		var condType = getTypeOfExpr(stmt.switchStmt.Tag)
 		var cases = stmt.switchStmt.Body.List
 		emitComment(2, "[DEBUG] cases len=%s\n", Itoa(len(cases)))
-		var labels []string = make([]string, len(cases), len(cases))
+		var labels = make([]string, len(cases), len(cases))
 		var defaultLabel string
 		var i int
 		var c *astStmt
@@ -3790,6 +3790,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 					eStarExpr.dtype = "*astStarExpr"
 					eStarExpr.starExpr = starExpr
 					return e2t(eStarExpr)
+				case gMake:
+					return e2t(expr.callExpr.Args[0])
 				}
 				var decl = fn.Obj.Decl
 				if decl == nil {
