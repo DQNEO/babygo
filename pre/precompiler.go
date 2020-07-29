@@ -94,8 +94,8 @@ func Itoa(ival int) string {
 		return "0"
 	}
 
-	var __itoa_buf []uint8 = make([]uint8, 100, 100)
-	var __itoa_r []uint8 = make([]uint8, 100, 100)
+	var buf []uint8 = make([]uint8, 100, 100)
+	var r []uint8 = make([]uint8, 100, 100)
 
 	var next int
 	var right int
@@ -106,27 +106,27 @@ func Itoa(ival int) string {
 		if ival < 0 {
 			ival = -1 * ival
 			minus = true
-			__itoa_r[0] = '-'
+			r[0] = '-'
 		} else {
 			next = ival / 10
 			right = ival - next*10
 			ival = next
-			__itoa_buf[ix] = uint8('0' + right)
+			buf[ix] = uint8('0' + right)
 		}
 	}
 
 	var j int
 	var c uint8
 	for j = 0; j < ix; j = j + 1 {
-		c = __itoa_buf[ix-j-1]
+		c = buf[ix-j-1]
 		if minus {
-			__itoa_r[j+1] = c
+			r[j+1] = c
 		} else {
-			__itoa_r[j] = c
+			r[j] = c
 		}
 	}
 
-	return string(__itoa_r[0:ix])
+	return string(r[0:ix])
 }
 
 // --- parser ---
