@@ -1267,29 +1267,9 @@ func parseOperand() *astExpr {
 		tryResolve(eIdent, true)
 		logf("   end %s\n", __func__)
 		return eIdent
-	case "INT":
+	case "INT", "STRING", "CHAR":
 		var basicLit = new(astBasicLit)
-		basicLit.Kind = "INT"
-		basicLit.Value = ptok.lit
-		var r = new(astExpr)
-		r.dtype = "*astBasicLit"
-		r.basicLit = basicLit
-		parserNext()
-		logf("   end %s\n", __func__)
-		return r
-	case "STRING":
-		var basicLit = new(astBasicLit)
-		basicLit.Kind = "STRING"
-		basicLit.Value = ptok.lit
-		var r = new(astExpr)
-		r.dtype = "*astBasicLit"
-		r.basicLit = basicLit
-		parserNext()
-		logf("   end %s\n", __func__)
-		return r
-	case "CHAR":
-		var basicLit = new(astBasicLit)
-		basicLit.Kind = "CHAR"
+		basicLit.Kind = ptok.tok
 		basicLit.Value = ptok.lit
 		var r = new(astExpr)
 		r.dtype = "*astBasicLit"
