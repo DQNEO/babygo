@@ -2393,6 +2393,9 @@ func walk(f *ast.File) {
 					nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
 					globalVars = append(globalVars, valSpec)
 				}
+				for _, v := range valSpec.Values {
+					walkExpr(v)
+				}
 				// do nothing for other Kind like "Con"
 			case *ast.ImportSpec:
 				// do nothing

@@ -3672,16 +3672,16 @@ type Type struct {
 	e *astExpr
 }
 
-var T_STRING string
-var T_SLICE string
-var T_BOOL string
-var T_INT string
-var T_UINT8 string
-var T_UINT16 string
-var T_UINTPTR string
-var T_ARRAY string
-var T_STRUCT string
-var T_POINTER string
+const T_STRING string = "T_STRING"
+const T_SLICE string = "T_SLICE"
+const T_BOOL string = "T_BOOL"
+const T_INT string = "T_INT"
+const T_UINT8 string = "T_UINT8"
+const T_UINT16 string = "T_UINT16"
+const T_UINTPTR string = "T_UINTPTR"
+const T_ARRAY string = "T_ARRAY"
+const T_STRUCT string = "T_STRUCT"
+const T_POINTER string = "T_POINTER"
 
 var tInt *Type
 var tUint8 *Type
@@ -4038,7 +4038,7 @@ func calcStructSizeAndSetFieldOffset(structTypeSpec *astTypeSpec) int {
 type sliteral struct {
 	label  string
 	strlen int
-	value  string // raw value
+	value  string // raw value/pre/precompiler.go:2150
 }
 
 type stringLiteralsContainer struct {
@@ -4340,6 +4340,9 @@ func walk(file *astFile) string {
 					nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
 					globalVars = append(globalVars, valSpec)
 				}
+				if valSpec.Value != nil {
+					walkExpr(valSpec.Value)
+				}
 			case "*astTypeSpec":
 				// do nothing
 				var typeSpec = genDecl.Spec.typeSpec
@@ -4471,16 +4474,6 @@ func resolveUniverse(file *astFile, universe *astScope) {
 
 func initGlobals() {
 	__func__ = "__func__"
-	T_STRING = "T_STRING"
-	T_SLICE = "T_SLICE"
-	T_BOOL = "T_BOOL"
-	T_INT = "T_INT"
-	T_UINT8 = "T_UINT8"
-	T_UINT16 = "T_UINT16"
-	T_UINTPTR = "T_UINTPTR"
-	T_ARRAY = "T_ARRAY"
-	T_STRUCT = "T_STRUCT"
-	T_POINTER = "T_POINTER"
 
 	astCon = "Con"
 	astTyp = "Typ"
