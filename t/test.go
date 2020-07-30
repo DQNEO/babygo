@@ -359,12 +359,11 @@ func returnFalse() bool {
 	return !bol
 }
 
-var globalbool1 bool // = true // @TODO
+var globalbool1 bool = true
 var globalbool2 bool = false
 var globalbool3 bool
 
 func testGlobalBool() {
-	globalbool1 = true
 	if globalbool1 {
 		writeln("globalbool 1 ok")
 	} else {

@@ -1584,7 +1584,21 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 			throw(val)
 		}
 	case T_BOOL:
-		fmt.Printf("  .quad 0 # bool zero value\n") // @TODO
+		switch vl := val.(type) {
+		case *ast.Ident:
+			switch vl.Obj {
+			case gTrue:
+				fmtPrintf("  .quad 1 # bool true\n")
+			case gFalse:
+				fmtPrintf("  .quad 0 # bool false\n")
+			default:
+				throw(val)
+			}
+		case nil:
+			fmtPrintf("  .quad 0 # bool zero value\n")
+		default:
+			throw(val)
+		}
 	case T_INT:
 		switch vl := val.(type) {
 		case *ast.BasicLit:

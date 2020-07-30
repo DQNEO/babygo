@@ -3576,7 +3576,23 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 	case T_UINTPTR:
 		fmtPrintf("  .quad 0\n")
 	case T_BOOL:
-		fmtPrintf("  .quad 0 # bool zero value\n") // @TODO
+		if val != nil {
+			switch val.dtype {
+			case "*astIdent":
+				switch val.ident.Obj {
+				case gTrue:
+					fmtPrintf("  .quad 1 # bool true\n")
+				case gFalse:
+					fmtPrintf("  .quad 0 # bool false\n")
+				default:
+					panic2(__func__, "")
+				}
+			default:
+				panic2(__func__, "")
+			}
+		} else {
+			fmtPrintf("  .quad 0 # bool zero value\n")
+		}
 	case T_INT:
 		fmtPrintf("  .quad 0\n")
 	case T_UINT8:
