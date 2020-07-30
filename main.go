@@ -4455,7 +4455,7 @@ func createUniverse() *astScope {
 
 	logf(" [%s] scope insertion of predefined identifiers complete\n", __func__)
 
-	// @FIXME package names should be be in universe
+	// @FIXME package names should not be be in universe
 	var pkgOs = new(astObject)
 	pkgOs.Kind = "Pkg"
 	pkgOs.Name = "os"
