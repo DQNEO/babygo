@@ -14,7 +14,7 @@ func throw(s string) {
 	panic(s)
 }
 
-var __func__ string
+var __func__ string = "__func__"
 
 func panic(x string) {
 	var s = "panic: " + x + "\n\n"
@@ -518,10 +518,10 @@ func scannerScan() *TokenContainer {
 }
 
 // --- ast ---
-var astCon string
-var astTyp string
-var astVar string
-var astFun string
+var astCon string = "Con"
+var astTyp string = "Typ"
+var astVar string = "Var"
+var astFun string = "Fun"
 
 type astImportSpec struct {
 	Path string
@@ -3563,8 +3563,14 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 	fmtPrintf("%s: # T %s\n", name.Name, typeKind)
 	switch typeKind {
 	case T_STRING:
-		fmtPrintf("  .quad 0\n")
-		fmtPrintf("  .quad 0\n")
+		if val != nil && val.dtype == "*astBasicLit" {
+			var sl = getStringLiteral(val.basicLit)
+			fmtPrintf("  .quad %s\n", sl.label)
+			fmtPrintf("  .quad %d\n", Itoa(sl.strlen))
+		} else {
+			fmtPrintf("  .quad 0\n")
+			fmtPrintf("  .quad 0\n")
+		}
 	case T_POINTER:
 		fmtPrintf("  .quad 0 # pointer \n") // @TODO
 	case T_UINTPTR:
@@ -4473,13 +4479,6 @@ func resolveUniverse(file *astFile, universe *astScope) {
 }
 
 func initGlobals() {
-	__func__ = "__func__"
-
-	astCon = "Con"
-	astTyp = "Typ"
-	astVar = "Var"
-	astFun = "Fun"
-
 	gNil = new(astObject)
 	gNil.Kind = astCon // is it Con ?
 	gNil.Name = "nil"

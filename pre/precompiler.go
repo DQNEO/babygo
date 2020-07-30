@@ -1564,11 +1564,11 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 		switch vl := val.(type) {
 		case *ast.BasicLit:
 			sl := getStringLiteral(vl)
-			fmt.Printf("  .quad %s\n", sl.label)
-			fmt.Printf("  .quad %d\n", sl.strlen)
+			fmtPrintf("  .quad %s\n", sl.label)
+			fmtPrintf("  .quad %d\n", Itoa(sl.strlen))
 		case nil:
-			fmt.Printf("  .quad 0\n")
-			fmt.Printf("  .quad 0\n")
+			fmtPrintf("  .quad 0\n")
+			fmtPrintf("  .quad 0\n")
 		default:
 			panic("Unexpected case")
 		}
