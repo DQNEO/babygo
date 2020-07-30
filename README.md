@@ -84,6 +84,14 @@ $ diff /tmp/babygo2.s /tmp/babygo3.s
 $ make test
 ```
 
+# REFERENCE
+
+* https://golang.org/ref/spec The Go Programming Language Specification
+* https://golang.org/pkg/go/parser/ go/parser
+* https://github.com/rui314/chibicc C compiler
+* https://github.com/DQNEO/minigo Go compiler (my previous work)
+
+
 # LICENSE
 
 MIT
