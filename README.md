@@ -84,7 +84,7 @@ $ diff /tmp/babygo2.s /tmp/babygo3.s
 $ make test
 ```
 
-# REFERENCE
+# Reference
 
 * https://golang.org/ref/spec The Go Programming Language Specification
 * https://golang.org/pkg/go/parser/ go/parser
@@ -92,10 +92,10 @@ $ make test
 * https://github.com/DQNEO/minigo Go compiler (my previous work)
 
 
-# LICENSE
+# License
 
 MIT
 
-# AUTHOR
+# Author
 
 [@DQNEO](https://twitter.com/DQNEO)
