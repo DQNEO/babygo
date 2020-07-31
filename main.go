@@ -523,21 +523,42 @@ var astTyp string = "Typ"
 var astVar string = "Var"
 var astFun string = "Fun"
 
-type astImportSpec struct {
-	Path string
+type signature struct {
+	params  *astFieldList
+	results *astFieldList
 }
 
-// Pseudo interface for *ast.Decl
-type astDecl struct {
-	dtype    string
-	genDecl  *astGenDecl
-	funcDecl *astFuncDecl
+type ObjDecl struct {
+	dtype     string
+	valueSpec *astValueSpec
+	funcDecl  *astFuncDecl
+	typeSpec  *astTypeSpec
+	field     *astField
 }
 
-type astFuncDecl struct {
-	Name *astIdent
-	Sig  *signature
-	Body *astBlockStmt
+type astObject struct {
+	Kind     string
+	Name     string
+	Decl     *ObjDecl
+	Variable *Variable
+}
+
+type astExpr struct {
+	dtype        string
+	ident        *astIdent
+	arrayType    *astArrayType
+	basicLit     *astBasicLit
+	callExpr     *astCallExpr
+	binaryExpr   *astBinaryExpr
+	unaryExpr    *astUnaryExpr
+	selectorExpr *astSelectorExpr
+	indexExpr    *astIndexExpr
+	sliceExpr    *astSliceExpr
+	starExpr     *astStarExpr
+	parenExpr    *astParenExpr
+	structType   *astStructType
+	compositeLit *astCompositeLit
+	ellipsis     *astEllipsis
 }
 
 type astField struct {
@@ -550,10 +571,77 @@ type astFieldList struct {
 	List []*astField
 }
 
-type signature struct {
-	params  *astFieldList
-	results *astFieldList
+type astIdent struct {
+	Name string
+	Obj  *astObject
 }
+
+type astEllipsis struct {
+	Elt *astExpr
+}
+
+type astBasicLit struct {
+	Kind  string // token.INT, token.CHAR, or token.STRING
+	Value string
+}
+
+type astCompositeLit struct {
+	Type *astExpr
+	Elts []*astExpr
+}
+
+type astParenExpr struct {
+	X *astExpr
+}
+
+type astSelectorExpr struct {
+	X   *astExpr
+	Sel *astIdent
+}
+
+type astIndexExpr struct {
+	X     *astExpr
+	Index *astExpr
+}
+
+type astSliceExpr struct {
+	X      *astExpr
+	Low    *astExpr
+	High   *astExpr
+	Max    *astExpr
+	Slice3 bool
+}
+
+type astCallExpr struct {
+	Fun  *astExpr   // function expression
+	Args []*astExpr // function arguments; or nil
+}
+
+type astStarExpr struct {
+	X *astExpr
+}
+
+type astUnaryExpr struct {
+	X  *astExpr
+	Op string
+}
+
+type astBinaryExpr struct {
+	X  *astExpr
+	Y  *astExpr
+	Op string
+}
+
+// Type nodes
+type astArrayType struct {
+	Len *astExpr
+	Elt *astExpr
+}
+
+type astStructType struct {
+	Fields *astFieldList
+}
+
 
 type astStmt struct {
 	dtype      string
@@ -580,8 +668,9 @@ type astExprStmt struct {
 	X *astExpr
 }
 
-type astBlockStmt struct {
-	List []*astStmt
+type astIncDecStmt struct {
+	X   *astExpr
+	Tok string
 }
 
 type astAssignStmt struct {
@@ -590,127 +679,18 @@ type astAssignStmt struct {
 	Rhs []*astExpr
 }
 
-type astIncDecStmt struct {
-	X   *astExpr
-	Tok string
+type astReturnStmt struct {
+	Results []*astExpr
 }
 
-type astGenDecl struct {
-	Spec *astSpec
+type astBranchStmt struct {
+	Tok        string
+	Label      string
+	currentFor *astStmt
 }
 
-type ObjDecl struct {
-	dtype     string
-	valueSpec *astValueSpec
-	funcDecl  *astFuncDecl
-	typeSpec  *astTypeSpec
-	field     *astField
-}
-
-type astTypeSpec struct {
-	Name *astIdent
-	Type *astExpr
-}
-
-type astValueSpec struct {
-	Name  *astIdent
-	Type  *astExpr
-	Value *astExpr
-}
-
-type astExpr struct {
-	dtype        string
-	ident        *astIdent
-	arrayType    *astArrayType
-	basicLit     *astBasicLit
-	callExpr     *astCallExpr
-	binaryExpr   *astBinaryExpr
-	unaryExpr    *astUnaryExpr
-	selectorExpr *astSelectorExpr
-	indexExpr    *astIndexExpr
-	sliceExpr    *astSliceExpr
-	starExpr     *astStarExpr
-	parenExpr    *astParenExpr
-	structType   *astStructType
-	compositeLit *astCompositeLit
-	ellipsis     *astEllipsis
-}
-
-type astObject struct {
-	Kind     string
-	Name     string
-	Decl     *ObjDecl
-	Variable *Variable
-}
-
-type astIdent struct {
-	Name string
-	Obj  *astObject
-}
-
-type astArrayType struct {
-	Len *astExpr
-	Elt *astExpr
-}
-
-type astStructType struct {
-	Fields *astFieldList
-}
-
-type astBasicLit struct {
-	Kind  string // token.INT, token.CHAR, or token.STRING
-	Value string
-}
-
-type astSelectorExpr struct {
-	X   *astExpr
-	Sel *astIdent
-}
-
-type astCallExpr struct {
-	Fun  *astExpr   // function expression
-	Args []*astExpr // function arguments; or nil
-}
-
-type astUnaryExpr struct {
-	X  *astExpr
-	Op string
-}
-
-type astBinaryExpr struct {
-	X  *astExpr
-	Y  *astExpr
-	Op string
-}
-
-type astSliceExpr struct {
-	X      *astExpr
-	Low    *astExpr
-	High   *astExpr
-	Max    *astExpr
-	Slice3 bool
-}
-
-type astIndexExpr struct {
-	X     *astExpr
-	Index *astExpr
-}
-
-type astParenExpr struct {
-	X *astExpr
-}
-
-type astStarExpr struct {
-	X *astExpr
-}
-
-type astEllipsis struct {
-	Elt *astExpr
-}
-
-type astCompositeLit struct {
-	Type *astExpr
-	Elts []*astExpr
+type astBlockStmt struct {
+	List []*astStmt
 }
 
 type astIfStmt struct {
@@ -718,6 +698,17 @@ type astIfStmt struct {
 	Cond *astExpr
 	Body *astBlockStmt
 	Else *astStmt
+}
+
+type astCaseClause struct {
+	List []*astExpr
+	Body []*astStmt
+}
+
+type astSwitchStmt struct {
+	Tag  *astExpr
+	Body *astBlockStmt
+	// lableExit string
 }
 
 type astForStmt struct {
@@ -742,42 +733,54 @@ type astRangeStmt struct {
 	indexvar  *Variable
 }
 
-type astCaseClause struct {
-	List []*astExpr
-	Body []*astStmt
-}
-
-type astSwitchStmt struct {
-	Tag  *astExpr
-	Body *astBlockStmt
-	// lableExit string
-}
-
-type astReturnStmt struct {
-	Results []*astExpr
-}
-
-type astBranchStmt struct {
-	Tok        string
-	Label      string
-	currentFor *astStmt
-}
-
+// Declarations
 type astSpec struct {
 	dtype     string
 	valueSpec *astValueSpec
 	typeSpec  *astTypeSpec
 }
 
-type astScope struct {
-	Outer   *astScope
-	Objects []*objectEntry
+type astImportSpec struct {
+	Path string
+}
+
+type astValueSpec struct {
+	Name  *astIdent
+	Type  *astExpr
+	Value *astExpr
+}
+
+type astTypeSpec struct {
+	Name *astIdent
+	Type *astExpr
+}
+
+// Pseudo interface for *ast.Decl
+type astDecl struct {
+	dtype    string
+	genDecl  *astGenDecl
+	funcDecl *astFuncDecl
+}
+
+type astGenDecl struct {
+	Spec *astSpec
+}
+
+type astFuncDecl struct {
+	Name *astIdent
+	Sig  *signature
+	Body *astBlockStmt
 }
 
 type astFile struct {
 	Name       string
 	Decls      []*astDecl
 	Unresolved []*astIdent
+}
+
+type astScope struct {
+	Outer   *astScope
+	Objects []*objectEntry
 }
 
 func astNewScope(outer *astScope) *astScope {
