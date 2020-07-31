@@ -88,6 +88,7 @@ $ make test
 
 * https://golang.org/ref/spec The Go Programming Language Specification
 * https://golang.org/pkg/go/parser/ go/parser
+* https://sourceware.org/binutils/docs/as/ GNU assembler
 * https://github.com/rui314/chibicc C compiler
 * https://github.com/DQNEO/minigo Go compiler (my previous work)
 
