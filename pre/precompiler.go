@@ -2634,11 +2634,10 @@ func resolveUniverse(fiile *ast.File, universe *ast.Scope) {
 var pkgName string
 
 func main() {
-	var sourceFiles = []string{"runtime.go", "/dev/stdin"}
-	var sourceFile string
-
 	var universe = createUniverse()
+	var sourceFiles = []string{"runtime.go", "/dev/stdin"}
 
+	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		fmtPrintf("# file: %s\n", sourceFile)
 		globalVars = nil
