@@ -191,10 +191,8 @@ func append24(old [][]int, elm []int) (uintptr, int, int) {
 }
 
 func catstrings(a string, b string) string {
-	var totallen int
-	var r []uint8
-	totallen = len(a) + len(b)
-	r = make([]uint8, totallen, totallen)
+	var totallen = len(a) + len(b)
+	var r = make([]uint8, totallen, totallen)
 	var i int
 	for i = 0; i < len(a); i = i + 1 {
 		r[i] = a[i]
