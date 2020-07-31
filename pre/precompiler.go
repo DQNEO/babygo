@@ -1707,16 +1707,16 @@ type Type struct {
 
 type TypeKind string
 
-var T_STRING TypeKind
-var T_SLICE TypeKind
-var T_BOOL TypeKind
-var T_INT TypeKind
-var T_UINT8 TypeKind
-var T_UINT16 TypeKind
-var T_UINTPTR TypeKind
-var T_ARRAY TypeKind
-var T_STRUCT TypeKind
-var T_POINTER TypeKind
+const T_STRING TypeKind = "T_STRING"
+const T_SLICE TypeKind = "T_SLICE"
+const T_BOOL TypeKind = "T_BOOL"
+const T_INT TypeKind = "T_INT"
+const T_UINT8 TypeKind = "T_UINT8"
+const T_UINT16 TypeKind = "T_UINT16"
+const T_UINTPTR TypeKind = "T_UINTPTR"
+const T_ARRAY TypeKind = "T_ARRAY"
+const T_STRUCT TypeKind = "T_STRUCT"
+const T_POINTER TypeKind = "T_POINTER"
 
 var tBool *Type = &Type{
 	e: &ast.Ident{
@@ -2631,24 +2631,9 @@ func resolveUniverse(fiile *ast.File, universe *ast.Scope) {
 }
 
 // --- main ---
-func initGlobals() {
-	T_STRING = "T_STRING"
-	T_SLICE = "T_SLICE"
-	T_BOOL = "T_BOOL"
-	T_INT = "T_INT"
-	T_UINT8 = "T_UINT8"
-	T_UINT16 = "T_UINT16"
-	T_UINTPTR = "T_UINTPTR"
-	T_ARRAY = "T_ARRAY"
-	T_STRUCT = "T_STRUCT"
-	T_POINTER = "T_POINTER"
-}
-
 var pkgName string
 
 func main() {
-	initGlobals()
-
 	var sourceFiles = []string{"runtime.go", "/dev/stdin"}
 	var sourceFile string
 
