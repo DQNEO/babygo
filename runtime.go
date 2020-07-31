@@ -4,12 +4,14 @@ package runtime
 import "syscall"
 import "unsafe"
 
-const SYS_BRK int = 12
 const heapSize uintptr = 320205360
 
 var heapHead uintptr
 var heapCurrent uintptr
 var heapTail uintptr
+
+const SYS_BRK int = 12
+const SYS_EXIT int = 60
 
 func heapInit() {
 	heapHead = brk(0)
@@ -26,7 +28,7 @@ func brk(addr uintptr) uintptr {
 func panic(s string) {
 	var buf []uint8 = []uint8(s)
 	syscall.Write(2, buf)
-	var arg0 uintptr = uintptr(60) // sys exit
+	var arg0 uintptr = uintptr(SYS_EXIT) // sys exit
 	var arg1 uintptr = 1           // status
 	var arg2 uintptr = uintptr(0)
 	var arg3 uintptr = uintptr(0)
