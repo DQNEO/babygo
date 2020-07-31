@@ -26,13 +26,8 @@ func brk(addr uintptr) uintptr {
 }
 
 func panic(s string) {
-	var buf []uint8 = []uint8(s)
-	syscall.Write(2, buf)
-	var arg0 uintptr = uintptr(SYS_EXIT) // sys exit
-	var arg1 uintptr = 1           // status
-	var arg2 uintptr = uintptr(0)
-	var arg3 uintptr = uintptr(0)
-	syscall.Syscall(arg0, arg1, arg2, arg3)
+	syscall.Write(2, []uint8(s))
+	syscall.Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
 }
 
 func memzeropad(addr1 uintptr, size uintptr) {
