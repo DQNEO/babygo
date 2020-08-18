@@ -642,6 +642,10 @@ type astStructType struct {
 	Fields *astFieldList
 }
 
+type astFuncType struct {
+	params  *astFieldList
+	results *astFieldList
+}
 
 type astStmt struct {
 	dtype      string
@@ -768,7 +772,7 @@ type astGenDecl struct {
 
 type astFuncDecl struct {
 	Name *astIdent
-	Sig  *signature
+	Type *astFuncType
 	Body *astBlockStmt
 }
 
@@ -2029,7 +2033,9 @@ func parserParseFuncDecl() *astDecl {
 
 	var ident = parseIdent()
 	var sig = parseSignature(scope)
-	if sig.results == nil {
+	var params = sig.params
+	var results = sig.results
+	if results == nil {
 		logf(" [parserParseFuncDecl] %s sig.results is nil\n", ident.Name)
 	} else {
 		logf(" [parserParseFuncDecl] %s sig.results.List = %s\n", ident.Name, Itoa(len(sig.results.List)))
@@ -2048,7 +2054,9 @@ func parserParseFuncDecl() *astDecl {
 	var funcDecl = new(astFuncDecl)
 	decl.funcDecl = funcDecl
 	decl.funcDecl.Name = ident
-	decl.funcDecl.Sig = sig
+	decl.funcDecl.Type = new(astFuncType)
+	decl.funcDecl.Type.params = params
+	decl.funcDecl.Type.results = results
 	decl.funcDecl.Body = body
 	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astFuncDecl"
@@ -2683,11 +2691,11 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		if fndecl == nil {
 			panic2(__func__, "[*astCallExpr] fndecl is nil")
 		}
-		if fndecl.Sig == nil {
-			panic2(__func__, "[*astCallExpr] fndecl.Sig is nil")
+		if fndecl.Type == nil {
+			panic2(__func__, "[*astCallExpr] fndecl.Type is nil")
 		}
 
-		var params = fndecl.Sig.params.List
+		var params = fndecl.Type.params.List
 		var variadicArgs []*astExpr
 		var variadicElp *astEllipsis
 		var args []*Arg
@@ -2755,15 +2763,15 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		emitCall(symbol, args)
 
 		// push results
-		var results = fndecl.Sig.results
-		if fndecl.Sig.results == nil {
+		var results = fndecl.Type.results
+		if fndecl.Type.results == nil {
 			emitComment(0, "[emitExpr] %s sig.results is nil\n", fn.Name)
 		} else {
-			emitComment(0, "[emitExpr] %s sig.results.List = %s\n", fn.Name, Itoa(len(fndecl.Sig.results.List)))
+			emitComment(0, "[emitExpr] %s sig.results.List = %s\n", fn.Name, Itoa(len(fndecl.Type.results.List)))
 		}
 
 		if results != nil && len(results.List) == 1 {
-			var retval0 = fndecl.Sig.results.List[0]
+			var retval0 = fndecl.Type.results.List[0]
 			var knd = kind(e2t(retval0.Type))
 			switch knd {
 			case T_STRING:
@@ -3804,11 +3812,11 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				}
 				switch decl.dtype {
 				case "*astFuncDecl":
-					var resultList = decl.funcDecl.Sig.results.List
+					var resultList = decl.funcDecl.Type.results.List
 					if len(resultList) != 1 {
 						panic2(__func__, "[astCallExpr] len results.List is not 1")
 					}
-					return e2t(decl.funcDecl.Sig.results.List[0].Type)
+					return e2t(decl.funcDecl.Type.results.List[0].Type)
 				default:
 					panic2(__func__, "[astCallExpr] decl.dtype="+decl.dtype)
 				}
@@ -4387,7 +4395,7 @@ func walk(file *astFile) string {
 			localoffset = 0
 			var paramoffset = 16
 			var field *astField
-			for _, field = range funcDecl.Sig.params.List {
+			for _, field = range funcDecl.Type.params.List {
 				var obj = field.Name.Obj
 				obj.Variable = newLocalVariable(obj.Name, paramoffset)
 				var varSize = getSizeOfType(e2t(field.Type))
