@@ -4357,7 +4357,7 @@ func walkExpr(expr *astExpr) {
 	}
 }
 
-func walk(pkgContainer *PkgContainer, file *astFile) string {
+func walk(pkgContainer *PkgContainer, file *astFile) {
 	var decl *astDecl
 	for _, decl = range file.Decls {
 		switch decl.dtype {
@@ -4422,8 +4422,6 @@ func walk(pkgContainer *PkgContainer, file *astFile) string {
 	if len(stringLiterals) == 0 {
 		panic2(__func__, "stringLiterals is empty\n")
 	}
-
-	return pkgName
 }
 
 // --- universe ---
