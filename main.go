@@ -3689,9 +3689,9 @@ func emitText(pkgName string, funcs []*Func) {
 	}
 }
 
-func generateCode(pkgName string, vars []*astValueSpec, funcs []*Func) {
-	emitData(pkgName, vars)
-	emitText(pkgName, funcs)
+func generateCode(pkgContainer *PkgContainer) {
+	emitData(pkgContainer.name, pkgContainer.vars)
+	emitText(pkgContainer.name, pkgContainer.funcs)
 }
 
 // --- type ---
@@ -4626,6 +4626,6 @@ func main() {
 		resolveUniverse(f, universe)
 		pkg.name = f.Name
 		walk(pkg, f)
-		generateCode(pkg.name, pkg.vars, pkg.funcs)
+		generateCode(pkg)
 	}
 }
