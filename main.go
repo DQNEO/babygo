@@ -2676,7 +2676,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			fn.Name = "makeSlice"
 		}
 		// general function call
-		var symbol = pkgName + "." + fn.Name
+		var symbol = pkg.name + "." + fn.Name
 		emitComment(0, "[%s][*astIdent][default] start\n", __func__)
 
 		var obj = fn.Obj
@@ -4117,7 +4117,7 @@ func getStringLiteral(lit *astBasicLit) *sliteral {
 func registerStringLiteral(lit *astBasicLit) {
 	logf(" [registerStringLiteral] begin\n")
 
-	if pkgName == "" {
+	if pkg.name == "" {
 		panic2(__func__, "no pkgName")
 	}
 
@@ -4130,7 +4130,7 @@ func registerStringLiteral(lit *astBasicLit) {
 		}
 	}
 
-	var label = fmtSprintf(".%s.S%d", []string{pkgName, Itoa(stringIndex)})
+	var label = fmtSprintf(".%s.S%d", []string{pkg.name, Itoa(stringIndex)})
 	stringIndex++
 
 	var sl = new(sliteral)
@@ -4602,10 +4602,10 @@ func initGlobals() {
 	gCap.Name = "cap"
 }
 
-var pkgName string
 var pkg *PkgContainer
 
 type PkgContainer struct {
+	name string
 	vars []*astValueSpec
 	funcs []*Func
 }
@@ -4624,8 +4624,8 @@ func main() {
 		stringLiterals = nil
 		var f = parseFile(sourceFile)
 		resolveUniverse(f, universe)
-		pkgName = f.Name
+		pkg.name = f.Name
 		walk(pkg, f)
-		generateCode(pkgName, pkg.vars, pkg.funcs)
+		generateCode(pkg.name, pkg.vars, pkg.funcs)
 	}
 }
