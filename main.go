@@ -3657,11 +3657,11 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 	}
 }
 
-func emitData(pkgName string, vars []*astValueSpec) {
+func emitData(pkgName string, vars []*astValueSpec, sliterals []*stringLiteralsContainer) {
 	fmtPrintf(".data\n")
-	emitComment(0, "string literals len = %s\n", Itoa(len(stringLiterals)))
+	emitComment(0, "string literals len = %s\n", Itoa(len(sliterals)))
 	var con *stringLiteralsContainer
-	for _, con = range stringLiterals {
+	for _, con = range sliterals {
 		emitComment(0, "string literals\n")
 		fmtPrintf("%s:\n", con.sl.label)
 		fmtPrintf("  .string %s\n", con.sl.value)
@@ -3690,7 +3690,7 @@ func emitText(pkgName string, funcs []*Func) {
 }
 
 func generateCode(pkgContainer *PkgContainer) {
-	emitData(pkgContainer.name, pkgContainer.vars)
+	emitData(pkgContainer.name, pkgContainer.vars, stringLiterals)
 	emitText(pkgContainer.name, pkgContainer.funcs)
 }
 
