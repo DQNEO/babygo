@@ -3657,7 +3657,7 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 	}
 }
 
-func emitData(pkgName string) {
+func emitData(pkgName string, vars []*astValueSpec) {
 	fmtPrintf(".data\n")
 	emitComment(0, "string literals len = %s\n", Itoa(len(stringLiterals)))
 	var con *stringLiteralsContainer
@@ -3670,7 +3670,7 @@ func emitData(pkgName string) {
 	emitComment(0, "===== Global Variables =====\n")
 
 	var spec *astValueSpec
-	for _, spec = range globalVars {
+	for _, spec = range vars {
 		var t *Type
 		if spec.Type != nil {
 			t = e2t(spec.Type)
@@ -3689,8 +3689,8 @@ func emitText(pkgName string) {
 	}
 }
 
-func generateCode(pkgName string) {
-	emitData(pkgName)
+func generateCode(pkgName string, vars []*astValueSpec) {
+	emitData(pkgName, vars)
 	emitText(pkgName)
 }
 
@@ -4625,6 +4625,6 @@ func main() {
 		resolveUniverse(f, universe)
 		pkgName = f.Name
 		walk(f)
-		generateCode(pkgName)
+		generateCode(pkgName, globalVars)
 	}
 }
