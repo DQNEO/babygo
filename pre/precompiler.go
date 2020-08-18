@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"syscall"
+
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"syscall"
 )
 
 // --- foundation ---
