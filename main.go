@@ -3681,17 +3681,17 @@ func emitData(pkgName string, vars []*astValueSpec) {
 	emitComment(0, "==============================\n")
 }
 
-func emitText(pkgName string) {
+func emitText(pkgName string, funcs []*Func) {
 	fmtPrintf(".text\n")
 	var fnc *Func
-	for _, fnc = range globalFuncs {
+	for _, fnc = range funcs {
 		emitFuncDecl(pkgName, fnc)
 	}
 }
 
-func generateCode(pkgName string, vars []*astValueSpec) {
+func generateCode(pkgName string, vars []*astValueSpec, funcs []*Func) {
 	emitData(pkgName, vars)
-	emitText(pkgName)
+	emitText(pkgName, funcs)
 }
 
 // --- type ---
@@ -4625,6 +4625,6 @@ func main() {
 		resolveUniverse(f, universe)
 		pkgName = f.Name
 		walk(f)
-		generateCode(pkgName, globalVars)
+		generateCode(pkgName, globalVars, globalFuncs)
 	}
 }
