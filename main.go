@@ -4098,8 +4098,6 @@ type Variable struct {
 
 var stringLiterals []*stringLiteralsContainer
 var stringIndex int
-var globalVars []*astValueSpec
-var globalFuncs []*Func
 var localoffset int
 var currentFuncDecl *astFuncDecl
 
@@ -4359,7 +4357,7 @@ func walkExpr(expr *astExpr) {
 	}
 }
 
-func walk(file *astFile) string {
+func walk(pkgContainer *PkgContainer, file *astFile) string {
 	var decl *astDecl
 	for _, decl = range file.Decls {
 		switch decl.dtype {
@@ -4371,7 +4369,7 @@ func walk(file *astFile) string {
 				var nameIdent = valSpec.Name
 				if nameIdent.Obj.Kind == astVar {
 					nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
-					globalVars = append(globalVars, valSpec)
+					pkgContainer.vars = append(pkgContainer.vars, valSpec)
 				}
 				if valSpec.Value != nil {
 					walkExpr(valSpec.Value)
@@ -4414,7 +4412,7 @@ func walk(file *astFile) string {
 				fnc.localarea = localoffset
 				fnc.argsarea = paramoffset
 
-				globalFuncs = append(globalFuncs, fnc)
+				pkgContainer.funcs = append(pkgContainer.funcs, fnc)
 			}
 		default:
 			panic2(__func__, "TBI: "+decl.dtype)
@@ -4607,6 +4605,12 @@ func initGlobals() {
 }
 
 var pkgName string
+var pkg *PkgContainer
+
+type PkgContainer struct {
+	vars []*astValueSpec
+	funcs []*Func
+}
 
 func main() {
 	initGlobals()
@@ -4617,14 +4621,13 @@ func main() {
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		fmtPrintf("# file: %s\n", sourceFile)
-		globalVars = nil
-		globalFuncs = nil
+		pkg = new(PkgContainer)
 		stringIndex = 0
 		stringLiterals = nil
 		var f = parseFile(sourceFile)
 		resolveUniverse(f, universe)
 		pkgName = f.Name
-		walk(f)
-		generateCode(pkgName, globalVars, globalFuncs)
+		walk(pkg, f)
+		generateCode(pkgName, pkg.vars, pkg.funcs)
 	}
 }
