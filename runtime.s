@@ -7,14 +7,14 @@ _start:
   callq runtime.heapInit
   callq main.main
 
-  movq $0, %rdi # arg1
-  movq $60, %rax # sys exit
+  movq $0, %rdi  # status 0
+  movq $60, %rax # sys_exit
   syscall
 # End of program
 
 os.Exit:
   movq  8(%rsp), %rdi # arg0:status
-  movq $60, %rax # sys exit
+  movq $60, %rax      # sys_exit
   syscall
 
 runtime.printstring:
@@ -30,7 +30,7 @@ runtime.printstring:
 
 syscall.Open:
   movq  8(%rsp), %rax # arg0:str.ptr
-  movq 16(%rsp), %rdi # arg0:str.len (throw away)
+  movq 16(%rsp), %rdi # arg0:str.len (ignored)
   movq 24(%rsp), %rsi # arg1:flag int
   movq 32(%rsp), %rdx # arg2:perm int
 
@@ -45,7 +45,7 @@ syscall.Open:
 syscall.Read:
   movq  8(%rsp), %rax # arg0:fd
   movq 16(%rsp), %rdi # arg1:ptr
-  movq 24(%rsp), %rsi # arg1:len (throw away)
+  movq 24(%rsp), %rsi # arg1:len (ignored)
   movq 32(%rsp), %rdx # arg1:cap
   pushq %rdx # cap
   pushq %rdi # ptr
@@ -68,7 +68,7 @@ syscall.Write:
   ret
 
 syscall.Syscall:
-  movq   8(%rsp), %rax # trap
+  movq   8(%rsp), %rax # syscall number
   movq  16(%rsp), %rdi # arg0
   movq  24(%rsp), %rsi # arg1
   movq  32(%rsp), %rdx # arg2
