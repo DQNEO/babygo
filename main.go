@@ -921,7 +921,7 @@ func parseIdent() *astIdent {
 	return r
 }
 
-func parserParseImportDecl() *astImportSpec {
+func parserImportDecl() *astImportSpec {
 	parserExpect("import", __func__)
 	var path = p.tok.lit
 	parserNext()
@@ -1977,7 +1977,7 @@ func parseDecl(keyword string) *astGenDecl {
 	return r
 }
 
-func parserParseTypeSpec() *astSpec {
+func parserTypeSpec() *astSpec {
 	logf(" [%s] start\n", __func__)
 	parserExpect("type", __func__)
 	var ident = parseIdent()
@@ -1998,8 +1998,8 @@ func parserParseTypeSpec() *astSpec {
 	return r
 }
 
-func parserParseValueSpec(keyword string) *astSpec {
-	logf(" [parserParseValueSpec] start\n")
+func parserValueSpec(keyword string) *astSpec {
+	logf(" [parserValueSpec] start\n")
 	parserExpect(keyword, __func__)
 	var ident = parseIdent()
 	logf(" var = %s\n", ident.Name)
@@ -2025,11 +2025,11 @@ func parserParseValueSpec(keyword string) *astSpec {
 		kind = astVar
 	}
 	declare(objDecl, p.topScope, kind, ident)
-	logf(" [parserParseValueSpec] end\n")
+	logf(" [parserValueSpec] end\n")
 	return r
 }
 
-func parserParseFuncDecl() *astDecl {
+func parserFuncDecl() *astDecl {
 	parserExpect("func", __func__)
 	var scope = astNewScope(p.topScope) // function scope
 
@@ -2038,9 +2038,9 @@ func parserParseFuncDecl() *astDecl {
 	var params = sig.params
 	var results = sig.results
 	if results == nil {
-		logf(" [parserParseFuncDecl] %s sig.results is nil\n", ident.Name)
+		logf(" [parserFuncDecl] %s sig.results is nil\n", ident.Name)
 	} else {
-		logf(" [parserParseFuncDecl] %s sig.results.List = %s\n", ident.Name, Itoa(len(sig.results.List)))
+		logf(" [parserFuncDecl] %s sig.results.List = %s\n", ident.Name, Itoa(len(sig.results.List)))
 	}
 	var body *astBlockStmt
 	if p.tok.tok == "{" {
@@ -2067,7 +2067,7 @@ func parserParseFuncDecl() *astDecl {
 	return decl
 }
 
-func parserParseFile() *astFile {
+func parserFile() *astFile {
 	// expect "package" keyword
 	parserExpect("package", __func__)
 	p.unresolved = nil
@@ -2079,7 +2079,7 @@ func parserParseFile() *astFile {
 	p.pkgScope = p.topScope
 
 	for p.tok.tok == "import" {
-		parserParseImportDecl()
+		parserImportDecl()
 	}
 
 	logf("\n")
@@ -2090,7 +2090,7 @@ func parserParseFile() *astFile {
 	for p.tok.tok != "EOF" {
 		switch p.tok.tok {
 		case "var", "const":
-			var spec = parserParseValueSpec(p.tok.tok)
+			var spec = parserValueSpec(p.tok.tok)
 			var genDecl = new(astGenDecl)
 			genDecl.Spec = spec
 			decl = new(astDecl)
@@ -2098,10 +2098,10 @@ func parserParseFile() *astFile {
 			decl.genDecl = genDecl
 		case "func":
 			logf("\n\n")
-			decl = parserParseFuncDecl()
+			decl = parserFuncDecl()
 			logf(" func decl parsed:%s\n", decl.funcDecl.Name.Name)
 		case "type":
-			var spec = parserParseTypeSpec()
+			var spec = parserTypeSpec()
 			var genDecl = new(astGenDecl)
 			genDecl.Spec = spec
 			decl = new(astDecl)
@@ -2125,9 +2125,9 @@ func parserParseFile() *astFile {
 
 	var unresolved []*astIdent
 	var idnt *astIdent
-	logf(" [parserParseFile] resolving parser's unresolved (n=%s)\n", Itoa(len(p.unresolved)))
+	logf(" [parserFile] resolving parser's unresolved (n=%s)\n", Itoa(len(p.unresolved)))
 	for _, idnt = range p.unresolved {
-		logf(" [parserParseFile] resolving ident %s ...\n", idnt.Name)
+		logf(" [parserFile] resolving ident %s ...\n", idnt.Name)
 		var obj *astObject = scopeLookup(p.pkgScope, idnt.Name)
 		if obj != nil {
 			logf(" resolved \n")
@@ -2137,7 +2137,7 @@ func parserParseFile() *astFile {
 			unresolved = append(unresolved, idnt)
 		}
 	}
-	logf(" [parserParseFile] Unresolved (n=%s)\n", Itoa(len(unresolved)))
+	logf(" [parserFile] Unresolved (n=%s)\n", Itoa(len(unresolved)))
 
 	var f = new(astFile)
 	f.Name = packageName
@@ -2151,7 +2151,7 @@ func parseFile(filename string) *astFile {
 	p = new(parser)
 	var text = readSource(filename)
 	parserInit(text)
-	return parserParseFile()
+	return parserFile()
 }
 
 // --- codegen ---
