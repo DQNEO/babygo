@@ -847,21 +847,18 @@ type objectEntry struct {
 type parser struct {
 	tok *TokenContainer
 	unresolved []*astIdent
+	topScope *astScope
+	pkgScope *astScope
 }
 
 var p *parser
 
-var parserUnresolved []*astIdent
-
-var parserTopScope *astScope
-var parserPkgScope *astScope
-
 func openScope() {
-	parserTopScope = astNewScope(parserTopScope)
+	p.topScope = astNewScope(p.topScope)
 }
 
 func closeScope() {
-	parserTopScope = parserTopScope.Outer
+	p.topScope = p.topScope.Outer
 }
 
 func parserConsumeComment() {
@@ -1254,7 +1251,7 @@ func tryResolve(x *astExpr, collectUnresolved bool) {
 	}
 
 	var s *astScope
-	for s = parserTopScope; s != nil; s = s.Outer {
+	for s = p.topScope; s != nil; s = s.Outer {
 		var obj = scopeLookup(s, ident.Name)
 		if obj != nil {
 			ident.Obj = obj
@@ -1263,7 +1260,7 @@ func tryResolve(x *astExpr, collectUnresolved bool) {
 	}
 
 	if collectUnresolved {
-		parserUnresolved = append(parserUnresolved, ident)
+		p.unresolved = append(p.unresolved, ident)
 		logf(" appended unresolved ident %s\n", ident.Name)
 	}
 }
@@ -1922,7 +1919,7 @@ func parseStmtList() []*astStmt {
 
 func parseBody(scope *astScope) *astBlockStmt {
 	parserExpect("{", __func__)
-	parserTopScope = scope
+	p.topScope = scope
 	logf(" begin parseStmtList()\n")
 	var list = parseStmtList()
 	logf(" end parseStmtList()\n")
@@ -1970,7 +1967,7 @@ func parseDecl(keyword string) *astGenDecl {
 		var objDecl = new(ObjDecl)
 		objDecl.dtype = "*astValueSpec"
 		objDecl.valueSpec = valSpec
-		declare(objDecl, parserTopScope, astVar, ident)
+		declare(objDecl, p.topScope, astVar, ident)
 		r = new(astGenDecl)
 		r.Spec = spec
 		return r
@@ -1991,7 +1988,7 @@ func parserParseTypeSpec() *astSpec {
 	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astTypeSpec"
 	objDecl.typeSpec = spec
-	declare(objDecl, parserTopScope, astTyp, ident)
+	declare(objDecl, p.topScope, astTyp, ident)
 	var typ = parseType()
 	parserExpectSemi(__func__)
 	spec.Type = typ
@@ -2027,14 +2024,14 @@ func parserParseValueSpec(keyword string) *astSpec {
 	if keyword == "var" {
 		kind = astVar
 	}
-	declare(objDecl, parserTopScope, kind, ident)
+	declare(objDecl, p.topScope, kind, ident)
 	logf(" [parserParseValueSpec] end\n")
 	return r
 }
 
 func parserParseFuncDecl() *astDecl {
 	parserExpect("func", __func__)
-	var scope = astNewScope(parserTopScope) // function scope
+	var scope = astNewScope(p.topScope) // function scope
 
 	var ident = parseIdent()
 	var sig = parseSignature(scope)
@@ -2066,20 +2063,20 @@ func parserParseFuncDecl() *astDecl {
 	var objDecl = new(ObjDecl)
 	objDecl.dtype = "*astFuncDecl"
 	objDecl.funcDecl = funcDecl
-	declare(objDecl, parserPkgScope, astFun, ident)
+	declare(objDecl, p.pkgScope, astFun, ident)
 	return decl
 }
 
 func parserParseFile() *astFile {
 	// expect "package" keyword
 	parserExpect("package", __func__)
-	parserUnresolved = nil
+	p.unresolved = nil
 	var ident = parseIdent()
 	var packageName = ident.Name
 	parserExpectSemi(__func__)
 
-	parserTopScope = new(astScope) // open scope
-	parserPkgScope = parserTopScope
+	p.topScope = new(astScope) // open scope
+	p.pkgScope = p.topScope
 
 	for p.tok.tok == "import" {
 		parserParseImportDecl()
@@ -2117,21 +2114,21 @@ func parserParseFile() *astFile {
 		decls = append(decls, decl)
 	}
 
-	parserTopScope = nil
+	p.topScope = nil
 
-	// dump parserPkgScope
+	// dump p.pkgScope
 	logf("[DEBUG] Dump objects in the package scope\n")
 	var oe *objectEntry
-	for _, oe = range parserPkgScope.Objects {
+	for _, oe = range p.pkgScope.Objects {
 		logf("    object %s\n", oe.name)
 	}
 
 	var unresolved []*astIdent
 	var idnt *astIdent
-	logf(" [parserParseFile] resolving parserUnresolved (n=%s)\n", Itoa(len(parserUnresolved)))
-	for _, idnt = range parserUnresolved {
+	logf(" [parserParseFile] resolving parser's unresolved (n=%s)\n", Itoa(len(p.unresolved)))
+	for _, idnt = range p.unresolved {
 		logf(" [parserParseFile] resolving ident %s ...\n", idnt.Name)
-		var obj *astObject = scopeLookup(parserPkgScope, idnt.Name)
+		var obj *astObject = scopeLookup(p.pkgScope, idnt.Name)
 		if obj != nil {
 			logf(" resolved \n")
 			idnt.Obj = obj
