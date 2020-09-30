@@ -1,4 +1,6 @@
-// runtime
+// runtime for 2nd generation compiler
+// +build ignore
+
 package runtime
 
 import "syscall"
