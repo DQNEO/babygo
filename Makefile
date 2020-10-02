@@ -38,6 +38,7 @@ babygo_by_precompiler: main.go runtime.go runtime.s precompiler
 
 .PHONY: test1
 test1:	babygo t/test.go
+	@echo "testing 1gen babygo ..."
 	./babygo < t/test.go > $(tmp)/test.s
 	cp $(tmp)/test.s ./.shared/ # for debug
 	as -o $(tmp)/test.o $(tmp)/test.s runtime.s
@@ -53,6 +54,7 @@ babygo2: babygo
 
 .PHONY: test2
 test2: babygo2
+	@echo "testing 2gen babygo ..."
 	./babygo2 < t/test.go > $(tmp)/test2.s
 	as -o $(tmp)/test2.o $(tmp)/test2.s runtime.s
 	ld -o $(tmp)/test2 $(tmp)/test2.o
@@ -61,8 +63,10 @@ test2: babygo2
 # test self hosting by comparing 2gen.s and 3gen.s
 .PHONY: test-self-host
 test-self-host: babygo2
+	@echo "testing self host ..."
 	./babygo2 < main.go > $(tmp)/3gen.s
 	diff $(tmp)/2gen.s $(tmp)/3gen.s
+	@echo "self host is ok"
 
 .PHONY: fmt
 fmt: *.go t/*.go pre/*.go
