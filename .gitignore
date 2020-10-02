@@ -5,3 +5,4 @@
 
 # intermediate files
 /tmp/*
+/.shared/*
