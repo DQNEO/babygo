@@ -20,3 +20,6 @@ docker run \
     --tmpfs=/tmp/tmpfs:rw,size=500m,mode=1777\
     --tmpfs=/root/go/src/github.com/DQNEO/babygo/tmp:rw,size=500m,mode=1777\
      dqneo/ubuntu-build-essential:go $cmd
+
+# Change prompt in the container
+# export PS1='docker:\W $ '
