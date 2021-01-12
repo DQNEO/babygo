@@ -73,6 +73,17 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+func testStructLiteral() {
+	var strct MyStruct = MyStruct{}
+	writeln(itoa(strct.field1))
+	writeln(itoa(strct.field2))
+
+	strct.field1 = 123
+	strct.field2 = 456
+
+	writeln(itoa(strct.field1))
+	writeln(itoa(strct.field2))
+}
 
 func testStructZeroValue() {
 	var strct MyStruct
@@ -1220,6 +1231,7 @@ func testMisc() {
 }
 
 func test() {
+	testStructLiteral()
 	testStructZeroValue()
 	testAtoi()
 	testIsLetter()

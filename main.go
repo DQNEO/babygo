@@ -3095,6 +3095,9 @@ func emitExpr(e *astExpr, forceType *Type) {
 		// slice , array, map or struct
 		var k = kind(e2t(e.compositeLit.Type))
 		switch k {
+		case T_STRUCT:
+			// Zero value
+			emitZeroValue(e2t(e.compositeLit.Type))
 		case T_ARRAY:
 			assert(e.compositeLit.Type.dtype == "*astArrayType", "expect *ast.ArrayType", __func__)
 			var arrayType = e.compositeLit.Type.arrayType
