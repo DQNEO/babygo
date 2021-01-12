@@ -246,7 +246,7 @@ func emitLoad(t *Type) {
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
-	case T_ARRAY:
+	case T_ARRAY, T_STRUCT:
 		// pure proxy
 		fmtPrintf("  pushq %%rax\n")
 	default:

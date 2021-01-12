@@ -73,6 +73,23 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+
+func testStructCopy() {
+	var strct MyStruct = MyStruct{}
+	strct.field1 = 123
+	strct.field2 = 456
+
+	var strct2 MyStruct = MyStruct{}
+	strct2 = strct
+
+	writeln(itoa(strct2.field1))
+	writeln(itoa(strct2.field2))
+
+	// assert 2 struct does not share memory
+	strct2.field1 = 789
+	writeln(itoa(strct.field1))
+}
+
 func testStructLiteral() {
 	var strct MyStruct = MyStruct{}
 	writeln(itoa(strct.field1))
@@ -1231,6 +1248,7 @@ func testMisc() {
 }
 
 func test() {
+	testStructCopy()
 	testStructLiteral()
 	testStructZeroValue()
 	testAtoi()
