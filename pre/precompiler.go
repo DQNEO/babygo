@@ -326,6 +326,15 @@ func emitAddr(expr ast.Expr) {
 		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		offset := getStructFieldOffset(field)
 		emitAddConst(offset, "struct head address + struct.field offset")
+	case *ast.CompositeLit:
+		knd := kind(getTypeOfExpr(e))
+		switch knd {
+		case T_STRUCT:
+			// result of evaluation of a struct literal is its address
+			emitExpr(expr, nil)
+		default:
+			panic(string(knd))
+		}
 	default:
 		throw(expr)
 	}

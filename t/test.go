@@ -73,6 +73,19 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+func returnPointerOfStruct() *MyStruct {
+	var strct *MyStruct = &MyStruct{}
+	strct.field1 = 345
+	strct.field2 = 678
+	return strct
+}
+
+func testAddressOfStructLiteral() {
+	var strct *MyStruct = returnPointerOfStruct()
+	writeln(itoa(strct.field1))
+	writeln(itoa(strct.field2))
+}
+
 
 func testStructCopy() {
 	var strct MyStruct = MyStruct{}
@@ -1248,6 +1261,7 @@ func testMisc() {
 }
 
 func test() {
+	testAddressOfStructLiteral()
 	testStructCopy()
 	testStructLiteral()
 	testStructZeroValue()

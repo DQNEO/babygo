@@ -2327,6 +2327,15 @@ func emitAddr(expr *astExpr) {
 		var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
 		var offset = getStructFieldOffset(field)
 		emitAddConst(offset, "struct head address + struct.field offset")
+	case "*astCompositeLit":
+		var knd = kind(getTypeOfExpr(expr))
+		switch knd {
+		case T_STRUCT:
+			// result of evaluation of a struct literal is its address
+			emitExpr(expr, nil)
+		default:
+			panic2(__func__, "TBI "+ knd)
+		}
 	default:
 		panic2(__func__, "TBI "+expr.dtype)
 	}
