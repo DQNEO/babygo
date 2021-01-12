@@ -1075,6 +1075,9 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 	case *ast.CompositeLit:
 		// slice , array, map or struct
 		switch kind(e2t(e.Type)) {
+		case T_STRUCT:
+			// Zero value
+			emitZeroValue(e2t(e.Type))
 		case T_ARRAY:
 			arrayType, ok := e.Type.(*ast.ArrayType)
 			assert(ok, "expect *ast.ArrayType")
@@ -1090,7 +1093,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			fmt.Printf("  pushq $%d # slice.len\n", length)
 			fmt.Printf("  pushq %%rax # slice.ptr\n")
 		default:
-			throw(e.Type)
+			panic(string(kind(e2t(e.Type))))
 		}
 	case *ast.SliceExpr: // list[low:high]
 		list := e.X
