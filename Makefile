@@ -74,6 +74,7 @@ fmt: *.go t/*.go pre/*.go
 
 .PHONY: clean
 clean:
+	rm -f babygo*
 	rm -f ./tmp/* ./.shared/*
 	rm -fr $(tmp)
 	rm -f precompiler babygo babygo2
