@@ -1165,13 +1165,13 @@ func emitStore(t *Type) {
 	emitComment(2, "emitStore(%s)\n", kind(t))
 	switch kind(t) {
 	case T_SLICE:
-		emitPopSlice()
+		emitPopSlice() // rhs
 		fmt.Printf("  popq %%rsi # lhs ptr addr\n")
 		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
 		fmt.Printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", 16)
 	case T_STRING:
-		emitPopString()
+		emitPopString() // rhs
 		fmt.Printf("  popq %%rsi # lhs ptr addr\n")
 		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
