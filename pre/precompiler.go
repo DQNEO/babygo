@@ -403,7 +403,9 @@ func emitZeroValue(t *Type) {
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmtPrintf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
-		//@FIXME
+		structSize := getSizeOfType(t)
+		fmtPrintf("# zero value of a struct. size=%s (allocating on heap)\n", Itoa(structSize))
+		emitCallMalloc(structSize)
 	default:
 		throw(t)
 	}
@@ -1165,13 +1167,13 @@ func emitStore(t *Type) {
 	emitComment(2, "emitStore(%s)\n", kind(t))
 	switch kind(t) {
 	case T_SLICE:
-		emitPopSlice()
+		emitPopSlice() // rhs
 		fmt.Printf("  popq %%rsi # lhs ptr addr\n")
 		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
 		fmt.Printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", 16)
 	case T_STRING:
-		emitPopString()
+		emitPopString() // rhs
 		fmt.Printf("  popq %%rsi # lhs ptr addr\n")
 		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
@@ -1187,9 +1189,7 @@ func emitStore(t *Type) {
 		fmtPrintf("  popq %%rdi # rhs evaluated\n")
 		fmtPrintf("  popq %%rax # lhs addr\n")
 		fmtPrintf("  movw %%di, (%%rax) # assign word\n")
-	case T_STRUCT:
-		// @FXIME
-	case T_ARRAY:
+	case T_STRUCT, T_ARRAY:
 		fmtPrintf("  popq %%rdi # rhs: addr of data\n")
 		fmtPrintf("  popq %%rax # lhs: addr to store\n")
 		fmtPrintf("  pushq $%d # size\n", Itoa(getSizeOfType(t)))

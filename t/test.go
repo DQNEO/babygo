@@ -72,6 +72,14 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+// --- test funcs ---
+
+func testStructZeroValue() {
+	var strct MyStruct
+	writeln(itoa(strct.field1))
+	writeln(itoa(strct.field2))
+}
+
 func testAtoi() {
 	writeln(itoa(atoi("")))  // "0"
 	writeln(itoa(atoi("0"))) // "0"
@@ -1212,6 +1220,7 @@ func testMisc() {
 }
 
 func test() {
+	testStructZeroValue()
 	testAtoi()
 	testIsLetter()
 	testVaargs()
