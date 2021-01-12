@@ -2148,7 +2148,7 @@ func parserFile() *astFile {
 }
 
 func parseFile(filename string) *astFile {
-	p = new(parser)
+	p = &parser{}
 	var text = readSource(filename)
 	parserInit(text)
 	return parserFile()
