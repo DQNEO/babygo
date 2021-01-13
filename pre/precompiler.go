@@ -413,7 +413,7 @@ func emitZeroValue(t *Type) {
 		fmtPrintf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
 		structSize := getSizeOfType(t)
-		fmtPrintf("# zero value of a struct. size=%s (allocating on heap)\n", Itoa(structSize))
+		fmtPrintf("  # zero value of a struct. size=%s (allocating on heap)\n", Itoa(structSize))
 		emitCallMalloc(structSize)
 	default:
 		throw(t)
@@ -464,16 +464,42 @@ func emitCallMalloc(size int) {
 	fmtPrintf("  pushq %%rax # addr\n")
 }
 
+func emitStructLiteral(e *ast.CompositeLit) {
+	// allocate heap area with zero value
+	fmtPrintf("  # Struct literal\n")
+	structType := e2t(e.Type)
+	emitZeroValue(structType) // push address of the new storage
+	for i, elm := range e.Elts {
+		kvExpr , ok := elm.(*ast.KeyValueExpr)
+		assert(ok, "expect *ast.KeyValueExpr")
+		fieldName, ok := kvExpr.Key.(*ast.Ident)
+		assert(ok, "expect *ast.Ident")
+		fmt.Printf("  #  - [%d] : key=%s, value=%T\n", i, fieldName.Name, kvExpr.Value)
+		field := lookupStructField(getStructTypeSpec(structType), fieldName.Name)
+		fieldType := e2t(field.Type)
+		fieldOffset := getStructFieldOffset(field)
+		// push lhs address
+		emitPushStackTop(tUintptr, "address of struct heaad")
+		emitAddConst(fieldOffset, "address of struct field")
+		// push rhs value
+		emitExpr(kvExpr.Value, fieldType)
+		// assign
+		emitStore(fieldType)
+	}
+}
+
 func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 	elmType := e2t(arrayType.Elt)
 	elmSize := getSizeOfType(elmType)
 	memSize := elmSize * arrayLen
 	emitCallMalloc(memSize) // push
 	for i, elm := range elts {
-		// emit lhs
+		// push lhs address
 		emitPushStackTop(tUintptr, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
+		// push rhs value
 		emitExpr(elm, elmType)
+		// assign
 		emitStore(elmType)
 	}
 }
@@ -1085,8 +1111,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 		// slice , array, map or struct
 		switch kind(e2t(e.Type)) {
 		case T_STRUCT:
-			// Zero value
-			emitZeroValue(e2t(e.Type))
+			emitStructLiteral(e)
 		case T_ARRAY:
 			arrayType, ok := e.Type.(*ast.ArrayType)
 			assert(ok, "expect *ast.ArrayType")
@@ -2400,6 +2425,9 @@ func walkExpr(expr ast.Expr) {
 		// do nothing
 	case *ast.StarExpr:
 		walkExpr(e.X)
+	case *ast.KeyValueExpr:
+		walkExpr(e.Key)
+		walkExpr(e.Value)
 	default:
 		throw(expr)
 	}
