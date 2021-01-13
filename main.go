@@ -796,19 +796,20 @@ type astScope struct {
 }
 
 func astNewScope(outer *astScope) *astScope {
-	var r = new(astScope)
-	r.Outer = outer
-	return r
+	return &astScope{
+		Outer: outer,
+	}
 }
 
 func scopeInsert(s *astScope, obj *astObject) {
 	if s == nil {
 		panic2(__func__, "s sholud not be nil\n")
 	}
-	var oe = new(objectEntry)
-	oe.name = obj.Name
-	oe.obj = obj
-	s.Objects = append(s.Objects, oe)
+
+	s.Objects = append(s.Objects, &objectEntry{
+		name: obj.Name,
+		obj:  obj,
+	})
 }
 
 func scopeLookup(s *astScope, name string) *astObject {
@@ -925,9 +926,9 @@ func parseIdent() *astIdent {
 		panic2(__func__, "IDENT expected, but got "+p.tok.tok)
 	}
 	logf(" [%s] ident name = %s\n", __func__, name)
-	var r = new(astIdent)
-	r.Name = name
-	return r
+	return &astIdent{
+		Name: name,
+	}
 }
 
 func parserImportDecl() *astImportSpec {
@@ -935,9 +936,10 @@ func parserImportDecl() *astImportSpec {
 	var path = p.tok.lit
 	parserNext()
 	parserExpectSemi(__func__)
-	var spec = new(astImportSpec)
-	spec.Path = path
-	return spec
+
+	return &astImportSpec{
+		Path: path,
+	}
 }
 
 func tryVarType(ellipsisOK bool) *astExpr {
@@ -949,12 +951,13 @@ func tryVarType(ellipsisOK bool) *astExpr {
 		} else {
 			panic2(__func__, "Syntax error")
 		}
-		var elps = new(astEllipsis)
-		elps.Elt = typ
-		var r = new(astExpr)
-		r.dtype = "*astEllipsis"
-		r.ellipsis = elps
-		return r
+
+		return &astExpr{
+			dtype: "*astEllipsis",
+			ellipsis: &astEllipsis{
+				Elt: typ,
+			},
+		}
 	}
 	return tryIdentOrType()
 }
