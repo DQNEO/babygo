@@ -3853,6 +3853,13 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			return getTypeOfExpr(expr.unaryExpr.X)
 		case "!":
 			return tBool
+		case "&":
+			var starExpr = new(astStarExpr)
+			starExpr.X = expr.unaryExpr.X
+			var eStarExpr = new(astExpr)
+			eStarExpr.dtype = "*astStarExpr"
+			eStarExpr.starExpr = starExpr
+			return e2t(eStarExpr)
 		default:
 			panic2(__func__, "TBI: Op="+expr.unaryExpr.Op)
 		}
