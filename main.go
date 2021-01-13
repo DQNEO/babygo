@@ -1121,12 +1121,12 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 			panic2(__func__, "Unexpected dtype")
 		}
 		var ident = eIdent.ident
-		var field = new(astField)
 		if ident == nil {
 			panic2(__func__, "Ident should not be nil")
 		}
 		logf(" [%s] ident.Name=%s\n", __func__, ident.Name)
 		logf(" [%s] typ=%s\n", __func__, typ.dtype)
+		var field = new(astField)
 		field.Name = ident
 		field.Type = typ
 		logf(" [%s]: Field %s %s\n", __func__, field.Name.Name, field.Type.dtype)
@@ -1216,21 +1216,23 @@ func parseSignature(scope *astScope) *signature {
 	var results *astFieldList
 	params = parseParameters(scope, true)
 	results = parserResult(scope)
-	var sig = new(signature)
-	sig.params = params
-	sig.results = results
-	return sig
+	return &signature{
+		params:  params,
+		results: results,
+	}
 }
 
 func declareField(decl *astField, scope *astScope, kind string, ident *astIdent) {
-	// delcare
-	var obj = new(astObject)
-	var objDecl = new(ObjDecl)
-	objDecl.dtype = "*astField"
-	objDecl.field = decl
-	obj.Decl = objDecl
-	obj.Name = ident.Name
-	obj.Kind = kind
+	// declare
+	var obj = &astObject{
+		Decl : &ObjDecl{
+			dtype: "*astField",
+			field: decl,
+		},
+		Name : ident.Name,
+		Kind : kind,
+	}
+
 	ident.Obj = obj
 
 	// scope insert
@@ -1242,10 +1244,12 @@ func declareField(decl *astField, scope *astScope, kind string, ident *astIdent)
 func declare(objDecl *ObjDecl, scope *astScope, kind string, ident *astIdent) {
 	logf(" [declare] ident %s\n", ident.Name)
 
-	var obj = new(astObject) //valSpec.Name.Obj
-	obj.Decl = objDecl
-	obj.Name = ident.Name
-	obj.Kind = kind
+	//valSpec.Name.Obj
+	var obj = &astObject{
+		Decl : objDecl,
+		Name : ident.Name,
+		Kind : kind,
+	}
 	ident.Obj = obj
 
 	// scope insert
@@ -1287,10 +1291,11 @@ func parseOperand() *astExpr {
 	logf("   begin %s\n", __func__)
 	switch p.tok.tok {
 	case "IDENT":
-		var eIdent = new(astExpr)
-		eIdent.dtype = "*astIdent"
 		var ident = parseIdent()
-		eIdent.ident = ident
+		var eIdent = &astExpr{
+			dtype : "*astIdent",
+			ident : ident,
+		}
 		tryResolve(eIdent, true)
 		logf("   end %s\n", __func__)
 		return eIdent
@@ -1310,12 +1315,12 @@ func parseOperand() *astExpr {
 		var x = parserRhsOrType()
 		parserExprLev--
 		parserExpect(")", __func__)
-		var p = new(astParenExpr)
-		p.X = x
-		var r = new(astExpr)
-		r.dtype = "*astParenExpr"
-		r.parenExpr = p
-		return r
+		return &astExpr{
+			dtype: "*astParenExpr",
+			parenExpr: &astParenExpr{
+				X: x,
+			},
+		}
 	}
 
 	var typ = tryIdentOrType()
@@ -1334,8 +1339,6 @@ func parserRhsOrType() *astExpr {
 
 func parseCallExpr(fn *astExpr) *astExpr {
 	parserExpect("(", __func__)
-	var callExpr = new(astCallExpr)
-	callExpr.Fun = fn
 	logf(" [parsePrimaryExpr] p.tok.tok=%s\n", p.tok.tok)
 	var list []*astExpr
 	for p.tok.tok != ")" {
@@ -1348,11 +1351,13 @@ func parseCallExpr(fn *astExpr) *astExpr {
 		}
 	}
 	parserExpect(")", __func__)
-	callExpr.Args = list
-	var r = new(astExpr)
-	r.dtype = "*astCallExpr"
-	r.callExpr = callExpr
-	return r
+	return &astExpr{
+		dtype:    "*astCallExpr",
+		callExpr: &astCallExpr{
+			Fun:  fn,
+			Args: list,
+		},
+	}
 }
 
 var parserExprLev int // < 0: in control clause, >= 0: in expression
