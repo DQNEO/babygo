@@ -1412,9 +1412,8 @@ func parserElementList() []*astExpr {
 		list = append(list, e)
 		if p.tok.tok != "," {
 			break
-		} else {
-			parserExpect(",", __func__)
 		}
+		parserExpect(",", __func__)
 	}
 	return list
 }
