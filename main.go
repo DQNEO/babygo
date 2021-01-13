@@ -1400,24 +1400,36 @@ func parsePrimaryExpr() *astExpr {
 	return x
 }
 
-func parseLiteralValue(x *astExpr) *astExpr {
-	logf("   start %s\n", __func__)
-	parserExpect("{", __func__)
-	var elts []*astExpr
+func parserElement() *astExpr {
+	return parseExpr()
+}
+
+func parserElementList() []*astExpr {
+	var list []*astExpr
 	var e *astExpr
 	for p.tok.tok != "}" {
-		e = parseExpr()
-		elts = append(elts, e)
-		if p.tok.tok == "}" {
+		e = parserElement()
+		list = append(list, e)
+		if p.tok.tok != "," {
 			break
 		} else {
 			parserExpect(",", __func__)
 		}
 	}
+	return list
+}
+
+func parseLiteralValue(typ *astExpr) *astExpr {
+	logf("   start %s\n", __func__)
+	parserExpect("{", __func__)
+	var elts []*astExpr
+	if p.tok.tok != "}" {
+		elts = parserElementList()
+	}
 	parserExpect("}", __func__)
 
 	var compositeLit = new(astCompositeLit)
-	compositeLit.Type = x
+	compositeLit.Type = typ
 	compositeLit.Elts = elts
 	var r = new(astExpr)
 	r.dtype = "*astCompositeLit"
