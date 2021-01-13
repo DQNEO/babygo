@@ -1512,15 +1512,17 @@ func parseIndexOrSlice(x *astExpr) *astExpr {
 		if ncolons == 2 {
 			panic2(__func__, "TBI: ncolons=2")
 		}
-		var sliceExpr = new(astSliceExpr)
-		sliceExpr.Slice3 = false
-		sliceExpr.X = x
-		sliceExpr.Low = index[0]
-		sliceExpr.High = index[1]
-		var r = new(astExpr)
-		r.dtype = "*astSliceExpr"
-		r.sliceExpr = sliceExpr
-		return r
+		var sliceExpr = &astSliceExpr{
+			Slice3 : false,
+			X : x,
+			Low : index[0],
+			High : index[1],
+		}
+
+		return &astExpr{
+			dtype:     "*astSliceExpr",
+			sliceExpr: sliceExpr,
+		}
 	}
 
 	var indexExpr = new(astIndexExpr)
