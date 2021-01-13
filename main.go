@@ -560,6 +560,7 @@ type astExpr struct {
 	parenExpr    *astParenExpr
 	structType   *astStructType
 	compositeLit *astCompositeLit
+	keyValueExpr *astKeyValueExpr
 	ellipsis     *astEllipsis
 }
 
@@ -590,6 +591,11 @@ type astBasicLit struct {
 type astCompositeLit struct {
 	Type *astExpr
 	Elts []*astExpr
+}
+
+type astKeyValueExpr struct {
+	Key *astExpr
+	Value *astExpr
 }
 
 type astParenExpr struct {
@@ -1401,7 +1407,20 @@ func parsePrimaryExpr() *astExpr {
 }
 
 func parserElement() *astExpr {
-	return parseExpr()
+	var x = parseExpr() // key or value
+	var v *astExpr
+	var kvExpr *astKeyValueExpr
+	if p.tok.tok == ":" {
+		parserNext() // skip ":"
+		v = parseExpr()
+		kvExpr = new(astKeyValueExpr)
+		kvExpr.Key = x
+		kvExpr.Value = v
+		x = new(astExpr)
+		x.dtype = "*astKeyValueExpr"
+		x.keyValueExpr = kvExpr
+	}
+	return x
 }
 
 func parserElementList() []*astExpr {
@@ -2494,6 +2513,33 @@ func emitCallMalloc(size int) {
 	fmtPrintf("  pushq %%rax # addr\n")
 }
 
+func emitStructLiteral(e *astCompositeLit) {
+	// allocate heap area with zero value
+	fmtPrintf("  # Struct literal\n")
+	var structType = e2t(e.Type)
+	emitZeroValue(structType) // push address of the new storage
+	var kvExpr *astKeyValueExpr
+	var i int
+	var elm *astExpr
+	for i, elm = range e.Elts {
+		assert(elm.dtype == "*astKeyValueExpr", "wrong dtype 1:" + elm.dtype, __func__)
+		kvExpr = elm.keyValueExpr
+		assert(kvExpr.Key.dtype == "*astIdent", "wrong dtype 2:" + elm.dtype, __func__)
+		var fieldName = kvExpr.Key.ident
+		fmtPrintf("  #  - [%s] : key=%s, value=%s\n", Itoa(i), fieldName.Name, kvExpr.Value.dtype)
+		var field = lookupStructField(getStructTypeSpec(structType), fieldName.Name)
+		var fieldType = e2t(field.Type)
+		var fieldOffset = getStructFieldOffset(field)
+		// push lhs address
+		emitPushStackTop(tUintptr, "address of struct heaad")
+		emitAddConst(fieldOffset, "address of struct field")
+		// push rhs value
+		emitExpr(kvExpr.Value, fieldType)
+		// assign
+		emitStore(fieldType)
+	}
+}
+
 func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []*astExpr) {
 	var elmType = e2t(arrayType.Elt)
 	var elmSize = getSizeOfType(elmType)
@@ -3121,8 +3167,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 		var k = kind(e2t(e.compositeLit.Type))
 		switch k {
 		case T_STRUCT:
-			// Zero value
-			emitZeroValue(e2t(e.compositeLit.Type))
+			emitStructLiteral(e.compositeLit)
 		case T_ARRAY:
 			assert(e.compositeLit.Type.dtype == "*astArrayType", "expect *ast.ArrayType", __func__)
 			var arrayType = e.compositeLit.Type.arrayType
@@ -4383,6 +4428,9 @@ func walkExpr(expr *astExpr) {
 		// do nothing ?
 	case "*astParenExpr":
 		walkExpr(expr.parenExpr.X)
+	case "*astKeyValueExpr":
+		walkExpr(expr.keyValueExpr.Key)
+		walkExpr(expr.keyValueExpr.Value)
 	default:
 		panic2(__func__, "TBI:"+expr.dtype)
 	}
@@ -4526,7 +4574,9 @@ func resolveUniverse(file *astFile, universe *astScope) {
 			logf(" matched\n")
 			ident.Obj = obj
 		} else {
-			panic2(__func__, "Unresolved : "+ident.Name)
+			// we should allow unresolved for now.
+			// e.g foo in X{foo:bar,}
+			logf("Unresolved (maybe struct field name in composite literal): "+ident.Name)
 			unresolved = append(unresolved, ident)
 		}
 	}
