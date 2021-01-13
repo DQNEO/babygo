@@ -1300,15 +1300,16 @@ func parseOperand() *astExpr {
 		logf("   end %s\n", __func__)
 		return eIdent
 	case "INT", "STRING", "CHAR":
-		var basicLit = new(astBasicLit)
-		basicLit.Kind = p.tok.tok
-		basicLit.Value = p.tok.lit
-		var r = new(astExpr)
-		r.dtype = "*astBasicLit"
-		r.basicLit = basicLit
+		var basicLit = &astBasicLit{
+			Kind : p.tok.tok,
+			Value : p.tok.lit,
+		}
 		parserNext()
 		logf("   end %s\n", __func__)
-		return r
+		return &astExpr{
+			dtype:    "*astBasicLit",
+			basicLit: basicLit,
+		}
 	case "(":
 		parserNext() // consume "("
 		parserExprLev++
