@@ -1384,21 +1384,24 @@ func parsePrimaryExpr() *astExpr {
 			}
 			// Assume CallExpr
 			var secondIdent = parseIdent()
-			var sel = new(astSelectorExpr)
-			sel.X = x
-			sel.Sel = secondIdent
+			var sel = &astSelectorExpr{
+				X : x,
+				Sel : secondIdent,
+			}
 			if p.tok.tok == "(" {
-				var fn = new(astExpr)
-				fn.dtype = "*astSelectorExpr"
-				fn.selectorExpr = sel
+				var fn = &astExpr{
+					dtype : "*astSelectorExpr",
+					selectorExpr : sel,
+				}
 				// string = x.ident.Name + "." + secondIdent
 				x = parseCallExpr(fn)
 				logf(" [parsePrimaryExpr] 741 p.tok.tok=%s\n", p.tok.tok)
 			} else {
 				logf("   end parsePrimaryExpr()\n")
-				x = new(astExpr)
-				x.dtype = "*astSelectorExpr"
-				x.selectorExpr = sel
+				x = &astExpr{
+					dtype : "*astSelectorExpr",
+					selectorExpr : sel,
+				}
 			}
 		case "(":
 			x = parseCallExpr(x)
