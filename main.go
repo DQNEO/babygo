@@ -990,12 +990,12 @@ func parseType() *astExpr {
 func parsePointerType() *astExpr {
 	parserExpect("*", __func__)
 	var base = parseType()
-	var starExpr = new(astStarExpr)
-	starExpr.X = base
-	var r = new(astExpr)
-	r.dtype = "*astStarExpr"
-	r.starExpr = starExpr
-	return r
+	return &astExpr{
+		dtype: "*astStarExpr",
+		starExpr : &astStarExpr{
+			X: base,
+		},
+	}
 }
 
 func parseArrayType() *astExpr {
@@ -1006,12 +1006,14 @@ func parseArrayType() *astExpr {
 	}
 	parserExpect("]", __func__)
 	var elt = parseType()
-	var arrayType = new(astArrayType)
-	arrayType.Elt = elt
-	arrayType.Len = ln
-	var r = new(astExpr)
-	r.dtype = "*astArrayType"
-	r.arrayType = arrayType
+
+	var r = &astExpr{
+		dtype : "*astArrayType",
+		arrayType : &astArrayType{
+			Elt : elt,
+			Len : ln,
+		},
+	}
 	return r
 }
 
@@ -1022,9 +1024,10 @@ func parseFieldDecl(scope *astScope) *astField {
 
 	parserExpectSemi(__func__)
 
-	var field = new(astField)
-	field.Type = typ
-	field.Name = varType.ident
+	var field = &astField{
+		Type : typ,
+		Name : varType.ident,
+	}
 	declareField(field, scope, astVar, varType.ident)
 	parserResolve(typ)
 	return field
@@ -1037,7 +1040,6 @@ func parseStructType() *astExpr {
 	var _nil *astScope
 	var scope = astNewScope(_nil)
 
-	var structType = new(astStructType)
 	var list []*astField
 	for p.tok.tok == "IDENT" || p.tok.tok == "*" {
 		var field *astField = parseFieldDecl(scope)
@@ -1045,23 +1047,24 @@ func parseStructType() *astExpr {
 	}
 	parserExpect("}", __func__)
 
-	var fields = new(astFieldList)
-	fields.List = list
-	structType.Fields = fields
-	var r = new(astExpr)
-	r.dtype = "*astStructType"
-	r.structType = structType
-	return r
+	return &astExpr{
+		dtype : "*astStructType",
+		structType : &astStructType{
+			Fields: &astFieldList{
+				List : list,
+			},
+		},
+	}
 }
 
 func parseTypeName() *astExpr {
 	logf(" [%s] begin\n", __func__)
 	var ident = parseIdent()
-	var typ = new(astExpr)
-	typ.ident = ident
-	typ.dtype = "*astIdent"
 	logf(" [%s] end\n", __func__)
-	return typ
+	return &astExpr{
+		ident: ident,
+		dtype: "*astIdent",
+	}
 }
 
 func tryIdentOrType() *astExpr {
@@ -1079,12 +1082,12 @@ func tryIdentOrType() *astExpr {
 		parserNext()
 		var _typ = parseType()
 		parserExpect(")", __func__)
-		var parenExpr = new(astParenExpr)
-		parenExpr.X = _typ
-		var typ = new(astExpr)
-		typ.dtype = "*astParenExpr"
-		typ.parenExpr = parenExpr
-		return typ
+		return &astExpr{
+			dtype: "*astParenExpr",
+			parenExpr: &astParenExpr{
+				X: _typ,
+			},
+		}
 	}
 	var _nil *astExpr
 	return _nil
@@ -1138,9 +1141,10 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 		for p.tok.tok != ")" && p.tok.tok != "EOF" {
 			ident = parseIdent()
 			typ = parseVarType(ellipsisOK)
-			field = new(astField)
-			field.Name = ident
-			field.Type = typ
+			field = &astField{
+				Name : ident,
+				Type : typ,
+			}
 			params = append(params, field)
 			declareField(field, scope, astVar, ident)
 			parserResolve(typ)
@@ -1158,9 +1162,9 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 	var i int
 	for i, typ = range list {
 		parserResolve(typ)
-		var field = new(astField)
-		field.Type = typ
-		params[i] = field
+		params[i] = &astField{
+			Type: typ,
+		}
 		logf(" [DEBUG] range i = %s\n", Itoa(i))
 	}
 	logf("  end %s\n", __func__)
@@ -1175,10 +1179,10 @@ func parseParameters(scope *astScope, ellipsisOk bool) *astFieldList {
 		params = parseParameterList(scope, ellipsisOk)
 	}
 	parserExpect(")", __func__)
-	var afl = new(astFieldList)
-	afl.List = params
 	logf(" [%s] end\n", __func__)
-	return afl
+	return &astFieldList{
+		List: params,
+	}
 }
 
 func parserResult(scope *astScope) *astFieldList {
@@ -1190,18 +1194,20 @@ func parserResult(scope *astScope) *astFieldList {
 		return r
 	}
 
-	var r = new(astFieldList)
 	if p.tok.tok == "{" {
-		r = nil
 		logf(" [%s] end\n", __func__)
-		return r
+		var _r *astFieldList = nil
+		return _r
 	}
 	var typ = tryType()
-	var field = new(astField)
-	field.Type = typ
-	r.List = append(r.List, field)
+	var list []*astField
+	list = append(list, &astField{
+		Type: typ,
+	})
 	logf(" [%s] end\n", __func__)
-	return r
+	return &astFieldList{
+		List: list,
+	}
 }
 
 func parseSignature(scope *astScope) *signature {
