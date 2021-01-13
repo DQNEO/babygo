@@ -1466,14 +1466,14 @@ func parseLiteralValue(typ *astExpr) *astExpr {
 	}
 	parserExpect("}", __func__)
 
-	var compositeLit = new(astCompositeLit)
-	compositeLit.Type = typ
-	compositeLit.Elts = elts
-	var r = new(astExpr)
-	r.dtype = "*astCompositeLit"
-	r.compositeLit = compositeLit
 	logf("   end %s\n", __func__)
-	return r
+	return &astExpr{
+		dtype:        "*astCompositeLit",
+		compositeLit: &astCompositeLit{
+			Type: typ,
+			Elts: elts,
+		},
+	}
 }
 
 func isLiteralType(x *astExpr) bool {
