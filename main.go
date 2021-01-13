@@ -1431,12 +1431,14 @@ func parserElement() *astExpr {
 	if p.tok.tok == ":" {
 		parserNext() // skip ":"
 		v = parseExpr()
-		kvExpr = new(astKeyValueExpr)
-		kvExpr.Key = x
-		kvExpr.Value = v
-		x = new(astExpr)
-		x.dtype = "*astKeyValueExpr"
-		x.keyValueExpr = kvExpr
+		kvExpr = &astKeyValueExpr{
+			Key : x,
+			Value : v,
+		}
+		x = &astExpr{
+			dtype : "*astKeyValueExpr",
+			keyValueExpr : kvExpr,
+		}
 	}
 	return x
 }
