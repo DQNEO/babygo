@@ -2530,9 +2530,14 @@ func emitCap(arg *astExpr) {
 func emitCallMalloc(size int) {
 	fmtPrintf("  pushq $%s\n", Itoa(size))
 	// call malloc and return pointer
+	var resultList = []*astField{
+		&astField{
+			Type:    tUintptr.e,
+		},
+	}
 	fmtPrintf("  callq runtime.malloc\n") // no need to invert args orders
 	emitRevertStackPointer(intSize)
-	fmtPrintf("  pushq %%rax # addr\n")
+	emitReturnedValue(resultList)
 }
 
 func emitStructLiteral(e *astCompositeLit) {
@@ -2669,9 +2674,10 @@ func emitCall(symbol string, args []*Arg) {
 }
 
 func emitReturnedValue(resultList []*astField) {
-	if len(resultList) == 0 {
+	switch len(resultList) {
+	case 0:
 		// do nothing
-	} else if len(resultList) == 1 {
+	case 1:
 		var retval0 = resultList[0]
 		var knd = kind(e2t(retval0.Type))
 		switch knd {
@@ -2687,8 +2693,8 @@ func emitReturnedValue(resultList []*astField) {
 		default:
 			panic2(__func__, "Unexpected kind="+knd)
 		}
-	} else {
-		emitComment(2, "No results\n")
+	default:
+		panic2(__func__,"multipul returned values is not supported ")
 	}
 }
 
@@ -3244,9 +3250,14 @@ func emitListElementAddr(list *astExpr, elmType *Type) {
 func emitCompEq(t *Type) {
 	switch kind(t) {
 	case T_STRING:
+		var resultList = []*astField{
+			&astField{
+				Type:    tBool.e,
+			},
+		}
 		fmtPrintf("  callq runtime.cmpstrings\n")
 		emitRevertStackPointer(stringSize * 2)
-		fmtPrintf("  pushq %%rax # cmp result (1 or 0)\n")
+		emitReturnedValue(resultList)
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
 	case T_SLICE:

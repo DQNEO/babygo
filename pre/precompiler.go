@@ -655,7 +655,6 @@ func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 }
 
 func emitReturnedValue(resultList []*ast.Field) {
-
 	switch len(resultList) {
 	case 0:
 		// do nothing
