@@ -817,9 +817,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		var funcType = fndecl.Type
 		args := prepareArgs(funcType, eArgs)
 		emitRealFuncall(symbol, funcType, args)
-		// push results
 		return
-
 	case *ast.SelectorExpr:
 		symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
 		var funcType *ast.FuncType
