@@ -683,6 +683,8 @@ func emitReturnedValue(resultList []*ast.Field) {
 }
 
 func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
+	var funcType *ast.FuncType
+	var symbol string
 	switch fn := fun.(type) {
 	case *ast.Ident:
 		// check if it's a builtin func
@@ -807,20 +809,15 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		}
 
 		// general function call
-		symbol := pkgName + "." + fn.Name
+		symbol = pkgName + "." + fn.Name
 		obj := fn.Obj //.Kind == FN
 		fndecl, ok := obj.Decl.(*ast.FuncDecl)
 		if !ok {
 			throw(fn.Obj)
 		}
-
-		var funcType = fndecl.Type
-		args := prepareArgs(funcType, eArgs)
-		emitRealFuncall(symbol, funcType, args)
-		return
+		funcType = fndecl.Type
 	case *ast.SelectorExpr:
-		symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
-		var funcType *ast.FuncType
+		symbol = fmt.Sprintf("%s.%s", fn.X, fn.Sel)
 		switch symbol {
 		case "unsafe.Pointer":
 			// This is actually not a call
@@ -843,13 +840,12 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		default:
 			panic(symbol)
 		}
-
-		args := prepareArgs(funcType, eArgs)
-		emitRealFuncall(symbol, funcType, args)
-		return
 	default:
 		throw(fun)
 	}
+
+	args := prepareArgs(funcType, eArgs)
+	emitRealFuncall(symbol, funcType, args)
 }
 
 // ABI of stack layout
