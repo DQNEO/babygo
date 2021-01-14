@@ -2668,6 +2668,30 @@ func emitCall(symbol string, args []*Arg) {
 	emitRevertStackPointer(totalPushedSize)
 }
 
+func emitReturnedValue(resultList []*astField) {
+	if len(resultList) == 0 {
+		// do nothing
+	} else if len(resultList) == 1 {
+		var retval0 = resultList[0]
+		var knd = kind(e2t(retval0.Type))
+		switch knd {
+		case T_STRING:
+			fmtPrintf("  pushq %%rdi # str len\n")
+			fmtPrintf("  pushq %%rax # str ptr\n")
+		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+			fmtPrintf("  pushq %%rax\n")
+		case T_SLICE:
+			fmtPrintf("  pushq %%rsi # slice cap\n")
+			fmtPrintf("  pushq %%rdi # slice len\n")
+			fmtPrintf("  pushq %%rax # slice ptr\n")
+		default:
+			panic2(__func__, "Unexpected kind="+knd)
+		}
+	} else {
+		emitComment(2, "No results\n")
+	}
+}
+
 func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 	switch fun.dtype {
 	case "*astIdent":
@@ -2872,27 +2896,11 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			emitComment(0, "[emitExpr] %s sig.results.List = %s\n", fn.Name, Itoa(len(fndecl.Type.results.List)))
 		}
 
-		if results != nil && len(results.List) == 1 {
-			var retval0 = fndecl.Type.results.List[0]
-			var knd = kind(e2t(retval0.Type))
-			switch knd {
-			case T_STRING:
-				emitComment(2, "fn.Obj=%s\n", obj.Name)
-				fmtPrintf("  pushq %%rdi # str len\n")
-				fmtPrintf("  pushq %%rax # str ptr\n")
-			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-				emitComment(2, "fn.Obj=%s\n", obj.Name)
-				fmtPrintf("  pushq %%rax\n")
-			case T_SLICE:
-				fmtPrintf("  pushq %%rsi # slice cap\n")
-				fmtPrintf("  pushq %%rdi # slice len\n")
-				fmtPrintf("  pushq %%rax # slice ptr\n")
-			default:
-				panic2(__func__, "Unexpected kind="+knd)
-			}
-		} else {
-			emitComment(2, "No results\n")
+		var resultList []*astField
+		if results != nil {
+			resultList = results.List
 		}
+		emitReturnedValue(resultList)
 		return
 	case "*astSelectorExpr":
 		var selectorExpr = fun.selectorExpr

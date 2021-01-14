@@ -664,11 +664,9 @@ func emitReturnedValue(resultList []*ast.Field) {
 		retval0 := resultList[0]
 		switch kind(e2t(retval0.Type)) {
 		case T_STRING:
-			//emitComment(2, "fn.Obj=%#v\n", obj)
 			fmt.Printf("  pushq %%rdi # str len\n")
 			fmt.Printf("  pushq %%rax # str ptr\n")
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-			//emitComment(2, "fn.Obj=%#v\n", obj)
 			fmt.Printf("  pushq %%rax\n")
 		case T_SLICE:
 			fmt.Printf("  pushq %%rsi # slice cap\n")
