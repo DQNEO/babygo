@@ -4135,7 +4135,7 @@ func getStructTypeSpec(namedStructType *Type) *astTypeSpec {
 		panic2(__func__, "not T_STRUCT")
 	}
 	if namedStructType.e.dtype != "*astIdent" {
-		panic2(__func__, "not ident")
+		panic2(__func__, "astIdent expected got " + namedStructType.e.dtype)
 	}
 
 	var ident = namedStructType.e.ident
