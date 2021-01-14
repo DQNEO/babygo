@@ -459,9 +459,15 @@ func emitCap(arg ast.Expr) {
 func emitCallMalloc(size int) {
 	fmtPrintf("  pushq $%s\n", Itoa(size))
 	// call malloc and return pointer
+	var resultList = []*ast.Field{
+		&ast.Field{
+			Names:   nil,
+			Type:    tUintptr.e,
+		},
+	}
 	fmtPrintf("  callq runtime.malloc\n") // no need to invert args orders
 	emitRevertStackPointer(intSize)
-	fmtPrintf("  pushq %%rax # addr\n")
+	emitReturnedValue(resultList)
 }
 
 func emitStructLiteral(e *ast.CompositeLit) {
@@ -573,10 +579,11 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
-func emitCall(symbol string, args []*Arg) {
+func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 	totalPushedSize := emitArgs(args)
 	fmtPrintf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
+	emitReturnedValue(results)
 }
 
 func emitReturnedValue(resultList []*ast.Field) {
@@ -657,10 +664,13 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 					},
 				}
 
-				emitCall("runtime.makeSlice", args)
-				fmt.Printf("  pushq %%rsi # slice cap\n")
-				fmt.Printf("  pushq %%rdi # slice len\n")
-				fmt.Printf("  pushq %%rax # slice ptr\n")
+				var resultList = []*ast.Field{
+					&ast.Field{
+						Names:   nil,
+						Type:    genelalSlice,
+					},
+				}
+				emitCall("runtime.makeSlice", args, resultList)
 				return
 			default:
 				throw(typeArg)
@@ -697,10 +707,13 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			default:
 				throw(elmSize)
 			}
-			emitCall(symbol, args)
-			fmt.Printf("  pushq %%rsi # slice cap\n")
-			fmt.Printf("  pushq %%rdi # slice len\n")
-			fmt.Printf("  pushq %%rax # slice ptr\n")
+			var resultList = []*ast.Field{
+				&ast.Field{
+					Names:   nil,
+					Type:    genelalSlice,
+				},
+			}
+			emitCall(symbol, args, resultList)
 			return
 		}
 
@@ -718,7 +731,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			default:
 				panic("TBI")
 			}
-			emitCall(symbol, _args)
+			emitCall(symbol, _args, nil)
 			return
 		}
 
@@ -794,9 +807,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			resultList = fndecl.Type.Results.List
 		}
 
-		emitCall(symbol, args)
+		emitCall(symbol, args, resultList)
 		// push results
-		emitReturnedValue(resultList)
 		return
 
 	case *ast.SelectorExpr:
@@ -829,8 +841,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			}
 			args = append(args, arg)
 		}
-		emitCall(symbol, args)
-		emitReturnedValue(resultList)
+		emitCall(symbol, args, resultList)
 	default:
 		throw(fun)
 	}
@@ -1002,9 +1013,14 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 
 			switch e.Op.String() {
 			case "+":
-				emitCall("runtime.catstrings", args)
-				fmtPrintf("  pushq %%rdi # string len\n")
-				fmtPrintf("  pushq %%rax # string ptr\n")
+				var resultList = []*ast.Field{
+					&ast.Field{
+						Names:   nil,
+						Type:    tString.e,
+					},
+				}
+
+				emitCall("runtime.catstrings", args, resultList)
 			case "==":
 				emitArgs(args)
 				emitCompEq(getTypeOfExpr(e.X))
@@ -1178,9 +1194,15 @@ func emitListElementAddr(list ast.Expr, elmType *Type) {
 func emitCompEq(t *Type) {
 	switch kind(t) {
 	case T_STRING:
+		var resultList = []*ast.Field{
+			&ast.Field{
+				Names:   nil,
+				Type:    tBool.e,
+			},
+		}
 		fmtPrintf("  callq runtime.cmpstrings\n")
 		emitRevertStackPointer(stringSize * 2)
-		fmtPrintf("  pushq %%rax # cmp result (1 or 0)\n")
+		emitReturnedValue(resultList)
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
 	case T_SLICE:
@@ -1796,6 +1818,8 @@ var tString *Type = &Type{
 	},
 }
 
+var genelalSlice ast.Expr = &ast.Ident{}
+
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -1954,6 +1978,10 @@ func kind(t *Type) TypeKind {
 	if t == nil {
 		panic("nil type is not expected")
 	}
+	if t.e == genelalSlice {
+		return T_SLICE
+	}
+
 	switch e := t.e.(type) {
 	case *ast.Ident:
 		if e.Obj == nil {
