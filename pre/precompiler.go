@@ -821,130 +821,29 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 	case *ast.SelectorExpr:
 		symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
 		var funcType *ast.FuncType
-		var results *ast.FieldList
-		var params  *ast.FieldList
 		switch symbol {
 		case "unsafe.Pointer":
 			// This is actually not a call
 			emitExpr(eArgs[0], nil)
 			return
 		case "os.Exit":
-			params = &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tInt.e,
-					},
-				},
-			}
+			funcType = funcTypeOsExit
 		case "syscall.Open":
 			// func body is in runtime.s
-			params = &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tString.e,
-					},
-					&ast.Field{
-						Names: nil,
-						Type:  tInt.e,
-					},
-					&ast.Field{
-						Names: nil,
-						Type:  tInt.e,
-					},
-				},
-			}
-			results = &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tInt.e,
-					},
-				},
-			}
+			funcType = funcTypeSyscallOpen
 		case "syscall.Read":
 			// func body is in runtime.s
-			params = &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tInt.e,
-					},
-					&ast.Field{
-						Names: nil,
-						Type:  genelalSlice,
-					},
-				},
-			}
-			results = &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tInt.e,
-					},
-				},
-			}
+			funcType = funcTypeSyscallRead
 		case "syscall.Write":
 			// func body is in runtime.s
-			params = &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tInt.e,
-					},
-					&ast.Field{
-						Names: nil,
-						Type:  genelalSlice,
-					},
-				},
-			}
-			results = &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tInt.e,
-					},
-				},
-			}
+			funcType = funcTypeSyscallWrite
 		case "syscall.Syscall":
 			// func body is in runtime.s
-			params = &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tUintptr.e,
-					},
-					&ast.Field{
-						Names: nil,
-						Type:  tUintptr.e,
-					},
-					&ast.Field{
-						Names: nil,
-						Type:  tUintptr.e,
-					},
-					&ast.Field{
-						Names: nil,
-						Type:  tUintptr.e,
-					},
-				},
-			}
-			results = &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tUintptr.e,
-					},
-				},
-			}
+			funcType = funcTypeSyscallSyscall
 		default:
 			panic(symbol)
 		}
 
-		funcType = &ast.FuncType{
-			Params:  params,
-			Results: results,
-		}
 		args := prepareArgs(funcType, eArgs)
 		emitRealFuncall(symbol, funcType, args)
 		return
@@ -2752,6 +2651,122 @@ var gCap = &ast.Object{
 	Type: nil,
 }
 
+// func type of runtime functions
+var funcTypeOsExit = &ast.FuncType{
+	Params: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Names: nil,
+				Type:  tInt.e,
+			},
+		},
+	},
+	Results: nil,
+}
+
+var funcTypeSyscallOpen = &ast.FuncType{
+	Params: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Names: nil,
+				Type:  tString.e,
+			},
+			&ast.Field{
+				Names: nil,
+				Type:  tInt.e,
+			},
+			&ast.Field{
+				Names: nil,
+				Type:  tInt.e,
+			},
+		},
+	},
+	Results: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Names: nil,
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+
+var funcTypeSyscallRead = &ast.FuncType{
+	Params: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Names: nil,
+				Type:  tInt.e,
+			},
+			&ast.Field{
+				Names: nil,
+				Type:  genelalSlice,
+			},
+		},
+	},
+	Results: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Names: nil,
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+
+var funcTypeSyscallWrite = &ast.FuncType{
+	Params: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Names: nil,
+				Type:  tInt.e,
+			},
+			&ast.Field{
+				Names: nil,
+				Type:  genelalSlice,
+			},
+		},
+	},
+	Results: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Names: nil,
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+
+var funcTypeSyscallSyscall = &ast.FuncType{
+	Params: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Names: nil,
+				Type:  tUintptr.e,
+			},
+			&ast.Field{
+				Names: nil,
+				Type:  tUintptr.e,
+			},
+			&ast.Field{
+				Names: nil,
+				Type:  tUintptr.e,
+			},
+			&ast.Field{
+				Names: nil,
+				Type:  tUintptr.e,
+			},
+		},
+	},
+	Results: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Names: nil,
+				Type:  tUintptr.e,
+			},
+		},
+	},
+}
 func createUniverse() *ast.Scope {
 	universe := &ast.Scope{
 		Outer:   nil,
