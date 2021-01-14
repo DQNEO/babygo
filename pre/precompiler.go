@@ -573,23 +573,39 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
-// Call without using func decl
-func emitCallNonDecl(symbol string, eArgs []ast.Expr) {
-	var args []*Arg
-	for _, eArg := range eArgs {
-		arg := &Arg{
-			e: eArg,
-			t: nil,
-		}
-		args = append(args, arg)
-	}
-	emitCall(symbol, args)
-}
-
 func emitCall(symbol string, args []*Arg) {
 	totalPushedSize := emitArgs(args)
 	fmtPrintf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
+}
+
+func emitReturnedValue(resultList []*ast.Field) {
+
+	switch len(resultList) {
+	case 0:
+		// do nothing
+	case 1:
+		emitComment(2, "emit return value")
+		retval0 := resultList[0]
+		switch kind(e2t(retval0.Type)) {
+		case T_STRING:
+			//emitComment(2, "fn.Obj=%#v\n", obj)
+			fmt.Printf("  pushq %%rdi # str len\n")
+			fmt.Printf("  pushq %%rax # str ptr\n")
+		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+			//emitComment(2, "fn.Obj=%#v\n", obj)
+			fmt.Printf("  pushq %%rax\n")
+		case T_SLICE:
+			fmt.Printf("  pushq %%rsi # slice cap\n")
+			fmt.Printf("  pushq %%rdi # slice len\n")
+			fmt.Printf("  pushq %%rax # slice ptr\n")
+		default:
+			throw(kind(e2t(retval0.Type)))
+		}
+	default:
+		panic("multipul returned values is not supported ")
+	}
+
 }
 
 func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
@@ -773,64 +789,48 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			})
 		}
 
-		emitCall(symbol, args)
-
-		// push results
+		var resultList []*ast.Field
 		if fndecl.Type.Results != nil {
-			if len(fndecl.Type.Results.List) > 2 {
-				panic("TBI")
-			} else if len(fndecl.Type.Results.List) == 1 {
-				retval0 := fndecl.Type.Results.List[0]
-				switch kind(e2t(retval0.Type)) {
-				case T_STRING:
-					emitComment(2, "fn.Obj=%#v\n", obj)
-					fmt.Printf("  pushq %%rdi # str len\n")
-					fmt.Printf("  pushq %%rax # str ptr\n")
-				case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-					emitComment(2, "fn.Obj=%#v\n", obj)
-					fmt.Printf("  pushq %%rax\n")
-				case T_SLICE:
-					fmt.Printf("  pushq %%rsi # slice cap\n")
-					fmt.Printf("  pushq %%rdi # slice len\n")
-					fmt.Printf("  pushq %%rax # slice ptr\n")
-				default:
-					throw(kind(e2t(retval0.Type)))
-				}
-			}
+			resultList = fndecl.Type.Results.List
 		}
+
+		emitCall(symbol, args)
+		// push results
+		emitReturnedValue(resultList)
 		return
 
 	case *ast.SelectorExpr:
 		symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
+		var resultList []*ast.Field
 		switch symbol {
 		case "unsafe.Pointer":
+			// This is actually not a call
 			emitExpr(eArgs[0], nil)
 			return
 		case "os.Exit":
-			emitCallNonDecl(symbol, eArgs)
-			return
-		case "syscall.Syscall":
+			// no returned value
+		case "syscall.Syscall", "syscall.Write", "syscall.Open", "syscall.Read":
 			// func decl is in runtime
-			emitCallNonDecl(symbol, eArgs)
-			fmt.Printf("  pushq %%rax # ret\n")
-			return
-		case "syscall.Write":
-			// func decl is in runtime
-			emitCallNonDecl(symbol, eArgs)
-			return
-		case "syscall.Open":
-			// func decl is in runtime
-			emitCallNonDecl(symbol, eArgs)
-			fmtPrintf("  pushq %%rax # fd\n")
-			return
-		case "syscall.Read":
-			// func decl is in runtime
-			emitCallNonDecl(symbol, eArgs)
-			fmt.Printf("  pushq %%rax # fd\n")
-			return
+			resultList = []*ast.Field{
+				&ast.Field{
+					Names:   nil,
+					Type:    tInt.e,
+				},
+			}
 		default:
 			panic(symbol)
 		}
+
+		var args []*Arg
+		for _, eArg := range eArgs {
+			arg := &Arg{
+				e: eArg,
+				t: nil,
+			}
+			args = append(args, arg)
+		}
+		emitCall(symbol, args)
+		emitReturnedValue(resultList)
 	default:
 		throw(fun)
 	}
