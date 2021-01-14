@@ -579,6 +579,74 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
+func prepareArgs(funcType *ast.FuncType, eArgs []ast.Expr) []*Arg {
+	var args []*Arg
+	params := funcType.Params.List
+	var variadicArgs []ast.Expr // nil means there is no varadic in funcdecl
+	var variadicElp *ast.Ellipsis
+	var argIndex int
+	var eArg ast.Expr
+	var param *ast.Field
+	for argIndex, eArg = range eArgs {
+		if argIndex < len(params) {
+			param = params[argIndex]
+			elp, ok := param.Type.(*ast.Ellipsis)
+			if ok {
+				variadicElp = elp
+				variadicArgs = make([]ast.Expr, 0)
+			}
+		}
+		if variadicArgs != nil {
+			variadicArgs = append(variadicArgs, eArg)
+			continue
+		}
+
+		paramType := e2t(param.Type)
+		arg := &Arg{
+			e: eArg,
+			t: paramType,
+		}
+		args = append(args, arg)
+	}
+
+	if variadicArgs != nil {
+		// collect args as a slice
+		sliceType := &ast.ArrayType{Elt: variadicElp.Elt}
+		sliceLiteral := &ast.CompositeLit{
+			Type:       sliceType,
+			Lbrace:     0,
+			Elts:       variadicArgs,
+			Rbrace:     0,
+			Incomplete: false,
+		}
+		args = append(args, &Arg{
+			e:      sliceLiteral,
+			t:      e2t(sliceType),
+			offset: 0,
+		})
+	} else if len(args) < len(params) {
+		// Add nil as a variadic arg
+		param := params[argIndex+1]
+		elp, ok := param.Type.(*ast.Ellipsis)
+		assert(ok, "compile error")
+		args = append(args, &Arg{
+			e:      eNil,
+			t:      e2t(elp),
+			offset: 0,
+		})
+	}
+	return args
+}
+
+func emitRealFuncall(symbol string, funcType *ast.FuncType, args []*Arg) {
+	var resultList []*ast.Field
+	if funcType.Results != nil {
+		resultList = funcType.Results.List
+	}
+
+	emitCall(symbol, args, resultList)
+}
+
 func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 	totalPushedSize := emitArgs(args)
 	fmtPrintf("  callq %s\n", symbol)
@@ -612,7 +680,6 @@ func emitReturnedValue(resultList []*ast.Field) {
 	default:
 		panic("multipul returned values is not supported ")
 	}
-
 }
 
 func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
@@ -738,6 +805,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
 			fn.Name = "makeSlice"
 		}
+
 		// general function call
 		symbol := pkgName + "." + fn.Name
 		obj := fn.Obj //.Kind == FN
@@ -746,102 +814,142 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			throw(fn.Obj)
 		}
 
-		params := fndecl.Type.Params.List
-		var variadicArgs []ast.Expr // nil means there is no varadic in funcdecl
-		var variadicElp *ast.Ellipsis
-		var args []*Arg
-		var argIndex int
-		var eArg ast.Expr
-		var param *ast.Field
-		for argIndex, eArg = range eArgs {
-			if argIndex < len(params) {
-				param = params[argIndex]
-				elp, ok := param.Type.(*ast.Ellipsis)
-				if ok {
-					variadicElp = elp
-					variadicArgs = make([]ast.Expr, 0)
-				}
-			}
-			if variadicArgs != nil {
-				variadicArgs = append(variadicArgs, eArg)
-				continue
-			}
-
-			paramType := e2t(param.Type)
-			arg := &Arg{
-				e: eArg,
-				t: paramType,
-			}
-			args = append(args, arg)
-		}
-
-		if variadicArgs != nil {
-			// collect args as a slice
-			sliceType := &ast.ArrayType{Elt: variadicElp.Elt}
-			sliceLiteral := &ast.CompositeLit{
-				Type:       sliceType,
-				Lbrace:     0,
-				Elts:       variadicArgs,
-				Rbrace:     0,
-				Incomplete: false,
-			}
-			args = append(args, &Arg{
-				e:      sliceLiteral,
-				t:      e2t(sliceType),
-				offset: 0,
-			})
-		} else if len(args) < len(params) {
-			// Add nil as a variadic arg
-			param := params[argIndex+1]
-			elp, ok := param.Type.(*ast.Ellipsis)
-			assert(ok, "compile error")
-			args = append(args, &Arg{
-				e:      eNil,
-				t:      e2t(elp),
-				offset: 0,
-			})
-		}
-
-		var resultList []*ast.Field
-		if fndecl.Type.Results != nil {
-			resultList = fndecl.Type.Results.List
-		}
-
-		emitCall(symbol, args, resultList)
+		var funcType = fndecl.Type
+		args := prepareArgs(funcType, eArgs)
+		emitRealFuncall(symbol, funcType, args)
 		// push results
 		return
 
 	case *ast.SelectorExpr:
 		symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
-		var resultList []*ast.Field
+		var funcType *ast.FuncType
+		var results *ast.FieldList
+		var params  *ast.FieldList
 		switch symbol {
 		case "unsafe.Pointer":
 			// This is actually not a call
 			emitExpr(eArgs[0], nil)
 			return
 		case "os.Exit":
-			// no returned value
-		case "syscall.Syscall", "syscall.Write", "syscall.Open", "syscall.Read":
-			// func decl is in runtime
-			resultList = []*ast.Field{
-				&ast.Field{
-					Names:   nil,
-					Type:    tInt.e,
+			params = &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Names: nil,
+						Type:  tInt.e,
+					},
+				},
+			}
+		case "syscall.Open":
+			// func body is in runtime.s
+			params = &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Names: nil,
+						Type:  tString.e,
+					},
+					&ast.Field{
+						Names: nil,
+						Type:  tInt.e,
+					},
+					&ast.Field{
+						Names: nil,
+						Type:  tInt.e,
+					},
+				},
+			}
+			results = &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Names: nil,
+						Type:  tInt.e,
+					},
+				},
+			}
+		case "syscall.Read":
+			// func body is in runtime.s
+			params = &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Names: nil,
+						Type:  tInt.e,
+					},
+					&ast.Field{
+						Names: nil,
+						Type:  genelalSlice,
+					},
+				},
+			}
+			results = &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Names: nil,
+						Type:  tInt.e,
+					},
+				},
+			}
+		case "syscall.Write":
+			// func body is in runtime.s
+			params = &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Names: nil,
+						Type:  tInt.e,
+					},
+					&ast.Field{
+						Names: nil,
+						Type:  genelalSlice,
+					},
+				},
+			}
+			results = &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Names: nil,
+						Type:  tInt.e,
+					},
+				},
+			}
+		case "syscall.Syscall":
+			// func body is in runtime.s
+			params = &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Names: nil,
+						Type:  tUintptr.e,
+					},
+					&ast.Field{
+						Names: nil,
+						Type:  tUintptr.e,
+					},
+					&ast.Field{
+						Names: nil,
+						Type:  tUintptr.e,
+					},
+					&ast.Field{
+						Names: nil,
+						Type:  tUintptr.e,
+					},
+				},
+			}
+			results = &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Names: nil,
+						Type:  tUintptr.e,
+					},
 				},
 			}
 		default:
 			panic(symbol)
 		}
 
-		var args []*Arg
-		for _, eArg := range eArgs {
-			arg := &Arg{
-				e: eArg,
-				t: nil,
-			}
-			args = append(args, arg)
+		funcType = &ast.FuncType{
+			Params:  params,
+			Results: results,
 		}
-		emitCall(symbol, args, resultList)
+		args := prepareArgs(funcType, eArgs)
+		emitRealFuncall(symbol, funcType, args)
+		return
 	default:
 		throw(fun)
 	}
