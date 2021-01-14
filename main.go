@@ -2699,22 +2699,24 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 				var eNumLit = &astExpr{}
 				eNumLit.dtype = "*astBasicLit"
 				eNumLit.basicLit = numlit
-				var args []*Arg
-				var arg0 *Arg // elmSize
-				var arg1 *Arg
-				var arg2 *Arg
-				arg0 = &Arg{}
-				arg0.e = eNumLit
-				arg0.t = tInt
-				arg1 = &Arg{} // len
-				arg1.e = eArgs[1]
-				arg1.t = tInt
-				arg2 = &Arg{} // cap
-				arg2.e = eArgs[2]
-				arg2.t = tInt
-				args = append(args, arg0)
-				args = append(args, arg1)
-				args = append(args, arg2)
+
+				var args []*Arg = []*Arg{
+					// elmSize
+					&Arg{
+						e: eNumLit,
+						t: tInt,
+					},
+					// len
+					&Arg{
+						e: eArgs[1],
+						t: tInt,
+					},
+					// cap
+					&Arg{
+						e: eArgs[2],
+						t: tInt,
+					},
+				}
 
 				emitCall("runtime.makeSlice", args)
 				fmtPrintf("  pushq %%rsi # slice cap\n")
@@ -2732,15 +2734,17 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			var elmType = getElementTypeOfListType(getTypeOfExpr(sliceArg))
 			var elmSize = getSizeOfType(elmType)
 
-			var args []*Arg
-			var arg0 = &Arg{} // slice
-			arg0.e = sliceArg
-			args = append(args, arg0)
-
-			var arg1 = &Arg{} // element
-			arg1.e = elemArg
-			arg1.t = elmType
-			args = append(args, arg1)
+			var args []*Arg = []*Arg{
+				// slice
+				&Arg{
+					e: sliceArg,
+				},
+				// element
+				&Arg{
+					e: elemArg,
+					t: elmType,
+				},
+			}
 
 			var symbol string
 			switch elmSize {
