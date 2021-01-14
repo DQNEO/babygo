@@ -3876,9 +3876,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "!":
 			return tBool
 		case "&":
-			var starExpr = new(astStarExpr)
-			starExpr.X = expr.unaryExpr.X
-			var eStarExpr = new(astExpr)
+			var starExpr = &astStarExpr{}
+			var t = getTypeOfExpr(expr.unaryExpr.X)
+			starExpr.X = t.e
+			var eStarExpr = &astExpr{}
 			eStarExpr.dtype = "*astStarExpr"
 			eStarExpr.starExpr = starExpr
 			return e2t(eStarExpr)
