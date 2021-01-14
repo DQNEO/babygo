@@ -4535,7 +4535,6 @@ func walk(pkgContainer *PkgContainer, file *astFile) {
 
 // --- universe ---
 var gNil *astObject
-var identNil *astIdent
 var eNil *astExpr
 var gTrue *astObject
 var gFalse *astObject
@@ -4572,20 +4571,21 @@ func createUniverse() *astScope {
 	logf(" [%s] scope insertion of predefined identifiers complete\n", __func__)
 
 	// @FIXME package names should not be be in universe
-	var pkgOs = &astObject{}
-	pkgOs.Kind = "Pkg"
-	pkgOs.Name = "os"
-	scopeInsert(universe, pkgOs)
 
-	var pkgSyscall = &astObject{}
-	pkgSyscall.Kind = "Pkg"
-	pkgSyscall.Name = "syscall"
-	scopeInsert(universe, pkgSyscall)
+	scopeInsert(universe, &astObject{
+		Kind: "Pkg",
+		Name: "os",
+	})
 
-	var pkgUnsafe = &astObject{}
-	pkgUnsafe.Kind = "Pkg"
-	pkgUnsafe.Name = "unsafe"
-	scopeInsert(universe, pkgUnsafe)
+	scopeInsert(universe, &astObject{
+		Kind: "Pkg",
+		Name: "syscall",
+	})
+
+	scopeInsert(universe, &astObject{
+		Kind: "Pkg",
+		Name: "unsafe",
+	})
 	logf(" [%s] scope insertion complete\n", __func__)
 	return universe
 }
@@ -4613,104 +4613,137 @@ func resolveUniverse(file *astFile, universe *astScope) {
 }
 
 func initGlobals() {
-	gNil = &astObject{}
-	gNil.Kind = astCon // is it Con ?
-	gNil.Name = "nil"
+	gNil = &astObject{
+		Kind : astCon, // is it Con ?
+		Name : "nil",
+	}
 
-	identNil = &astIdent{}
-	identNil.Obj = gNil
-	identNil.Name = "nil"
-	eNil = &astExpr{}
-	eNil.dtype = "*astIdent"
-	eNil.ident = identNil
+	eNil = &astExpr{
+		dtype : "*astIdent",
+		ident : &astIdent{
+			Obj:  gNil,
+			Name: "nil",
+		},
+	}
 
-	gTrue = &astObject{}
-	gTrue.Kind = astCon
-	gTrue.Name = "true"
+	gTrue = &astObject{
+		Kind: astCon,
+		Name: "true",
+	}
 
-	gFalse = &astObject{}
-	gFalse.Kind = astCon
-	gFalse.Name = "false"
+	gFalse = &astObject{
+		Kind: astCon,
+		Name: "false",
+	}
 
-	gString = &astObject{}
-	gString.Kind = astTyp
-	gString.Name = "string"
-	tString = &Type{}
-	tString.e = &astExpr{}
-	tString.e.dtype = "*astIdent"
-	tString.e.ident = &astIdent{}
-	tString.e.ident.Name = "string"
-	tString.e.ident.Obj = gString
+	gString = &astObject{
+		Kind: astTyp,
+		Name: "string",
+	}
+	tString = &Type{
+		e : &astExpr{
+			dtype : "*astIdent",
+			ident : &astIdent{
+				Name : "string",
+				Obj : gString,
+			},
+		},
+	}
 
-	gInt = &astObject{}
-	gInt.Kind = astTyp
-	gInt.Name = "int"
-	tInt = &Type{}
-	tInt.e = &astExpr{}
-	tInt.e.dtype = "*astIdent"
-	tInt.e.ident = &astIdent{}
-	tInt.e.ident.Name = "int"
-	tInt.e.ident.Obj = gInt
+	gInt = &astObject{
+		Kind: astTyp,
+		Name: "int",
+	}
+	tInt = &Type{
+		e: &astExpr{
+			dtype: "*astIdent",
+			ident : &astIdent{
+				Name: "int",
+				Obj: gInt,
+			},
+		},
+	}
 
-	gUint8 = &astObject{}
-	gUint8.Kind = astTyp
-	gUint8.Name = "uint8"
-	tUint8 = &Type{}
-	tUint8.e = &astExpr{}
-	tUint8.e.dtype = "*astIdent"
-	tUint8.e.ident = &astIdent{}
-	tUint8.e.ident.Name = "uint8"
-	tUint8.e.ident.Obj = gUint8
+	gUint8 = &astObject{
+		Kind: astTyp,
+		Name: "uint8",
+	}
+	tUint8 = &Type{
+		e: &astExpr{
+			dtype: "*astIdent",
+			ident: &astIdent{
+				Name: "uint8",
+				Obj:  gUint8,
+			},
+		},
+	}
 
-	gUint16 = &astObject{}
-	gUint16.Kind = astTyp
-	gUint16.Name = "uint16"
-	tUint16 = &Type{}
-	tUint16.e = &astExpr{}
-	tUint16.e.dtype = "*astIdent"
-	tUint16.e.ident = &astIdent{}
-	tUint16.e.ident.Name = "uint16"
-	tUint16.e.ident.Obj = gUint16
+	gUint16 = &astObject{
+		Kind: astTyp,
+		Name: "uint16",
+	}
+	tUint16 = &Type{
+		e: &astExpr{
+			dtype: "*astIdent",
+			ident: &astIdent{
+				Name: "uint16",
+				Obj:  gUint16,
+			},
+		},
+	}
 
-	gUintptr = &astObject{}
-	gUintptr.Kind = astTyp
-	gUintptr.Name = "uintptr"
-	tUintptr = &Type{}
-	tUintptr.e = &astExpr{}
-	tUintptr.e.dtype = "*astIdent"
-	tUintptr.e.ident = &astIdent{}
-	tUintptr.e.ident.Name = "uintptr"
-	tUintptr.e.ident.Obj = gUintptr
+	gUintptr = &astObject{
+		Kind: astTyp,
+		Name: "uintptr",
+	}
+	tUintptr = &Type{
+		e: &astExpr{
+			dtype: "*astIdent",
+			ident: &astIdent{
+				Name: "uintptr",
+				Obj:  gUintptr,
+			},
+		},
+	}
 
-	gBool = &astObject{}
-	gBool.Kind = astTyp
-	gBool.Name = "bool"
-	tBool = &Type{}
-	tBool.e = &astExpr{}
-	tBool.e.dtype = "*astIdent"
-	tBool.e.ident = &astIdent{}
-	tBool.e.ident.Name = "bool"
-	tBool.e.ident.Obj = gBool
+	gBool = &astObject{
+		Kind: astTyp,
+		Name: "bool",
+	}
+	tBool = &Type{
+		e : &astExpr{
+			dtype : "*astIdent",
+			ident : &astIdent{
+				Name : "bool",
+				Obj : gBool,
+			},
+		},
+	}
 
-	gNew = &astObject{}
-	gNew.Kind = astFun
-	gNew.Name = "new"
+	gNew = &astObject{
+		Kind: astFun,
+		Name: "new",
+	}
 
-	gMake = &astObject{}
-	gMake.Kind = astFun
-	gMake.Name = "make"
+	gMake = &astObject{
+		Kind: astFun,
+		Name: "make",
+	}
 
-	gAppend = &astObject{}
-	gAppend.Kind = astFun
-	gAppend.Name = "append"
+	gAppend = &astObject{
+		Kind: astFun,
+		Name: "append",
+	}
 
-	gLen = &astObject{}
-	gLen.Kind = astFun
-	gLen.Name = "len"
+	gLen = &astObject{
+		Kind: astFun,
+		Name: "len",
+	}
 
-	gCap = &astObject{}
-	gCap.Kind = astFun
-	gCap.Name = "cap"
+	gCap = &astObject{
+		Kind: astFun,
+		Name: "cap",
+	}
 }
 
 var pkg *PkgContainer

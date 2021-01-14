@@ -2510,8 +2510,8 @@ var gNil = &ast.Object{
 }
 
 var eNil = &ast.Ident{
-	Name: "nil",
 	Obj:  gNil,
+	Name: "nil",
 }
 
 var gTrue = &ast.Object{
