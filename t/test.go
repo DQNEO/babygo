@@ -74,20 +74,20 @@ func Sprintf(format string, a []string) string {
 
 // --- test funcs ---
 func testStructLiteralWithContents() {
-	var strct MyStruct = MyStruct{
+	var strct = MyStruct{
 		field1: 10,
 		field2: 20,
 	}
 	writeln(itoa(strct.field1))
 	writeln(itoa(strct.field2))
 
-	var strct2 MyStruct = MyStruct{
+	var strct2 = MyStruct{
 		field2: 20,
 	}
 	writeln(itoa(strct2.field1))
 	writeln(itoa(strct2.field2))
 
-	var strctp *MyStruct = &MyStruct{
+	var strctp = &MyStruct{
 		field1: 30,
 		field2: 40,
 	}

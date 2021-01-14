@@ -1842,6 +1842,11 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			return getTypeOfExpr(e.X)
 		case "!":
 			return tBool
+		case "&":
+			var starExpr = &ast.StarExpr{}
+			var t = getTypeOfExpr(e.X)
+			starExpr.X = t.e
+			return e2t(starExpr)
 		default:
 			throw(e.Op.String())
 		}
@@ -2505,8 +2510,8 @@ var gNil = &ast.Object{
 }
 
 var eNil = &ast.Ident{
-	Name: "nil",
 	Obj:  gNil,
+	Name: "nil",
 }
 
 var gTrue = &ast.Object{
