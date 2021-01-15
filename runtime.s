@@ -9,14 +9,13 @@ _rt0_amd64_linux:
 
 # (runtime/asm_amd64.s)
 _rt0_amd64:
+  movq 0(%rsp), %rdi # argc
+  leaq 8(%rsp), %rsi # argv
   jmp runtime.rt0_go
 
 # (runtime/asm_amd64.s)
 runtime.rt0_go:
-  # init args
-  movq 0(%rsp), %rdx # argc
-  leaq 8(%rsp), %rsi # argv
-  movq %rdx, %rax # argc
+  movq %rdi, %rax # argc
   movq %rsi, %rbx # argv
   movq %rbx, __argv__+0(%rip)  # ptr
   movq %rax, __argv__+8(%rip)  # len
