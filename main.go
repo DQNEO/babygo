@@ -651,8 +651,8 @@ type astStructType struct {
 }
 
 type astFuncType struct {
-	params  *astFieldList
-	results *astFieldList
+	Params  *astFieldList
+	Results *astFieldList
 }
 
 type astStmt struct {
@@ -2112,8 +2112,8 @@ func parserFuncDecl() *astDecl {
 	decl.funcDecl = funcDecl
 	decl.funcDecl.Name = ident
 	decl.funcDecl.Type = &astFuncType{}
-	decl.funcDecl.Type.params = params
-	decl.funcDecl.Type.results = results
+	decl.funcDecl.Type.Params = params
+	decl.funcDecl.Type.Results = results
 	decl.funcDecl.Body = body
 	var objDecl = &ObjDecl{}
 	objDecl.dtype = "*astFuncDecl"
@@ -2666,6 +2666,84 @@ func prepareCallNonDecl(symbol string, eArgs []*astExpr) []*Arg {
 	return args
 }
 
+
+func prepareArgs(funcType *astFuncType, eArgs []*astExpr) []*Arg {
+	var params = funcType.Params.List
+	var variadicArgs []*astExpr
+	var variadicElp *astEllipsis
+	var args []*Arg
+	var eArg *astExpr
+	var param *astField
+	var argIndex int
+	var arg *Arg
+	var lenParams = len(params)
+	for argIndex, eArg = range eArgs {
+		emitComment(0, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, Itoa(argIndex), Itoa(lenParams))
+		if argIndex < lenParams {
+			param = params[argIndex]
+			if param.Type.dtype == "*astEllipsis" {
+				variadicElp = param.Type.ellipsis
+				variadicArgs = make([]*astExpr, 0, 20)
+			}
+		}
+		if variadicElp != nil {
+			variadicArgs = append(variadicArgs, eArg)
+			continue
+		}
+
+		var paramType = e2t(param.Type)
+		arg = &Arg{}
+		arg.e = eArg
+		arg.t = paramType
+		args = append(args, arg)
+	}
+
+	if variadicElp != nil {
+		// collect args as a slice
+		var sliceType = &astArrayType{}
+		sliceType.Elt = variadicElp.Elt
+		var eSliceType = &astExpr{}
+		eSliceType.dtype = "*astArrayType"
+		eSliceType.arrayType = sliceType
+		var sliceLiteral = &astCompositeLit{}
+		sliceLiteral.Type = eSliceType
+		sliceLiteral.Elts = variadicArgs
+		var eSliceLiteral = &astExpr{}
+		eSliceLiteral.compositeLit = sliceLiteral
+		eSliceLiteral.dtype = "*astCompositeLit"
+		var _arg = &Arg{}
+		_arg.e = eSliceLiteral
+		_arg.t = e2t(eSliceType)
+		args = append(args, _arg)
+	} else if len(args) < len(params) {
+		// Add nil as a variadic arg
+		emitComment(0, "len(args)=%s, len(params)=%s\n", Itoa(len(args)), Itoa(len(params)))
+		var param = params[len(args)]
+		if param == nil {
+			panic2(__func__, "param should not be nil")
+		}
+		if param.Type == nil {
+			panic2(__func__, "param.Type should not be nil")
+		}
+		assert(param.Type.dtype == "*astEllipsis", "internal error", __func__)
+
+		var _arg = &Arg{}
+		_arg.e = eNil
+		_arg.t = e2t(param.Type)
+		args = append(args, _arg)
+	}
+	return args
+}
+
+func emitRealFuncall(symbol string, funcType *astFuncType, args []*Arg) {
+	var resultList []*astField
+	if funcType.Results != nil {
+		resultList = funcType.Results.List
+	}
+
+	emitCall(symbol, args, resultList)
+}
+
 func emitCall(symbol string, args []*Arg, results []*astField) {
 	emitComment(0, "[%s] %s\n", __func__, symbol)
 	var totalPushedSize = emitArgs(args)
@@ -2832,78 +2910,11 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		if fndecl.Type == nil {
 			panic2(__func__, "[*astCallExpr] fndecl.Type is nil")
 		}
+		var funcType = fndecl.Type
 
-		var params = fndecl.Type.params.List
-		var variadicArgs []*astExpr
-		var variadicElp *astEllipsis
-		var args []*Arg
-		var eArg *astExpr
-		var param *astField
-		var argIndex int
-		var arg *Arg
-		var lenParams = len(params)
-		for argIndex, eArg = range eArgs {
-			emitComment(0, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, Itoa(argIndex), Itoa(lenParams))
-			if argIndex < lenParams {
-				param = params[argIndex]
-				if param.Type.dtype == "*astEllipsis" {
-					variadicElp = param.Type.ellipsis
-					variadicArgs = make([]*astExpr, 0, 20)
-				}
-			}
-			if variadicElp != nil {
-				variadicArgs = append(variadicArgs, eArg)
-				continue
-			}
 
-			var paramType = e2t(param.Type)
-			arg = &Arg{}
-			arg.e = eArg
-			arg.t = paramType
-			args = append(args, arg)
-		}
-
-		if variadicElp != nil {
-			// collect args as a slice
-			var sliceType = &astArrayType{}
-			sliceType.Elt = variadicElp.Elt
-			var eSliceType = &astExpr{}
-			eSliceType.dtype = "*astArrayType"
-			eSliceType.arrayType = sliceType
-			var sliceLiteral = &astCompositeLit{}
-			sliceLiteral.Type = eSliceType
-			sliceLiteral.Elts = variadicArgs
-			var eSliceLiteral = &astExpr{}
-			eSliceLiteral.compositeLit = sliceLiteral
-			eSliceLiteral.dtype = "*astCompositeLit"
-			var _arg = &Arg{}
-			_arg.e = eSliceLiteral
-			_arg.t = e2t(eSliceType)
-			args = append(args, _arg)
-		} else if len(args) < len(params) {
-			// Add nil as a variadic arg
-			emitComment(0, "len(args)=%s, len(params)=%s\n", Itoa(len(args)), Itoa(len(params)))
-			var param = params[len(args)]
-			if param == nil {
-				panic2(__func__, "param should not be nil")
-			}
-			if param.Type == nil {
-				panic2(__func__, "param.Type should not be nil")
-			}
-			assert(param.Type.dtype == "*astEllipsis", "internal error", __func__)
-
-			var _arg = &Arg{}
-			_arg.e = eNil
-			_arg.t = e2t(param.Type)
-			args = append(args, _arg)
-		}
-
-		var results = fndecl.Type.results
-		var resultList []*astField
-		if results != nil {
-			resultList = results.List
-		}
-		emitCall(symbol, args, resultList)
+		var args = prepareArgs(funcType, eArgs)
+		emitRealFuncall(symbol, funcType, args)
 		return
 	case "*astSelectorExpr":
 		var selectorExpr = fun.selectorExpr
@@ -3961,11 +3972,11 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				}
 				switch decl.dtype {
 				case "*astFuncDecl":
-					var resultList = decl.funcDecl.Type.results.List
+					var resultList = decl.funcDecl.Type.Results.List
 					if len(resultList) != 1 {
 						panic2(__func__, "[astCallExpr] len results.List is not 1")
 					}
-					return e2t(decl.funcDecl.Type.results.List[0].Type)
+					return e2t(decl.funcDecl.Type.Results.List[0].Type)
 				default:
 					panic2(__func__, "[astCallExpr] decl.dtype="+decl.dtype)
 				}
@@ -4549,7 +4560,7 @@ func walk(pkgContainer *PkgContainer, file *astFile) {
 			localoffset = 0
 			var paramoffset = 16
 			var field *astField
-			for _, field = range funcDecl.Type.params.List {
+			for _, field = range funcDecl.Type.Params.List {
 				var obj = field.Name.Obj
 				obj.Variable = newLocalVariable(obj.Name, paramoffset)
 				var varSize = getSizeOfType(e2t(field.Type))
