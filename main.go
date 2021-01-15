@@ -2921,28 +2921,46 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			panic2(__func__, "TBI selectorExpr.X.dtype="+selectorExpr.X.dtype)
 		}
 		var symbol string = selectorExpr.X.ident.Name + "." + selectorExpr.Sel.Name
+		var resultsList []*astField
 		switch symbol {
 		case "unsafe.Pointer":
 			emitExpr(eArgs[0], nil)
 			return
 		case "os.Exit":
-			emitCallNonDecl(symbol, eArgs)
 		case "syscall.Open":
-			// func decl is in runtime
-			emitCallNonDecl(symbol, eArgs)
-			fmtPrintf("  pushq %%rax # fd\n")
+			resultsList = []*astField{
+				&astField{
+					Name:   nil,
+					Type:   tInt.e,
+				},
+			}
 		case "syscall.Read":
-			// func decl is in runtime
-			emitCallNonDecl(symbol, eArgs)
-			fmtPrintf("  pushq %%rax # fd\n")
+			resultsList = []*astField{
+				&astField{
+					Name:   nil,
+					Type:   tInt.e,
+				},
+			}
 		case "syscall.Write":
-			emitCallNonDecl(symbol, eArgs)
+			resultsList = []*astField{
+				&astField{
+					Name:   nil,
+					Type:   tInt.e,
+				},
+			}
 		case "syscall.Syscall":
-			emitCallNonDecl(symbol, eArgs)
-			fmtPrintf("  pushq %%rax # ret\n")
+			resultsList = []*astField{
+				&astField{
+					Name:   nil,
+					Type:   tUintptr.e,
+				},
+			}
 		default:
 			panic2(__func__, "[*astSelectorExpr] Unsupported call to "+symbol)
 		}
+
+		emitCallNonDecl(symbol, eArgs)
+		emitReturnedValue(resultsList)
 	case "*astParenExpr":
 		panic2(__func__, "[astParenExpr] TBI ")
 	default:
