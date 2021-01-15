@@ -11,7 +11,7 @@ $(tmp):
 	mkdir -p $(tmp)
 
 t/expected.txt: t/test.go
-	go run t/test.go > t/expected.txt
+	go run t/test.go myargs > t/expected.txt
 
 precompiler: pre/precompiler.go runtime.go $(tmp)
 	go build -o $(tmp)/precompiler pre/precompiler.go && cp $(tmp)/precompiler .
