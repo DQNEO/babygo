@@ -13,7 +13,17 @@ _rt0_amd64:
 
 # (runtime/asm_amd64.s)
 runtime.rt0_go:
+  # init args
+  movq 0(%rsp), %rdx # argc
+  leaq 8(%rsp), %rsi # argv
+  movq %rdx, %rax # argc
+  movq %rsi, %rbx # argv
+  movq %rbx, __argv__+0(%rip)  # ptr
+  movq %rax, __argv__+8(%rip)  # len
+  movq %rax, __argv__+16(%rip) # cap
+
   callq runtime.heapInit
+  callq runtime.argsInit # this must be after heap init
   callq main.main
 
   movq $0, %rdi  # status 0
