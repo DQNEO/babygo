@@ -2654,7 +2654,7 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
-func emitCallNonDecl(symbol string, eArgs []*astExpr) {
+func prepareCallNonDecl(symbol string, eArgs []*astExpr) []*Arg {
 	var args []*Arg
 	var eArg *astExpr
 	for _, eArg = range eArgs {
@@ -2663,14 +2663,15 @@ func emitCallNonDecl(symbol string, eArgs []*astExpr) {
 		arg.t = nil
 		args = append(args, arg)
 	}
-	emitCall(symbol, args)
+	return args
 }
 
-func emitCall(symbol string, args []*Arg) {
+func emitCall(symbol string, args []*Arg, results []*astField) {
 	emitComment(0, "[%s] %s\n", __func__, symbol)
 	var totalPushedSize = emitArgs(args)
 	fmtPrintf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
+	emitReturnedValue(results)
 }
 
 func emitReturnedValue(resultList []*astField) {
@@ -2754,8 +2755,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 						Type:    genelalSlice,
 					},
 				}
-				emitCall("runtime.makeSlice", args)
-				emitReturnedValue(resultList)
+				emitCall("runtime.makeSlice", args, resultList)
 				return
 			default:
 				panic2(__func__, "TBI")
@@ -2798,8 +2798,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 					Type: genelalSlice,
 				},
 			}
-			emitCall(symbol, args)
-			emitReturnedValue(resultList)
+			emitCall(symbol, args, resultList)
 			return
 		}
 
@@ -2899,21 +2898,12 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			args = append(args, _arg)
 		}
 
-		emitCall(symbol, args)
-
-		// push results
 		var results = fndecl.Type.results
-		if fndecl.Type.results == nil {
-			emitComment(0, "[emitExpr] %s sig.results is nil\n", fn.Name)
-		} else {
-			emitComment(0, "[emitExpr] %s sig.results.List = %s\n", fn.Name, Itoa(len(fndecl.Type.results.List)))
-		}
-
 		var resultList []*astField
 		if results != nil {
 			resultList = results.List
 		}
-		emitReturnedValue(resultList)
+		emitCall(symbol, args, resultList)
 		return
 	case "*astSelectorExpr":
 		var selectorExpr = fun.selectorExpr
@@ -2959,8 +2949,8 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			panic2(__func__, "[*astSelectorExpr] Unsupported call to "+symbol)
 		}
 
-		emitCallNonDecl(symbol, eArgs)
-		emitReturnedValue(resultsList)
+		var args = prepareCallNonDecl(symbol, eArgs)
+		emitCall(symbol, args, resultsList)
 	case "*astParenExpr":
 		panic2(__func__, "[astParenExpr] TBI ")
 	default:
@@ -3129,8 +3119,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 						Type:    tString.e,
 					},
 				}
-				emitCall("runtime.catstrings", args)
-				emitReturnedValue(resultList)
+				emitCall("runtime.catstrings", args, resultList)
 			case "==":
 				emitArgs(args)
 				emitCompEq(getTypeOfExpr(e.binaryExpr.X))
