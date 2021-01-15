@@ -1803,7 +1803,7 @@ var tUintptr *Type = &Type{
 var tUint8 *Type = &Type{
 	e: &ast.Ident{
 		NamePos: 0,
-		Name:    "int",
+		Name:    "uint8",
 		Obj:     gUint8,
 	},
 }
