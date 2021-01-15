@@ -39,14 +39,14 @@ babygo_by_precompiler: main.go runtime.go runtime.s precompiler
 .PHONY: test1
 test1:	babygo t/test.go
 	@echo "testing 1gen babygo ..."
-	./babygo < t/test.go > $(tmp)/test.s
+	./babygo t/test.go > $(tmp)/test.s
 	cp $(tmp)/test.s ./.shared/ # for debug
 	as -o $(tmp)/test.o $(tmp)/test.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test $(tmp)/test.o
 	./test.sh $(tmp)/test
 
 babygo2: babygo
-	./babygo < main.go > $(tmp)/2gen.s
+	./babygo main.go > $(tmp)/2gen.s
 	cp $(tmp)/2gen.s ./.shared/ # for debug
 	as -o $(tmp)/2gen.o $(tmp)/2gen.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/2gen $(tmp)/2gen.o
@@ -55,7 +55,7 @@ babygo2: babygo
 .PHONY: test2
 test2: babygo2
 	@echo "testing 2gen babygo ..."
-	./babygo2 < t/test.go > $(tmp)/test2.s
+	./babygo2 t/test.go > $(tmp)/test2.s
 	as -o $(tmp)/test2.o $(tmp)/test2.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test2 $(tmp)/test2.o
 	./test.sh $(tmp)/test2
@@ -64,7 +64,7 @@ test2: babygo2
 .PHONY: test-self-host
 test-self-host: babygo2
 	@echo "testing self host ..."
-	./babygo2 < main.go > $(tmp)/3gen.s
+	./babygo2 main.go > $(tmp)/3gen.s
 	diff $(tmp)/2gen.s $(tmp)/3gen.s
 	@echo "self host is ok"
 

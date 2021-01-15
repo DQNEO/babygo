@@ -4917,8 +4917,8 @@ type PkgContainer struct {
 func main() {
 	initGlobals()
 	var universe = createUniverse()
-
-	var sourceFiles = []string{"runtime.go", "/dev/stdin"}
+	var inputFile = os.Args[1]
+	var sourceFiles = []string{"runtime.go", inputFile}
 
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
