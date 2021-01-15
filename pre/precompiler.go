@@ -659,7 +659,7 @@ func emitReturnedValue(resultList []*ast.Field) {
 	case 0:
 		// do nothing
 	case 1:
-		emitComment(2, "emit return value")
+		emitComment(2, "emit return value\n")
 		retval0 := resultList[0]
 		switch kind(e2t(retval0.Type)) {
 		case T_STRING:
