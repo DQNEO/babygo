@@ -28,6 +28,7 @@ runtime.printstring:
   addq $8 * 4, %rsp
   ret
 
+// func Open(path string, mode int, perm int) (fd int)
 syscall.Open:
   movq  8(%rsp), %rax # arg0:str.ptr
   movq 16(%rsp), %rdi # arg0:str.len (ignored)
@@ -42,6 +43,7 @@ syscall.Open:
   addq $8 * 4, %rsp
   ret
 
+// func Read(fd int, p []byte) (n int)
 syscall.Read:
   movq  8(%rsp), %rax # arg0:fd
   movq 16(%rsp), %rdi # arg1:ptr
@@ -55,6 +57,7 @@ syscall.Read:
   addq $8 * 4, %rsp
   ret
 
+// func Write(fd int, p []byte) int
 syscall.Write:
   movq  8(%rsp), %rax # arg0:fd
   movq 16(%rsp), %rdi # arg1:ptr
@@ -67,6 +70,7 @@ syscall.Write:
   addq $8 * 4, %rsp
   ret
 
+// func Syscall(trap, a1, a2, a3 uintptr) uintptr
 syscall.Syscall:
   movq   8(%rsp), %rax # syscall number
   movq  16(%rsp), %rdi # arg0

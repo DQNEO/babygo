@@ -459,9 +459,15 @@ func emitCap(arg ast.Expr) {
 func emitCallMalloc(size int) {
 	fmtPrintf("  pushq $%s\n", Itoa(size))
 	// call malloc and return pointer
+	var resultList = []*ast.Field{
+		&ast.Field{
+			Names:   nil,
+			Type:    tUintptr.e,
+		},
+	}
 	fmtPrintf("  callq runtime.malloc\n") // no need to invert args orders
 	emitRevertStackPointer(intSize)
-	fmtPrintf("  pushq %%rax # addr\n")
+	emitReturnedValue(resultList)
 }
 
 func emitStructLiteral(e *ast.CompositeLit) {
@@ -573,26 +579,109 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
-// Call without using func decl
-func emitCallNonDecl(symbol string, eArgs []ast.Expr) {
+func prepareArgs(funcType *ast.FuncType, eArgs []ast.Expr) []*Arg {
 	var args []*Arg
-	for _, eArg := range eArgs {
+	params := funcType.Params.List
+	var variadicArgs []ast.Expr // nil means there is no varadic in funcdecl
+	var variadicElp *ast.Ellipsis
+	var argIndex int
+	var eArg ast.Expr
+	var param *ast.Field
+	for argIndex, eArg = range eArgs {
+		if argIndex < len(params) {
+			param = params[argIndex]
+			elp, ok := param.Type.(*ast.Ellipsis)
+			if ok {
+				variadicElp = elp
+				variadicArgs = make([]ast.Expr, 0)
+			}
+		}
+		if variadicArgs != nil {
+			variadicArgs = append(variadicArgs, eArg)
+			continue
+		}
+
+		paramType := e2t(param.Type)
 		arg := &Arg{
 			e: eArg,
-			t: nil,
+			t: paramType,
 		}
 		args = append(args, arg)
 	}
-	emitCall(symbol, args)
+
+	if variadicArgs != nil {
+		// collect args as a slice
+		sliceType := &ast.ArrayType{Elt: variadicElp.Elt}
+		sliceLiteral := &ast.CompositeLit{
+			Type:       sliceType,
+			Lbrace:     0,
+			Elts:       variadicArgs,
+			Rbrace:     0,
+			Incomplete: false,
+		}
+		args = append(args, &Arg{
+			e:      sliceLiteral,
+			t:      e2t(sliceType),
+			offset: 0,
+		})
+	} else if len(args) < len(params) {
+		// Add nil as a variadic arg
+		param := params[argIndex+1]
+		elp, ok := param.Type.(*ast.Ellipsis)
+		assert(ok, "compile error")
+		args = append(args, &Arg{
+			e:      eNil,
+			t:      e2t(elp),
+			offset: 0,
+		})
+	}
+	return args
 }
 
-func emitCall(symbol string, args []*Arg) {
+func emitRealFuncall(symbol string, funcType *ast.FuncType, args []*Arg) {
+	var resultList []*ast.Field
+	if funcType.Results != nil {
+		resultList = funcType.Results.List
+	}
+
+	emitCall(symbol, args, resultList)
+}
+
+func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 	totalPushedSize := emitArgs(args)
 	fmtPrintf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
+	emitReturnedValue(results)
+}
+
+func emitReturnedValue(resultList []*ast.Field) {
+	switch len(resultList) {
+	case 0:
+		// do nothing
+	case 1:
+		emitComment(2, "emit return value")
+		retval0 := resultList[0]
+		switch kind(e2t(retval0.Type)) {
+		case T_STRING:
+			fmt.Printf("  pushq %%rdi # str len\n")
+			fmt.Printf("  pushq %%rax # str ptr\n")
+		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+			fmt.Printf("  pushq %%rax\n")
+		case T_SLICE:
+			fmt.Printf("  pushq %%rsi # slice cap\n")
+			fmt.Printf("  pushq %%rdi # slice len\n")
+			fmt.Printf("  pushq %%rax # slice ptr\n")
+		default:
+			throw(kind(e2t(retval0.Type)))
+		}
+	default:
+		panic("multipul returned values is not supported ")
+	}
 }
 
 func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
+	var funcType *ast.FuncType
+	var symbol string
 	switch fn := fun.(type) {
 	case *ast.Ident:
 		// check if it's a builtin func
@@ -641,10 +730,13 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 					},
 				}
 
-				emitCall("runtime.makeSlice", args)
-				fmt.Printf("  pushq %%rsi # slice cap\n")
-				fmt.Printf("  pushq %%rdi # slice len\n")
-				fmt.Printf("  pushq %%rax # slice ptr\n")
+				var resultList = []*ast.Field{
+					&ast.Field{
+						Names:   nil,
+						Type:    genelalSlice,
+					},
+				}
+				emitCall("runtime.makeSlice", args, resultList)
 				return
 			default:
 				throw(typeArg)
@@ -681,10 +773,13 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			default:
 				throw(elmSize)
 			}
-			emitCall(symbol, args)
-			fmt.Printf("  pushq %%rsi # slice cap\n")
-			fmt.Printf("  pushq %%rdi # slice len\n")
-			fmt.Printf("  pushq %%rax # slice ptr\n")
+			var resultList = []*ast.Field{
+				&ast.Field{
+					Names:   nil,
+					Type:    genelalSlice,
+				},
+			}
+			emitCall(symbol, args, resultList)
 			return
 		}
 
@@ -702,138 +797,52 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			default:
 				panic("TBI")
 			}
-			emitCall(symbol, _args)
+			emitCall(symbol, _args, nil)
 			return
 		}
 
 		if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
 			fn.Name = "makeSlice"
 		}
+
 		// general function call
-		symbol := pkgName + "." + fn.Name
+		symbol = pkgName + "." + fn.Name
 		obj := fn.Obj //.Kind == FN
 		fndecl, ok := obj.Decl.(*ast.FuncDecl)
 		if !ok {
 			throw(fn.Obj)
 		}
-
-		params := fndecl.Type.Params.List
-		var variadicArgs []ast.Expr // nil means there is no varadic in funcdecl
-		var variadicElp *ast.Ellipsis
-		var args []*Arg
-		var argIndex int
-		var eArg ast.Expr
-		var param *ast.Field
-		for argIndex, eArg = range eArgs {
-			if argIndex < len(params) {
-				param = params[argIndex]
-				elp, ok := param.Type.(*ast.Ellipsis)
-				if ok {
-					variadicElp = elp
-					variadicArgs = make([]ast.Expr, 0)
-				}
-			}
-			if variadicArgs != nil {
-				variadicArgs = append(variadicArgs, eArg)
-				continue
-			}
-
-			paramType := e2t(param.Type)
-			arg := &Arg{
-				e: eArg,
-				t: paramType,
-			}
-			args = append(args, arg)
-		}
-
-		if variadicArgs != nil {
-			// collect args as a slice
-			sliceType := &ast.ArrayType{Elt: variadicElp.Elt}
-			sliceLiteral := &ast.CompositeLit{
-				Type:       sliceType,
-				Lbrace:     0,
-				Elts:       variadicArgs,
-				Rbrace:     0,
-				Incomplete: false,
-			}
-			args = append(args, &Arg{
-				e:      sliceLiteral,
-				t:      e2t(sliceType),
-				offset: 0,
-			})
-		} else if len(args) < len(params) {
-			// Add nil as a variadic arg
-			param := params[argIndex+1]
-			elp, ok := param.Type.(*ast.Ellipsis)
-			assert(ok, "compile error")
-			args = append(args, &Arg{
-				e:      eNil,
-				t:      e2t(elp),
-				offset: 0,
-			})
-		}
-
-		emitCall(symbol, args)
-
-		// push results
-		if fndecl.Type.Results != nil {
-			if len(fndecl.Type.Results.List) > 2 {
-				panic("TBI")
-			} else if len(fndecl.Type.Results.List) == 1 {
-				retval0 := fndecl.Type.Results.List[0]
-				switch kind(e2t(retval0.Type)) {
-				case T_STRING:
-					emitComment(2, "fn.Obj=%#v\n", obj)
-					fmt.Printf("  pushq %%rdi # str len\n")
-					fmt.Printf("  pushq %%rax # str ptr\n")
-				case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-					emitComment(2, "fn.Obj=%#v\n", obj)
-					fmt.Printf("  pushq %%rax\n")
-				case T_SLICE:
-					fmt.Printf("  pushq %%rsi # slice cap\n")
-					fmt.Printf("  pushq %%rdi # slice len\n")
-					fmt.Printf("  pushq %%rax # slice ptr\n")
-				default:
-					throw(kind(e2t(retval0.Type)))
-				}
-			}
-		}
-		return
-
+		funcType = fndecl.Type
 	case *ast.SelectorExpr:
-		symbol := fmt.Sprintf("%s.%s", fn.X, fn.Sel)
+		symbol = fmt.Sprintf("%s.%s", fn.X, fn.Sel)
 		switch symbol {
 		case "unsafe.Pointer":
+			// This is actually not a call
 			emitExpr(eArgs[0], nil)
 			return
 		case "os.Exit":
-			emitCallNonDecl(symbol, eArgs)
-			return
-		case "syscall.Syscall":
-			// func decl is in runtime
-			emitCallNonDecl(symbol, eArgs)
-			fmt.Printf("  pushq %%rax # ret\n")
-			return
-		case "syscall.Write":
-			// func decl is in runtime
-			emitCallNonDecl(symbol, eArgs)
-			return
+			funcType = funcTypeOsExit
 		case "syscall.Open":
-			// func decl is in runtime
-			emitCallNonDecl(symbol, eArgs)
-			fmtPrintf("  pushq %%rax # fd\n")
-			return
+			// func body is in runtime.s
+			funcType = funcTypeSyscallOpen
 		case "syscall.Read":
-			// func decl is in runtime
-			emitCallNonDecl(symbol, eArgs)
-			fmt.Printf("  pushq %%rax # fd\n")
-			return
+			// func body is in runtime.s
+			funcType = funcTypeSyscallRead
+		case "syscall.Write":
+			// func body is in runtime.s
+			funcType = funcTypeSyscallWrite
+		case "syscall.Syscall":
+			// func body is in runtime.s
+			funcType = funcTypeSyscallSyscall
 		default:
 			panic(symbol)
 		}
 	default:
 		throw(fun)
 	}
+
+	args := prepareArgs(funcType, eArgs)
+	emitRealFuncall(symbol, funcType, args)
 }
 
 // ABI of stack layout
@@ -1002,9 +1011,14 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 
 			switch e.Op.String() {
 			case "+":
-				emitCall("runtime.catstrings", args)
-				fmtPrintf("  pushq %%rdi # slice len\n")
-				fmtPrintf("  pushq %%rax # slice ptr\n")
+				var resultList = []*ast.Field{
+					&ast.Field{
+						Names:   nil,
+						Type:    tString.e,
+					},
+				}
+
+				emitCall("runtime.catstrings", args, resultList)
 			case "==":
 				emitArgs(args)
 				emitCompEq(getTypeOfExpr(e.X))
@@ -1178,9 +1192,15 @@ func emitListElementAddr(list ast.Expr, elmType *Type) {
 func emitCompEq(t *Type) {
 	switch kind(t) {
 	case T_STRING:
+		var resultList = []*ast.Field{
+			&ast.Field{
+				Names:   nil,
+				Type:    tBool.e,
+			},
+		}
 		fmtPrintf("  callq runtime.cmpstrings\n")
 		emitRevertStackPointer(stringSize * 2)
-		fmtPrintf("  pushq %%rax # cmp result (1 or 0)\n")
+		emitReturnedValue(resultList)
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
 	case T_SLICE:
@@ -1796,6 +1816,8 @@ var tString *Type = &Type{
 	},
 }
 
+var genelalSlice ast.Expr = &ast.Ident{}
+
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -1954,6 +1976,10 @@ func kind(t *Type) TypeKind {
 	if t == nil {
 		panic("nil type is not expected")
 	}
+	if t.e == genelalSlice {
+		return T_SLICE
+	}
+
 	switch e := t.e.(type) {
 	case *ast.Ident:
 		if e.Obj == nil {
@@ -2618,6 +2644,106 @@ var gCap = &ast.Object{
 	Type: nil,
 }
 
+// func type of runtime functions
+var funcTypeOsExit = &ast.FuncType{
+	Params: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  tInt.e,
+			},
+		},
+	},
+	Results: nil,
+}
+
+var funcTypeSyscallOpen = &ast.FuncType{
+	Params: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  tString.e,
+			},
+			&ast.Field{
+				Type:  tInt.e,
+			},
+			&ast.Field{
+				Type:  tInt.e,
+			},
+		},
+	},
+	Results: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+
+var funcTypeSyscallRead = &ast.FuncType{
+	Params: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  tInt.e,
+			},
+			&ast.Field{
+				Type:  genelalSlice,
+			},
+		},
+	},
+	Results: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+
+var funcTypeSyscallWrite = &ast.FuncType{
+	Params: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  tInt.e,
+			},
+			&ast.Field{
+				Type:  genelalSlice,
+			},
+		},
+	},
+	Results: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+
+var funcTypeSyscallSyscall = &ast.FuncType{
+	Params: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  tUintptr.e,
+			},
+			&ast.Field{
+				Type:  tUintptr.e,
+			},
+			&ast.Field{
+				Type:  tUintptr.e,
+			},
+			&ast.Field{
+				Type:  tUintptr.e,
+			},
+		},
+	},
+	Results: &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  tUintptr.e,
+			},
+		},
+	},
+}
 func createUniverse() *ast.Scope {
 	universe := &ast.Scope{
 		Outer:   nil,
