@@ -2911,115 +2911,18 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			emitExpr(eArgs[0], nil)
 			return
 		case "os.Exit":
-			var funcTypeOsExit = &astFuncType{
-				Params: &astFieldList{
-					List: []*astField{
-						&astField{
-							Type:  tInt.e,
-						},
-					},
-				},
-				Results: nil,
-			}
 			funcType = funcTypeOsExit
 		case "syscall.Open":
-			var funcTypeSyscallOpen = &astFuncType{
-				Params: &astFieldList{
-					List: []*astField{
-						&astField{
-							Type:  tString.e,
-						},
-						&astField{
-							Type:  tInt.e,
-						},
-						&astField{
-							Type:  tInt.e,
-						},
-					},
-				},
-				Results: &astFieldList{
-					List: []*astField{
-						&astField{
-							Type:  tInt.e,
-						},
-					},
-				},
-			}
 			funcType = funcTypeSyscallOpen
 		case "syscall.Read":
-			var funcTypeSyscallRead = &astFuncType{
-				Params: &astFieldList{
-					List: []*astField{
-						&astField{
-							Type:  tInt.e,
-						},
-						&astField{
-							Type:  genelalSlice,
-						},
-					},
-				},
-				Results: &astFieldList{
-					List: []*astField{
-						&astField{
-							Type:  tInt.e,
-						},
-					},
-				},
-			}
 			funcType = funcTypeSyscallRead
 		case "syscall.Write":
-			var funcTypeSyscallWrite = &astFuncType{
-				Params: &astFieldList{
-					List: []*astField{
-						&astField{
-							Type:  tInt.e,
-						},
-						&astField{
-							Type:  genelalSlice,
-						},
-					},
-				},
-				Results: &astFieldList{
-					List: []*astField{
-						&astField{
-							Type:  tInt.e,
-						},
-					},
-				},
-			}
-
 			funcType = funcTypeSyscallWrite
 		case "syscall.Syscall":
-			var funcTypeSyscallSyscall = &astFuncType{
-				Params: &astFieldList{
-					List: []*astField{
-						&astField{
-							Type:  tUintptr.e,
-						},
-						&astField{
-							Type:  tUintptr.e,
-						},
-						&astField{
-							Type:  tUintptr.e,
-						},
-						&astField{
-							Type:  tUintptr.e,
-						},
-					},
-				},
-				Results: &astFieldList{
-					List: []*astField{
-						&astField{
-							Type:  tUintptr.e,
-						},
-					},
-				},
-			}
 			funcType = funcTypeSyscallSyscall
 		default:
 			panic2(__func__, "[*astSelectorExpr] Unsupported call to "+symbol)
 		}
-
 	case "*astParenExpr":
 		panic2(__func__, "[astParenExpr] TBI ")
 	default:
@@ -4669,6 +4572,13 @@ var gAppend *astObject
 var gLen *astObject
 var gCap *astObject
 
+// func type of runtime functions
+var funcTypeOsExit *astFuncType
+var funcTypeSyscallOpen *astFuncType
+var funcTypeSyscallRead *astFuncType
+var funcTypeSyscallWrite *astFuncType
+var funcTypeSyscallSyscall *astFuncType
+
 func createUniverse() *astScope {
 	var universe = new(astScope)
 
@@ -4867,6 +4777,102 @@ func initGlobals() {
 	gCap = &astObject{
 		Kind: astFun,
 		Name: "cap",
+	}
+
+	funcTypeOsExit = &astFuncType{
+		Params: &astFieldList{
+			List: []*astField{
+				&astField{
+					Type:  tInt.e,
+				},
+			},
+		},
+		Results: nil,
+	}
+	funcTypeSyscallOpen = &astFuncType{
+		Params: &astFieldList{
+			List: []*astField{
+				&astField{
+					Type:  tString.e,
+				},
+				&astField{
+					Type:  tInt.e,
+				},
+				&astField{
+					Type:  tInt.e,
+				},
+			},
+		},
+		Results: &astFieldList{
+			List: []*astField{
+				&astField{
+					Type:  tInt.e,
+				},
+			},
+		},
+	}
+	funcTypeSyscallRead = &astFuncType{
+		Params: &astFieldList{
+			List: []*astField{
+				&astField{
+					Type:  tInt.e,
+				},
+				&astField{
+					Type:  genelalSlice,
+				},
+			},
+		},
+		Results: &astFieldList{
+			List: []*astField{
+				&astField{
+					Type:  tInt.e,
+				},
+			},
+		},
+	}
+	funcTypeSyscallWrite = &astFuncType{
+		Params: &astFieldList{
+			List: []*astField{
+				&astField{
+					Type:  tInt.e,
+				},
+				&astField{
+					Type:  genelalSlice,
+				},
+			},
+		},
+		Results: &astFieldList{
+			List: []*astField{
+				&astField{
+					Type:  tInt.e,
+				},
+			},
+		},
+	}
+	funcTypeSyscallSyscall = &astFuncType{
+		Params: &astFieldList{
+			List: []*astField{
+				&astField{
+					Type:  tUintptr.e,
+				},
+				&astField{
+					Type:  tUintptr.e,
+				},
+				&astField{
+					Type:  tUintptr.e,
+				},
+				&astField{
+					Type:  tUintptr.e,
+				},
+			},
+		},
+		Results: &astFieldList{
+			List: []*astField{
+				&astField{
+					Type:  tUintptr.e,
+				},
+			},
+		},
 	}
 }
 
