@@ -2778,6 +2778,8 @@ func emitReturnedValue(resultList []*astField) {
 }
 
 func emitFuncall(fun *astExpr, eArgs []*astExpr) {
+	var symbol string
+	var funcType *astFuncType
 	switch fun.dtype {
 	case "*astIdent":
 		emitComment(0, "[%s][*astIdent]\n", __func__)
@@ -2892,7 +2894,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			fn.Name = "makeSlice"
 		}
 		// general function call
-		var symbol = pkg.name + "." + fn.Name
+		symbol = pkg.name + "." + fn.Name
 		emitComment(0, "[%s][*astIdent][default] start\n", __func__)
 
 		var obj = fn.Obj
@@ -2910,12 +2912,8 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		if fndecl.Type == nil {
 			panic2(__func__, "[*astCallExpr] fndecl.Type is nil")
 		}
-		var funcType = fndecl.Type
+		funcType = fndecl.Type
 
-
-		var args = prepareArgs(funcType, eArgs)
-		emitRealFuncall(symbol, funcType, args)
-		return
 	case "*astSelectorExpr":
 		var selectorExpr = fun.selectorExpr
 		if selectorExpr.X.dtype != "*astIdent" {
@@ -2962,11 +2960,15 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 
 		var args = prepareCallNonDecl(symbol, eArgs)
 		emitCall(symbol, args, resultsList)
+		return
 	case "*astParenExpr":
 		panic2(__func__, "[astParenExpr] TBI ")
 	default:
 		panic2(__func__, "TBI fun.dtype="+fun.dtype)
 	}
+
+	var args = prepareArgs(funcType, eArgs)
+	emitRealFuncall(symbol, funcType, args)
 }
 
 func emitExpr(e *astExpr, forceType *Type) {
