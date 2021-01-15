@@ -2748,10 +2748,14 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 					},
 				}
 
+
+				var resultList = []*astField{
+					&astField{
+						Type:    genelalSlice,
+					},
+				}
 				emitCall("runtime.makeSlice", args)
-				fmtPrintf("  pushq %%rsi # slice cap\n")
-				fmtPrintf("  pushq %%rdi # slice len\n")
-				fmtPrintf("  pushq %%rax # slice ptr\n")
+				emitReturnedValue(resultList)
 				return
 			default:
 				panic2(__func__, "TBI")
@@ -2789,10 +2793,13 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			default:
 				panic2(__func__, "Unexpected elmSize")
 			}
+			var resultList = []*astField{
+				&astField{
+					Type: genelalSlice,
+				},
+			}
 			emitCall(symbol, args)
-			fmtPrintf("  pushq %%rsi # slice cap\n")
-			fmtPrintf("  pushq %%rdi # slice len\n")
-			fmtPrintf("  pushq %%rax # slice ptr\n")
+			emitReturnedValue(resultList)
 			return
 		}
 
@@ -3099,9 +3106,13 @@ func emitExpr(e *astExpr, forceType *Type) {
 			args = append(args, argY)
 			switch e.binaryExpr.Op {
 			case "+":
+				var resultList = []*astField{
+					&astField{
+						Type:    tString.e,
+					},
+				}
 				emitCall("runtime.catstrings", args)
-				fmtPrintf("  pushq %%rdi # string len\n")
-				fmtPrintf("  pushq %%rax # string ptr\n")
+				emitReturnedValue(resultList)
 			case "==":
 				emitArgs(args)
 				emitCompEq(getTypeOfExpr(e.binaryExpr.X))
@@ -3844,6 +3855,8 @@ var tUintptr *Type
 var tString *Type
 var tBool *Type
 
+var genelalSlice *astExpr
+
 func getTypeOfExpr(expr *astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
 	switch expr.dtype {
@@ -4014,6 +4027,10 @@ func kind(t *Type) string {
 	if t == nil {
 		panic2(__func__, "nil type is not expected\n")
 	}
+	if t.e == genelalSlice {
+		return T_SLICE
+	}
+
 	var e = t.e
 	switch t.e.dtype {
 	case "*astIdent":
@@ -4741,6 +4758,11 @@ func initGlobals() {
 				Obj : gBool,
 			},
 		},
+	}
+
+	genelalSlice = &astExpr{
+		dtype: "*astIdent",
+		ident: &astIdent{},
 	}
 
 	gNew = &astObject{
