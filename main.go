@@ -4917,6 +4917,10 @@ type PkgContainer struct {
 func main() {
 	initGlobals()
 	var universe = createUniverse()
+	if os.Args[1] == "version"{
+		fmtPrintf("babygo version 0.1.0  linux/amd64\n")
+		return
+	}
 	var inputFile = os.Args[1]
 	var sourceFiles = []string{"runtime.go", inputFile}
 
