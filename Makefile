@@ -20,7 +20,7 @@ $(tmp)/precompiler_test: precompiler t/test.go
 	./precompiler < t/test.go > $(tmp)/precompiler_test.s
 	cp $(tmp)/precompiler_test.s ./.shared/ # for debug
 	as -o $(tmp)/precompiler_test.o $(tmp)/precompiler_test.s runtime.s
-	ld -o $(tmp)/precompiler_test $(tmp)/precompiler_test.o
+	ld -e _rt0_amd64_linux -o $(tmp)/precompiler_test $(tmp)/precompiler_test.o
 
 .PHONY: test0
 test0: $(tmp)/precompiler_test t/expected.txt
@@ -34,7 +34,7 @@ babygo_by_precompiler: main.go runtime.go runtime.s precompiler
 	./precompiler < main.go > $(tmp)/babygo.s
 	cp $(tmp)/babygo.s ./.shared/ # for debug
 	as -o $(tmp)/babygo.o $(tmp)/babygo.s runtime.s
-	ld -o babygo_by_precompiler $(tmp)/babygo.o
+	ld -e _rt0_amd64_linux -o babygo_by_precompiler $(tmp)/babygo.o
 
 .PHONY: test1
 test1:	babygo t/test.go
@@ -42,14 +42,14 @@ test1:	babygo t/test.go
 	./babygo < t/test.go > $(tmp)/test.s
 	cp $(tmp)/test.s ./.shared/ # for debug
 	as -o $(tmp)/test.o $(tmp)/test.s runtime.s
-	ld -o $(tmp)/test $(tmp)/test.o
+	ld -e _rt0_amd64_linux -o $(tmp)/test $(tmp)/test.o
 	./test.sh $(tmp)/test
 
 babygo2: babygo
 	./babygo < main.go > $(tmp)/2gen.s
 	cp $(tmp)/2gen.s ./.shared/ # for debug
 	as -o $(tmp)/2gen.o $(tmp)/2gen.s runtime.s
-	ld -o $(tmp)/2gen $(tmp)/2gen.o
+	ld -e _rt0_amd64_linux -o $(tmp)/2gen $(tmp)/2gen.o
 	cp $(tmp)/2gen babygo2
 
 .PHONY: test2
@@ -57,7 +57,7 @@ test2: babygo2
 	@echo "testing 2gen babygo ..."
 	./babygo2 < t/test.go > $(tmp)/test2.s
 	as -o $(tmp)/test2.o $(tmp)/test2.s runtime.s
-	ld -o $(tmp)/test2 $(tmp)/test2.o
+	ld -e _rt0_amd64_linux -o $(tmp)/test2 $(tmp)/test2.o
 	./test.sh $(tmp)/test2
 
 # test self hosting by comparing 2gen.s and 3gen.s

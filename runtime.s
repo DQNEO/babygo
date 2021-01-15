@@ -1,9 +1,18 @@
-# runtime
+# runtime.s
 .text
 
-# Start of program
-.global _start
-_start:
+# Start of the program
+# (runtime/rt0_linux_amd64.s)
+.global _rt0_amd64_linux
+_rt0_amd64_linux:
+  jmp _rt0_amd64
+
+# (runtime/asm_amd64.s)
+_rt0_amd64:
+  jmp runtime.rt0_go
+
+# (runtime/asm_amd64.s)
+runtime.rt0_go:
   callq runtime.heapInit
   callq main.main
 
