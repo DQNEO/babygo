@@ -2922,9 +2922,10 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		}
 		var symbol string = selectorExpr.X.ident.Name + "." + selectorExpr.Sel.Name
 		switch symbol {
+		case "unsafe.Pointer":
+			emitExpr(eArgs[0], nil)
+			return
 		case "os.Exit":
-			emitCallNonDecl(symbol, eArgs)
-		case "syscall.Write":
 			emitCallNonDecl(symbol, eArgs)
 		case "syscall.Open":
 			// func decl is in runtime
@@ -2934,13 +2935,12 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			// func decl is in runtime
 			emitCallNonDecl(symbol, eArgs)
 			fmtPrintf("  pushq %%rax # fd\n")
+		case "syscall.Write":
+			emitCallNonDecl(symbol, eArgs)
 		case "syscall.Syscall":
 			emitCallNonDecl(symbol, eArgs)
 			fmtPrintf("  pushq %%rax # ret\n")
-		case "unsafe.Pointer":
-			emitExpr(eArgs[0], nil)
 		default:
-			fmtPrintf("  callq %s.%s\n", selectorExpr.X.ident.Name, selectorExpr.Sel.Name)
 			panic2(__func__, "[*astSelectorExpr] Unsupported call to "+symbol)
 		}
 	case "*astParenExpr":
