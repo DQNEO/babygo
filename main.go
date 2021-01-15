@@ -2346,6 +2346,10 @@ func emitListHeadAddr(list *astExpr) {
 	}
 }
 
+func isOsArgs(e *astSelectorExpr) bool {
+	return e.X.dtype == "*astIdent" && e.X.ident.Name == "os" && e.Sel.Name == "Args"
+}
+
 func emitAddr(expr *astExpr) {
 	emitComment(2, "[emitAddr] %s\n", expr.dtype)
 	switch expr.dtype {
@@ -2364,7 +2368,12 @@ func emitAddr(expr *astExpr) {
 		emitListElementAddr(list, elmType)
 	case "*astStarExpr":
 		emitExpr(expr.starExpr.X, nil)
-	case "*astSelectorExpr": // X.Sel
+	case "*astSelectorExpr": // (X).Sel
+		if isOsArgs(expr.selectorExpr) {
+			fmtPrintf("  leaq %s(%%rip), %%rax # hack for os.Args\n", "__args__")
+			fmtPrintf("  pushq %%rax\n")
+			return
+		}
 		var typeOfX = getTypeOfExpr(expr.selectorExpr.X)
 		var structType *Type
 		switch kind(typeOfX) {
@@ -3834,6 +3843,7 @@ var tInt *Type
 var tUint8 *Type
 var tUint16 *Type
 var tUintptr *Type
+var tSliceOfString *Type
 var tString *Type
 var tBool *Type
 
@@ -3980,6 +3990,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			return getTypeOfExpr(expr.binaryExpr.X)
 		}
 	case "*astSelectorExpr":
+		if isOsArgs(expr.selectorExpr) {
+			// os.Args
+			return tSliceOfString
+		}
 		var structType = getStructTypeOfX(expr.selectorExpr)
 		var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
 		return e2t(field.Type)
@@ -4669,6 +4683,22 @@ func initGlobals() {
 		Kind: astTyp,
 		Name: "string",
 	}
+
+	tSliceOfString = &Type{
+		e: &astExpr{
+			dtype: "*astArrayType",
+			arrayType: &astArrayType{
+				Len: nil,
+				Elt: &astExpr{
+					dtype: "*astIdent",
+					ident: &astIdent{
+						Name: "string",
+						Obj: gString,
+					},
+				},
+			},
+		},
+	}
 	tString = &Type{
 		e : &astExpr{
 			dtype : "*astIdent",
@@ -4887,8 +4917,8 @@ type PkgContainer struct {
 func main() {
 	initGlobals()
 	var universe = createUniverse()
-
-	var sourceFiles = []string{"runtime.go", "/dev/stdin"}
+	var inputFile = os.Args[1]
+	var sourceFiles = []string{"runtime.go", inputFile}
 
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {

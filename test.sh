@@ -1,7 +1,7 @@
 #!/bin/bash
 set -u
 program=$1
-${program} 1>/tmp/actual.1 2> /tmp/actual.2
+${program} myargs 1>/tmp/actual.1 2> /tmp/actual.2
 exit_status=$?
 diff t/expected.txt /tmp/actual.1
 if [[ $? -ne 0 ]]; then

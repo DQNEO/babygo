@@ -284,6 +284,11 @@ func emitListHeadAddr(list ast.Expr) {
 	}
 }
 
+func isOsArgs(e *ast.SelectorExpr) bool {
+	xIdent, isIdent := e.X.(*ast.Ident)
+	return isIdent && xIdent.Name == "os" && e.Sel.Name == "Args"
+}
+
 func emitAddr(expr ast.Expr) {
 	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
@@ -306,7 +311,12 @@ func emitAddr(expr ast.Expr) {
 		emitListElementAddr(list, elmType)
 	case *ast.StarExpr:
 		emitExpr(e.X, nil)
-	case *ast.SelectorExpr: // X.Sel
+	case *ast.SelectorExpr: // (X).Sel
+		if isOsArgs(e) {
+			fmtPrintf("  leaq %s(%%rip), %%rax # hack for os.Args\n", "__args__")
+			fmtPrintf("  pushq %%rax\n")
+			return
+		}
 		typeOfX := getTypeOfExpr(e.X)
 		var structType *Type
 		switch kind(typeOfX) {
@@ -1808,6 +1818,17 @@ var tUint8 *Type = &Type{
 	},
 }
 
+var tSliceOfString *Type = &Type{
+	e: &ast.ArrayType{
+		Len: nil,
+		Elt: &ast.Ident{
+			NamePos: 0,
+			Name:    "string",
+			Obj:     gString,
+		},
+	},
+}
+
 var tString *Type = &Type{
 	e: &ast.Ident{
 		NamePos: 0,
@@ -1845,7 +1866,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				}
 			}
 		default:
-			throw(e.Obj.Kind)
+			panic("unknown Obj.Kind:" + e.Obj.Kind.String())
 		}
 	case *ast.BasicLit:
 		switch e.Kind.String() {
@@ -1948,7 +1969,12 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		}
 		return e2t(ptrType.X)
 	case *ast.SelectorExpr:
+		// X.Sel
 		emitComment(2, "getTypeOfExpr(%s.%s)\n", e.X, e.Sel)
+		if isOsArgs(e) {
+			// os.Args
+			return tSliceOfString
+		}
 		structType := getStructTypeOfX(e)
 		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		return e2t(field.Type)

@@ -1,5 +1,6 @@
 package main
 
+import "os"
 import "syscall"
 
 // --- utils ---
@@ -73,6 +74,10 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+func testOsArgs() {
+	writeln(os.Args[1])
+}
+
 func testStructLiteralWithContents() {
 	var strct = MyStruct{
 		field1: 10,
@@ -1283,6 +1288,7 @@ func testMisc() {
 }
 
 func test() {
+	testOsArgs()
 	testStructLiteralWithContents()
 	testAddressOfStructLiteral()
 	testStructCopy()
