@@ -732,8 +732,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 
 				var resultList = []*ast.Field{
 					&ast.Field{
-						Names:   nil,
-						Type:    genelalSlice,
+						Names: nil,
+						Type:  generalSlice,
 					},
 				}
 				emitCall("runtime.makeSlice", args, resultList)
@@ -775,8 +775,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			}
 			var resultList = []*ast.Field{
 				&ast.Field{
-					Names:   nil,
-					Type:    genelalSlice,
+					Names: nil,
+					Type:  generalSlice,
 				},
 			}
 			emitCall(symbol, args, resultList)
@@ -1816,7 +1816,7 @@ var tString *Type = &Type{
 	},
 }
 
-var genelalSlice ast.Expr = &ast.Ident{}
+var generalSlice ast.Expr = &ast.Ident{}
 
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
@@ -1976,7 +1976,7 @@ func kind(t *Type) TypeKind {
 	if t == nil {
 		panic("nil type is not expected")
 	}
-	if t.e == genelalSlice {
+	if t.e == generalSlice {
 		return T_SLICE
 	}
 
@@ -2686,7 +2686,7 @@ var funcTypeSyscallRead = &ast.FuncType{
 				Type:  tInt.e,
 			},
 			&ast.Field{
-				Type:  genelalSlice,
+				Type: generalSlice,
 			},
 		},
 	},
@@ -2706,7 +2706,7 @@ var funcTypeSyscallWrite = &ast.FuncType{
 				Type:  tInt.e,
 			},
 			&ast.Field{
-				Type:  genelalSlice,
+				Type: generalSlice,
 			},
 		},
 	},

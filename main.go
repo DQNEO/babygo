@@ -2819,7 +2819,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 
 				var resultList = []*astField{
 					&astField{
-						Type:    genelalSlice,
+						Type: generalSlice,
 					},
 				}
 				emitCall("runtime.makeSlice", args, resultList)
@@ -2862,7 +2862,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			}
 			var resultList = []*astField{
 				&astField{
-					Type: genelalSlice,
+					Type: generalSlice,
 				},
 			}
 			emitCall(symbol, args, resultList)
@@ -3837,7 +3837,7 @@ var tUintptr *Type
 var tString *Type
 var tBool *Type
 
-var genelalSlice *astExpr
+var generalSlice *astExpr
 
 func getTypeOfExpr(expr *astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
@@ -4009,7 +4009,7 @@ func kind(t *Type) string {
 	if t == nil {
 		panic2(__func__, "nil type is not expected\n")
 	}
-	if t.e == genelalSlice {
+	if t.e == generalSlice {
 		return T_SLICE
 	}
 
@@ -4749,7 +4749,7 @@ func initGlobals() {
 		},
 	}
 
-	genelalSlice = &astExpr{
+	generalSlice = &astExpr{
 		dtype: "*astIdent",
 		ident: &astIdent{},
 	}
@@ -4818,7 +4818,7 @@ func initGlobals() {
 					Type:  tInt.e,
 				},
 				&astField{
-					Type:  genelalSlice,
+					Type: generalSlice,
 				},
 			},
 		},
@@ -4837,7 +4837,7 @@ func initGlobals() {
 					Type:  tInt.e,
 				},
 				&astField{
-					Type:  genelalSlice,
+					Type: generalSlice,
 				},
 			},
 		},
