@@ -15,6 +15,30 @@ var heapTail uintptr
 const SYS_BRK int = 12
 const SYS_EXIT int = 60
 
+var __argv__ []*uint8 // C argv
+var __args__ []string   // GO os.Args
+
+func cstring2string(b *uint8) string {
+	var buf []uint8
+	for {
+		if b == nil || *b == 0 {
+			break
+		}
+		buf = append(buf, *b)
+		var p uintptr = uintptr(unsafe.Pointer(b)) + 1
+		b = (*uint8)(unsafe.Pointer(p))
+	}
+	return string(buf)
+}
+
+func argsInit() {
+	var a *uint8
+	for _, a = range __argv__ {
+		var s string = cstring2string(a)
+		__args__ = append(__args__, s)
+	}
+}
+
 func heapInit() {
 	heapHead = brk(0)
 	heapTail = brk(heapHead + heapSize)
