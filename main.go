@@ -2654,19 +2654,6 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
-func prepareCallNonDecl(symbol string, eArgs []*astExpr) []*Arg {
-	var args []*Arg
-	var eArg *astExpr
-	for _, eArg = range eArgs {
-		var arg = &Arg{}
-		arg.e = eArg
-		arg.t = nil
-		args = append(args, arg)
-	}
-	return args
-}
-
-
 func prepareArgs(funcType *astFuncType, eArgs []*astExpr) []*Arg {
 	var params = funcType.Params.List
 	var variadicArgs []*astExpr
@@ -2913,54 +2900,126 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			panic2(__func__, "[*astCallExpr] fndecl.Type is nil")
 		}
 		funcType = fndecl.Type
-
 	case "*astSelectorExpr":
 		var selectorExpr = fun.selectorExpr
 		if selectorExpr.X.dtype != "*astIdent" {
 			panic2(__func__, "TBI selectorExpr.X.dtype="+selectorExpr.X.dtype)
 		}
-		var symbol string = selectorExpr.X.ident.Name + "." + selectorExpr.Sel.Name
-		var resultsList []*astField
+		symbol = selectorExpr.X.ident.Name + "." + selectorExpr.Sel.Name
 		switch symbol {
 		case "unsafe.Pointer":
 			emitExpr(eArgs[0], nil)
 			return
 		case "os.Exit":
+			var funcTypeOsExit = &astFuncType{
+				Params: &astFieldList{
+					List: []*astField{
+						&astField{
+							Type:  tInt.e,
+						},
+					},
+				},
+				Results: nil,
+			}
+			funcType = funcTypeOsExit
 		case "syscall.Open":
-			resultsList = []*astField{
-				&astField{
-					Name:   nil,
-					Type:   tInt.e,
+			var funcTypeSyscallOpen = &astFuncType{
+				Params: &astFieldList{
+					List: []*astField{
+						&astField{
+							Type:  tString.e,
+						},
+						&astField{
+							Type:  tInt.e,
+						},
+						&astField{
+							Type:  tInt.e,
+						},
+					},
+				},
+				Results: &astFieldList{
+					List: []*astField{
+						&astField{
+							Type:  tInt.e,
+						},
+					},
 				},
 			}
+			funcType = funcTypeSyscallOpen
 		case "syscall.Read":
-			resultsList = []*astField{
-				&astField{
-					Name:   nil,
-					Type:   tInt.e,
+			var funcTypeSyscallRead = &astFuncType{
+				Params: &astFieldList{
+					List: []*astField{
+						&astField{
+							Type:  tInt.e,
+						},
+						&astField{
+							Type:  genelalSlice,
+						},
+					},
+				},
+				Results: &astFieldList{
+					List: []*astField{
+						&astField{
+							Type:  tInt.e,
+						},
+					},
 				},
 			}
+			funcType = funcTypeSyscallRead
 		case "syscall.Write":
-			resultsList = []*astField{
-				&astField{
-					Name:   nil,
-					Type:   tInt.e,
+			var funcTypeSyscallWrite = &astFuncType{
+				Params: &astFieldList{
+					List: []*astField{
+						&astField{
+							Type:  tInt.e,
+						},
+						&astField{
+							Type:  genelalSlice,
+						},
+					},
+				},
+				Results: &astFieldList{
+					List: []*astField{
+						&astField{
+							Type:  tInt.e,
+						},
+					},
 				},
 			}
+
+			funcType = funcTypeSyscallWrite
 		case "syscall.Syscall":
-			resultsList = []*astField{
-				&astField{
-					Name:   nil,
-					Type:   tUintptr.e,
+			var funcTypeSyscallSyscall = &astFuncType{
+				Params: &astFieldList{
+					List: []*astField{
+						&astField{
+							Type:  tUintptr.e,
+						},
+						&astField{
+							Type:  tUintptr.e,
+						},
+						&astField{
+							Type:  tUintptr.e,
+						},
+						&astField{
+							Type:  tUintptr.e,
+						},
+					},
+				},
+				Results: &astFieldList{
+					List: []*astField{
+						&astField{
+							Type:  tUintptr.e,
+						},
+					},
 				},
 			}
+			funcType = funcTypeSyscallSyscall
 		default:
 			panic2(__func__, "[*astSelectorExpr] Unsupported call to "+symbol)
 		}
 
-		var args = prepareCallNonDecl(symbol, eArgs)
-		emitCall(symbol, args, resultsList)
-		return
 	case "*astParenExpr":
 		panic2(__func__, "[astParenExpr] TBI ")
 	default:

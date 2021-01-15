@@ -2649,7 +2649,6 @@ var funcTypeOsExit = &ast.FuncType{
 	Params: &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Names: nil,
 				Type:  tInt.e,
 			},
 		},
@@ -2661,15 +2660,12 @@ var funcTypeSyscallOpen = &ast.FuncType{
 	Params: &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Names: nil,
 				Type:  tString.e,
 			},
 			&ast.Field{
-				Names: nil,
 				Type:  tInt.e,
 			},
 			&ast.Field{
-				Names: nil,
 				Type:  tInt.e,
 			},
 		},
@@ -2677,7 +2673,6 @@ var funcTypeSyscallOpen = &ast.FuncType{
 	Results: &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Names: nil,
 				Type:  tInt.e,
 			},
 		},
@@ -2688,11 +2683,9 @@ var funcTypeSyscallRead = &ast.FuncType{
 	Params: &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Names: nil,
 				Type:  tInt.e,
 			},
 			&ast.Field{
-				Names: nil,
 				Type:  genelalSlice,
 			},
 		},
@@ -2700,7 +2693,6 @@ var funcTypeSyscallRead = &ast.FuncType{
 	Results: &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Names: nil,
 				Type:  tInt.e,
 			},
 		},
@@ -2711,11 +2703,9 @@ var funcTypeSyscallWrite = &ast.FuncType{
 	Params: &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Names: nil,
 				Type:  tInt.e,
 			},
 			&ast.Field{
-				Names: nil,
 				Type:  genelalSlice,
 			},
 		},
@@ -2723,7 +2713,6 @@ var funcTypeSyscallWrite = &ast.FuncType{
 	Results: &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Names: nil,
 				Type:  tInt.e,
 			},
 		},
@@ -2734,19 +2723,15 @@ var funcTypeSyscallSyscall = &ast.FuncType{
 	Params: &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Names: nil,
 				Type:  tUintptr.e,
 			},
 			&ast.Field{
-				Names: nil,
 				Type:  tUintptr.e,
 			},
 			&ast.Field{
-				Names: nil,
 				Type:  tUintptr.e,
 			},
 			&ast.Field{
-				Names: nil,
 				Type:  tUintptr.e,
 			},
 		},
@@ -2754,7 +2739,6 @@ var funcTypeSyscallSyscall = &ast.FuncType{
 	Results: &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Names: nil,
 				Type:  tUintptr.e,
 			},
 		},
