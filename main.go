@@ -2732,12 +2732,6 @@ func prepareArgs(funcType *astFuncType, eArgs []*astExpr) []*Arg {
 }
 
 func emitRealFuncall(symbol string, funcType *astFuncType, args []*Arg) {
-	var resultList []*astField
-	if funcType.Results != nil {
-		resultList = funcType.Results.List
-	}
-
-	emitCall(symbol, args, resultList)
 }
 
 func emitCall(symbol string, args []*Arg, results []*astField) {
@@ -2939,7 +2933,12 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 	}
 
 	var args = prepareArgs(funcType, eArgs)
-	emitRealFuncall(symbol, funcType, args)
+	var resultList []*astField
+	if funcType.Results != nil {
+		resultList = funcType.Results.List
+	}
+
+	emitCall(symbol, args, resultList)
 }
 
 func emitExpr(e *astExpr, forceType *Type) {

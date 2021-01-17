@@ -648,15 +648,6 @@ func prepareArgs(funcType *ast.FuncType, eArgs []ast.Expr) []*Arg {
 	return args
 }
 
-func emitRealFuncall(symbol string, funcType *ast.FuncType, args []*Arg) {
-	var resultList []*ast.Field
-	if funcType.Results != nil {
-		resultList = funcType.Results.List
-	}
-
-	emitCall(symbol, args, resultList)
-}
-
 func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 	totalPushedSize := emitArgs(args)
 	fmtPrintf("  callq %s\n", symbol)
@@ -852,7 +843,12 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 	}
 
 	args := prepareArgs(funcType, eArgs)
-	emitRealFuncall(symbol, funcType, args)
+	var resultList []*ast.Field
+	if funcType.Results != nil {
+		resultList = funcType.Results.List
+	}
+
+	emitCall(symbol, args, resultList)
 }
 
 // ABI of stack layout
