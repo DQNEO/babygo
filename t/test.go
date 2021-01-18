@@ -74,6 +74,49 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+type T int
+
+//type MV interface {
+//	mv(int)
+//}
+//
+//type MP interface {
+//	mp(int)
+//}
+
+func (v T) mv(a int) {
+	v = T(a)
+}
+
+func (p *T) mp(a int) {
+	*p = T(a)
+}
+
+//func testBasicMethodCalls() {
+//	var v T = 1
+//	writeln(itoa(int(v)))
+//	v.mv(2) // ordinary
+//	writeln(itoa(int(v)))
+//	v.mp(3) // (&v).mp()
+//	writeln(itoa(int(v)))
+//
+//	var p *T = &v
+//	p.mp(4) // ordinary
+//	writeln(itoa(int(v)))
+//	p.mv(5) // (*p).mv()
+//	writeln(itoa(int(v)))
+//}
+
+func testPointerMethod() {
+	var v T = 1
+	v.mv(2)
+	writeln(itoa(int(v)))
+
+	var p *T = &v
+	p.mp(3)
+	writeln(itoa(int(v)))
+}
+
 type MyAnotherType int
 
 func (x MyAnotherType) add10() int {
@@ -807,8 +850,6 @@ func testIncrDecr() {
 	writeln(itoa(i))
 }
 
-type T int
-
 type MyStruct struct {
 	field1 int
 	field2 int
@@ -1316,6 +1357,8 @@ func testMisc() {
 }
 
 func test() {
+	//testBasicMethodCalls()
+	testPointerMethod()
 	testMethodAnother()
 	testMethodSimple()
 	testOsArgs()
