@@ -2460,7 +2460,14 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 			emitComment(0, "[emitConversion] to int \n")
 			emitExpr(arg0, nil)
 		default:
-			panic2(__func__, "[*astIdent] TBI : "+typeExpr.ident.Obj.Name)
+			if typeExpr.ident.Obj.Kind == astTyp {
+				if typeExpr.ident.Obj.Decl.dtype != "*astTypeSpec" {
+					panic2(__func__, "Something is wrong")
+				}
+				emitExpr(arg0, e2t(typeExpr.ident.Obj.Decl.typeSpec.Type))
+			} else{
+				panic2(__func__, "[*astIdent] TBI : "+typeExpr.ident.Obj.Name)
+			}
 		}
 	case "*astArrayType": // Conversion to slice
 		var arrayType = typeExpr.arrayType
@@ -3704,7 +3711,11 @@ func getMethodSymbol(fnc *Func) string {
 	var rcvType = fnc.rcvType
 	assert(rcvType.dtype == "*astIdent", "receiver type should be ident", __func__)
 	var rcvTypeName = rcvType.ident
-	return rcvTypeName.Name + "." + fnc.name
+	if fnc.isPtrMethod {
+		return "$" + rcvTypeName.Name + "." + fnc.name // method
+	} else {
+		return rcvTypeName.Name + "." + fnc.name // func
+	}
 }
 
 func getFuncSubSymbol(fnc *Func) string {
@@ -4273,13 +4284,14 @@ type stringLiteralsContainer struct {
 }
 
 type Func struct {
-	localvars []*string
-	localarea int
-	argsarea  int
-	funcType  *astFuncType
-	rcvType   *astExpr
-	name      string
-	Body      *astBlockStmt
+	localvars   []*string
+	localarea   int
+	argsarea    int
+	funcType    *astFuncType
+	rcvType     *astExpr
+	name        string
+	Body        *astBlockStmt
+	isPtrMethod bool
 }
 
 type Variable struct {
@@ -4380,8 +4392,16 @@ func findNamedType(typeName string) *namedTypeEntry {
 }
 
 func registerMethod(rcvType *astExpr , methodName *astIdent, fnc *Func) {
+	var isPtr bool
+	if rcvType.dtype == "*astStarExpr" {
+		isPtr = true
+		rcvType = rcvType.starExpr.X
+	}
 	assert(rcvType.dtype == "*astIdent", "receiver type should be ident", __func__)
 	var rcvTypeName = rcvType.ident
+
+	fnc.rcvType = rcvType
+	fnc.isPtrMethod = isPtr
 	var nt = findNamedType(rcvTypeName.Name)
 	if nt == nil {
 		nt = &namedTypeEntry{
@@ -4399,12 +4419,16 @@ func registerMethod(rcvType *astExpr , methodName *astIdent, fnc *Func) {
 	nt.methods = append(nt.methods, me)
 }
 
-func lookupMethod(t *Type, methodName *astIdent) *Func {
-	assert(t.e.dtype == "*astIdent", "receiver type should be ident", __func__)
-	var receiverTypeName = t.e.ident.Name
-	var nt = findNamedType(receiverTypeName)
+func lookupMethod(rcvT *Type, methodName *astIdent) *Func {
+	var rcvType = rcvT.e
+	if rcvType.dtype == "*astStarExpr" {
+		rcvType = rcvType.starExpr.X
+	}
+	assert(rcvType.dtype == "*astIdent", "receiver type should be ident", __func__)
+	var rcvTypeName = rcvType.ident
+	var nt = findNamedType(rcvTypeName.Name)
 	if nt == nil {
-		panic(receiverTypeName + " has no moethodeiverTypeName:")
+		panic(rcvTypeName.Name + " has no moethodeiverTypeName:")
 	}
 	var me *methodEntry
 

@@ -389,7 +389,16 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			emitExpr(arg0, e2t(ident))
 		default:
-			throw(ident.Obj)
+			if ident.Obj.Kind == ast.Typ {
+				// define type.  e.g. MyInt(10)
+				typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec)
+				if !ok {
+					throw(ident.Obj.Decl)
+				}
+				emitExpr(arg0, e2t(typeSpec.Type))
+			} else {
+				throw(ident.Obj)
+			}
 		}
 	case *ast.ArrayType: // Conversion to slice
 		arrayType := typeExpr
@@ -1631,7 +1640,11 @@ func getMethodSymbol(fnc *Func) string {
 	rcvType := fnc.rcvType
 	rcvTypeName,ok := rcvType.(*ast.Ident)
 	assert(ok, "receiver type should be ident")
-	return rcvTypeName.Name + "." + fnc.name
+	if fnc.isPtrMethod {
+		return "$" + rcvTypeName.Name + "." + fnc.name // method
+	} else {
+		return rcvTypeName.Name + "." + fnc.name // func
+	}
 }
 
 func getFuncSubSymbol(fnc *Func) string {
@@ -2273,6 +2286,7 @@ type Func struct {
 	argsarea  localoffsetint
 	funcType  *ast.FuncType
 	rcvType   ast.Expr
+	isPtrMethod bool
 }
 
 type Variable struct {
@@ -2355,9 +2369,20 @@ func newLocalVariable(name string, localoffset localoffsetint) *Variable {
 var typesWithMethods map[string]map[string]*Func = map[string]map[string]*Func{} // map[TypeName][MethodName]*Func
 
 func registerMethod(rcvType ast.Expr , methodName *ast.Ident, fnc *Func) {
-	rcvTypeName,ok := rcvType.(*ast.Ident)
-	assert(ok, "receiver type should be ident")
+	rcvPointerType , ok := rcvType.(*ast.StarExpr)
+	var rcvTypeName *ast.Ident
+	var isPtr bool
+	if ok {
+		isPtr = true
+		rcvType = rcvPointerType.X
+	}
+	rcvTypeName,ok = rcvType.(*ast.Ident)
+	if !ok {
+		throw(rcvType)
+	}
+
 	fnc.rcvType = rcvType
+	fnc.isPtrMethod = isPtr
 	methodSet, ok := typesWithMethods[rcvTypeName.Name]
 	if !ok {
 		methodSet = map[string]*Func{}
@@ -2366,13 +2391,19 @@ func registerMethod(rcvType ast.Expr , methodName *ast.Ident, fnc *Func) {
 	methodSet[methodName.Name] = fnc
 }
 
-func lookupMethod(t *Type, methodName *ast.Ident) *Func {
-	ident, ok := t.e.(*ast.Ident)
-	assert(ok, "Receiver type should be an ident")
-	receiverTypeName := ident.Name
-	methodSet,ok := typesWithMethods[receiverTypeName]
+func lookupMethod(rcvT *Type, methodName *ast.Ident) *Func {
+	rcvType := rcvT.e
+	rcvPointerType , ok := rcvType.(*ast.StarExpr)
+	if ok {
+		rcvType = rcvPointerType.X
+	}
+	rcvTypeName, ok := rcvType.(*ast.Ident)
 	if !ok {
-		panic(receiverTypeName + " has no moethodeiverTypeName:")
+		throw(rcvType)
+	}
+	methodSet,ok := typesWithMethods[rcvTypeName.Name]
+	if !ok {
+		panic(rcvTypeName.Name + " has no moethodeiverTypeName:")
 	}
 	methodDef, ok := methodSet[methodName.Name]
 	if !ok {
