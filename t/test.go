@@ -76,16 +76,15 @@ func Sprintf(format string, a []string) string {
 // --- test funcs ---
 type MyAnotherType int
 
-func (x MyAnotherType) addInt(y int) int {
-	return int(x) + y
+func (x MyAnotherType) add10() int {
+	return int(x) + 10
 }
 
 func testMethodAnother() {
 	var x MyAnotherType = 10
-	var y int = x.addInt(3)
+	var y int = x.add10()
 	writeln(itoa(y))
 }
-
 
 type MyType int
 

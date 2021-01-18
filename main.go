@@ -2121,10 +2121,12 @@ func parserFuncDecl() *astDecl {
 	decl.funcDecl.Type.Params = params
 	decl.funcDecl.Type.Results = results
 	decl.funcDecl.Body = body
-	var objDecl = &ObjDecl{}
-	objDecl.dtype = "*astFuncDecl"
-	objDecl.funcDecl = funcDecl
-	declare(objDecl, p.pkgScope, astFun, ident)
+	if receivers == nil {
+		var objDecl = &ObjDecl{}
+		objDecl.dtype = "*astFuncDecl"
+		objDecl.funcDecl = funcDecl
+		declare(objDecl, p.pkgScope, astFun, ident)
+	}
 	return decl
 }
 
