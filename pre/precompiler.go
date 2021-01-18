@@ -2351,16 +2351,17 @@ func newLocalVariable(name string, localoffset localoffsetint) *Variable {
 	}
 }
 
-var typesWithMethodSet map[string]map[string]*Func = map[string]map[string]*Func{} // map[TypeName][MethodName]*Func
+// https://golang.org/ref/spec#Method_sets
+var typesWithMethods map[string]map[string]*Func = map[string]map[string]*Func{} // map[TypeName][MethodName]*Func
 
 func registerMethod(rcvType ast.Expr , methodName *ast.Ident, fnc *Func) {
 	rcvTypeName,ok := rcvType.(*ast.Ident)
 	assert(ok, "receiver type should be ident")
 	fnc.rcvType = rcvType
-	methodSet, ok := typesWithMethodSet[rcvTypeName.Name]
+	methodSet, ok := typesWithMethods[rcvTypeName.Name]
 	if !ok {
 		methodSet = map[string]*Func{}
-		typesWithMethodSet[rcvTypeName.Name] = methodSet
+		typesWithMethods[rcvTypeName.Name] = methodSet
 	}
 	methodSet[methodName.Name] = fnc
 }
@@ -2369,7 +2370,7 @@ func lookupMethod(t *Type, methodName *ast.Ident) *Func {
 	ident, ok := t.e.(*ast.Ident)
 	assert(ok, "Receiver type should be an ident")
 	receiverTypeName := ident.Name
-	methodSet,ok := typesWithMethodSet[receiverTypeName]
+	methodSet,ok := typesWithMethods[receiverTypeName]
 	if !ok {
 		panic(receiverTypeName + " has no moethodeiverTypeName:")
 	}

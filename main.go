@@ -4360,15 +4360,15 @@ type methodEntry struct {
 }
 
 type namedTypeEntry struct {
-	name      string
-	methodSet []*methodEntry
+	name    string
+	methods []*methodEntry
 }
 
-var typesWithMethodSet []*namedTypeEntry
+var typesWithMethods []*namedTypeEntry
 
 func findNamedType(typeName string) *namedTypeEntry {
 	var typ *namedTypeEntry
-	for _, typ = range typesWithMethodSet {
+	for _, typ = range typesWithMethods {
 		if typ.name == typeName {
 			return typ
 		}
@@ -4383,10 +4383,10 @@ func registerMethod(rcvType *astExpr , methodName *astIdent, fnc *Func) {
 	var nt = findNamedType(rcvTypeName.Name)
 	if nt == nil {
 		nt = &namedTypeEntry{
-			name:      rcvTypeName.Name,
-			methodSet: nil,
+			name:    rcvTypeName.Name,
+			methods: nil,
 		}
-		typesWithMethodSet = append(typesWithMethodSet, nt)
+		typesWithMethods = append(typesWithMethods, nt)
 	}
 
 	fnc.rcvType = rcvType
@@ -4394,7 +4394,7 @@ func registerMethod(rcvType *astExpr , methodName *astIdent, fnc *Func) {
 		name: methodName.Name,
 		fnc:  fnc,
 	}
-	nt.methodSet = append(nt.methodSet, me)
+	nt.methods = append(nt.methods, me)
 }
 
 func lookupMethod(t *Type, methodName *astIdent) *Func {
@@ -4406,7 +4406,7 @@ func lookupMethod(t *Type, methodName *astIdent) *Func {
 	}
 	var me *methodEntry
 
-	for _, me = range nt.methodSet {
+	for _, me = range nt.methods {
 		if me.name == methodName.Name {
 			return me.fnc
 		}
