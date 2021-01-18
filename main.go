@@ -779,6 +779,7 @@ type astGenDecl struct {
 }
 
 type astFuncDecl struct {
+	Recv *astFieldList
 	Name *astIdent
 	Type *astFuncType
 	Body *astBlockStmt
@@ -2087,8 +2088,12 @@ func parserValueSpec(keyword string) *astSpec {
 func parserFuncDecl() *astDecl {
 	parserExpect("func", __func__)
 	var scope = astNewScope(p.topScope) // function scope
-
-	var ident = parseIdent()
+	var receivers *astFieldList
+	if p.tok.tok == "(" {
+		logf("  [parserFuncDecl] parsing method")
+		receivers = parseParameters(scope, false)
+	}
+	var ident = parseIdent() // func name
 	var sig = parseSignature(scope)
 	var params = sig.params
 	var results = sig.results
@@ -2110,6 +2115,7 @@ func parserFuncDecl() *astDecl {
 	decl.dtype = "*astFuncDecl"
 	var funcDecl = &astFuncDecl{}
 	decl.funcDecl = funcDecl
+	decl.funcDecl.Recv = receivers
 	decl.funcDecl.Name = ident
 	decl.funcDecl.Type = &astFuncType{}
 	decl.funcDecl.Type.Params = params
@@ -2356,7 +2362,7 @@ func emitAddr(expr *astExpr) {
 	case "*astIdent":
 		if expr.ident.Obj.Kind == astVar {
 			assert(expr.ident.Obj.Variable != nil,
-				"ERROR: Variable is nil for name : "+expr.ident.Obj.Name, __func__)
+				"ERROR: Obj.Variable is not set for ident : "+expr.ident.Obj.Name, __func__)
 			emitVariableAddr(expr.ident.Obj.Variable)
 		} else {
 			panic2(__func__, "Unexpected Kind "+expr.ident.Obj.Kind)
@@ -2663,7 +2669,10 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
-func prepareArgs(funcType *astFuncType, eArgs []*astExpr) []*Arg {
+func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*Arg {
+	if funcType == nil {
+		panic("no funcType")
+	}
 	var params = funcType.Params.List
 	var variadicArgs []*astExpr
 	var variadicElp *astEllipsis
@@ -2728,10 +2737,22 @@ func prepareArgs(funcType *astFuncType, eArgs []*astExpr) []*Arg {
 		_arg.t = e2t(param.Type)
 		args = append(args, _arg)
 	}
-	return args
-}
 
-func emitRealFuncall(symbol string, funcType *astFuncType, args []*Arg) {
+	if receiver != nil {
+		var receiverAndArgs []*Arg = []*Arg{
+			&Arg{
+				e: receiver,
+				t: getTypeOfExpr(receiver),
+			},
+		}
+		var a *Arg
+		for _, a = range args {
+			receiverAndArgs = append(receiverAndArgs, a)
+		}
+		return receiverAndArgs
+	}
+
+	return args
 }
 
 func emitCall(symbol string, args []*Arg, results []*astField) {
@@ -2769,6 +2790,7 @@ func emitReturnedValue(resultList []*astField) {
 
 func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 	var symbol string
+	var receiver *astExpr
 	var funcType *astFuncType
 	switch fun.dtype {
 	case "*astIdent":
@@ -2884,7 +2906,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			fn.Name = "makeSlice"
 		}
 		// general function call
-		symbol = pkg.name + "." + fn.Name
+		symbol = getFuncSymbol(pkg.name, fn.Name)
 		emitComment(0, "[%s][*astIdent][default] start\n", __func__)
 
 		var obj = fn.Obj
@@ -2924,7 +2946,13 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		case "syscall.Syscall":
 			funcType = funcTypeSyscallSyscall
 		default:
-			panic2(__func__, "[*astSelectorExpr] Unsupported call to "+symbol)
+			// Assume method call
+			receiver = selectorExpr.X
+			var receiverType = getTypeOfExpr(receiver)
+			var methodDef = lookupMethod(receiverType, selectorExpr.Sel)
+			funcType = methodDef.funcType
+			var subsymbol = getFuncSubSymbol(methodDef)
+			symbol = getFuncSymbol(pkg.name, subsymbol)
 		}
 	case "*astParenExpr":
 		panic2(__func__, "[astParenExpr] TBI ")
@@ -2932,12 +2960,11 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		panic2(__func__, "TBI fun.dtype="+fun.dtype)
 	}
 
-	var args = prepareArgs(funcType, eArgs)
+	var args = prepareArgs(funcType, receiver, eArgs)
 	var resultList []*astField
 	if funcType.Results != nil {
 		resultList = funcType.Results.List
 	}
-
 	emitCall(symbol, args, resultList)
 }
 
@@ -3671,11 +3698,34 @@ func emitRevertStackTop(t *Type) {
 
 var labelid int
 
+func getMethodSymbol(fnc *Func) string {
+	var rcvType = fnc.rcvType
+	assert(rcvType.dtype == "*astIdent", "receiver type should be ident", __func__)
+	var rcvTypeName = rcvType.ident
+	return rcvTypeName.Name + "." + fnc.name
+}
+
+func getFuncSubSymbol(fnc *Func) string {
+	var subsymbol string
+	if fnc.rcvType != nil {
+		subsymbol = getMethodSymbol(fnc)
+	} else {
+		subsymbol = fnc.name
+	}
+	return subsymbol
+}
+
+func getFuncSymbol(pkgPrefix string, subsymbol string) string {
+	return pkgPrefix + "." + subsymbol
+}
+
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	var localarea = fnc.localarea
 	fmtPrintf("\n")
-	fmtPrintf("%s.%s: # args %d, locals %d\n",
-		pkgPrefix, fnc.name, Itoa(fnc.argsarea), Itoa(fnc.localarea))
+	var subsymbol = getFuncSubSymbol(fnc)
+	var symbol = getFuncSymbol(pkgPrefix, subsymbol)
+	fmtPrintf("%s: # args %d, locals %d\n",
+		symbol, Itoa(int(fnc.argsarea)), Itoa(int(fnc.localarea)))
 
 	fmtPrintf("  pushq %%rbp\n")
 	fmtPrintf("  movq %%rsp, %%rbp\n")
@@ -4224,6 +4274,8 @@ type Func struct {
 	localvars []*string
 	localarea int
 	argsarea  int
+	funcType  *astFuncType
+	rcvType   *astExpr
 	name      string
 	Body      *astBlockStmt
 }
@@ -4299,6 +4351,70 @@ func newLocalVariable(name string, localoffset int) *Variable {
 	vr.isGlobal = false
 	vr.localOffset = localoffset
 	return vr
+}
+
+
+type methodEntry struct {
+	name string
+	fnc *Func
+}
+
+type namedTypeEntry struct {
+	name      string
+	methodSet []*methodEntry
+}
+
+var typesWithMethodSet []*namedTypeEntry
+
+func findNamedType(typeName string) *namedTypeEntry {
+	var typ *namedTypeEntry
+	for _, typ = range typesWithMethodSet {
+		if typ.name == typeName {
+			return typ
+		}
+	}
+	typ = nil
+	return typ
+}
+
+func registerMethod(rcvType *astExpr , methodName *astIdent, fnc *Func) {
+	assert(rcvType.dtype == "*astIdent", "receiver type should be ident", __func__)
+	var rcvTypeName = rcvType.ident
+	var nt = findNamedType(rcvTypeName.Name)
+	if nt == nil {
+		nt = &namedTypeEntry{
+			name:      rcvTypeName.Name,
+			methodSet: nil,
+		}
+		typesWithMethodSet = append(typesWithMethodSet, nt)
+	}
+
+	fnc.rcvType = rcvType
+	var me *methodEntry = &methodEntry{
+		name: methodName.Name,
+		fnc:  fnc,
+	}
+	nt.methodSet = append(nt.methodSet, me)
+}
+
+func lookupMethod(t *Type, methodName *astIdent) *Func {
+	assert(t.e.dtype == "*astIdent", "receiver type should be ident", __func__)
+	var receiverTypeName = t.e.ident.Name
+	var nt = findNamedType(receiverTypeName)
+	if nt == nil {
+		panic(receiverTypeName + " has no moethodeiverTypeName:")
+	}
+	var me *methodEntry
+
+	for _, me = range nt.methodSet {
+		if me.name == methodName.Name {
+			return me.fnc
+		}
+	}
+
+	panic("method not found")
+	var r *Func
+	return r
 }
 
 func walkStmt(stmt *astStmt) {
@@ -4537,7 +4653,16 @@ func walk(pkgContainer *PkgContainer, file *astFile) {
 			localoffset = 0
 			var paramoffset = 16
 			var field *astField
+			var paramFields []*astField
+
+			if funcDecl.Recv != nil { // Method
+				paramFields = append(paramFields, funcDecl.Recv.List[0])
+			}
 			for _, field = range funcDecl.Type.Params.List {
+				paramFields = append(paramFields, field)
+			}
+
+			for _, field = range paramFields {
 				var obj = field.Name.Obj
 				obj.Variable = newLocalVariable(obj.Name, paramoffset)
 				var varSize = getSizeOfType(e2t(field.Type))
@@ -4552,11 +4677,16 @@ func walk(pkgContainer *PkgContainer, file *astFile) {
 				}
 				var fnc = &Func{}
 				fnc.name = funcDecl.Name.Name
+				fnc.funcType =  funcDecl.Type
 				fnc.Body = funcDecl.Body
 				fnc.localarea = localoffset
 				fnc.argsarea = paramoffset
 
 				pkgContainer.funcs = append(pkgContainer.funcs, fnc)
+				if funcDecl.Recv != nil { // Method
+					var rcvField = funcDecl.Recv.List[0]
+					registerMethod(rcvField.Type, funcDecl.Name, fnc)
+				}
 			}
 		default:
 			panic2(__func__, "TBI: "+decl.dtype)

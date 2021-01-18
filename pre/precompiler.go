@@ -297,7 +297,11 @@ func emitAddr(expr ast.Expr) {
 			throw(expr)
 		}
 		if e.Obj.Kind == ast.Var {
+			assert(e.Obj.Data != nil, "e.Obj.Data should not be nil: Obj.Name=" + e.Obj.Name)
 			vr, ok := e.Obj.Data.(*Variable)
+			if !ok {
+				throw(e.Obj.Data)
+			}
 			assert(ok, "should be *Variable")
 			emitVariableAddr(vr)
 		} else {
@@ -589,7 +593,10 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
-func prepareArgs(funcType *ast.FuncType, eArgs []ast.Expr) []*Arg {
+func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr) []*Arg {
+	if funcType == nil {
+		panic("no funcType")
+	}
 	var args []*Arg
 	params := funcType.Params.List
 	var variadicArgs []ast.Expr // nil means there is no varadic in funcdecl
@@ -632,7 +639,6 @@ func prepareArgs(funcType *ast.FuncType, eArgs []ast.Expr) []*Arg {
 		args = append(args, &Arg{
 			e:      sliceLiteral,
 			t:      e2t(sliceType),
-			offset: 0,
 		})
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
@@ -642,9 +648,22 @@ func prepareArgs(funcType *ast.FuncType, eArgs []ast.Expr) []*Arg {
 		args = append(args, &Arg{
 			e:      eNil,
 			t:      e2t(elp),
-			offset: 0,
 		})
 	}
+
+	if receiver != nil { // method call
+		var receiverAndArgs []*Arg = []*Arg{
+			&Arg{
+				e: receiver,
+				t: getTypeOfExpr(receiver),
+			},
+		}
+		for _, arg := range args {
+			receiverAndArgs = append(receiverAndArgs, arg)
+		}
+		return receiverAndArgs
+	}
+
 	return args
 }
 
@@ -683,6 +702,7 @@ func emitReturnedValue(resultList []*ast.Field) {
 func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 	var funcType *ast.FuncType
 	var symbol string
+	var receiver ast.Expr
 	switch fn := fun.(type) {
 	case *ast.Ident:
 		// check if it's a builtin func
@@ -807,7 +827,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		}
 
 		// general function call
-		symbol = pkgName + "." + fn.Name
+		symbol = getFuncSymbol(pkgName, fn.Name)
 		obj := fn.Obj //.Kind == FN
 		fndecl, ok := obj.Decl.(*ast.FuncDecl)
 		if !ok {
@@ -836,18 +856,23 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			// func body is in runtime.s
 			funcType = funcTypeSyscallSyscall
 		default:
-			panic(symbol)
+			// Assume method call
+			receiver = fn.X
+			receiverType := getTypeOfExpr(receiver)
+			methodDef := lookupMethod(receiverType, fn.Sel)
+			funcType = methodDef.funcType
+			subsymbol := getFuncSubSymbol(methodDef)
+			symbol = getFuncSymbol(pkgName, subsymbol)
 		}
 	default:
 		throw(fun)
 	}
 
-	args := prepareArgs(funcType, eArgs)
+	args := prepareArgs(funcType, receiver, eArgs)
 	var resultList []*ast.Field
 	if funcType.Results != nil {
 		resultList = funcType.Results.List
 	}
-
 	emitCall(symbol, args, resultList)
 }
 
@@ -1602,11 +1627,34 @@ func emitRevertStackTop(t *Type) {
 
 var labelid int
 
+func getMethodSymbol(fnc *Func) string {
+	rcvType := fnc.rcvType
+	rcvTypeName,ok := rcvType.(*ast.Ident)
+	assert(ok, "receiver type should be ident")
+	return rcvTypeName.Name + "." + fnc.name
+}
+
+func getFuncSubSymbol(fnc *Func) string {
+	var subsymbol string
+	if fnc.rcvType != nil {
+		subsymbol = getMethodSymbol(fnc)
+	} else {
+		subsymbol = fnc.name
+	}
+	return subsymbol
+}
+
+func getFuncSymbol(pkgPrefix string, subsymbol string) string {
+	return pkgPrefix + "." + subsymbol
+}
+
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	var localarea int = int(fnc.localarea)
 	fmtPrintf("\n")
-	fmtPrintf("%s.%s: # args %d, locals %d\n",
-		pkgPrefix, fnc.name, Itoa(int(fnc.argsarea)), Itoa(int(fnc.localarea)))
+	subsymbol := getFuncSubSymbol(fnc)
+	symbol := getFuncSymbol(pkgPrefix, subsymbol)
+	fmtPrintf("%s: # args %d, locals %d\n",
+		symbol, Itoa(int(fnc.argsarea)), Itoa(int(fnc.localarea)))
 
 	fmtPrintf("  pushq %%rbp\n")
 	fmtPrintf("  movq %%rsp, %%rbp\n")
@@ -1838,6 +1886,7 @@ var generalSlice ast.Expr = &ast.Ident{}
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
+		assert(e.Obj != nil, "Obj is nil in ident '" + e.Name + "'")
 		switch e.Obj.Kind {
 		case ast.Var:
 			switch dcl := e.Obj.Decl.(type) {
@@ -2222,6 +2271,8 @@ type Func struct {
 	stmts     []ast.Stmt
 	localarea localoffsetint
 	argsarea  localoffsetint
+	funcType  *ast.FuncType
+	rcvType   ast.Expr
 }
 
 type Variable struct {
@@ -2299,6 +2350,36 @@ func newLocalVariable(name string, localoffset localoffsetint) *Variable {
 		localOffset:  localoffset,
 	}
 }
+
+var typesWithMethodSet map[string]map[string]*Func = map[string]map[string]*Func{} // map[TypeName][MethodName]*Func
+
+func registerMethod(rcvType ast.Expr , methodName *ast.Ident, fnc *Func) {
+	rcvTypeName,ok := rcvType.(*ast.Ident)
+	assert(ok, "receiver type should be ident")
+	fnc.rcvType = rcvType
+	methodSet, ok := typesWithMethodSet[rcvTypeName.Name]
+	if !ok {
+		methodSet = map[string]*Func{}
+		typesWithMethodSet[rcvTypeName.Name] = methodSet
+	}
+	methodSet[methodName.Name] = fnc
+}
+
+func lookupMethod(t *Type, methodName *ast.Ident) *Func {
+	ident, ok := t.e.(*ast.Ident)
+	assert(ok, "Receiver type should be an ident")
+	receiverTypeName := ident.Name
+	methodSet,ok := typesWithMethodSet[receiverTypeName]
+	if !ok {
+		panic(receiverTypeName + " has no moethodeiverTypeName:")
+	}
+	methodDef, ok := methodSet[methodName.Name]
+	if !ok {
+		panic("method not found")
+	}
+	return methodDef
+}
+
 
 func walkStmt(stmt ast.Stmt) {
 	switch s := stmt.(type) {
@@ -2523,7 +2604,16 @@ func walk(f *ast.File) {
 			logf("funcdef %s\n", funcDecl.Name.Name)
 			localoffset = 0
 			var paramoffset localoffsetint = 16
+			var paramFields []*ast.Field
+
+			if funcDecl.Recv != nil { // Method
+				paramFields = append(paramFields, funcDecl.Recv.List[0])
+			}
 			for _, field := range funcDecl.Type.Params.List {
+				paramFields = append(paramFields, field)
+			}
+
+			for _, field := range paramFields {
 				obj := field.Names[0].Obj
 				obj.Data = newLocalVariable(obj.Name, paramoffset)
 				var varSize int = getSizeOfType(e2t(field.Type))
@@ -2535,12 +2625,18 @@ func walk(f *ast.File) {
 				}
 				fnc := &Func{
 					name:      funcDecl.Name.Name,
+					funcType:  funcDecl.Type,
 					stmts:     funcDecl.Body.List,
 					localarea: localoffset,
 					argsarea:  paramoffset,
 				}
 
 				globalFuncs = append(globalFuncs, fnc)
+
+				if funcDecl.Recv != nil { // Method
+					rcvField := funcDecl.Recv.List[0]
+					registerMethod(rcvField.Type, funcDecl.Name, fnc)
+				}
 			}
 		default:
 			throw(decl)

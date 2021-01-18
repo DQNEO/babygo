@@ -74,6 +74,35 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+type MyAnotherType int
+
+func (x MyAnotherType) addInt(y int) int {
+	return int(x) + y
+}
+
+func testMethodAnother() {
+	var x MyAnotherType = 10
+	var y int = x.addInt(3)
+	writeln(itoa(y))
+}
+
+
+type MyType int
+
+func add10(x MyType) int {
+	return int(x) + 10
+}
+
+func (x MyType) add10() int {
+	return int(x) + 10
+}
+
+func testMethodSimple() {
+	var x MyType = 4
+	writeln(itoa(x.add10()))
+	writeln(itoa(add10(x)))
+}
+
 func testOsArgs() {
 	writeln(os.Args[1])
 }
@@ -1288,6 +1317,8 @@ func testMisc() {
 }
 
 func test() {
+	testMethodAnother()
+	testMethodSimple()
 	testOsArgs()
 	testStructLiteralWithContents()
 	testAddressOfStructLiteral()
