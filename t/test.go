@@ -74,6 +74,24 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+func testShortVarDecl() {
+	x := 123
+	writeln(itoa(x))
+
+	var p = &MyStruct{
+		field1: 10,
+	}
+
+	f1 := p.getField1() // infer method return type
+	writeln(itoa(f1))
+
+	s := "infer string literal"
+	writeln(s)
+
+	i := 3 + 5
+	j := i
+	writeln(itoa(j))
+}
 
 func testStructPointerMethods() {
 	var p = &MyStruct{
@@ -1379,6 +1397,7 @@ func testMisc() {
 
 func test() {
 	//testBasicMethodCalls()
+	testShortVarDecl()
 	testStructPointerMethods()
 	testPointerMethod()
 	testMethodAnother()
