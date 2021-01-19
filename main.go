@@ -3895,18 +3895,7 @@ func emitData(pkgName string, vars []*astValueSpec, sliterals []*stringLiteralsC
 	emitComment(0, "==============================\n")
 }
 
-func emitText(pkgName string, funcs []*Func) {
-	fmtPrintf(".text\n")
-	var fnc *Func
-	for _, fnc = range funcs {
-		emitFuncDecl(pkgName, fnc)
-	}
-}
-
-func generateCode(pkgContainer *PkgContainer) {
-	emitData(pkgContainer.name, pkgContainer.vars, stringLiterals)
-	fmtPrintf("\n")
-	fmtPrintf(".text\n")
+func emitGlobalInit(pkgContainer *PkgContainer) {
 	fmtPrintf("%s.__initGlobals:\n", pkgContainer.name)
 	var spec *astValueSpec
 	for _, spec = range pkgContainer.vars {
@@ -3920,8 +3909,23 @@ func generateCode(pkgContainer *PkgContainer) {
 		}
 		emitGlobalVariableComplex(spec.Name, t, val)
 	}
+}
 
-	emitText(pkgContainer.name, pkgContainer.funcs)
+func emitFuncs(pkgName string, funcs []*Func) {
+	fmtPrintf(".text\n")
+	var fnc *Func
+	for _, fnc = range funcs {
+		emitFuncDecl(pkgName, fnc)
+	}
+}
+
+func generateCode(pkgContainer *PkgContainer) {
+	emitData(pkgContainer.name, pkgContainer.vars, stringLiterals)
+
+	fmtPrintf("\n")
+	fmtPrintf(".text\n")
+	emitGlobalInit(pkgContainer)
+	emitFuncs(pkgContainer.name, pkgContainer.funcs)
 }
 
 // --- type ---

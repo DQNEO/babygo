@@ -1818,18 +1818,7 @@ func emitData(pkgName string) {
 	emitComment(0, "==============================\n")
 }
 
-func emitFuncs(pkgName string) {
-	var fnc *Func
-	for _, fnc = range globalFuncs {
-		emitFuncDecl(pkgName, fnc)
-	}
-}
-
-func generateCode(pkgName string) {
-	emitData(pkgName)
-
-	fmtPrintf("\n")
-	fmtPrintf(".text\n")
+func emitGlobalInit(pkgName string) {
 	fmtPrintf("%s.__initGlobals:\n", pkgName)
 	for _, spec := range globalVars {
 		if len(spec.Values) == 0 {
@@ -1843,7 +1832,21 @@ func generateCode(pkgName string) {
 		emitGlobalVariableComplex(spec.Names[0], t, val)
 	}
 	fmt.Printf("  ret\n")
+}
 
+func emitFuncs(pkgName string) {
+	var fnc *Func
+	for _, fnc = range globalFuncs {
+		emitFuncDecl(pkgName, fnc)
+	}
+}
+
+func generateCode(pkgName string) {
+	emitData(pkgName)
+
+	fmtPrintf("\n")
+	fmtPrintf(".text\n")
+	emitGlobalInit(pkgName)
 	emitFuncs(pkgName)
 }
 
