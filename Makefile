@@ -23,18 +23,23 @@ $(tmp)/precompiler_test: precompiler t/test.go
 	ld -e _rt0_amd64_linux -o $(tmp)/precompiler_test $(tmp)/precompiler_test.o
 
 .PHONY: test0
-test0: $(tmp)/precompiler_test t/expected.txt
+test0: $(tmp)/precompiler_test $(tmp)/babygo_by_precompiler t/expected.txt
 	./test.sh $(tmp)/precompiler_test
+	$(tmp)/babygo_by_precompiler -DF -DG t/test.go > $(tmp)/test.s
+	cp $(tmp)/test.s ./.shared/ # for debug
+	as -o $(tmp)/test.o $(tmp)/test.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/test $(tmp)/test.o
+	./test.sh $(tmp)/test
+
+# This target is actually not needed any more. Just kept for a preference
+$(tmp)/babygo_by_precompiler: main.go runtime.go runtime.s $(tmp)/precompiler
+	./precompiler < main.go > $(tmp)/babygo_by_precompiler.s
+	cp $(tmp)/babygo_by_precompiler.s ./.shared/ # for debug
+	as -o $(tmp)/babygo_by_precompiler.o $(tmp)/babygo_by_precompiler.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/babygo_by_precompiler $(tmp)/babygo_by_precompiler.o
 
 babygo: main.go
 	go build -o babygo main.go
-
-# This target is actually not needed any more. Just kept for a preference
-babygo_by_precompiler: main.go runtime.go runtime.s precompiler
-	./precompiler < main.go > $(tmp)/babygo.s
-	cp $(tmp)/babygo.s ./.shared/ # for debug
-	as -o $(tmp)/babygo.o $(tmp)/babygo.s runtime.s
-	ld -e _rt0_amd64_linux -o babygo_by_precompiler $(tmp)/babygo.o
 
 .PHONY: test1
 test1:	babygo t/test.go
