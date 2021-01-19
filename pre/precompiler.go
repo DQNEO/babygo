@@ -868,9 +868,9 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			// Assume method call
 			receiver = fn.X
 			receiverType := getTypeOfExpr(receiver)
-			methodDef := lookupMethod(receiverType, fn.Sel)
-			funcType = methodDef.funcType
-			subsymbol := getFuncSubSymbol(methodDef)
+			method := lookupMethod(receiverType, fn.Sel)
+			funcType = method.funcType
+			subsymbol := getMethodSymbol(method)
 			symbol = getFuncSymbol(pkgName, subsymbol)
 		}
 	default:
@@ -1636,21 +1636,19 @@ func emitRevertStackTop(t *Type) {
 
 var labelid int
 
-func getMethodSymbol(fnc *Func) string {
-	rcvType := fnc.rcvType
-	rcvTypeName,ok := rcvType.(*ast.Ident)
-	assert(ok, "receiver type should be ident")
-	if fnc.isPtrMethod {
-		return "$" + rcvTypeName.Name + "." + fnc.name // method
+func getMethodSymbol(method *Method) string {
+	rcvTypeName := method.rcvNamedType
+	if method.isPtrMethod {
+		return "$" + rcvTypeName.Name + "." + method.name // pointer
 	} else {
-		return rcvTypeName.Name + "." + fnc.name // func
+		return rcvTypeName.Name + "." + method.name // value
 	}
 }
 
 func getFuncSubSymbol(fnc *Func) string {
 	var subsymbol string
-	if fnc.rcvType != nil {
-		subsymbol = getMethodSymbol(fnc)
+	if fnc.method != nil {
+		subsymbol = getMethodSymbol(fnc.method)
 	} else {
 		subsymbol = fnc.name
 	}
@@ -2288,8 +2286,16 @@ type Func struct {
 	localarea localoffsetint
 	argsarea  localoffsetint
 	funcType  *ast.FuncType
-	rcvType   ast.Expr
-	isPtrMethod bool
+	method *Method
+}
+
+type Method struct {
+	rcvNamedType *ast.Ident
+	isPtrMethod  bool
+	name string
+	funcType *ast.FuncType
+	//funcDecl     *ast.FuncDecl
+
 }
 
 type Variable struct {
@@ -2369,32 +2375,39 @@ func newLocalVariable(name string, localoffset localoffsetint) *Variable {
 }
 
 // https://golang.org/ref/spec#Method_sets
-var typesWithMethods map[string]map[string]*Func = map[string]map[string]*Func{} // map[TypeName][MethodName]*Func
+var typesWithMethods map[string]map[string]*Method = map[string]map[string]*Method{} // map[TypeName][MethodName]*Func
 
-func registerMethod(rcvType ast.Expr , methodName *ast.Ident, fnc *Func) {
+func newMethod(funcDecl *ast.FuncDecl) *Method {
+	rcvType := funcDecl.Recv.List[0].Type
 	rcvPointerType , ok := rcvType.(*ast.StarExpr)
-	var rcvTypeName *ast.Ident
 	var isPtr bool
 	if ok {
 		isPtr = true
 		rcvType = rcvPointerType.X
 	}
-	rcvTypeName,ok = rcvType.(*ast.Ident)
+	rcvNamedType,ok := rcvType.(*ast.Ident)
 	if !ok {
 		throw(rcvType)
 	}
-
-	fnc.rcvType = rcvType
-	fnc.isPtrMethod = isPtr
-	methodSet, ok := typesWithMethods[rcvTypeName.Name]
-	if !ok {
-		methodSet = map[string]*Func{}
-		typesWithMethods[rcvTypeName.Name] = methodSet
+	method := &Method{
+		rcvNamedType: rcvNamedType,
+		isPtrMethod : isPtr,
+		name: funcDecl.Name.Name,
+		funcType: funcDecl.Type,
 	}
-	methodSet[methodName.Name] = fnc
+	return method
 }
 
-func lookupMethod(rcvT *Type, methodName *ast.Ident) *Func {
+func registerMethod(method *Method) {
+	methodSet, ok := typesWithMethods[method.rcvNamedType.Name]
+	if !ok {
+		methodSet = map[string]*Method{}
+		typesWithMethods[method.rcvNamedType.Name] = methodSet
+	}
+	methodSet[method.name] = method
+}
+
+func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	rcvType := rcvT.e
 	rcvPointerType , ok := rcvType.(*ast.StarExpr)
 	if ok {
@@ -2408,11 +2421,11 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Func {
 	if !ok {
 		panic(rcvTypeName.Name + " has no moethodeiverTypeName:")
 	}
-	methodDef, ok := methodSet[methodName.Name]
+	method, ok := methodSet[methodName.Name]
 	if !ok {
 		panic("method not found")
 	}
-	return methodDef
+	return method
 }
 
 
@@ -2603,6 +2616,20 @@ func walkExpr(expr ast.Expr) {
 }
 
 func walk(f *ast.File) {
+	// collect methods in advance
+	for _, decl := range f.Decls {
+		switch dcl := decl.(type) {
+		case *ast.FuncDecl:
+			funcDecl := dcl
+			if funcDecl.Body != nil {
+				if funcDecl.Recv != nil { // is Method
+					method := newMethod(funcDecl)
+					registerMethod(method)
+				}
+			}
+		}
+	}
+
 	for _, decl := range f.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
@@ -2658,6 +2685,7 @@ func walk(f *ast.File) {
 				for _, stmt := range funcDecl.Body.List {
 					walkStmt(stmt)
 				}
+
 				fnc := &Func{
 					name:      funcDecl.Name.Name,
 					funcType:  funcDecl.Type,
@@ -2666,12 +2694,11 @@ func walk(f *ast.File) {
 					argsarea:  paramoffset,
 				}
 
-				globalFuncs = append(globalFuncs, fnc)
-
-				if funcDecl.Recv != nil { // Method
-					rcvField := funcDecl.Recv.List[0]
-					registerMethod(rcvField.Type, funcDecl.Name, fnc)
+				if funcDecl.Recv != nil { // is Method
+					fnc.method = newMethod(funcDecl)
 				}
+
+				globalFuncs = append(globalFuncs, fnc)
 			}
 		default:
 			throw(decl)
