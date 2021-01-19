@@ -4862,11 +4862,32 @@ func walk(pkgContainer *PkgContainer, file *astFile) {
 }
 
 // --- universe ---
-var gNil *astObject
-var eNil *astExpr
-var gTrue *astObject
-var gFalse *astObject
-var gString *astObject
+var gNil *astObject = &astObject{
+	Kind : astCon, // is it Con ?
+	Name : "nil",
+}
+
+var eNil *astExpr  = &astExpr{
+	dtype : "*astIdent",
+	ident : &astIdent{
+		Obj:  gNil,
+		Name: "nil",
+	},
+}
+var gTrue *astObject = &astObject{
+	Kind: astCon,
+	Name: "true",
+}
+var gFalse *astObject  = &astObject{
+	Kind: astCon,
+	Name: "false",
+}
+
+var gString *astObject = &astObject{
+	Kind: astTyp,
+	Name: "string",
+}
+
 var gInt *astObject
 var gUint8 *astObject
 var gUint16 *astObject
@@ -4950,33 +4971,6 @@ func resolveUniverse(file *astFile, universe *astScope) {
 }
 
 func initGlobals() {
-	gNil = &astObject{
-		Kind : astCon, // is it Con ?
-		Name : "nil",
-	}
-
-	eNil = &astExpr{
-		dtype : "*astIdent",
-		ident : &astIdent{
-			Obj:  gNil,
-			Name: "nil",
-		},
-	}
-
-	gTrue = &astObject{
-		Kind: astCon,
-		Name: "true",
-	}
-
-	gFalse = &astObject{
-		Kind: astCon,
-		Name: "false",
-	}
-
-	gString = &astObject{
-		Kind: astTyp,
-		Name: "string",
-	}
 
 	tSliceOfString = &Type{
 		e: &astExpr{
