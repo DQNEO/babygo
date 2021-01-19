@@ -2002,6 +2002,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				// method call
 				xType := getTypeOfExpr(fn.X)
 				method := lookupMethod(xType, fn.Sel)
+				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value")
 				return e2t(method.funcType.Results.List[0].Type)
 			}
 			throw(fmt.Sprintf("%#v, %#v\n", xIdent, fn.Sel))
@@ -2441,7 +2442,7 @@ func walkStmt(stmt ast.Stmt) {
 			case *ast.ValueSpec:
 				varSpec := ds
 				obj := varSpec.Names[0].Obj
-				if varSpec.Type == nil { // var x
+				if varSpec.Type == nil { // var x = e
 					if len(ds.Values) > 0 {
 						// infer type from rhs
 						val := ds.Values[0]

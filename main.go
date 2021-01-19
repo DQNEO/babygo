@@ -844,9 +844,9 @@ func readSource(filename string) []uint8 {
 	return readFile(filename)
 }
 
-func parserInit(src []uint8) {
+func (p *parser) init(src []uint8) {
 	scannerInit(p.scanner, src)
-	parserNext()
+	p.next()
 }
 
 type objectEntry struct {
@@ -862,26 +862,24 @@ type parser struct {
 	scanner    *scanner
 }
 
-var p *parser
-
-func openScope() {
+func (p *parser) openScope() {
 	p.topScope = astNewScope(p.topScope)
 }
 
-func closeScope() {
+func (p *parser) closeScope() {
 	p.topScope = p.topScope.Outer
 }
 
-func parserConsumeComment() {
-	parserNext0()
+func (p *parser) consumeComment() {
+	p.next0()
 }
 
-func parserNext0() {
+func (p *parser) next0() {
 	p.tok = scannerScan(p.scanner)
 }
 
-func parserNext() {
-	parserNext0()
+func (p *parser) next() {
+	p.next0()
 	if p.tok.tok == ";" {
 		logf(" [parser] pointing at : \"%s\" newline (%s)\n", p.tok.tok, Itoa(p.scanner.offset))
 	} else if p.tok.tok == "IDENT" {
@@ -892,37 +890,37 @@ func parserNext() {
 
 	if p.tok.tok == "COMMENT" {
 		for p.tok.tok == "COMMENT" {
-			parserConsumeComment()
+			p.consumeComment()
 		}
 	}
 }
 
-func parserExpect(tok string, who string) {
+func (p *parser) expect(tok string, who string) {
 	if p.tok.tok != tok {
 		var s = fmtSprintf("%s expected, but got %s", []string{tok, p.tok.tok})
 		panic2(who, s)
 	}
 	logf(" [%s] consumed \"%s\"\n", who, p.tok.tok)
-	parserNext()
+	p.next()
 }
 
-func parserExpectSemi(caller string) {
+func (p *parser) expectSemi(caller string) {
 	if p.tok.tok != ")" && p.tok.tok != "}" {
 		switch p.tok.tok {
 		case ";":
 			logf(" [%s] consumed semicolon %s\n", caller, p.tok.tok)
-			parserNext()
+			p.next()
 		default:
 			panic2(caller, "semicolon expected, but got token "+p.tok.tok)
 		}
 	}
 }
 
-func parseIdent() *astIdent {
+func (p *parser) parseIdent() *astIdent {
 	var name string
 	if p.tok.tok == "IDENT" {
 		name = p.tok.lit
-		parserNext()
+		p.next()
 	} else {
 		panic2(__func__, "IDENT expected, but got "+p.tok.tok)
 	}
@@ -932,23 +930,23 @@ func parseIdent() *astIdent {
 	}
 }
 
-func parserImportDecl() *astImportSpec {
-	parserExpect("import", __func__)
+func (p *parser) parseImportDecl() *astImportSpec {
+	p.expect("import", __func__)
 	var path = p.tok.lit
-	parserNext()
-	parserExpectSemi(__func__)
+	p.next()
+	p.expectSemi(__func__)
 
 	return &astImportSpec{
 		Path: path,
 	}
 }
 
-func tryVarType(ellipsisOK bool) *astExpr {
+func (p *parser) tryVarType(ellipsisOK bool) *astExpr {
 	if ellipsisOK && p.tok.tok == "..." {
-		parserNext() // consume "..."
-		var typ = tryIdentOrType()
+		p.next() // consume "..."
+		var typ = p.tryIdentOrType()
 		if typ != nil {
-			parserResolve(typ)
+			p.parserResolve(typ)
 		} else {
 			panic2(__func__, "Syntax error")
 		}
@@ -960,12 +958,12 @@ func tryVarType(ellipsisOK bool) *astExpr {
 			},
 		}
 	}
-	return tryIdentOrType()
+	return p.tryIdentOrType()
 }
 
-func parseVarType(ellipsisOK bool) *astExpr {
+func (p *parser) parseVarType(ellipsisOK bool) *astExpr {
 	logf(" [%s] begin\n", __func__)
-	var typ = tryVarType(ellipsisOK)
+	var typ = p.tryVarType(ellipsisOK)
 	if typ == nil {
 		panic2(__func__, "nil is not expected")
 	}
@@ -973,24 +971,24 @@ func parseVarType(ellipsisOK bool) *astExpr {
 	return typ
 }
 
-func tryType() *astExpr {
+func (p *parser) tryType() *astExpr {
 	logf(" [%s] begin\n", __func__)
-	var typ = tryIdentOrType()
+	var typ = p.tryIdentOrType()
 	if typ != nil {
-		parserResolve(typ)
+		p.parserResolve(typ)
 	}
 	logf(" [%s] end\n", __func__)
 	return typ
 }
 
-func parseType() *astExpr {
-	var typ = tryType()
+func (p *parser) parseType() *astExpr {
+	var typ = p.tryType()
 	return typ
 }
 
-func parsePointerType() *astExpr {
-	parserExpect("*", __func__)
-	var base = parseType()
+func (p *parser) parsePointerType() *astExpr {
+	p.expect("*", __func__)
+	var base = p.parseType()
 	return &astExpr{
 		dtype: "*astStarExpr",
 		starExpr : &astStarExpr{
@@ -999,14 +997,14 @@ func parsePointerType() *astExpr {
 	}
 }
 
-func parseArrayType() *astExpr {
-	parserExpect("[", __func__)
+func (p *parser) parseArrayType() *astExpr {
+	p.expect("[", __func__)
 	var ln *astExpr
 	if p.tok.tok != "]" {
-		ln = parseRhs()
+		ln = p.parseRhs()
 	}
-	parserExpect("]", __func__)
-	var elt = parseType()
+	p.expect("]", __func__)
+	var elt = p.parseType()
 
 	var r = &astExpr{
 		dtype : "*astArrayType",
@@ -1018,35 +1016,35 @@ func parseArrayType() *astExpr {
 	return r
 }
 
-func parseFieldDecl(scope *astScope) *astField {
+func (p *parser) parseFieldDecl(scope *astScope) *astField {
 
-	var varType = parseVarType(false)
-	var typ = tryVarType(false)
+	var varType = p.parseVarType(false)
+	var typ = p.tryVarType(false)
 
-	parserExpectSemi(__func__)
+	p.expectSemi(__func__)
 
 	var field = &astField{
 		Type : typ,
 		Name : varType.ident,
 	}
 	declareField(field, scope, astVar, varType.ident)
-	parserResolve(typ)
+	p.parserResolve(typ)
 	return field
 }
 
-func parseStructType() *astExpr {
-	parserExpect("struct", __func__)
-	parserExpect("{", __func__)
+func (p *parser) parseStructType() *astExpr {
+	p.expect("struct", __func__)
+	p.expect("{", __func__)
 
 	var _nil *astScope
 	var scope = astNewScope(_nil)
 
 	var list []*astField
 	for p.tok.tok == "IDENT" || p.tok.tok == "*" {
-		var field *astField = parseFieldDecl(scope)
+		var field *astField = p.parseFieldDecl(scope)
 		list = append(list, field)
 	}
-	parserExpect("}", __func__)
+	p.expect("}", __func__)
 
 	return &astExpr{
 		dtype : "*astStructType",
@@ -1058,9 +1056,9 @@ func parseStructType() *astExpr {
 	}
 }
 
-func parseTypeName() *astExpr {
+func (p *parser) parseTypeName() *astExpr {
 	logf(" [%s] begin\n", __func__)
-	var ident = parseIdent()
+	var ident = p.parseIdent()
 	logf(" [%s] end\n", __func__)
 	return &astExpr{
 		ident: ident,
@@ -1068,21 +1066,21 @@ func parseTypeName() *astExpr {
 	}
 }
 
-func tryIdentOrType() *astExpr {
+func (p *parser) tryIdentOrType() *astExpr {
 	logf(" [%s] begin\n", __func__)
 	switch p.tok.tok {
 	case "IDENT":
-		return parseTypeName()
+		return p.parseTypeName()
 	case "[":
-		return parseArrayType()
+		return p.parseArrayType()
 	case "struct":
-		return parseStructType()
+		return p.parseStructType()
 	case "*":
-		return parsePointerType()
+		return p.parsePointerType()
 	case "(":
-		parserNext()
-		var _typ = parseType()
-		parserExpect(")", __func__)
+		p.next()
+		var _typ = p.parseType()
+		p.expect(")", __func__)
 		return &astExpr{
 			dtype: "*astParenExpr",
 			parenExpr: &astParenExpr{
@@ -1094,16 +1092,16 @@ func tryIdentOrType() *astExpr {
 	return _nil
 }
 
-func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
+func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 	logf(" [%s] begin\n", __func__)
 	var list []*astExpr
 	for {
-		var varType = parseVarType(ellipsisOK)
+		var varType = p.parseVarType(ellipsisOK)
 		list = append(list, varType)
 		if p.tok.tok != "," {
 			break
 		}
-		parserNext()
+		p.next()
 		if p.tok.tok == ")" {
 			break
 		}
@@ -1112,7 +1110,7 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 
 	var params []*astField
 
-	var typ = tryVarType(ellipsisOK)
+	var typ = p.tryVarType(ellipsisOK)
 	if typ != nil {
 		if len(list) > 1 {
 			panic2(__func__, "Ident list is not supported")
@@ -1133,26 +1131,26 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 		logf(" [%s]: Field %s %s\n", __func__, field.Name.Name, field.Type.dtype)
 		params = append(params, field)
 		declareField(field, scope, astVar, ident)
-		parserResolve(typ)
+		p.parserResolve(typ)
 		if p.tok.tok != "," {
 			logf("  end %s\n", __func__)
 			return params
 		}
-		parserNext()
+		p.next()
 		for p.tok.tok != ")" && p.tok.tok != "EOF" {
-			ident = parseIdent()
-			typ = parseVarType(ellipsisOK)
+			ident = p.parseIdent()
+			typ = p.parseVarType(ellipsisOK)
 			field = &astField{
 				Name : ident,
 				Type : typ,
 			}
 			params = append(params, field)
 			declareField(field, scope, astVar, ident)
-			parserResolve(typ)
+			p.parserResolve(typ)
 			if p.tok.tok != "," {
 				break
 			}
-			parserNext()
+			p.next()
 		}
 		logf("  end %s\n", __func__)
 		return params
@@ -1162,7 +1160,7 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 	params = make([]*astField, len(list), len(list))
 	var i int
 	for i, typ = range list {
-		parserResolve(typ)
+		p.parserResolve(typ)
 		params[i] = &astField{
 			Type: typ,
 		}
@@ -1172,25 +1170,25 @@ func parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 	return params
 }
 
-func parseParameters(scope *astScope, ellipsisOk bool) *astFieldList {
+func (p *parser) parseParameters(scope *astScope, ellipsisOk bool) *astFieldList {
 	logf(" [%s] begin\n", __func__)
 	var params []*astField
-	parserExpect("(", __func__)
+	p.expect("(", __func__)
 	if p.tok.tok != ")" {
-		params = parseParameterList(scope, ellipsisOk)
+		params = p.parseParameterList(scope, ellipsisOk)
 	}
-	parserExpect(")", __func__)
+	p.expect(")", __func__)
 	logf(" [%s] end\n", __func__)
 	return &astFieldList{
 		List: params,
 	}
 }
 
-func parserResult(scope *astScope) *astFieldList {
+func (p *parser) parserResult(scope *astScope) *astFieldList {
 	logf(" [%s] begin\n", __func__)
 
 	if p.tok.tok == "(" {
-		var r = parseParameters(scope, false)
+		var r = p.parseParameters(scope, false)
 		logf(" [%s] end\n", __func__)
 		return r
 	}
@@ -1200,7 +1198,7 @@ func parserResult(scope *astScope) *astFieldList {
 		var _r *astFieldList = nil
 		return _r
 	}
-	var typ = tryType()
+	var typ = p.tryType()
 	var list []*astField
 	list = append(list, &astField{
 		Type: typ,
@@ -1211,12 +1209,12 @@ func parserResult(scope *astScope) *astFieldList {
 	}
 }
 
-func parseSignature(scope *astScope) *signature {
+func (p *parser) parseSignature(scope *astScope) *signature {
 	logf(" [%s] begin\n", __func__)
 	var params *astFieldList
 	var results *astFieldList
-	params = parseParameters(scope, true)
-	results = parserResult(scope)
+	params = p.parseParameters(scope, true)
+	results = p.parserResult(scope)
 	return &signature{
 		params:  params,
 		results: results,
@@ -1261,10 +1259,10 @@ func declare(objDecl *ObjDecl, scope *astScope, kind string, ident *astIdent) {
 
 }
 
-func parserResolve(x *astExpr) {
-	tryResolve(x, true)
+func (p *parser) parserResolve(x *astExpr) {
+	p.tryResolve(x, true)
 }
-func tryResolve(x *astExpr, collectUnresolved bool) {
+func (p *parser) tryResolve(x *astExpr, collectUnresolved bool) {
 	if x.dtype != "*astIdent" {
 		return
 	}
@@ -1288,16 +1286,16 @@ func tryResolve(x *astExpr, collectUnresolved bool) {
 	}
 }
 
-func parseOperand() *astExpr {
+func (p *parser) parseOperand() *astExpr {
 	logf("   begin %s\n", __func__)
 	switch p.tok.tok {
 	case "IDENT":
-		var ident = parseIdent()
+		var ident = p.parseIdent()
 		var eIdent = &astExpr{
 			dtype : "*astIdent",
 			ident : ident,
 		}
-		tryResolve(eIdent, true)
+		p.tryResolve(eIdent, true)
 		logf("   end %s\n", __func__)
 		return eIdent
 	case "INT", "STRING", "CHAR":
@@ -1305,18 +1303,18 @@ func parseOperand() *astExpr {
 			Kind : p.tok.tok,
 			Value : p.tok.lit,
 		}
-		parserNext()
+		p.next()
 		logf("   end %s\n", __func__)
 		return &astExpr{
 			dtype:    "*astBasicLit",
 			basicLit: basicLit,
 		}
 	case "(":
-		parserNext() // consume "("
+		p.next() // consume "("
 		parserExprLev++
-		var x = parserRhsOrType()
+		var x = p.parserRhsOrType()
 		parserExprLev--
-		parserExpect(")", __func__)
+		p.expect(")", __func__)
 		return &astExpr{
 			dtype: "*astParenExpr",
 			parenExpr: &astParenExpr{
@@ -1325,7 +1323,7 @@ func parseOperand() *astExpr {
 		}
 	}
 
-	var typ = tryIdentOrType()
+	var typ = p.tryIdentOrType()
 	if typ == nil {
 		panic2(__func__, "# typ should not be nil\n")
 	}
@@ -1334,25 +1332,25 @@ func parseOperand() *astExpr {
 	return typ
 }
 
-func parserRhsOrType() *astExpr {
-	var x = parseExpr()
+func (p *parser) parserRhsOrType() *astExpr {
+	var x = p.parseExpr()
 	return x
 }
 
-func parseCallExpr(fn *astExpr) *astExpr {
-	parserExpect("(", __func__)
+func (p *parser) parseCallExpr(fn *astExpr) *astExpr {
+	p.expect("(", __func__)
 	logf(" [parsePrimaryExpr] p.tok.tok=%s\n", p.tok.tok)
 	var list []*astExpr
 	for p.tok.tok != ")" {
-		var arg = parseExpr()
+		var arg = p.parseExpr()
 		list = append(list, arg)
 		if p.tok.tok == "," {
-			parserNext()
+			p.next()
 		} else if p.tok.tok == ")" {
 			break
 		}
 	}
-	parserExpect(")", __func__)
+	p.expect(")", __func__)
 	return &astExpr{
 		dtype:    "*astCallExpr",
 		callExpr: &astCallExpr{
@@ -1364,9 +1362,9 @@ func parseCallExpr(fn *astExpr) *astExpr {
 
 var parserExprLev int // < 0: in control clause, >= 0: in expression
 
-func parsePrimaryExpr() *astExpr {
+func (p *parser) parsePrimaryExpr() *astExpr {
 	logf("   begin %s\n", __func__)
-	var x = parseOperand()
+	var x = p.parseOperand()
 
 	var cnt int
 
@@ -1379,12 +1377,12 @@ func parsePrimaryExpr() *astExpr {
 
 		switch p.tok.tok {
 		case ".":
-			parserNext() // consume "."
+			p.next() // consume "."
 			if p.tok.tok != "IDENT" {
 				panic2(__func__, "tok should be IDENT")
 			}
 			// Assume CallExpr
-			var secondIdent = parseIdent()
+			var secondIdent = p.parseIdent()
 			var sel = &astSelectorExpr{
 				X : x,
 				Sel : secondIdent,
@@ -1395,7 +1393,7 @@ func parsePrimaryExpr() *astExpr {
 					selectorExpr : sel,
 				}
 				// string = x.ident.Name + "." + secondIdent
-				x = parseCallExpr(fn)
+				x = p.parseCallExpr(fn)
 				logf(" [parsePrimaryExpr] 741 p.tok.tok=%s\n", p.tok.tok)
 			} else {
 				logf("   end parsePrimaryExpr()\n")
@@ -1405,13 +1403,13 @@ func parsePrimaryExpr() *astExpr {
 				}
 			}
 		case "(":
-			x = parseCallExpr(x)
+			x = p.parseCallExpr(x)
 		case "[":
-			parserResolve(x)
-			x = parseIndexOrSlice(x)
+			p.parserResolve(x)
+			x = p.parseIndexOrSlice(x)
 		case "{":
 			if isLiteralType(x) && parserExprLev >= 0 {
-				x = parseLiteralValue(x)
+				x = p.parseLiteralValue(x)
 			} else {
 				return x
 			}
@@ -1425,13 +1423,13 @@ func parsePrimaryExpr() *astExpr {
 	return x
 }
 
-func parserElement() *astExpr {
-	var x = parseExpr() // key or value
+func (p *parser) parserElement() *astExpr {
+	var x = p.parseExpr() // key or value
 	var v *astExpr
 	var kvExpr *astKeyValueExpr
 	if p.tok.tok == ":" {
-		parserNext() // skip ":"
-		v = parseExpr()
+		p.next() // skip ":"
+		v = p.parseExpr()
 		kvExpr = &astKeyValueExpr{
 			Key : x,
 			Value : v,
@@ -1444,28 +1442,28 @@ func parserElement() *astExpr {
 	return x
 }
 
-func parserElementList() []*astExpr {
+func (p *parser) parserElementList() []*astExpr {
 	var list []*astExpr
 	var e *astExpr
 	for p.tok.tok != "}" {
-		e = parserElement()
+		e = p.parserElement()
 		list = append(list, e)
 		if p.tok.tok != "," {
 			break
 		}
-		parserExpect(",", __func__)
+		p.expect(",", __func__)
 	}
 	return list
 }
 
-func parseLiteralValue(typ *astExpr) *astExpr {
+func (p *parser) parseLiteralValue(typ *astExpr) *astExpr {
 	logf("   start %s\n", __func__)
-	parserExpect("{", __func__)
+	p.expect("{", __func__)
 	var elts []*astExpr
 	if p.tok.tok != "}" {
-		elts = parserElementList()
+		elts = p.parserElementList()
 	}
-	parserExpect("}", __func__)
+	p.expect("}", __func__)
 
 	logf("   end %s\n", __func__)
 	return &astExpr{
@@ -1492,21 +1490,21 @@ func isLiteralType(x *astExpr) bool {
 	return true
 }
 
-func parseIndexOrSlice(x *astExpr) *astExpr {
-	parserExpect("[", __func__)
+func (p *parser) parseIndexOrSlice(x *astExpr) *astExpr {
+	p.expect("[", __func__)
 	var index = make([]*astExpr, 3, 3)
 	if p.tok.tok != ":" {
-		index[0] = parseRhs()
+		index[0] = p.parseRhs()
 	}
 	var ncolons int
 	for p.tok.tok == ":" && ncolons < 2 {
 		ncolons++
-		parserNext() // consume ":"
+		p.next() // consume ":"
 		if p.tok.tok != ":" && p.tok.tok != "]" {
-			index[ncolons] = parseRhs()
+			index[ncolons] = p.parseRhs()
 		}
 	}
-	parserExpect("]", __func__)
+	p.expect("]", __func__)
 
 	if ncolons > 0 {
 		// slice expression
@@ -1535,14 +1533,14 @@ func parseIndexOrSlice(x *astExpr) *astExpr {
 	return r
 }
 
-func parseUnaryExpr() *astExpr {
+func (p *parser) parseUnaryExpr() *astExpr {
 	var r *astExpr
 	logf("   begin parseUnaryExpr()\n")
 	switch p.tok.tok {
 	case "+", "-", "!", "&":
 		var tok = p.tok.tok
-		parserNext()
-		var x = parseUnaryExpr()
+		p.next()
+		var x = p.parseUnaryExpr()
 		r = &astExpr{}
 		r.dtype = "*astUnaryExpr"
 		r.unaryExpr = &astUnaryExpr{}
@@ -1551,15 +1549,15 @@ func parseUnaryExpr() *astExpr {
 		r.unaryExpr.X = x
 		return r
 	case "*":
-		parserNext() // consume "*"
-		var x = parseUnaryExpr()
+		p.next() // consume "*"
+		var x = p.parseUnaryExpr()
 		r = &astExpr{}
 		r.dtype = "*astStarExpr"
 		r.starExpr = &astStarExpr{}
 		r.starExpr.X = x
 		return r
 	}
-	r = parsePrimaryExpr()
+	r = p.parsePrimaryExpr()
 	logf("   end parseUnaryExpr()\n")
 	return r
 }
@@ -1584,9 +1582,9 @@ func precedence(op string) int {
 	return 0
 }
 
-func parseBinaryExpr(prec1 int) *astExpr {
+func (p *parser) parseBinaryExpr(prec1 int) *astExpr {
 	logf("   begin parseBinaryExpr() prec1=%s\n", Itoa(prec1))
-	var x = parseUnaryExpr()
+	var x = p.parseUnaryExpr()
 	var oprec int
 	for {
 		var op = p.tok.tok
@@ -1597,8 +1595,8 @@ func parseBinaryExpr(prec1 int) *astExpr {
 			logf("   end parseBinaryExpr() (NonBinary)\n")
 			return x
 		}
-		parserExpect(op, __func__)
-		var y = parseBinaryExpr(oprec + 1)
+		p.expect(op, __func__)
+		var y = p.parseBinaryExpr(oprec + 1)
 		var binaryExpr = &astBinaryExpr{}
 		binaryExpr.X = x
 		binaryExpr.Y = y
@@ -1612,15 +1610,15 @@ func parseBinaryExpr(prec1 int) *astExpr {
 	return x
 }
 
-func parseExpr() *astExpr {
-	logf("   begin parseExpr()\n")
-	var e = parseBinaryExpr(1)
-	logf("   end parseExpr()\n")
+func (p *parser) parseExpr() *astExpr {
+	logf("   begin p.parseExpr()\n")
+	var e = p.parseBinaryExpr(1)
+	logf("   end p.parseExpr()\n")
 	return e
 }
 
-func parseRhs() *astExpr {
-	var x = parseExpr()
+func (p *parser) parseRhs() *astExpr {
+	var x = p.parseExpr()
 	return x
 }
 
@@ -1640,10 +1638,10 @@ func makeExpr(s *astStmt) *astExpr {
 	return s.exprStmt.X
 }
 
-func parseForStmt() *astStmt {
+func (p *parser) parseForStmt() *astStmt {
 	logf(" begin %s\n", __func__)
-	parserExpect("for", __func__)
-	openScope()
+	p.expect("for", __func__)
+	p.openScope()
 
 	var s1 *astStmt
 	var s2 *astStmt
@@ -1652,27 +1650,27 @@ func parseForStmt() *astStmt {
 	parserExprLev = -1
 	if p.tok.tok != "{" {
 		if p.tok.tok != ";" {
-			s2 = parseSimpleStmt(true)
+			s2 = p.parseSimpleStmt(true)
 			isRange = s2.isRange
 			logf(" [%s] isRange=true\n", __func__)
 		}
 		if !isRange && p.tok.tok == ";" {
-			parserNext() // consume ";"
+			p.next() // consume ";"
 			s1 = s2
 			s2 = nil
 			if p.tok.tok != ";" {
-				s2 = parseSimpleStmt(false)
+				s2 = p.parseSimpleStmt(false)
 			}
-			parserExpectSemi(__func__)
+			p.expectSemi(__func__)
 			if p.tok.tok != "{" {
-				s3 = parseSimpleStmt(false)
+				s3 = p.parseSimpleStmt(false)
 			}
 		}
 	}
 
 	parserExprLev = 0
-	var body = parseBlockStmt()
-	parserExpectSemi(__func__)
+	var body = p.parseBlockStmt()
+	p.expectSemi(__func__)
 
 	var as *astAssignStmt
 	var rangeX *astExpr
@@ -1701,7 +1699,7 @@ func parseForStmt() *astStmt {
 		var r = &astStmt{}
 		r.dtype = "*astRangeStmt"
 		r.rangeStmt = rangeStmt
-		closeScope()
+		p.closeScope()
 		logf(" end %s\n", __func__)
 		return r
 	}
@@ -1713,35 +1711,35 @@ func parseForStmt() *astStmt {
 	var r = &astStmt{}
 	r.dtype = "*astForStmt"
 	r.forStmt = forStmt
-	closeScope()
+	p.closeScope()
 	logf(" end %s\n", __func__)
 	return r
 }
 
-func parseIfStmt() *astStmt {
-	parserExpect("if", __func__)
+func (p *parser) parseIfStmt() *astStmt {
+	p.expect("if", __func__)
 	parserExprLev = -1
-	var condStmt *astStmt = parseSimpleStmt(false)
+	var condStmt *astStmt = p.parseSimpleStmt(false)
 	if condStmt.dtype != "*astExprStmt" {
 		panic2(__func__, "unexpected dtype="+condStmt.dtype)
 	}
 	var cond = condStmt.exprStmt.X
 	parserExprLev = 0
-	var body = parseBlockStmt()
+	var body = p.parseBlockStmt()
 	var else_ *astStmt
 	if p.tok.tok == "else" {
-		parserNext()
+		p.next()
 		if p.tok.tok == "if" {
-			else_ = parseIfStmt()
+			else_ = p.parseIfStmt()
 		} else {
-			var elseblock = parseBlockStmt()
-			parserExpectSemi(__func__)
+			var elseblock = p.parseBlockStmt()
+			p.expectSemi(__func__)
 			else_ = &astStmt{}
 			else_.dtype = "*astBlockStmt"
 			else_.blockStmt = elseblock
 		}
 	} else {
-		parserExpectSemi(__func__)
+		p.expectSemi(__func__)
 	}
 	var ifStmt = &astIfStmt{}
 	ifStmt.Cond = cond
@@ -1754,49 +1752,49 @@ func parseIfStmt() *astStmt {
 	return r
 }
 
-func parseCaseClause() *astCaseClause {
+func (p *parser) parseCaseClause() *astCaseClause {
 	logf(" [%s] start\n", __func__)
 	var list []*astExpr
 	if p.tok.tok == "case" {
-		parserNext() // consume "case"
-		list = parseRhsList()
+		p.next() // consume "case"
+		list = p.parseRhsList()
 	} else {
-		parserExpect("default", __func__)
+		p.expect("default", __func__)
 	}
 
-	parserExpect(":", __func__)
-	openScope()
-	var body = parseStmtList()
+	p.expect(":", __func__)
+	p.openScope()
+	var body = p.parseStmtList()
 	var r = &astCaseClause{}
 	r.Body = body
 	r.List = list
-	closeScope()
+	p.closeScope()
 	logf(" [%s] end\n", __func__)
 	return r
 }
 
-func parseSwitchStmt() *astStmt {
-	parserExpect("switch", __func__)
-	openScope()
+func (p *parser) parseSwitchStmt() *astStmt {
+	p.expect("switch", __func__)
+	p.openScope()
 
 	var s2 *astStmt
 	parserExprLev = -1
-	s2 = parseSimpleStmt(false)
+	s2 = p.parseSimpleStmt(false)
 	parserExprLev = 0
 
-	parserExpect("{", __func__)
+	p.expect("{", __func__)
 	var list []*astStmt
 	var cc *astCaseClause
 	var ccs *astStmt
 	for p.tok.tok == "case" || p.tok.tok == "default" {
-		cc = parseCaseClause()
+		cc = p.parseCaseClause()
 		ccs = &astStmt{}
 		ccs.dtype = "*astCaseClause"
 		ccs.caseClause = cc
 		list = append(list, ccs)
 	}
-	parserExpect("}", __func__)
-	parserExpectSemi(__func__)
+	p.expect("}", __func__)
+	p.expectSemi(__func__)
 	var body = &astBlockStmt{}
 	body.List = list
 
@@ -1806,21 +1804,21 @@ func parseSwitchStmt() *astStmt {
 	var s = &astStmt{}
 	s.dtype = "*astSwitchStmt"
 	s.switchStmt = switchStmt
-	closeScope()
+	p.closeScope()
 	return s
 }
 
-func parseLhsList() []*astExpr {
+func (p *parser) parseLhsList() []*astExpr {
 	logf(" [%s] start\n", __func__)
-	var list = parseExprList()
+	var list = p.parseExprList()
 	logf(" end %s\n", __func__)
 	return list
 }
 
-func parseSimpleStmt(isRangeOK bool) *astStmt {
+func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 	logf(" begin %s\n", __func__)
 	var s = &astStmt{}
-	var x = parseLhsList()
+	var x = p.parseLhsList()
 	var stok = p.tok.tok
 	var isRange = false
 	var y *astExpr
@@ -1828,10 +1826,10 @@ func parseSimpleStmt(isRangeOK bool) *astStmt {
 	var rangeUnary *astUnaryExpr
 	switch stok {
 	case "=":
-		parserNext() // consume =
+		p.next() // consume =
 		if isRangeOK && p.tok.tok == "range" {
-			parserNext() // consume "range"
-			rangeX = parseRhs()
+			p.next() // consume "range"
+			rangeX = p.parseRhs()
 			rangeUnary = &astUnaryExpr{}
 			rangeUnary.Op = "range"
 			rangeUnary.X = rangeX
@@ -1840,7 +1838,7 @@ func parseSimpleStmt(isRangeOK bool) *astStmt {
 			y.unaryExpr = rangeUnary
 			isRange = true
 		} else {
-			y = parseExpr() // rhs
+			y = p.parseExpr() // rhs
 		}
 		var as = &astAssignStmt{}
 		as.Tok = "="
@@ -1869,7 +1867,7 @@ func parseSimpleStmt(isRangeOK bool) *astStmt {
 		sInc.Tok = stok
 		s.dtype = "*astIncDecStmt"
 		s.incDecStmt = sInc
-		parserNext() // consume "++" or "--"
+		p.next() // consume "++" or "--"
 		return s
 	}
 	var exprStmt = &astExprStmt{}
@@ -1881,13 +1879,13 @@ func parseSimpleStmt(isRangeOK bool) *astStmt {
 	return r
 }
 
-func parseStmt() *astStmt {
+func (p *parser) parseStmt() *astStmt {
 	logf("\n")
 	logf(" = begin %s\n", __func__)
 	var s *astStmt
 	switch p.tok.tok {
 	case "var":
-		var genDecl = parseDecl("var")
+		var genDecl = p.parseDecl("var")
 		s = &astStmt{}
 		s.dtype = "*astDeclStmt"
 		s.DeclStmt = &astDeclStmt{}
@@ -1897,18 +1895,18 @@ func parseStmt() *astStmt {
 		s.DeclStmt.Decl = decl
 		logf(" = end parseStmt()\n")
 	case "IDENT", "*":
-		s = parseSimpleStmt(false)
-		parserExpectSemi(__func__)
+		s = p.parseSimpleStmt(false)
+		p.expectSemi(__func__)
 	case "return":
-		s = parseReturnStmt()
+		s = p.parseReturnStmt()
 	case "break", "continue":
-		s = parseBranchStmt(p.tok.tok)
+		s = p.parseBranchStmt(p.tok.tok)
 	case "if":
-		s = parseIfStmt()
+		s = p.parseIfStmt()
 	case "switch":
-		s = parseSwitchStmt()
+		s = p.parseSwitchStmt()
 	case "for":
-		s = parseForStmt()
+		s = p.parseForStmt()
 	default:
 		panic2(__func__, "TBI 3:"+p.tok.tok)
 	}
@@ -1916,14 +1914,14 @@ func parseStmt() *astStmt {
 	return s
 }
 
-func parseExprList() []*astExpr {
+func (p *parser) parseExprList() []*astExpr {
 	logf(" [%s] start\n", __func__)
 	var list []*astExpr
-	var e = parseExpr()
+	var e = p.parseExpr()
 	list = append(list, e)
 	for p.tok.tok == "," {
-		parserNext() // consume ","
-		e = parseExpr()
+		p.next() // consume ","
+		e = p.parseExpr()
 		list = append(list, e)
 	}
 
@@ -1931,15 +1929,15 @@ func parseExprList() []*astExpr {
 	return list
 }
 
-func parseRhsList() []*astExpr {
-	var list = parseExprList()
+func (p *parser) parseRhsList() []*astExpr {
+	var list = p.parseExprList()
 	return list
 }
 
-func parseBranchStmt(tok string) *astStmt {
-	parserExpect(tok, __func__)
+func (p *parser) parseBranchStmt(tok string) *astStmt {
+	p.expect(tok, __func__)
 
-	parserExpectSemi(__func__)
+	p.expectSemi(__func__)
 
 	var branchStmt = &astBranchStmt{}
 	branchStmt.Tok = tok
@@ -1949,13 +1947,13 @@ func parseBranchStmt(tok string) *astStmt {
 	return s
 }
 
-func parseReturnStmt() *astStmt {
-	parserExpect("return", __func__)
+func (p *parser) parseReturnStmt() *astStmt {
+	p.expect("return", __func__)
 	var x []*astExpr
 	if p.tok.tok != ";" && p.tok.tok != "}" {
-		x = parseRhsList()
+		x = p.parseRhsList()
 	}
-	parserExpectSemi(__func__)
+	p.expectSemi(__func__)
 	var returnStmt = &astReturnStmt{}
 	returnStmt.Results = x
 	var r = &astStmt{}
@@ -1964,55 +1962,55 @@ func parseReturnStmt() *astStmt {
 	return r
 }
 
-func parseStmtList() []*astStmt {
+func (p *parser) parseStmtList () []*astStmt {
 	var list []*astStmt
 	for p.tok.tok != "}" && p.tok.tok != "EOF" && p.tok.tok != "case" && p.tok.tok != "default" {
-		var stmt = parseStmt()
+		var stmt = p.parseStmt()
 		list = append(list, stmt)
 	}
 	return list
 }
 
-func parseBody(scope *astScope) *astBlockStmt {
-	parserExpect("{", __func__)
+func (p *parser) parseBody(scope *astScope) *astBlockStmt {
+	p.expect("{", __func__)
 	p.topScope = scope
 	logf(" begin parseStmtList()\n")
-	var list = parseStmtList()
+	var list = p.parseStmtList()
 	logf(" end parseStmtList()\n")
 
-	closeScope()
-	parserExpect("}", __func__)
+	p.closeScope()
+	p.expect("}", __func__)
 	var r = &astBlockStmt{}
 	r.List = list
 	return r
 }
 
-func parseBlockStmt() *astBlockStmt {
-	parserExpect("{", __func__)
-	openScope()
+func (p *parser) parseBlockStmt() *astBlockStmt {
+	p.expect("{", __func__)
+	p.openScope()
 	logf(" begin parseStmtList()\n")
-	var list = parseStmtList()
+	var list = p.parseStmtList()
 	logf(" end parseStmtList()\n")
-	closeScope()
-	parserExpect("}", __func__)
+	p.closeScope()
+	p.expect("}", __func__)
 	var r = &astBlockStmt{}
 	r.List = list
 	return r
 }
 
-func parseDecl(keyword string) *astGenDecl {
+func (p *parser) parseDecl(keyword string) *astGenDecl {
 	var r *astGenDecl
 	switch p.tok.tok {
 	case "var":
-		parserExpect(keyword, __func__)
-		var ident = parseIdent()
-		var typ = parseType()
+		p.expect(keyword, __func__)
+		var ident = p.parseIdent()
+		var typ = p.parseType()
 		var value *astExpr
 		if p.tok.tok == "=" {
-			parserNext()
-			value = parseExpr()
+			p.next()
+			value = p.parseExpr()
 		}
-		parserExpectSemi(__func__)
+		p.expectSemi(__func__)
 		var valSpec = &astValueSpec{}
 		valSpec.Name = ident
 		valSpec.Type = typ
@@ -2033,10 +2031,10 @@ func parseDecl(keyword string) *astGenDecl {
 	return r
 }
 
-func parserTypeSpec() *astSpec {
+func (p *parser) parserTypeSpec() *astSpec {
 	logf(" [%s] start\n", __func__)
-	parserExpect("type", __func__)
-	var ident = parseIdent()
+	p.expect("type", __func__)
+	var ident = p.parseIdent()
 	logf(" decl type %s\n", ident.Name)
 
 	var spec = &astTypeSpec{}
@@ -2045,8 +2043,8 @@ func parserTypeSpec() *astSpec {
 	objDecl.dtype = "*astTypeSpec"
 	objDecl.typeSpec = spec
 	declare(objDecl, p.topScope, astTyp, ident)
-	var typ = parseType()
-	parserExpectSemi(__func__)
+	var typ = p.parseType()
+	p.expectSemi(__func__)
 	spec.Type = typ
 	var r = &astSpec{}
 	r.dtype = "*astTypeSpec"
@@ -2054,18 +2052,18 @@ func parserTypeSpec() *astSpec {
 	return r
 }
 
-func parserValueSpec(keyword string) *astSpec {
+func (p *parser) parseValueSpec(keyword string) *astSpec {
 	logf(" [parserValueSpec] start\n")
-	parserExpect(keyword, __func__)
-	var ident = parseIdent()
+	p.expect(keyword, __func__)
+	var ident = p.parseIdent()
 	logf(" var = %s\n", ident.Name)
-	var typ = parseType()
+	var typ = p.parseType()
 	var value *astExpr
 	if p.tok.tok == "=" {
-		parserNext()
-		value = parseExpr()
+		p.next()
+		value = p.parseExpr()
 	}
-	parserExpectSemi(__func__)
+	p.expectSemi(__func__)
 	var spec = &astValueSpec{}
 	spec.Name = ident
 	spec.Type = typ
@@ -2085,16 +2083,16 @@ func parserValueSpec(keyword string) *astSpec {
 	return r
 }
 
-func parserFuncDecl() *astDecl {
-	parserExpect("func", __func__)
+func (p *parser) parseFuncDecl() *astDecl {
+	p.expect("func", __func__)
 	var scope = astNewScope(p.topScope) // function scope
 	var receivers *astFieldList
 	if p.tok.tok == "(" {
 		logf("  [parserFuncDecl] parsing method")
-		receivers = parseParameters(scope, false)
+		receivers = p.parseParameters(scope, false)
 	}
-	var ident = parseIdent() // func name
-	var sig = parseSignature(scope)
+	var ident = p.parseIdent() // func name
+	var sig = p.parseSignature(scope)
 	var params = sig.params
 	var results = sig.results
 	if results == nil {
@@ -2105,11 +2103,11 @@ func parserFuncDecl() *astDecl {
 	var body *astBlockStmt
 	if p.tok.tok == "{" {
 		logf(" begin parseBody()\n")
-		body = parseBody(scope)
+		body = p.parseBody(scope)
 		logf(" end parseBody()\n")
-		parserExpectSemi(__func__)
+		p.expectSemi(__func__)
 	} else {
-		parserExpectSemi(__func__)
+		p.expectSemi(__func__)
 	}
 	var decl = &astDecl{}
 	decl.dtype = "*astFuncDecl"
@@ -2130,19 +2128,19 @@ func parserFuncDecl() *astDecl {
 	return decl
 }
 
-func parserFile() *astFile {
+func (p *parser) parseFile() *astFile {
 	// expect "package" keyword
-	parserExpect("package", __func__)
+	p.expect("package", __func__)
 	p.unresolved = nil
-	var ident = parseIdent()
+	var ident = p.parseIdent()
 	var packageName = ident.Name
-	parserExpectSemi(__func__)
+	p.expectSemi(__func__)
 
 	p.topScope = &astScope{} // open scope
 	p.pkgScope = p.topScope
 
 	for p.tok.tok == "import" {
-		parserImportDecl()
+		p.parseImportDecl()
 	}
 
 	logf("\n")
@@ -2153,7 +2151,7 @@ func parserFile() *astFile {
 	for p.tok.tok != "EOF" {
 		switch p.tok.tok {
 		case "var", "const":
-			var spec = parserValueSpec(p.tok.tok)
+			var spec = p.parseValueSpec(p.tok.tok)
 			var genDecl = &astGenDecl{}
 			genDecl.Spec = spec
 			decl = &astDecl{}
@@ -2161,10 +2159,10 @@ func parserFile() *astFile {
 			decl.genDecl = genDecl
 		case "func":
 			logf("\n\n")
-			decl = parserFuncDecl()
+			decl = p.parseFuncDecl()
 			logf(" func decl parsed:%s\n", decl.funcDecl.Name.Name)
 		case "type":
-			var spec = parserTypeSpec()
+			var spec = p.parserTypeSpec()
 			var genDecl = &astGenDecl{}
 			genDecl.Spec = spec
 			decl = &astDecl{}
@@ -2213,10 +2211,10 @@ func parserFile() *astFile {
 func parseFile(filename string) *astFile {
 	var text = readSource(filename)
 
-	p = &parser{}
+	var p = &parser{}
 	p.scanner = &scanner{}
-	parserInit(text)
-	return parserFile()
+	p.init(text)
+	return p.parseFile()
 }
 
 // --- codegen ---
@@ -2328,9 +2326,9 @@ func emitVariableAddr(variable *Variable) {
 	emitComment(2, "emit Addr of variable \"%s\" \n", variable.name)
 
 	if variable.isGlobal {
-		fmtPrintf("  leaq %s(%%rip), %%rax # global variable addr\n", variable.globalSymbol)
+		fmtPrintf("  leaq %s(%%rip), %%rax # global variable addr \"%s\"\n", variable.globalSymbol,  variable.name)
 	} else {
-		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable addr\n", Itoa(variable.localOffset))
+		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable addr \"%s\"\n", Itoa(variable.localOffset),  variable.name)
 	}
 
 	fmtPrintf("  pushq %%rax\n")
