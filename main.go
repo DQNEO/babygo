@@ -4020,6 +4020,11 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			}
 		case "*astArrayType":
 			return e2t(fun)
+		case "*astSelectorExpr": // (X).Sel()
+			var xType = getTypeOfExpr(fun.selectorExpr.X)
+			var method = lookupMethod(xType, fun.selectorExpr.Sel)
+			assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value", __func__)
+			return e2t(method.funcType.Results.List[0].Type)
 		default:
 			panic2(__func__, "[astCallExpr] dtype="+expr.callExpr.Fun.dtype)
 		}

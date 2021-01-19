@@ -87,7 +87,9 @@ func testStructPointerMethods() {
 	var p = &MyStruct{
 		field1: 10,
 	}
-	writeln(itoa(p.getField1()))
+
+	var f1 = p.getField1() // infer method return type
+	writeln(itoa(f1))
 	p.setField1(20)
 	writeln(itoa(p.getField1()))
 }

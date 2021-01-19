@@ -1992,7 +1992,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			}
 		case *ast.ArrayType: // conversion [n]T(e) or []T(e)
 			return e2t(fn)
-		case *ast.SelectorExpr: // X.Sel()
+		case *ast.SelectorExpr: // (X).Sel()
 			xIdent, ok := fn.X.(*ast.Ident)
 			if !ok {
 				throw(fn)
@@ -2001,7 +2001,10 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				// unsafe.Pointer(x)
 				return tUintptr
 			} else {
-				panic("TBI")
+				// method call
+				xType := getTypeOfExpr(fn.X)
+				method := lookupMethod(xType, fn.Sel)
+				return e2t(method.funcType.Results.List[0].Type)
 			}
 			throw(fmt.Sprintf("%#v, %#v\n", xIdent, fn.Sel))
 		default:
