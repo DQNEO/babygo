@@ -3770,8 +3770,21 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmtPrintf("  ret\n")
 }
 
+func emitGlobalVariableComplex(name *astIdent, t *Type, val *astExpr) {
+	typeKind := kind(t)
+	switch typeKind {
+	case T_POINTER:
+		fmtPrintf("# init global %s: # T %s\n", name.Name, typeKind)
+		lhs := &astExpr{
+			ident: name,
+			dtype: "*astIdent",
+		}
+		emitAssign(lhs, val)
+	}
+}
+
 func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
-	var typeKind = kind(t)
+	typeKind := kind(t)
 	fmtPrintf("%s: # T %s\n", name.Name, typeKind)
 	switch typeKind {
 	case T_STRING:
@@ -3783,10 +3796,6 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 			fmtPrintf("  .quad 0\n")
 			fmtPrintf("  .quad 0\n")
 		}
-	case T_POINTER:
-		fmtPrintf("  .quad 0 # pointer \n") // @TODO
-	case T_UINTPTR:
-		fmtPrintf("  .quad 0\n")
 	case T_BOOL:
 		if val != nil {
 			switch val.dtype {
@@ -3811,7 +3820,11 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 		fmtPrintf("  .byte 0\n")
 	case T_UINT16:
 		fmtPrintf("  .word 0\n")
+	case T_POINTER, T_UINTPTR:
+		// only zero value
+		fmtPrintf("  .quad 0\n")
 	case T_SLICE:
+		// only zero value
 		fmtPrintf("  .quad 0 # ptr\n")
 		fmtPrintf("  .quad 0 # len\n")
 		fmtPrintf("  .quad 0 # cap\n")
@@ -3892,6 +3905,22 @@ func emitText(pkgName string, funcs []*Func) {
 
 func generateCode(pkgContainer *PkgContainer) {
 	emitData(pkgContainer.name, pkgContainer.vars, stringLiterals)
+	fmtPrintf("\n")
+	fmtPrintf(".text\n")
+	fmtPrintf("%s.__initGlobals:\n", pkgContainer.name)
+	var spec *astValueSpec
+	for _, spec = range pkgContainer.vars {
+		if spec.Value == nil{
+			continue
+		}
+		val := spec.Value
+		var t *Type
+		if spec.Type != nil {
+			t = e2t(spec.Type)
+		}
+		emitGlobalVariableComplex(spec.Name, t, val)
+	}
+
 	emitText(pkgContainer.name, pkgContainer.funcs)
 }
 

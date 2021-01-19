@@ -1690,9 +1690,18 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("  ret\n")
 }
 
+func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
+	typeKind := kind(t)
+	switch typeKind {
+	case T_POINTER:
+		fmt.Printf("# init global %s: # T %s\n", name.Name, typeKind)
+		emitAssign(name, val)
+	}
+}
+
 func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 	typeKind := kind(t)
-	fmt.Printf("%s: # T %s\n", name.Name, typeKind)
+	fmtPrintf("%s: # T %s\n", name.Name, string(typeKind))
 	switch typeKind {
 	case T_STRING:
 		switch vl := val.(type) {
@@ -1809,8 +1818,7 @@ func emitData(pkgName string) {
 	emitComment(0, "==============================\n")
 }
 
-func emitText(pkgName string) {
-	fmt.Printf(".text\n")
+func emitFuncs(pkgName string) {
 	var fnc *Func
 	for _, fnc = range globalFuncs {
 		emitFuncDecl(pkgName, fnc)
@@ -1819,7 +1827,24 @@ func emitText(pkgName string) {
 
 func generateCode(pkgName string) {
 	emitData(pkgName)
-	emitText(pkgName)
+
+	fmtPrintf("\n")
+	fmtPrintf(".text\n")
+	fmtPrintf("%s.__initGlobals:\n", pkgName)
+	for _, spec := range globalVars {
+		if len(spec.Values) == 0 {
+			continue
+		}
+		val := spec.Values[0]
+		var t *Type
+		if spec.Type != nil {
+			t = e2t(spec.Type)
+		}
+		emitGlobalVariableComplex(spec.Names[0], t, val)
+	}
+	fmt.Printf("  ret\n")
+
+	emitFuncs(pkgName)
 }
 
 // --- type ---

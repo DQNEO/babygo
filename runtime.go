@@ -18,6 +18,12 @@ const SYS_EXIT int = 60
 var __argv__ []*uint8 // C argv
 var __args__ []string   // GO os.Args
 
+func heapInit() {
+	heapHead = brk(0)
+	heapTail = brk(heapHead + heapSize)
+	heapCurrent = heapHead
+}
+
 func cstring2string(b *uint8) string {
 	var buf []uint8
 	for {
@@ -39,11 +45,6 @@ func argsInit() {
 	}
 }
 
-func heapInit() {
-	heapHead = brk(0)
-	heapTail = brk(heapHead + heapSize)
-	heapCurrent = heapHead
-}
 
 func brk(addr uintptr) uintptr {
 	var ret uintptr
