@@ -5138,16 +5138,40 @@ type PkgContainer struct {
 	funcs []*Func
 }
 
+func showHelp() {
+	fmtPrintf("Usage:\n")
+	fmtPrintf("    babygo version:  show version\n")
+	fmtPrintf("    babygo [-DF] [-DG] filename\n")
+}
+
 func main() {
 	initGlobals()
 	var universe = createUniverse()
-	if os.Args[1] == "version"{
+	if len(os.Args) == 1 {
+		showHelp()
+		return
+	}
+
+	if os.Args[1] == "version" {
 		fmtPrintf("babygo version 0.1.0  linux/amd64\n")
+		return
+	} else if os.Args[1] == "help" {
+		showHelp()
 		return
 	} else if os.Args[1] == "panic" {
 		panic("I am panic")
 	}
-	var inputFile = os.Args[1]
+
+	var arg string
+	for _, arg = range os.Args {
+		switch arg {
+		case "-DF":
+			debugFrontEnd = true
+		case "-DG":
+			debugCodeGen = true
+		}
+	}
+	var inputFile = arg
 	var sourceFiles = []string{"runtime.go", inputFile}
 
 	var sourceFile string
