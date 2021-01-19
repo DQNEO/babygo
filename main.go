@@ -948,7 +948,7 @@ func (p *parser) tryVarType(ellipsisOK bool) *astExpr {
 		p.next() // consume "..."
 		var typ = p.tryIdentOrType()
 		if typ != nil {
-			p.parserResolve(typ)
+			p.resolve(typ)
 		} else {
 			panic2(__func__, "Syntax error")
 		}
@@ -977,7 +977,7 @@ func (p *parser) tryType() *astExpr {
 	logf(" [%s] begin\n", __func__)
 	var typ = p.tryIdentOrType()
 	if typ != nil {
-		p.parserResolve(typ)
+		p.resolve(typ)
 	}
 	logf(" [%s] end\n", __func__)
 	return typ
@@ -1030,7 +1030,7 @@ func (p *parser) parseFieldDecl(scope *astScope) *astField {
 		Name : varType.ident,
 	}
 	declareField(field, scope, astVar, varType.ident)
-	p.parserResolve(typ)
+	p.resolve(typ)
 	return field
 }
 
@@ -1133,7 +1133,7 @@ func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astFiel
 		logf(" [%s]: Field %s %s\n", __func__, field.Name.Name, field.Type.dtype)
 		params = append(params, field)
 		declareField(field, scope, astVar, ident)
-		p.parserResolve(typ)
+		p.resolve(typ)
 		if p.tok.tok != "," {
 			logf("  end %s\n", __func__)
 			return params
@@ -1148,7 +1148,7 @@ func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astFiel
 			}
 			params = append(params, field)
 			declareField(field, scope, astVar, ident)
-			p.parserResolve(typ)
+			p.resolve(typ)
 			if p.tok.tok != "," {
 				break
 			}
@@ -1162,7 +1162,7 @@ func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astFiel
 	params = make([]*astField, len(list), len(list))
 	var i int
 	for i, typ = range list {
-		p.parserResolve(typ)
+		p.resolve(typ)
 		params[i] = &astField{
 			Type: typ,
 		}
@@ -1186,7 +1186,7 @@ func (p *parser) parseParameters(scope *astScope, ellipsisOk bool) *astFieldList
 	}
 }
 
-func (p *parser) parserResult(scope *astScope) *astFieldList {
+func (p *parser) parseResult(scope *astScope) *astFieldList {
 	logf(" [%s] begin\n", __func__)
 
 	if p.tok.tok == "(" {
@@ -1216,7 +1216,7 @@ func (p *parser) parseSignature(scope *astScope) *signature {
 	var params *astFieldList
 	var results *astFieldList
 	params = p.parseParameters(scope, true)
-	results = p.parserResult(scope)
+	results = p.parseResult(scope)
 	return &signature{
 		params:  params,
 		results: results,
@@ -1261,7 +1261,7 @@ func declare(objDecl *ObjDecl, scope *astScope, kind string, ident *astIdent) {
 
 }
 
-func (p *parser) parserResolve(x *astExpr) {
+func (p *parser) resolve(x *astExpr) {
 	p.tryResolve(x, true)
 }
 func (p *parser) tryResolve(x *astExpr, collectUnresolved bool) {
@@ -1314,7 +1314,7 @@ func (p *parser) parseOperand() *astExpr {
 	case "(":
 		p.next() // consume "("
 		parserExprLev++
-		var x = p.parserRhsOrType()
+		var x = p.parseRhsOrType()
 		parserExprLev--
 		p.expect(")", __func__)
 		return &astExpr{
@@ -1334,7 +1334,7 @@ func (p *parser) parseOperand() *astExpr {
 	return typ
 }
 
-func (p *parser) parserRhsOrType() *astExpr {
+func (p *parser) parseRhsOrType() *astExpr {
 	var x = p.parseExpr()
 	return x
 }
@@ -1407,7 +1407,7 @@ func (p *parser) parsePrimaryExpr() *astExpr {
 		case "(":
 			x = p.parseCallExpr(x)
 		case "[":
-			p.parserResolve(x)
+			p.resolve(x)
 			x = p.parseIndexOrSlice(x)
 		case "{":
 			if isLiteralType(x) && parserExprLev >= 0 {
@@ -1425,7 +1425,7 @@ func (p *parser) parsePrimaryExpr() *astExpr {
 	return x
 }
 
-func (p *parser) parserElement() *astExpr {
+func (p *parser) parseElement() *astExpr {
 	var x = p.parseExpr() // key or value
 	var v *astExpr
 	var kvExpr *astKeyValueExpr
@@ -1444,11 +1444,11 @@ func (p *parser) parserElement() *astExpr {
 	return x
 }
 
-func (p *parser) parserElementList() []*astExpr {
+func (p *parser) parseElementList() []*astExpr {
 	var list []*astExpr
 	var e *astExpr
 	for p.tok.tok != "}" {
-		e = p.parserElement()
+		e = p.parseElement()
 		list = append(list, e)
 		if p.tok.tok != "," {
 			break
@@ -1463,7 +1463,7 @@ func (p *parser) parseLiteralValue(typ *astExpr) *astExpr {
 	p.expect("{", __func__)
 	var elts []*astExpr
 	if p.tok.tok != "}" {
-		elts = p.parserElementList()
+		elts = p.parseElementList()
 	}
 	p.expect("}", __func__)
 
