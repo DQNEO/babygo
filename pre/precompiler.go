@@ -811,6 +811,13 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			}
 			emitCall(symbol, args, resultList)
 			return
+		case gPanic:
+			symbol = "runtime.panic"
+			_args := []*Arg{&Arg{
+				e: eArgs[0],
+			}}
+			emitCall(symbol, _args, nil)
+			return
 		}
 
 		if fn.Name == "print" {
@@ -2847,6 +2854,14 @@ var gCap = &ast.Object{
 	Type: nil,
 }
 
+var gPanic = &ast.Object{
+	Kind: ast.Fun,
+	Name: "panic",
+	Decl: nil,
+	Data: nil,
+	Type: nil,
+}
+
 // func type of runtime functions
 var funcTypeOsExit = &ast.FuncType{
 	Params: &ast.FieldList{
@@ -2973,6 +2988,7 @@ func createUniverse() *ast.Scope {
 	universe.Insert(gAppend)
 	universe.Insert(gLen)
 	universe.Insert(gCap)
+	universe.Insert(gPanic)
 
 	universe.Insert(&ast.Object{
 		Kind: ast.Fun,

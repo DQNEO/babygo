@@ -16,12 +16,6 @@ func throw(s string) {
 
 var __func__ string = "__func__"
 
-func panic(x string) {
-	var s = "panic: " + x + "\n\n"
-	syscall.Write(1, []uint8(s))
-	os.Exit(1)
-}
-
 func panic2(caller string, x string) {
 	panic("[" + caller + "] " + x)
 }
@@ -2914,6 +2908,13 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			}
 			emitCall(symbol, args, resultList)
 			return
+		case gPanic:
+			symbol = "runtime.panic"
+			_args := []*Arg{&Arg{
+				e: eArgs[0],
+			}}
+			emitCall(symbol, _args, nil)
+			return
 		}
 
 		var fn = fun.ident
@@ -4801,6 +4802,7 @@ var gMake *astObject
 var gAppend *astObject
 var gLen *astObject
 var gCap *astObject
+var gPanic *astObject
 
 // func type of runtime functions
 var funcTypeOsExit *astFuncType
@@ -4826,6 +4828,7 @@ func createUniverse() *astScope {
 	scopeInsert(universe, gAppend)
 	scopeInsert(universe, gLen)
 	scopeInsert(universe, gCap)
+	scopeInsert(universe, gPanic)
 
 	logf(" [%s] scope insertion of predefined identifiers complete\n", __func__)
 
@@ -5025,6 +5028,11 @@ func initGlobals() {
 		Name: "cap",
 	}
 
+	gPanic = &astObject{
+		Kind: astFun,
+		Name: "panic",
+	}
+
 	funcTypeOsExit = &astFuncType{
 		Params: &astFieldList{
 			List: []*astField{
@@ -5136,6 +5144,8 @@ func main() {
 	if os.Args[1] == "version"{
 		fmtPrintf("babygo version 0.1.0  linux/amd64\n")
 		return
+	} else if os.Args[1] == "panic" {
+		panic("I am panic")
 	}
 	var inputFile = os.Args[1]
 	var sourceFiles = []string{"runtime.go", inputFile}

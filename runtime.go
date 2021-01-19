@@ -51,7 +51,8 @@ func brk(addr uintptr) uintptr {
 	return ret
 }
 
-func panic(s string) {
+func panic(x string) {
+	var s = "panic: " + x + "\n\n"
 	syscall.Write(2, []uint8(s))
 	syscall.Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
 }
