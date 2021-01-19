@@ -1706,17 +1706,6 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 		default:
 			panic("Unexpected case")
 		}
-	case T_POINTER:
-		fmtPrintf("  .quad 0 # pointer \n") // @TODO
-	case T_UINTPTR:
-		switch vl := val.(type) {
-		case *ast.BasicLit:
-			fmt.Printf("  .quad %s\n", vl.Value)
-		case nil:
-			fmt.Printf("  .quad 0\n")
-		default:
-			throw(val)
-		}
 	case T_BOOL:
 		switch vl := val.(type) {
 		case *ast.Ident:
@@ -1760,12 +1749,16 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 		default:
 			throw(val)
 		}
+	case T_POINTER, T_UINTPTR:
+		// only zero value
+		fmtPrintf("  .quad 0\n")
 	case T_SLICE:
+		// only zero value
 		fmtPrintf("  .quad 0 # ptr\n")
 		fmtPrintf("  .quad 0 # len\n")
 		fmtPrintf("  .quad 0 # cap\n")
 	case T_ARRAY:
-		// emit global zero values
+		// only zero value
 		if val != nil {
 			panic("TBI")
 		}

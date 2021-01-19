@@ -74,6 +74,18 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+var gInt int = 1010
+var gBool bool = true
+var gString string = "gString"
+
+func testGlobalValues() {
+	writeln(itoa(gInt))
+	if gBool {
+		writeln("gBool is true")
+	}
+	writeln(gString)
+}
+
 func testShortVarDecl() {
 	x := 123
 	writeln(itoa(x))
@@ -1396,9 +1408,10 @@ func testMisc() {
 }
 
 func test() {
-	//testBasicMethodCalls()
+	testGlobalValues()
 	testShortVarDecl()
 	testStructPointerMethods()
+	//testBasicMethodCalls()
 	testPointerMethod()
 	testMethodAnother()
 	testMethodSimple()
