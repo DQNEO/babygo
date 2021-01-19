@@ -160,7 +160,7 @@ type scanner struct {
 	insertSemi bool
 }
 
-func scannerNext(s *scanner) {
+func (s *scanner) scannerNext() {
 	if s.nextOffset < len(s.src) {
 		s.offset = s.nextOffset
 		s.ch = s.src[s.offset]
@@ -173,7 +173,7 @@ func scannerNext(s *scanner) {
 
 var keywords []string
 
-func scannerInit(s *scanner, src []uint8) {
+func (s *scanner) scannerInit(src []uint8) {
 	// https://golang.org/ref/spec#Keywords
 	keywords = []string{
 		"break", "default", "func", "interface", "select",
@@ -188,7 +188,7 @@ func scannerInit(s *scanner, src []uint8) {
 	s.nextOffset = 0
 	s.insertSemi = false
 	logf("src len = %s\n", Itoa(len(s.src)))
-	scannerNext(s)
+	s.scannerNext()
 }
 
 func isLetter(ch uint8) bool {
@@ -202,61 +202,61 @@ func isDecimal(ch uint8) bool {
 	return '0' <= ch && ch <= '9'
 }
 
-func scannerScanIdentifier(s *scanner) string {
+func (s *scanner) scannerScanIdentifier() string {
 	var offset = s.offset
 	for isLetter(s.ch) || isDecimal(s.ch) {
-		scannerNext(s)
+		s.scannerNext()
 	}
 	return string(s.src[offset:s.offset])
 }
 
-func scannerScanNumber(s *scanner) string {
+func (s *scanner) scannerScanNumber() string {
 	var offset = s.offset
 	for isDecimal(s.ch) {
-		scannerNext(s)
+		s.scannerNext()
 	}
 	return string(s.src[offset:s.offset])
 }
 
-func scannerScanString(s *scanner) string {
+func (s *scanner) scannerScanString() string {
 	var offset = s.offset - 1
 	var escaped bool
 	for !escaped && s.ch != '"' {
 		if s.ch == '\\' {
 			escaped = true
-			scannerNext(s)
-			scannerNext(s)
+			s.scannerNext()
+			s.scannerNext()
 			escaped = false
 			continue
 		}
-		scannerNext(s)
+		s.scannerNext()
 	}
-	scannerNext(s) // consume ending '""
+	s.scannerNext() // consume ending '""
 	return string(s.src[offset:s.offset])
 }
 
-func scannerScanChar(s *scanner) string {
+func (s *scanner) scannerScanChar() string {
 	// '\'' opening already consumed
 	var offset = s.offset - 1
 	var ch uint8
 	for {
 		ch = s.ch
-		scannerNext(s)
+		s.scannerNext()
 		if ch == '\'' {
 			break
 		}
 		if ch == '\\' {
-			scannerNext(s)
+			s.scannerNext()
 		}
 	}
 
 	return string(s.src[offset:s.offset])
 }
 
-func scannerrScanComment(s *scanner) string {
+func (s *scanner) scannerrScanComment() string {
 	var offset = s.offset - 1
 	for s.ch != '\n' {
-		scannerNext(s)
+		s.scannerNext()
 	}
 	return string(s.src[offset:s.offset])
 }
@@ -268,21 +268,21 @@ type TokenContainer struct {
 }
 
 // https://golang.org/ref/spec#Tokens
-func scannerSkipWhitespace(s *scanner) {
+func (s *scanner) scannerSkipWhitespace() {
 	for s.ch == ' ' || s.ch == '\t' || (s.ch == '\n' && !s.insertSemi) || s.ch == '\r' {
-		scannerNext(s)
+		s.scannerNext()
 	}
 }
 
-func scannerScan(s *scanner) *TokenContainer {
-	scannerSkipWhitespace(s)
+func (s *scanner) scannerScan() *TokenContainer {
+	s.scannerSkipWhitespace()
 	var tc = &TokenContainer{}
 	var lit string
 	var tok string
 	var insertSemi bool
 	var ch = s.ch
 	if isLetter(ch) {
-		lit = scannerScanIdentifier(s)
+		lit = s.scannerScanIdentifier()
 		if inArray(lit, keywords) {
 			tok = lit
 			switch tok {
@@ -295,10 +295,10 @@ func scannerScan(s *scanner) *TokenContainer {
 		}
 	} else if isDecimal(ch) {
 		insertSemi = true
-		lit = scannerScanNumber(s)
+		lit = s.scannerScanNumber()
 		tok = "INT"
 	} else {
-		scannerNext(s)
+		s.scannerNext()
 		switch ch {
 		case '\n':
 			tok = ";"
@@ -306,11 +306,11 @@ func scannerScan(s *scanner) *TokenContainer {
 			insertSemi = false
 		case '"': // double quote
 			insertSemi = true
-			lit = scannerScanString(s)
+			lit = s.scannerScanString()
 			tok = "STRING"
 		case '\'': // single quote
 			insertSemi = true
-			lit = scannerScanChar(s)
+			lit = s.scannerScanChar()
 			tok = "CHAR"
 		// https://golang.org/ref/spec#Operators_and_punctuation
 		//	+    &     +=    &=     &&    ==    !=    (    )
@@ -321,7 +321,7 @@ func scannerScan(s *scanner) *TokenContainer {
 		//	&^          &^=
 		case ':': // :=, :
 			if s.ch == '=' {
-				scannerNext(s)
+				s.scannerNext()
 				tok = ":="
 			} else {
 				tok = ":"
@@ -329,8 +329,8 @@ func scannerScan(s *scanner) *TokenContainer {
 		case '.': // ..., .
 			var peekCh = s.src[s.nextOffset]
 			if s.ch == '.' && peekCh == '.' {
-				scannerNext(s)
-				scannerNext(s)
+				s.scannerNext()
+				s.scannerNext()
 				tok = "..."
 			} else {
 				tok = "."
@@ -358,10 +358,10 @@ func scannerScan(s *scanner) *TokenContainer {
 		case '+': // +=, ++, +
 			switch s.ch {
 			case '=':
-				scannerNext(s)
+				s.scannerNext()
 				tok = "+="
 			case '+':
-				scannerNext(s)
+				s.scannerNext()
 				tok = "++"
 				insertSemi = true
 			default:
@@ -370,18 +370,18 @@ func scannerScan(s *scanner) *TokenContainer {
 		case '-': // -= --  -
 			switch s.ch {
 			case '-':
-				scannerNext(s)
+				s.scannerNext()
 				tok = "--"
 				insertSemi = true
 			case '=':
-				scannerNext(s)
+				s.scannerNext()
 				tok = "-="
 			default:
 				tok = "-"
 			}
 		case '*': // *=  *
 			if s.ch == '=' {
-				scannerNext(s)
+				s.scannerNext()
 				tok = "*="
 			} else {
 				tok = "*"
@@ -399,7 +399,7 @@ func scannerScan(s *scanner) *TokenContainer {
 					s.insertSemi = false
 					return tc
 				}
-				lit = scannerrScanComment(s)
+				lit = s.scannerrScanComment()
 				tok = "COMMENT"
 			} else if s.ch == '=' {
 				tok = "/="
@@ -408,14 +408,14 @@ func scannerScan(s *scanner) *TokenContainer {
 			}
 		case '%': // %= %
 			if s.ch == '=' {
-				scannerNext(s)
+				s.scannerNext()
 				tok = "%="
 			} else {
 				tok = "%"
 			}
 		case '^': // ^= ^
 			if s.ch == '=' {
-				scannerNext(s)
+				s.scannerNext()
 				tok = "^="
 			} else {
 				tok = "^"
@@ -423,19 +423,19 @@ func scannerScan(s *scanner) *TokenContainer {
 		case '<': //  <= <- <<= <<
 			switch s.ch {
 			case '-':
-				scannerNext(s)
+				s.scannerNext()
 				tok = "<-"
 			case '=':
-				scannerNext(s)
+				s.scannerNext()
 				tok = "<="
 			case '<':
 				var peekCh = s.src[s.nextOffset]
 				if peekCh == '=' {
-					scannerNext(s)
-					scannerNext(s)
+					s.scannerNext()
+					s.scannerNext()
 					tok = "<<="
 				} else {
-					scannerNext(s)
+					s.scannerNext()
 					tok = "<<"
 				}
 			default:
@@ -444,16 +444,16 @@ func scannerScan(s *scanner) *TokenContainer {
 		case '>': // >= >>= >> >
 			switch s.ch {
 			case '=':
-				scannerNext(s)
+				s.scannerNext()
 				tok = ">="
 			case '>':
 				var peekCh = s.src[s.nextOffset]
 				if peekCh == '=' {
-					scannerNext(s)
-					scannerNext(s)
+					s.scannerNext()
+					s.scannerNext()
 					tok = ">>="
 				} else {
-					scannerNext(s)
+					s.scannerNext()
 					tok = ">>"
 				}
 			default:
@@ -461,14 +461,14 @@ func scannerScan(s *scanner) *TokenContainer {
 			}
 		case '=': // == =
 			if s.ch == '=' {
-				scannerNext(s)
+				s.scannerNext()
 				tok = "=="
 			} else {
 				tok = "="
 			}
 		case '!': // !=, !
 			if s.ch == '=' {
-				scannerNext(s)
+				s.scannerNext()
 				tok = "!="
 			} else {
 				tok = "!"
@@ -476,19 +476,19 @@ func scannerScan(s *scanner) *TokenContainer {
 		case '&': // & &= && &^ &^=
 			switch s.ch {
 			case '=':
-				scannerNext(s)
+				s.scannerNext()
 				tok = "&="
 			case '&':
-				scannerNext(s)
+				s.scannerNext()
 				tok = "&&"
 			case '^':
 				var peekCh = s.src[s.nextOffset]
 				if peekCh == '=' {
-					scannerNext(s)
-					scannerNext(s)
+					s.scannerNext()
+					s.scannerNext()
 					tok = "&^="
 				} else {
-					scannerNext(s)
+					s.scannerNext()
 					tok = "&^"
 				}
 			default:
@@ -497,10 +497,10 @@ func scannerScan(s *scanner) *TokenContainer {
 		case '|': // |= || |
 			switch s.ch {
 			case '|':
-				scannerNext(s)
+				s.scannerNext()
 				tok = "||"
 			case '=':
-				scannerNext(s)
+				s.scannerNext()
 				tok = "|="
 			default:
 				tok = "|"
@@ -845,7 +845,8 @@ func readSource(filename string) []uint8 {
 }
 
 func (p *parser) init(src []uint8) {
-	scannerInit(p.scanner, src)
+	var s = p.scanner
+	s.scannerInit(src)
 	p.next()
 }
 
@@ -875,7 +876,8 @@ func (p *parser) consumeComment() {
 }
 
 func (p *parser) next0() {
-	p.tok = scannerScan(p.scanner)
+	var s = p.scanner
+	p.tok = s.scannerScan()
 }
 
 func (p *parser) next() {
