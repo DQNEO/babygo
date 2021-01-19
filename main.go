@@ -536,6 +536,7 @@ type ObjDecl struct {
 	funcDecl  *astFuncDecl
 	typeSpec  *astTypeSpec
 	field     *astField
+	assignment *astAssignStmt
 }
 
 type astObject struct {
@@ -1827,7 +1828,8 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 	var rangeX *astExpr
 	var rangeUnary *astUnaryExpr
 	switch stok {
-	case "=":
+	case ":=", "=":
+		var assignToken = stok
 		p.next() // consume =
 		if isRangeOK && p.tok.tok == "range" {
 			p.next() // consume "range"
@@ -1843,21 +1845,29 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 			y = p.parseExpr() // rhs
 		}
 		var as = &astAssignStmt{}
-		as.Tok = "="
+		as.Tok = assignToken
 		as.Lhs = x
 		as.Rhs = make([]*astExpr, 1, 1)
 		as.Rhs[0] = y
 		s.dtype = "*astAssignStmt"
 		s.assignStmt = as
 		s.isRange = isRange
-		logf(" end %s\n", __func__)
+		if assignToken == ":=" {
+			// Obj.Decl = astAssignStmt
+			var objDecl = &ObjDecl{
+				dtype: "*astAssignStmt",
+				assignment: as,
+			}
+			declare(objDecl, p.topScope, astVar, x[0].ident)
+		}
+		logf(" parseSimpleStmt end =, := %s\n", __func__)
 		return s
 	case ";":
 		s.dtype = "*astExprStmt"
 		var exprStmt = &astExprStmt{}
 		exprStmt.X = x[0]
 		s.exprStmt = exprStmt
-		logf(" end %s\n", __func__)
+		logf(" parseSimpleStmt end ; %s\n", __func__)
 		return s
 	}
 
@@ -1877,7 +1887,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 	var r = &astStmt{}
 	r.dtype = "*astExprStmt"
 	r.exprStmt = exprStmt
-	logf(" end %s\n", __func__)
+	logf(" parseSimpleStmt end (final) %s\n", __func__)
 	return r
 }
 
@@ -2362,6 +2372,9 @@ func emitAddr(expr *astExpr) {
 	emitComment(2, "[emitAddr] %s\n", expr.dtype)
 	switch expr.dtype {
 	case "*astIdent":
+		if expr.ident.Obj == nil {
+			throw("expr.ident.Obj is nil: " + expr.ident.Name)
+		}
 		if expr.ident.Obj.Kind == astVar {
 			assert(expr.ident.Obj.Variable != nil,
 				"ERROR: Obj.Variable is not set for ident : "+expr.ident.Obj.Name, __func__)
@@ -3409,6 +3422,10 @@ func emitStmt(stmt *astStmt) {
 			var lhs = stmt.assignStmt.Lhs
 			var rhs = stmt.assignStmt.Rhs
 			emitAssign(lhs[0], rhs[0])
+		case ":=":
+			var lhs = stmt.assignStmt.Lhs
+			var rhs = stmt.assignStmt.Rhs
+			emitAssign(lhs[0], rhs[0])
 		default:
 			panic2(__func__, "TBI: assignment of "+stmt.assignStmt.Tok)
 		}
@@ -3926,8 +3943,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				var t = &Type{}
 				t.e = decl.Type
 				return t
+			case "*astAssignStmt": // lhs := rhs
+				return getTypeOfExpr(expr.ident.Obj.Decl.assignment.Rhs[0])
 			default:
-				panic2(__func__, "ERROR 0\n")
+				panic2(__func__, "dtype:" + expr.ident.Obj.Decl.dtype )
 			}
 		case astCon:
 			switch expr.ident.Obj {
@@ -4504,10 +4523,23 @@ func walkStmt(stmt *astStmt) {
 			walkExpr(valSpec.Value)
 		}
 	case "*astAssignStmt":
-		var rhs = stmt.assignStmt.Rhs
-		var rhsE *astExpr
-		for _, rhsE = range rhs {
-			walkExpr(rhsE)
+		var lhs = stmt.assignStmt.Lhs[0]
+		var rhs = stmt.assignStmt.Rhs[0]
+		if stmt.assignStmt.Tok == ":=" {
+			assert(lhs.dtype == "*astIdent", "should be ident", __func__)
+			var obj = lhs.ident.Obj
+			assert(obj.Kind == astVar, "should be ast.Var", __func__)
+			walkExpr(rhs)
+			// infer type
+			var typ = getTypeOfExpr(rhs)
+			if typ != nil && typ.e != nil {
+			} else {
+				panic("type inference is not supported: " + obj.Name)
+			}
+			localoffset = localoffset - getSizeOfType(typ)
+			obj.Variable = newLocalVariable(obj.Name, localoffset)
+		} else {
+			walkExpr(rhs)
 		}
 	case "*astExprStmt":
 		walkExpr(stmt.exprStmt.X)

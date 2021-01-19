@@ -1353,6 +1353,10 @@ func emitStmt(stmt ast.Stmt) {
 			lhs := s.Lhs[0]
 			rhs := s.Rhs[0]
 			emitAssign(lhs, rhs)
+		case ":=":
+			lhs := s.Lhs[0]
+			rhs := s.Rhs[0]
+			emitAssign(lhs, rhs)
 		default:
 			panic("TBI: assignment of " + s.Tok.String())
 		}
@@ -1905,6 +1909,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				return e2t(dcl.Type)
 			case *ast.Field:
 				return e2t(dcl.Type)
+			case *ast.AssignStmt: // lhs := rhs
+				return getTypeOfExpr(dcl.Rhs[0])
 			default:
 				throw(e.Obj.Decl)
 			}
@@ -2468,9 +2474,27 @@ func walkStmt(stmt ast.Stmt) {
 		}
 
 	case *ast.AssignStmt:
-		//lhs := s.Lhs[0]
+		lhs := s.Lhs[0]
 		rhs := s.Rhs[0]
-		walkExpr(rhs)
+		if s.Tok.String() == ":=" {
+			// short var decl
+			ident, ok := lhs.(*ast.Ident)
+			assert(ok, "should be ident")
+			obj := ident.Obj
+			assert(obj.Kind == ast.Var, "should be ast.Var")
+			walkExpr(rhs)
+			// infer type
+			typ := getTypeOfExpr(rhs)
+			if typ != nil && typ.e != nil {
+			} else {
+				panic("type inference is not supported: " + obj.Name)
+			}
+			localoffset -= localoffsetint(getSizeOfType(typ))
+			obj.Data = newLocalVariable(obj.Name, localoffset)
+
+		} else {
+			walkExpr(rhs)
+		}
 	case *ast.ReturnStmt:
 		for _, r := range s.Results {
 			walkExpr(r)

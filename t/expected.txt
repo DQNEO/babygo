@@ -1,3 +1,7 @@
+123
+10
+infer string literal
+8
 10
 20
 1
