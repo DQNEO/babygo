@@ -82,6 +82,8 @@ var gPointer *MyStruct = &MyStruct{
 	field2: 22,
 }
 
+var gChar uint8 = 'A'
+
 func testGlobalValues() {
 	writeln(itoa(gInt))
 	if gBool {
@@ -89,6 +91,7 @@ func testGlobalValues() {
 	}
 	writeln(gString)
 	writeln(itoa(gPointer.field2))
+	writeln(itoa(int(gChar)))
 }
 
 func testShortVarDecl() {

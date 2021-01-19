@@ -3788,49 +3788,91 @@ func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
 	fmtPrintf("%s: # T %s\n", name.Name, typeKind)
 	switch typeKind {
 	case T_STRING:
-		if val != nil && val.dtype == "*astBasicLit" {
+		if val == nil {
+			fmtPrintf("  .quad 0\n")
+			fmtPrintf("  .quad 0\n")
+			return
+		}
+		switch val.dtype {
+		case "*astBasicLit":
 			var sl = getStringLiteral(val.basicLit)
 			fmtPrintf("  .quad %s\n", sl.label)
 			fmtPrintf("  .quad %d\n", Itoa(sl.strlen))
-		} else {
-			fmtPrintf("  .quad 0\n")
-			fmtPrintf("  .quad 0\n")
+		default:
+			panic("Unsupported global string value")
 		}
 	case T_BOOL:
-		if val != nil {
-			switch val.dtype {
-			case "*astIdent":
-				switch val.ident.Obj {
-				case gTrue:
-					fmtPrintf("  .quad 1 # bool true\n")
-				case gFalse:
-					fmtPrintf("  .quad 0 # bool false\n")
-				default:
-					panic2(__func__, "")
-				}
+		if val == nil {
+			fmtPrintf("  .quad 0 # bool zero value\n")
+			return
+		}
+		switch val.dtype {
+		case "*astIdent":
+			switch val.ident.Obj {
+			case gTrue:
+				fmtPrintf("  .quad 1 # bool true\n")
+			case gFalse:
+				fmtPrintf("  .quad 0 # bool false\n")
 			default:
 				panic2(__func__, "")
 			}
-		} else {
-			fmtPrintf("  .quad 0 # bool zero value\n")
+		default:
+			panic2(__func__, "")
 		}
 	case T_INT:
-		fmtPrintf("  .quad 0\n")
+		if val == nil {
+			fmtPrintf("  .quad 0\n")
+			return
+		}
+		switch val.dtype {
+		case "*astBasicLit":
+			fmtPrintf("  .quad %s\n", val.basicLit.Value)
+		default:
+			panic("Unsupported global value")
+		}
 	case T_UINT8:
-		fmtPrintf("  .byte 0\n")
+		if val == nil {
+			fmtPrintf("  .byte 0\n")
+			return
+		}
+		switch val.dtype {
+		case "*astBasicLit":
+			fmtPrintf("  .byte %s\n", val.basicLit.Value)
+		default:
+			panic("Unsupported global value")
+		}
 	case T_UINT16:
-		fmtPrintf("  .word 0\n")
-	case T_POINTER, T_UINTPTR:
+		if val == nil {
+			fmtPrintf("  .word 0\n")
+			return
+		}
+		switch val.dtype {
+		case "*astBasicLit":
+			fmtPrintf("  .word %s\n", val.basicLit.Value)
+		default:
+			panic("Unsupported global value")
+		}
+	case T_POINTER:
+		// will be set in the initGlobal func
+		fmtPrintf("  .quad 0\n")
+	case T_UINTPTR:
+		if val != nil {
+			panic("Unsupported global value")
+		}
 		// only zero value
 		fmtPrintf("  .quad 0\n")
 	case T_SLICE:
+		if val != nil {
+			panic("Unsupported global value")
+		}
 		// only zero value
 		fmtPrintf("  .quad 0 # ptr\n")
 		fmtPrintf("  .quad 0 # len\n")
 		fmtPrintf("  .quad 0 # cap\n")
 	case T_ARRAY:
+		// only zero value
 		if val != nil {
-			panic2(__func__, "TBI")
+			panic("Unsupported global value")
 		}
 		if t.e.dtype != "*astArrayType" {
 			panic2(__func__, "Unexpected type:"+t.e.dtype)
