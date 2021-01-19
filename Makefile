@@ -81,5 +81,13 @@ clean:
 
 
 # to learn the official Go's assembly
+.PHONY: sample
+sample:
+	make sample/sample.s sample/min.s
+
 sample/sample.s: sample/sample.go
+	# -N: disable optimizations, -S: print assembly listing
 	go tool compile -N -S sample/sample.go > sample/sample.s
+
+sample/min.s: sample/min.go
+	go tool compile -N -S sample/min.go > sample/min.s
