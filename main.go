@@ -2958,9 +2958,9 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 			// Assume method call
 			receiver = selectorExpr.X
 			var receiverType = getTypeOfExpr(receiver)
-			var methodDef = lookupMethod(receiverType, selectorExpr.Sel)
-			funcType = methodDef.funcType
-			var subsymbol = getFuncSubSymbol(methodDef)
+			var method = lookupMethod(receiverType, selectorExpr.Sel)
+			funcType = method.funcType
+			var subsymbol = getMethodSymbol(method)
 			symbol = getFuncSymbol(pkg.name, subsymbol)
 		}
 	case "*astParenExpr":
@@ -3707,21 +3707,19 @@ func emitRevertStackTop(t *Type) {
 
 var labelid int
 
-func getMethodSymbol(fnc *Func) string {
-	var rcvType = fnc.rcvType
-	assert(rcvType.dtype == "*astIdent", "receiver type should be ident", __func__)
-	var rcvTypeName = rcvType.ident
-	if fnc.isPtrMethod {
-		return "$" + rcvTypeName.Name + "." + fnc.name // method
+func getMethodSymbol(method *Method) string {
+	var rcvTypeName = method.rcvNamedType
+	if method.isPtrMethod {
+		return "$" + rcvTypeName.Name + "." + method.name // pointer
 	} else {
-		return rcvTypeName.Name + "." + fnc.name // func
+		return rcvTypeName.Name + "." + method.name // value
 	}
 }
 
 func getFuncSubSymbol(fnc *Func) string {
 	var subsymbol string
-	if fnc.rcvType != nil {
-		subsymbol = getMethodSymbol(fnc)
+	if fnc.method != nil {
+		subsymbol = getMethodSymbol(fnc.method)
 	} else {
 		subsymbol = fnc.name
 	}
@@ -4296,7 +4294,14 @@ type Func struct {
 	rcvType     *astExpr
 	name        string
 	Body        *astBlockStmt
-	isPtrMethod bool
+	method *Method
+}
+
+type Method struct {
+	rcvNamedType *astIdent
+	isPtrMethod  bool
+	name string
+	funcType *astFuncType
 }
 
 type Variable struct {
@@ -4375,7 +4380,7 @@ func newLocalVariable(name string, localoffset int) *Variable {
 
 type methodEntry struct {
 	name string
-	fnc *Func
+	method *Method
 }
 
 type namedTypeEntry struct {
@@ -4396,35 +4401,43 @@ func findNamedType(typeName string) *namedTypeEntry {
 	return typ
 }
 
-func registerMethod(rcvType *astExpr , methodName *astIdent, fnc *Func) {
+func newMethod(funcDecl *astFuncDecl) *Method {
+	var rcvType = funcDecl.Recv.List[0].Type
 	var isPtr bool
 	if rcvType.dtype == "*astStarExpr" {
 		isPtr = true
 		rcvType = rcvType.starExpr.X
 	}
 	assert(rcvType.dtype == "*astIdent", "receiver type should be ident", __func__)
-	var rcvTypeName = rcvType.ident
+	var rcvNamedType = rcvType.ident
 
-	fnc.rcvType = rcvType
-	fnc.isPtrMethod = isPtr
-	var nt = findNamedType(rcvTypeName.Name)
+	var method = &Method{
+		rcvNamedType: rcvNamedType,
+		isPtrMethod : isPtr,
+		name: funcDecl.Name.Name,
+		funcType: funcDecl.Type,
+	}
+	return method
+}
+
+func registerMethod(method *Method) {
+	var nt = findNamedType(method.rcvNamedType.Name)
 	if nt == nil {
 		nt = &namedTypeEntry{
-			name:    rcvTypeName.Name,
+			name:    method.rcvNamedType.Name,
 			methods: nil,
 		}
 		typesWithMethods = append(typesWithMethods, nt)
 	}
 
-	fnc.rcvType = rcvType
 	var me *methodEntry = &methodEntry{
-		name: methodName.Name,
-		fnc:  fnc,
+		name: method.name,
+		method: method,
 	}
 	nt.methods = append(nt.methods, me)
 }
 
-func lookupMethod(rcvT *Type, methodName *astIdent) *Func {
+func lookupMethod(rcvT *Type, methodName *astIdent) *Method {
 	var rcvType = rcvT.e
 	if rcvType.dtype == "*astStarExpr" {
 		rcvType = rcvType.starExpr.X
@@ -4439,12 +4452,12 @@ func lookupMethod(rcvT *Type, methodName *astIdent) *Func {
 
 	for _, me = range nt.methods {
 		if me.name == methodName.Name {
-			return me.fnc
+			return me.method
 		}
 	}
 
-	panic("method not found")
-	var r *Func
+	panic("method not found: " + methodName.Name)
+	var r *Method
 	return r
 }
 
@@ -4652,6 +4665,18 @@ func walk(pkgContainer *PkgContainer, file *astFile) {
 	var decl *astDecl
 	for _, decl = range file.Decls {
 		switch decl.dtype {
+		case "*astFuncDecl":
+			var funcDecl = decl.funcDecl
+			if funcDecl.Body != nil {
+				if funcDecl.Recv != nil { // is Method
+					var method = newMethod(funcDecl)
+					registerMethod(method)
+				}
+			}
+		}
+	}
+	for _, decl = range file.Decls {
+		switch decl.dtype {
 		case "*astGenDecl":
 			var genDecl = decl.genDecl
 			switch genDecl.Spec.dtype {
@@ -4713,11 +4738,10 @@ func walk(pkgContainer *PkgContainer, file *astFile) {
 				fnc.localarea = localoffset
 				fnc.argsarea = paramoffset
 
-				pkgContainer.funcs = append(pkgContainer.funcs, fnc)
 				if funcDecl.Recv != nil { // Method
-					var rcvField = funcDecl.Recv.List[0]
-					registerMethod(rcvField.Type, funcDecl.Name, fnc)
+					fnc.method = newMethod(funcDecl)
 				}
+				pkgContainer.funcs = append(pkgContainer.funcs, fnc)
 			}
 		default:
 			panic2(__func__, "TBI: "+decl.dtype)

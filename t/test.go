@@ -75,14 +75,6 @@ func Sprintf(format string, a []string) string {
 
 // --- test funcs ---
 
-func (p *MyStruct) getField1() int {
-	return p.field1
-}
-
-func (p *MyStruct) setField1(x int)  {
-	p.field1 = x
-}
-
 func testStructPointerMethods() {
 	var p = &MyStruct{
 		field1: 10,
@@ -92,6 +84,14 @@ func testStructPointerMethods() {
 	writeln(itoa(f1))
 	p.setField1(20)
 	writeln(itoa(p.getField1()))
+}
+
+func (p *MyStruct) getField1() int {
+	return p.field1
+}
+
+func (p *MyStruct) setField1(x int)  {
+	p.field1 = x
 }
 
 

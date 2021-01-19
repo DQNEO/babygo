@@ -2294,8 +2294,6 @@ type Method struct {
 	isPtrMethod  bool
 	name string
 	funcType *ast.FuncType
-	//funcDecl     *ast.FuncDecl
-
 }
 
 type Variable struct {
