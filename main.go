@@ -14,7 +14,7 @@ func throw(s string) {
 	panic(s)
 }
 
-var __func__ string = "__func__"
+var __func__ = "__func__"
 
 func panic2(caller string, x string) {
 	panic("[" + caller + "] " + x)
@@ -4416,33 +4416,35 @@ func registerStringLiteral(lit *astBasicLit) {
 		}
 	}
 
-	var label = fmtSprintf(".%s.S%d", []string{pkg.name, Itoa(stringIndex)})
+	label := fmtSprintf(".%s.S%d", []string{pkg.name, Itoa(stringIndex)})
 	stringIndex++
 
-	var sl = &sliteral{}
+	sl := &sliteral{}
 	sl.label = label
 	sl.strlen = strlen - 2
 	sl.value = lit.Value
 	logf(" [registerStringLiteral] label=%s, strlen=%s\n", sl.label, Itoa(sl.strlen))
-	var cont = &stringLiteralsContainer{}
+	cont := &stringLiteralsContainer{}
 	cont.sl = sl
 	cont.lit = lit
 	stringLiterals = append(stringLiterals, cont)
 }
 
 func newGlobalVariable(name string) *Variable {
-	var vr = &Variable{}
-	vr.name = name
-	vr.isGlobal = true
-	vr.globalSymbol = name
+	vr := &Variable{
+		name:         name,
+		isGlobal:     true,
+		globalSymbol: name,
+	}
 	return vr
 }
 
 func newLocalVariable(name string, localoffset int) *Variable {
-	var vr = &Variable{}
-	vr.name = name
-	vr.isGlobal = false
-	vr.localOffset = localoffset
+	vr := &Variable{
+		name : name,
+		isGlobal : false,
+		localOffset : localoffset,
+	}
 	return vr
 }
 
