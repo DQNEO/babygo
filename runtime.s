@@ -17,9 +17,9 @@ _rt0_amd64:
 runtime.rt0_go:
   movq %rdi, %rax # argc
   movq %rsi, %rbx # argv
-  movq %rbx, __argv__+0(%rip)  # ptr
-  movq %rax, __argv__+8(%rip)  # len
-  movq %rax, __argv__+16(%rip) # cap
+  movq %rbx, runtime.__argv__+0(%rip)  # ptr
+  movq %rax, runtime.__argv__+8(%rip)  # len
+  movq %rax, runtime.__argv__+16(%rip) # cap
 
   callq runtime.heapInit
   callq runtime.argsInit # this must be after heap init

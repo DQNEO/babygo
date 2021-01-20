@@ -317,7 +317,7 @@ func emitAddr(expr ast.Expr) {
 		emitExpr(e.X, nil)
 	case *ast.SelectorExpr: // (X).Sel
 		if isOsArgs(e) {
-			fmtPrintf("  leaq %s(%%rip), %%rax # hack for os.Args\n", "__args__")
+			fmtPrintf("  leaq %s(%%rip), %%rax # hack for os.Args\n", "runtime.__args__")
 			fmtPrintf("  pushq %%rax\n")
 			return
 		}
@@ -1699,9 +1699,9 @@ func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
 	}
 }
 
-func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
+func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Expr) {
 	typeKind := kind(t)
-	fmtPrintf("%s: # T %s\n", name.Name, string(typeKind))
+	fmtPrintf("%s.%s: # T %s\n", pkg.name, name.Name, string(typeKind))
 	switch typeKind {
 	case T_STRING:
 		switch vl := val.(type) {
@@ -1824,7 +1824,7 @@ func generateCode(pkg *PkgContainer) {
 		if t == nil {
 			panic("type cannot be nil for global variable: " + spec.Names[0].Name)
 		}
-		emitGlobalVariable(spec.Names[0], t, val)
+		emitGlobalVariable(pkg, spec.Names[0], t, val)
 	}
 	fmtPrintf("\n")
 	fmtPrintf(".text\n")
@@ -2385,11 +2385,11 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	stringLiterals = append(stringLiterals, cont)
 }
 
-func newGlobalVariable(name string) *Variable {
+func newGlobalVariable(pkgName string, name string) *Variable {
 	return &Variable{
 		name:         name,
 		isGlobal:     true,
-		globalSymbol: name,
+		globalSymbol: pkgName + "." +name,
 		localOffset:  0,
 	}
 }
@@ -2694,7 +2694,7 @@ func walk(pkg *PkgContainer, f *ast.File) {
 						t := getTypeOfExpr(val)
 						valSpec.Type = t.e
 					}
-					nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
+					nameIdent.Obj.Data = newGlobalVariable(pkg.name, nameIdent.Obj.Name)
 					pkg.vars = append(pkg.vars, valSpec)
 				}
 				for _, v := range valSpec.Values {
