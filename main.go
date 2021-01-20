@@ -4843,85 +4843,85 @@ func walk(pkg *PkgContainer, file *astFile) {
 }
 
 // --- universe ---
-var gNil *astObject = &astObject{
+var gNil = &astObject{
 	Kind : astCon, // is it Con ?
 	Name : "nil",
 }
 
-var eNil *astExpr  = &astExpr{
+var eNil = &astExpr{
 	dtype : "*astIdent",
 	ident : &astIdent{
 		Obj:  gNil,
 		Name: "nil",
 	},
 }
-var gTrue *astObject = &astObject{
+var gTrue = &astObject{
 	Kind: astCon,
 	Name: "true",
 }
-var gFalse *astObject  = &astObject{
+var gFalse = &astObject{
 	Kind: astCon,
 	Name: "false",
 }
 
-var gString *astObject = &astObject{
+var gString = &astObject{
 	Kind: astTyp,
 	Name: "string",
 }
 
-var gInt *astObject = &astObject{
+var gInt = &astObject{
 	Kind: astTyp,
 	Name: "int",
 }
 
 
-var gUint8 *astObject = &astObject{
+var gUint8 = &astObject{
 	Kind: astTyp,
 	Name: "uint8",
 }
 
-var gUint16 *astObject  = &astObject{
+var gUint16 = &astObject{
 	Kind: astTyp,
 	Name: "uint16",
 }
-var gUintptr *astObject  = &astObject{
+var gUintptr = &astObject{
 	Kind: astTyp,
 	Name: "uintptr",
 }
-var gBool *astObject  = &astObject{
+var gBool = &astObject{
 	Kind: astTyp,
 	Name: "bool",
 }
 
-var gNew *astObject = &astObject{
+var gNew = &astObject{
 	Kind: astFun,
 	Name: "new",
 }
 
-var gMake *astObject  = &astObject{
+var gMake = &astObject{
 	Kind: astFun,
 	Name: "make",
 }
-var gAppend *astObject = &astObject{
+var gAppend = &astObject{
 	Kind: astFun,
 	Name: "append",
 }
 
-var gLen *astObject = &astObject{
+var gLen = &astObject{
 	Kind: astFun,
 	Name: "len",
 }
 
-var gCap *astObject = &astObject{
+var gCap = &astObject{
 	Kind: astFun,
 	Name: "cap",
 }
-var gPanic *astObject = &astObject{
+var gPanic = &astObject{
 	Kind: astFun,
 	Name: "panic",
 }
 
-var tInt *Type = &Type{
+var tInt = &Type{
 	e: &astExpr{
 		dtype: "*astIdent",
 		ident : &astIdent{
@@ -4930,7 +4930,7 @@ var tInt *Type = &Type{
 		},
 	},
 }
-var tUint8 *Type = &Type{
+var tUint8 = &Type{
 	e: &astExpr{
 		dtype: "*astIdent",
 		ident: &astIdent{
@@ -4940,7 +4940,7 @@ var tUint8 *Type = &Type{
 	},
 }
 
-var tUint16 *Type  = &Type{
+var tUint16 = &Type{
 	e: &astExpr{
 		dtype: "*astIdent",
 		ident: &astIdent{
@@ -4949,7 +4949,7 @@ var tUint16 *Type  = &Type{
 		},
 	},
 }
-var tUintptr *Type  = &Type{
+var tUintptr = &Type{
 	e: &astExpr{
 		dtype: "*astIdent",
 		ident: &astIdent{
@@ -4959,7 +4959,7 @@ var tUintptr *Type  = &Type{
 	},
 }
 
-var tString *Type = &Type{
+var tString = &Type{
 	e : &astExpr{
 		dtype : "*astIdent",
 		ident : &astIdent{
@@ -4968,7 +4968,7 @@ var tString *Type = &Type{
 		},
 	},
 }
-var tBool *Type = &Type{
+var tBool = &Type{
 	e : &astExpr{
 		dtype : "*astIdent",
 		ident : &astIdent{
@@ -4978,7 +4978,7 @@ var tBool *Type = &Type{
 	},
 }
 
-var tSliceOfString *Type = &Type{
+var tSliceOfString = &Type{
 	e: &astExpr{
 		dtype: "*astArrayType",
 		arrayType: &astArrayType{
@@ -4994,13 +4994,13 @@ var tSliceOfString *Type = &Type{
 	},
 }
 
-var generalSlice *astExpr = &astExpr{
+var generalSlice = &astExpr{
 	dtype: "*astIdent",
 	ident: &astIdent{},
 }
 
 // func type of runtime functions
-var funcTypeOsExit *astFuncType = &astFuncType{
+var funcTypeOsExit = &astFuncType{
 	Params: &astFieldList{
 		List: []*astField{
 			&astField{
@@ -5010,7 +5010,7 @@ var funcTypeOsExit *astFuncType = &astFuncType{
 	},
 	Results: nil,
 }
-var funcTypeSyscallOpen *astFuncType = &astFuncType{
+var funcTypeSyscallOpen = &astFuncType{
 	Params: &astFieldList{
 		List: []*astField{
 			&astField{
@@ -5032,7 +5032,7 @@ var funcTypeSyscallOpen *astFuncType = &astFuncType{
 		},
 	},
 }
-var funcTypeSyscallRead *astFuncType = &astFuncType{
+var funcTypeSyscallRead = &astFuncType{
 	Params: &astFieldList{
 		List: []*astField{
 			&astField{
@@ -5051,7 +5051,7 @@ var funcTypeSyscallRead *astFuncType = &astFuncType{
 		},
 	},
 }
-var funcTypeSyscallWrite *astFuncType = &astFuncType{
+var funcTypeSyscallWrite = &astFuncType{
 	Params: &astFieldList{
 		List: []*astField{
 			&astField{
@@ -5070,7 +5070,7 @@ var funcTypeSyscallWrite *astFuncType = &astFuncType{
 		},
 	},
 }
-var funcTypeSyscallSyscall *astFuncType = &astFuncType{
+var funcTypeSyscallSyscall = &astFuncType{
 	Params: &astFieldList{
 		List: []*astField{
 			&astField{
