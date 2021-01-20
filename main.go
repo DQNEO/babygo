@@ -4888,17 +4888,57 @@ var gString *astObject = &astObject{
 	Name: "string",
 }
 
-var gInt *astObject
-var gUint8 *astObject
-var gUint16 *astObject
-var gUintptr *astObject
-var gBool *astObject
-var gNew *astObject
-var gMake *astObject
-var gAppend *astObject
-var gLen *astObject
-var gCap *astObject
-var gPanic *astObject
+var gInt *astObject = &astObject{
+	Kind: astTyp,
+	Name: "int",
+}
+
+
+var gUint8 *astObject = &astObject{
+	Kind: astTyp,
+	Name: "uint8",
+}
+
+var gUint16 *astObject  = &astObject{
+	Kind: astTyp,
+	Name: "uint16",
+}
+var gUintptr *astObject  = &astObject{
+	Kind: astTyp,
+	Name: "uintptr",
+}
+var gBool *astObject  = &astObject{
+	Kind: astTyp,
+	Name: "bool",
+}
+
+var gNew *astObject = &astObject{
+	Kind: astFun,
+	Name: "new",
+}
+
+var gMake *astObject  = &astObject{
+	Kind: astFun,
+	Name: "make",
+}
+var gAppend *astObject = &astObject{
+	Kind: astFun,
+	Name: "append",
+}
+
+var gLen *astObject = &astObject{
+	Kind: astFun,
+	Name: "len",
+}
+
+var gCap *astObject = &astObject{
+	Kind: astFun,
+	Name: "cap",
+}
+var gPanic *astObject = &astObject{
+	Kind: astFun,
+	Name: "panic",
+}
 
 // func type of runtime functions
 var funcTypeOsExit *astFuncType
@@ -4997,10 +5037,6 @@ func initGlobals() {
 		},
 	}
 
-	gInt = &astObject{
-		Kind: astTyp,
-		Name: "int",
-	}
 	tInt = &Type{
 		e: &astExpr{
 			dtype: "*astIdent",
@@ -5011,10 +5047,6 @@ func initGlobals() {
 		},
 	}
 
-	gUint8 = &astObject{
-		Kind: astTyp,
-		Name: "uint8",
-	}
 	tUint8 = &Type{
 		e: &astExpr{
 			dtype: "*astIdent",
@@ -5025,10 +5057,6 @@ func initGlobals() {
 		},
 	}
 
-	gUint16 = &astObject{
-		Kind: astTyp,
-		Name: "uint16",
-	}
 	tUint16 = &Type{
 		e: &astExpr{
 			dtype: "*astIdent",
@@ -5039,10 +5067,6 @@ func initGlobals() {
 		},
 	}
 
-	gUintptr = &astObject{
-		Kind: astTyp,
-		Name: "uintptr",
-	}
 	tUintptr = &Type{
 		e: &astExpr{
 			dtype: "*astIdent",
@@ -5053,10 +5077,6 @@ func initGlobals() {
 		},
 	}
 
-	gBool = &astObject{
-		Kind: astTyp,
-		Name: "bool",
-	}
 	tBool = &Type{
 		e : &astExpr{
 			dtype : "*astIdent",
@@ -5070,36 +5090,6 @@ func initGlobals() {
 	generalSlice = &astExpr{
 		dtype: "*astIdent",
 		ident: &astIdent{},
-	}
-
-	gNew = &astObject{
-		Kind: astFun,
-		Name: "new",
-	}
-
-	gMake = &astObject{
-		Kind: astFun,
-		Name: "make",
-	}
-
-	gAppend = &astObject{
-		Kind: astFun,
-		Name: "append",
-	}
-
-	gLen = &astObject{
-		Kind: astFun,
-		Name: "len",
-	}
-
-	gCap = &astObject{
-		Kind: astFun,
-		Name: "cap",
-	}
-
-	gPanic = &astObject{
-		Kind: astFun,
-		Name: "panic",
 	}
 
 	funcTypeOsExit = &astFuncType{
