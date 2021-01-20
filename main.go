@@ -4766,6 +4766,11 @@ func walk(pkg *PkgContainer, file *astFile) {
 				var valSpec = genDecl.Spec.valueSpec
 				var nameIdent = valSpec.Name
 				if nameIdent.Obj.Kind == astVar {
+					if valSpec.Type == nil {
+						var val = valSpec.Value
+						var t = getTypeOfExpr(val)
+						valSpec.Type = t.e
+					}
 					nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
 					pkg.vars = append(pkg.vars, valSpec)
 				}

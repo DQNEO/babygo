@@ -1821,6 +1821,9 @@ func generateCode(pkg *PkgContainer) {
 		if spec.Type != nil {
 			t = e2t(spec.Type)
 		}
+		if t == nil {
+			panic("type cannot be nil for global variable: " + spec.Names[0].Name)
+		}
 		emitGlobalVariable(spec.Names[0], t, val)
 	}
 	fmtPrintf("\n")
@@ -2685,6 +2688,12 @@ func walk(pkg *PkgContainer, f *ast.File) {
 				//emitComment(0, "valSpec.type=%#v\n", valSpec.Type)
 				nameIdent := valSpec.Names[0]
 				if nameIdent.Obj.Kind == ast.Var {
+					if valSpec.Type == nil {
+						// Infer type
+						val := valSpec.Values[0]
+						t := getTypeOfExpr(val)
+						valSpec.Type = t.e
+					}
 					nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
 					pkg.vars = append(pkg.vars, valSpec)
 				}

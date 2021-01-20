@@ -74,22 +74,25 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+var gi = 123 // int
+var gs = "abc" // string
+var gstrctPtr = &MyStruct{
+	field2: 456,
+}
+
 func testInferVarTypes() {
 	// type by literal
-	var i = 123 // int
-	var s = "abc" // string
-	var slc = []int{1,2,3}
-	var strctPtr = &MyStruct{
-		field2: 456,
-	}
-	var strct = MyStruct{
+	var gstrct = MyStruct{
 		field1: 789,
 	}
-	writeln(itoa(i))
-	writeln(s)
-	writeln(itoa(slc[2]))
-	writeln(itoa(strctPtr.field2))
-	writeln(itoa(strct.field1))
+
+	var gslc = []int{1,2,3}
+
+	writeln(itoa(gi))
+	writeln(gs)
+	writeln(itoa(gslc[2]))
+	writeln(itoa(gstrctPtr.field2))
+	writeln(itoa(gstrct.field1))
 }
 
 var gInt int = 1010
