@@ -1804,7 +1804,7 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 	}
 }
 
-func emitData(pkgName string, vars []*ast.ValueSpec, sliterals []*stringLiteralsContainer) {
+func generateCode(pkg *PkgContainer) {
 	fmt.Printf(".data\n")
 	for _, con := range stringLiterals {
 		emitComment(0, "string literals\n")
@@ -1812,8 +1812,7 @@ func emitData(pkgName string, vars []*ast.ValueSpec, sliterals []*stringLiterals
 		fmt.Printf("  .string %s\n", con.sl.value)
 	}
 
-	emitComment(0, "===== Global Variables =====\n")
-	for _, spec := range vars {
+	for _, spec := range pkg.vars {
 		var val ast.Expr
 		if len(spec.Values) > 0 {
 			val = spec.Values[0]
@@ -1824,12 +1823,10 @@ func emitData(pkgName string, vars []*ast.ValueSpec, sliterals []*stringLiterals
 		}
 		emitGlobalVariable(spec.Names[0], t, val)
 	}
-	emitComment(0, "==============================\n")
-}
-
-func emitGlobalInit(pkgContainer *PkgContainer) {
-	fmtPrintf("%s.__initGlobals:\n", pkgContainer.name)
-	for _, spec := range pkgContainer.vars {
+	fmtPrintf("\n")
+	fmtPrintf(".text\n")
+	fmtPrintf("%s.__initGlobals:\n", pkg.name)
+	for _, spec := range pkg.vars {
 		if len(spec.Values) == 0 {
 			continue
 		}
@@ -1841,22 +1838,11 @@ func emitGlobalInit(pkgContainer *PkgContainer) {
 		emitGlobalVariableComplex(spec.Names[0], t, val)
 	}
 	fmt.Printf("  ret\n")
-}
 
-func emitFuncs(pkgName string, funcs []*Func) {
 	var fnc *Func
-	for _, fnc = range funcs {
-		emitFuncDecl(pkgName, fnc)
+	for _, fnc = range pkg.funcs {
+		emitFuncDecl(pkg.name, fnc)
 	}
-}
-
-func generateCode(pkgContainer *PkgContainer) {
-	emitData(pkgContainer.name, pkgContainer.vars, stringLiterals)
-
-	fmtPrintf("\n")
-	fmtPrintf(".text\n")
-	emitGlobalInit(pkgContainer)
-	emitFuncs(pkgContainer.name, pkgContainer.funcs)
 }
 
 // --- type ---
