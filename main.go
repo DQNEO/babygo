@@ -5009,11 +5009,101 @@ var generalSlice *astExpr = &astExpr{
 }
 
 // func type of runtime functions
-var funcTypeOsExit *astFuncType
-var funcTypeSyscallOpen *astFuncType
-var funcTypeSyscallRead *astFuncType
-var funcTypeSyscallWrite *astFuncType
-var funcTypeSyscallSyscall *astFuncType
+var funcTypeOsExit *astFuncType = &astFuncType{
+	Params: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+		},
+	},
+	Results: nil,
+}
+var funcTypeSyscallOpen *astFuncType = &astFuncType{
+	Params: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tString.e,
+			},
+			&astField{
+				Type:  tInt.e,
+			},
+			&astField{
+				Type:  tInt.e,
+			},
+		},
+	},
+	Results: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+var funcTypeSyscallRead *astFuncType = &astFuncType{
+	Params: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+			&astField{
+				Type: generalSlice,
+			},
+		},
+	},
+	Results: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+var funcTypeSyscallWrite *astFuncType = &astFuncType{
+	Params: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+			&astField{
+				Type: generalSlice,
+			},
+		},
+	},
+	Results: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+var funcTypeSyscallSyscall *astFuncType = &astFuncType{
+	Params: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tUintptr.e,
+			},
+			&astField{
+				Type:  tUintptr.e,
+			},
+			&astField{
+				Type:  tUintptr.e,
+			},
+			&astField{
+				Type:  tUintptr.e,
+			},
+		},
+	},
+	Results: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tUintptr.e,
+			},
+		},
+	},
+}
 
 func createUniverse() *astScope {
 	var universe = new(astScope)
@@ -5078,104 +5168,6 @@ func resolveUniverse(file *astFile, universe *astScope) {
 	}
 }
 
-func initGlobals() {
-	funcTypeOsExit = &astFuncType{
-		Params: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-			},
-		},
-		Results: nil,
-	}
-	funcTypeSyscallOpen = &astFuncType{
-		Params: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tString.e,
-				},
-				&astField{
-					Type:  tInt.e,
-				},
-				&astField{
-					Type:  tInt.e,
-				},
-			},
-		},
-		Results: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-			},
-		},
-	}
-	funcTypeSyscallRead = &astFuncType{
-		Params: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-				&astField{
-					Type: generalSlice,
-				},
-			},
-		},
-		Results: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-			},
-		},
-	}
-	funcTypeSyscallWrite = &astFuncType{
-		Params: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-				&astField{
-					Type: generalSlice,
-				},
-			},
-		},
-		Results: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-			},
-		},
-	}
-	funcTypeSyscallSyscall = &astFuncType{
-		Params: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tUintptr.e,
-				},
-				&astField{
-					Type:  tUintptr.e,
-				},
-				&astField{
-					Type:  tUintptr.e,
-				},
-				&astField{
-					Type:  tUintptr.e,
-				},
-			},
-		},
-		Results: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tUintptr.e,
-				},
-			},
-		},
-	}
-}
-
 var pkg *PkgContainer
 
 type PkgContainer struct {
@@ -5191,7 +5183,6 @@ func showHelp() {
 }
 
 func main() {
-	initGlobals()
 	var universe = createUniverse()
 	if len(os.Args) == 1 {
 		showHelp()
