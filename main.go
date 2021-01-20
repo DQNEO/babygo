@@ -3770,54 +3770,109 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmtPrintf("  ret\n")
 }
 
+func emitGlobalVariableComplex(name *astIdent, t *Type, val *astExpr) {
+	typeKind := kind(t)
+	switch typeKind {
+	case T_POINTER:
+		fmtPrintf("# init global %s: # T %s\n", name.Name, typeKind)
+		lhs := &astExpr{
+			ident: name,
+			dtype: "*astIdent",
+		}
+		emitAssign(lhs, val)
+	}
+}
+
 func emitGlobalVariable(name *astIdent, t *Type, val *astExpr) {
-	var typeKind = kind(t)
+	typeKind := kind(t)
 	fmtPrintf("%s: # T %s\n", name.Name, typeKind)
 	switch typeKind {
 	case T_STRING:
-		if val != nil && val.dtype == "*astBasicLit" {
+		if val == nil {
+			fmtPrintf("  .quad 0\n")
+			fmtPrintf("  .quad 0\n")
+			return
+		}
+		switch val.dtype {
+		case "*astBasicLit":
 			var sl = getStringLiteral(val.basicLit)
 			fmtPrintf("  .quad %s\n", sl.label)
 			fmtPrintf("  .quad %d\n", Itoa(sl.strlen))
-		} else {
-			fmtPrintf("  .quad 0\n")
-			fmtPrintf("  .quad 0\n")
+		default:
+			panic("Unsupported global string value")
 		}
-	case T_POINTER:
-		fmtPrintf("  .quad 0 # pointer \n") // @TODO
-	case T_UINTPTR:
-		fmtPrintf("  .quad 0\n")
 	case T_BOOL:
-		if val != nil {
-			switch val.dtype {
-			case "*astIdent":
-				switch val.ident.Obj {
-				case gTrue:
-					fmtPrintf("  .quad 1 # bool true\n")
-				case gFalse:
-					fmtPrintf("  .quad 0 # bool false\n")
-				default:
-					panic2(__func__, "")
-				}
+		if val == nil {
+			fmtPrintf("  .quad 0 # bool zero value\n")
+			return
+		}
+		switch val.dtype {
+		case "*astIdent":
+			switch val.ident.Obj {
+			case gTrue:
+				fmtPrintf("  .quad 1 # bool true\n")
+			case gFalse:
+				fmtPrintf("  .quad 0 # bool false\n")
 			default:
 				panic2(__func__, "")
 			}
-		} else {
-			fmtPrintf("  .quad 0 # bool zero value\n")
+		default:
+			panic2(__func__, "")
 		}
 	case T_INT:
-		fmtPrintf("  .quad 0\n")
+		if val == nil {
+			fmtPrintf("  .quad 0\n")
+			return
+		}
+		switch val.dtype {
+		case "*astBasicLit":
+			fmtPrintf("  .quad %s\n", val.basicLit.Value)
+		default:
+			panic("Unsupported global value")
+		}
 	case T_UINT8:
-		fmtPrintf("  .byte 0\n")
+		if val == nil {
+			fmtPrintf("  .byte 0\n")
+			return
+		}
+		switch val.dtype {
+		case "*astBasicLit":
+			fmtPrintf("  .byte %s\n", val.basicLit.Value)
+		default:
+			panic("Unsupported global value")
+		}
 	case T_UINT16:
-		fmtPrintf("  .word 0\n")
+		if val == nil {
+			fmtPrintf("  .word 0\n")
+			return
+		}
+		switch val.dtype {
+		case "*astBasicLit":
+			fmtPrintf("  .word %s\n", val.basicLit.Value)
+		default:
+			panic("Unsupported global value")
+		}
+	case T_POINTER:
+		// will be set in the initGlobal func
+		fmtPrintf("  .quad 0\n")
+	case T_UINTPTR:
+		if val != nil {
+			panic("Unsupported global value")
+		}
+		// only zero value
+		fmtPrintf("  .quad 0\n")
 	case T_SLICE:
+		if val != nil {
+			panic("Unsupported global value")
+		}
+		// only zero value
 		fmtPrintf("  .quad 0 # ptr\n")
 		fmtPrintf("  .quad 0 # len\n")
 		fmtPrintf("  .quad 0 # cap\n")
 	case T_ARRAY:
+		// only zero value
 		if val != nil {
-			panic2(__func__, "TBI")
+			panic("Unsupported global value")
 		}
 		if t.e.dtype != "*astArrayType" {
 			panic2(__func__, "Unexpected type:"+t.e.dtype)
@@ -3882,7 +3937,23 @@ func emitData(pkgName string, vars []*astValueSpec, sliterals []*stringLiteralsC
 	emitComment(0, "==============================\n")
 }
 
-func emitText(pkgName string, funcs []*Func) {
+func emitGlobalInit(pkgContainer *PkgContainer) {
+	fmtPrintf("%s.__initGlobals:\n", pkgContainer.name)
+	var spec *astValueSpec
+	for _, spec = range pkgContainer.vars {
+		if spec.Value == nil{
+			continue
+		}
+		val := spec.Value
+		var t *Type
+		if spec.Type != nil {
+			t = e2t(spec.Type)
+		}
+		emitGlobalVariableComplex(spec.Name, t, val)
+	}
+}
+
+func emitFuncs(pkgName string, funcs []*Func) {
 	fmtPrintf(".text\n")
 	var fnc *Func
 	for _, fnc = range funcs {
@@ -3892,7 +3963,11 @@ func emitText(pkgName string, funcs []*Func) {
 
 func generateCode(pkgContainer *PkgContainer) {
 	emitData(pkgContainer.name, pkgContainer.vars, stringLiterals)
-	emitText(pkgContainer.name, pkgContainer.funcs)
+
+	fmtPrintf("\n")
+	fmtPrintf(".text\n")
+	emitGlobalInit(pkgContainer)
+	emitFuncs(pkgContainer.name, pkgContainer.funcs)
 }
 
 // --- type ---
@@ -3916,16 +3991,6 @@ const T_UINTPTR string = "T_UINTPTR"
 const T_ARRAY string = "T_ARRAY"
 const T_STRUCT string = "T_STRUCT"
 const T_POINTER string = "T_POINTER"
-
-var tInt *Type
-var tUint8 *Type
-var tUint16 *Type
-var tUintptr *Type
-var tSliceOfString *Type
-var tString *Type
-var tBool *Type
-
-var generalSlice *astExpr
 
 func getTypeOfExpr(expr *astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
@@ -4787,29 +4852,258 @@ func walk(pkgContainer *PkgContainer, file *astFile) {
 }
 
 // --- universe ---
-var gNil *astObject
-var eNil *astExpr
-var gTrue *astObject
-var gFalse *astObject
-var gString *astObject
-var gInt *astObject
-var gUint8 *astObject
-var gUint16 *astObject
-var gUintptr *astObject
-var gBool *astObject
-var gNew *astObject
-var gMake *astObject
-var gAppend *astObject
-var gLen *astObject
-var gCap *astObject
-var gPanic *astObject
+var gNil *astObject = &astObject{
+	Kind : astCon, // is it Con ?
+	Name : "nil",
+}
+
+var eNil *astExpr  = &astExpr{
+	dtype : "*astIdent",
+	ident : &astIdent{
+		Obj:  gNil,
+		Name: "nil",
+	},
+}
+var gTrue *astObject = &astObject{
+	Kind: astCon,
+	Name: "true",
+}
+var gFalse *astObject  = &astObject{
+	Kind: astCon,
+	Name: "false",
+}
+
+var gString *astObject = &astObject{
+	Kind: astTyp,
+	Name: "string",
+}
+
+var gInt *astObject = &astObject{
+	Kind: astTyp,
+	Name: "int",
+}
+
+
+var gUint8 *astObject = &astObject{
+	Kind: astTyp,
+	Name: "uint8",
+}
+
+var gUint16 *astObject  = &astObject{
+	Kind: astTyp,
+	Name: "uint16",
+}
+var gUintptr *astObject  = &astObject{
+	Kind: astTyp,
+	Name: "uintptr",
+}
+var gBool *astObject  = &astObject{
+	Kind: astTyp,
+	Name: "bool",
+}
+
+var gNew *astObject = &astObject{
+	Kind: astFun,
+	Name: "new",
+}
+
+var gMake *astObject  = &astObject{
+	Kind: astFun,
+	Name: "make",
+}
+var gAppend *astObject = &astObject{
+	Kind: astFun,
+	Name: "append",
+}
+
+var gLen *astObject = &astObject{
+	Kind: astFun,
+	Name: "len",
+}
+
+var gCap *astObject = &astObject{
+	Kind: astFun,
+	Name: "cap",
+}
+var gPanic *astObject = &astObject{
+	Kind: astFun,
+	Name: "panic",
+}
+
+var tInt *Type = &Type{
+	e: &astExpr{
+		dtype: "*astIdent",
+		ident : &astIdent{
+			Name: "int",
+			Obj: gInt,
+		},
+	},
+}
+var tUint8 *Type = &Type{
+	e: &astExpr{
+		dtype: "*astIdent",
+		ident: &astIdent{
+			Name: "uint8",
+			Obj:  gUint8,
+		},
+	},
+}
+
+var tUint16 *Type  = &Type{
+	e: &astExpr{
+		dtype: "*astIdent",
+		ident: &astIdent{
+			Name: "uint16",
+			Obj:  gUint16,
+		},
+	},
+}
+var tUintptr *Type  = &Type{
+	e: &astExpr{
+		dtype: "*astIdent",
+		ident: &astIdent{
+			Name: "uintptr",
+			Obj:  gUintptr,
+		},
+	},
+}
+
+var tString *Type = &Type{
+	e : &astExpr{
+		dtype : "*astIdent",
+		ident : &astIdent{
+			Name : "string",
+			Obj : gString,
+		},
+	},
+}
+var tBool *Type = &Type{
+	e : &astExpr{
+		dtype : "*astIdent",
+		ident : &astIdent{
+			Name : "bool",
+			Obj : gBool,
+		},
+	},
+}
+
+var tSliceOfString *Type = &Type{
+	e: &astExpr{
+		dtype: "*astArrayType",
+		arrayType: &astArrayType{
+			Len: nil,
+			Elt: &astExpr{
+				dtype: "*astIdent",
+				ident: &astIdent{
+					Name: "string",
+					Obj: gString,
+				},
+			},
+		},
+	},
+}
+
+var generalSlice *astExpr = &astExpr{
+	dtype: "*astIdent",
+	ident: &astIdent{},
+}
 
 // func type of runtime functions
-var funcTypeOsExit *astFuncType
-var funcTypeSyscallOpen *astFuncType
-var funcTypeSyscallRead *astFuncType
-var funcTypeSyscallWrite *astFuncType
-var funcTypeSyscallSyscall *astFuncType
+var funcTypeOsExit *astFuncType = &astFuncType{
+	Params: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+		},
+	},
+	Results: nil,
+}
+var funcTypeSyscallOpen *astFuncType = &astFuncType{
+	Params: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tString.e,
+			},
+			&astField{
+				Type:  tInt.e,
+			},
+			&astField{
+				Type:  tInt.e,
+			},
+		},
+	},
+	Results: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+var funcTypeSyscallRead *astFuncType = &astFuncType{
+	Params: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+			&astField{
+				Type: generalSlice,
+			},
+		},
+	},
+	Results: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+var funcTypeSyscallWrite *astFuncType = &astFuncType{
+	Params: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+			&astField{
+				Type: generalSlice,
+			},
+		},
+	},
+	Results: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tInt.e,
+			},
+		},
+	},
+}
+var funcTypeSyscallSyscall *astFuncType = &astFuncType{
+	Params: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tUintptr.e,
+			},
+			&astField{
+				Type:  tUintptr.e,
+			},
+			&astField{
+				Type:  tUintptr.e,
+			},
+			&astField{
+				Type:  tUintptr.e,
+			},
+		},
+	},
+	Results: &astFieldList{
+		List: []*astField{
+			&astField{
+				Type:  tUintptr.e,
+			},
+		},
+	},
+}
 
 func createUniverse() *astScope {
 	var universe = new(astScope)
@@ -4874,262 +5168,6 @@ func resolveUniverse(file *astFile, universe *astScope) {
 	}
 }
 
-func initGlobals() {
-	gNil = &astObject{
-		Kind : astCon, // is it Con ?
-		Name : "nil",
-	}
-
-	eNil = &astExpr{
-		dtype : "*astIdent",
-		ident : &astIdent{
-			Obj:  gNil,
-			Name: "nil",
-		},
-	}
-
-	gTrue = &astObject{
-		Kind: astCon,
-		Name: "true",
-	}
-
-	gFalse = &astObject{
-		Kind: astCon,
-		Name: "false",
-	}
-
-	gString = &astObject{
-		Kind: astTyp,
-		Name: "string",
-	}
-
-	tSliceOfString = &Type{
-		e: &astExpr{
-			dtype: "*astArrayType",
-			arrayType: &astArrayType{
-				Len: nil,
-				Elt: &astExpr{
-					dtype: "*astIdent",
-					ident: &astIdent{
-						Name: "string",
-						Obj: gString,
-					},
-				},
-			},
-		},
-	}
-	tString = &Type{
-		e : &astExpr{
-			dtype : "*astIdent",
-			ident : &astIdent{
-				Name : "string",
-				Obj : gString,
-			},
-		},
-	}
-
-	gInt = &astObject{
-		Kind: astTyp,
-		Name: "int",
-	}
-	tInt = &Type{
-		e: &astExpr{
-			dtype: "*astIdent",
-			ident : &astIdent{
-				Name: "int",
-				Obj: gInt,
-			},
-		},
-	}
-
-	gUint8 = &astObject{
-		Kind: astTyp,
-		Name: "uint8",
-	}
-	tUint8 = &Type{
-		e: &astExpr{
-			dtype: "*astIdent",
-			ident: &astIdent{
-				Name: "uint8",
-				Obj:  gUint8,
-			},
-		},
-	}
-
-	gUint16 = &astObject{
-		Kind: astTyp,
-		Name: "uint16",
-	}
-	tUint16 = &Type{
-		e: &astExpr{
-			dtype: "*astIdent",
-			ident: &astIdent{
-				Name: "uint16",
-				Obj:  gUint16,
-			},
-		},
-	}
-
-	gUintptr = &astObject{
-		Kind: astTyp,
-		Name: "uintptr",
-	}
-	tUintptr = &Type{
-		e: &astExpr{
-			dtype: "*astIdent",
-			ident: &astIdent{
-				Name: "uintptr",
-				Obj:  gUintptr,
-			},
-		},
-	}
-
-	gBool = &astObject{
-		Kind: astTyp,
-		Name: "bool",
-	}
-	tBool = &Type{
-		e : &astExpr{
-			dtype : "*astIdent",
-			ident : &astIdent{
-				Name : "bool",
-				Obj : gBool,
-			},
-		},
-	}
-
-	generalSlice = &astExpr{
-		dtype: "*astIdent",
-		ident: &astIdent{},
-	}
-
-	gNew = &astObject{
-		Kind: astFun,
-		Name: "new",
-	}
-
-	gMake = &astObject{
-		Kind: astFun,
-		Name: "make",
-	}
-
-	gAppend = &astObject{
-		Kind: astFun,
-		Name: "append",
-	}
-
-	gLen = &astObject{
-		Kind: astFun,
-		Name: "len",
-	}
-
-	gCap = &astObject{
-		Kind: astFun,
-		Name: "cap",
-	}
-
-	gPanic = &astObject{
-		Kind: astFun,
-		Name: "panic",
-	}
-
-	funcTypeOsExit = &astFuncType{
-		Params: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-			},
-		},
-		Results: nil,
-	}
-	funcTypeSyscallOpen = &astFuncType{
-		Params: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tString.e,
-				},
-				&astField{
-					Type:  tInt.e,
-				},
-				&astField{
-					Type:  tInt.e,
-				},
-			},
-		},
-		Results: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-			},
-		},
-	}
-	funcTypeSyscallRead = &astFuncType{
-		Params: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-				&astField{
-					Type: generalSlice,
-				},
-			},
-		},
-		Results: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-			},
-		},
-	}
-	funcTypeSyscallWrite = &astFuncType{
-		Params: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-				&astField{
-					Type: generalSlice,
-				},
-			},
-		},
-		Results: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tInt.e,
-				},
-			},
-		},
-	}
-	funcTypeSyscallSyscall = &astFuncType{
-		Params: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tUintptr.e,
-				},
-				&astField{
-					Type:  tUintptr.e,
-				},
-				&astField{
-					Type:  tUintptr.e,
-				},
-				&astField{
-					Type:  tUintptr.e,
-				},
-			},
-		},
-		Results: &astFieldList{
-			List: []*astField{
-				&astField{
-					Type:  tUintptr.e,
-				},
-			},
-		},
-	}
-}
-
 var pkg *PkgContainer
 
 type PkgContainer struct {
@@ -5145,7 +5183,6 @@ func showHelp() {
 }
 
 func main() {
-	initGlobals()
 	var universe = createUniverse()
 	if len(os.Args) == 1 {
 		showHelp()

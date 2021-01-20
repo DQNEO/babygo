@@ -1,6 +1,8 @@
 1010
 gBool is true
 gString
+22
+65
 123
 10
 infer string literal

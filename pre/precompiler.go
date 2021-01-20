@@ -1690,24 +1690,35 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("  ret\n")
 }
 
+func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
+	typeKind := kind(t)
+	switch typeKind {
+	case T_POINTER:
+		fmt.Printf("# init global %s: # T %s\n", name.Name, typeKind)
+		emitAssign(name, val)
+	}
+}
+
 func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 	typeKind := kind(t)
-	fmt.Printf("%s: # T %s\n", name.Name, typeKind)
+	fmtPrintf("%s: # T %s\n", name.Name, string(typeKind))
 	switch typeKind {
 	case T_STRING:
 		switch vl := val.(type) {
+		case nil:
+			fmtPrintf("  .quad 0\n")
+			fmtPrintf("  .quad 0\n")
 		case *ast.BasicLit:
 			sl := getStringLiteral(vl)
 			fmtPrintf("  .quad %s\n", sl.label)
 			fmtPrintf("  .quad %d\n", Itoa(sl.strlen))
-		case nil:
-			fmtPrintf("  .quad 0\n")
-			fmtPrintf("  .quad 0\n")
 		default:
-			panic("Unexpected case")
+			panic("Unsupported global string value")
 		}
 	case T_BOOL:
 		switch vl := val.(type) {
+		case nil:
+			fmtPrintf("  .quad 0 # bool zero value\n")
 		case *ast.Ident:
 			switch vl.Obj {
 			case gTrue:
@@ -1717,50 +1728,57 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 			default:
 				throw(val)
 			}
-		case nil:
-			fmtPrintf("  .quad 0 # bool zero value\n")
 		default:
 			throw(val)
 		}
 	case T_INT:
 		switch vl := val.(type) {
-		case *ast.BasicLit:
-			fmtPrintf("  .quad %s\n", vl.Value)
 		case nil:
 			fmtPrintf("  .quad 0\n")
+		case *ast.BasicLit:
+			fmtPrintf("  .quad %s\n", vl.Value)
 		default:
 			throw(val)
 		}
 	case T_UINT8:
 		switch vl := val.(type) {
-		case *ast.BasicLit:
-			fmtPrintf("  .byte %s\n", vl.Value)
 		case nil:
 			fmtPrintf("  .byte 0\n")
+		case *ast.BasicLit:
+			fmtPrintf("  .byte %s\n", vl.Value)
 		default:
 			throw(val)
 		}
 	case T_UINT16:
 		switch vl := val.(type) {
-		case *ast.BasicLit:
-			fmt.Printf("  .word %s\n", vl.Value)
 		case nil:
 			fmt.Printf("  .word 0\n")
+		case *ast.BasicLit:
+			fmt.Printf("  .word %s\n", vl.Value)
 		default:
 			throw(val)
 		}
-	case T_POINTER, T_UINTPTR:
+	case T_POINTER:
+		// will be set in the initGlobal func
+		fmtPrintf("  .quad 0\n")
+	case T_UINTPTR:
 		// only zero value
+		if val != nil {
+			panic("Unsupported global value")
+		}
 		fmtPrintf("  .quad 0\n")
 	case T_SLICE:
 		// only zero value
+		if val != nil {
+			panic("Unsupported global value")
+		}
 		fmtPrintf("  .quad 0 # ptr\n")
 		fmtPrintf("  .quad 0 # len\n")
 		fmtPrintf("  .quad 0 # cap\n")
 	case T_ARRAY:
 		// only zero value
 		if val != nil {
-			panic("TBI")
+			panic("Unsupported global value")
 		}
 		arrayType, ok := t.e.(*ast.ArrayType)
 		assert(ok, "should be *ast.ArrayType")
@@ -1809,8 +1827,23 @@ func emitData(pkgName string) {
 	emitComment(0, "==============================\n")
 }
 
-func emitText(pkgName string) {
-	fmt.Printf(".text\n")
+func emitGlobalInit(pkgName string) {
+	fmtPrintf("%s.__initGlobals:\n", pkgName)
+	for _, spec := range globalVars {
+		if len(spec.Values) == 0 {
+			continue
+		}
+		val := spec.Values[0]
+		var t *Type
+		if spec.Type != nil {
+			t = e2t(spec.Type)
+		}
+		emitGlobalVariableComplex(spec.Names[0], t, val)
+	}
+	fmt.Printf("  ret\n")
+}
+
+func emitFuncs(pkgName string) {
 	var fnc *Func
 	for _, fnc = range globalFuncs {
 		emitFuncDecl(pkgName, fnc)
@@ -1819,7 +1852,11 @@ func emitText(pkgName string) {
 
 func generateCode(pkgName string) {
 	emitData(pkgName)
-	emitText(pkgName)
+
+	fmtPrintf("\n")
+	fmtPrintf(".text\n")
+	emitGlobalInit(pkgName)
+	emitFuncs(pkgName)
 }
 
 // --- type ---

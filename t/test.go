@@ -77,6 +77,12 @@ func Sprintf(format string, a []string) string {
 var gInt int = 1010
 var gBool bool = true
 var gString string = "gString"
+var gPointer *MyStruct = &MyStruct{
+	field1: 11,
+	field2: 22,
+}
+
+var gChar uint8 = 'A'
 
 func testGlobalValues() {
 	writeln(itoa(gInt))
@@ -84,6 +90,8 @@ func testGlobalValues() {
 		writeln("gBool is true")
 	}
 	writeln(gString)
+	writeln(itoa(gPointer.field2))
+	writeln(itoa(int(gChar)))
 }
 
 func testShortVarDecl() {
