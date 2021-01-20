@@ -25,8 +25,7 @@ func fmtSprintf(format string, a []string) string {
 	var buf []uint8
 	var inPercent bool
 	var argIndex int
-	var c uint8
-	for _, c = range []uint8(format) {
+	for _, c := range []uint8(format) {
 		if inPercent {
 			if c == '%' {
 				buf = append(buf, c)
@@ -34,8 +33,7 @@ func fmtSprintf(format string, a []string) string {
 				var arg = a[argIndex]
 				argIndex++
 				var s = arg // // p.printArg(arg, c)
-				var _c uint8
-				for _, _c = range []uint8(s) {
+				for _, _c := range []uint8(s) {
 					buf = append(buf, _c)
 				}
 			}
@@ -61,11 +59,10 @@ func Atoi(gs string) int {
 	if len(gs) == 0 {
 		return 0
 	}
-	var b uint8
 	var n int
 
 	var isMinus bool
-	for _, b = range []uint8(gs) {
+	for _, b := range []uint8(gs) {
 		if b == '.' {
 			return -999 // @FIXME all no number should return error
 		}
@@ -125,8 +122,7 @@ func Itoa(ival int) string {
 }
 
 func inArray(x string, list []string) bool {
-	var v string
-	for _, v = range list {
+	for _, v := range list {
 		if v == x {
 			return true
 		}
@@ -738,6 +734,7 @@ type astRangeStmt struct {
 	labelExit string
 	lenvar    *Variable
 	indexvar  *Variable
+	Tok       string
 }
 
 // Declarations
@@ -809,8 +806,7 @@ func scopeInsert(s *astScope, obj *astObject) {
 }
 
 func scopeLookup(s *astScope, name string) *astObject {
-	var oe *objectEntry
-	for _, oe = range s.Objects {
+	for _, oe := range s.Objects {
 		if oe.name == name {
 			return oe.obj
 		}
@@ -1687,12 +1683,14 @@ func (p *parser) parseForStmt() *astStmt {
 		default:
 			panic2(__func__, "Unexpected len of as.Lhs")
 		}
+
 		rangeX = as.Rhs[0].unaryExpr.X
 		var rangeStmt = &astRangeStmt{}
 		rangeStmt.Key = key
 		rangeStmt.Value = value
 		rangeStmt.X = rangeX
 		rangeStmt.Body = body
+		rangeStmt.Tok = as.Tok
 		var r = &astStmt{}
 		r.dtype = "*astRangeStmt"
 		r.rangeStmt = rangeStmt
@@ -1846,13 +1844,16 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 		s.dtype = "*astAssignStmt"
 		s.assignStmt = as
 		s.isRange = isRange
-		if assignToken == ":=" {
-			// Obj.Decl = astAssignStmt
-			var objDecl = &ObjDecl{
-				dtype: "*astAssignStmt",
-				assignment: as,
+		if as.Tok == ":=" {
+			lhss := x
+			for _, lhs := range lhss {
+				var objDecl = &ObjDecl{
+					dtype: "*astAssignStmt",
+					assignment: as,
+				}
+				assert(lhs.dtype == "*astIdent", "should be ident", __func__)
+				declare(objDecl, p.topScope, astVar, lhs.ident)
 			}
-			declare(objDecl, p.topScope, astVar, x[0].ident)
 		}
 		logf(" parseSimpleStmt end =, := %s\n", __func__)
 		return s
@@ -2185,15 +2186,13 @@ func (p *parser) parseFile() *astFile {
 
 	// dump p.pkgScope
 	logf("[DEBUG] Dump objects in the package scope\n")
-	var oe *objectEntry
-	for _, oe = range p.pkgScope.Objects {
+	for _, oe := range p.pkgScope.Objects {
 		logf("    object %s\n", oe.name)
 	}
 
 	var unresolved []*astIdent
-	var idnt *astIdent
 	logf(" [parserFile] resolving parser's unresolved (n=%s)\n", Itoa(len(p.unresolved)))
-	for _, idnt = range p.unresolved {
+	for _, idnt := range p.unresolved {
 		logf(" [parserFile] resolving ident %s ...\n", idnt.Name)
 		var obj *astObject = scopeLookup(p.pkgScope, idnt.Name)
 		if obj != nil {
@@ -2637,8 +2636,7 @@ type Arg struct {
 func emitArgs(args []*Arg) int {
 	var totalPushedSize int
 	//var arg *astExpr
-	var arg *Arg
-	for _, arg = range args {
+	for _, arg := range args {
 		var t *Type
 		if arg.t != nil {
 			t = arg.t
@@ -2649,12 +2647,12 @@ func emitArgs(args []*Arg) int {
 		totalPushedSize = totalPushedSize + getPushSizeOfType(t)
 	}
 	fmtPrintf("  subq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
-	for _, arg = range args {
+	for _, arg := range args {
 		emitExpr(arg.e, arg.t)
 	}
 	fmtPrintf("  addq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
 
-	for _, arg = range args {
+	for _, arg := range args {
 		var t *Type
 		if arg.t != nil {
 			t = arg.t
@@ -2761,8 +2759,8 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*
 				t: getTypeOfExpr(receiver),
 			},
 		}
-		var a *Arg
-		for _, a = range args {
+
+		for _, a := range args {
 			receiverAndArgs = append(receiverAndArgs, a)
 		}
 		return receiverAndArgs
@@ -3380,8 +3378,7 @@ func emitStmt(stmt *astStmt) {
 	emitComment(2, "== Stmt %s ==\n", stmt.dtype)
 	switch stmt.dtype {
 	case "*astBlockStmt":
-		var stmt2 *astStmt
-		for _, stmt2 = range stmt.blockStmt.List {
+		for _, stmt2 := range stmt.blockStmt.List {
 			emitStmt(stmt2)
 		}
 	case "*astExprStmt":
@@ -3646,8 +3643,7 @@ func emitStmt(stmt *astStmt) {
 				defaultLabel = labelCase
 				continue
 			}
-			var e *astExpr
-			for _, e = range cc.List {
+			for _, e := range cc.List {
 				assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string", __func__)
 				emitPushStackTop(condType, "switch expr")
 				emitExpr(e, nil)
@@ -3673,8 +3669,7 @@ func emitStmt(stmt *astStmt) {
 			assert(c.dtype == "*astCaseClause", "should be *astCaseClause", __func__)
 			var cc = c.caseClause
 			fmtPrintf("%s:\n", labels[i])
-			var _s *astStmt
-			for _, _s = range cc.Body {
+			for _, _s := range cc.Body {
 				emitStmt(_s)
 			}
 			fmtPrintf("  jmp %s\n", labelEnd)
@@ -3916,15 +3911,13 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 func generateCode(pkg *PkgContainer) {
 	fmtPrintf(".data\n")
 	emitComment(0, "string literals len = %s\n", Itoa(len(stringLiterals)))
-	var con *stringLiteralsContainer
-	for _, con = range stringLiterals {
+	for _, con := range stringLiterals {
 		emitComment(0, "string literals\n")
 		fmtPrintf("%s:\n", con.sl.label)
 		fmtPrintf("  .string %s\n", con.sl.value)
 	}
 
-	var spec *astValueSpec
-	for _, spec = range pkg.vars {
+	for _, spec := range pkg.vars {
 		var t *Type
 		if spec.Type != nil {
 			t = e2t(spec.Type)
@@ -3935,7 +3928,7 @@ func generateCode(pkg *PkgContainer) {
 	fmtPrintf("\n")
 	fmtPrintf(".text\n")
 	fmtPrintf("%s.__initGlobals:\n", pkg.name)
-	for _, spec = range pkg.vars {
+	for _, spec := range pkg.vars {
 		if spec.Value == nil{
 			continue
 		}
@@ -3948,8 +3941,7 @@ func generateCode(pkg *PkgContainer) {
 	}
 	fmtPrintf("  ret\n")
 
-	var fnc *Func
-	for _, fnc = range pkg.funcs {
+	for _, fnc := range pkg.funcs {
 		emitFuncDecl(pkg.name, fnc)
 	}
 }
@@ -3980,6 +3972,9 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
 	switch expr.dtype {
 	case "*astIdent":
+		if expr.ident.Obj == nil {
+			panic(expr.ident.Name)
+		}
 		switch expr.ident.Obj.Kind {
 		case astVar:
 			switch expr.ident.Obj.Decl.dtype {
@@ -4040,6 +4035,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			eStarExpr.dtype = "*astStarExpr"
 			eStarExpr.starExpr = starExpr
 			return e2t(eStarExpr)
+		case "range":
+			listType := getTypeOfExpr(expr.unaryExpr.X)
+			elmType := getElementTypeOfListType(listType)
+			return elmType
 		default:
 			panic2(__func__, "TBI: Op="+expr.unaryExpr.Op)
 		}
@@ -4321,7 +4320,7 @@ func getStructTypeSpec(namedStructType *Type) *astTypeSpec {
 
 func lookupStructField(structTypeSpec *astTypeSpec, selName string) *astField {
 	var field *astField
-	for _, field = range getStructFields(structTypeSpec) {
+	for _, field := range getStructFields(structTypeSpec) {
 		if field.Name.Name == selName {
 			return field
 		}
@@ -4334,8 +4333,7 @@ func calcStructSizeAndSetFieldOffset(structTypeSpec *astTypeSpec) int {
 	var offset int = 0
 
 	var fields = getStructFields(structTypeSpec)
-	var field *astField
-	for _, field = range fields {
+	for _, field := range fields {
 		setStructFieldOffset(field, offset)
 		var size = getSizeOfType(e2t(field.Type))
 		offset = offset + size
@@ -4388,8 +4386,7 @@ var localoffset int
 var currentFuncDecl *astFuncDecl
 
 func getStringLiteral(lit *astBasicLit) *sliteral {
-	var container *stringLiteralsContainer
-	for _, container = range stringLiterals {
+	for _, container := range stringLiterals {
 		if container.lit == lit {
 			return container.sl
 		}
@@ -4408,9 +4405,8 @@ func registerStringLiteral(lit *astBasicLit) {
 	}
 
 	var strlen int
-	var c uint8
 	var vl = []uint8(lit.Value)
-	for _, c = range vl {
+	for _, c := range vl {
 		if c != '\\' {
 			strlen++
 		}
@@ -4463,7 +4459,7 @@ var typesWithMethods []*namedTypeEntry
 
 func findNamedType(typeName string) *namedTypeEntry {
 	var typ *namedTypeEntry
-	for _, typ = range typesWithMethods {
+	for _, typ := range typesWithMethods {
 		if typ.name == typeName {
 			return typ
 		}
@@ -4519,9 +4515,8 @@ func lookupMethod(rcvT *Type, methodName *astIdent) *Method {
 	if nt == nil {
 		panic(rcvTypeName.Name + " has no moethodeiverTypeName:")
 	}
-	var me *methodEntry
 
-	for _, me = range nt.methods {
+	for _, me := range nt.methods {
 		if me.name == methodName.Name {
 			return me.method
 		}
@@ -4596,8 +4591,7 @@ func walkStmt(stmt *astStmt) {
 	case "*astExprStmt":
 		walkExpr(stmt.exprStmt.X)
 	case "*astReturnStmt":
-		var rt *astExpr
-		for _, rt = range stmt.returnStmt.Results {
+		for _, rt := range stmt.returnStmt.Results {
 			walkExpr(rt)
 		}
 	case "*astIfStmt":
@@ -4605,8 +4599,7 @@ func walkStmt(stmt *astStmt) {
 			walkStmt(stmt.ifStmt.Init)
 		}
 		walkExpr(stmt.ifStmt.Cond)
-		var s *astStmt
-		for _, s = range stmt.ifStmt.Body.List {
+		for _, s := range stmt.ifStmt.Body.List {
 			walkStmt(s)
 		}
 		if stmt.ifStmt.Else != nil {
@@ -4639,14 +4632,21 @@ func walkStmt(stmt *astStmt) {
 		var lenvar = newLocalVariable(".range.len", localoffset)
 		localoffset = localoffset - intSize
 		var indexvar = newLocalVariable(".range.index", localoffset)
+
+		if stmt.rangeStmt.Tok == ":=" {
+			listType := getTypeOfExpr(stmt.rangeStmt.X)
+			elmType := getElementTypeOfListType(listType)
+			valueIdent := stmt.rangeStmt.Value.ident
+			localoffset = localoffset - getSizeOfType(elmType)
+			valueIdent.Obj.Variable = newLocalVariable(valueIdent.Name, localoffset)
+		}
 		stmt.rangeStmt.lenvar = lenvar
 		stmt.rangeStmt.indexvar = indexvar
 		currentFor = stmt.rangeStmt.Outer
 	case "*astIncDecStmt":
 		walkExpr(stmt.incDecStmt.X)
 	case "*astBlockStmt":
-		var s *astStmt
-		for _, s = range stmt.blockStmt.List {
+		for _, s := range stmt.blockStmt.List {
 			walkStmt(s)
 		}
 	case "*astBranchStmt":
@@ -4657,12 +4657,10 @@ func walkStmt(stmt *astStmt) {
 		}
 		walkStmt(blockStmt2Stmt(stmt.switchStmt.Body))
 	case "*astCaseClause":
-		var e_ *astExpr
-		var s_ *astStmt
-		for _, e_ = range stmt.caseClause.List {
+		for _, e_ := range stmt.caseClause.List {
 			walkExpr(e_)
 		}
-		for _, s_ = range stmt.caseClause.Body {
+		for _, s_ := range stmt.caseClause.Body {
 			walkStmt(s_)
 		}
 	default:
@@ -4706,8 +4704,7 @@ func walkExpr(expr *astExpr) {
 			registerStringLiteral(expr.basicLit)
 		}
 	case "*astCompositeLit":
-		var v *astExpr
-		for _, v = range expr.compositeLit.Elts {
+		for _, v := range expr.compositeLit.Elts {
 			walkExpr(v)
 		}
 	case "*astUnaryExpr":
@@ -4746,8 +4743,7 @@ func walkExpr(expr *astExpr) {
 }
 
 func walk(pkg *PkgContainer, file *astFile) {
-	var decl *astDecl
-	for _, decl = range file.Decls {
+	for _, decl := range file.Decls {
 		switch decl.dtype {
 		case "*astFuncDecl":
 			var funcDecl = decl.funcDecl
@@ -4759,7 +4755,7 @@ func walk(pkg *PkgContainer, file *astFile) {
 			}
 		}
 	}
-	for _, decl = range file.Decls {
+	for _, decl := range file.Decls {
 		switch decl.dtype {
 		case "*astGenDecl":
 			var genDecl = decl.genDecl
@@ -4797,17 +4793,16 @@ func walk(pkg *PkgContainer, file *astFile) {
 			logf(" [sema] == astFuncDecl %s ==\n", funcDecl.Name.Name)
 			localoffset = 0
 			var paramoffset = 16
-			var field *astField
 			var paramFields []*astField
 
 			if funcDecl.Recv != nil { // Method
 				paramFields = append(paramFields, funcDecl.Recv.List[0])
 			}
-			for _, field = range funcDecl.Type.Params.List {
+			for _, field := range funcDecl.Type.Params.List {
 				paramFields = append(paramFields, field)
 			}
 
-			for _, field = range paramFields {
+			for _, field := range paramFields {
 				var obj = field.Name.Obj
 				obj.Variable = newLocalVariable(obj.Name, paramoffset)
 				var varSize = getSizeOfType(e2t(field.Type))
@@ -4816,8 +4811,7 @@ func walk(pkg *PkgContainer, file *astFile) {
 				//logf("   field.Type=%#v\n", field.Type)
 			}
 			if funcDecl.Body != nil {
-				var stmt *astStmt
-				for _, stmt = range funcDecl.Body.List {
+				for _, stmt := range funcDecl.Body.List {
 					walkStmt(stmt)
 				}
 				var fnc = &Func{}
@@ -5142,9 +5136,8 @@ func resolveUniverse(file *astFile, universe *astScope) {
 	// create universe scope
 	// inject predeclared identifers
 	var unresolved []*astIdent
-	var ident *astIdent
 	logf(" [SEMA] resolving file.Unresolved (n=%s)\n", Itoa(len(file.Unresolved)))
-	for _, ident = range file.Unresolved {
+	for _, ident := range file.Unresolved {
 		logf(" [SEMA] resolving ident %s ... \n", ident.Name)
 		var obj *astObject = scopeLookup(universe, ident.Name)
 		if obj != nil {
@@ -5202,8 +5195,7 @@ func main() {
 	var inputFile = arg
 	var sourceFiles = []string{"runtime.go", inputFile}
 
-	var sourceFile string
-	for _, sourceFile = range sourceFiles {
+	for _, sourceFile := range sourceFiles {
 		fmtPrintf("# file: %s\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil
