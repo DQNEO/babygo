@@ -843,7 +843,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		}
 
 		// general function call
-		symbol = getFuncSymbol(pkgName, fn.Name)
+		symbol = getFuncSymbol(pkg.name, fn.Name)
 		obj := fn.Obj //.Kind == FN
 		fndecl, ok := obj.Decl.(*ast.FuncDecl)
 		if !ok {
@@ -878,7 +878,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 			method := lookupMethod(receiverType, fn.Sel)
 			funcType = method.funcType
 			subsymbol := getMethodSymbol(method)
-			symbol = getFuncSymbol(pkgName, subsymbol)
+			symbol = getFuncSymbol(pkg.name, subsymbol)
 		}
 	default:
 		throw(fun)
@@ -1804,7 +1804,7 @@ func emitGlobalVariable(name *ast.Ident, t *Type, val ast.Expr) {
 	}
 }
 
-func emitData(pkgName string) {
+func emitData(pkgName string, vars []*ast.ValueSpec, sliterals []*stringLiteralsContainer) {
 	fmt.Printf(".data\n")
 	for _, con := range stringLiterals {
 		emitComment(0, "string literals\n")
@@ -1813,7 +1813,7 @@ func emitData(pkgName string) {
 	}
 
 	emitComment(0, "===== Global Variables =====\n")
-	for _, spec := range globalVars {
+	for _, spec := range vars {
 		var val ast.Expr
 		if len(spec.Values) > 0 {
 			val = spec.Values[0]
@@ -1827,9 +1827,9 @@ func emitData(pkgName string) {
 	emitComment(0, "==============================\n")
 }
 
-func emitGlobalInit(pkgName string) {
-	fmtPrintf("%s.__initGlobals:\n", pkgName)
-	for _, spec := range globalVars {
+func emitGlobalInit(pkgContainer *PkgContainer) {
+	fmtPrintf("%s.__initGlobals:\n", pkgContainer.name)
+	for _, spec := range pkgContainer.vars {
 		if len(spec.Values) == 0 {
 			continue
 		}
@@ -1843,20 +1843,20 @@ func emitGlobalInit(pkgName string) {
 	fmt.Printf("  ret\n")
 }
 
-func emitFuncs(pkgName string) {
+func emitFuncs(pkgName string, funcs []*Func) {
 	var fnc *Func
-	for _, fnc = range globalFuncs {
+	for _, fnc = range funcs {
 		emitFuncDecl(pkgName, fnc)
 	}
 }
 
-func generateCode(pkgName string) {
-	emitData(pkgName)
+func generateCode(pkgContainer *PkgContainer) {
+	emitData(pkgContainer.name, pkgContainer.vars, stringLiterals)
 
 	fmtPrintf("\n")
 	fmtPrintf(".text\n")
-	emitGlobalInit(pkgName)
-	emitFuncs(pkgName)
+	emitGlobalInit(pkgContainer)
+	emitFuncs(pkgContainer.name, pkgContainer.funcs)
 }
 
 // --- type ---
@@ -2356,8 +2356,6 @@ var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
 var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
 var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
 var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
-var globalVars []*ast.ValueSpec
-var globalFuncs []*Func
 var localoffset localoffsetint
 var currentFuncDecl *ast.FuncDecl
 
@@ -2373,7 +2371,7 @@ func getStringLiteral(lit *ast.BasicLit) *sliteral {
 }
 
 func registerStringLiteral(lit *ast.BasicLit) {
-	if pkgName == "" {
+	if pkg.name == "" {
 		panic("no pkgName")
 	}
 
@@ -2384,7 +2382,7 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		}
 	}
 
-	label := fmt.Sprintf(".%s.S%d", pkgName, stringIndex)
+	label := fmt.Sprintf(".%s.S%d", pkg.name, stringIndex)
 	stringIndex++
 
 	sl := &sliteral{
@@ -2675,7 +2673,7 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
-func walk(f *ast.File) {
+func walk(pkg *PkgContainer, f *ast.File) {
 	// collect methods in advance
 	for _, decl := range f.Decls {
 		switch dcl := decl.(type) {
@@ -2702,7 +2700,7 @@ func walk(f *ast.File) {
 				nameIdent := valSpec.Names[0]
 				if nameIdent.Obj.Kind == ast.Var {
 					nameIdent.Obj.Data = newGlobalVariable(nameIdent.Obj.Name)
-					globalVars = append(globalVars, valSpec)
+					pkg.vars = append(pkg.vars, valSpec)
 				}
 				for _, v := range valSpec.Values {
 					walkExpr(v)
@@ -2757,8 +2755,7 @@ func walk(f *ast.File) {
 				if funcDecl.Recv != nil { // is Method
 					fnc.method = newMethod(funcDecl)
 				}
-
-				globalFuncs = append(globalFuncs, fnc)
+				pkg.funcs = append(pkg.funcs, fnc)
 			}
 		default:
 			throw(decl)
@@ -3052,7 +3049,13 @@ func resolveUniverse(fiile *ast.File, universe *ast.Scope) {
 }
 
 // --- main ---
-var pkgName string
+var pkg *PkgContainer
+
+type PkgContainer struct {
+	name string
+	vars []*ast.ValueSpec
+	funcs []*Func
+}
 
 func main() {
 	var universe = createUniverse()
@@ -3061,16 +3064,16 @@ func main() {
 	var sourceFile string
 	for _, sourceFile = range sourceFiles {
 		fmtPrintf("# file: %s\n", sourceFile)
-		globalVars = nil
-		globalFuncs = nil
 		stringIndex = 0
 		stringLiterals = nil
 		fset := &token.FileSet{}
 		f := parseFile(fset, sourceFile)
 		resolveUniverse(f, universe)
-		pkgName = f.Name.Name
-		logf("Package:   %s\n", pkgName)
-		walk(f)
-		generateCode(pkgName)
+		pkg = &PkgContainer{
+			name: f.Name.Name,
+		}
+		logf("Package:   %s\n", pkg.name)
+		walk(pkg, f)
+		generateCode(pkg)
 	}
 }

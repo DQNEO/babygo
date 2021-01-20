@@ -4759,7 +4759,7 @@ func walkExpr(expr *astExpr) {
 	}
 }
 
-func walk(pkgContainer *PkgContainer, file *astFile) {
+func walk(pkg *PkgContainer, file *astFile) {
 	var decl *astDecl
 	for _, decl = range file.Decls {
 		switch decl.dtype {
@@ -4783,7 +4783,7 @@ func walk(pkgContainer *PkgContainer, file *astFile) {
 				var nameIdent = valSpec.Name
 				if nameIdent.Obj.Kind == astVar {
 					nameIdent.Obj.Variable = newGlobalVariable(nameIdent.Obj.Name)
-					pkgContainer.vars = append(pkgContainer.vars, valSpec)
+					pkg.vars = append(pkg.vars, valSpec)
 				}
 				if valSpec.Value != nil {
 					walkExpr(valSpec.Value)
@@ -4839,7 +4839,7 @@ func walk(pkgContainer *PkgContainer, file *astFile) {
 				if funcDecl.Recv != nil { // Method
 					fnc.method = newMethod(funcDecl)
 				}
-				pkgContainer.funcs = append(pkgContainer.funcs, fnc)
+				pkg.funcs = append(pkg.funcs, fnc)
 			}
 		default:
 			panic2(__func__, "TBI: "+decl.dtype)
