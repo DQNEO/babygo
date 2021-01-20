@@ -74,6 +74,24 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+func testInferVarTypes() {
+	// type by literal
+	var i = 123 // int
+	var s = "abc" // string
+	var slc = []int{1,2,3}
+	var strctPtr = &MyStruct{
+		field2: 456,
+	}
+	var strct = MyStruct{
+		field1: 789,
+	}
+	writeln(itoa(i))
+	writeln(s)
+	writeln(itoa(slc[2]))
+	writeln(itoa(strctPtr.field2))
+	writeln(itoa(strct.field1))
+}
+
 var gInt int = 1010
 var gBool bool = true
 var gString string = "gString"
@@ -1416,6 +1434,7 @@ func testMisc() {
 }
 
 func test() {
+	testInferVarTypes()
 	testGlobalValues()
 	testShortVarDecl()
 	testStructPointerMethods()
