@@ -1978,6 +1978,10 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			var t = getTypeOfExpr(e.X)
 			starExpr.X = t.e
 			return e2t(starExpr)
+		case "range":
+			listType := getTypeOfExpr(e.X)
+			elmType := getElementTypeOfListType(listType)
+			return elmType
 		default:
 			throw(e.Op.String())
 		}
@@ -2562,6 +2566,15 @@ func walkStmt(stmt ast.Stmt) {
 		lenvar := newLocalVariable(".range.len", localoffset)
 		localoffset -= localoffsetint(gInt.Data.(int))
 		indexvar := newLocalVariable(".range.index", localoffset)
+		if s.Tok.String() == ":=" {
+			// short var decl
+			// determine type of Value
+			listType := getTypeOfExpr(s.X)
+			elmType := getElementTypeOfListType(listType)
+			valueIdent := s.Value.(*ast.Ident)
+			localoffset -= localoffsetint(getSizeOfType(elmType))
+			valueIdent.Obj.Data = newLocalVariable(valueIdent.Name, localoffset)
+		}
 		mapRangeStmt[s] = &RangeStmtMisc{
 			lenvar:   lenvar,
 			indexvar: indexvar,

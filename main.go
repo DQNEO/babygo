@@ -738,6 +738,7 @@ type astRangeStmt struct {
 	labelExit string
 	lenvar    *Variable
 	indexvar  *Variable
+	Tok       string
 }
 
 // Declarations
@@ -1687,12 +1688,14 @@ func (p *parser) parseForStmt() *astStmt {
 		default:
 			panic2(__func__, "Unexpected len of as.Lhs")
 		}
+
 		rangeX = as.Rhs[0].unaryExpr.X
 		var rangeStmt = &astRangeStmt{}
 		rangeStmt.Key = key
 		rangeStmt.Value = value
 		rangeStmt.X = rangeX
 		rangeStmt.Body = body
+		rangeStmt.Tok = as.Tok
 		var r = &astStmt{}
 		r.dtype = "*astRangeStmt"
 		r.rangeStmt = rangeStmt
@@ -1846,13 +1849,17 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 		s.dtype = "*astAssignStmt"
 		s.assignStmt = as
 		s.isRange = isRange
-		if assignToken == ":=" {
-			// Obj.Decl = astAssignStmt
-			var objDecl = &ObjDecl{
-				dtype: "*astAssignStmt",
-				assignment: as,
+		if as.Tok == ":=" {
+			lhss := x
+			var lhs *astExpr
+			for _, lhs = range lhss {
+				var objDecl = &ObjDecl{
+					dtype: "*astAssignStmt",
+					assignment: as,
+				}
+				assert(lhs.dtype == "*astIdent", "should be ident", __func__)
+				declare(objDecl, p.topScope, astVar, lhs.ident)
 			}
-			declare(objDecl, p.topScope, astVar, x[0].ident)
 		}
 		logf(" parseSimpleStmt end =, := %s\n", __func__)
 		return s
@@ -3980,6 +3987,9 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
 	switch expr.dtype {
 	case "*astIdent":
+		if expr.ident.Obj == nil {
+			panic(expr.ident.Name)
+		}
 		switch expr.ident.Obj.Kind {
 		case astVar:
 			switch expr.ident.Obj.Decl.dtype {
@@ -4040,6 +4050,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			eStarExpr.dtype = "*astStarExpr"
 			eStarExpr.starExpr = starExpr
 			return e2t(eStarExpr)
+		case "range":
+			listType := getTypeOfExpr(expr.unaryExpr.X)
+			elmType := getElementTypeOfListType(listType)
+			return elmType
 		default:
 			panic2(__func__, "TBI: Op="+expr.unaryExpr.Op)
 		}
@@ -4639,6 +4653,14 @@ func walkStmt(stmt *astStmt) {
 		var lenvar = newLocalVariable(".range.len", localoffset)
 		localoffset = localoffset - intSize
 		var indexvar = newLocalVariable(".range.index", localoffset)
+
+		if stmt.rangeStmt.Tok == ":=" {
+			listType := getTypeOfExpr(stmt.rangeStmt.X)
+			elmType := getElementTypeOfListType(listType)
+			valueIdent := stmt.rangeStmt.Value.ident
+			localoffset = localoffset - getSizeOfType(elmType)
+			valueIdent.Obj.Variable = newLocalVariable(valueIdent.Name, localoffset)
+		}
 		stmt.rangeStmt.lenvar = lenvar
 		stmt.rangeStmt.indexvar = indexvar
 		currentFor = stmt.rangeStmt.Outer
@@ -5202,8 +5224,7 @@ func main() {
 	var inputFile = arg
 	var sourceFiles = []string{"runtime.go", inputFile}
 
-	var sourceFile string
-	for _, sourceFile = range sourceFiles {
+	for _, sourceFile := range sourceFiles {
 		fmtPrintf("# file: %s\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil

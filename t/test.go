@@ -80,6 +80,15 @@ var gstrctPtr = &MyStruct{
 	field2: 456,
 }
 
+func testForRangeShortDecl() {
+	var ary []int = []int{0, 1, 2, 3}
+	//var i int
+	for _, w := range ary {
+		write(itoa(w))
+	}
+	writeln("")
+}
+
 func testInferVarTypes() {
 	// type by literal
 	var gstrct = MyStruct{
@@ -1437,6 +1446,7 @@ func testMisc() {
 }
 
 func test() {
+	testForRangeShortDecl()
 	testInferVarTypes()
 	testGlobalValues()
 	testShortVarDecl()
