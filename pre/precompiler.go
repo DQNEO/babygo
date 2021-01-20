@@ -3069,8 +3069,7 @@ func main() {
 	var universe = createUniverse()
 	var sourceFiles = []string{"runtime.go", "/dev/stdin"}
 
-	var sourceFile string
-	for _, sourceFile = range sourceFiles {
+	for _, sourceFile := range sourceFiles {
 		fmtPrintf("# file: %s\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil

@@ -82,7 +82,7 @@ var gstrctPtr = &MyStruct{
 
 func testForRangeShortDecl() {
 	var ary []int = []int{0, 1, 2, 3}
-	//var i int
+
 	for _, w := range ary {
 		write(itoa(w))
 	}
