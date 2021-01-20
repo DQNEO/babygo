@@ -5207,12 +5207,12 @@ func main() {
 		fmtPrintf("# file: %s\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil
-		var f = parseFile(sourceFile)
-		resolveUniverse(f, universe)
+		astFile := parseFile(sourceFile)
+		resolveUniverse(astFile, universe)
 		pkg = &PkgContainer{
-			name: f.Name,
+			name: astFile.Name,
 		}
-		walk(pkg, f)
+		walk(pkg, astFile)
 		generateCode(pkg)
 	}
 }

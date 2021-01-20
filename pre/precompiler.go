@@ -3062,13 +3062,13 @@ func main() {
 		stringIndex = 0
 		stringLiterals = nil
 		fset := &token.FileSet{}
-		f := parseFile(fset, sourceFile)
-		resolveUniverse(f, universe)
+		astFile := parseFile(fset, sourceFile)
+		resolveUniverse(astFile, universe)
 		pkg = &PkgContainer{
-			name: f.Name.Name,
+			name: astFile.Name.Name,
 		}
 		logf("Package:   %s\n", pkg.name)
-		walk(pkg, f)
+		walk(pkg, astFile)
 		generateCode(pkg)
 	}
 }
