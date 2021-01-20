@@ -3992,16 +3992,6 @@ const T_ARRAY string = "T_ARRAY"
 const T_STRUCT string = "T_STRUCT"
 const T_POINTER string = "T_POINTER"
 
-var tInt *Type
-var tUint8 *Type
-var tUint16 *Type
-var tUintptr *Type
-var tSliceOfString *Type
-var tString *Type
-var tBool *Type
-
-var generalSlice *astExpr
-
 func getTypeOfExpr(expr *astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
 	switch expr.dtype {
@@ -4940,6 +4930,84 @@ var gPanic *astObject = &astObject{
 	Name: "panic",
 }
 
+var tInt *Type = &Type{
+	e: &astExpr{
+		dtype: "*astIdent",
+		ident : &astIdent{
+			Name: "int",
+			Obj: gInt,
+		},
+	},
+}
+var tUint8 *Type = &Type{
+	e: &astExpr{
+		dtype: "*astIdent",
+		ident: &astIdent{
+			Name: "uint8",
+			Obj:  gUint8,
+		},
+	},
+}
+
+var tUint16 *Type  = &Type{
+	e: &astExpr{
+		dtype: "*astIdent",
+		ident: &astIdent{
+			Name: "uint16",
+			Obj:  gUint16,
+		},
+	},
+}
+var tUintptr *Type  = &Type{
+	e: &astExpr{
+		dtype: "*astIdent",
+		ident: &astIdent{
+			Name: "uintptr",
+			Obj:  gUintptr,
+		},
+	},
+}
+
+var tString *Type = &Type{
+	e : &astExpr{
+		dtype : "*astIdent",
+		ident : &astIdent{
+			Name : "string",
+			Obj : gString,
+		},
+	},
+}
+var tBool *Type = &Type{
+	e : &astExpr{
+		dtype : "*astIdent",
+		ident : &astIdent{
+			Name : "bool",
+			Obj : gBool,
+		},
+	},
+}
+
+var tSliceOfString *Type = &Type{
+	e: &astExpr{
+		dtype: "*astArrayType",
+		arrayType: &astArrayType{
+			Len: nil,
+			Elt: &astExpr{
+				dtype: "*astIdent",
+				ident: &astIdent{
+					Name: "string",
+					Obj: gString,
+				},
+			},
+		},
+	},
+}
+
+var generalSlice *astExpr = &astExpr{
+	dtype: "*astIdent",
+	ident: &astIdent{},
+}
+
 // func type of runtime functions
 var funcTypeOsExit *astFuncType
 var funcTypeSyscallOpen *astFuncType
@@ -5011,87 +5079,6 @@ func resolveUniverse(file *astFile, universe *astScope) {
 }
 
 func initGlobals() {
-
-	tSliceOfString = &Type{
-		e: &astExpr{
-			dtype: "*astArrayType",
-			arrayType: &astArrayType{
-				Len: nil,
-				Elt: &astExpr{
-					dtype: "*astIdent",
-					ident: &astIdent{
-						Name: "string",
-						Obj: gString,
-					},
-				},
-			},
-		},
-	}
-	tString = &Type{
-		e : &astExpr{
-			dtype : "*astIdent",
-			ident : &astIdent{
-				Name : "string",
-				Obj : gString,
-			},
-		},
-	}
-
-	tInt = &Type{
-		e: &astExpr{
-			dtype: "*astIdent",
-			ident : &astIdent{
-				Name: "int",
-				Obj: gInt,
-			},
-		},
-	}
-
-	tUint8 = &Type{
-		e: &astExpr{
-			dtype: "*astIdent",
-			ident: &astIdent{
-				Name: "uint8",
-				Obj:  gUint8,
-			},
-		},
-	}
-
-	tUint16 = &Type{
-		e: &astExpr{
-			dtype: "*astIdent",
-			ident: &astIdent{
-				Name: "uint16",
-				Obj:  gUint16,
-			},
-		},
-	}
-
-	tUintptr = &Type{
-		e: &astExpr{
-			dtype: "*astIdent",
-			ident: &astIdent{
-				Name: "uintptr",
-				Obj:  gUintptr,
-			},
-		},
-	}
-
-	tBool = &Type{
-		e : &astExpr{
-			dtype : "*astIdent",
-			ident : &astIdent{
-				Name : "bool",
-				Obj : gBool,
-			},
-		},
-	}
-
-	generalSlice = &astExpr{
-		dtype: "*astIdent",
-		ident: &astIdent{},
-	}
-
 	funcTypeOsExit = &astFuncType{
 		Params: &astFieldList{
 			List: []*astField{
