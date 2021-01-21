@@ -998,7 +998,7 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 			emitFuncall(fun, e.Args)
 		}
 	case *ast.ParenExpr: // (e)
-		emitExpr(e.X, getTypeOfExpr(e))
+		emitExpr(e.X, targetType)
 	case *ast.BasicLit:
 		switch e.Kind.String() {
 		case "CHAR":

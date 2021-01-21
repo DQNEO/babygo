@@ -3085,7 +3085,7 @@ func emitExpr(e *astExpr, targetType *Type) {
 			emitFuncall(fun, e.callExpr.Args)
 		}
 	case "*astParenExpr":
-		emitExpr(e.parenExpr.X, nil)
+		emitExpr(e.parenExpr.X, targetType)
 	case "*astBasicLit":
 		//		emitComment(0, "basicLit.Kind = %s \n", e.basicLit.Kind)
 		switch e.basicLit.Kind {
