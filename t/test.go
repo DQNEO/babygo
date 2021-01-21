@@ -74,10 +74,24 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
-var gi = 123 // int
-var gs = "abc" // string
-var gstrctPtr = &MyStruct{
-	field2: 456,
+var geface interface{}
+
+func testInterfaceZeroValue() {
+	var eface interface{}
+	if eface == nil {
+		writeln("eface is nil")
+	}
+	if geface == nil {
+		writeln("geface is nil")
+	}
+	geface = eface
+	if geface == nil {
+		writeln("geface is nil")
+	}
+	eface = geface
+	if eface == nil {
+		writeln("eface is nil")
+	}
 }
 
 func testForRangeShortDecl() {
@@ -87,6 +101,12 @@ func testForRangeShortDecl() {
 		write(itoa(w))
 	}
 	writeln("")
+}
+
+var gi = 123 // int
+var gs = "abc" // string
+var gstrctPtr = &MyStruct{
+	field2: 456,
 }
 
 func testInferVarTypes() {
@@ -1446,6 +1466,7 @@ func testMisc() {
 }
 
 func test() {
+	testInterfaceZeroValue()
 	testForRangeShortDecl()
 	testInferVarTypes()
 	testGlobalValues()

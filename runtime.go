@@ -239,3 +239,10 @@ func cmpstrings(a string, b string) bool {
 	}
 	return true
 }
+
+func cmpeface(a uintptr, b uintptr, c uintptr, d uintptr) bool {
+	if a == c && b ==d {
+		return true
+	}
+	return false
+}

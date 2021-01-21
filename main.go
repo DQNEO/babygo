@@ -537,22 +537,23 @@ type astObject struct {
 }
 
 type astExpr struct {
-	dtype        string
-	ident        *astIdent
-	arrayType    *astArrayType
-	basicLit     *astBasicLit
-	callExpr     *astCallExpr
-	binaryExpr   *astBinaryExpr
-	unaryExpr    *astUnaryExpr
-	selectorExpr *astSelectorExpr
-	indexExpr    *astIndexExpr
-	sliceExpr    *astSliceExpr
-	starExpr     *astStarExpr
-	parenExpr    *astParenExpr
-	structType   *astStructType
-	compositeLit *astCompositeLit
-	keyValueExpr *astKeyValueExpr
-	ellipsis     *astEllipsis
+	dtype         string
+	ident         *astIdent
+	arrayType     *astArrayType
+	basicLit      *astBasicLit
+	callExpr      *astCallExpr
+	binaryExpr    *astBinaryExpr
+	unaryExpr     *astUnaryExpr
+	selectorExpr  *astSelectorExpr
+	indexExpr     *astIndexExpr
+	sliceExpr     *astSliceExpr
+	starExpr      *astStarExpr
+	parenExpr     *astParenExpr
+	structType    *astStructType
+	compositeLit  *astCompositeLit
+	keyValueExpr  *astKeyValueExpr
+	ellipsis      *astEllipsis
+	interfaceType *astInterfaceType
 }
 
 type astField struct {
@@ -639,6 +640,10 @@ type astArrayType struct {
 
 type astStructType struct {
 	Fields *astFieldList
+}
+
+type astInterfaceType struct {
+	methods []string
 }
 
 type astFuncType struct {
@@ -1070,6 +1075,17 @@ func (p *parser) tryIdentOrType() *astExpr {
 		return p.parseStructType()
 	case "*":
 		return p.parsePointerType()
+	case "interface":
+		p.next()
+		p.expect("{", __func__)
+		// @TODO parser method sets
+		p.expect("}", __func__)
+		return &astExpr{
+			dtype : "*astInterfaceType",
+			interfaceType: &astInterfaceType{
+				methods: nil,
+			},
+		}
 	case "(":
 		p.next()
 		var _typ = p.parseType()
@@ -2260,6 +2276,11 @@ func emitPopString() {
 	fmtPrintf("  popq %%rcx # string.len\n")
 }
 
+func emitPopInterFace() {
+	fmtPrintf("  popq %%rax # eface.dtype\n")
+	fmtPrintf("  popq %%rcx # eface.data\n")
+}
+
 func emitPopSlice() {
 	fmtPrintf("  popq %%rax # slice.ptr\n")
 	fmtPrintf("  popq %%rcx # slice.len\n")
@@ -2310,6 +2331,11 @@ func emitLoad(t *Type) {
 		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
 		fmtPrintf("  pushq %%rdx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
+	case T_INTERFACE:
+		fmtPrintf("  movq %d(%%rax), %%rdx # dtype\n", Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax # data\n", Itoa(0))
+		fmtPrintf("  pushq %%rdx # dtype\n")
+		fmtPrintf("  pushq %%rax # data\n")
 	case T_UINT8:
 		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
@@ -2508,6 +2534,9 @@ func emitZeroValue(t *Type) {
 	case T_STRING:
 		fmtPrintf("  pushq $0 # string zero value\n")
 		fmtPrintf("  pushq $0 # string zero value\n")
+	case T_INTERFACE:
+		fmtPrintf("  pushq $0 # interface zero value\n")
+		fmtPrintf("  pushq $0 # interface zero value\n")
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmtPrintf("  pushq $0 # %s zero value\n", kind(t))
 	case T_STRUCT:
@@ -3009,7 +3038,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 				panic2(__func__, "Type is required to emit nil")
 			}
 			switch kind(forceType) {
-			case T_SLICE, T_POINTER:
+			case T_SLICE, T_POINTER, T_INTERFACE:
 				emitZeroValue(forceType)
 			default:
 				panic2(__func__, "Unexpected kind="+kind(forceType))
@@ -3307,6 +3336,15 @@ func emitCompEq(t *Type) {
 		fmtPrintf("  callq runtime.cmpstrings\n")
 		emitRevertStackPointer(stringSize * 2)
 		emitReturnedValue(resultList)
+	case T_INTERFACE:
+		var resultList = []*astField{
+			&astField{
+				Type:    tBool.e,
+			},
+		}
+		fmtPrintf("  callq runtime.cmpeface\n")
+		emitRevertStackPointer(interfaceSize * 2)
+		emitReturnedValue(resultList)
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
 	case T_SLICE:
@@ -3340,6 +3378,11 @@ func emitStore(t *Type) {
 		fmtPrintf("  popq %%rsi # lhs ptr addr\n")
 		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
 		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
+	case T_INTERFACE:
+		emitPopInterFace() // rhs
+		fmtPrintf("  popq %%rsi # lhs ptr addr\n")
+		fmtPrintf("  movq %%rax, %d(%%rsi) # store dtype\n", Itoa(0))
+		fmtPrintf("  movq %%rcx, %d(%%rsi) # store data\n", Itoa(8))
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmtPrintf("  popq %%rdi # rhs evaluated\n")
 		fmtPrintf("  popq %%rax # lhs addr\n")
@@ -3796,6 +3839,10 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		default:
 			panic("Unsupported global string value")
 		}
+	case T_INTERFACE:
+		// only zero value
+		fmtPrintf("  .quad 0 # dtype\n")
+		fmtPrintf("  .quad 0 # data\n")
 	case T_BOOL:
 		if val == nil {
 			fmtPrintf("  .quad 0 # bool zero value\n")
@@ -3895,6 +3942,9 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		case T_STRING:
 			zeroValue = "  .quad 0 # string zero value (ptr)\n"
 			zeroValue = zeroValue + "  .quad 0 # string zero value (len)\n"
+		case T_INTERFACE:
+			zeroValue = "  .quad 0 # eface zero value (dtype)\n"
+			zeroValue = zeroValue + "  .quad 0 # eface zero value (data)\n"
 		default:
 			panic2(__func__, "Unexpected kind:"+kind)
 		}
@@ -3951,6 +4001,7 @@ const sliceSize int = 24
 const stringSize int = 16
 const intSize int = 8
 const ptrSize int = 8
+const interfaceSize int = 16
 
 type Type struct {
 	//kind string
@@ -3958,6 +4009,7 @@ type Type struct {
 }
 
 const T_STRING string = "T_STRING"
+const T_INTERFACE string = "T_INTERFACE"
 const T_SLICE string = "T_SLICE"
 const T_BOOL string = "T_BOOL"
 const T_INT string = "T_INT"
@@ -4198,6 +4250,8 @@ func kind(t *Type) string {
 		return T_POINTER
 	case "*astEllipsis": // x ...T
 		return T_SLICE // @TODO is this right ?
+	case "*astInterfaceType":
+		return T_INTERFACE
 	default:
 		panic2(__func__, "Unkown dtype:"+t.e.dtype)
 	}
@@ -4258,6 +4312,8 @@ func getSizeOfType(t *Type) int {
 		return 8
 	case T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
+	case T_INTERFACE:
+		return interfaceSize
 	default:
 		panic2(__func__, "TBI:"+knd)
 	}
