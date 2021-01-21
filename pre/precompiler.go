@@ -960,27 +960,23 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 		switch e.Obj {
 		case gTrue: // true constant
 			emitTrue()
-			return
 		case gFalse: // false constant
 			emitFalse()
-			return
 		case gNil:
 			emitNil(targetType)
-			return
-		}
-
-		if e.Obj == nil {
-			panic(fmt.Sprintf("ident %s is unresolved", e.Name))
-		}
-
-		switch e.Obj.Kind {
-		case ast.Var:
-			emitAddr(e)
-			emitLoad(getTypeOfExpr(e))
-		case ast.Con:
-			emitNamedConst(e, targetType)
 		default:
-			panic("Unexpected ident kind:" + e.Obj.Kind.String())
+			if e.Obj == nil {
+				panic(fmt.Sprintf("ident %s is unresolved", e.Name))
+			}
+			switch e.Obj.Kind {
+			case ast.Var:
+				emitAddr(e)
+				emitLoad(getTypeOfExpr(e))
+			case ast.Con:
+				emitNamedConst(e, targetType)
+			default:
+				panic("Unexpected ident kind:" + e.Obj.Kind.String())
+			}
 		}
 	case *ast.IndexExpr:
 		emitAddr(e)
@@ -992,16 +988,16 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 		emitComment(2, "emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
-	case *ast.CallExpr:
+	case *ast.CallExpr: // Fun(Args)
 		var fun = e.Fun
 		emitComment(2, "callExpr=%#v\n", fun)
 		// check if it's a conversion
 		if isType(fun) {
 			emitConversion(e2t(fun), e.Args[0])
-			return
+		} else {
+			emitFuncall(fun, e.Args)
 		}
-		emitFuncall(fun, e.Args)
-	case *ast.ParenExpr:
+	case *ast.ParenExpr: // (e)
 		emitExpr(e.X, getTypeOfExpr(e))
 	case *ast.BasicLit:
 		switch e.Kind.String() {
@@ -1092,98 +1088,131 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 			default:
 				throw(e.Op.String())
 			}
-			return
+		} else {
+			switch e.Op.String() {
+			case "&&":
+				labelid++
+				labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
+				labelExit := fmt.Sprintf(".L.%d.exit", labelid)
+				emitExpr(e.X, nil) // left
+				emitPopBool("left")
+				fmt.Printf("  cmpq $1, %%rax\n")
+				// exit with false if left is false
+				fmt.Printf("  jne %s\n", labelExitWithFalse)
+
+				// if left is true, then eval right and exit
+				emitExpr(e.Y, nil) // right
+				fmt.Printf("  jmp %s\n", labelExit)
+
+				fmt.Printf("  %s:\n", labelExitWithFalse)
+				emitFalse()
+				fmt.Printf("  %s:\n", labelExit)
+			case "||":
+				labelid++
+				labelExitWithTrue := fmt.Sprintf(".L.%d.true", labelid)
+				labelExit := fmt.Sprintf(".L.%d.exit", labelid)
+				emitExpr(e.X, nil) // left
+				emitPopBool("left")
+				fmt.Printf("  cmpq $1, %%rax\n")
+				// exit with true if left is true
+				fmt.Printf("  je %s\n", labelExitWithTrue)
+
+				// if left is false, then eval right and exit
+				emitExpr(e.Y, nil) // right
+				fmt.Printf("  jmp %s\n", labelExit)
+
+				fmt.Printf("  %s:\n", labelExitWithTrue)
+				emitTrue()
+				fmt.Printf("  %s:\n", labelExit)
+			case "+":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				fmtPrintf("  popq %%rcx # right\n")
+				fmtPrintf("  popq %%rax # left\n")
+				fmtPrintf("  addq %%rcx, %%rax\n")
+				fmtPrintf("  pushq %%rax\n")
+			case "-":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				fmtPrintf("  popq %%rcx # right\n")
+				fmtPrintf("  popq %%rax # left\n")
+				fmtPrintf("  subq %%rcx, %%rax\n")
+				fmtPrintf("  pushq %%rax\n")
+			case "*":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				fmtPrintf("  popq %%rcx # right\n")
+				fmtPrintf("  popq %%rax # left\n")
+				fmtPrintf("  imulq %%rcx, %%rax\n")
+				fmtPrintf("  pushq %%rax\n")
+			case "%":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				fmtPrintf("  popq %%rcx # right\n")
+				fmtPrintf("  popq %%rax # left\n")
+				fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
+				fmtPrintf("  divq %%rcx\n")
+				fmtPrintf("  movq %%rdx, %%rax\n")
+				fmtPrintf("  pushq %%rax\n")
+			case "/":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				fmtPrintf("  popq %%rcx # right\n")
+				fmtPrintf("  popq %%rax # left\n")
+				fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
+				fmtPrintf("  divq %%rcx\n")
+				fmtPrintf("  pushq %%rax\n")
+			case "==":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				emitCompEq(t)
+			case "!=":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				emitCompEq(t)
+				emitInvertBoolValue()
+			case "<":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				emitCompExpr("setl")
+			case "<=":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				emitCompExpr("setle")
+			case ">":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				emitCompExpr("setg")
+			case ">=":
+				var t = getTypeOfExpr(e.X)
+				emitComment(2, "start %T\n", e)
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, t)   // right
+				emitCompExpr("setge")
+			default:
+				panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
+			}
 		}
-
-		switch e.Op.String() {
-		case "&&":
-			labelid++
-			labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
-			labelExit := fmt.Sprintf(".L.%d.exit", labelid)
-			emitExpr(e.X, nil) // left
-			emitPopBool("left")
-			fmt.Printf("  cmpq $1, %%rax\n")
-			// exit with false if left is false
-			fmt.Printf("  jne %s\n", labelExitWithFalse)
-
-			// if left is true, then eval right and exit
-			emitExpr(e.Y, nil) // right
-			fmt.Printf("  jmp %s\n", labelExit)
-
-			fmt.Printf("  %s:\n", labelExitWithFalse)
-			emitFalse()
-			fmt.Printf("  %s:\n", labelExit)
-			return
-		case "||":
-			labelid++
-			labelExitWithTrue := fmt.Sprintf(".L.%d.true", labelid)
-			labelExit := fmt.Sprintf(".L.%d.exit", labelid)
-			emitExpr(e.X, nil) // left
-			emitPopBool("left")
-			fmt.Printf("  cmpq $1, %%rax\n")
-			// exit with true if left is true
-			fmt.Printf("  je %s\n", labelExitWithTrue)
-
-			// if left is false, then eval right and exit
-			emitExpr(e.Y, nil) // right
-			fmt.Printf("  jmp %s\n", labelExit)
-
-			fmt.Printf("  %s:\n", labelExitWithTrue)
-			emitTrue()
-			fmt.Printf("  %s:\n", labelExit)
-			return
-		}
-
-		var t = getTypeOfExpr(e.X)
-		emitComment(2, "start %T\n", e)
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, t)   // right
-		switch e.Op.String() {
-		case "+":
-			fmtPrintf("  popq %%rcx # right\n")
-			fmtPrintf("  popq %%rax # left\n")
-			fmtPrintf("  addq %%rcx, %%rax\n")
-			fmtPrintf("  pushq %%rax\n")
-		case "-":
-			fmtPrintf("  popq %%rcx # right\n")
-			fmtPrintf("  popq %%rax # left\n")
-			fmtPrintf("  subq %%rcx, %%rax\n")
-			fmtPrintf("  pushq %%rax\n")
-		case "*":
-			fmtPrintf("  popq %%rcx # right\n")
-			fmtPrintf("  popq %%rax # left\n")
-			fmtPrintf("  imulq %%rcx, %%rax\n")
-			fmtPrintf("  pushq %%rax\n")
-		case "%":
-			fmtPrintf("  popq %%rcx # right\n")
-			fmtPrintf("  popq %%rax # left\n")
-			fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
-			fmtPrintf("  divq %%rcx\n")
-			fmtPrintf("  movq %%rdx, %%rax\n")
-			fmtPrintf("  pushq %%rax\n")
-		case "/":
-			fmtPrintf("  popq %%rcx # right\n")
-			fmtPrintf("  popq %%rax # left\n")
-			fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
-			fmtPrintf("  divq %%rcx\n")
-			fmtPrintf("  pushq %%rax\n")
-		case "==":
-			emitCompEq(t)
-		case "!=":
-			emitCompEq(t)
-			emitInvertBoolValue()
-		case "<":
-			emitCompExpr("setl")
-		case "<=":
-			emitCompExpr("setle")
-		case ">":
-			emitCompExpr("setg")
-		case ">=":
-			emitCompExpr("setge")
-		default:
-			panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
-		}
-		emitComment(2, "end %T\n", e)
 	case *ast.CompositeLit:
 		// slice , array, map or struct
 		switch kind(e2t(e.Type)) {
