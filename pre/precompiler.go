@@ -957,6 +957,15 @@ func emitNamedConst(e *ast.Ident, targetType *Type) {
 	emitExpr(lit, targetType)
 }
 
+// targetType is the type of someone who receives the expr value.
+// There are various forms:
+//   Assignment:       x = expr
+//   Function call:    x(expr)
+//   Return:           return expr
+//   CompositeLiteral: T{key:expr}
+// targetType is used when:
+//   - the expr is nil
+//   - the target type is interface and expr is not.
 func emitExpr(expr ast.Expr, targetType *Type) {
 	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
