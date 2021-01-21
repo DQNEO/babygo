@@ -5,7 +5,7 @@ tmp = /tmp/babygo
 all: test
 
 .PHONY: test
-test: test0 test1 test2 test-self-host
+test: $(tmp) test0 test1 test2 test-self-host test0more
 
 $(tmp):
 	mkdir -p $(tmp)
@@ -23,13 +23,10 @@ $(tmp)/precompiler_test: precompiler t/test.go
 	ld -e _rt0_amd64_linux -o $(tmp)/precompiler_test $(tmp)/precompiler_test.o
 
 .PHONY: test0
-test0: $(tmp)/precompiler_test $(tmp)/babygo_by_precompiler t/expected.txt
+test0: t/expected.txt $(tmp)/precompiler_test
 	./test.sh $(tmp)/precompiler_test
-	$(tmp)/babygo_by_precompiler -DF -DG t/test.go > $(tmp)/test.s
-	cp $(tmp)/test.s ./.shared/ # for debug
-	as -o $(tmp)/test.o $(tmp)/test.s runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/test $(tmp)/test.o
-	./test.sh $(tmp)/test
+
+.PHOTNY: test0more
 
 # This target is actually not needed any more. Just kept for a preference
 $(tmp)/babygo_by_precompiler: main.go runtime.go runtime.s $(tmp)/precompiler
@@ -37,6 +34,14 @@ $(tmp)/babygo_by_precompiler: main.go runtime.go runtime.s $(tmp)/precompiler
 	cp $(tmp)/babygo_by_precompiler.s ./.shared/ # for debug
 	as -o $(tmp)/babygo_by_precompiler.o $(tmp)/babygo_by_precompiler.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/babygo_by_precompiler $(tmp)/babygo_by_precompiler.o
+
+test0more: $(tmp)/babygo_by_precompiler
+	$(tmp)/babygo_by_precompiler -DF -DG t/test.go > $(tmp)/test.s
+	cp $(tmp)/test.s ./.shared/ # for debug
+	as -o $(tmp)/test.o $(tmp)/test.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/test $(tmp)/test.o
+	./test.sh $(tmp)/test
+
 
 babygo: main.go
 	go build -o babygo main.go
