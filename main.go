@@ -3018,7 +3018,27 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 	emitCall(symbol, args, resultList)
 }
 
-func emitExpr(e *astExpr, forceType *Type) {
+func emitNil(targetType *Type) {
+	if targetType == nil {
+		panic2(__func__, "Type is required to emit nil")
+	}
+	switch kind(targetType) {
+	case T_SLICE, T_POINTER, T_INTERFACE:
+		emitZeroValue(targetType)
+	default:
+		panic2(__func__, "Unexpected kind="+kind(targetType))
+	}
+}
+
+func emitNamedConst(ident *astIdent, targetType *Type) {
+	var valSpec = ident.Obj.Decl.valueSpec
+	assert(valSpec != nil, "valSpec should not be nil", __func__)
+	assert(valSpec.Value != nil, "valSpec should not be nil", __func__)
+	assert(valSpec.Value.dtype == "*astBasicLit", "const value should be a literal", __func__)
+	emitExpr(valSpec.Value, targetType)
+}
+
+func emitExpr(e *astExpr, targetType *Type) {
 	emitComment(2, "[emitExpr] dtype=%s\n", e.dtype)
 	switch e.dtype {
 	case "*astIdent":
@@ -3034,15 +3054,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 			emitFalse()
 			return
 		case gNil:
-			if forceType == nil {
-				panic2(__func__, "Type is required to emit nil")
-			}
-			switch kind(forceType) {
-			case T_SLICE, T_POINTER, T_INTERFACE:
-				emitZeroValue(forceType)
-			default:
-				panic2(__func__, "Unexpected kind="+kind(forceType))
-			}
+			emitNil(targetType)
 			return
 		}
 		switch ident.Obj.Kind {
@@ -3051,17 +3063,7 @@ func emitExpr(e *astExpr, forceType *Type) {
 			var t = getTypeOfExpr(e)
 			emitLoad(t)
 		case astCon:
-			var valSpec = ident.Obj.Decl.valueSpec
-			assert(valSpec != nil, "valSpec should not be nil", __func__)
-			assert(valSpec.Value != nil, "valSpec should not be nil", __func__)
-			assert(valSpec.Value.dtype == "*astBasicLit", "const value should be a literal", __func__)
-			var t *Type
-			if valSpec.Type != nil {
-				t = e2t(valSpec.Type)
-			} else {
-				t = forceType
-			}
-			emitExpr(valSpec.Value, t)
+			emitNamedConst(ident, targetType)
 		case astTyp:
 			panic2(__func__, "[*astIdent] Kind Typ should not come here")
 		default:

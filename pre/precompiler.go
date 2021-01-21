@@ -932,7 +932,28 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 //   slc.len
 //   slc.cap
 //   --
-func emitExpr(expr ast.Expr, forceType *Type) {
+
+func emitNil(targetType *Type) {
+	if targetType == nil {
+		panic("Type is required to emit nil")
+	}
+	switch kind(targetType) {
+	case T_SLICE, T_POINTER, T_INTERFACE:
+		emitZeroValue(targetType)
+	default:
+		throw(kind(targetType))
+	}
+}
+
+func emitNamedConst(e *ast.Ident, targetType *Type) {
+	valSpec, ok := e.Obj.Decl.(*ast.ValueSpec)
+	assert(ok, "should be *ast.ValueSpec")
+	lit, ok := valSpec.Values[0].(*ast.BasicLit)
+	assert(ok, "should be *ast.BasicLit")
+	emitExpr(lit, targetType)
+}
+
+func emitExpr(expr ast.Expr, targetType *Type) {
 	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -944,15 +965,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			emitFalse()
 			return
 		case gNil:
-			if forceType == nil {
-				panic("Type is required to emit nil")
-			}
-			switch kind(forceType) {
-			case T_SLICE, T_POINTER, T_INTERFACE:
-				emitZeroValue(forceType)
-			default:
-				throw(kind(forceType))
-			}
+			emitNil(targetType)
 			return
 		}
 
@@ -965,17 +978,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 			emitAddr(e)
 			emitLoad(getTypeOfExpr(e))
 		case ast.Con:
-			valSpec, ok := e.Obj.Decl.(*ast.ValueSpec)
-			assert(ok, "should be *ast.ValueSpec")
-			lit, ok := valSpec.Values[0].(*ast.BasicLit)
-			assert(ok, "should be *ast.BasicLit")
-			var t *Type
-			if valSpec.Type != nil {
-				t = e2t(valSpec.Type)
-			} else {
-				t = forceType
-			}
-			emitExpr(lit, t)
+			emitNamedConst(e, targetType)
 		default:
 			panic("Unexpected ident kind:" + e.Obj.Kind.String())
 		}
