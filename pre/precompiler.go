@@ -187,6 +187,11 @@ func emitPopString() {
 	fmtPrintf("  popq %%rcx # string.len\n")
 }
 
+func emitPopInterFace() {
+	fmtPrintf("  popq %%rax # eface.dtype\n")
+	fmtPrintf("  popq %%rcx # eface.data\n")
+}
+
 func emitPopSlice() {
 	fmtPrintf("  popq %%rax # slice.ptr\n")
 	fmtPrintf("  popq %%rcx # slice.len\n")
@@ -237,6 +242,11 @@ func emitLoad(t *Type) {
 		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
 		fmtPrintf("  pushq %%rdx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
+	case T_INTERFACE:
+		fmtPrintf("  movq %d(%%rax), %%rdx # dtype\n", Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax # data\n", Itoa(0))
+		fmtPrintf("  pushq %%rdx # dtype\n")
+		fmtPrintf("  pushq %%rax # data\n")
 	case T_UINT8:
 		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
@@ -432,6 +442,9 @@ func emitZeroValue(t *Type) {
 	case T_STRING:
 		fmtPrintf("  pushq $0 # string zero value\n")
 		fmtPrintf("  pushq $0 # string zero value\n")
+	case T_INTERFACE:
+		fmtPrintf("  pushq $0 # interface zero value\n")
+		fmtPrintf("  pushq $0 # interface zero value\n")
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmtPrintf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
@@ -935,7 +948,7 @@ func emitExpr(expr ast.Expr, forceType *Type) {
 				panic("Type is required to emit nil")
 			}
 			switch kind(forceType) {
-			case T_SLICE, T_POINTER:
+			case T_SLICE, T_POINTER, T_INTERFACE:
 				emitZeroValue(forceType)
 			default:
 				throw(kind(forceType))
@@ -1248,6 +1261,16 @@ func emitCompEq(t *Type) {
 		fmtPrintf("  callq runtime.cmpstrings\n")
 		emitRevertStackPointer(stringSize * 2)
 		emitReturnedValue(resultList)
+	case T_INTERFACE:
+		var resultList = []*ast.Field{
+			&ast.Field{
+				Names:   nil,
+				Type:    tBool.e,
+			},
+		}
+		fmtPrintf("  callq runtime.cmpeface\n")
+		emitRevertStackPointer(interfaceSize * 2)
+		emitReturnedValue(resultList)
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
 	case T_SLICE:
@@ -1281,6 +1304,11 @@ func emitStore(t *Type) {
 		fmt.Printf("  popq %%rsi # lhs ptr addr\n")
 		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
+	case T_INTERFACE:
+		emitPopInterFace() // rhs
+		fmt.Printf("  popq %%rsi # lhs ptr addr\n")
+		fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0)
+		fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8)
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmt.Printf("  popq %%rdi # rhs evaluated\n")
 		fmt.Printf("  popq %%rax # lhs addr\n")
@@ -1715,6 +1743,10 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		default:
 			panic("Unsupported global string value")
 		}
+	case T_INTERFACE:
+		// only zero value
+		fmtPrintf("  .quad 0 # dtype\n")
+		fmtPrintf("  .quad 0 # data\n")
 	case T_BOOL:
 		switch vl := val.(type) {
 		case nil:
@@ -1793,6 +1825,9 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		case T_STRING:
 			zeroValue = fmt.Sprintf("  .quad 0 # string zero value (ptr)\n")
 			zeroValue += fmt.Sprintf("  .quad 0 # string zero value (len)\n")
+		case T_INTERFACE:
+			zeroValue = fmt.Sprintf("  .quad 0 # eface zero value (dtype)\n")
+			zeroValue += fmt.Sprintf("  .quad 0 # eface zero value (data)\n")
 		default:
 			throw(arrayType.Elt)
 		}
@@ -1853,6 +1888,7 @@ const sliceSize int = 24
 const stringSize int = 16
 const intSize int = 8
 const ptrSize int = 8
+const interfaceSize int = 16
 
 type Type struct {
 	e ast.Expr // original expr
@@ -1870,6 +1906,7 @@ const T_UINTPTR TypeKind = "T_UINTPTR"
 const T_ARRAY TypeKind = "T_ARRAY"
 const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
+const T_INTERFACE TypeKind = "T_INTERFACE"
 
 var tBool *Type = &Type{
 	e: &ast.Ident{
@@ -2145,6 +2182,8 @@ func kind(t *Type) TypeKind {
 		return T_POINTER
 	case *ast.Ellipsis: // x ...T
 		return T_SLICE // @TODO is this right ?
+	case *ast.InterfaceType:
+		return T_INTERFACE
 	default:
 		throw(t)
 	}
@@ -2203,6 +2242,8 @@ func getSizeOfType(t *Type) int {
 		return elmSize * evalInt(arrayType.Len)
 	case T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
+	case T_INTERFACE:
+		return interfaceSize
 	default:
 		throw(t)
 	}
