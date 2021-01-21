@@ -151,7 +151,7 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 }
 
 // --- codegen ---
-var debugCodeGen bool
+var debugCodeGen bool = true
 
 func emitComment(indent int, format string, a ...interface{}) {
 	if !debugCodeGen {
