@@ -2263,6 +2263,10 @@ func evalInt(expr *astExpr) int {
 	return 0
 }
 
+func emitPopPrimitive(comment string) {
+	fmtPrintf("  popq %%rax # result of %s\n", comment)
+}
+
 func emitPopBool(comment string) {
 	fmtPrintf("  popq %%rax # result of %s\n", comment)
 }
@@ -2622,7 +2626,7 @@ func emitStructLiteral(e *astCompositeLit) {
 		// push rhs value
 		emitExpr(kvExpr.Value, fieldType)
 		// assign
-		emitStore(fieldType)
+		emitStore(fieldType, true)
 	}
 }
 
@@ -2638,7 +2642,7 @@ func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []*astExpr) {
 		emitPushStackTop(tUintptr, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index ("+Itoa(i)+")")
 		emitExpr(elm, elmType)
-		emitStore(elmType)
+		emitStore(elmType, true)
 	}
 }
 
@@ -3388,43 +3392,58 @@ func emitCompExpr(inst string) {
 	fmtPrintf("  pushq %%rax\n")
 }
 
-func emitStore(t *Type) {
-	emitComment(2, "emitStore(%s)\n", kind(t))
-	switch kind(t) {
+func emitPop(knd string) {
+	switch knd {
 	case T_SLICE:
 		emitPopSlice()
-		fmtPrintf("  popq %%rsi # lhs ptr addr\n")
+	case T_STRING:
+		emitPopString()
+	case T_INTERFACE:
+		emitPopInterFace()
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
+		emitPopPrimitive(knd)
+	case T_UINT16:
+		emitPopPrimitive(knd)
+	case T_UINT8:
+		emitPopPrimitive(knd)
+	case T_STRUCT, T_ARRAY:
+		emitPopPrimitive(knd)
+	default:
+		panic("TBI:" + knd)
+	}
+}
+
+func emitStore(t *Type, rhsTop bool) {
+	knd := kind(t)
+	emitComment(2, "emitStore(%s)\n", knd)
+	if rhsTop {
+		emitPop(knd) // rhs
+		fmtPrintf("  popq %%rsi # lhs addr\n")
+	} else {
+		fmtPrintf("  popq %%rsi # lhs addr\n")
+		emitPop(knd) // rhs
+	}
+	switch knd {
+	case T_SLICE:
 		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
 		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
 		fmtPrintf("  movq %%rdx, %d(%%rsi) # cap to cap\n", Itoa(16))
 	case T_STRING:
-		emitPopString()
-		fmtPrintf("  popq %%rsi # lhs ptr addr\n")
 		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
 		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
 	case T_INTERFACE:
-		emitPopInterFace() // rhs
-		fmtPrintf("  popq %%rsi # lhs ptr addr\n")
 		fmtPrintf("  movq %%rax, %d(%%rsi) # store dtype\n", Itoa(0))
 		fmtPrintf("  movq %%rcx, %d(%%rsi) # store data\n", Itoa(8))
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmtPrintf("  popq %%rdi # rhs evaluated\n")
-		fmtPrintf("  popq %%rax # lhs addr\n")
-		fmtPrintf("  movq %%rdi, (%%rax) # assign\n")
-	case T_UINT8:
-		fmtPrintf("  popq %%rdi # rhs evaluated\n")
-		fmtPrintf("  popq %%rax # lhs addr\n")
-		fmtPrintf("  movb %%dil, (%%rax) # assign byte\n")
+		fmtPrintf("  movq %%rax, (%%rsi) # assign\n")
 	case T_UINT16:
-		fmtPrintf("  popq %%rdi # rhs evaluated\n")
-		fmtPrintf("  popq %%rax # lhs addr\n")
-		fmtPrintf("  movw %%di, (%%rax) # assign word\n")
+		fmtPrintf("  movw %%ax, (%%rsi) # assign word\n")
+	case T_UINT8:
+		fmtPrintf("  movb %%al, (%%rsi) # assign byte\n")
 	case T_STRUCT, T_ARRAY:
-		fmtPrintf("  popq %%rdi # rhs: addr of data\n")
-		fmtPrintf("  popq %%rax # lhs: addr to store\n")
 		fmtPrintf("  pushq $%d # size\n", Itoa(getSizeOfType(t)))
-		fmtPrintf("  pushq %%rax # dst lhs\n")
-		fmtPrintf("  pushq %%rdi # src rhs\n")
+		fmtPrintf("  pushq %%rsi # dst lhs\n")
+		fmtPrintf("  pushq %%rax # src rhs\n")
 		fmtPrintf("  callq runtime.memcopy\n")
 		emitRevertStackPointer(ptrSize*2 + intSize)
 	default:
@@ -3437,7 +3456,7 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs, getTypeOfExpr(lhs))
-	emitStore(getTypeOfExpr(lhs))
+	emitStore(getTypeOfExpr(lhs), true)
 }
 
 func emitStmt(stmt *astStmt) {
@@ -3469,7 +3488,7 @@ func emitStmt(stmt *astStmt) {
 			emitComment(2, "emitZeroValue for %s\n", t.e.dtype)
 			emitZeroValue(t)
 			emitComment(2, "Assignment: zero value\n")
-			emitStore(t)
+			emitStore(t, true)
 		} else {
 			rhs = valSpec.Value
 			emitAssign(lhs, rhs)
@@ -3595,13 +3614,13 @@ func emitStmt(stmt *astStmt) {
 		// lenvar = len(s.X)
 		emitVariableAddr(stmt.rangeStmt.lenvar)
 		emitLen(stmt.rangeStmt.X)
-		emitStore(tInt)
+		emitStore(tInt, true)
 
 		emitComment(2, "  assign 0 to indexvar\n")
 		// indexvar = 0
 		emitVariableAddr(stmt.rangeStmt.indexvar)
 		emitZeroValue(tInt)
-		emitStore(tInt)
+		emitStore(tInt, true)
 
 		// init key variable with 0
 		if stmt.rangeStmt.Key != nil {
@@ -3610,7 +3629,7 @@ func emitStmt(stmt *astStmt) {
 			if keyIdent.Name != "_" {
 				emitAddr(stmt.rangeStmt.Key) // lhs
 				emitZeroValue(tInt)
-				emitStore(tInt)
+				emitStore(tInt, true)
 			}
 		}
 
@@ -3640,7 +3659,7 @@ func emitStmt(stmt *astStmt) {
 		emitListElementAddr(stmt.rangeStmt.X, elemType)
 
 		emitLoad(elemType)
-		emitStore(elemType)
+		emitStore(elemType, true)
 
 		// Body
 		emitComment(2, "ForRange Body\n")
@@ -3653,7 +3672,7 @@ func emitStmt(stmt *astStmt) {
 		emitVariableAddr(stmt.rangeStmt.indexvar) // rhs
 		emitLoad(tInt)
 		emitAddConst(1, "indexvar value ++")
-		emitStore(tInt)
+		emitStore(tInt, true)
 
 		if stmt.rangeStmt.Key != nil {
 			assert(stmt.rangeStmt.Key.dtype == "*astIdent", "key expr should be an ident", __func__)
@@ -3662,7 +3681,7 @@ func emitStmt(stmt *astStmt) {
 				emitAddr(stmt.rangeStmt.Key)              // lhs
 				emitVariableAddr(stmt.rangeStmt.indexvar) // rhs
 				emitLoad(tInt)
-				emitStore(tInt)
+				emitStore(tInt, true)
 			}
 		}
 
@@ -3683,7 +3702,7 @@ func emitStmt(stmt *astStmt) {
 		emitAddr(stmt.incDecStmt.X)
 		emitExpr(stmt.incDecStmt.X, nil)
 		emitAddConst(addValue, "rhs ++ or --")
-		emitStore(getTypeOfExpr(stmt.incDecStmt.X))
+		emitStore(getTypeOfExpr(stmt.incDecStmt.X), true)
 	case "*astSwitchStmt":
 		labelid++
 		var labelEnd = fmtSprintf(".L.switch.%s.exit", []string{Itoa(labelid)})
