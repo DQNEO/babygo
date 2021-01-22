@@ -1167,8 +1167,8 @@ func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astFiel
 
 	// Type { "," Type } (anonymous parameters)
 	params = make([]*astField, len(list), len(list))
-	var i int
-	for i, typ = range list {
+
+	for i, typ := range list {
 		p.resolve(typ)
 		params[i] = &astField{
 			Type: typ,
@@ -2611,9 +2611,7 @@ func emitStructLiteral(e *astCompositeLit) {
 	var structType = e2t(e.Type)
 	emitZeroValue(structType) // push address of the new storage
 	var kvExpr *astKeyValueExpr
-	var i int
-	var elm *astExpr
-	for i, elm = range e.Elts {
+	for i, elm := range e.Elts {
 		assert(elm.dtype == "*astKeyValueExpr", "wrong dtype 1:" + elm.dtype, __func__)
 		kvExpr = elm.keyValueExpr
 		assert(kvExpr.Key.dtype == "*astIdent", "wrong dtype 2:" + elm.dtype, __func__)
@@ -2637,9 +2635,7 @@ func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []*astExpr) {
 	var elmSize = getSizeOfType(elmType)
 	var memSize = elmSize * arrayLen
 	emitCallMalloc(memSize) // push
-	var i int
-	var elm *astExpr
-	for i, elm = range elts {
+	for i, elm := range elts {
 		// emit lhs
 		emitPushStackTop(tUintptr, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index ("+Itoa(i)+")")
@@ -2726,12 +2722,10 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*
 	var variadicArgs []*astExpr
 	var variadicElp *astEllipsis
 	var args []*Arg
-	var eArg *astExpr
 	var param *astField
-	var argIndex int
 	var arg *Arg
 	var lenParams = len(params)
-	for argIndex, eArg = range eArgs {
+	for argIndex, eArg := range eArgs {
 		emitComment(0, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, Itoa(argIndex), Itoa(lenParams))
 		if argIndex < lenParams {
 			param = params[argIndex]
@@ -3768,10 +3762,8 @@ func emitStmt(stmt *astStmt) {
 		emitComment(2, "[DEBUG] cases len=%s\n", Itoa(len(cases)))
 		var labels = make([]string, len(cases), len(cases))
 		var defaultLabel string
-		var i int
-		var c *astStmt
 		emitComment(2, "Start comparison with cases\n")
-		for i, c = range cases {
+		for i, c := range cases {
 			emitComment(2, "CASES idx=%s\n", Itoa(i))
 			assert(c.dtype == "*astCaseClause", "should be *astCaseClause", __func__)
 			var cc = c.caseClause
@@ -3804,7 +3796,7 @@ func emitStmt(stmt *astStmt) {
 		}
 
 		emitRevertStackTop(condType)
-		for i, c = range cases {
+		for i, c := range cases {
 			assert(c.dtype == "*astCaseClause", "should be *astCaseClause", __func__)
 			var cc = c.caseClause
 			fmtPrintf("%s:\n", labels[i])
@@ -4886,13 +4878,11 @@ func walkExpr(expr *astExpr) {
 	case "*astIdent":
 		// what to do ?
 	case "*astCallExpr":
-		var arg *astExpr
 		walkExpr(expr.callExpr.Fun)
 		// Replace __func__ ident by a string literal
 		var basicLit *astBasicLit
-		var i int
 		var newArg *astExpr
-		for i, arg = range expr.callExpr.Args {
+		for i, arg := range expr.callExpr.Args {
 			if arg.dtype == "*astIdent" {
 				var ident = arg.ident
 				if ident.Name == "__func__" && ident.Obj.Kind == astVar {
