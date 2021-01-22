@@ -1279,6 +1279,45 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 	default:
 		throw(expr)
 	}
+
+	if targetType != nil {
+		sourceType := getTypeOfExpr(expr)
+		if isInterface(targetType) && !isInterface(sourceType) {
+			emitConversionToInterfaceAfterPush(sourceType, targetType)
+		}
+	}
+}
+
+var typeMap map[string]int = map[string]int{}
+var typeId int = 1
+
+func getTypeId(s string) int {
+	id, ok := typeMap[s]
+	if !ok {
+		typeMap[s] = typeId
+		r := typeId
+		typeId++
+		return r
+	}
+	return id
+}
+
+func emitTypeId(t *Type) {
+	str := serializeType(t)
+	typeId := getTypeId(str)
+	fmtPrintf("  pushq $%d # type id :%s\n", Itoa(typeId), str)
+}
+
+func emitConversionToInterfaceAfterPush(sourceType *Type, targetType *Type) {
+	emitComment(2, "ConversionToInterface\n")
+	memSize := getSizeOfType(sourceType)
+	// copy data to heap
+	emitCallMalloc(memSize)
+
+	emitStore(sourceType, false) // heap addr pushed
+
+	// push type id
+	emitTypeId(sourceType)
 }
 
 func newNumberLiteral(x int) *ast.BasicLit {
@@ -1361,6 +1400,7 @@ func emitPop(knd TypeKind) {
 		panic("TBI:" + knd)
 	}
 }
+
 // pop rhs, pop addr, and save rhs to adddr.
 func emitStore(t *Type, rhsTop bool) {
 	knd := kind(t)
@@ -1372,6 +1412,10 @@ func emitStore(t *Type, rhsTop bool) {
 		fmtPrintf("  popq %%rsi # lhs addr\n")
 		emitPop(knd) // rhs
 	}
+	if !rhsTop {
+		fmtPrintf("  pushq %%rsi # lhs addr\n")
+	}
+
 	switch knd {
 	case T_SLICE:
 		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
@@ -2072,6 +2116,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		}
 	case *ast.UnaryExpr:
 		switch e.Op.String() {
+		case "+":
+			return getTypeOfExpr(e.X)
 		case "-":
 			return getTypeOfExpr(e.X)
 		case "!":
@@ -2142,18 +2188,38 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			if !ok {
 				throw(fn)
 			}
-			if xIdent.Name == "unsafe" && fn.Sel.Name == "Pointer" {
+			var funcType *ast.FuncType
+			symbol := fmt.Sprintf("%s.%s", xIdent.Name, fn.Sel)
+			switch symbol {
+			case "unsafe.Pointer":
 				// unsafe.Pointer(x)
 				return tUintptr
-			} else {
-				// method call
+			case "os.Exit":
+				funcType = funcTypeOsExit
+				return nil
+			case "syscall.Open":
+				// func body is in runtime.s
+				funcType = funcTypeSyscallOpen
+				return	e2t(funcType.Results.List[0].Type)
+			case "syscall.Read":
+				// func body is in runtime.s
+				funcType = funcTypeSyscallRead
+				return	e2t(funcType.Results.List[0].Type)
+			case "syscall.Write":
+				// func body is in runtime.s
+				funcType = funcTypeSyscallWrite
+				return	e2t(funcType.Results.List[0].Type)
+			case "syscall.Syscall":
+				// func body is in runtime.s
+				funcType = funcTypeSyscallSyscall
+				return	e2t(funcType.Results.List[0].Type)
+			default:
+				// Assume method call
 				xType := getTypeOfExpr(fn.X)
 				method := lookupMethod(xType, fn.Sel)
 				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value")
 				return e2t(method.funcType.Results.List[0].Type)
 			}
-
-			throw(fmt.Sprintf("%#v, %#v\n", xIdent, fn.Sel))
 		default:
 			throw(e.Fun)
 		}
@@ -2204,6 +2270,65 @@ func e2t(typeExpr ast.Expr) *Type {
 	return &Type{
 		e: typeExpr,
 	}
+}
+
+func serializeType(t *Type) string {
+	if t == nil {
+		panic("nil type is not expected")
+	}
+	if t.e == generalSlice {
+		panic("TBD: generalSlice")
+	}
+
+	switch e := t.e.(type) {
+	case *ast.Ident:
+		if e.Obj == nil {
+			panic("Unresolved identifier:" + e.Name)
+		}
+		if e.Obj.Kind == ast.Var {
+			throw(e.Obj)
+		} else if e.Obj.Kind == ast.Typ {
+			switch e.Obj {
+			case gUintptr:
+				return "uintptr"
+			case gInt:
+				return "int"
+			case gString:
+				return "string"
+			case gUint8:
+				return "uint8"
+			case gUint16:
+				return "uint16"
+			case gBool:
+				return "bool"
+			default:
+				// named type
+				decl := e.Obj.Decl
+				typeSpec, ok := decl.(*ast.TypeSpec)
+				if !ok {
+					throw(decl)
+				}
+				return "main." + typeSpec.Name.Name
+			}
+		}
+	case *ast.StructType:
+		return "struct"
+	case *ast.ArrayType:
+		if e.Len == nil {
+			return "[]" + serializeType(e2t(e.Elt))
+		} else {
+			return "[" + Itoa(evalInt(e.Len)) + "]" + serializeType(e2t(e.Elt))
+		}
+	case *ast.StarExpr:
+		return "*" + serializeType(e2t(e.X))
+	case *ast.Ellipsis: // x ...T
+		panic("TBD: Ellipsis")
+	case *ast.InterfaceType:
+		return "interface"
+	default:
+		throw(t)
+	}
+	return ""
 }
 
 func kind(t *Type) TypeKind {
@@ -2263,6 +2388,10 @@ func kind(t *Type) TypeKind {
 		throw(t)
 	}
 	return ""
+}
+
+func isInterface(t *Type) bool {
+	return kind(t) == T_INTERFACE
 }
 
 func getStructTypeOfX(e *ast.SelectorExpr) *Type {
@@ -2786,6 +2915,8 @@ func walkExpr(expr ast.Expr) {
 	case *ast.KeyValueExpr:
 		walkExpr(e.Key)
 		walkExpr(e.Value)
+	case *ast.InterfaceType:
+		// interface{}(e)  conversion
 	default:
 		throw(expr)
 	}

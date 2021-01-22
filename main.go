@@ -3341,7 +3341,49 @@ func emitExpr(e *astExpr, targetType *Type) {
 		panic2(__func__, "[emitExpr] `TBI:"+e.dtype)
 	}
 
+	if targetType != nil {
+		sourceType := getTypeOfExpr(e)
+		if isInterface(targetType) && !isInterface(sourceType) {
+			emitConversionToInterfaceAfterPush(sourceType, targetType)
+		}
+	}
 }
+
+//var typeMap map[string]int = map[string]int{}
+var typeId int = 1
+
+func getTypeId(s string) int {
+	r := typeId
+	typeId++
+	return r
+	//id, ok := typeMap[s]
+	//if !ok {
+	//	typeMap[s] = typeId
+	//	r := typeId
+	//	typeId++
+	//	return r
+	//}
+	//return id
+}
+
+func emitTypeId(t *Type) {
+	str := serializeType(t)
+	typeId := getTypeId(str)
+	fmtPrintf("  pushq $%d # type id :%s\n", Itoa(typeId), str)
+}
+
+func emitConversionToInterfaceAfterPush(sourceType *Type, targetType *Type) {
+	emitComment(2, "ConversionToInterface\n")
+	memSize := getSizeOfType(sourceType)
+	// copy data to heap
+	emitCallMalloc(memSize)
+
+	emitStore(sourceType, false) // heap addr pushed
+
+	// push type id
+	emitTypeId(sourceType)
+}
+
 
 func newNumberLiteral(x int) *astBasicLit {
 	var r = &astBasicLit{}
@@ -3420,6 +3462,7 @@ func emitPop(knd string) {
 	}
 }
 
+// pop rhs, pop addr, and save rhs to adddr.
 func emitStore(t *Type, rhsTop bool) {
 	knd := kind(t)
 	emitComment(2, "emitStore(%s)\n", knd)
@@ -3429,6 +3472,9 @@ func emitStore(t *Type, rhsTop bool) {
 	} else {
 		fmtPrintf("  popq %%rsi # lhs addr\n")
 		emitPop(knd) // rhs
+	}
+	if !rhsTop {
+		fmtPrintf("  pushq %%rsi # lhs addr\n")
 	}
 	switch knd {
 	case T_SLICE:
@@ -4125,6 +4171,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		return getElementTypeOfListType(getTypeOfExpr(list))
 	case "*astUnaryExpr":
 		switch expr.unaryExpr.Op {
+		case "+":
+			return getTypeOfExpr(expr.unaryExpr.X)
 		case "-":
 			return getTypeOfExpr(expr.unaryExpr.X)
 		case "!":
@@ -4197,10 +4245,40 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "*astArrayType":
 			return e2t(fun)
 		case "*astSelectorExpr": // (X).Sel()
-			var xType = getTypeOfExpr(fun.selectorExpr.X)
-			var method = lookupMethod(xType, fun.selectorExpr.Sel)
-			assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value", __func__)
-			return e2t(method.funcType.Results.List[0].Type)
+			assert(fun.selectorExpr.X.dtype == "*astIdent", "want ident, but got " + fun.selectorExpr.X.dtype, __func__)
+			xIdent :=  fun.selectorExpr.X.ident
+			var funcType *astFuncType
+			symbol := xIdent.Name + "." + fun.selectorExpr.Sel.Name
+			switch symbol {
+			case "unsafe.Pointer":
+				// unsafe.Pointer(x)
+				return tUintptr
+			case "os.Exit":
+				funcType = funcTypeOsExit
+				var r *Type
+				return r
+			case "syscall.Open":
+				// func body is in runtime.s
+				funcType = funcTypeSyscallOpen
+				return	e2t(funcType.Results.List[0].Type)
+			case "syscall.Read":
+				// func body is in runtime.s
+				funcType = funcTypeSyscallRead
+				return	e2t(funcType.Results.List[0].Type)
+			case "syscall.Write":
+				// func body is in runtime.s
+				funcType = funcTypeSyscallWrite
+				return	e2t(funcType.Results.List[0].Type)
+			case "syscall.Syscall":
+				// func body is in runtime.s
+				funcType = funcTypeSyscallSyscall
+				return	e2t(funcType.Results.List[0].Type)
+			default:
+				var xType = getTypeOfExpr(fun.selectorExpr.X)
+				var method = lookupMethod(xType, fun.selectorExpr.Sel)
+				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value", __func__)
+				return e2t(method.funcType.Results.List[0].Type)
+			}
 		default:
 			panic2(__func__, "[astCallExpr] dtype="+expr.callExpr.Fun.dtype)
 		}
@@ -4262,6 +4340,11 @@ func e2t(typeExpr *astExpr) *Type {
 	return r
 }
 
+func serializeType(t *Type) string {
+	return "TBI"
+}
+
+
 func kind(t *Type) string {
 	if t == nil {
 		panic2(__func__, "nil type is not expected\n")
@@ -4315,6 +4398,10 @@ func kind(t *Type) string {
 	}
 	panic2(__func__, "error")
 	return ""
+}
+
+func isInterface(t *Type) bool {
+	return kind(t) == T_INTERFACE
 }
 
 func getStructTypeOfX(e *astSelectorExpr) *Type {

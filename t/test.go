@@ -74,6 +74,30 @@ func Sprintf(format string, a []string) string {
 }
 
 // --- test funcs ---
+func testInterfaceExplicitConversion() {
+	var eface interface{}
+	var i int = 7
+	eface = i
+	geface = eface
+	writeln("1111")
+	if geface == eface {
+		writeln("eface match")
+	}
+	writeln("22222")
+	var x **[1][]*int
+	writeln("3333")
+	eface = x
+	writeln("4444")
+	if geface != eface {
+		writeln("eface not match")
+	}
+	var m MyType
+	eface = m
+	if geface != eface {
+		writeln("eface not match")
+	}
+}
+
 var geface interface{}
 
 func testInterfaceZeroValue() {
@@ -1466,6 +1490,7 @@ func testMisc() {
 }
 
 func test() {
+	testInterfaceExplicitConversion()
 	testInterfaceZeroValue()
 	testForRangeShortDecl()
 	testInferVarTypes()

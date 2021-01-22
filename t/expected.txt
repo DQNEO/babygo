@@ -1,5 +1,11 @@
+1111
+eface match
+22222
+3333
+4444
+eface not match
+eface not match
 eface is nil
-geface is nil
 geface is nil
 eface is nil
 0123
