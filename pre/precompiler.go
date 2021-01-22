@@ -974,7 +974,7 @@ func emitNamedConst(e *ast.Ident, targetType *Type) {
 func emitExpr(expr ast.Expr, targetType *Type) {
 	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
-	case *ast.Ident:
+	case *ast.Ident: // 1 value
 		switch e.Obj {
 		case gTrue: // true constant
 			emitTrue()
@@ -997,17 +997,17 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 				panic("Unexpected ident kind:" + e.Obj.Kind.String())
 			}
 		}
-	case *ast.IndexExpr:
+	case *ast.IndexExpr: // 1 or 2 values
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
-	case *ast.StarExpr:
+	case *ast.StarExpr: // 1 value
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
-	case *ast.SelectorExpr: // X.Sel
+	case *ast.SelectorExpr: // 1 value X.Sel
 		emitComment(2, "emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
-	case *ast.CallExpr: // Fun(Args)
+	case *ast.CallExpr: // multi values Fun(Args)
 		var fun = e.Fun
 		emitComment(2, "callExpr=%#v\n", fun)
 		// check if it's a conversion
@@ -1016,9 +1016,9 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 		} else {
 			emitFuncall(fun, e.Args)
 		}
-	case *ast.ParenExpr: // (e)
+	case *ast.ParenExpr: // multi values (e)
 		emitExpr(e.X, targetType)
-	case *ast.BasicLit:
+	case *ast.BasicLit: // 1 value
 		switch e.Kind.String() {
 		case "CHAR":
 			var val = e.Value
@@ -1055,7 +1055,7 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 		default:
 			panic("Unexpected literal kind:" + e.Kind.String())
 		}
-	case *ast.UnaryExpr:
+	case *ast.UnaryExpr: // 1 value
 		switch e.Op.String() {
 		case "+":
 			emitExpr(e.X, nil)
@@ -1072,7 +1072,7 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 		default:
 			throw(e.Op.String())
 		}
-	case *ast.BinaryExpr:
+	case *ast.BinaryExpr: // 1 value
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
 			var args []*Arg = []*Arg{
 				&Arg{
@@ -1232,7 +1232,7 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 				panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
 			}
 		}
-	case *ast.CompositeLit:
+	case *ast.CompositeLit: // 1 value
 		// slice , array, map or struct
 		switch kind(e2t(e.Type)) {
 		case T_STRUCT:
@@ -1254,7 +1254,7 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 		default:
 			panic(string(kind(e2t(e.Type))))
 		}
-	case *ast.SliceExpr: // list[low:high]
+	case *ast.SliceExpr: // 1 value list[low:high]
 		list := e.X
 		listType := getTypeOfExpr(list)
 		emitExpr(e.High, tInt) // intval
