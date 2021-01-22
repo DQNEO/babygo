@@ -322,7 +322,7 @@ func emitAddr(expr ast.Expr) {
 			panic("Unexpected ident kind")
 		}
 	case *ast.IndexExpr:
-		emitExpr(e.Index, tInt) // index number
+		emitExpr(e.Index, nil) // index number
 
 		list := e.X
 		elmType := getTypeOfExpr(e)
@@ -397,21 +397,22 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 		case gString: // string(e)
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
-				emitExpr(arg0, e2t(ident)) // slice
+				emitExpr(arg0, nil)
 				emitPopSlice()
 				fmtPrintf("  pushq %%rcx # str len\n")
 				fmtPrintf("  pushq %%rax # str ptr\n")
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
-			emitExpr(arg0, e2t(ident))
+			emitExpr(arg0, nil)
 		default:
 			if ident.Obj.Kind == ast.Typ {
-				// define type.  e.g. MyInt(10)
-				typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec)
-				if !ok {
-					throw(ident.Obj.Decl)
-				}
-				emitExpr(arg0, e2t(typeSpec.Type))
+				// define type.  e.g. MyType(10)
+				//typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec)
+				//if !ok {
+				//	throw(ident.Obj.Decl)
+				//}
+				// What should we do if MyType is an interface ?
+				emitExpr(arg0, nil)
 			} else {
 				throw(ident.Obj)
 			}
@@ -423,7 +424,7 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 		}
 		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice")
 		emitComment(2, "Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
-		emitExpr(arg0, tp)
+		emitExpr(arg0, nil)
 		emitPopString()
 		fmt.Printf("  pushq %%rcx # cap\n")
 		fmt.Printf("  pushq %%rcx # len\n")
@@ -467,7 +468,7 @@ func emitLen(arg ast.Expr) {
 	case T_ARRAY:
 		arrayType, ok := getTypeOfExpr(arg).e.(*ast.ArrayType)
 		assert(ok, "should be *ast.ArrayType")
-		emitExpr(arrayType.Len, tInt)
+		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
 		emitExpr(arg, nil)
 		emitPopSlice()
@@ -486,7 +487,7 @@ func emitCap(arg ast.Expr) {
 	case T_ARRAY:
 		arrayType, ok := getTypeOfExpr(arg).e.(*ast.ArrayType)
 		assert(ok, "should be *ast.ArrayType")
-		emitExpr(arrayType.Len, tInt)
+		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
 		emitExpr(arg, nil)
 		emitPopSlice()
@@ -1144,37 +1145,33 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 				emitTrue()
 				fmt.Printf("  %s:\n", labelExit)
 			case "+":
-				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				emitExpr(e.Y, nil)   // right
 				fmtPrintf("  popq %%rcx # right\n")
 				fmtPrintf("  popq %%rax # left\n")
 				fmtPrintf("  addq %%rcx, %%rax\n")
 				fmtPrintf("  pushq %%rax\n")
 			case "-":
-				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				emitExpr(e.Y, nil)   // right
 				fmtPrintf("  popq %%rcx # right\n")
 				fmtPrintf("  popq %%rax # left\n")
 				fmtPrintf("  subq %%rcx, %%rax\n")
 				fmtPrintf("  pushq %%rax\n")
 			case "*":
-				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				emitExpr(e.Y, nil)   // right
 				fmtPrintf("  popq %%rcx # right\n")
 				fmtPrintf("  popq %%rax # left\n")
 				fmtPrintf("  imulq %%rcx, %%rax\n")
 				fmtPrintf("  pushq %%rax\n")
 			case "%":
-				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				emitExpr(e.Y, nil)   // right
 				fmtPrintf("  popq %%rcx # right\n")
 				fmtPrintf("  popq %%rax # left\n")
 				fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
@@ -1182,10 +1179,9 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 				fmtPrintf("  movq %%rdx, %%rax\n")
 				fmtPrintf("  pushq %%rax\n")
 			case "/":
-				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				emitExpr(e.Y, nil)   // right
 				fmtPrintf("  popq %%rcx # right\n")
 				fmtPrintf("  popq %%rax # left\n")
 				fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
@@ -1205,28 +1201,24 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 				emitCompEq(t)
 				emitInvertBoolValue()
 			case "<":
-				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				emitExpr(e.Y, nil)   // right
 				emitCompExpr("setl")
 			case "<=":
-				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				emitExpr(e.Y, nil)   // right
 				emitCompExpr("setle")
 			case ">":
-				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				emitExpr(e.Y, nil)   // right
 				emitCompExpr("setg")
 			case ">=":
-				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				emitExpr(e.Y, nil)   // right
 				emitCompExpr("setge")
 			default:
 				panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
@@ -1257,8 +1249,8 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 	case *ast.SliceExpr: // 1 value list[low:high]
 		list := e.X
 		listType := getTypeOfExpr(list)
-		emitExpr(e.High, tInt) // intval
-		emitExpr(e.Low, tInt)  // intval
+		emitExpr(e.High, nil) // intval
+		emitExpr(e.Low, nil)  // intval
 		fmtPrintf("  popq %%rcx # low\n")
 		fmtPrintf("  popq %%rax # high\n")
 		fmtPrintf("  subq %%rcx, %%rax # high - low\n")
@@ -1273,7 +1265,7 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 			throw(list)
 		}
 
-		emitExpr(e.Low, tInt) // index number
+		emitExpr(e.Low, nil) // index number
 		elmType := getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
 	default:
