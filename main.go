@@ -2470,6 +2470,8 @@ func isType(expr *astExpr) bool {
 		return isType(expr.parenExpr.X)
 	case "*astStarExpr":
 		return isType(expr.starExpr.X)
+	case "*astInterfaceType":
+		return true
 	default:
 		emitComment(0, "[isType][%s] is not considered a type\n", expr.dtype)
 	}
@@ -2821,6 +2823,9 @@ func emitReturnedValue(resultList []*astField) {
 		case T_STRING:
 			fmtPrintf("  pushq %%rdi # str len\n")
 			fmtPrintf("  pushq %%rax # str ptr\n")
+		case T_INTERFACE:
+			fmtPrintf("  pushq %%rdi # ifc data\n")
+			fmtPrintf("  pushq %%rax # ifc dtype\n")
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 			fmtPrintf("  pushq %%rax\n")
 		case T_SLICE:
@@ -3057,6 +3062,7 @@ func emitExpr(e *astExpr, targetType *Type) {
 			emitFalse()
 		case gNil:
 			emitNil(targetType)
+			return
 		default:
 			switch ident.Obj.Kind {
 			case astVar:
@@ -4163,6 +4169,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 					return e2t(eStarExpr)
 				case gMake:
 					return e2t(expr.callExpr.Args[0])
+				case gAppend:
+					return e2t(expr.callExpr.Args[0])
 				}
 				var decl = fn.Obj.Decl
 				if decl == nil {
@@ -4179,6 +4187,12 @@ func getTypeOfExpr(expr *astExpr) *Type {
 					panic2(__func__, "[astCallExpr] decl.dtype="+decl.dtype)
 				}
 				panic2(__func__, "[astCallExpr] Fun ident "+fn.Name)
+			}
+		case "*astParenExpr": // (X)(e) funcall or conversion
+			if isType(fun.parenExpr.X) {
+				return e2t(fun.parenExpr.X)
+			} else {
+				panic("TBI: what should we do ?")
 			}
 		case "*astArrayType":
 			return e2t(fun)

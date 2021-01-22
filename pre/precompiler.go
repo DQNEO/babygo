@@ -381,6 +381,8 @@ func isType(expr ast.Expr) bool {
 		return isType(e.X)
 	case *ast.StarExpr:
 		return isType(e.X)
+	case *ast.InterfaceType:
+		return true
 	}
 	emitComment(0, "[isType][%T] is not considered a type\n", expr)
 	return false
@@ -711,6 +713,9 @@ func emitReturnedValue(resultList []*ast.Field) {
 		case T_STRING:
 			fmt.Printf("  pushq %%rdi # str len\n")
 			fmt.Printf("  pushq %%rax # str ptr\n")
+		case T_INTERFACE:
+			fmtPrintf("  pushq %%rdi # ifc data\n")
+			fmtPrintf("  pushq %%rax # ifc dtype\n")
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 			fmt.Printf("  pushq %%rax\n")
 		case T_SLICE:
@@ -977,6 +982,7 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 			emitFalse()
 		case gNil:
 			emitNil(targetType)
+			return
 		default:
 			if e.Obj == nil {
 				panic(fmt.Sprintf("ident %s is unresolved", e.Name))
@@ -2051,7 +2057,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				}
 			}
 		default:
-			panic("unknown Obj.Kind:" + e.Obj.Kind.String())
+			throw(e.Obj)
 		}
 	case *ast.BasicLit:
 		switch e.Kind.String() {
@@ -2112,14 +2118,22 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 					})
 				case gMake:
 					return e2t(e.Args[0])
+				case gAppend:
+					return e2t(e.Args[0])
 				}
 				switch decl := fn.Obj.Decl.(type) {
 				case *ast.FuncDecl:
 					assert(len(decl.Type.Results.List) == 1, "func is expected to return a single value")
 					return e2t(decl.Type.Results.List[0].Type)
 				default:
-					throw(fn.Obj.Decl)
+					throw(fn.Obj)
 				}
+			}
+		case *ast.ParenExpr: // (X)(e) funcall or conversion
+			if isType(fn.X) {
+				return e2t(fn.X)
+			} else {
+				panic("TBI: what should we do ?")
 			}
 		case *ast.ArrayType: // conversion [n]T(e) or []T(e)
 			return e2t(fn)
@@ -2138,6 +2152,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value")
 				return e2t(method.funcType.Results.List[0].Type)
 			}
+
 			throw(fmt.Sprintf("%#v, %#v\n", xIdent, fn.Sel))
 		default:
 			throw(e.Fun)
