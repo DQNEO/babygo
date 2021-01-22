@@ -5,7 +5,9 @@ tmp = /tmp/babygo
 all: test
 
 .PHONY: test
-test: $(tmp) test0 test1 test2 test-self-host test0more
+
+# test all
+test: test0 test1 test2 selfhost test-cross
 
 $(tmp):
 	mkdir -p $(tmp)
@@ -13,69 +15,72 @@ $(tmp):
 t/expected.txt: t/test.go
 	go run t/test.go myargs > t/expected.txt
 
-precompiler: pre/precompiler.go runtime.go $(tmp)
-	go build -o $(tmp)/precompiler pre/precompiler.go && cp $(tmp)/precompiler .
+$(tmp)/pre: $(tmp) pre/precompiler.go
+	go build -o $(tmp)/pre pre/precompiler.go
 
-$(tmp)/precompiler_test: precompiler t/test.go
-	./precompiler < t/test.go > $(tmp)/precompiler_test.s
-	cp $(tmp)/precompiler_test.s ./.shared/ # for debug
-	as -o $(tmp)/precompiler_test.o $(tmp)/precompiler_test.s runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/precompiler_test $(tmp)/precompiler_test.o
+$(tmp)/cross: main.go runtime.go runtime.s $(tmp)/pre
+	$(tmp)/pre < main.go > $(tmp)/pre-main.s
+	cp $(tmp)/pre-main.s ./.shared/ # for debug
+	as -o $(tmp)/cross.o $(tmp)/pre-main.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/cross $(tmp)/cross.o
 
+$(tmp)/babygo: $(tmp) main.go
+	go build -o $(tmp)/babygo main.go
+
+$(tmp)/babygo2: $(tmp)/babygo runtime.go runtime.s
+	$(tmp)/babygo -DF -DG main.go > $(tmp)/babygo-main.s
+	cp $(tmp)/babygo-main.s ./.shared/ # for debug
+	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/babygo2 $(tmp)/babygo2.o
+
+# Build test binaries
+$(tmp)/test0: t/test.go $(tmp)/pre runtime.go runtime.s
+	$(tmp)/pre < t/test.go > $(tmp)/pre-test.s
+	cp $(tmp)/pre-test.s ./.shared/
+	as -o $(tmp)/test0.o $(tmp)/pre-test.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/test0 $(tmp)/test0.o
+
+$(tmp)/test-cross: t/test.go $(tmp)/cross
+	$(tmp)/cross -DF -DG t/test.go > $(tmp)/cross-test.s
+	cp $(tmp)/cross-test.s ./.shared/
+	as -o $(tmp)/test-cross.o $(tmp)/cross-test.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/test-cross $(tmp)/test-cross.o
+
+$(tmp)/test1: t/test.go $(tmp)/babygo runtime.go runtime.s
+	$(tmp)/babygo -DF -DG t/test.go > $(tmp)/babygo-DF-DG-test.s
+	cp $(tmp)/babygo-DF-DG-test.s ./.shared/
+	as -o $(tmp)/test1.o $(tmp)/babygo-DF-DG-test.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/test1 $(tmp)/test1.o
+
+$(tmp)/test2: t/test.go $(tmp)/babygo2
+	$(tmp)/babygo2 -DF -DG t/test.go > $(tmp)/babygo2-DF-DG-test.s
+	cp $(tmp)/babygo2-DF-DG-test.s ./.shared/
+	as -o $(tmp)/test2.o $(tmp)/babygo2-DF-DG-test.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/test2 $(tmp)/test2.o
+
+# Run test binaries
 .PHONY: test0
-test0: t/expected.txt $(tmp)/precompiler_test
-	./test.sh $(tmp)/precompiler_test
+test0: $(tmp)/test0 t/expected.txt
+	./test.sh $(tmp)/test0
 
-.PHOTNY: test0more
-
-# This target is actually not needed any more. Just kept for a preference
-$(tmp)/babygo_by_precompiler: main.go runtime.go runtime.s $(tmp)/precompiler
-	./precompiler < main.go > $(tmp)/babygo_by_precompiler.s
-	cp $(tmp)/babygo_by_precompiler.s ./.shared/ # for debug
-	as -o $(tmp)/babygo_by_precompiler.o $(tmp)/babygo_by_precompiler.s runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/babygo_by_precompiler $(tmp)/babygo_by_precompiler.o
-
-test0more: $(tmp)/babygo_by_precompiler
-	$(tmp)/babygo_by_precompiler -DF -DG t/test.go > $(tmp)/test.s
-	cp $(tmp)/test.s ./.shared/ # for debug
-	as -o $(tmp)/test.o $(tmp)/test.s runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/test $(tmp)/test.o
-	./test.sh $(tmp)/test
-
-
-babygo: main.go
-	go build -o babygo main.go
+.PHOTNY: test-cross
+test-cross: $(tmp)/test-cross t/expected.txt
+	./test.sh $(tmp)/test-cross
 
 .PHONY: test1
-test1:	babygo t/test.go
-	@echo "testing 1gen babygo ..."
-	./babygo -DF -DG t/test.go > $(tmp)/test.s
-	cp $(tmp)/test.s ./.shared/ # for debug
-	as -o $(tmp)/test.o $(tmp)/test.s runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/test $(tmp)/test.o
-	./test.sh $(tmp)/test
-
-babygo2: babygo
-	./babygo -DF -DG main.go > $(tmp)/2gen.s
-	cp $(tmp)/2gen.s ./.shared/ # for debug
-	as -o $(tmp)/2gen.o $(tmp)/2gen.s runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/2gen $(tmp)/2gen.o
-	cp $(tmp)/2gen babygo2
+test1: $(tmp)/test1 t/expected.txt
+	./test.sh $(tmp)/test1
 
 .PHONY: test2
-test2: babygo2
-	@echo "testing 2gen babygo ..."
-	./babygo2  -DF -DG t/test.go > $(tmp)/test2.s
-	as -o $(tmp)/test2.o $(tmp)/test2.s runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/test2 $(tmp)/test2.o
+test2: $(tmp)/test2 t/expected.txt
 	./test.sh $(tmp)/test2
 
 # test self hosting by comparing 2gen.s and 3gen.s
-.PHONY: test-self-host
-test-self-host: babygo2
+.PHONY: selfhost
+selfhost: $(tmp)/babygo $(tmp)/babygo2
 	@echo "testing self host ..."
-	./babygo main.go > $(tmp)/2gen_strip.s
-	./babygo2 main.go > $(tmp)/3gen_strip.s
+	$(tmp)/babygo  main.go > $(tmp)/2gen_strip.s
+	$(tmp)/babygo2 main.go > $(tmp)/3gen_strip.s
 	diff $(tmp)/2gen_strip.s $(tmp)/3gen_strip.s
 	@echo "self host is ok"
 
