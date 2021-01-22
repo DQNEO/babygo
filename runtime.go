@@ -240,6 +240,7 @@ func cmpstrings(a string, b string) bool {
 	return true
 }
 
+// Two interface values are equal if they have identical dynamic types and equal dynamic values or if both have value nil.
 func cmpinterface(a uintptr, b uintptr, c uintptr, d uintptr) bool {
 	if a == c && b ==d {
 		return true

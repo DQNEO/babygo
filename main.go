@@ -2331,15 +2331,15 @@ func emitLoad(t *Type) {
 		fmtPrintf("  pushq %%rcx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		fmtPrintf("  movq %d(%%rax), %%rdx\n", Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
+		fmtPrintf("  movq %d(%%rax), %%rdx # len\n", Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax # ptr\n", Itoa(0))
 		fmtPrintf("  pushq %%rdx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_INTERFACE:
-		fmtPrintf("  movq %d(%%rax), %%rdx # dtype\n", Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax # data\n", Itoa(0))
-		fmtPrintf("  pushq %%rdx # dtype\n")
-		fmtPrintf("  pushq %%rax # data\n")
+		fmtPrintf("  movq %d(%%rax), %%rdx # data\n", Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax # dtype\n", Itoa(0))
+		fmtPrintf("  pushq %%rdx # data\n")
+		fmtPrintf("  pushq %%rax # dtype\n")
 	case T_UINT8:
 		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
@@ -2366,7 +2366,7 @@ func emitVariableAddr(variable *Variable) {
 		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable addr \"%s\"\n", Itoa(variable.localOffset),  variable.name)
 	}
 
-	fmtPrintf("  pushq %%rax\n")
+	fmtPrintf("  pushq %%rax # variable address\n")
 }
 
 func emitListHeadAddr(list *astExpr) {
@@ -2532,15 +2532,15 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 func emitZeroValue(t *Type) {
 	switch kind(t) {
 	case T_SLICE:
-		fmtPrintf("  pushq $0 # slice zero value\n")
-		fmtPrintf("  pushq $0 # slice zero value\n")
-		fmtPrintf("  pushq $0 # slice zero valuer\n")
+		fmtPrintf("  pushq $0 # slice cap\n")
+		fmtPrintf("  pushq $0 # slice len\n")
+		fmtPrintf("  pushq $0 # slice ptr\n")
 	case T_STRING:
-		fmtPrintf("  pushq $0 # string zero value\n")
-		fmtPrintf("  pushq $0 # string zero value\n")
+		fmtPrintf("  pushq $0 # string len\n")
+		fmtPrintf("  pushq $0 # string ptr\n")
 	case T_INTERFACE:
-		fmtPrintf("  pushq $0 # interface zero value\n")
-		fmtPrintf("  pushq $0 # interface zero value\n")
+		fmtPrintf("  pushq $0 # interface data\n")
+		fmtPrintf("  pushq $0 # interface dtype\n")
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmtPrintf("  pushq $0 # %s zero value\n", kind(t))
 	case T_STRUCT:
@@ -3334,6 +3334,7 @@ func emitExpr(e *astExpr, targetType *Type) {
 	default:
 		panic2(__func__, "[emitExpr] `TBI:"+e.dtype)
 	}
+
 }
 
 func newNumberLiteral(x int) *astBasicLit {

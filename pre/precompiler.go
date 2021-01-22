@@ -242,15 +242,15 @@ func emitLoad(t *Type) {
 		fmtPrintf("  pushq %%rcx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		fmtPrintf("  movq %d(%%rax), %%rdx\n", Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
+		fmtPrintf("  movq %d(%%rax), %%rdx # len\n", Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax # ptr\n", Itoa(0))
 		fmtPrintf("  pushq %%rdx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_INTERFACE:
-		fmtPrintf("  movq %d(%%rax), %%rdx # dtype\n", Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax # data\n", Itoa(0))
-		fmtPrintf("  pushq %%rdx # dtype\n")
-		fmtPrintf("  pushq %%rax # data\n")
+		fmtPrintf("  movq %d(%%rax), %%rdx # data\n", Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax # dtype\n", Itoa(0))
+		fmtPrintf("  pushq %%rdx # data\n")
+		fmtPrintf("  pushq %%rax # dtype\n")
 	case T_UINT8:
 		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
@@ -272,12 +272,12 @@ func emitVariableAddr(variable *Variable) {
 	emitComment(2, "emit Addr of variable \"%s\" \n", variable.name)
 
 	if variable.isGlobal {
-		fmtPrintf("  leaq %s(%%rip), %%rax # global variable addr\n", variable.globalSymbol)
+		fmtPrintf("  leaq %s(%%rip), %%rax # global variable \"%s\"\n", variable.globalSymbol, variable.name)
 	} else {
-		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable addr\n", Itoa(int(variable.localOffset)))
+		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable \"%s\"\n", Itoa(int(variable.localOffset)), variable.name)
 	}
 
-	fmtPrintf("  pushq %%rax\n")
+	fmtPrintf("  pushq %%rax # variable address\n")
 }
 
 func emitListHeadAddr(list ast.Expr) {
@@ -440,15 +440,15 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 func emitZeroValue(t *Type) {
 	switch kind(t) {
 	case T_SLICE:
-		fmtPrintf("  pushq $0 # slice zero value\n")
-		fmtPrintf("  pushq $0 # slice zero value\n")
-		fmtPrintf("  pushq $0 # slice zero valuer\n")
+		fmtPrintf("  pushq $0 # slice cap\n")
+		fmtPrintf("  pushq $0 # slice len\n")
+		fmtPrintf("  pushq $0 # slice ptr\n")
 	case T_STRING:
-		fmtPrintf("  pushq $0 # string zero value\n")
-		fmtPrintf("  pushq $0 # string zero value\n")
+		fmtPrintf("  pushq $0 # string len\n")
+		fmtPrintf("  pushq $0 # string ptr\n")
 	case T_INTERFACE:
-		fmtPrintf("  pushq $0 # interface zero value\n")
-		fmtPrintf("  pushq $0 # interface zero value\n")
+		fmtPrintf("  pushq $0 # interface data\n")
+		fmtPrintf("  pushq $0 # interface dtype\n")
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmtPrintf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
@@ -1355,7 +1355,7 @@ func emitPop(knd TypeKind) {
 		panic("TBI:" + knd)
 	}
 }
-
+// pop rhs, pop addr, and save rhs to adddr.
 func emitStore(t *Type, rhsTop bool) {
 	knd := kind(t)
 	emitComment(2, "emitStore(%s)\n", knd)
