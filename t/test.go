@@ -119,12 +119,21 @@ func testInterfaceZeroValue() {
 }
 
 func testForRangeShortDecl() {
-	var ary []int = []int{0, 1, 2, 3}
+	var ary []int = []int{3, 2, 1, 0}
 
 	for _, w := range ary {
 		write(itoa(w))
 	}
 	writeln("")
+
+	var i int = 20210122
+	for i, www := range ary {
+		write(itoa(i))
+		write(itoa(www))
+	}
+	writeln("")
+
+	writeln(itoa(i))
 }
 
 var gi = 123 // int

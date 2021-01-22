@@ -131,7 +131,7 @@ func Itoa(ival int) string {
 }
 
 // --- parser ---
-var debugFrontEnd bool
+var debugFrontEnd bool = true
 
 func logf(format string, a ...string) {
 	if !debugFrontEnd {
@@ -2813,8 +2813,16 @@ func walkStmt(stmt ast.Stmt) {
 		indexvar := newLocalVariable(".range.index", localoffset)
 		if s.Tok.String() == ":=" {
 			// short var decl
-			// determine type of Value
 			listType := getTypeOfExpr(s.X)
+
+			keyIdent := s.Key.(*ast.Ident)
+			//@TODO map key can be any type
+			//keyType := getKeyTypeOfListType(listType)
+			keyType := tInt
+			localoffset -= localoffsetint(getSizeOfType(keyType))
+			keyIdent.Obj.Data = newLocalVariable(keyIdent.Name, localoffset)
+
+			// determine type of Value
 			elmType := getElementTypeOfListType(listType)
 			valueIdent := s.Value.(*ast.Ident)
 			localoffset -= localoffsetint(getSizeOfType(elmType))

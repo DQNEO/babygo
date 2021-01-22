@@ -4836,6 +4836,15 @@ func walkStmt(stmt *astStmt) {
 
 		if stmt.rangeStmt.Tok == ":=" {
 			listType := getTypeOfExpr(stmt.rangeStmt.X)
+
+			keyIdent := stmt.rangeStmt.Key.ident
+			//@TODO map key can be any type
+			//keyType := getKeyTypeOfListType(listType)
+			var keyType *Type = tInt
+			localoffset = localoffset - getSizeOfType(keyType)
+			keyIdent.Obj.Variable = newLocalVariable(keyIdent.Name, localoffset)
+
+			// determine type of Value
 			elmType := getElementTypeOfListType(listType)
 			valueIdent := stmt.rangeStmt.Value.ident
 			localoffset = localoffset - getSizeOfType(elmType)
