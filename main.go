@@ -3370,7 +3370,7 @@ func emitCompEq(t *Type) {
 				Type:    tBool.e,
 			},
 		}
-		fmtPrintf("  callq runtime.cmpeface\n")
+		fmtPrintf("  callq runtime.cmpinterface\n")
 		emitRevertStackPointer(interfaceSize * 2)
 		emitReturnedValue(resultList)
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
