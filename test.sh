@@ -2,14 +2,18 @@
 set -u
 program=$1
 ${program} myargs 1>/tmp/actual.1 2> /tmp/actual.2
-exit_status=$?
-
-if [[ $exit_status -eq 0 ]]; then
-  echo ok
+if [[ $? -eq 0 ]]; then
+  :
 else
   echo FAILED
   echo
-  echo "    ${program} myargs 1>/tmp/actual.1 2> /tmp/actual.2"
+  echo "    ${program} myargs"
   echo
   exit $exit_status
+fi
+
+diff t/expected.txt /tmp/actual.1
+if [[ $? -ne 0 ]]; then
+  echo FAILED
+  exit 1
 fi
