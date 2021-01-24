@@ -288,7 +288,9 @@ func testMethodSimple() {
 }
 
 func testOsArgs() {
-	writeln(os.Args[1])
+	if len(os.Args[1]) >= 1 {
+		writeln(os.Args[1])
+	}
 }
 
 func testStructLiteralWithContents() {
