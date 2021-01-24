@@ -307,6 +307,9 @@ func emitAddr(expr ast.Expr) {
 	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
+		if e.Name == "_" {
+			panic(" \"_\" has no address")
+		}
 		if e.Obj == nil {
 			throw(expr)
 		}
@@ -531,9 +534,12 @@ func emitStructLiteral(e *ast.CompositeLit) {
 		emitPushStackTop(tUintptr, "address of struct heaad")
 		emitAddConst(fieldOffset, "address of struct field")
 		// push rhs value
-		emitExpr(kvExpr.Value, fieldType)
+		ctx := &evalContext{
+			_type: fieldType,
+		}
+		emitExprIfc(kvExpr.Value, ctx)
 		// assign
-		emitStore(fieldType, true)
+		emitStore(fieldType, true, false)
 	}
 }
 
@@ -547,9 +553,12 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 		emitPushStackTop(tUintptr, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		// push rhs value
-		emitExpr(elm, elmType)
+		ctx := &evalContext{
+			_type: elmType,
+		}
+		emitExprIfc(elm, ctx)
 		// assign
-		emitStore(elmType, true)
+		emitStore(elmType, true, false)
 	}
 }
 
@@ -587,7 +596,10 @@ func emitArgs(args []*Arg) int {
 	}
 	fmtPrintf("  subq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
 	for _, arg := range args {
-		emitExpr(arg.e, arg.t)
+		ctx := &evalContext{
+			_type: arg.t,
+		}
+		emitExprIfc(arg.e, ctx)
 	}
 	fmtPrintf("  addq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
 
@@ -602,7 +614,7 @@ func emitArgs(args []*Arg) int {
 		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
 			fmtPrintf("  movq %d-8(%%rsp) , %%rax # load\n", Itoa(-arg.offset))
 			fmtPrintf("  movq %%rax, %d(%%rsp) # store\n", Itoa(+arg.offset))
-		case T_STRING:
+		case T_STRING, T_INTERFACE:
 			fmtPrintf("  movq %d-16(%%rsp), %%rax\n", Itoa(-arg.offset))
 			fmtPrintf("  movq %d-8(%%rsp), %%rcx\n", Itoa(-arg.offset))
 			fmtPrintf("  movq %%rax, %d(%%rsp)\n", Itoa(+arg.offset))
@@ -955,12 +967,22 @@ func emitNil(targetType *Type) {
 	}
 }
 
-func emitNamedConst(e *ast.Ident, targetType *Type) {
+func emitNamedConst(e *ast.Ident, ctx *evalContext) {
 	valSpec, ok := e.Obj.Decl.(*ast.ValueSpec)
 	assert(ok, "should be *ast.ValueSpec")
 	lit, ok := valSpec.Values[0].(*ast.BasicLit)
 	assert(ok, "should be *ast.BasicLit")
-	emitExpr(lit, targetType)
+	emitExpr(lit, ctx)
+}
+
+type okContext struct {
+	needMain bool
+	needOk   bool
+}
+
+type evalContext struct {
+	okContext *okContext
+	_type     *Type
 }
 
 // targetType is the type of someone who receives the expr value.
@@ -972,7 +994,8 @@ func emitNamedConst(e *ast.Ident, targetType *Type) {
 // targetType is used when:
 //   - the expr is nil
 //   - the target type is interface and expr is not.
-func emitExpr(expr ast.Expr, targetType *Type) {
+func emitExpr(expr ast.Expr, ctx *evalContext) bool {
+	var isNilObj bool
 	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident: // 1 value
@@ -982,8 +1005,8 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 		case gFalse: // false constant
 			emitFalse()
 		case gNil:
-			emitNil(targetType)
-			return
+			emitNil(ctx._type)
+			isNilObj = true
 		default:
 			if e.Obj == nil {
 				panic(fmt.Sprintf("ident %s is unresolved", e.Name))
@@ -993,7 +1016,7 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 				emitAddr(e)
 				emitLoad(getTypeOfExpr(e))
 			case ast.Con:
-				emitNamedConst(e, targetType)
+				emitNamedConst(e, ctx)
 			default:
 				panic("Unexpected ident kind:" + e.Obj.Kind.String())
 			}
@@ -1018,7 +1041,7 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 			emitFuncall(fun, e.Args)
 		}
 	case *ast.ParenExpr: // multi values (e)
-		emitExpr(e.X, targetType)
+		emitExpr(e.X, ctx)
 	case *ast.BasicLit: // 1 value
 		switch e.Kind.String() {
 		case "CHAR":
@@ -1191,13 +1214,15 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				ctx := &evalContext{_type: t}
+				emitExprIfc(e.Y, ctx) // right
 				emitCompEq(t)
 			case "!=":
 				var t = getTypeOfExpr(e.X)
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, t)   // right
+				ctx := &evalContext{_type: t}
+				emitExprIfc(e.Y, ctx) // right
 				emitCompEq(t)
 				emitInvertBoolValue()
 			case "<":
@@ -1268,20 +1293,94 @@ func emitExpr(expr ast.Expr, targetType *Type) {
 		emitExpr(e.Low, nil) // index number
 		elmType := getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
+	case *ast.TypeAssertExpr:
+		emitExpr(e.X, nil)
+		fmtPrintf("  popq %%rax # type id\n")
+		fmtPrintf("  popq %%rcx # data\n")
+		fmtPrintf("  pushq %%rax # type id\n")
+		fmtPrintf("  callq main.nop\n")
+		typ := e2t(e.Type)
+		sType := serializeType(typ)
+		typeId := getTypeId(sType)
+		typeSymbol := typeIdToSymbol(typeId)
+		// check if type matches
+		fmtPrintf("  leaq %s(%%rip), %%rax # @@@ typeid\n", typeSymbol)
+		fmtPrintf("  pushq %%rax # type id\n")
+		emitCompExpr("sete") // this pushes 1 or 0 in the end
+		emitPopBool("type assertion ok value")
+		fmt.Printf("  cmpq $1, %%rax\n")
+
+		labelid++
+		labelTypeAssertionEnd := fmt.Sprintf(".L.end_type_assertion.%d", labelid)
+		labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
+		fmtPrintf("  jne %s # jmp if false\n", labelElse)
+
+		// if matched
+		if ctx.okContext != nil {
+			emitComment(2, " double value context\n")
+			if ctx.okContext.needMain {
+				emitExpr(e.X, nil)
+				fmtPrintf("  popq %%rax # garbage\n")
+				emitLoad(e2t(e.Type)) // load dynamic data
+			}
+			if ctx.okContext.needOk {
+				fmtPrintf("  pushq $1 # ok = true\n")
+			}
+		} else {
+			emitComment(2, " single value context\n")
+			emitExpr(e.X, nil)
+			fmtPrintf("  popq %%rax # garbage\n")
+			emitLoad(e2t(e.Type)) // load dynamic data
+		}
+
+		// exit
+		fmtPrintf("  jmp %s\n", labelTypeAssertionEnd)
+
+		// if not matched
+		fmtPrintf("  %s:\n", labelElse)
+		if ctx.okContext != nil {
+			emitComment(2, " double value context\n")
+			if ctx.okContext.needMain {
+				emitZeroValue(typ)
+			}
+			if ctx.okContext.needOk {
+				fmtPrintf("  pushq $0 # ok = false\n")
+			}
+		} else {
+			emitComment(2, " single value context\n")
+			emitZeroValue(typ)
+		}
+
+		fmtPrintf("  %s:\n", labelTypeAssertionEnd)
 	default:
 		throw(expr)
 	}
 
-	if targetType != nil {
+	return isNilObj
+}
+
+func emitExprIfc(expr ast.Expr, ctx *evalContext) {
+	isNilObj := emitExpr(expr, ctx)
+	if !isNilObj && ctx != nil && ctx._type != nil {
 		sourceType := getTypeOfExpr(expr)
-		if isInterface(targetType) && !isInterface(sourceType) {
-			emitConversionToInterfaceAfterPush(sourceType, targetType)
+		if isInterface(ctx._type) && !isInterface(sourceType) {
+			emitComment(2, "ConversionToInterface\n")
+			memSize := getSizeOfType(sourceType)
+			// copy data to heap
+			emitCallMalloc(memSize)
+			emitStore(sourceType, false, true) // heap addr pushed
+			// push type id
+			emitTypeId(sourceType)
 		}
 	}
 }
 
 var typeMap map[string]int = map[string]int{}
 var typeId int = 1
+
+func typeIdToSymbol(id int) string {
+	return "dtype." + Itoa(id)
+}
 
 func getTypeId(s string) int {
 	id, ok := typeMap[s]
@@ -1297,19 +1396,9 @@ func getTypeId(s string) int {
 func emitTypeId(t *Type) {
 	str := serializeType(t)
 	typeId := getTypeId(str)
-	fmtPrintf("  pushq $%d # type id :%s\n", Itoa(typeId), str)
-}
-
-func emitConversionToInterfaceAfterPush(sourceType *Type, targetType *Type) {
-	emitComment(2, "ConversionToInterface\n")
-	memSize := getSizeOfType(sourceType)
-	// copy data to heap
-	emitCallMalloc(memSize)
-
-	emitStore(sourceType, false) // heap addr pushed
-
-	// push type id
-	emitTypeId(sourceType)
+	typeSymbol := typeIdToSymbol(typeId)
+	fmtPrintf("  leaq %s(%%rip), %%rax # typeid \"%s\"\n", typeSymbol, str)
+	fmtPrintf("  pushq %%rax # type symbol @@@ %s\n", Itoa(typeId), typeSymbol)
 }
 
 func newNumberLiteral(x int) *ast.BasicLit {
@@ -1393,8 +1482,7 @@ func emitPop(knd TypeKind) {
 	}
 }
 
-// pop rhs, pop addr, and save rhs to adddr.
-func emitStore(t *Type, rhsTop bool) {
+func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	knd := kind(t)
 	emitComment(2, "emitStore(%s)\n", knd)
 	if rhsTop {
@@ -1404,7 +1492,7 @@ func emitStore(t *Type, rhsTop bool) {
 		fmtPrintf("  popq %%rsi # lhs addr\n")
 		emitPop(knd) // rhs
 	}
-	if !rhsTop {
+	if pushLhs {
 		fmtPrintf("  pushq %%rsi # lhs addr\n")
 	}
 
@@ -1436,13 +1524,52 @@ func emitStore(t *Type, rhsTop bool) {
 	}
 }
 
+func isBlankIdentifier(e ast.Expr) bool {
+	ident, isIdent := e.(*ast.Ident)
+	if !isIdent {
+		return false
+	}
+	return ident.Name == "_"
+}
+
+func emitAssignWithOK(lhss []ast.Expr, rhs ast.Expr) {
+	lhsMain := lhss[0]
+	lhsOK := lhss[1]
+
+	needMain := !isBlankIdentifier(lhsMain)
+	needOK := !isBlankIdentifier(lhsOK)
+	emitComment(2, "Assignment: emitAssignWithOK rhs\n")
+	ctx := &evalContext{
+		okContext: &okContext{
+			needMain: needMain,
+			needOk:   needOK,
+		},
+		_type:     nil,
+	}
+	emitExpr(rhs, ctx) // {push data}, {push bool}
+	if needOK {
+		emitComment(2, "Assignment: ok variable\n")
+		emitAddr(lhsOK)
+		emitStore(getTypeOfExpr(lhsOK), false, false)
+	}
+
+	if needMain {
+		emitAddr(lhsMain)
+		emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
+		emitStore(getTypeOfExpr(lhsMain), false, false)
+	}
+}
+
 func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
-	emitExpr(rhs, getTypeOfExpr(lhs))
+	ctx := &evalContext{
+		_type: getTypeOfExpr(lhs),
+	}
+	emitExprIfc(rhs, ctx)
 	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
-	emitStore(getTypeOfExpr(lhs), true)
+	emitStore(getTypeOfExpr(lhs), true, false)
 }
 
 func emitStmt(stmt ast.Stmt) {
@@ -1469,7 +1596,7 @@ func emitStmt(stmt ast.Stmt) {
 					emitComment(2, "emitZeroValue\n")
 					emitZeroValue(t)
 					emitComment(2, "Assignment: zero value\n")
-					emitStore(t, true)
+					emitStore(t, true, false)
 				} else if len(valSpec.Values) == 1 {
 					// assignment
 					rhs = valSpec.Values[0]
@@ -1486,14 +1613,19 @@ func emitStmt(stmt ast.Stmt) {
 		return // do nothing
 	case *ast.AssignStmt:
 		switch s.Tok.String() {
-		case "=":
+		case "=", ":=":
 			lhs := s.Lhs[0]
 			rhs := s.Rhs[0]
-			emitAssign(lhs, rhs)
-		case ":=":
-			lhs := s.Lhs[0]
-			rhs := s.Rhs[0]
-			emitAssign(lhs, rhs)
+			_ , isTypeAssertion := rhs.(*ast.TypeAssertExpr)
+			if len(s.Lhs) == 2 && isTypeAssertion {
+				emitAssignWithOK(s.Lhs, rhs)
+			} else {
+				ident , isIdent := lhs.(*ast.Ident)
+				if isIdent && ident.Name == "_" {
+					panic(" _ appeared !!!")
+				}
+				emitAssign(lhs, rhs)
+			}
 		default:
 			panic("TBI: assignment of " + s.Tok.String())
 		}
@@ -1608,13 +1740,13 @@ func emitStmt(stmt ast.Stmt) {
 		// lenvar = len(s.X)
 		emitVariableAddr(rngMisc.lenvar)
 		emitLen(s.X)
-		emitStore(tInt, true)
+		emitStore(tInt, true, false)
 
 		emitComment(2, "  assign 0 to indexvar\n")
 		// indexvar = 0
 		emitVariableAddr(rngMisc.indexvar)
 		emitZeroValue(tInt)
-		emitStore(tInt, true)
+		emitStore(tInt, true, false)
 
 		// init key variable with 0
 		if s.Key != nil {
@@ -1623,7 +1755,7 @@ func emitStmt(stmt ast.Stmt) {
 			if keyIdent.Name != "_" {
 				emitAddr(s.Key) // lhs
 				emitZeroValue(tInt)
-				emitStore(tInt, true)
+				emitStore(tInt, true, false)
 			}
 		}
 
@@ -1653,7 +1785,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitListElementAddr(s.X, elemType)
 
 		emitLoad(elemType)
-		emitStore(elemType, true)
+		emitStore(elemType, true, false)
 
 		// Body
 		emitComment(2, "ForRange Body\n")
@@ -1666,7 +1798,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitVariableAddr(rngMisc.indexvar) // rhs
 		emitLoad(tInt)
 		emitAddConst(1, "indexvar value ++")
-		emitStore(tInt, true)
+		emitStore(tInt, true, false)
 
 		// incr key variable
 		if s.Key != nil {
@@ -1676,7 +1808,7 @@ func emitStmt(stmt ast.Stmt) {
 				emitAddr(s.Key)                    // lhs
 				emitVariableAddr(rngMisc.indexvar) // rhs
 				emitLoad(tInt)
-				emitStore(tInt, true)
+				emitStore(tInt, true, false)
 			}
 		}
 
@@ -1697,7 +1829,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitAddr(s.X)
 		emitExpr(s.X, nil)
 		emitAddConst(addValue, "rhs ++ or --")
-		emitStore(getTypeOfExpr(s.X), true)
+		emitStore(getTypeOfExpr(s.X), true, false)
 	case *ast.SwitchStmt:
 		labelid++
 		labelEnd := fmt.Sprintf(".L.switch.%d.exit", labelid)
@@ -1983,6 +2115,8 @@ func generateCode(pkg *PkgContainer) {
 	for _, fnc = range pkg.funcs {
 		emitFuncDecl(pkg.name, fnc)
 	}
+
+	fmtPrintf("\n")
 }
 
 // --- type ---
@@ -1999,6 +2133,7 @@ type Type struct {
 type TypeKind string
 
 const T_STRING TypeKind = "T_STRING"
+const T_INTERFACE TypeKind = "T_INTERFACE"
 const T_SLICE TypeKind = "T_SLICE"
 const T_BOOL TypeKind = "T_BOOL"
 const T_INT TypeKind = "T_INT"
@@ -2008,7 +2143,6 @@ const T_UINTPTR TypeKind = "T_UINTPTR"
 const T_ARRAY TypeKind = "T_ARRAY"
 const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
-const T_INTERFACE TypeKind = "T_INTERFACE"
 
 var tBool *Type = &Type{
 	e: &ast.Ident{
@@ -2248,6 +2382,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		return e2t(e.Type)
 	case *ast.ParenExpr:
 		return getTypeOfExpr(e.X)
+	case *ast.TypeAssertExpr:
+		return e2t(e.Type)
 	default:
 		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
 	}
@@ -2452,6 +2588,8 @@ func getPushSizeOfType(t *Type) int {
 		return sliceSize
 	case T_STRING:
 		return stringSize
+	case T_INTERFACE:
+		return interfaceSize
 	case T_UINT8, T_UINT16, T_INT, T_BOOL:
 		return intSize
 	case T_UINTPTR, T_POINTER:
@@ -2917,6 +3055,8 @@ func walkExpr(expr ast.Expr) {
 		walkExpr(e.Value)
 	case *ast.InterfaceType:
 		// interface{}(e)  conversion
+	case *ast.TypeAssertExpr:
+		walkExpr(e.X)
 	default:
 		throw(expr)
 	}
@@ -3330,4 +3470,17 @@ func main() {
 		walk(pkg, astFile)
 		generateCode(pkg)
 	}
+
+	// emitting dynamic types
+	fmtPrintf("# ------- Dynamic Types ------\n")
+	fmtPrintf(".data\n")
+	for name, id := range typeMap {
+		symbol := typeIdToSymbol(id)
+		fmtPrintf("%s: # %s\n", symbol, name)
+		fmtPrintf("  .quad %s\n", Itoa(id))
+		fmtPrintf("  .quad .S.dtype.%s\n", Itoa(id))
+		fmtPrintf(".S.dtype.%s:\n", Itoa(id))
+		fmtPrintf("  .string \"%s\"\n", name)
+	}
+	fmtPrintf("\n")
 }

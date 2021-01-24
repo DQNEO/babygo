@@ -73,8 +73,90 @@ func Sprintf(format string, a []string) string {
 	return string(buf)
 }
 
+
+func nop() {
+}
+
+func nop1() {
+}
+
 // --- test funcs ---
-func testInterfaceExplicitConversion() {
+
+func rerceiveInterface(ifc interface{}) {
+	var s int
+	var ok bool
+	s, ok = ifc.(int)
+	if ok {
+		writeln(itoa(s))
+	}
+}
+
+func testPassInterface() {
+	var s int = 1537
+	var ifc interface{} = s
+	nop()
+	rerceiveInterface(ifc)
+}
+
+func testInterfaceAssertion() {
+	var ifc interface{}
+	var ok bool
+	var i int = 20210124
+	ifc = i
+	writeln("aaaa")
+	i, ok = ifc.(int)
+	if ok {
+		writeln(" type matched")
+		write(itoa(i))
+	} else {
+		panic("FAILED")
+	}
+
+	var j int
+	j = ifc.(int)
+	write(itoa(j))
+	nop()
+	_, ok = ifc.(int) // error!!!
+	nop1()
+	if ok {
+		writeln("ok")
+	} else {
+		panic("FAILED")
+	}
+
+	i, _ = ifc.(int)
+	write(itoa(i))
+
+	_, _ = ifc.(int)
+	writeln("end of testInterfaceAssertion")
+	var s string
+	s, ok = ifc.(string)
+	writeln(s)
+	if ok {
+		panic("FAILED")
+	} else {
+		writeln(s)
+	}
+	s = "I am string"
+	ifc = s
+	s, ok = ifc.(string)
+	writeln(s)
+	if ok {
+		writeln("ok")
+	} else {
+		panic("FAILED")
+	}
+
+	ifc = nil
+	s, ok = ifc.(string)
+	if ok {
+		panic("FAILED")
+	} else {
+		writeln(s)
+	}
+}
+
+func testInterfaceimplicitConversion() {
 	var eface interface{}
 	var i int = 7
 	eface = i
@@ -1501,7 +1583,9 @@ func testMisc() {
 }
 
 func test() {
-	testInterfaceExplicitConversion()
+	testPassInterface()
+	testInterfaceAssertion()
+	testInterfaceimplicitConversion()
 	testInterfaceZeroValue()
 	testForRangeShortDecl()
 	testInferVarTypes()
