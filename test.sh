@@ -17,3 +17,5 @@ if [[ $? -ne 0 ]]; then
   echo FAILED
   exit 1
 fi
+
+echo "ok"
