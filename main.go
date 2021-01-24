@@ -3656,8 +3656,8 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 }
 
 func emitStmt(stmt *astStmt) {
-	emitComment(2, "\n")
-	emitComment(2, "== Stmt %s ==\n", stmt.dtype)
+	fmtPrintf("\n")
+	emitComment(2, "Statement %s\n", stmt.dtype)
 	switch stmt.dtype {
 	case "*astBlockStmt":
 		for _, stmt2 := range stmt.blockStmt.List {

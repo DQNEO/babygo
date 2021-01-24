@@ -1573,8 +1573,8 @@ func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 }
 
 func emitStmt(stmt ast.Stmt) {
-	emitComment(2, "\n")
-	emitComment(2, "== Stmt %T ==\n", stmt)
+	fmtPrintf("\n")
+	emitComment(2, "== Statement %T ==\n", stmt)
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
 		expr := s.X
