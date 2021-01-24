@@ -1,3 +1,13 @@
+1537
+aaaa
+ type matched
+2021012420210124ok
+20210124end of testInterfaceAssertion
+
+
+I am string
+ok
+
 1111
 eface match
 22222
