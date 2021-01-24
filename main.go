@@ -2489,8 +2489,8 @@ func isType(expr *astExpr) bool {
 		if expr.ident.Obj == nil {
 			panic2(__func__, " unresolved ident:"+expr.ident.Name)
 		}
-		emitComment(0, "[isType][DEBUG] expr.ident.Name = %s\n", expr.ident.Name)
-		emitComment(0, "[isType][DEBUG] expr.ident.Obj = %s,%s\n",
+		emitComment(2, "[isType][DEBUG] expr.ident.Name = %s\n", expr.ident.Name)
+		emitComment(2, "[isType][DEBUG] expr.ident.Obj = %s,%s\n",
 			expr.ident.Obj.Name, expr.ident.Obj.Kind)
 		return expr.ident.Obj.Kind == astTyp
 	case "*astParenExpr":
@@ -2500,7 +2500,7 @@ func isType(expr *astExpr) bool {
 	case "*astInterfaceType":
 		return true
 	default:
-		emitComment(0, "[isType][%s] is not considered a type\n", expr.dtype)
+		emitComment(2, "[isType][%s] is not considered a type\n", expr.dtype)
 	}
 
 	return false
@@ -2508,7 +2508,7 @@ func isType(expr *astExpr) bool {
 }
 
 func emitConversion(tp *Type, arg0 *astExpr) {
-	emitComment(0, "[emitConversion]\n")
+	emitComment(2, "[emitConversion]\n")
 	var typeExpr = tp.e
 	switch typeExpr.dtype {
 	case "*astIdent":
@@ -2522,7 +2522,7 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 				fmtPrintf("  pushq %%rax # str ptr\n")
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
-			emitComment(0, "[emitConversion] to int \n")
+			emitComment(2, "[emitConversion] to int \n")
 			emitExpr(arg0, nil)
 		default:
 			if typeExpr.ident.Obj.Kind == astTyp {
@@ -2552,7 +2552,7 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 	case "*astParenExpr":
 		emitConversion(e2t(typeExpr.parenExpr.X), arg0)
 	case "*astStarExpr": // (*T)(e)
-		emitComment(0, "[emitConversion] to pointer \n")
+		emitComment(2, "[emitConversion] to pointer \n")
 		emitExpr(arg0, nil)
 	default:
 		panic2(__func__, "TBI :"+typeExpr.dtype)
@@ -2583,7 +2583,7 @@ func emitZeroValue(t *Type) {
 }
 
 func emitLen(arg *astExpr) {
-	emitComment(0, "[%s] begin\n", __func__)
+	emitComment(2, "[%s] begin\n", __func__)
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
 		var typ = getTypeOfExpr(arg)
@@ -2600,7 +2600,7 @@ func emitLen(arg *astExpr) {
 	default:
 		throw(kind(getTypeOfExpr(arg)))
 	}
-	emitComment(0, "[%s] end\n", __func__)
+	emitComment(2, "[%s] end\n", __func__)
 }
 
 func emitCap(arg *astExpr) {
@@ -2763,7 +2763,7 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*
 	var arg *Arg
 	var lenParams = len(params)
 	for argIndex, eArg := range eArgs {
-		emitComment(0, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, Itoa(argIndex), Itoa(lenParams))
+		emitComment(2, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, Itoa(argIndex), Itoa(lenParams))
 		if argIndex < lenParams {
 			param = params[argIndex]
 			if param.Type.dtype == "*astEllipsis" {
@@ -2802,7 +2802,7 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*
 		args = append(args, _arg)
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
-		emitComment(0, "len(args)=%s, len(params)=%s\n", Itoa(len(args)), Itoa(len(params)))
+		emitComment(2, "len(args)=%s, len(params)=%s\n", Itoa(len(args)), Itoa(len(params)))
 		var param = params[len(args)]
 		if param == nil {
 			panic2(__func__, "param should not be nil")
@@ -2836,7 +2836,7 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*
 }
 
 func emitCall(symbol string, args []*Arg, results []*astField) {
-	emitComment(0, "[%s] %s\n", __func__, symbol)
+	emitComment(2, "[%s] %s\n", __func__, symbol)
 	var totalPushedSize = emitArgs(args)
 	fmtPrintf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
@@ -2877,7 +2877,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 	var funcType *astFuncType
 	switch fun.dtype {
 	case "*astIdent":
-		emitComment(0, "[%s][*astIdent]\n", __func__)
+		emitComment(2, "[%s][*astIdent]\n", __func__)
 		var fnIdent = fun.ident
 		switch fnIdent.Obj {
 		case gLen:
@@ -2997,7 +2997,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		}
 		// general function call
 		symbol = getFuncSymbol(pkg.name, fn.Name)
-		emitComment(0, "[%s][*astIdent][default] start\n", __func__)
+		emitComment(2, "[%s][*astIdent][default] start\n", __func__)
 
 		var obj = fn.Obj
 		var decl = obj.Decl
@@ -3130,7 +3130,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		emitLoad(getTypeOfExpr(e))
 	case "*astCallExpr":
 		var fun = e.callExpr.Fun
-		emitComment(0, "[%s][*astCallExpr]\n", __func__)
+		emitComment(2, "[%s][*astCallExpr]\n", __func__)
 		if isType(fun) {
 			emitConversion(e2t(fun), e.callExpr.Args[0])
 		} else {
@@ -3198,7 +3198,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		var elmType = getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
 	case "*astUnaryExpr":
-		emitComment(0, "[DEBUG] unary op = %s\n", e.unaryExpr.Op)
+		emitComment(2, "[DEBUG] unary op = %s\n", e.unaryExpr.Op)
 		switch e.unaryExpr.Op {
 		case "+":
 			emitExpr(e.unaryExpr.X, nil)
@@ -4334,7 +4334,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			panic2(__func__, "TBI: Op="+expr.unaryExpr.Op)
 		}
 	case "*astCallExpr":
-		emitComment(0, "[%s] *astCallExpr\n", __func__)
+		emitComment(2, "[%s] *astCallExpr\n", __func__)
 		var fun = expr.callExpr.Fun
 		switch fun.dtype {
 		case "*astIdent":
