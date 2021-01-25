@@ -98,8 +98,13 @@ func testPassInterface() {
 	rerceiveInterface(ifc)
 }
 
+type EmptyInterface interface {
+}
+
 func testInterfaceAssertion() {
 	var ifc interface{}
+	var ifc2 EmptyInterface
+
 	var ok bool
 	var i int = 20210124
 	ifc = i
@@ -138,8 +143,8 @@ func testInterfaceAssertion() {
 		writeln(s)
 	}
 	s = "I am string"
-	ifc = s
-	s, ok = ifc.(string)
+	ifc2 = s
+	s, ok = ifc2.(string)
 	writeln(s)
 	if ok {
 		writeln("ok")
@@ -147,8 +152,8 @@ func testInterfaceAssertion() {
 		panic("FAILED")
 	}
 
-	ifc = nil
-	s, ok = ifc.(string)
+	ifc2 = nil
+	s, ok = ifc2.(string)
 	if ok {
 		panic("FAILED")
 	} else {

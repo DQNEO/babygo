@@ -675,7 +675,7 @@ type astStmt struct {
 }
 
 type astDeclStmt struct {
-	Decl *astDecl
+	Decl astDecl
 }
 
 type astExprStmt struct {
@@ -771,10 +771,8 @@ type astTypeSpec struct {
 }
 
 // Pseudo interface for *ast.Decl
-type astDecl struct {
-	dtype    string
-	genDecl  *astGenDecl
-	funcDecl *astFuncDecl
+// *astGenDecl | *astFuncDecl
+type astDecl interface {
 }
 
 type astGenDecl struct {
@@ -790,7 +788,7 @@ type astFuncDecl struct {
 
 type astFile struct {
 	Name       string
-	Decls      []*astDecl
+	Decls      []astDecl
 	Unresolved []*astIdent
 }
 
@@ -1936,10 +1934,7 @@ func (p *parser) parseStmt() *astStmt {
 		s = &astStmt{}
 		s.dtype = "*astDeclStmt"
 		s.DeclStmt = &astDeclStmt{}
-		var decl = &astDecl{}
-		decl.dtype = "*astGenDecl"
-		decl.genDecl = genDecl
-		s.DeclStmt.Decl = decl
+		s.DeclStmt.Decl = genDecl
 		logf(" = end parseStmt()\n")
 	case "IDENT", "*":
 		s = p.parseSimpleStmt(false)
@@ -2130,7 +2125,7 @@ func (p *parser) parseValueSpec(keyword string) *astSpec {
 	return r
 }
 
-func (p *parser) parseFuncDecl() *astDecl {
+func (p *parser) parseFuncDecl() astDecl {
 	p.expect("func", __func__)
 	var scope = astNewScope(p.topScope) // function scope
 	var receivers *astFieldList
@@ -2156,16 +2151,16 @@ func (p *parser) parseFuncDecl() *astDecl {
 	} else {
 		p.expectSemi(__func__)
 	}
-	var decl = &astDecl{}
-	decl.dtype = "*astFuncDecl"
+	var decl astDecl
+
 	var funcDecl = &astFuncDecl{}
-	decl.funcDecl = funcDecl
-	decl.funcDecl.Recv = receivers
-	decl.funcDecl.Name = ident
-	decl.funcDecl.Type = &astFuncType{}
-	decl.funcDecl.Type.Params = params
-	decl.funcDecl.Type.Results = results
-	decl.funcDecl.Body = body
+	funcDecl.Recv = receivers
+	funcDecl.Name = ident
+	funcDecl.Type = &astFuncType{}
+	funcDecl.Type.Params = params
+	funcDecl.Type.Results = results
+	funcDecl.Body = body
+	decl = funcDecl
 	if receivers == nil {
 		var objDecl = &ObjDecl{}
 		objDecl.dtype = "*astFuncDecl"
@@ -2192,8 +2187,8 @@ func (p *parser) parseFile() *astFile {
 
 	logf("\n")
 	logf(" [parser] Parsing Top level decls\n")
-	var decls []*astDecl
-	var decl *astDecl
+	var decls []astDecl
+	var decl astDecl
 
 	for p.tok.tok != "EOF" {
 		switch p.tok.tok {
@@ -2201,20 +2196,16 @@ func (p *parser) parseFile() *astFile {
 			var spec = p.parseValueSpec(p.tok.tok)
 			var genDecl = &astGenDecl{}
 			genDecl.Spec = spec
-			decl = &astDecl{}
-			decl.dtype = "*astGenDecl"
-			decl.genDecl = genDecl
+			decl = genDecl
 		case "func":
 			logf("\n\n")
 			decl = p.parseFuncDecl()
-			logf(" func decl parsed:%s\n", decl.funcDecl.Name.Name)
+			//logf(" func decl parsed:%s\n", decl.funcDecl.Name.Name)
 		case "type":
 			var spec = p.parserTypeSpec()
 			var genDecl = &astGenDecl{}
 			genDecl.Spec = spec
-			decl = &astDecl{}
-			decl.dtype = "*astGenDecl"
-			decl.genDecl = genDecl
+			decl = genDecl
 			logf(" type parsed:%s\n", "")
 		default:
 			panic2(__func__, "TBI:"+p.tok.tok)
@@ -3377,7 +3368,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		fmtPrintf("  popq %%rax # type id\n")
 		fmtPrintf("  popq %%rcx # data\n")
 		fmtPrintf("  pushq %%rax # type id\n")
-		fmtPrintf("  callq main.nop\n")
+
 		typ := e2t(e.typeAssert.Type)
 		sType := serializeType(typ)
 		_id := getTypeId(sType)
@@ -3662,11 +3653,14 @@ func emitStmt(stmt *astStmt) {
 	case "*astExprStmt":
 		emitExpr(stmt.exprStmt.X, nil)
 	case "*astDeclStmt":
-		var decl *astDecl = stmt.DeclStmt.Decl
-		if decl.dtype != "*astGenDecl" {
+		var decl astDecl = stmt.DeclStmt.Decl
+		var genDecl *astGenDecl
+		var isGenDecl bool
+		genDecl, isGenDecl = decl.(*astGenDecl)
+		if !isGenDecl {
 			panic2(__func__, "[*astDeclStmt] internal error")
 		}
-		var genDecl = decl.genDecl
+
 		var valSpec = genDecl.Spec.valueSpec
 		var t = e2t(valSpec.Type)
 		var ident = valSpec.Name
@@ -3715,13 +3709,13 @@ func emitStmt(stmt *astStmt) {
 			switch knd {
 			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 				fmtPrintf("  popq %%rax # return 64bit\n")
-			case T_STRING:
-				fmtPrintf("  popq %%rax # return string (ptr)\n")
-				fmtPrintf("  popq %%rdi # return string (len)\n")
+			case T_STRING, T_INTERFACE:
+				fmtPrintf("  popq %%rax # return string (head)\n")
+				fmtPrintf("  popq %%rdi # return string (tail)\n")
 			case T_SLICE:
-				fmtPrintf("  popq %%rax # return string (ptr)\n")
-				fmtPrintf("  popq %%rdi # return string (len)\n")
-				fmtPrintf("  popq %%rsi # return string (cap)\n")
+				fmtPrintf("  popq %%rax # return string (head)\n")
+				fmtPrintf("  popq %%rdi # return string (body)\n")
+				fmtPrintf("  popq %%rsi # return string (tail)\n")
 			default:
 				panic2(__func__, "[*astReturnStmt] TBI:"+knd)
 			}
@@ -4956,10 +4950,14 @@ func walkStmt(stmt *astStmt) {
 			panic2(__func__, "ERROR\n")
 		}
 		var dcl = declStmt.Decl
-		if dcl.dtype != "*astGenDecl" {
+		var genDecl *astGenDecl
+		var ok bool
+		genDecl, ok = dcl.(*astGenDecl)
+		if !ok {
 			panic2(__func__, "[dcl.dtype] internal error")
 		}
-		var valSpec = dcl.genDecl.Spec.valueSpec
+
+		var valSpec = genDecl.Spec.valueSpec
 		if valSpec.Type == nil {
 			if valSpec.Value == nil {
 				panic2(__func__, "type inference requires a value")
@@ -5167,9 +5165,10 @@ func walk(pkg *PkgContainer, file *astFile) {
 	var constSpecs []*astValueSpec
 
 	for _, decl := range file.Decls {
-		switch decl.dtype {
-		case "*astGenDecl":
-			var genDecl = decl.genDecl
+		var genDecl *astGenDecl
+		var ok bool
+		genDecl, ok = decl.(*astGenDecl)
+		if ok {
 			switch genDecl.Spec.dtype {
 			case "*astTypeSpec":
 				typeSpecs = append(typeSpecs, genDecl.Spec.typeSpec)
@@ -5182,13 +5181,12 @@ func walk(pkg *PkgContainer, file *astFile) {
 				} else {
 					panic("Unexpected")
 				}
-			default:
-				panic2(__func__, "Unexpected dtype="+genDecl.Spec.dtype)
 			}
-		case "*astFuncDecl":
-			funcDecls = append(funcDecls, decl.funcDecl)
-		default:
-			panic("Unexpected")
+		}
+		var funcDecl *astFuncDecl
+		funcDecl, ok = decl.(*astFuncDecl)
+		if ok {
+			funcDecls = append(funcDecls, funcDecl)
 		}
 	}
 

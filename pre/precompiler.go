@@ -1298,7 +1298,6 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		fmtPrintf("  popq %%rax # type id\n")
 		fmtPrintf("  popq %%rcx # data\n")
 		fmtPrintf("  pushq %%rax # type id\n")
-		fmtPrintf("  callq main.nop\n")
 		typ := e2t(e.Type)
 		sType := serializeType(typ)
 		typeId := getTypeId(sType)
@@ -1637,13 +1636,13 @@ func emitStmt(stmt ast.Stmt) {
 			switch knd {
 			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 				fmtPrintf("  popq %%rax # return 64bit\n")
-			case T_STRING:
-				fmtPrintf("  popq %%rax # return string (ptr)\n")
-				fmtPrintf("  popq %%rdi # return string (len)\n")
+			case T_STRING, T_INTERFACE:
+				fmtPrintf("  popq %%rax # return string (head)\n")
+				fmtPrintf("  popq %%rdi # return string (tail)\n")
 			case T_SLICE:
-				fmtPrintf("  popq %%rax # return string (ptr)\n")
-				fmtPrintf("  popq %%rdi # return string (len)\n")
-				fmtPrintf("  popq %%rsi # return string (cap)\n")
+				fmtPrintf("  popq %%rax # return string (head)\n")
+				fmtPrintf("  popq %%rdi # return string (body)\n")
+				fmtPrintf("  popq %%rsi # return string (tail)\n")
 			default:
 				panic("TBI:" + knd)
 			}
