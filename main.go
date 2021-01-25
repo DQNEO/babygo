@@ -3440,19 +3440,15 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 
 func emitExprIfc(expr *astExpr, ctx *evalContext) {
 	isNilObj := emitExpr(expr, ctx)
-	if !isNilObj && ctx != nil {
+	if !isNilObj && ctx != nil && ctx._type != nil && isInterface(ctx._type) && !isInterface(getTypeOfExpr(expr)) {
 		sourceType := getTypeOfExpr(expr)
-		if ctx._type != nil{
-			if isInterface(ctx._type) && !isInterface(sourceType) {
-				emitComment(2, "ConversionToInterface\n")
-				memSize := getSizeOfType(sourceType)
-				// copy data to heap
-				emitCallMalloc(memSize)
-				emitStore(sourceType, false, true) // heap addr pushed
-				// push type id
-				emitTypeId(sourceType)
-			}
-		}
+		emitComment(2, "ConversionToInterface\n")
+		memSize := getSizeOfType(sourceType)
+		// copy data to heap
+		emitCallMalloc(memSize)
+		emitStore(sourceType, false, true) // heap addr pushed
+		// push type id
+		emitTypeId(sourceType)
 	}
 }
 
@@ -4250,6 +4246,7 @@ const T_INTERFACE string = "T_INTERFACE"
 const T_SLICE string = "T_SLICE"
 const T_BOOL string = "T_BOOL"
 const T_INT string = "T_INT"
+const T_INT32 string = "T_INT32"
 const T_UINT8 string = "T_UINT8"
 const T_UINT16 string = "T_UINT16"
 const T_UINTPTR string = "T_UINTPTR"
@@ -4303,7 +4300,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "INT":
 			return tInt
 		case "CHAR":
-			return tInt
+			return tInt32
 		default:
 			panic2(__func__, "TBI:"+expr.basicLit.Kind)
 		}
@@ -4562,6 +4559,8 @@ func kind(t *Type) string {
 			return T_UINTPTR
 		case "int":
 			return T_INT
+		case "int32":
+			return T_INT32
 		case "string":
 			return T_STRING
 		case "uint8":
@@ -4785,10 +4784,22 @@ type Variable struct {
 
 //type localoffsetint int //@TODO
 
+func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
+	vr := newLocalVariable(name, fnc.argsarea)
+	fnc.argsarea = fnc.argsarea + getSizeOfType(t)
+	return vr
+}
+
+func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
+	assert(t != nil && t.e != nil, "type of local var should not be nil", __func__)
+	fnc.localarea = fnc.localarea - getSizeOfType(t)
+	return newLocalVariable(name, currentFunc.localarea)
+}
+
 var stringLiterals []*stringLiteralsContainer
 var stringIndex int
-var localoffset int
-var currentFuncDecl *astFuncDecl
+
+var currentFunc *Func
 
 func getStringLiteral(lit *astBasicLit) *sliteral {
 	for _, container := range stringLiterals {
@@ -4964,11 +4975,8 @@ func walkStmt(stmt *astStmt) {
 		logf(" [walkStmt] valSpec Name=%s, Type=%s\n",
 			valSpec.Name.Name, typ.dtype)
 
-		var t = e2t(typ)
-		var sizeOfType = getSizeOfType(t)
-		localoffset = localoffset - sizeOfType
-
-		valSpec.Name.Obj.Variable = newLocalVariable(valSpec.Name.Name, localoffset)
+		t := e2t(typ)
+		valSpec.Name.Obj.Variable = currentFunc.registerLocalVariable(valSpec.Name.Name, t)
 		logf(" var %s offset = %d\n", valSpec.Name.Obj.Name,
 			Itoa(valSpec.Name.Obj.Variable.localOffset))
 		if valSpec.Value != nil {
@@ -4988,8 +4996,8 @@ func walkStmt(stmt *astStmt) {
 			} else {
 				panic("type inference is not supported: " + obj.Name)
 			}
-			localoffset = localoffset - getSizeOfType(typ)
-			obj.Variable = newLocalVariable(obj.Name, localoffset)
+
+			obj.Variable = currentFunc.registerLocalVariable(obj.Name, typ)
 		} else {
 			walkExpr(rhs)
 		}
@@ -5033,10 +5041,8 @@ func walkStmt(stmt *astStmt) {
 		currentFor = stmt
 		var _s = blockStmt2Stmt(stmt.rangeStmt.Body)
 		walkStmt(_s)
-		localoffset = localoffset - intSize
-		var lenvar = newLocalVariable(".range.len", localoffset)
-		localoffset = localoffset - intSize
-		var indexvar = newLocalVariable(".range.index", localoffset)
+		var lenvar = currentFunc.registerLocalVariable(".range.len", tInt)
+		var indexvar = currentFunc.registerLocalVariable(".range.index", tInt)
 
 		if stmt.rangeStmt.Tok == ":=" {
 			listType := getTypeOfExpr(stmt.rangeStmt.X)
@@ -5045,14 +5051,12 @@ func walkStmt(stmt *astStmt) {
 			//@TODO map key can be any type
 			//keyType := getKeyTypeOfListType(listType)
 			var keyType *Type = tInt
-			localoffset = localoffset - getSizeOfType(keyType)
-			keyIdent.Obj.Variable = newLocalVariable(keyIdent.Name, localoffset)
+			keyIdent.Obj.Variable =  currentFunc.registerLocalVariable(keyIdent.Name, keyType)
 
 			// determine type of Value
 			elmType := getElementTypeOfListType(listType)
 			valueIdent := stmt.rangeStmt.Value.ident
-			localoffset = localoffset - getSizeOfType(elmType)
-			valueIdent.Obj.Variable = newLocalVariable(valueIdent.Name, localoffset)
+			valueIdent.Obj.Variable = currentFunc.registerLocalVariable(valueIdent.Name, elmType)
 		}
 		stmt.rangeStmt.lenvar = lenvar
 		stmt.rangeStmt.indexvar = indexvar
@@ -5100,7 +5104,7 @@ func walkExpr(expr *astExpr) {
 				if ident.Name == "__func__" && ident.Obj.Kind == astVar {
 					basicLit = &astBasicLit{}
 					basicLit.Kind = "STRING"
-					basicLit.Value = "\"" + currentFuncDecl.Name.Name + "\""
+					basicLit.Value = "\"" + currentFunc.name + "\""
 					newArg = &astExpr{}
 					newArg.dtype = "*astBasicLit"
 					newArg.basicLit = basicLit
@@ -5157,56 +5161,83 @@ func walkExpr(expr *astExpr) {
 }
 
 func walk(pkg *PkgContainer, file *astFile) {
-	for _, decl := range file.Decls {
-		switch decl.dtype {
-		case "*astFuncDecl":
-			var funcDecl = decl.funcDecl
-			if funcDecl.Body != nil {
-				if funcDecl.Recv != nil { // is Method
-					var method = newMethod(funcDecl)
-					registerMethod(method)
-				}
-			}
-		}
-	}
+	var typeSpecs []*astTypeSpec
+	var funcDecls []*astFuncDecl
+	var varSpecs []*astValueSpec
+	var constSpecs []*astValueSpec
+
 	for _, decl := range file.Decls {
 		switch decl.dtype {
 		case "*astGenDecl":
 			var genDecl = decl.genDecl
 			switch genDecl.Spec.dtype {
-			case "*astValueSpec":
-				var valSpec = genDecl.Spec.valueSpec
-				var nameIdent = valSpec.Name
-				if nameIdent.Obj.Kind == astVar {
-					if valSpec.Type == nil {
-						var val = valSpec.Value
-						var t = getTypeOfExpr(val)
-						valSpec.Type = t.e
-					}
-					nameIdent.Obj.Variable = newGlobalVariable(pkg.name, nameIdent.Obj.Name)
-					pkg.vars = append(pkg.vars, valSpec)
-				}
-				if valSpec.Value != nil {
-					walkExpr(valSpec.Value)
-				}
 			case "*astTypeSpec":
-				// do nothing
-				var typeSpec = genDecl.Spec.typeSpec
-				switch kind(e2t(typeSpec.Type)) {
-				case T_STRUCT:
-					calcStructSizeAndSetFieldOffset(typeSpec)
-				default:
-					// do nothing
+				typeSpecs = append(typeSpecs, genDecl.Spec.typeSpec)
+			case "*astValueSpec":
+				var spec = genDecl.Spec.valueSpec
+				if spec.Name.Obj.Kind == astVar {
+					varSpecs = append(varSpecs, spec)
+				} else if spec.Name.Obj.Kind == astCon {
+					constSpecs = append(constSpecs, spec)
+				} else {
+					panic("Unexpected")
 				}
 			default:
 				panic2(__func__, "Unexpected dtype="+genDecl.Spec.dtype)
 			}
 		case "*astFuncDecl":
-			var funcDecl = decl.funcDecl
-			currentFuncDecl = funcDecl
+			funcDecls = append(funcDecls, decl.funcDecl)
+		default:
+			panic("Unexpected")
+		}
+	}
+
+	for _, typeSpec := range typeSpecs {
+		switch kind(e2t(typeSpec.Type)) {
+		case T_STRUCT:
+			calcStructSizeAndSetFieldOffset(typeSpec)
+		}
+	}
+
+	// collect methods in advance
+	for _, funcDecl := range funcDecls {
+		if funcDecl.Body != nil {
+			if funcDecl.Recv != nil { // is Method
+				var method = newMethod(funcDecl)
+				registerMethod(method)
+			}
+		}
+	}
+
+	for _, constSpec := range constSpecs {
+		walkExpr(constSpec.Value)
+	}
+
+	for _, valSpec := range varSpecs {
+		var nameIdent = valSpec.Name
+		assert(nameIdent.Obj.Kind == astVar, "should be Var", __func__)
+		if valSpec.Type == nil {
+			var val = valSpec.Value
+			var t = getTypeOfExpr(val)
+			valSpec.Type = t.e
+		}
+		nameIdent.Obj.Variable = newGlobalVariable(pkg.name, nameIdent.Obj.Name)
+		pkg.vars = append(pkg.vars, valSpec)
+		if valSpec.Value != nil {
+			walkExpr(valSpec.Value)
+		}
+	}
+
+		for _, funcDecl := range funcDecls {
+			fnc := &Func{
+				name:      funcDecl.Name.Name,
+				funcType:  funcDecl.Type,
+				localarea: 0,
+				argsarea:  16,
+			}
+			currentFunc = fnc
 			logf(" [sema] == astFuncDecl %s ==\n", funcDecl.Name.Name)
-			localoffset = 0
-			var paramoffset = 16
+			//var paramoffset = 16
 			var paramFields []*astField
 
 			if funcDecl.Recv != nil { // Method
@@ -5217,37 +5248,26 @@ func walk(pkg *PkgContainer, file *astFile) {
 			}
 
 			for _, field := range paramFields {
-				var obj = field.Name.Obj
-				obj.Variable = newLocalVariable(obj.Name, paramoffset)
-				var varSize = getSizeOfType(e2t(field.Type))
-				paramoffset = paramoffset + varSize
-				logf(" field.Name.Obj.Name=%s\n", obj.Name)
-				//logf("   field.Type=%#v\n", field.Type)
+				obj := field.Name.Obj
+				obj.Variable = fnc.registerParamVariable(obj.Name, e2t(field.Type))
 			}
+
 			if funcDecl.Body != nil {
 				for _, stmt := range funcDecl.Body.List {
 					walkStmt(stmt)
 				}
-				var fnc = &Func{}
-				fnc.name = funcDecl.Name.Name
-				fnc.funcType =  funcDecl.Type
 				fnc.Body = funcDecl.Body
-				fnc.localarea = localoffset
-				fnc.argsarea = paramoffset
 
 				if funcDecl.Recv != nil { // Method
 					fnc.method = newMethod(funcDecl)
 				}
 				pkg.funcs = append(pkg.funcs, fnc)
 			}
-		default:
-			panic2(__func__, "TBI: "+decl.dtype)
 		}
-	}
 
-	if len(stringLiterals) == 0 {
-		panic2(__func__, "stringLiterals is empty\n")
-	}
+		if len(stringLiterals) == 0 {
+			panic2(__func__, "stringLiterals is empty\n")
+		}
 }
 
 // --- universe ---
@@ -5280,6 +5300,11 @@ var gString = &astObject{
 var gInt = &astObject{
 	Kind: astTyp,
 	Name: "int",
+}
+
+var gInt32 = &astObject{
+	Kind: astTyp,
+	Name: "int32",
 }
 
 
@@ -5338,6 +5363,18 @@ var tInt = &Type{
 		},
 	},
 }
+
+// Rune
+var tInt32 = &Type{
+	e: &astExpr{
+		dtype: "*astIdent",
+		ident : &astIdent{
+			Name: "int32",
+			Obj: gInt32,
+		},
+	},
+}
+
 var tUint8 = &Type{
 	e: &astExpr{
 		dtype: "*astIdent",
