@@ -391,11 +391,11 @@ func isType(expr ast.Expr) bool {
 	return false
 }
 
-func emitConversion(tp *Type, arg0 ast.Expr) {
-	emitComment(2, "Conversion %s <= %s\n", tp.e, getTypeOfExpr(arg0))
-	switch typeExpr := tp.e.(type) {
+func emitConversion(toType *Type, arg0 ast.Expr) {
+	emitComment(2, "Conversion %s <= %s\n", toType.e, getTypeOfExpr(arg0))
+	switch to := toType.e.(type) {
 	case *ast.Ident:
-		ident := typeExpr
+		ident := to
 		switch ident.Obj {
 		case gString: // string(e)
 			switch kind(getTypeOfExpr(arg0)) {
@@ -421,9 +421,9 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 			}
 		}
 	case *ast.ArrayType: // Conversion to slice
-		arrayType := typeExpr
+		arrayType := to
 		if arrayType.Len != nil {
-			throw(typeExpr)
+			throw(to)
 		}
 		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice")
 		emitComment(2, "Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
@@ -433,12 +433,12 @@ func emitConversion(tp *Type, arg0 ast.Expr) {
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case *ast.ParenExpr: // (T)(arg0)
-		emitConversion(e2t(typeExpr.X), arg0)
+		emitConversion(e2t(to.X), arg0)
 	case *ast.StarExpr: // (*T)(arg0)
 		// go through
 		emitExpr(arg0, nil)
 	default:
-		throw(typeExpr)
+		throw(to)
 	}
 	return
 }

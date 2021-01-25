@@ -2507,12 +2507,12 @@ func isType(expr *astExpr) bool {
 
 }
 
-func emitConversion(tp *Type, arg0 *astExpr) {
+func emitConversion(toType *Type, arg0 *astExpr) {
 	emitComment(2, "[emitConversion]\n")
-	var typeExpr = tp.e
-	switch typeExpr.dtype {
+	var to = toType.e
+	switch to.dtype {
 	case "*astIdent":
-		switch typeExpr.ident.Obj {
+		switch to.ident.Obj {
 		case gString: // string(e)
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
@@ -2525,18 +2525,18 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 			emitComment(2, "[emitConversion] to int \n")
 			emitExpr(arg0, nil)
 		default:
-			if typeExpr.ident.Obj.Kind == astTyp {
-				if typeExpr.ident.Obj.Decl.dtype != "*astTypeSpec" {
+			if to.ident.Obj.Kind == astTyp {
+				if to.ident.Obj.Decl.dtype != "*astTypeSpec" {
 					panic2(__func__, "Something is wrong")
 				}
-				//e2t(typeExpr.ident.Obj.Decl.typeSpec.Type))
+				//e2t(to.ident.Obj.Decl.typeSpec.Type))
 				emitExpr(arg0, nil)
 			} else{
-				panic2(__func__, "[*astIdent] TBI : "+typeExpr.ident.Obj.Name)
+				panic2(__func__, "[*astIdent] TBI : "+to.ident.Obj.Name)
 			}
 		}
 	case "*astArrayType": // Conversion to slice
-		var arrayType = typeExpr.arrayType
+		var arrayType = to.arrayType
 		if arrayType.Len != nil {
 			panic2(__func__, "internal error")
 		}
@@ -2550,12 +2550,12 @@ func emitConversion(tp *Type, arg0 *astExpr) {
 		fmtPrintf("  pushq %%rcx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
 	case "*astParenExpr":
-		emitConversion(e2t(typeExpr.parenExpr.X), arg0)
+		emitConversion(e2t(to.parenExpr.X), arg0)
 	case "*astStarExpr": // (*T)(e)
 		emitComment(2, "[emitConversion] to pointer \n")
 		emitExpr(arg0, nil)
 	default:
-		panic2(__func__, "TBI :"+typeExpr.dtype)
+		panic2(__func__, "TBI :"+to.dtype)
 	}
 }
 
