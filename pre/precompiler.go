@@ -1295,16 +1295,18 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		emitListElementAddr(list, elmType)
 	case *ast.TypeAssertExpr:
 		emitExpr(e.X, nil)
-		fmtPrintf("  popq %%rax # type id\n")
-		fmtPrintf("  popq %%rcx # data\n")
-		fmtPrintf("  pushq %%rax # type id\n")
+		fmtPrintf("  popq  %%rax # ifc.dtype\n")
+		fmtPrintf("  popq  %%rcx # ifc.data\n")
+		fmtPrintf("  pushq %%rax # ifc.data\n")
+
 		typ := e2t(e.Type)
 		sType := serializeType(typ)
 		typeId := getTypeId(sType)
 		typeSymbol := typeIdToSymbol(typeId)
 		// check if type matches
-		fmtPrintf("  leaq %s(%%rip), %%rax # @@@ typeid\n", typeSymbol)
-		fmtPrintf("  pushq %%rax # type id\n")
+		fmtPrintf("  leaq %s(%%rip), %%rax # ifc.dtype\n", typeSymbol)
+		fmtPrintf("  pushq %%rax           # ifc.dtype\n")
+
 		emitCompExpr("sete") // this pushes 1 or 0 in the end
 		emitPopBool("type assertion ok value")
 		fmt.Printf("  cmpq $1, %%rax\n")
@@ -1394,8 +1396,8 @@ func emitTypeId(t *Type) {
 	str := serializeType(t)
 	typeId := getTypeId(str)
 	typeSymbol := typeIdToSymbol(typeId)
-	fmtPrintf("  leaq %s(%%rip), %%rax # typeid \"%s\"\n", typeSymbol, str)
-	fmtPrintf("  pushq %%rax # type symbol @@@ %s\n", Itoa(typeId), typeSymbol)
+	fmtPrintf("  leaq %s(%%rip), %%rax # type symbol \"%s\"\n", typeSymbol, str)
+	fmtPrintf("  pushq %%rax           # type symbol %s\n", typeSymbol)
 }
 
 func newNumberLiteral(x int) *ast.BasicLit {
@@ -1830,6 +1832,7 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.SwitchStmt:
 		labelid++
 		labelEnd := fmt.Sprintf(".L.switch.%d.exit", labelid)
+
 		if s.Init != nil {
 			panic("TBI")
 		}
@@ -1857,6 +1860,7 @@ func emitStmt(stmt ast.Stmt) {
 				emitPushStackTop(condType, "switch expr")
 				emitExpr(e, nil)
 				emitCompEq(condType)
+
 				emitPopBool(" of switch-case comparison")
 				fmt.Printf("  cmpq $1, %%rax\n")
 				fmt.Printf("  je %s # jump if match\n", labelCase)
