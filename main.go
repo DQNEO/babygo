@@ -635,7 +635,7 @@ type astBinaryExpr struct {
 
 type astTypeAssertExpr struct {
 	X *astExpr
-	Type *astExpr
+	Type *astExpr // asserted type; nil means type switch X.(type)
 }
 
 // Type nodes
@@ -658,20 +658,21 @@ type astFuncType struct {
 }
 
 type astStmt struct {
-	dtype      string
-	DeclStmt   *astDeclStmt
-	exprStmt   *astExprStmt
-	blockStmt  *astBlockStmt
-	assignStmt *astAssignStmt
-	returnStmt *astReturnStmt
-	ifStmt     *astIfStmt
-	forStmt    *astForStmt
-	incDecStmt *astIncDecStmt
-	isRange    bool
-	rangeStmt  *astRangeStmt
-	branchStmt *astBranchStmt
-	switchStmt *astSwitchStmt
-	caseClause *astCaseClause
+	dtype          string
+	DeclStmt       *astDeclStmt
+	exprStmt       *astExprStmt
+	blockStmt      *astBlockStmt
+	assignStmt     *astAssignStmt
+	returnStmt     *astReturnStmt
+	ifStmt         *astIfStmt
+	forStmt        *astForStmt
+	incDecStmt     *astIncDecStmt
+	isRange        bool
+	rangeStmt      *astRangeStmt
+	branchStmt     *astBranchStmt
+	switchStmt     *astSwitchStmt
+	typeSwitchStmt *astTypeSwitchStmt
+	caseClause     *astCaseClause
 }
 
 type astDeclStmt struct {
@@ -723,6 +724,11 @@ type astSwitchStmt struct {
 	Tag  *astExpr
 	Body *astBlockStmt
 	// lableExit string
+}
+
+type astTypeSwitchStmt struct {
+	Assign *astStmt
+	Body *astBlockStmt
 }
 
 type astForStmt struct {
@@ -1100,6 +1106,9 @@ func (p *parser) tryIdentOrType() *astExpr {
 				X: _typ,
 			},
 		}
+	case "type":
+		p.next()
+		return nil // @TODO
 	}
 	var _nil *astExpr
 	return _nil
@@ -1806,6 +1815,24 @@ func (p *parser) parseCaseClause() *astCaseClause {
 	return r
 }
 
+func isTypeSwitchAssert(x *astExpr) bool {
+	return x.dtype == "*astTypeAssertExpr" && x.typeAssert.Type == nil
+}
+
+func isTypeSwitchGuard(s *astStmt) bool {
+	switch s.dtype {
+	case "*astExprStmt":
+		if isTypeSwitchAssert(s.exprStmt.X) {
+			return true
+		}
+	case "*astAssignStmt":
+		if len(s.assignStmt.Lhs) == 1 && len(s.assignStmt.Rhs) == 1 && isTypeSwitchAssert(s.assignStmt.Rhs[0]) {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *parser) parseSwitchStmt() *astStmt {
 	p.expect("switch", __func__)
 	p.openScope()
@@ -1831,14 +1858,25 @@ func (p *parser) parseSwitchStmt() *astStmt {
 	var body = &astBlockStmt{}
 	body.List = list
 
-	var switchStmt = &astSwitchStmt{}
-	switchStmt.Body = body
-	switchStmt.Tag = makeExpr(s2)
-	var s = &astStmt{}
-	s.dtype = "*astSwitchStmt"
-	s.switchStmt = switchStmt
+	typeSwitch := isTypeSwitchGuard(s2)
+
 	p.closeScope()
-	return s
+	var s = &astStmt{}
+	if typeSwitch {
+		s.dtype = "*astTypeSwitchStmt"
+		s.typeSwitchStmt = &astTypeSwitchStmt{
+			Assign: s2,
+			Body:   body,
+		}
+		return s
+	} else {
+		s.dtype = "*astSwitchStmt"
+		s.switchStmt = &astSwitchStmt{
+			Body: body,
+			Tag:  makeExpr(s2),
+		}
+		return s
+	}
 }
 
 func (p *parser) parseLhsList() []*astExpr {
