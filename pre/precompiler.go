@@ -1900,7 +1900,10 @@ func emitStmt(stmt ast.Stmt) {
 		assert(ok, "should exist")
 		labelid++
 		labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
-		emitDynamicTypeIdOfInterface(typeSwitch.subject)
+
+		emitVariableAddr(typeSwitch.subjectVariable)
+		emitExpr(typeSwitch.subject, nil)
+		emitStore(tEface, true, false)
 
 		cases := s.Body.List
 		var labels = make([]string, len(cases))
@@ -1917,7 +1920,9 @@ func emitStmt(stmt ast.Stmt) {
 				continue
 			}
 			for _, e := range cc.List {
-				emitPushStackTop(tUintptr, "switch expr")
+				emitVariableAddr(typeSwitch.subjectVariable)
+				emitLoad(tEface)
+
 				emitTypeId(e2t(e))
 				emitCompExpr("sete") // this pushes 1 or 0 in the end
 
@@ -1937,7 +1942,6 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  jmp %s\n", labelEnd)
 		}
 
-		emitRevertStackTop(tUintptr) // drop switch expr
 		for i, typeSwitchCaseClose := range typeSwitch.cases {
 			if typeSwitchCaseClose.variable != nil {
 				typeSwitch.assignIdent.Obj.Data = typeSwitchCaseClose.variable
@@ -1950,7 +1954,8 @@ func emitStmt(stmt ast.Stmt) {
 					// do assignment
 					emitAddr(typeSwitch.assignIdent)
 
-					emitExpr(typeSwitch.subject, nil) // emitting subject twice is a bug ??
+					emitVariableAddr(typeSwitch.subjectVariable)
+					emitLoad(tEface)
 					fmtPrintf("  popq %%rax # ifc.dtype\n")
 					fmtPrintf("  popq %%rcx # ifc.data\n")
 					fmtPrintf("  push %%rcx # ifc.data\n")
@@ -2281,6 +2286,10 @@ var tString *Type = &Type{
 		Name:    "string",
 		Obj:     gString,
 	},
+}
+
+var tEface *Type = &Type{
+	e: &ast.InterfaceType{},
 }
 
 var generalSlice ast.Expr = &ast.Ident{}
@@ -2782,10 +2791,11 @@ type ForStmt struct {
 }
 
 type TypeSwitchStmt struct {
-	subject ast.Expr
-	assignIdent *ast.Ident
-	outer     *TypeSwitchStmt
-	cases []*TypeSwitchCaseClose
+	subject         ast.Expr
+	subjectVariable *Variable
+	assignIdent     *ast.Ident
+	outer           *TypeSwitchStmt
+	cases           []*TypeSwitchCaseClose
 }
 
 type  TypeSwitchCaseClose struct {
@@ -3109,6 +3119,7 @@ func walkStmt(stmt ast.Stmt) {
 			throw(s.Assign)
 		}
 
+		typeSwitch.subjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
 		for _, _case := range s.Body.List {
 			cc := _case.(*ast.CaseClause)
 			tscc := &TypeSwitchCaseClose{
