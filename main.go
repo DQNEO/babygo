@@ -520,19 +520,10 @@ type signature struct {
 	results *astFieldList
 }
 
-//type ObjDecl struct {
-//	dtype      string
-//	valueSpec  *astValueSpec
-//	funcDecl   *astFuncDecl
-//	typeSpec   *astTypeSpec
-//	field      *astField
-//	assignment *astAssignStmt
-//}
-
 type astObject struct {
 	Kind     string
 	Name     string
-	Decl     interface{}
+	Decl     interface{} // *astValueSpec|*astFuncDecl|*astTypeSpec|*astField|*astAssignStmt
 	Variable *Variable
 }
 
