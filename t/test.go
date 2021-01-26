@@ -81,6 +81,69 @@ func nop1() {
 }
 
 // --- test funcs ---
+var gefacearray [3]interface{}
+
+func returnInterface() interface{} {
+	return 14
+}
+
+func testConvertToInterface() {
+	// Explicit conversion
+	var ifc interface{} = interface{}(7)
+	var i int
+	i , _ = ifc.(int)
+	writeln(itoa(i))
+
+	// Implicit conversion to variable
+	var j int = 8
+	ifc = j
+	i , _ = ifc.(int)
+	writeln(itoa(i))
+
+	// Implicit conversion to struct field
+	var k int = 9
+	var strct MyStruct
+	strct.ifc = k
+	i , _ = strct.ifc.(int)
+	writeln(itoa(i))
+
+	// Implicit conversion to array element
+	var l int = 10
+	gefacearray[2] = l
+	i , _ = gefacearray[2].(int)
+	writeln(itoa(i))
+
+	// Implicit conversion to struct literal
+	k = 11
+	strct = MyStruct{
+		field1: 1,
+		field2: 2,
+		ifc:    k,
+	}
+	i , _ = strct.ifc.(int)
+	writeln(itoa(i))
+
+	// Implicit conversion to array literal
+	gefacearray = [3]interface{}{
+		0,
+		0,
+		12,
+	}
+	i , _ = gefacearray[2].(int)
+	writeln(itoa(i))
+
+	// Implicit conversion to function call
+	l = 13
+	takeInterface(l)
+
+	// Implicit conversion to return
+	ifc = returnInterface()
+	i , _ = ifc.(int)
+	writeln(itoa(i))
+
+	// Implicit conversion to function call (vaargs)
+}
+
 func testTypeSwitch() {
 	var ifc EmptyInterface
 	var i int = 7
@@ -1153,6 +1216,7 @@ func testIncrDecr() {
 type MyStruct struct {
 	field1 int
 	field2 int
+	ifc interface{}
 }
 
 var globalstrings1 [2]string
@@ -1657,6 +1721,7 @@ func testMisc() {
 }
 
 func test() {
+	testConvertToInterface()
 	testTypeSwitch()
 	testGetInterface()
 	testPassInterface()

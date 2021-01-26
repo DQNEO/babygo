@@ -392,6 +392,7 @@ func isType(expr ast.Expr) bool {
 	return false
 }
 
+// explicit conversion T(e)
 func emitConversion(toType *Type, arg0 ast.Expr) {
 	emitComment(2, "Conversion %s <= %s\n", toType.e, getTypeOfExpr(arg0))
 	switch to := toType.e.(type) {
@@ -438,6 +439,14 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 	case *ast.StarExpr: // (*T)(arg0)
 		// go through
 		emitExpr(arg0, nil)
+	case *ast.InterfaceType:
+		emitExpr(arg0, nil)
+		if isInterface(getTypeOfExpr(arg0))  {
+			// do nothing
+		} else {
+			// Convert dynamic value to interface
+			emitConvertToInterface(getTypeOfExpr(arg0))
+		}
 	default:
 		throw(to)
 	}
@@ -1361,17 +1370,21 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 	return isNilObj
 }
 
+// convert stack top value to interface
+func emitConvertToInterface(fromType *Type) {
+	emitComment(2, "ConversionToInterface\n")
+	memSize := getSizeOfType(fromType)
+	// copy data to heap
+	emitCallMalloc(memSize)
+	emitStore(fromType, false, true) // heap addr pushed
+	// push type id
+	emitDtypeSymbol(fromType)
+}
+
 func emitExprIfc(expr ast.Expr, ctx *evalContext) {
 	isNilObj := emitExpr(expr, ctx)
 	if !isNilObj && ctx != nil && ctx._type != nil && isInterface(ctx._type) && !isInterface(getTypeOfExpr(expr)) {
-		sourceType := getTypeOfExpr(expr)
-		emitComment(2, "ConversionToInterface\n")
-		memSize := getSizeOfType(sourceType)
-		// copy data to heap
-		emitCallMalloc(memSize)
-		emitStore(sourceType, false, true) // heap addr pushed
-		// push type id
-		emitDtypeSymbol(sourceType)
+		emitConvertToInterface(getTypeOfExpr(expr))
 	}
 }
 
@@ -1630,12 +1643,19 @@ func emitStmt(stmt ast.Stmt) {
 			panic("TBI: assignment of " + s.Tok.String())
 		}
 	case *ast.ReturnStmt:
+		node := mapReturnStmt[s]
+		funcType := node.fnc.funcType
 		if len(s.Results) == 0 {
 			fmtPrintf("  leave\n")
 			fmtPrintf("  ret\n")
 		} else if len(s.Results) == 1 {
-			emitExpr(s.Results[0], nil) // @FIXME
-			var knd = kind(getTypeOfExpr(s.Results[0]))
+			//funcType := nil
+			targetType := e2t(funcType.Results.List[0].Type)
+			ctx := &evalContext{
+				_type:     targetType,
+			}
+			emitExprIfc(s.Results[0], ctx)
+			var knd = kind(targetType)
 			switch knd {
 			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 				fmtPrintf("  popq %%rax # return 64bit\n")
@@ -1653,7 +1673,7 @@ func emitStmt(stmt ast.Stmt) {
 			fmtPrintf("  leave\n")
 			fmtPrintf("  ret\n")
 		} else if len(s.Results) == 3 {
-			// Special treatment to return a slice
+			// Special treatment to return a slice by makeSlice()
 			for _, result := range s.Results {
 				assert(getSizeOfType(getTypeOfExpr(result)) == 8, "TBI")
 			}
@@ -2451,6 +2471,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value")
 				return e2t(method.funcType.Results.List[0].Type)
 			}
+		case *ast.InterfaceType:
+			return tEface
 		default:
 			throw(e.Fun)
 		}
@@ -2807,6 +2829,10 @@ type TypeSwitchCaseClose struct {
 	orig         *ast.CaseClause
 }
 
+type nodeReturnStmt struct {
+	fnc *Func
+}
+
 type RangeStmtMisc struct {
 	lenvar   *Variable
 	indexvar *Variable
@@ -2859,6 +2885,7 @@ var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{
 var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
 var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
 var mapTypeSwitchStmtMeta = map[*ast.TypeSwitchStmt]*TypeSwitchStmt{}
+var mapReturnStmt = map[*ast.ReturnStmt]*nodeReturnStmt{}
 
 var currentFunc *Func
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
@@ -3027,6 +3054,9 @@ func walkStmt(stmt ast.Stmt) {
 			walkExpr(rhs)
 		}
 	case *ast.ReturnStmt:
+		mapReturnStmt[s] = &nodeReturnStmt{
+			fnc:currentFunc,
+		}
 		for _, r := range s.Results {
 			walkExpr(r)
 		}
@@ -3230,7 +3260,7 @@ func walkExpr(expr ast.Expr) {
 		walkExpr(e.Key)
 		walkExpr(e.Value)
 	case *ast.InterfaceType:
-		// interface{}(e)  conversion
+		// interface{}(e)  conversion. Nothing to do.
 	case *ast.TypeAssertExpr:
 		walkExpr(e.X)
 	default:
