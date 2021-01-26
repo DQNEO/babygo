@@ -520,19 +520,19 @@ type signature struct {
 	results *astFieldList
 }
 
-type ObjDecl struct {
-	dtype      string
-	valueSpec  *astValueSpec
-	funcDecl   *astFuncDecl
-	typeSpec   *astTypeSpec
-	field      *astField
-	assignment *astAssignStmt
-}
+//type ObjDecl struct {
+//	dtype      string
+//	valueSpec  *astValueSpec
+//	funcDecl   *astFuncDecl
+//	typeSpec   *astTypeSpec
+//	field      *astField
+//	assignment *astAssignStmt
+//}
 
 type astObject struct {
 	Kind     string
 	Name     string
-	Decl     *ObjDecl
+	Decl     interface{}
 	Variable *Variable
 }
 
@@ -1262,10 +1262,7 @@ func (p *parser) parseSignature(scope *astScope) *signature {
 func declareField(decl *astField, scope *astScope, kind string, ident *astIdent) {
 	// declare
 	var obj = &astObject{
-		Decl : &ObjDecl{
-			dtype: "*astField",
-			field: decl,
-		},
+		Decl : decl,
 		Name : ident.Name,
 		Kind : kind,
 	}
@@ -1278,12 +1275,12 @@ func declareField(decl *astField, scope *astScope, kind string, ident *astIdent)
 	}
 }
 
-func declare(objDecl *ObjDecl, scope *astScope, kind string, ident *astIdent) {
+func declare(decl interface{}, scope *astScope, kind string, ident *astIdent) {
 	logf(" [declare] ident %s\n", ident.Name)
 
 	//valSpec.Name.Obj
 	var obj = &astObject{
-		Decl : objDecl,
+		Decl : decl,
 		Name : ident.Name,
 		Kind : kind,
 	}
@@ -1938,12 +1935,8 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 		if as.Tok == ":=" {
 			lhss := x
 			for _, lhs := range lhss {
-				var objDecl = &ObjDecl{
-					dtype: "*astAssignStmt",
-					assignment: as,
-				}
 				assert(lhs.dtype == "*astIdent", "should be ident", __func__)
-				declare(objDecl, p.topScope, astVar, lhs.ident)
+				declare(as, p.topScope, astVar, lhs.ident)
 			}
 		}
 		logf(" parseSimpleStmt end =, := %s\n", __func__)
@@ -2113,10 +2106,7 @@ func (p *parser) parseDecl(keyword string) *astGenDecl {
 		var spec = &astSpec{}
 		spec.dtype = "*astValueSpec"
 		spec.valueSpec = valSpec
-		var objDecl = &ObjDecl{}
-		objDecl.dtype = "*astValueSpec"
-		objDecl.valueSpec = valSpec
-		declare(objDecl, p.topScope, astVar, ident)
+		declare(valSpec, p.topScope, astVar, ident)
 		r = &astGenDecl{}
 		r.Spec = spec
 		return r
@@ -2134,10 +2124,7 @@ func (p *parser) parserTypeSpec() *astSpec {
 
 	var spec = &astTypeSpec{}
 	spec.Name = ident
-	var objDecl = &ObjDecl{}
-	objDecl.dtype = "*astTypeSpec"
-	objDecl.typeSpec = spec
-	declare(objDecl, p.topScope, astTyp, ident)
+	declare(spec, p.topScope, astTyp, ident)
 	var typ = p.parseType()
 	p.expectSemi(__func__)
 	spec.Type = typ
@@ -2166,14 +2153,11 @@ func (p *parser) parseValueSpec(keyword string) *astSpec {
 	var r = &astSpec{}
 	r.dtype = "*astValueSpec"
 	r.valueSpec = spec
-	var objDecl = &ObjDecl{}
-	objDecl.dtype = "*astValueSpec"
-	objDecl.valueSpec = spec
 	var kind = astCon
 	if keyword == "var" {
 		kind = astVar
 	}
-	declare(objDecl, p.topScope, kind, ident)
+	declare(spec, p.topScope, kind, ident)
 	logf(" [parserValueSpec] end\n")
 	return r
 }
@@ -2215,10 +2199,7 @@ func (p *parser) parseFuncDecl() astDecl {
 	funcDecl.Body = body
 	decl = funcDecl
 	if receivers == nil {
-		var objDecl = &ObjDecl{}
-		objDecl.dtype = "*astFuncDecl"
-		objDecl.funcDecl = funcDecl
-		declare(objDecl, p.pkgScope, astFun, ident)
+		declare(funcDecl, p.pkgScope, astFun, ident)
 	}
 	return decl
 }
@@ -2570,7 +2551,9 @@ func emitConversion(toType *Type, arg0 *astExpr) {
 			emitExpr(arg0, nil)
 		default:
 			if to.ident.Obj.Kind == astTyp {
-				if to.ident.Obj.Decl.dtype != "*astTypeSpec" {
+				var isTypeSpec bool
+				_, isTypeSpec = to.ident.Obj.Decl.(*astTypeSpec)
+				if !isTypeSpec {
 					panic2(__func__, "Something is wrong")
 				}
 				//e2t(to.ident.Obj.Decl.typeSpec.Type))
@@ -3044,15 +3027,14 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		emitComment(2, "[%s][*astIdent][default] start\n", __func__)
 
 		var obj = fn.Obj
-		var decl = obj.Decl
-		if decl == nil {
+		if obj.Decl == nil {
 			panic2(__func__, "[*astCallExpr] decl is nil")
 		}
-		if decl.dtype != "*astFuncDecl" {
-			panic2(__func__, "[*astCallExpr] decl.dtype is invalid")
-		}
-		var fndecl = decl.funcDecl
-		if fndecl == nil {
+
+		var fndecl *astFuncDecl // = decl.funcDecl
+		var isFuncDecl bool
+		fndecl, isFuncDecl = obj.Decl.(*astFuncDecl)
+		if !isFuncDecl || fndecl == nil {
 			panic2(__func__, "[*astCallExpr] fndecl is nil")
 		}
 		if fndecl.Type == nil {
@@ -3115,7 +3097,10 @@ func emitNil(targetType *Type) {
 }
 
 func emitNamedConst(ident *astIdent, ctx *evalContext) {
-	var valSpec = ident.Obj.Decl.valueSpec
+	var valSpec *astValueSpec
+	var ok bool
+	valSpec, ok = ident.Obj.Decl.(*astValueSpec)
+	assert(ok, "valSpec should not be nil", __func__)
 	assert(valSpec != nil, "valSpec should not be nil", __func__)
 	assert(valSpec.Value != nil, "valSpec should not be nil", __func__)
 	assert(valSpec.Value.dtype == "*astBasicLit", "const value should be a literal", __func__)
@@ -4401,30 +4386,28 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			if expr.ident.Obj.Variable != nil {
 				return expr.ident.Obj.Variable.typ
 			}
-			switch expr.ident.Obj.Decl.dtype {
-			case "*astValueSpec":
-				var decl = expr.ident.Obj.Decl.valueSpec
+			switch decl := expr.ident.Obj.Decl.(type) {
+			case *astValueSpec:
 				var t = &Type{}
 				t.e = decl.Type
 				return t
-			case "*astField":
-				var decl = expr.ident.Obj.Decl.field
+			case *astField:
 				var t = &Type{}
 				t.e = decl.Type
 				return t
-			case "*astAssignStmt": // lhs := rhs
-				return getTypeOfExpr(expr.ident.Obj.Decl.assignment.Rhs[0])
+			case *astAssignStmt: // lhs := rhs
+				return getTypeOfExpr(decl.Rhs[0])
 			default:
-				panic2(__func__, "dtype:" + expr.ident.Obj.Decl.dtype )
+				panic2(__func__, "unkown dtype ")
 			}
 		case astCon:
 			switch expr.ident.Obj {
 			case gTrue, gFalse:
 				return tBool
 			}
-			switch expr.ident.Obj.Decl.dtype {
-			case "*astValueSpec":
-				return e2t(expr.ident.Obj.Decl.valueSpec.Type)
+			switch decl2 := expr.ident.Obj.Decl.(type) {
+			case *astValueSpec:
+				return e2t(decl2.Type)
 			default:
 				panic2(__func__, "cannot decide type of cont ="+expr.ident.Obj.Name)
 			}
@@ -4500,15 +4483,15 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				if decl == nil {
 					panic2(__func__, "decl of function "+fn.Name+" is  nil")
 				}
-				switch decl.dtype {
-				case "*astFuncDecl":
-					var resultList = decl.funcDecl.Type.Results.List
+				switch dcl := decl.(type) {
+				case *astFuncDecl:
+					var resultList = dcl.Type.Results.List
 					if len(resultList) != 1 {
 						panic2(__func__, "[astCallExpr] len results.List is not 1")
 					}
-					return e2t(decl.funcDecl.Type.Results.List[0].Type)
+					return e2t(dcl.Type.Results.List[0].Type)
 				default:
-					panic2(__func__, "[astCallExpr] decl.dtype="+decl.dtype)
+					panic2(__func__, "[astCallExpr] unknown dtype")
 				}
 				panic2(__func__, "[astCallExpr] Fun ident "+fn.Name)
 			}
@@ -4651,10 +4634,13 @@ func serializeType(t *Type) string {
 			default:
 				// named type
 				decl := e.Obj.Decl
-				if decl.dtype != "*astTypeSpec" {
-					panic("unexpected dtype" + decl.dtype)
+				var typeSpec *astTypeSpec
+				var ok bool
+				typeSpec, ok = decl.(*astTypeSpec)
+				if !ok {
+					panic("unexpected dtype")
 				}
-				return "main." + decl.typeSpec.Name.Name
+				return "main." + typeSpec.Name.Name
 			}
 		}
 	case "*astStructType":
@@ -4710,10 +4696,12 @@ func kind(t *Type) string {
 		default:
 			// named type
 			var decl = ident.Obj.Decl
-			if decl.dtype != "*astTypeSpec" {
-				panic2(__func__, "unsupported decl :"+decl.dtype)
+			var typeSpec *astTypeSpec
+			var ok bool
+			typeSpec , ok = decl.(*astTypeSpec)
+			if !ok {
+				panic2(__func__, "unsupported decl :")
 			}
-			var typeSpec = decl.typeSpec
 			return kind(e2t(typeSpec.Type))
 		}
 	case "*astStructType":
@@ -4851,12 +4839,13 @@ func getStructTypeSpec(namedStructType *Type) *astTypeSpec {
 	}
 
 	var ident = namedStructType.e.ident
-
-	if ident.Obj.Decl.dtype != "*astTypeSpec" {
+	var typeSpec *astTypeSpec
+	var ok bool
+	typeSpec , ok = ident.Obj.Decl.(*astTypeSpec)
+	if !ok {
 		panic2(__func__, "not *astTypeSpec")
 	}
 
-	var typeSpec = ident.Obj.Decl.typeSpec
 	return typeSpec
 }
 
@@ -4974,7 +4963,7 @@ func registerStringLiteral(lit *astBasicLit) {
 	sl.label = label
 	sl.strlen = strlen - 2
 	sl.value = lit.Value
-	logf(" [registerStringLiteral] label=%s, strlen=%s\n", sl.label, Itoa(sl.strlen))
+	logf(" [registerStringLiteral] label=%s, strlen=%s %s\n", sl.label, Itoa(sl.strlen), sl.value)
 	cont := &stringLiteralsContainer{}
 	cont.sl = sl
 	cont.lit = lit
@@ -5361,15 +5350,13 @@ func walk(pkg *PkgContainer, file *astFile) {
 	var constSpecs []*astValueSpec
 
 	for _, decl := range file.Decls {
-		var genDecl *astGenDecl
-		var ok bool
-		genDecl, ok = decl.(*astGenDecl)
-		if ok {
-			switch genDecl.Spec.dtype {
+		switch dcl := decl.(type) {
+		case *astGenDecl:
+			switch dcl.Spec.dtype {
 			case "*astTypeSpec":
-				typeSpecs = append(typeSpecs, genDecl.Spec.typeSpec)
+				typeSpecs = append(typeSpecs, dcl.Spec.typeSpec)
 			case "*astValueSpec":
-				var spec = genDecl.Spec.valueSpec
+				var spec = dcl.Spec.valueSpec
 				if spec.Name.Obj.Kind == astVar {
 					varSpecs = append(varSpecs, spec)
 				} else if spec.Name.Obj.Kind == astCon {
@@ -5378,11 +5365,10 @@ func walk(pkg *PkgContainer, file *astFile) {
 					panic("Unexpected")
 				}
 			}
-		}
-		var funcDecl *astFuncDecl
-		funcDecl, ok = decl.(*astFuncDecl)
-		if ok {
-			funcDecls = append(funcDecls, funcDecl)
+		case *astFuncDecl:
+			funcDecls = append(funcDecls, dcl)
+		default:
+			panic("Unexpected")
 		}
 	}
 
