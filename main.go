@@ -521,12 +521,13 @@ type signature struct {
 }
 
 type ObjDecl struct {
-	dtype     string
-	valueSpec *astValueSpec
-	funcDecl  *astFuncDecl
-	typeSpec  *astTypeSpec
-	field     *astField
+	dtype      string
+	valueSpec  *astValueSpec
+	funcDecl   *astFuncDecl
+	typeSpec   *astTypeSpec
+	field      *astField
 	assignment *astAssignStmt
+	typ        *Type
 }
 
 type astObject struct {
@@ -554,7 +555,7 @@ type astExpr struct {
 	keyValueExpr  *astKeyValueExpr
 	ellipsis      *astEllipsis
 	interfaceType *astInterfaceType
-	typeAssert    *astTypeAssertExpr
+	typeAssertExpr    *astTypeAssertExpr
 }
 
 type astField struct {
@@ -729,6 +730,20 @@ type astSwitchStmt struct {
 type astTypeSwitchStmt struct {
 	Assign *astStmt
 	Body *astBlockStmt
+	node *nodeTypeSwitchStmt
+}
+
+type nodeTypeSwitchStmt struct {
+	subject         *astExpr
+	subjectVariable *Variable
+	assignIdent     *astIdent
+	cases           []*TypeSwitchCaseClose
+}
+
+type TypeSwitchCaseClose struct {
+	variable     *Variable
+	variableType *Type
+	orig         *astCaseClause
 }
 
 type astForStmt struct {
@@ -740,6 +755,7 @@ type astForStmt struct {
 	labelPost string
 	labelExit string
 }
+
 
 type astRangeStmt struct {
 	Key       *astExpr
@@ -1108,7 +1124,8 @@ func (p *parser) tryIdentOrType() *astExpr {
 		}
 	case "type":
 		p.next()
-		return nil // @TODO
+		var _nil *astExpr
+		return _nil
 	}
 	var _nil *astExpr
 	return _nil
@@ -1456,7 +1473,7 @@ func (p *parser) parseTypeAssertion(x *astExpr) *astExpr {
 	p.expect(")", __func__)
 	return &astExpr{
 		dtype: "*astTypeAssertExpr",
-		typeAssert: &astTypeAssertExpr{
+		typeAssertExpr: &astTypeAssertExpr{
 			X:    x,
 			Type: typ,
 		},
@@ -1803,7 +1820,6 @@ func (p *parser) parseCaseClause() *astCaseClause {
 	} else {
 		p.expect("default", __func__)
 	}
-
 	p.expect(":", __func__)
 	p.openScope()
 	var body = p.parseStmtList()
@@ -1816,7 +1832,7 @@ func (p *parser) parseCaseClause() *astCaseClause {
 }
 
 func isTypeSwitchAssert(x *astExpr) bool {
-	return x.dtype == "*astTypeAssertExpr" && x.typeAssert.Type == nil
+	return x.dtype == "*astTypeAssertExpr" && x.typeAssertExpr.Type == nil
 }
 
 func isTypeSwitchGuard(s *astStmt) bool {
@@ -3132,6 +3148,9 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		case gFalse:
 			emitFalse()
 		case gNil:
+			if ctx._type == nil {
+				panic2(__func__, "context of nil is not passed")
+			}
 			emitNil(ctx._type)
 			isNilObject = true
 		default:
@@ -3402,12 +3421,12 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			panic2(__func__, "Unexpected kind="+k)
 		}
 	case "*astTypeAssertExpr":
-		emitExpr(e.typeAssert.X, nil)
+		emitExpr(e.typeAssertExpr.X, nil)
 		fmtPrintf("  popq %%rax # type id\n")
 		fmtPrintf("  popq %%rcx # data\n")
 		fmtPrintf("  pushq %%rax # type id\n")
 
-		typ := e2t(e.typeAssert.Type)
+		typ := e2t(e.typeAssertExpr.Type)
 		sType := serializeType(typ)
 		_id := getTypeId(sType)
 		typeSymbol := typeIdToSymbol(_id)
@@ -3427,18 +3446,18 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		if ctx.okContext != nil {
 			emitComment(2, " double value context\n")
 			if ctx.okContext.needMain {
-				emitExpr(e.typeAssert.X, nil)
+				emitExpr(e.typeAssertExpr.X, nil)
 				fmtPrintf("  popq %%rax # garbage\n")
-				emitLoad(e2t(e.typeAssert.Type)) // load dynamic data
+				emitLoad(e2t(e.typeAssertExpr.Type)) // load dynamic data
 			}
 			if ctx.okContext.needOk {
 				fmtPrintf("  pushq $1 # ok = true\n")
 			}
 		} else {
 			emitComment(2, " single value context\n")
-			emitExpr(e.typeAssert.X, nil)
+			emitExpr(e.typeAssertExpr.X, nil)
 			fmtPrintf("  popq %%rax # garbage\n")
-			emitLoad(e2t(e.typeAssert.Type)) // load dynamic data
+			emitLoad(e2t(e.typeAssertExpr.Type)) // load dynamic data
 		}
 
 		// exit
@@ -3983,6 +4002,87 @@ func emitStmt(stmt *astStmt) {
 			fmtPrintf("  jmp %s\n", labelEnd)
 		}
 		fmtPrintf("%s:\n", labelEnd)
+	case "*astTypeSwitchStmt":
+		s := stmt.typeSwitchStmt
+		typeSwitch := stmt.typeSwitchStmt.node
+//		assert(ok, "should exist")
+		labelid++
+		labelEnd := fmtSprintf(".L.typeswitch.%d.exit", []string{Itoa(labelid)})
+
+		// subjectVariable = subject
+		emitVariableAddr(typeSwitch.subjectVariable)
+		emitExpr(typeSwitch.subject, nil)
+		emitStore(tEface, true, false)
+
+		cases := s.Body.List
+		var labels = make([]string, len(cases), len(cases))
+		var defaultLabel string
+		emitComment(2, "Start comparison with cases\n")
+		for i, c := range cases {
+			cc := c.caseClause
+			//assert(ok, "should be *ast.CaseClause")
+			labelid++
+			labelCase := ".L.case." + Itoa(labelid)
+			labels[i] = labelCase
+			if len(cc.List) == 0 { // @TODO implement slice nil comparison
+				defaultLabel = labelCase
+				continue
+			}
+			for _, e := range cc.List {
+				emitVariableAddr(typeSwitch.subjectVariable)
+				emitLoad(tEface)
+
+				emitDtypeSymbol(e2t(e))
+				emitCompExpr("sete") // this pushes 1 or 0 in the end
+
+				emitPopBool(" of switch-case comparison")
+				fmtPrintf("  cmpq $1, %%rax\n")
+				fmtPrintf("  je %s # jump if match\n", labelCase)
+			}
+		}
+		emitComment(2, "End comparison with cases\n")
+
+		// if no case matches, then jump to
+		if defaultLabel != "" {
+			// default
+			fmtPrintf("  jmp %s\n", defaultLabel)
+		} else {
+			// exit
+			fmtPrintf("  jmp %s\n", labelEnd)
+		}
+
+		for i, typeSwitchCaseClose := range typeSwitch.cases {
+			if typeSwitchCaseClose.variable != nil {
+				typeSwitch.assignIdent.Obj.Variable = typeSwitchCaseClose.variable
+				typeSwitch.assignIdent.Obj.Decl.dtype = "*Type"
+				typeSwitch.assignIdent.Obj.Decl.typ = typeSwitchCaseClose.variableType
+			}
+			fmtPrintf("%s:\n", labels[i])
+
+			for _, _s := range typeSwitchCaseClose.orig.Body {
+				if typeSwitchCaseClose.variable != nil {
+					// do assignment
+					expr := &astExpr{
+						dtype: "*astIdent",
+						ident: typeSwitch.assignIdent,
+					}
+					emitAddr(expr)
+					emitVariableAddr(typeSwitch.subjectVariable)
+					emitLoad(tEface)
+					fmtPrintf("  popq %%rax # ifc.dtype\n")
+					fmtPrintf("  popq %%rcx # ifc.data\n")
+					fmtPrintf("  push %%rcx # ifc.data\n")
+					emitLoad(typeSwitchCaseClose.variableType)
+
+					emitStore(typeSwitchCaseClose.variableType, true, false)
+				}
+
+				emitStmt(_s)
+			}
+			fmtPrintf("  jmp %s\n", labelEnd)
+		}
+		fmtPrintf("%s:\n", labelEnd)
+
 	case "*astBranchStmt":
 		var containerFor = stmt.branchStmt.currentFor
 		var labelToGo string
@@ -4308,6 +4408,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				return t
 			case "*astAssignStmt": // lhs := rhs
 				return getTypeOfExpr(expr.ident.Obj.Decl.assignment.Rhs[0])
+			case "*Type":
+				return expr.ident.Obj.Decl.typ
 			default:
 				panic2(__func__, "dtype:" + expr.ident.Obj.Decl.dtype )
 			}
@@ -4493,7 +4595,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	case "*astParenExpr":
 		return getTypeOfExpr(expr.parenExpr.X)
 	case "*astTypeAssertExpr":
-		return e2t(expr.typeAssert.Type)
+		return e2t(expr.typeAssertExpr.Type)
 	default:
 		panic2(__func__, "TBI:dtype="+expr.dtype)
 	}
@@ -5110,6 +5212,50 @@ func walkStmt(stmt *astStmt) {
 			walkExpr(stmt.switchStmt.Tag)
 		}
 		walkStmt(blockStmt2Stmt(stmt.switchStmt.Body))
+	case "*astTypeSwitchStmt":
+		s := stmt.typeSwitchStmt
+		typeSwitch := &nodeTypeSwitchStmt{}
+		stmt.typeSwitchStmt.node = typeSwitch
+		var assignIdent *astIdent
+		switch s.Assign.dtype {
+		case "*astExprStmt":
+			typeAssertExpr := s.Assign.exprStmt.X.typeAssertExpr
+			//assert(ok, "should be *ast.TypeAssertExpr")
+			typeSwitch.subject = typeAssertExpr.X
+			walkExpr(typeAssertExpr.X)
+		case "*astAssignStmt":
+			lhs := s.Assign.assignStmt.Lhs[0]
+			//var ok bool
+			assignIdent = lhs.ident
+			//assert(ok, "lhs should be ident")
+			typeSwitch.assignIdent = assignIdent
+			// ident will be a new local variable in each case clause
+			typeAssertExpr := s.Assign.assignStmt.Rhs[0].typeAssertExpr
+			//assert(ok, "should be *ast.TypeAssertExpr")
+			typeSwitch.subject = typeAssertExpr.X
+			walkExpr(typeAssertExpr.X)
+		default:
+			throw(s.Assign.dtype)
+		}
+
+		typeSwitch.subjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
+		for _, _case := range s.Body.List {
+			cc := _case.caseClause
+			tscc := &TypeSwitchCaseClose{
+				orig: cc,
+			}
+			typeSwitch.cases = append(typeSwitch.cases, tscc)
+			if  assignIdent != nil && len(cc.List) > 0 {
+				// inject a variable of that type
+				varType := e2t(cc.List[0])
+				vr := currentFunc.registerLocalVariable(assignIdent.Name, varType)
+				tscc.variable = vr
+				tscc.variableType = varType
+			}
+		}
+		for _, s2 := range s.Body.List {
+			walkStmt(s2)
+		}
 	case "*astCaseClause":
 		for _, e_ := range stmt.caseClause.List {
 			walkExpr(e_)
@@ -5190,7 +5336,7 @@ func walkExpr(expr *astExpr) {
 		walkExpr(expr.keyValueExpr.Key)
 		walkExpr(expr.keyValueExpr.Value)
 	case "*astTypeAssertExpr":
-		walkExpr(expr.typeAssert.X)
+		walkExpr(expr.typeAssertExpr.X)
 	default:
 		panic2(__func__, "TBI:"+expr.dtype)
 	}
@@ -5449,6 +5595,15 @@ var tString = &Type{
 		},
 	},
 }
+
+var tEface *Type = &Type{
+	e: &astExpr{
+		dtype: "*astInterfaceType",
+		interfaceType: &astInterfaceType{},
+	},
+}
+
+
 var tBool = &Type{
 	e : &astExpr{
 		dtype : "*astIdent",

@@ -82,11 +82,8 @@ func nop1() {
 
 // --- test funcs ---
 func testTypeSwitch() {
-	var ifc interface{}
+	var ifc EmptyInterface
 	var i int = 7
-	//var i2 int
-	var s string = "abcde"
-	//var s2 string
 	ifc = &i
 	switch ifc.(type) {
 	case *int:
@@ -101,6 +98,7 @@ func testTypeSwitch() {
 		panic("ERROR")
 	}
 
+	var s string = "abcde"
 	ifc = s
 	switch xxx := ifc.(type) {
 	case int:
@@ -111,6 +109,28 @@ func testTypeSwitch() {
 		writeln(xxx)
 	default:
 		panic("ERROR")
+	}
+
+	var srct MyStruct = MyStruct{
+		field1: 111,
+		field2: 222,
+	}
+	ifc = srct
+	switch yyy := ifc.(type) {
+	case MyStruct:
+		writeln("type is MySruct")
+		writeln(itoa(yyy.field2))
+	default:
+		panic("ERROR")
+	}
+	ifc = true
+	switch ifc.(type) {
+	case int:
+		panic("ERROR")
+	case string:
+		panic("ERROR")
+	default:
+		writeln("type is bool")
 	}
 }
 

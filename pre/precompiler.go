@@ -1910,7 +1910,7 @@ func emitStmt(stmt ast.Stmt) {
 			labelid++
 			labelCase := ".L.case." + Itoa(labelid)
 			labels[i] = labelCase
-			if cc.List == nil {
+			if len(cc.List) == 0 {
 				defaultLabel = labelCase
 				continue
 			}
@@ -1944,7 +1944,7 @@ func emitStmt(stmt ast.Stmt) {
 			}
 			fmtPrintf("%s:\n", labels[i])
 
-			for _, _s := range typeSwitchCaseClose.ast.Body {
+			for _, _s := range typeSwitchCaseClose.orig.Body {
 				if typeSwitchCaseClose.variable != nil {
 					// do assignment
 					emitAddr(typeSwitch.assignIdent)
@@ -2790,15 +2790,13 @@ type TypeSwitchStmt struct {
 	subject         ast.Expr
 	subjectVariable *Variable
 	assignIdent     *ast.Ident
-	outer           *TypeSwitchStmt
 	cases           []*TypeSwitchCaseClose
 }
 
-type  TypeSwitchCaseClose struct {
-	parent       *TypeSwitchStmt
+type TypeSwitchCaseClose struct {
 	variable     *Variable
 	variableType *Type
-	ast          *ast.CaseClause
+	orig         *ast.CaseClause
 }
 
 type RangeStmtMisc struct {
@@ -3119,7 +3117,7 @@ func walkStmt(stmt ast.Stmt) {
 		for _, _case := range s.Body.List {
 			cc := _case.(*ast.CaseClause)
 			tscc := &TypeSwitchCaseClose{
-				ast: cc,
+				orig: cc,
 			}
 			typeSwitch.cases = append(typeSwitch.cases, tscc)
 			if  assignIdent != nil && len(cc.List) > 0 {

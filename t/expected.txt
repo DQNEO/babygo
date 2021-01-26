@@ -2,6 +2,9 @@ type is *int
 7
 type is string
 abcde
+type is MySruct
+222
+type is bool
 1829
 1537
 aaaa
