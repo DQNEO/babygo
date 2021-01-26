@@ -81,6 +81,60 @@ func nop1() {
 }
 
 // --- test funcs ---
+func testTypeSwitch() {
+	var ifc EmptyInterface
+	var i int = 7
+	ifc = &i
+	switch ifc.(type) {
+	case *int:
+		x := ifc.(*int)
+		writeln("type is *int")
+		writeln(itoa(*x))
+	case string:
+		x := ifc.(string)
+		writeln("type is string")
+		writeln(x)
+	default:
+		panic("ERROR")
+	}
+
+	var s string = "abcde"
+	ifc = s
+	switch xxx := ifc.(type) {
+	case int:
+		writeln("type is int")
+		var zzzzz = xxx // test inference of xxx
+		writeln(itoa(zzzzz))
+	case string:
+		writeln("type is string")
+		writeln(xxx)
+	default:
+		panic("ERROR")
+	}
+
+	var srct MyStruct = MyStruct{
+		field1: 111,
+		field2: 222,
+	}
+	ifc = srct
+	switch yyy := ifc.(type) {
+	case MyStruct:
+		writeln("type is MySruct")
+		writeln(itoa(yyy.field2))
+	default:
+		panic("ERROR")
+	}
+	ifc = true
+	switch ifc.(type) {
+	case int:
+		panic("ERROR")
+	case string:
+		panic("ERROR")
+	default:
+		writeln("type is bool")
+	}
+}
+
 func makeInterface() interface{} {
 	var r interface{} = 1829
 	return r
@@ -1603,6 +1657,7 @@ func testMisc() {
 }
 
 func test() {
+	testTypeSwitch()
 	testGetInterface()
 	testPassInterface()
 	testInterfaceAssertion()

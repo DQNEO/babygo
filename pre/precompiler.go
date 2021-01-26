@@ -1889,6 +1889,82 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  jmp %s\n", labelEnd)
 		}
 		fmt.Printf("%s:\n", labelEnd)
+	case *ast.TypeSwitchStmt:
+		typeSwitch, ok := mapTypeSwitchStmtMeta[s]
+		assert(ok, "should exist")
+		labelid++
+		labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
+
+		// subjectVariable = subject
+		emitVariableAddr(typeSwitch.subjectVariable)
+		emitExpr(typeSwitch.subject, nil)
+		emitStore(tEface, true, false)
+
+		cases := s.Body.List
+		var labels = make([]string, len(cases))
+		var defaultLabel string
+		emitComment(2, "Start comparison with cases\n")
+		for i, c := range cases {
+			cc, ok := c.(*ast.CaseClause)
+			assert(ok, "should be *ast.CaseClause")
+			labelid++
+			labelCase := ".L.case." + Itoa(labelid)
+			labels[i] = labelCase
+			if len(cc.List) == 0 {
+				defaultLabel = labelCase
+				continue
+			}
+			for _, e := range cc.List {
+				emitVariableAddr(typeSwitch.subjectVariable)
+				emitLoadFromMemoryAndPush(tEface)
+
+				emitDtypeSymbol(e2t(e))
+				emitCompExpr("sete") // this pushes 1 or 0 in the end
+
+				emitPopBool(" of switch-case comparison")
+				fmtPrintf("  cmpq $1, %%rax\n")
+				fmtPrintf("  je %s # jump if match\n", labelCase)
+			}
+		}
+		emitComment(2, "End comparison with cases\n")
+
+		// if no case matches, then jump to
+		if defaultLabel != "" {
+			// default
+			fmtPrintf("  jmp %s\n", defaultLabel)
+		} else {
+			// exit
+			fmtPrintf("  jmp %s\n", labelEnd)
+		}
+
+		for i, typeSwitchCaseClose := range typeSwitch.cases {
+			// Injecting variable and type to the subject
+			if typeSwitchCaseClose.variable != nil {
+				typeSwitch.assignIdent.Obj.Data = typeSwitchCaseClose.variable
+			}
+			fmtPrintf("%s:\n", labels[i])
+
+			for _, _s := range typeSwitchCaseClose.orig.Body {
+				if typeSwitchCaseClose.variable != nil {
+					// do assignment
+					emitAddr(typeSwitch.assignIdent)
+
+					emitVariableAddr(typeSwitch.subjectVariable)
+					emitLoadFromMemoryAndPush(tEface)
+					fmtPrintf("  popq %%rax # ifc.dtype\n")
+					fmtPrintf("  popq %%rcx # ifc.data\n")
+					fmtPrintf("  push %%rcx # ifc.data\n")
+					emitLoadFromMemoryAndPush(typeSwitchCaseClose.variableType)
+
+					emitStore(typeSwitchCaseClose.variableType, true, false)
+				}
+
+				emitStmt(_s)
+			}
+			fmt.Printf("  jmp %s\n", labelEnd)
+		}
+		fmt.Printf("%s:\n", labelEnd)
+
 	case *ast.BranchStmt:
 		containerFor, ok := mapBranchToFor[s]
 		assert(ok, "map value should exist")
@@ -2208,6 +2284,10 @@ var tString *Type = &Type{
 	},
 }
 
+var tEface *Type = &Type{
+	e: &ast.InterfaceType{},
+}
+
 var generalSlice ast.Expr = &ast.Ident{}
 
 func getTypeOfExpr(expr ast.Expr) *Type {
@@ -2216,12 +2296,22 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		assert(e.Obj != nil, "Obj is nil in ident '" + e.Name + "'")
 		switch e.Obj.Kind {
 		case ast.Var:
+			// injected type is the 1st priority
+			// this use case happens in type switch with short decl var
+			// switch ident := x.(type) {
+			// case T:
+			//    y := ident // <= type of ident cannot be associated directly with ident
+			//
+			variable, isVariable := e.Obj.Data.(*Variable)
+			if isVariable {
+				return variable.typ
+			}
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
 				return e2t(dcl.Type)
 			case *ast.Field:
 				return e2t(dcl.Type)
-			case *ast.AssignStmt: // lhs := rhs
+			case *ast.AssignStmt: // var lhs = rhs | lhs := rhs
 				return getTypeOfExpr(dcl.Rhs[0])
 			default:
 				throw(e.Obj.Decl)
@@ -2704,6 +2794,19 @@ type ForStmt struct {
 	astRange  *ast.RangeStmt
 }
 
+type TypeSwitchStmt struct {
+	subject         ast.Expr
+	subjectVariable *Variable
+	assignIdent     *ast.Ident
+	cases           []*TypeSwitchCaseClose
+}
+
+type TypeSwitchCaseClose struct {
+	variable     *Variable
+	variableType *Type
+	orig         *ast.CaseClause
+}
+
 type RangeStmtMisc struct {
 	lenvar   *Variable
 	indexvar *Variable
@@ -2730,12 +2833,13 @@ type Variable struct {
 	isGlobal     bool
 	globalSymbol string
 	localOffset  localoffsetint
+	typ *Type
 }
 
 type localoffsetint int
 
 func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
-	vr := newLocalVariable(name, fnc.argsarea)
+	vr := newLocalVariable(name, fnc.argsarea,t)
 	fnc.argsarea += localoffsetint(getSizeOfType(t))
 	return vr
 }
@@ -2743,16 +2847,18 @@ func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	assert(t != nil && t.e != nil, "type of local var should not be nil")
 	fnc.localarea -= localoffsetint(getSizeOfType(t))
-	return newLocalVariable(name, currentFunc.localarea)
+	return newLocalVariable(name, currentFunc.localarea, t)
 }
 
 var stringLiterals []*stringLiteralsContainer
 var stringIndex int
 var currentFor *ForStmt
+
 var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
 var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
 var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
 var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
+var mapTypeSwitchStmtMeta = map[*ast.TypeSwitchStmt]*TypeSwitchStmt{}
 
 var currentFunc *Func
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
@@ -2792,21 +2898,23 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	stringLiterals = append(stringLiterals, cont)
 }
 
-func newGlobalVariable(pkgName string, name string) *Variable {
+func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
 	return &Variable{
 		name:         name,
 		isGlobal:     true,
 		globalSymbol: pkgName + "." +name,
 		localOffset:  0,
+		typ: t,
 	}
 }
 
-func newLocalVariable(name string, localoffset localoffsetint) *Variable {
+func newLocalVariable(name string, localoffset localoffsetint, t *Type) *Variable {
 	return &Variable{
 		name:         name,
 		isGlobal:     false,
 		globalSymbol: "",
 		localOffset:  localoffset,
+		typ: t,
 	}
 }
 
@@ -2883,6 +2991,7 @@ func walkStmt(stmt ast.Stmt) {
 					if len(ds.Values) > 0 {
 						// infer type from rhs
 						val := ds.Values[0]
+						logf("nfering type of variable %s\n", obj.Name)
 						typ := getTypeOfExpr(val)
 						if typ != nil && typ.e != nil {
 							varSpec.Type = typ.e
@@ -2988,6 +3097,58 @@ func walkStmt(stmt ast.Stmt) {
 			walkExpr(s.Tag)
 		}
 		walkStmt(s.Body)
+	case *ast.TypeSwitchStmt:
+		typeSwitch := &TypeSwitchStmt{}
+		mapTypeSwitchStmtMeta[s] = typeSwitch
+		if s.Init != nil {
+			walkStmt(s.Init)
+		}
+		var assignIdent *ast.Ident
+		switch assign := s.Assign.(type) {
+		case *ast.ExprStmt:
+			typeAssertExpr, ok := assign.X.(*ast.TypeAssertExpr)
+			assert(ok, "should be *ast.TypeAssertExpr")
+			typeSwitch.subject = typeAssertExpr.X
+			walkExpr(typeAssertExpr.X)
+		case *ast.AssignStmt:
+			lhs := assign.Lhs[0]
+			var ok bool
+			assignIdent, ok = lhs.(*ast.Ident)
+			assert(ok, "lhs should be ident")
+			typeSwitch.assignIdent = assignIdent
+			// ident will be a new local variable in each case clause
+			typeAssertExpr, ok := assign.Rhs[0].(*ast.TypeAssertExpr)
+			assert(ok, "should be *ast.TypeAssertExpr")
+			typeSwitch.subject = typeAssertExpr.X
+			walkExpr(typeAssertExpr.X)
+		default:
+			throw(s.Assign)
+		}
+
+		typeSwitch.subjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
+		for _, _case := range s.Body.List {
+			cc := _case.(*ast.CaseClause)
+			tscc := &TypeSwitchCaseClose{
+				orig: cc,
+			}
+			typeSwitch.cases = append(typeSwitch.cases, tscc)
+			if  assignIdent != nil && len(cc.List) > 0 {
+				// inject a variable of that type
+				varType := e2t(cc.List[0])
+				vr := currentFunc.registerLocalVariable(assignIdent.Name, varType)
+				tscc.variable = vr
+				tscc.variableType = varType
+				assignIdent.Obj.Data = vr
+			}
+
+			for _, stmt := range cc.Body {
+				walkStmt(stmt)
+			}
+
+			if assignIdent != nil {
+				assignIdent.Obj.Data = nil
+			}
+		}
 	case *ast.CaseClause:
 		for _, e := range s.List {
 			walkExpr(e)
@@ -3154,7 +3315,7 @@ func walk(pkg *PkgContainer, f *ast.File) {
 			}
 			varSpec.Type = t.e
 		}
-		nameIdent.Obj.Data = newGlobalVariable(pkg.name, nameIdent.Obj.Name)
+		nameIdent.Obj.Data = newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		pkg.vars = append(pkg.vars, varSpec)
 		for _, v := range varSpec.Values {
 			// mainly to collect string literals
