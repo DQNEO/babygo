@@ -81,6 +81,21 @@ func nop1() {
 }
 
 // --- test funcs ---
+func makeInterface() interface{} {
+	var r interface{} = 1829
+	return r
+}
+
+func testGetInterface() {
+	var x interface{} = makeInterface()
+	var i int
+	var ok bool
+	i, ok = x.(int)
+	if ok {
+		writeln(itoa(i))
+	}
+}
+
 
 func takeInterface(ifc interface{}) {
 	var s int
@@ -1588,6 +1603,7 @@ func testMisc() {
 }
 
 func test() {
+	testGetInterface()
 	testPassInterface()
 	testInterfaceAssertion()
 	testInterfaceimplicitConversion()
