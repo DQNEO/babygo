@@ -527,7 +527,6 @@ type ObjDecl struct {
 	typeSpec   *astTypeSpec
 	field      *astField
 	assignment *astAssignStmt
-	typ        *Type
 }
 
 type astObject struct {
@@ -4415,8 +4414,6 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				return t
 			case "*astAssignStmt": // lhs := rhs
 				return getTypeOfExpr(expr.ident.Obj.Decl.assignment.Rhs[0])
-			case "*Type":
-				return expr.ident.Obj.Decl.typ
 			default:
 				panic2(__func__, "dtype:" + expr.ident.Obj.Decl.dtype )
 			}
@@ -5879,4 +5876,5 @@ func main() {
 		fmtPrintf("  .string \"%s\"\n", name)
 	}
 	fmtPrintf("\n")
+
 }
