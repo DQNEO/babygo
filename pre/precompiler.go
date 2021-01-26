@@ -1908,7 +1908,7 @@ func emitStmt(stmt ast.Stmt) {
 			cc, ok := c.(*ast.CaseClause)
 			assert(ok, "should be *ast.CaseClause")
 			labelid++
-			labelCase := fmt.Sprintf(".L.case.%d", labelid)
+			labelCase := ".L.case." + Itoa(labelid)
 			labels[i] = labelCase
 			if cc.List == nil {
 				defaultLabel = labelCase
@@ -1922,8 +1922,8 @@ func emitStmt(stmt ast.Stmt) {
 				emitCompExpr("sete") // this pushes 1 or 0 in the end
 
 				emitPopBool(" of switch-case comparison")
-				fmt.Printf("  cmpq $1, %%rax\n")
-				fmt.Printf("  je %s # jump if match\n", labelCase)
+				fmtPrintf("  cmpq $1, %%rax\n")
+				fmtPrintf("  je %s # jump if match\n", labelCase)
 			}
 		}
 		emitComment(2, "End comparison with cases\n")
@@ -1931,10 +1931,10 @@ func emitStmt(stmt ast.Stmt) {
 		// if no case matches, then jump to
 		if defaultLabel != "" {
 			// default
-			fmt.Printf("  jmp %s\n", defaultLabel)
+			fmtPrintf("  jmp %s\n", defaultLabel)
 		} else {
 			// exit
-			fmt.Printf("  jmp %s\n", labelEnd)
+			fmtPrintf("  jmp %s\n", labelEnd)
 		}
 
 		for i, typeSwitchCaseClose := range typeSwitch.cases {
@@ -1942,7 +1942,7 @@ func emitStmt(stmt ast.Stmt) {
 				typeSwitch.assignIdent.Obj.Data = typeSwitchCaseClose.variable
 				typeSwitch.assignIdent.Obj.Decl = typeSwitchCaseClose.variableType
 			}
-			fmt.Printf("%s:\n", labels[i])
+			fmtPrintf("%s:\n", labels[i])
 
 			for _, _s := range typeSwitchCaseClose.ast.Body {
 				if typeSwitchCaseClose.variable != nil {
