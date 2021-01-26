@@ -1938,9 +1938,9 @@ func emitStmt(stmt ast.Stmt) {
 		}
 
 		for i, typeSwitchCaseClose := range typeSwitch.cases {
+			// Injecting variable and type to the subject
 			if typeSwitchCaseClose.variable != nil {
 				typeSwitch.assignIdent.Obj.Data = typeSwitchCaseClose.variable
-				typeSwitch.assignIdent.Obj.Decl = typeSwitchCaseClose.variableType
 			}
 			fmtPrintf("%s:\n", labels[i])
 
@@ -2296,15 +2296,23 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		assert(e.Obj != nil, "Obj is nil in ident '" + e.Name + "'")
 		switch e.Obj.Kind {
 		case ast.Var:
+			// injected type is the 1st priority
+			// this use case happens in type switch with short decl var
+			// switch ident := x.(type) {
+			// case T:
+			//    y := ident // <= type of ident cannot be associated directly with ident
+			//
+			variable, isVariable := e.Obj.Data.(*Variable)
+			if isVariable {
+				return variable.typ
+			}
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
 				return e2t(dcl.Type)
 			case *ast.Field:
 				return e2t(dcl.Type)
-			case *ast.AssignStmt: // lhs := rhs
+			case *ast.AssignStmt: // var lhs = rhs | lhs := rhs
 				return getTypeOfExpr(dcl.Rhs[0])
-			case *Type: // type of case clause of type switch
-				return dcl
 			default:
 				throw(e.Obj.Decl)
 			}
@@ -2825,12 +2833,13 @@ type Variable struct {
 	isGlobal     bool
 	globalSymbol string
 	localOffset  localoffsetint
+	typ *Type
 }
 
 type localoffsetint int
 
 func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
-	vr := newLocalVariable(name, fnc.argsarea)
+	vr := newLocalVariable(name, fnc.argsarea,t)
 	fnc.argsarea += localoffsetint(getSizeOfType(t))
 	return vr
 }
@@ -2838,7 +2847,7 @@ func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	assert(t != nil && t.e != nil, "type of local var should not be nil")
 	fnc.localarea -= localoffsetint(getSizeOfType(t))
-	return newLocalVariable(name, currentFunc.localarea)
+	return newLocalVariable(name, currentFunc.localarea, t)
 }
 
 var stringLiterals []*stringLiteralsContainer
@@ -2889,21 +2898,23 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	stringLiterals = append(stringLiterals, cont)
 }
 
-func newGlobalVariable(pkgName string, name string) *Variable {
+func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
 	return &Variable{
 		name:         name,
 		isGlobal:     true,
 		globalSymbol: pkgName + "." +name,
 		localOffset:  0,
+		typ: t,
 	}
 }
 
-func newLocalVariable(name string, localoffset localoffsetint) *Variable {
+func newLocalVariable(name string, localoffset localoffsetint, t *Type) *Variable {
 	return &Variable{
 		name:         name,
 		isGlobal:     false,
 		globalSymbol: "",
 		localOffset:  localoffset,
+		typ: t,
 	}
 }
 
@@ -2980,6 +2991,7 @@ func walkStmt(stmt ast.Stmt) {
 					if len(ds.Values) > 0 {
 						// infer type from rhs
 						val := ds.Values[0]
+						logf("nfering type of variable %s\n", obj.Name)
 						typ := getTypeOfExpr(val)
 						if typ != nil && typ.e != nil {
 							varSpec.Type = typ.e
@@ -3126,9 +3138,17 @@ func walkStmt(stmt ast.Stmt) {
 				vr := currentFunc.registerLocalVariable(assignIdent.Name, varType)
 				tscc.variable = vr
 				tscc.variableType = varType
+				assignIdent.Obj.Data = vr
+			}
+
+			for _, stmt := range cc.Body {
+				walkStmt(stmt)
+			}
+
+			if assignIdent != nil {
+				assignIdent.Obj.Data = nil
 			}
 		}
-		walkStmt(s.Body)
 	case *ast.CaseClause:
 		for _, e := range s.List {
 			walkExpr(e)
@@ -3295,7 +3315,7 @@ func walk(pkg *PkgContainer, f *ast.File) {
 			}
 			varSpec.Type = t.e
 		}
-		nameIdent.Obj.Data = newGlobalVariable(pkg.name, nameIdent.Obj.Name)
+		nameIdent.Obj.Data = newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		pkg.vars = append(pkg.vars, varSpec)
 		for _, v := range varSpec.Values {
 			// mainly to collect string literals

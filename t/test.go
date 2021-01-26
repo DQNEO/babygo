@@ -103,7 +103,8 @@ func testTypeSwitch() {
 	switch xxx := ifc.(type) {
 	case int:
 		writeln("type is int")
-		writeln(itoa(xxx))
+		var zzzzz = xxx // test inference of xxx
+		writeln(itoa(zzzzz))
 	case string:
 		writeln("type is string")
 		writeln(xxx)
