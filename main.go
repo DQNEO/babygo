@@ -3439,7 +3439,7 @@ func emitExprIfc(expr *astExpr, ctx *evalContext) {
 		emitCallMalloc(memSize)
 		emitStore(sourceType, false, true) // heap addr pushed
 		// push type id
-		emitTypeId(sourceType)
+		emitDtypeSymbol(sourceType)
 	}
 }
 
@@ -3471,7 +3471,7 @@ func getTypeId(serialized string) int {
 	return r
 }
 
-func emitTypeId(t *Type) {
+func emitDtypeSymbol(t *Type) {
 	str := serializeType(t)
 	typeId := getTypeId(str)
 	typeSymbol := typeIdToSymbol(typeId)
