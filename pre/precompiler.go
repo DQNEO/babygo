@@ -1371,7 +1371,7 @@ func emitExprIfc(expr ast.Expr, ctx *evalContext) {
 		emitCallMalloc(memSize)
 		emitStore(sourceType, false, true) // heap addr pushed
 		// push type id
-		emitTypeId(sourceType)
+		emitDtypeSymbol(sourceType)
 	}
 }
 
@@ -1393,14 +1393,7 @@ func getTypeId(s string) int {
 	return id
 }
 
-func emitDynamicTypeIdOfInterface(ifc ast.Expr) {
-	emitExpr(ifc, nil) // push interface value
-	fmtPrintf("  popq  %%rax # ifc.dtype\n")
-	fmtPrintf("  popq  %%rcx # ifc.data\n")
-	fmtPrintf("  pushq %%rax # ifc.dtype\n")
-}
-
-func emitTypeId(t *Type) {
+func emitDtypeSymbol(t *Type) {
 	str := serializeType(t)
 	typeId := getTypeId(str)
 	typeSymbol := typeIdToSymbol(typeId)
@@ -1902,6 +1895,7 @@ func emitStmt(stmt ast.Stmt) {
 		labelid++
 		labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
+		// subjectVariable = subject
 		emitVariableAddr(typeSwitch.subjectVariable)
 		emitExpr(typeSwitch.subject, nil)
 		emitStore(tEface, true, false)
@@ -1924,7 +1918,7 @@ func emitStmt(stmt ast.Stmt) {
 				emitVariableAddr(typeSwitch.subjectVariable)
 				emitLoadFromMemoryAndPush(tEface)
 
-				emitTypeId(e2t(e))
+				emitDtypeSymbol(e2t(e))
 				emitCompExpr("sete") // this pushes 1 or 0 in the end
 
 				emitPopBool(" of switch-case comparison")
