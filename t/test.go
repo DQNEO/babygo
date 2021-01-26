@@ -81,8 +81,56 @@ func nop1() {
 }
 
 // --- test funcs ---
+func testTypeSwitch() {
+	var ifc interface{}
+	var i int = 7
+	//var i2 int
+	var s string = "abcde"
+	//var s2 string
+	ifc = &i
+	switch ifc.(type) {
+	case *int:
+		x := ifc.(*int)
+		writeln("type is *int")
+		writeln(itoa(*x))
+	case string:
+		x := ifc.(string)
+		writeln("type is string")
+		writeln(x)
+	default:
+		panic("ERROR")
+	}
 
-func rerceiveInterface(ifc interface{}) {
+	ifc = s
+	switch xxx := ifc.(type) {
+	case int:
+		writeln("type is int")
+		writeln(itoa(xxx))
+	case string:
+		writeln("type is string")
+		writeln(xxx)
+	default:
+		panic("ERROR")
+	}
+}
+
+func makeInterface() interface{} {
+	var r interface{} = 1829
+	return r
+}
+
+func testGetInterface() {
+	var x interface{} = makeInterface()
+	var i int
+	var ok bool
+	i, ok = x.(int)
+	if ok {
+		writeln(itoa(i))
+	}
+}
+
+
+func takeInterface(ifc interface{}) {
 	var s int
 	var ok bool
 	s, ok = ifc.(int)
@@ -95,7 +143,7 @@ func testPassInterface() {
 	var s int = 1537
 	var ifc interface{} = s
 	nop()
-	rerceiveInterface(ifc)
+	takeInterface(ifc)
 }
 
 type EmptyInterface interface {
@@ -1588,6 +1636,8 @@ func testMisc() {
 }
 
 func test() {
+	testTypeSwitch()
+	testGetInterface()
 	testPassInterface()
 	testInterfaceAssertion()
 	testInterfaceimplicitConversion()

@@ -1392,6 +1392,13 @@ func getTypeId(s string) int {
 	return id
 }
 
+func emitDynamicTypeIdOfInterface(ifc ast.Expr) {
+	emitExpr(ifc, nil) // push interface value
+	fmtPrintf("  popq  %%rax # ifc.dtype\n")
+	fmtPrintf("  popq  %%rcx # ifc.data\n")
+	fmtPrintf("  pushq %%rax # ifc.dtype\n")
+}
+
 func emitTypeId(t *Type) {
 	str := serializeType(t)
 	typeId := getTypeId(str)
@@ -1888,6 +1895,75 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  jmp %s\n", labelEnd)
 		}
 		fmt.Printf("%s:\n", labelEnd)
+	case *ast.TypeSwitchStmt:
+		typeSwitch, ok := mapTypeSwitchStmtMeta[s]
+		assert(ok, "should exist")
+		labelid++
+		labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
+		emitDynamicTypeIdOfInterface(typeSwitch.subject)
+
+		cases := s.Body.List
+		var labels = make([]string, len(cases))
+		var defaultLabel string
+		emitComment(2, "Start comparison with cases\n")
+		for i, c := range cases {
+			cc, ok := c.(*ast.CaseClause)
+			assert(ok, "should be *ast.CaseClause")
+			labelid++
+			labelCase := fmt.Sprintf(".L.case.%d", labelid)
+			labels[i] = labelCase
+			if cc.List == nil {
+				defaultLabel = labelCase
+				continue
+			}
+			for _, e := range cc.List {
+				emitPushStackTop(tUintptr, "switch expr")
+				emitTypeId(e2t(e))
+				emitCompExpr("sete") // this pushes 1 or 0 in the end
+
+				emitPopBool(" of switch-case comparison")
+				fmt.Printf("  cmpq $1, %%rax\n")
+				fmt.Printf("  je %s # jump if match\n", labelCase)
+			}
+		}
+		emitComment(2, "End comparison with cases\n")
+
+		// if no case matches, then jump to
+		if defaultLabel != "" {
+			// default
+			fmt.Printf("  jmp %s\n", defaultLabel)
+		} else {
+			// exit
+			fmt.Printf("  jmp %s\n", labelEnd)
+		}
+
+		emitRevertStackTop(tUintptr) // drop switch expr
+		for i, typeSwitchCaseClose := range typeSwitch.cases {
+			if typeSwitchCaseClose.variable != nil {
+				typeSwitch.assignIdent.Obj.Data = typeSwitchCaseClose.variable
+				typeSwitch.assignIdent.Obj.Decl = typeSwitchCaseClose.variableType
+			}
+			fmt.Printf("%s:\n", labels[i])
+
+			for _, _s := range typeSwitchCaseClose.ast.Body {
+				if typeSwitchCaseClose.variable != nil {
+					// do assignment
+					emitAddr(typeSwitch.assignIdent)
+
+					emitExpr(typeSwitch.subject, nil) // emitting subject twice is a bug ??
+					fmtPrintf("  popq %%rax # ifc.dtype\n")
+					fmtPrintf("  popq %%rcx # ifc.data\n")
+					fmtPrintf("  push %%rcx # ifc.data\n")
+					emitLoad(typeSwitchCaseClose.variableType)
+					emitStore(typeSwitchCaseClose.variableType, true, false)
+				}
+
+				emitStmt(_s)
+			}
+			fmt.Printf("  jmp %s\n", labelEnd)
+		}
+		fmt.Printf("%s:\n", labelEnd)
+
 	case *ast.BranchStmt:
 		containerFor, ok := mapBranchToFor[s]
 		assert(ok, "map value should exist")
@@ -2222,6 +2298,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				return e2t(dcl.Type)
 			case *ast.AssignStmt: // lhs := rhs
 				return getTypeOfExpr(dcl.Rhs[0])
+			case *Type: // type of case clause of type switch
+				return dcl
 			default:
 				throw(e.Obj.Decl)
 			}
@@ -2703,6 +2781,20 @@ type ForStmt struct {
 	astRange  *ast.RangeStmt
 }
 
+type TypeSwitchStmt struct {
+	subject ast.Expr
+	assignIdent *ast.Ident
+	outer     *TypeSwitchStmt
+	cases []*TypeSwitchCaseClose
+}
+
+type  TypeSwitchCaseClose struct {
+	parent       *TypeSwitchStmt
+	variable     *Variable
+	variableType *Type
+	ast          *ast.CaseClause
+}
+
 type RangeStmtMisc struct {
 	lenvar   *Variable
 	indexvar *Variable
@@ -2748,10 +2840,12 @@ func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 var stringLiterals []*stringLiteralsContainer
 var stringIndex int
 var currentFor *ForStmt
+
 var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
 var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
 var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
 var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
+var mapTypeSwitchStmtMeta = map[*ast.TypeSwitchStmt]*TypeSwitchStmt{}
 
 var currentFunc *Func
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
@@ -2985,6 +3079,49 @@ func walkStmt(stmt ast.Stmt) {
 		}
 		if s.Tag != nil {
 			walkExpr(s.Tag)
+		}
+		walkStmt(s.Body)
+	case *ast.TypeSwitchStmt:
+		typeSwitch := &TypeSwitchStmt{}
+		mapTypeSwitchStmtMeta[s] = typeSwitch
+		if s.Init != nil {
+			walkStmt(s.Init)
+		}
+		var assignIdent *ast.Ident
+		switch assign := s.Assign.(type) {
+		case *ast.ExprStmt:
+			typeAssertExpr, ok := assign.X.(*ast.TypeAssertExpr)
+			assert(ok, "should be *ast.TypeAssertExpr")
+			typeSwitch.subject = typeAssertExpr.X
+			walkExpr(typeAssertExpr.X)
+		case *ast.AssignStmt:
+			lhs := assign.Lhs[0]
+			var ok bool
+			assignIdent, ok = lhs.(*ast.Ident)
+			assert(ok, "lhs should be ident")
+			typeSwitch.assignIdent = assignIdent
+			// ident will be a new local variable in each case clause
+			typeAssertExpr, ok := assign.Rhs[0].(*ast.TypeAssertExpr)
+			assert(ok, "should be *ast.TypeAssertExpr")
+			typeSwitch.subject = typeAssertExpr.X
+			walkExpr(typeAssertExpr.X)
+		default:
+			throw(s.Assign)
+		}
+
+		for _, _case := range s.Body.List {
+			cc := _case.(*ast.CaseClause)
+			tscc := &TypeSwitchCaseClose{
+				ast: cc,
+			}
+			typeSwitch.cases = append(typeSwitch.cases, tscc)
+			if  assignIdent != nil && len(cc.List) > 0 {
+				// inject a variable of that type
+				varType := e2t(cc.List[0])
+				vr := currentFunc.registerLocalVariable(assignIdent.Name, varType)
+				tscc.variable = vr
+				tscc.variableType = varType
+			}
 		}
 		walkStmt(s.Body)
 	case *ast.CaseClause:
