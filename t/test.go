@@ -82,7 +82,7 @@ func nop1() {
 
 // --- test funcs ---
 
-func rerceiveInterface(ifc interface{}) {
+func takeInterface(ifc interface{}) {
 	var s int
 	var ok bool
 	s, ok = ifc.(int)
@@ -95,7 +95,7 @@ func testPassInterface() {
 	var s int = 1537
 	var ifc interface{} = s
 	nop()
-	rerceiveInterface(ifc)
+	takeInterface(ifc)
 }
 
 type EmptyInterface interface {
