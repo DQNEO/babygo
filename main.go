@@ -1537,9 +1537,22 @@ func (p *parser) parseLiteralValue(typ *astExpr) *astExpr {
 	}
 }
 
+func dtypeOf(x interface{}) string {
+	switch xx := x.(type) {
+	case *astExpr:
+		return xx.dtype
+	case *astStmt:
+		return xx.dtype
+	}
+
+	panic("Unexpected")
+}
+
+const pastIdent string = "*astIdent"
+
 func isLiteralType(x *astExpr) bool {
-	switch x.dtype {
-	case "*astIdent":
+	switch dtypeOf(x) {
+	case pastIdent:
 	case "*astSelectorExpr":
 		return x.selectorExpr.X.dtype == "*astIdent"
 	case "*astArrayType":
@@ -1840,7 +1853,7 @@ func isTypeSwitchAssert(x *astExpr) bool {
 }
 
 func isTypeSwitchGuard(s *astStmt) bool {
-	switch s.dtype {
+	switch dtypeOf(s) {
 	case "*astExprStmt":
 		if isTypeSwitchAssert(s.exprStmt.X) {
 			return true
@@ -2304,7 +2317,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 }
 
 func evalInt(expr *astExpr) int {
-	switch expr.dtype {
+	switch dtypeOf(expr) {
 	case "*astBasicLit":
 		return Atoi(expr.basicLit.Value)
 	}
@@ -2441,7 +2454,7 @@ func isOsArgs(e *astSelectorExpr) bool {
 
 func emitAddr(expr *astExpr) {
 	emitComment(2, "[emitAddr] %s\n", expr.dtype)
-	switch expr.dtype {
+	switch dtypeOf(expr) {
 	case "*astIdent":
 		if expr.ident.Name == "_" {
 			panic(" \"_\" has no address")
@@ -2503,7 +2516,7 @@ func emitAddr(expr *astExpr) {
 }
 
 func isType(expr *astExpr) bool {
-	switch expr.dtype {
+	switch dtypeOf(expr) {
 	case "*astArrayType":
 		return true
 	case "*astIdent":
@@ -2535,7 +2548,7 @@ func isType(expr *astExpr) bool {
 func emitConversion(toType *Type, arg0 *astExpr) {
 	emitComment(2, "[emitConversion]\n")
 	var to = toType.e
-	switch to.dtype {
+	switch dtypeOf(to) {
 	case "*astIdent":
 		switch to.ident.Obj {
 		case gString: // string(e)
@@ -2910,7 +2923,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 	var symbol string
 	var receiver *astExpr
 	var funcType *astFuncType
-	switch fun.dtype {
+	switch dtypeOf(fun) {
 	case "*astIdent":
 		emitComment(2, "[%s][*astIdent]\n", __func__)
 		var fnIdent = fun.ident
@@ -3128,7 +3141,7 @@ type evalContext struct {
 func emitExpr(e *astExpr, ctx *evalContext) bool {
 	var isNilObject bool
 	emitComment(2, "[emitExpr] dtype=%s\n", e.dtype)
-	switch e.dtype {
+	switch dtypeOf(e) {
 	case "*astIdent":
 		var ident = e.ident
 		if ident.Obj == nil {
@@ -3723,7 +3736,7 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 func emitStmt(stmt *astStmt) {
 	fmtPrintf("\n")
 	emitComment(2, "Statement %s\n", stmt.dtype)
-	switch stmt.dtype {
+	switch dtypeOf(stmt) {
 	case "*astBlockStmt":
 		for _, stmt2 := range stmt.blockStmt.List {
 			emitStmt(stmt2)
@@ -4116,7 +4129,7 @@ func emitStmt(stmt *astStmt) {
 		var labelToGo string
 		switch stmt.branchStmt.Tok {
 		case "continue":
-			switch containerFor.dtype {
+			switch dtypeOf(containerFor) {
 			case "*astForStmt":
 				labelToGo = containerFor.forStmt.labelPost
 			case "*astRangeStmt":
@@ -4126,7 +4139,7 @@ func emitStmt(stmt *astStmt) {
 			}
 			fmtPrintf("jmp %s # continue\n", labelToGo)
 		case "break":
-			switch containerFor.dtype {
+			switch dtypeOf(containerFor) {
 			case "*astForStmt":
 				labelToGo = containerFor.forStmt.labelExit
 			case "*astRangeStmt":
@@ -4224,7 +4237,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			fmtPrintf("  .quad 0\n")
 			return
 		}
-		switch val.dtype {
+		switch dtypeOf(val) {
 		case "*astBasicLit":
 			var sl = getStringLiteral(val.basicLit)
 			fmtPrintf("  .quad %s\n", sl.label)
@@ -4241,7 +4254,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			fmtPrintf("  .quad 0 # bool zero value\n")
 			return
 		}
-		switch val.dtype {
+		switch dtypeOf(val) {
 		case "*astIdent":
 			switch val.ident.Obj {
 			case gTrue:
@@ -4259,7 +4272,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			fmtPrintf("  .quad 0\n")
 			return
 		}
-		switch val.dtype {
+		switch dtypeOf(val) {
 		case "*astBasicLit":
 			fmtPrintf("  .quad %s\n", val.basicLit.Value)
 		default:
@@ -4270,7 +4283,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			fmtPrintf("  .byte 0\n")
 			return
 		}
-		switch val.dtype {
+		switch dtypeOf(val) {
 		case "*astBasicLit":
 			fmtPrintf("  .byte %s\n", val.basicLit.Value)
 		default:
@@ -4281,7 +4294,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			fmtPrintf("  .word 0\n")
 			return
 		}
-		switch val.dtype {
+		switch dtypeOf(val) {
 		case "*astBasicLit":
 			fmtPrintf("  .word %s\n", val.basicLit.Value)
 		default:
@@ -4416,7 +4429,7 @@ const T_POINTER string = "T_POINTER"
 
 func getTypeOfExpr(expr *astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
-	switch expr.dtype {
+	switch dtypeOf(expr) {
 	case "*astIdent":
 		if expr.ident.Obj == nil {
 			panic(expr.ident.Name)
@@ -4500,7 +4513,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	case "*astCallExpr":
 		emitComment(2, "[%s] *astCallExpr\n", __func__)
 		var fun = expr.callExpr.Fun
-		switch fun.dtype {
+		switch dtypeOf(fun) {
 		case "*astIdent":
 			var fn = fun.ident
 			if fn.Obj == nil {
@@ -5128,7 +5141,7 @@ func lookupMethod(rcvT *Type, methodName *astIdent) *Method {
 
 func walkStmt(stmt *astStmt) {
 	logf(" [%s] begin dtype=%s\n", __func__, stmt.dtype)
-	switch stmt.dtype {
+	switch dtypeOf(stmt) {
 	case "*astDeclStmt":
 		logf(" [%s] *ast.DeclStmt\n", __func__)
 		if stmt.DeclStmt == nil {
@@ -5329,7 +5342,7 @@ var currentFor *astStmt
 
 func walkExpr(expr *astExpr) {
 	logf(" [walkExpr] dtype=%s\n", expr.dtype)
-	switch expr.dtype {
+	switch dtypeOf(expr) {
 	case "*astIdent":
 		// what to do ?
 	case "*astCallExpr":
