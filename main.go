@@ -1556,16 +1556,15 @@ func (p *parser) parseIndexOrSlice(x *astExpr) *astExpr {
 
 	if ncolons > 0 {
 		// slice expression
-		if ncolons == 2 {
-			panic2(__func__, "TBI: ncolons=2")
-		}
 		var sliceExpr = &astSliceExpr{
 			Slice3 : false,
 			X : x,
 			Low : index[0],
 			High : index[1],
 		}
-
+		if ncolons == 2 {
+			sliceExpr.Max = index[2]
+		}
 		return &astExpr{
 			dtype:     "*astSliceExpr",
 			sliceExpr: sliceExpr,
@@ -3214,16 +3213,41 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 	case "*astSliceExpr":
 		var list = e.sliceExpr.X
 		var listType = getTypeOfExpr(list)
-		emitExpr(e.sliceExpr.High, nil)
-		emitExpr(e.sliceExpr.Low, nil)
-		fmtPrintf("  popq %%rcx # low\n")
-		fmtPrintf("  popq %%rax # high\n")
-		fmtPrintf("  subq %%rcx, %%rax # high - low\n")
+
 		switch kind(listType) {
 		case T_SLICE, T_ARRAY:
-			fmtPrintf("  pushq %%rax # cap\n")
-			fmtPrintf("  pushq %%rax # len\n")
+			if e.sliceExpr.Max == nil {
+				// cap = len = high = low
+				emitExpr(e.sliceExpr.High, nil)
+				emitExpr(e.sliceExpr.Low, nil)  // intval
+				fmtPrintf("  popq %%rcx # low\n")
+				fmtPrintf("  popq %%rax # max\n")
+				fmtPrintf("  subq %%rcx, %%rax # cap = max - low\n")
+				fmtPrintf("  pushq %%rax # cap\n")
+				fmtPrintf("  pushq %%rax # len\n")
+			} else {
+				// cap = max - low
+				emitExpr(e.sliceExpr.Max, nil)
+				emitExpr(e.sliceExpr.Low, nil)
+				fmtPrintf("  popq %%rcx # low\n")
+				fmtPrintf("  popq %%rax # max\n")
+				fmtPrintf("  subq %%rcx, %%rax # max - low\n")
+				fmtPrintf("  pushq %%rax # len\n")
+				// len = high - low
+				emitExpr(e.sliceExpr.High, nil)
+				emitExpr(e.sliceExpr.Low, nil)  // intval
+				fmtPrintf("  popq %%rcx # low\n")
+				fmtPrintf("  popq %%rax # high\n")
+				fmtPrintf("  subq %%rcx, %%rax # cap = max - low\n")
+				fmtPrintf("  pushq %%rax # len\n")
+			}
 		case T_STRING:
+			// len = high - low
+			emitExpr(e.sliceExpr.High, nil)
+			emitExpr(e.sliceExpr.Low, nil)
+			fmtPrintf("  popq %%rcx # low\n")
+			fmtPrintf("  popq %%rax # high\n")
+			fmtPrintf("  subq %%rcx, %%rax # high - low\n")
 			fmtPrintf("  pushq %%rax # len\n")
 			// no cap
 		default:

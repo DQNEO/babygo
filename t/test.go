@@ -88,6 +88,26 @@ func nop1() {
 }
 
 // --- test funcs ---
+var gArrayForFullSlice [3]int
+func testFullSlice() {
+	gArrayForFullSlice = [3]int{
+		2,
+		4,
+		6,
+	}
+
+	for _, i := range gArrayForFullSlice {
+		writeln(i)
+	}
+
+	fullSlice := gArrayForFullSlice[1:2:3]
+	writeln(cap(fullSlice))
+
+	for _, i := range fullSlice {
+		writeln(i)
+	}
+}
+
 func takeInterfaceVaargs(a...interface{}) {
 	writeln(len(a))
 	for _, ifc := range a {
@@ -1741,6 +1761,7 @@ func testMisc() {
 }
 
 func test() {
+	testFullSlice()
 	testInterfaceVaargs()
 	testConvertToInterface()
 	testTypeSwitch()
