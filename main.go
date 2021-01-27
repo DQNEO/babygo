@@ -687,6 +687,7 @@ type astAssignStmt struct {
 
 type astReturnStmt struct {
 	Results []*astExpr
+	node    *nodeReturnStmt
 }
 
 type astBranchStmt struct {
@@ -721,6 +722,10 @@ type astTypeSwitchStmt struct {
 	Assign *astStmt
 	Body *astBlockStmt
 	node *nodeTypeSwitchStmt
+}
+
+type nodeReturnStmt struct {
+	fnc *Func
 }
 
 type nodeTypeSwitchStmt struct {
@@ -2523,6 +2528,7 @@ func isType(expr *astExpr) bool {
 
 }
 
+// explicit conversion T(e)
 func emitConversion(toType *Type, arg0 *astExpr) {
 	emitComment(2, "[emitConversion]\n")
 	var to = toType.e
@@ -2572,6 +2578,14 @@ func emitConversion(toType *Type, arg0 *astExpr) {
 	case "*astStarExpr": // (*T)(e)
 		emitComment(2, "[emitConversion] to pointer \n")
 		emitExpr(arg0, nil)
+	case "*astInterfaceType":
+		emitExpr(arg0, nil)
+		if isInterface(getTypeOfExpr(arg0))  {
+			// do nothing
+		} else {
+			// Convert dynamic value to interface
+			emitConvertToInterface(getTypeOfExpr(arg0))
+		}
 	default:
 		panic2(__func__, "TBI :"+to.dtype)
 	}
@@ -3461,17 +3475,21 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 	return isNilObject
 }
 
+// convert stack top value to interface
+func emitConvertToInterface(fromType *Type) {
+	emitComment(2, "ConversionToInterface\n")
+	memSize := getSizeOfType(fromType)
+	// copy data to heap
+	emitCallMalloc(memSize)
+	emitStore(fromType, false, true) // heap addr pushed
+	// push type id
+	emitDtypeSymbol(fromType)
+}
+
 func emitExprIfc(expr *astExpr, ctx *evalContext) {
 	isNilObj := emitExpr(expr, ctx)
 	if !isNilObj && ctx != nil && ctx._type != nil && isInterface(ctx._type) && !isInterface(getTypeOfExpr(expr)) {
-		sourceType := getTypeOfExpr(expr)
-		emitComment(2, "ConversionToInterface\n")
-		memSize := getSizeOfType(sourceType)
-		// copy data to heap
-		emitCallMalloc(memSize)
-		emitStore(sourceType, false, true) // heap addr pushed
-		// push type id
-		emitDtypeSymbol(sourceType)
+		emitConvertToInterface(getTypeOfExpr(expr))
 	}
 }
 
@@ -3732,12 +3750,18 @@ func emitStmt(stmt *astStmt) {
 			emitAssign(lhs, rhs)
 		}
 	case "*astReturnStmt":
+		node := stmt.returnStmt.node
+		funcType := node.fnc.funcType
 		if len(stmt.returnStmt.Results) == 0 {
 			fmtPrintf("  leave\n")
 			fmtPrintf("  ret\n")
 		} else if len(stmt.returnStmt.Results) == 1 {
-			emitExpr(stmt.returnStmt.Results[0], nil) // @TODO forceType should be fetched from func decl
-			var knd = kind(getTypeOfExpr(stmt.returnStmt.Results[0]))
+			targetType := e2t(funcType.Results.List[0].Type)
+			ctx := &evalContext{
+				_type:     targetType,
+			}
+			emitExprIfc(stmt.returnStmt.Results[0], ctx)
+			var knd = kind(targetType)
 			switch knd {
 			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 				fmtPrintf("  popq %%rax # return 64bit\n")
@@ -4529,6 +4553,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value", __func__)
 				return e2t(method.funcType.Results.List[0].Type)
 			}
+		case "*astInterfaceType":
+			return tEface
 		default:
 			panic2(__func__, "[astCallExpr] dtype="+expr.callExpr.Fun.dtype)
 		}
@@ -4574,6 +4600,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		return getTypeOfExpr(expr.parenExpr.X)
 	case "*astTypeAssertExpr":
 		return e2t(expr.typeAssertExpr.Type)
+	case "*astInterfaceType":
+		return tEface
 	default:
 		panic2(__func__, "TBI:dtype="+expr.dtype)
 	}
@@ -5129,6 +5157,9 @@ func walkStmt(stmt *astStmt) {
 	case "*astExprStmt":
 		walkExpr(stmt.exprStmt.X)
 	case "*astReturnStmt":
+		stmt.returnStmt.node = &nodeReturnStmt{
+			fnc: currentFunc,
+		}
 		for _, rt := range stmt.returnStmt.Results {
 			walkExpr(rt)
 		}
@@ -5327,6 +5358,8 @@ func walkExpr(expr *astExpr) {
 	case "*astKeyValueExpr":
 		walkExpr(expr.keyValueExpr.Key)
 		walkExpr(expr.keyValueExpr.Value)
+	case "*astInterfaceType":
+		// interface{}(e)  conversion. Nothing to do.
 	case "*astTypeAssertExpr":
 		walkExpr(expr.typeAssertExpr.X)
 	default:
