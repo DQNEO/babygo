@@ -2788,21 +2788,21 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*
 	}
 	var params = funcType.Params.List
 	var variadicArgs []*astExpr
-	var variadicElp *astEllipsis
+	var variadicElmType *astExpr
 	var args []*Arg
 	var param *astField
 	var arg *Arg
-	var lenParams = len(params)
+	lenParams := len(params)
 	for argIndex, eArg := range eArgs {
 		emitComment(2, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, Itoa(argIndex), Itoa(lenParams))
 		if argIndex < lenParams {
 			param = params[argIndex]
 			if param.Type.dtype == "*astEllipsis" {
-				variadicElp = param.Type.ellipsis
+				variadicElmType = param.Type.ellipsis.Elt
 				variadicArgs = make([]*astExpr, 0, 20)
 			}
 		}
-		if variadicElp != nil {
+		if variadicElmType != nil {
 			variadicArgs = append(variadicArgs, eArg)
 			continue
 		}
@@ -2814,10 +2814,10 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*
 		args = append(args, arg)
 	}
 
-	if variadicElp != nil {
+	if variadicElmType != nil {
 		// collect args as a slice
 		var sliceType = &astArrayType{}
-		sliceType.Elt = variadicElp.Elt
+		sliceType.Elt = variadicElmType
 		var eSliceType = &astExpr{}
 		eSliceType.dtype = "*astArrayType"
 		eSliceType.arrayType = sliceType
