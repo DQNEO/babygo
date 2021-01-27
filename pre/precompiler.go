@@ -10,6 +10,8 @@ import (
 )
 
 // --- foundation ---
+var __func__ = "__func__"
+
 func assert(bol bool, msg string) {
 	if !bol {
 		panic(msg)
@@ -20,8 +22,6 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
 
-var __func__ string = "__func__"
-
 func panic2(caller string, x string) {
 	panic("[" + caller + "] " + x)
 }
@@ -31,17 +31,15 @@ func fmtSprintf(format string, a []string) string {
 	var buf []uint8
 	var inPercent bool
 	var argIndex int
-	var c uint8
-	for _, c = range []uint8(format) {
+	for _, c := range []uint8(format) {
 		if inPercent {
 			if c == '%' {
 				buf = append(buf, c)
 			} else {
-				var arg string = a[argIndex]
+				arg := a[argIndex]
 				argIndex++
-				var s string = arg // // p.printArg(arg, c)
-				var _c uint8
-				for _, _c = range []uint8(s) {
+				s := arg // // p.printArg(arg, c)
+				for _, _c := range []uint8(s) {
 					buf = append(buf, _c)
 				}
 			}

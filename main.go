@@ -4,6 +4,8 @@ import "syscall"
 import "os"
 
 // --- foundation ---
+var __func__ = "__func__"
+
 func assert(bol bool, msg string, caller string) {
 	if !bol {
 		panic2(caller, msg)
@@ -13,8 +15,6 @@ func assert(bol bool, msg string, caller string) {
 func throw(s string) {
 	panic(s)
 }
-
-var __func__ = "__func__"
 
 func panic2(caller string, x string) {
 	panic("[" + caller + "] " + x)
@@ -30,9 +30,9 @@ func fmtSprintf(format string, a []string) string {
 			if c == '%' {
 				buf = append(buf, c)
 			} else {
-				var arg = a[argIndex]
+				arg := a[argIndex]
 				argIndex++
-				var s = arg // // p.printArg(arg, c)
+				s := arg // // p.printArg(arg, c)
 				for _, _c := range []uint8(s) {
 					buf = append(buf, _c)
 				}
