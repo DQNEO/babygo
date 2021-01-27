@@ -1119,11 +1119,10 @@ func (p *parser) tryIdentOrType() *astExpr {
 		}
 	case "type":
 		p.next()
-		var _nil *astExpr
-		return _nil
+		return nil
 	}
-	var _nil *astExpr
-	return _nil
+
+	return nil
 }
 
 func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
