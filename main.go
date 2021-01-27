@@ -27,12 +27,12 @@ func logf(format string, a ...string) {
 		return
 	}
 	var f = "# " + format
-	var s = fmtSprintf(f, a)
+	var s = fmtSprintf(f, a...)
 	syscall.Write(1, []uint8(s))
 }
 
 // --- libs ---
-func fmtSprintf(format string, a []string) string {
+func fmtSprintf(format string, a...string) string {
 	var buf []uint8
 	var inPercent bool
 	var argIndex int
@@ -62,7 +62,7 @@ func fmtSprintf(format string, a []string) string {
 }
 
 func fmtPrintf(format string, a ...string) {
-	var s = fmtSprintf(format, a)
+	var s = fmtSprintf(format, a...)
 	syscall.Write(1, []uint8(s))
 }
 
@@ -917,7 +917,7 @@ func (p *parser) next() {
 
 func (p *parser) expect(tok string, who string) {
 	if p.tok.tok != tok {
-		var s = fmtSprintf("%s expected, but got %s", []string{tok, p.tok.tok})
+		var s = fmtSprintf("%s expected, but got %s", tok, p.tok.tok)
 		panic2(who, s)
 	}
 	logf(" [%s] consumed \"%s\"\n", who, p.tok.tok)
@@ -2307,7 +2307,7 @@ func emitComment(indent int, format string, a ...string) {
 		spaces = append(spaces, ' ')
 	}
 	var format2 = string(spaces) + "# " + format
-	var s = fmtSprintf(format2, a)
+	var s = fmtSprintf(format2, a...)
 	syscall.Write(1, []uint8(s))
 }
 
@@ -3319,8 +3319,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			switch e.binaryExpr.Op {
 			case "&&":
 				labelid++
-				var labelExitWithFalse = fmtSprintf(".L.%s.false", []string{Itoa(labelid)})
-				var labelExit = fmtSprintf(".L.%d.exit", []string{Itoa(labelid)})
+				var labelExitWithFalse = fmtSprintf(".L.%s.false", Itoa(labelid))
+				var labelExit = fmtSprintf(".L.%d.exit", Itoa(labelid))
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitPopBool("left")
 				fmtPrintf("  cmpq $1, %%rax\n")
@@ -3336,8 +3336,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 				fmtPrintf("  %s:\n", labelExit)
 			case "||":
 				labelid++
-				var labelExitWithTrue = fmtSprintf(".L.%d.true", []string{Itoa(labelid)})
-				var labelExit = fmtSprintf(".L.%d.exit", []string{Itoa(labelid)})
+				var labelExitWithTrue = fmtSprintf(".L.%d.true", Itoa(labelid))
+				var labelExit = fmtSprintf(".L.%d.exit", Itoa(labelid))
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitPopBool("left")
 				fmtPrintf("  cmpq $1, %%rax\n")
@@ -3463,8 +3463,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		fmtPrintf("  cmpq $1, %%rax\n")
 
 		labelid++
-		labelTypeAssertionEnd := fmtSprintf(".L.end_type_assertion.%d", []string{Itoa(labelid)})
-		labelElse := fmtSprintf(".L.unmatch.%d", []string{Itoa(labelid)})
+		labelTypeAssertionEnd := fmtSprintf(".L.end_type_assertion.%d", Itoa(labelid))
+		labelElse := fmtSprintf(".L.unmatch.%d", Itoa(labelid))
 		fmtPrintf("  jne %s # jmp if false\n", labelElse)
 
 		// if matched
@@ -3983,7 +3983,7 @@ func emitStmt(stmt *astStmt) {
 		emitStore(getTypeOfExpr(stmt.incDecStmt.X), true, false)
 	case "*astSwitchStmt":
 		labelid++
-		var labelEnd = fmtSprintf(".L.switch.%s.exit", []string{Itoa(labelid)})
+		var labelEnd = fmtSprintf(".L.switch.%s.exit", Itoa(labelid))
 		if stmt.switchStmt.Tag == nil {
 			panic2(__func__, "Omitted tag is not supported yet")
 		}
@@ -4042,7 +4042,7 @@ func emitStmt(stmt *astStmt) {
 		typeSwitch := stmt.typeSwitchStmt.node
 //		assert(ok, "should exist")
 		labelid++
-		labelEnd := fmtSprintf(".L.typeswitch.%d.exit", []string{Itoa(labelid)})
+		labelEnd := fmtSprintf(".L.typeswitch.%d.exit", Itoa(labelid))
 
 		// subjectVariable = subject
 		emitVariableAddr(typeSwitch.subjectVariable)
@@ -5014,7 +5014,7 @@ func registerStringLiteral(lit *astBasicLit) {
 		}
 	}
 
-	label := fmtSprintf(".%s.S%d", []string{pkg.name, Itoa(stringIndex)})
+	label := fmtSprintf(".%s.S%d", pkg.name, Itoa(stringIndex))
 	stringIndex++
 
 	sl := &sliteral{}
