@@ -4,14 +4,21 @@ import "os"
 import "syscall"
 
 // --- utils ---
-func write(s string) {
+func write(x interface{}) {
+	var s string
+	switch xx := x.(type) {
+	case int:
+		s = itoa(xx)
+	case string:
+		s = xx
+	}
 	var slc []uint8 = []uint8(s)
 	syscall.Write(1, slc)
 }
 
-func writeln(s string) {
-	var s2 string = s + "\n"
-	write(s2)
+func writeln(s interface{}) {
+	write(s)
+	write("\n")
 }
 
 func atoi(gs string) int {
@@ -92,26 +99,26 @@ func testConvertToInterface() {
 	var ifc interface{} = interface{}(7)
 	var i int
 	i , _ = ifc.(int)
-	writeln(itoa(i))
+	writeln(i)
 
 	// Implicit conversion to variable
 	var j int = 8
 	ifc = j
 	i , _ = ifc.(int)
-	writeln(itoa(i))
+	writeln(i)
 
 	// Implicit conversion to struct field
 	var k int = 9
 	var strct MyStruct
 	strct.ifc = k
 	i , _ = strct.ifc.(int)
-	writeln(itoa(i))
+	writeln(i)
 
 	// Implicit conversion to array element
 	var l int = 10
 	gefacearray[2] = l
 	i , _ = gefacearray[2].(int)
-	writeln(itoa(i))
+	writeln(i)
 
 	// Implicit conversion to struct literal
 	k = 11
@@ -121,7 +128,7 @@ func testConvertToInterface() {
 		ifc:    k,
 	}
 	i , _ = strct.ifc.(int)
-	writeln(itoa(i))
+	writeln(i)
 
 	// Implicit conversion to array literal
 	gefacearray = [3]interface{}{
@@ -130,7 +137,7 @@ func testConvertToInterface() {
 		12,
 	}
 	i , _ = gefacearray[2].(int)
-	writeln(itoa(i))
+	writeln(i)
 
 	// Implicit conversion to function call
 	l = 13
@@ -139,7 +146,7 @@ func testConvertToInterface() {
 	// Implicit conversion to return
 	ifc = returnInterface()
 	i , _ = ifc.(int)
-	writeln(itoa(i))
+	writeln(i)
 
 	// Implicit conversion to function call (vaargs)
 }
@@ -167,7 +174,7 @@ func testTypeSwitch() {
 	case int:
 		writeln("type is int")
 		var zzzzz = xxx // test inference of xxx
-		writeln(itoa(zzzzz))
+		writeln(zzzzz)
 	case string:
 		writeln("type is string")
 		writeln(xxx)
@@ -209,7 +216,7 @@ func testGetInterface() {
 	var ok bool
 	i, ok = x.(int)
 	if ok {
-		writeln(itoa(i))
+		writeln(i)
 	}
 }
 
@@ -219,7 +226,7 @@ func takeInterface(ifc interface{}) {
 	var ok bool
 	s, ok = ifc.(int)
 	if ok {
-		writeln(itoa(s))
+		writeln(s)
 	}
 }
 
@@ -352,7 +359,7 @@ func testForRangeShortDecl() {
 	}
 	writeln("")
 
-	writeln(itoa(i))
+	writeln(i)
 }
 
 var gi = 123 // int
@@ -369,7 +376,7 @@ func testInferVarTypes() {
 
 	var gslc = []int{1,2,3}
 
-	writeln(itoa(gi))
+	writeln(gi)
 	writeln(gs)
 	writeln(itoa(gslc[2]))
 	writeln(itoa(gstrctPtr.field2))
@@ -387,7 +394,7 @@ var gPointer *MyStruct = &MyStruct{
 var gChar uint8 = 'A'
 
 func testGlobalValues() {
-	writeln(itoa(gInt))
+	writeln(gInt)
 	if gBool {
 		writeln("gBool is true")
 	}
@@ -398,21 +405,21 @@ func testGlobalValues() {
 
 func testShortVarDecl() {
 	x := 123
-	writeln(itoa(x))
+	writeln(x)
 
 	var p = &MyStruct{
 		field1: 10,
 	}
 
 	f1 := p.getField1() // infer method return type
-	writeln(itoa(f1))
+	writeln(f1)
 
 	s := "infer string literal"
 	writeln(s)
 
 	i := 3 + 5
 	j := i
-	writeln(itoa(j))
+	writeln(j)
 }
 
 func testStructPointerMethods() {
@@ -421,7 +428,7 @@ func testStructPointerMethods() {
 	}
 
 	var f1 = p.getField1() // infer method return type
-	writeln(itoa(f1))
+	writeln(f1)
 	p.setField1(20)
 	writeln(itoa(p.getField1()))
 }
@@ -487,7 +494,7 @@ func (x MyAnotherType) add10() int {
 func testMethodAnother() {
 	var x MyAnotherType = 10
 	var y int = x.add10()
-	writeln(itoa(y))
+	writeln(y)
 }
 
 type MyType int
@@ -632,11 +639,11 @@ const O_READONLY_ int = 0
 func testOpenRead() {
 	var fd int
 	fd, _ = syscall.Open("t/text.txt", O_READONLY_, 0)
-	writeln(itoa(fd)) // should be 3
+	writeln(fd) // should be 3
 	var buf []uint8 = make([]uint8, 300, 300)
 	var n int
 	n, _ = syscall.Read(fd, buf)
-	writeln(itoa(n)) // should be 280
+	writeln(n) // should be 280
 	var readbytes []uint8 = buf[0:n]
 	writeln(string(readbytes))
 }
@@ -647,7 +654,7 @@ func testInfer() {
 
 	var i = 3 + 5
 	var j = i
-	writeln(itoa(j))
+	writeln(j)
 }
 
 func testEscapedChar() {
