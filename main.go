@@ -772,13 +772,6 @@ type astRangeStmt struct {
 	Tok       string
 }
 
-// Declarations
-type astSpec struct {
-	dtype     string
-	valueSpec *astValueSpec
-	typeSpec  *astTypeSpec
-}
-
 type astImportSpec struct {
 	Path string
 }
@@ -799,8 +792,10 @@ type astTypeSpec struct {
 type astDecl interface {
 }
 
+type astSpec interface{}
+
 type astGenDecl struct {
-	Spec *astSpec
+	Spec astSpec // *astValueSpec | *TypeSpec
 }
 
 type astFuncDecl struct {
@@ -2116,12 +2111,9 @@ func (p *parser) parseDecl(keyword string) *astGenDecl {
 		valSpec.Name = ident
 		valSpec.Type = typ
 		valSpec.Value = value
-		var spec = &astSpec{}
-		spec.dtype = "*astValueSpec"
-		spec.valueSpec = valSpec
 		declare(valSpec, p.topScope, astVar, ident)
 		r = &astGenDecl{}
-		r.Spec = spec
+		r.Spec = valSpec
 		return r
 	default:
 		panic2(__func__, "TBI\n")
@@ -2129,7 +2121,7 @@ func (p *parser) parseDecl(keyword string) *astGenDecl {
 	return r
 }
 
-func (p *parser) parserTypeSpec() *astSpec {
+func (p *parser) parserTypeSpec() *astTypeSpec {
 	logf(" [%s] start\n", __func__)
 	p.expect("type", __func__)
 	var ident = p.parseIdent()
@@ -2141,13 +2133,10 @@ func (p *parser) parserTypeSpec() *astSpec {
 	var typ = p.parseType()
 	p.expectSemi(__func__)
 	spec.Type = typ
-	var r = &astSpec{}
-	r.dtype = "*astTypeSpec"
-	r.typeSpec = spec
-	return r
+	return spec
 }
 
-func (p *parser) parseValueSpec(keyword string) *astSpec {
+func (p *parser) parseValueSpec(keyword string) *astValueSpec {
 	logf(" [parserValueSpec] start\n")
 	p.expect(keyword, __func__)
 	var ident = p.parseIdent()
@@ -2163,16 +2152,13 @@ func (p *parser) parseValueSpec(keyword string) *astSpec {
 	spec.Name = ident
 	spec.Type = typ
 	spec.Value = value
-	var r = &astSpec{}
-	r.dtype = "*astValueSpec"
-	r.valueSpec = spec
 	var kind = astCon
 	if keyword == "var" {
 		kind = astVar
 	}
 	declare(spec, p.topScope, kind, ident)
 	logf(" [parserValueSpec] end\n")
-	return r
+	return spec
 }
 
 func (p *parser) parseFuncDecl() astDecl {
@@ -3753,7 +3739,10 @@ func emitStmt(stmt *astStmt) {
 			panic2(__func__, "[*astDeclStmt] internal error")
 		}
 
-		var valSpec = genDecl.Spec.valueSpec
+		var valSpec *astValueSpec
+		var ok bool
+		valSpec, ok = genDecl.Spec.(*astValueSpec)
+		assert(ok, "should be ok", __func__)
 		var t = e2t(valSpec.Type)
 		var ident = valSpec.Name
 		var lhs = &astExpr{}
@@ -5156,8 +5145,8 @@ func walkStmt(stmt *astStmt) {
 		if !ok {
 			panic2(__func__, "[dcl.dtype] internal error")
 		}
-
-		var valSpec = genDecl.Spec.valueSpec
+		var valSpec *astValueSpec
+		valSpec, ok = genDecl.Spec.(*astValueSpec)
 		if valSpec.Type == nil {
 			if valSpec.Value == nil {
 				panic2(__func__, "type inference requires a value")
@@ -5421,11 +5410,10 @@ func walk(pkg *PkgContainer, file *astFile) {
 	for _, decl := range file.Decls {
 		switch dcl := decl.(type) {
 		case *astGenDecl:
-			switch dcl.Spec.dtype {
-			case "*astTypeSpec":
-				typeSpecs = append(typeSpecs, dcl.Spec.typeSpec)
-			case "*astValueSpec":
-				var spec = dcl.Spec.valueSpec
+			switch spec := dcl.Spec.(type) {
+			case *astTypeSpec:
+				typeSpecs = append(typeSpecs, spec)
+			case *astValueSpec:
 				if spec.Name.Obj.Kind == astVar {
 					varSpecs = append(varSpecs, spec)
 				} else if spec.Name.Obj.Kind == astCon {
