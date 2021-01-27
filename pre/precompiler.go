@@ -649,16 +649,17 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr) []
 	var args []*Arg
 	params := funcType.Params.List
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
-	var variadicElp *ast.Ellipsis
+	var variadicElmType ast.Expr
 	var argIndex int
 	var eArg ast.Expr
 	var param *ast.Field
+	lenParams := len(params)
 	for argIndex, eArg = range eArgs {
-		if argIndex < len(params) {
+		if argIndex < lenParams {
 			param = params[argIndex]
 			elp, ok := param.Type.(*ast.Ellipsis)
 			if ok {
-				variadicElp = elp
+				variadicElmType = elp.Elt
 				variadicArgs = make([]ast.Expr, 0)
 			}
 		}
@@ -677,14 +678,14 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr) []
 
 	if variadicArgs != nil {
 		// collect args as a slice
-		sliceType := &ast.ArrayType{Elt: variadicElp.Elt}
-		sliceLiteral := &ast.CompositeLit{
+		sliceType := &ast.ArrayType{Elt: variadicElmType}
+		vargsSliceWrapper := &ast.CompositeLit{
 			Type:       sliceType,
 			Elts:       variadicArgs,
 		}
 		args = append(args, &Arg{
-			e:      sliceLiteral,
-			t:      e2t(sliceType),
+			e: vargsSliceWrapper,
+			t: e2t(sliceType),
 		})
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
