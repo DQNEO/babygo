@@ -4770,11 +4770,14 @@ func getStructTypeOfX(e *astSelectorExpr) *Type {
 func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
-		var arrayType = t.e.arrayType
-		if arrayType == nil {
-			panic2(__func__, "should not be nil")
-		}
-		return e2t(arrayType.Elt)
+		switch t.e.dtype {
+	case "*astArrayType":
+		return e2t(t.e.arrayType.Elt)
+	case "*astEllipsis":
+		return e2t(t.e.ellipsis.Elt)
+	default:
+		throw(t.e.dtype)
+	}
 	case T_STRING:
 		return tUint8
 	default:

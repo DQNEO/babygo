@@ -90,11 +90,14 @@ func nop1() {
 // --- test funcs ---
 func takeInterfaceVaargs(a...interface{}) {
 	writeln(len(a))
+	for _, ifc := range a {
+		writeln(ifc)
+	}
 }
 
 func testInterfaceVaargs() {
-	var i =  1
-	var s = "s"
+	var i = 1419
+	var s = "s1419"
 	takeInterfaceVaargs(i, s)
 }
 
