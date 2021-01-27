@@ -81,13 +81,30 @@ func Sprintf(format string, a []string) string {
 }
 
 
-func nop() {
-}
-
-func nop1() {
-}
+func nop() {}
+func nop1() {}
+func nop2() {}
 
 // --- test funcs ---
+func passVargs(a... interface{}) {
+	takeInterfaceVaargs(a...)
+}
+
+func takeStringVaargs(a...string) {
+	writeln(len(a))
+	for _, s := range a {
+		writeln(s)
+	}
+}
+
+func testExpandSlice() {
+	var slicexxx = []interface{}{2,4,6}
+	nop()
+	passVargs(slicexxx...)
+
+	takeStringVaargs("foo", "bar", "buz")
+}
+
 var gArrayForFullSlice [3]int
 func testFullSlice() {
 	gArrayForFullSlice = [3]int{
@@ -266,7 +283,6 @@ func takeInterface(ifc interface{}) {
 func testPassInterface() {
 	var s int = 1537
 	var ifc interface{} = s
-	nop()
 	takeInterface(ifc)
 }
 
@@ -292,9 +308,7 @@ func testInterfaceAssertion() {
 	var j int
 	j = ifc.(int)
 	write(itoa(j))
-	nop()
 	_, ok = ifc.(int) // error!!!
-	nop1()
 	if ok {
 		writeln("ok")
 	} else {
@@ -1761,6 +1775,7 @@ func testMisc() {
 }
 
 func test() {
+	testExpandSlice()
 	testFullSlice()
 	testInterfaceVaargs()
 	testConvertToInterface()

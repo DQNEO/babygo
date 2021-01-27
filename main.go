@@ -605,8 +605,9 @@ type astSliceExpr struct {
 }
 
 type astCallExpr struct {
-	Fun  *astExpr   // function expression
-	Args []*astExpr // function arguments; or nil
+	Fun      *astExpr   // function expression
+	Args     []*astExpr // function arguments; or nil
+	Ellipsis bool
 }
 
 type astStarExpr struct {
@@ -1371,6 +1372,7 @@ func (p *parser) parseCallExpr(fn *astExpr) *astExpr {
 	p.expect("(", __func__)
 	logf(" [parsePrimaryExpr] p.tok.tok=%s\n", p.tok.tok)
 	var list []*astExpr
+	var ellipsis bool
 	for p.tok.tok != ")" {
 		var arg = p.parseExpr()
 		list = append(list, arg)
@@ -1378,14 +1380,25 @@ func (p *parser) parseCallExpr(fn *astExpr) *astExpr {
 			p.next()
 		} else if p.tok.tok == ")" {
 			break
+		} else if p.tok.tok == "..." {
+			// f(a, b, c...)
+			//          ^ this
+			break
 		}
 	}
+
+	if p.tok.tok == "..." {
+		p.next()
+		ellipsis = true
+	}
+
 	p.expect(")", __func__)
 	return &astExpr{
 		dtype:    "*astCallExpr",
 		callExpr: &astCallExpr{
 			Fun:  fn,
 			Args: list,
+			Ellipsis: ellipsis,
 		},
 	}
 }
@@ -2781,7 +2794,7 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
-func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*Arg {
+func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr, expandElipsis bool) []*Arg {
 	if funcType == nil {
 		panic("no funcType")
 	}
@@ -2801,7 +2814,7 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*
 				variadicArgs = make([]*astExpr, 0, 20)
 			}
 		}
-		if variadicElmType != nil {
+		if variadicElmType != nil && !expandElipsis {
 			variadicArgs = append(variadicArgs, eArg)
 			continue
 		}
@@ -2813,7 +2826,7 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr) []*
 		args = append(args, arg)
 	}
 
-	if variadicElmType != nil {
+	if variadicElmType != nil && !expandElipsis {
 		// collect args as a slice
 		var sliceType = &astArrayType{}
 		sliceType.Elt = variadicElmType
@@ -2901,7 +2914,7 @@ func emitReturnedValue(resultList []*astField) {
 	}
 }
 
-func emitFuncall(fun *astExpr, eArgs []*astExpr) {
+func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 	var symbol string
 	var receiver *astExpr
 	var funcType *astFuncType
@@ -3079,7 +3092,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr) {
 		panic2(__func__, "TBI fun.dtype="+fun.dtype)
 	}
 
-	var args = prepareArgs(funcType, receiver, eArgs)
+	var args = prepareArgs(funcType, receiver, eArgs, hasEllissis)
 	var resultList []*astField
 	if funcType.Results != nil {
 		resultList = funcType.Results.List
@@ -3169,7 +3182,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		if isType(fun) {
 			emitConversion(e2t(fun), e.callExpr.Args[0])
 		} else {
-			emitFuncall(fun, e.callExpr.Args)
+			emitFuncall(fun, e.callExpr.Args, e.callExpr.Ellipsis)
 		}
 	case "*astParenExpr":
 		emitExpr(e.parenExpr.X, ctx)
