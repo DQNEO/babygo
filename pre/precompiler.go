@@ -1280,16 +1280,42 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 	case *ast.SliceExpr: // 1 value list[low:high]
 		list := e.X
 		listType := getTypeOfExpr(list)
-		emitExpr(e.High, nil) // intval
-		emitExpr(e.Low, nil)  // intval
-		fmtPrintf("  popq %%rcx # low\n")
-		fmtPrintf("  popq %%rax # high\n")
-		fmtPrintf("  subq %%rcx, %%rax # high - low\n")
+
 		switch kind(listType) {
 		case T_SLICE, T_ARRAY:
-			fmtPrintf("  pushq %%rax # cap\n")
-			fmtPrintf("  pushq %%rax # len\n")
+			// len = high - low
+			if e.Max == nil {
+				// cap = len = high = low
+				emitExpr(e.High, nil) // intval
+				emitExpr(e.Low, nil)  // intval
+				fmtPrintf("  popq %%rcx # low\n")
+				fmtPrintf("  popq %%rax # high\n")
+				fmtPrintf("  subq %%rcx, %%rax # high - low\n")
+				fmtPrintf("  pushq %%rax # cap\n")
+				fmtPrintf("  pushq %%rax # len\n")
+			} else {
+				// cap = max - low
+				emitExpr(e.Max, nil) // intval
+				emitExpr(e.Low, nil)  // intval
+				fmtPrintf("  popq %%rcx # low\n")
+				fmtPrintf("  popq %%rax # high\n")
+				fmtPrintf("  subq %%rcx, %%rax # max - low\n")
+				fmtPrintf("  pushq %%rax # cap\n")
+				// len = high - low
+				emitExpr(e.High, nil) // intval
+				emitExpr(e.Low, nil)  // intval
+				fmtPrintf("  popq %%rcx # low\n")
+				fmtPrintf("  popq %%rax # high\n")
+				fmtPrintf("  subq %%rcx, %%rax # high - low\n")
+				fmtPrintf("  pushq %%rax # len\n")
+			}
 		case T_STRING:
+			// len = high - low
+			emitExpr(e.High, nil) // intval
+			emitExpr(e.Low, nil)  // intval
+			fmtPrintf("  popq %%rcx # low\n")
+			fmtPrintf("  popq %%rax # high\n")
+			fmtPrintf("  subq %%rcx, %%rax # high - low\n")
 			fmtPrintf("  pushq %%rax # len\n")
 			// no cap
 		default:
