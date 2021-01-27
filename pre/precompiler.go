@@ -28,7 +28,7 @@ func panic2(caller string, x string) {
 
 var debugFrontEnd bool = true
 
-func logf(format string, a ...string) {
+func logf(format string, a ...interface{}) {
 	if !debugFrontEnd {
 		return
 	}
@@ -38,7 +38,7 @@ func logf(format string, a ...string) {
 }
 
 // --- libs ---
-func fmtSprintf(format string, a []string) string {
+func fmtSprintf(format string, a []interface{}) string {
 	var buf []uint8
 	var inPercent bool
 	var argIndex int
@@ -48,9 +48,15 @@ func fmtSprintf(format string, a []string) string {
 				buf = append(buf, c)
 			} else {
 				arg := a[argIndex]
+				var str string
+				switch _arg := arg.(type) {
+				case string:
+					str = _arg
+				case int:
+					str = Itoa(_arg)
+				}
 				argIndex++
-				s := arg // // p.printArg(arg, c)
-				for _, _c := range []uint8(s) {
+				for _, _c := range []uint8(str) {
 					buf = append(buf, _c)
 				}
 			}
@@ -67,7 +73,7 @@ func fmtSprintf(format string, a []string) string {
 	return string(buf)
 }
 
-func fmtPrintf(format string, a ...string) {
+func fmtPrintf(format string, a ...interface{}) {
 	var s = fmtSprintf(format, a)
 	syscall.Write(1, []uint8(s))
 }
