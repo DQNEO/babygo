@@ -1,0 +1,4 @@
+#!/bin/bash
+
+diff -u main.go pre/precompiler.go
+
