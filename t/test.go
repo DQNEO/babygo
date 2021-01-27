@@ -88,6 +88,19 @@ func nop1() {
 }
 
 // --- test funcs ---
+func takeInterfaceVaargs(a...interface{}) {
+	writeln(len(a))
+	for _, ifc := range a {
+		writeln(ifc)
+	}
+}
+
+func testInterfaceVaargs() {
+	var i = 1419
+	var s = "s1419"
+	takeInterfaceVaargs(i, s)
+}
+
 var gefacearray [3]interface{}
 
 func returnInterface() interface{} {
@@ -1728,6 +1741,7 @@ func testMisc() {
 }
 
 func test() {
+	testInterfaceVaargs()
 	testConvertToInterface()
 	testTypeSwitch()
 	testGetInterface()

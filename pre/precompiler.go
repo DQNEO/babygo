@@ -590,6 +590,7 @@ type Arg struct {
 }
 
 func emitArgs(args []*Arg) int {
+	emitComment(2, "emitArgs len=%s\n", Itoa(len(args)))
 	var totalPushedSize int
 	for _, arg := range args {
 		var t *Type
@@ -647,7 +648,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr) []
 	}
 	var args []*Arg
 	params := funcType.Params.List
-	var variadicArgs []ast.Expr // nil means there is no varadic in funcdecl
+	var variadicArgs []ast.Expr // nil means there is no variadic in func params
 	var variadicElp *ast.Ellipsis
 	var argIndex int
 	var eArg ast.Expr
@@ -679,10 +680,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr) []
 		sliceType := &ast.ArrayType{Elt: variadicElp.Elt}
 		sliceLiteral := &ast.CompositeLit{
 			Type:       sliceType,
-			Lbrace:     0,
 			Elts:       variadicArgs,
-			Rbrace:     0,
-			Incomplete: false,
 		}
 		args = append(args, &Arg{
 			e:      sliceLiteral,
@@ -2669,9 +2667,14 @@ func getStructTypeOfX(e *ast.SelectorExpr) *Type {
 func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
-		arrayType, ok := t.e.(*ast.ArrayType)
-		assert(ok, "expect *ast.ArrayType")
-		return e2t(arrayType.Elt)
+		switch tt := t.e.(type) {
+		case *ast.ArrayType:
+			return e2t(tt.Elt)
+		case *ast.Ellipsis:
+			return e2t(tt.Elt)
+		default:
+			throw(t.e)
+		}
 	case T_STRING:
 		return tUint8
 	default:
