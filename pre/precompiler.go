@@ -642,7 +642,7 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
-func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr) []*Arg {
+func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, expandElipsis bool) []*Arg {
 	if funcType == nil {
 		panic("no funcType")
 	}
@@ -661,9 +661,9 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr) []
 			if ok {
 				variadicElmType = elp.Elt
 				variadicArgs = make([]ast.Expr, 0)
-			}
+ 			}
 		}
-		if variadicArgs != nil {
+		if variadicArgs != nil && !expandElipsis {
 			variadicArgs = append(variadicArgs, eArg)
 			continue
 		}
@@ -676,7 +676,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr) []
 		args = append(args, arg)
 	}
 
-	if variadicArgs != nil {
+	if variadicArgs != nil && !expandElipsis {
 		// collect args as a slice
 		sliceType := &ast.ArrayType{Elt: variadicElmType}
 		vargsSliceWrapper := &ast.CompositeLit{
@@ -749,7 +749,7 @@ func emitReturnedValue(resultList []*ast.Field) {
 	}
 }
 
-func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
+func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 	var funcType *ast.FuncType
 	var symbol string
 	var receiver ast.Expr
@@ -882,7 +882,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
 			fn.Name = "makeSlice"
 		}
-
 		// general function call
 		symbol = getFuncSymbol(pkg.name, fn.Name)
 		obj := fn.Obj //.Kind == FN
@@ -925,7 +924,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr) {
 		throw(fun)
 	}
 
-	args := prepareArgs(funcType, receiver, eArgs)
+	args := prepareArgs(funcType, receiver, eArgs, hasEllissis)
 	var resultList []*ast.Field
 	if funcType.Results != nil {
 		resultList = funcType.Results.List
@@ -1044,7 +1043,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		if isType(fun) {
 			emitConversion(e2t(fun), e.Args[0])
 		} else {
-			emitFuncall(fun, e.Args)
+			emitFuncall(fun, e.Args, e.Ellipsis != token.NoPos)
 		}
 	case *ast.ParenExpr: // multi values (e)
 		emitExpr(e.X, ctx)
