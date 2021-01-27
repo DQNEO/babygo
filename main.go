@@ -20,6 +20,17 @@ func panic2(caller string, x string) {
 	panic("[" + caller + "] " + x)
 }
 
+var debugFrontEnd bool
+
+func logf(format string, a ...string) {
+	if !debugFrontEnd {
+		return
+	}
+	var f = "# " + format
+	var s = fmtSprintf(f, a)
+	syscall.Write(1, []uint8(s))
+}
+
 // --- libs ---
 func fmtSprintf(format string, a []string) string {
 	var buf []uint8
@@ -128,17 +139,6 @@ func inArray(x string, list []string) bool {
 		}
 	}
 	return false
-}
-
-var debugFrontEnd bool
-
-func logf(format string, a ...string) {
-	if !debugFrontEnd {
-		return
-	}
-	var f = "# " + format
-	var s = fmtSprintf(f, a)
-	syscall.Write(1, []uint8(s))
 }
 
 // --- scanner ---

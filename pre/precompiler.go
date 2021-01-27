@@ -26,6 +26,17 @@ func panic2(caller string, x string) {
 	panic("[" + caller + "] " + x)
 }
 
+var debugFrontEnd bool = true
+
+func logf(format string, a ...string) {
+	if !debugFrontEnd {
+		return
+	}
+	var f = "# " + format
+	var s = fmtSprintf(f, a)
+	syscall.Write(1, []uint8(s))
+}
+
 // --- libs ---
 func fmtSprintf(format string, a []string) string {
 	var buf []uint8
@@ -57,7 +68,7 @@ func fmtSprintf(format string, a []string) string {
 }
 
 func fmtPrintf(format string, a ...string) {
-	var s string = fmtSprintf(format, a)
+	var s = fmtSprintf(format, a)
 	syscall.Write(1, []uint8(s))
 }
 
@@ -65,11 +76,10 @@ func Atoi(gs string) int {
 	if len(gs) == 0 {
 		return 0
 	}
-	var b uint8
 	var n int
 
 	var isMinus bool
-	for _, b = range []uint8(gs) {
+	for _, b := range []uint8(gs) {
 		if b == '.' {
 			return -999 // @FIXME all no number should return error
 		}
@@ -98,7 +108,7 @@ func Itoa(ival int) string {
 
 	var next int
 	var right int
-	var ix int = 0
+	var ix = 0
 	var minus bool
 	minus = false
 	for ix = 0; ival != 0; ix = ix + 1 {
@@ -129,17 +139,6 @@ func Itoa(ival int) string {
 }
 
 // --- parser ---
-var debugFrontEnd bool = true
-
-func logf(format string, a ...string) {
-	if !debugFrontEnd {
-		return
-	}
-	var f = "# " + format
-	var s = fmtSprintf(f, a)
-	syscall.Write(1, []uint8(s))
-}
-
 func parseFile(fset *token.FileSet, filename string) *ast.File {
 	f, err := parser.ParseFile(fset, filename, nil, 0)
 	if err != nil {
