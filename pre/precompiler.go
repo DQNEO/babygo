@@ -36,12 +36,12 @@ func logf(format string, a ...interface{}) {
 		return
 	}
 	var f = "# " + format
-	var s = fmtSprintf(f, a)
+	var s = fmtSprintf(f, a...)
 	syscall.Write(1, []uint8(s))
 }
 
 // --- libs ---
-func fmtSprintf(format string, a []interface{}) string {
+func fmtSprintf(format string, a...interface{}) string {
 	var buf []uint8
 	var inPercent bool
 	var argIndex int
@@ -77,7 +77,7 @@ func fmtSprintf(format string, a []interface{}) string {
 }
 
 func fmtPrintf(format string, a ...interface{}) {
-	var s = fmtSprintf(format, a)
+	var s = fmtSprintf(format, a...)
 	syscall.Write(1, []uint8(s))
 }
 
