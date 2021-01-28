@@ -22,40 +22,6 @@ func writeln(s interface{}) {
 	write("\n")
 }
 
-func fmtSprintf(format string, a...interface{}) string {
-	var buf []uint8
-	var inPercent bool
-	var argIndex int
-	for _, c := range []uint8(format) {
-		if inPercent {
-			if c == '%' {
-				buf = append(buf, c)
-			} else {
-				arg := a[argIndex]
-				var str string
-				switch _arg := arg.(type) {
-				case string:
-					str = _arg
-				case int:
-					str = mylib.Itoa(_arg)
-				}
-				argIndex++
-				for _, _c := range []uint8(str) {
-					buf = append(buf, _c)
-				}
-			}
-			inPercent = false
-		} else {
-			if c == '%' {
-				inPercent = true
-			} else {
-				buf = append(buf, c)
-			}
-		}
-	}
-
-	return string(buf)
-}
 
 
 func nop() {}
@@ -646,7 +612,7 @@ func testIsLetter() {
 }
 
 func funcVaarg1(f string, a ...interface{}) {
-	write(fmtSprintf(f, a...))
+	write(mylib.Sprintf(f, a...))
 }
 
 func funcVaarg2(a int, b ...int) {
@@ -1032,10 +998,10 @@ func testSprintf() {
 	a[0] = 1234
 	a[1] = "c"
 	a[2] = "efg"
-	var s string = fmtSprintf("%sab%sd%s", a...)
+	var s string = mylib.Sprintf("%sab%sd%s", a...)
 	write(s)
 
-	var s2 string = fmtSprintf("%%rax")
+	var s2 string = mylib.Sprintf("%%rax")
 	write(s2)
 	write("|\n")
 }

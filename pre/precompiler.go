@@ -36,48 +36,13 @@ func logf(format string, a ...interface{}) {
 		return
 	}
 	var f = "# " + format
-	var s = fmtSprintf(f, a...)
+	var s = mylib.Sprintf(f, a...)
 	syscall.Write(1, []uint8(s))
 }
 
 // --- libs ---
-func fmtSprintf(format string, a...interface{}) string {
-	var buf []uint8
-	var inPercent bool
-	var argIndex int
-	for _, c := range []uint8(format) {
-		if inPercent {
-			if c == '%' {
-				buf = append(buf, c)
-			} else {
-				arg := a[argIndex]
-				var str string
-				switch _arg := arg.(type) {
-				case string:
-					str = _arg
-				case int:
-					str = mylib.Itoa(_arg)
-				}
-				argIndex++
-				for _, _c := range []uint8(str) {
-					buf = append(buf, _c)
-				}
-			}
-			inPercent = false
-		} else {
-			if c == '%' {
-				inPercent = true
-			} else {
-				buf = append(buf, c)
-			}
-		}
-	}
-
-	return string(buf)
-}
-
 func fmtPrintf(format string, a ...interface{}) {
-	var s = fmtSprintf(format, a...)
+	var s = mylib.Sprintf(format, a...)
 	syscall.Write(1, []uint8(s))
 }
 

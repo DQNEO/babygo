@@ -28,48 +28,13 @@ func logf(format string, a ...interface{}) {
 		return
 	}
 	var f = "# " + format
-	var s = fmtSprintf(f, a...)
+	var s = mylib.Sprintf(f, a...)
 	syscall.Write(1, []uint8(s))
 }
 
 // --- libs ---
-func fmtSprintf(format string, a...interface{}) string {
-	var buf []uint8
-	var inPercent bool
-	var argIndex int
-	for _, c := range []uint8(format) {
-		if inPercent {
-			if c == '%' {
-				buf = append(buf, c)
-			} else {
-				arg := a[argIndex]
-				var str string
-				switch _arg := arg.(type) {
-				case string:
-					str = _arg
-				case int:
-					str = mylib.Itoa(_arg)
-				}
-				argIndex++
-				for _, _c := range []uint8(str) {
-					buf = append(buf, _c)
-				}
-			}
-			inPercent = false
-		} else {
-			if c == '%' {
-				inPercent = true
-			} else {
-				buf = append(buf, c)
-			}
-		}
-	}
-
-	return string(buf)
-}
-
 func fmtPrintf(format string, a ...interface{}) {
-	var s = fmtSprintf(format, a...)
+	var s = mylib.Sprintf(format, a...)
 	syscall.Write(1, []uint8(s))
 }
 
@@ -860,7 +825,7 @@ func (p *parser) next() {
 
 func (p *parser) expect(tok string, who string) {
 	if p.tok.tok != tok {
-		var s = fmtSprintf("%s expected, but got %s", tok, p.tok.tok)
+		var s = mylib.Sprintf("%s expected, but got %s", tok, p.tok.tok)
 		panic2(who, s)
 	}
 	logf(" [%s] consumed \"%s\"\n", who, p.tok.tok)
@@ -2207,7 +2172,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 		spaces = append(spaces, ' ')
 	}
 	var format2 = string(spaces) + "# " + format
-	var s = fmtSprintf(format2, a...)
+	var s = mylib.Sprintf(format2, a...)
 	syscall.Write(1, []uint8(s))
 }
 
@@ -3230,8 +3195,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			switch e.binaryExpr.Op {
 			case "&&":
 				labelid++
-				var labelExitWithFalse = fmtSprintf(".L.%s.false", mylib.Itoa(labelid))
-				var labelExit = fmtSprintf(".L.%d.exit", mylib.Itoa(labelid))
+				var labelExitWithFalse = mylib.Sprintf(".L.%s.false", mylib.Itoa(labelid))
+				var labelExit = mylib.Sprintf(".L.%d.exit", mylib.Itoa(labelid))
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitPopBool("left")
 				fmtPrintf("  cmpq $1, %%rax\n")
@@ -3247,8 +3212,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 				fmtPrintf("  %s:\n", labelExit)
 			case "||":
 				labelid++
-				var labelExitWithTrue = fmtSprintf(".L.%d.true", mylib.Itoa(labelid))
-				var labelExit = fmtSprintf(".L.%d.exit", mylib.Itoa(labelid))
+				var labelExitWithTrue = mylib.Sprintf(".L.%d.true", mylib.Itoa(labelid))
+				var labelExit = mylib.Sprintf(".L.%d.exit", mylib.Itoa(labelid))
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitPopBool("left")
 				fmtPrintf("  cmpq $1, %%rax\n")
@@ -3374,8 +3339,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		fmtPrintf("  cmpq $1, %%rax\n")
 
 		labelid++
-		labelTypeAssertionEnd := fmtSprintf(".L.end_type_assertion.%d", mylib.Itoa(labelid))
-		labelElse := fmtSprintf(".L.unmatch.%d", mylib.Itoa(labelid))
+		labelTypeAssertionEnd := mylib.Sprintf(".L.end_type_assertion.%d", mylib.Itoa(labelid))
+		labelElse := mylib.Sprintf(".L.unmatch.%d", mylib.Itoa(labelid))
 		fmtPrintf("  jne %s # jmp if false\n", labelElse)
 
 		// if matched
@@ -3897,7 +3862,7 @@ func emitStmt(stmt *astStmt) {
 		emitStore(getTypeOfExpr(stmt.incDecStmt.X), true, false)
 	case "*astSwitchStmt":
 		labelid++
-		var labelEnd = fmtSprintf(".L.switch.%s.exit", mylib.Itoa(labelid))
+		var labelEnd = mylib.Sprintf(".L.switch.%s.exit", mylib.Itoa(labelid))
 		if stmt.switchStmt.Tag == nil {
 			panic2(__func__, "Omitted tag is not supported yet")
 		}
@@ -3956,7 +3921,7 @@ func emitStmt(stmt *astStmt) {
 		typeSwitch := stmt.typeSwitchStmt.node
 //		assert(ok, "should exist")
 		labelid++
-		labelEnd := fmtSprintf(".L.typeswitch.%d.exit", mylib.Itoa(labelid))
+		labelEnd := mylib.Sprintf(".L.typeswitch.%d.exit", mylib.Itoa(labelid))
 
 		// subjectVariable = subject
 		emitVariableAddr(typeSwitch.subjectVariable)
@@ -4945,7 +4910,7 @@ func registerStringLiteral(lit *astBasicLit) {
 		}
 	}
 
-	label := fmtSprintf(".%s.S%d", pkg.name, mylib.Itoa(stringIndex))
+	label := mylib.Sprintf(".%s.S%d", pkg.name, mylib.Itoa(stringIndex))
 	stringIndex++
 
 	sl := &sliteral{}
