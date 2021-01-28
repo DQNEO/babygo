@@ -2505,6 +2505,11 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		}
 	case *ast.SliceExpr:
 		underlyingCollectionType := getTypeOfExpr(e.X)
+		if kind(underlyingCollectionType) == T_STRING {
+			// str2 = str1[n:m]
+			return tString
+		}
+
 		var elementTyp ast.Expr
 		switch colType := underlyingCollectionType.e.(type) {
 		case *ast.ArrayType:
@@ -2597,6 +2602,9 @@ func serializeType(t *Type) string {
 		return "struct"
 	case *ast.ArrayType:
 		if e.Len == nil {
+			if e.Elt == nil {
+				panic(e)
+			}
 			return "[]" + serializeType(e2t(e.Elt))
 		} else {
 			return "[" + Itoa(evalInt(e.Len)) + "]" + serializeType(e2t(e.Elt))
