@@ -26,11 +26,10 @@ func atoi(gs string) int {
 	if len(gs) == 0 {
 		return 0
 	}
-	var b uint8
 	var n int
 
 	var isMinus bool
-	for _, b = range []uint8(gs) {
+	for _, b := range []uint8(gs) {
 		if b == '.' {
 			return -999 // @FIXME all no number should return error
 		}
@@ -1503,12 +1502,12 @@ func itoa(ival int) string {
 		return "0"
 	}
 
-	var buf []uint8 = make([]uint8, 100, 100)
-	var r []uint8 = make([]uint8, 100, 100)
+	var buf = make([]uint8, 100, 100)
+	var r = make([]uint8, 100, 100)
 
 	var next int
 	var right int
-	var ix int = 0
+	var ix = 0
 	var minus bool
 	minus = false
 	for ix = 0; ival != 0; ix = ix + 1 {
