@@ -5828,14 +5828,13 @@ func Base(path string) string {
 	}
 
 	found := LastIndexByte(path, '/')
-
 	if found == -1 {
 		// not found
 		return path
 	}
 
 	_len := len(path)
-	var r string = path[found+1:_len]
+	r := path[found+1:_len]
 	return r
 }
 
