@@ -852,6 +852,9 @@ func readFile(filename string) []uint8 {
 	var fd int
 	// @TODO check error
 	fd, _ = syscall.Open(filename, O_READONLY, 0)
+	if fd < 0 {
+		panic("syscall.Open failed: " + filename)
+	}
 	var buf = make([]uint8, FILE_SIZE, FILE_SIZE)
 	var n int
 	// @TODO check error
