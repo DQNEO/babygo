@@ -3676,14 +3676,14 @@ type PkgContainer struct {
 }
 
 func main() {
+	mylib.Printf("# dummy version: %d\n", mylib.Sum(1,1))
 	srcPath := os.Getenv("GOPATH") + "/src"
 	var universe = createUniverse()
 
 	xlibFilename := srcPath + "/" + "github.com/DQNEO/babygo/extlib/mylib" + "/mylib.go"
-	var sourceFiles = []string{"runtime.go", xlibFilename, "/dev/stdin"}
+	var packages = []string{"runtime.go", xlibFilename, "/dev/stdin"}
 
-	mylib.Printf("# dummy version: %d\n", mylib.Sum(1,1))
-	for _, sourceFile := range sourceFiles {
+	for _, sourceFile := range packages {
 
 		mylib.Printf("# file: %s\n", sourceFile)
 		stringIndex = 0
