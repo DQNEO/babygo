@@ -14,8 +14,9 @@ It depends only on `as` as an assembler and `ld` as a linker.
 It is composed of only 3 files.
 
 * main.go - the main compiler
-* runtime.go - runtime and standard library
+* runtime.go - runtime
 * runtime.s - low level of runtime
+* extlib/mylib/mylib.go - standard library
 
 # Design
 
