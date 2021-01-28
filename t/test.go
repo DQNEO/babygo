@@ -22,7 +22,7 @@ func writeln(s interface{}) {
 	write("\n")
 }
 
-func Sprintf(format string, a...string) string {
+func fmtSprintf(format string, a...interface{}) string {
 	var buf []uint8
 	var inPercent bool
 	var argIndex int
@@ -32,8 +32,13 @@ func Sprintf(format string, a...string) string {
 				buf = append(buf, c)
 			} else {
 				arg := a[argIndex]
-
-				var str string = arg // // p.printArg(arg, c)
+				var str string
+				switch _arg := arg.(type) {
+				case string:
+					str = _arg
+				case int:
+					str = mylib.Itoa(_arg)
+				}
 				argIndex++
 				for _, _c := range []uint8(str) {
 					buf = append(buf, _c)
@@ -640,8 +645,8 @@ func testIsLetter() {
 
 }
 
-func funcVaarg1(f string, a ...string) {
-	write(Sprintf(f, a...))
+func funcVaarg1(f string, a ...interface{}) {
+	write(fmtSprintf(f, a...))
 }
 
 func funcVaarg2(a int, b ...int) {
@@ -1023,14 +1028,14 @@ func testLocalArray() {
 }
 
 func testSprintf() {
-	var a []string = make([]string, 3, 3)
-	a[0] = mylib.Itoa(1234)
+	var a []interface{} = make([]interface{}, 3, 3)
+	a[0] = 1234
 	a[1] = "c"
 	a[2] = "efg"
-	var s string = Sprintf("%sab%sd%s", a...)
+	var s string = fmtSprintf("%sab%sd%s", a...)
 	write(s)
 
-	var s2 string = Sprintf("%%rax")
+	var s2 string = fmtSprintf("%%rax")
 	write(s2)
 	write("|\n")
 }
