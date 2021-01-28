@@ -56,7 +56,7 @@ func fmtSprintf(format string, a []interface{}) string {
 				case string:
 					str = _arg
 				case int:
-					str = Itoa(_arg)
+					str = mylib.Itoa(_arg)
 				}
 				argIndex++
 				for _, _c := range []uint8(str) {
@@ -105,46 +105,6 @@ func Atoi(gs string) int {
 	}
 
 	return n
-}
-
-func Itoa(ival int) string {
-	if ival == 0 {
-		return "0"
-	}
-
-	var buf = make([]uint8, 100, 100)
-	var r = make([]uint8, 100, 100)
-
-	var next int
-	var right int
-	var ix = 0
-	var minus bool
-	minus = false
-	for ix = 0; ival != 0; ix = ix + 1 {
-		if ival < 0 {
-			ival = -1 * ival
-			minus = true
-			r[0] = '-'
-		} else {
-			next = ival / 10
-			right = ival - next*10
-			ival = next
-			buf[ix] = uint8('0' + right)
-		}
-	}
-
-	var j int
-	var c uint8
-	for j = 0; j < ix; j = j + 1 {
-		c = buf[ix-j-1]
-		if minus {
-			r[j+1] = c
-		} else {
-			r[j] = c
-		}
-	}
-
-	return string(r[0:ix])
 }
 
 // --- parser ---
@@ -224,13 +184,13 @@ func emitPushStackTop(condType *Type, comment string) {
 }
 
 func emitRevertStackPointer(size int) {
-	fmtPrintf("  addq $%s, %%rsp # revert stack pointer\n", Itoa(size))
+	fmtPrintf("  addq $%s, %%rsp # revert stack pointer\n", mylib.Itoa(size))
 }
 
 func emitAddConst(addValue int, comment string) {
 	emitComment(2, "Add const: %s\n", comment)
 	fmtPrintf("  popq %%rax\n")
-	fmtPrintf("  addq $%s, %%rax\n", Itoa(addValue))
+	fmtPrintf("  addq $%s, %%rax\n", mylib.Itoa(addValue))
 	fmtPrintf("  pushq %%rax\n")
 }
 
@@ -242,30 +202,30 @@ func emitLoadFromMemoryAndPush(t *Type) {
 	emitPopAddress(string(kind(t)))
 	switch kind(t) {
 	case T_SLICE:
-		fmtPrintf("  movq %d(%%rax), %%rdx\n", Itoa(16))
-		fmtPrintf("  movq %d(%%rax), %%rcx\n", Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
+		fmtPrintf("  movq %d(%%rax), %%rdx\n", mylib.Itoa(16))
+		fmtPrintf("  movq %d(%%rax), %%rcx\n", mylib.Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rdx # cap\n")
 		fmtPrintf("  pushq %%rcx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		fmtPrintf("  movq %d(%%rax), %%rdx # len\n", Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax # ptr\n", Itoa(0))
+		fmtPrintf("  movq %d(%%rax), %%rdx # len\n", mylib.Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax # ptr\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rdx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_INTERFACE:
-		fmtPrintf("  movq %d(%%rax), %%rdx # data\n", Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax # dtype\n", Itoa(0))
+		fmtPrintf("  movq %d(%%rax), %%rdx # data\n", mylib.Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax # dtype\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rdx # data\n")
 		fmtPrintf("  pushq %%rax # dtype\n")
 	case T_UINT8:
-		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", Itoa(0))
+		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
 	case T_UINT16:
-		fmtPrintf("  movzwq %d(%%rax), %%rax # load uint16\n", Itoa(0))
+		fmtPrintf("  movzwq %d(%%rax), %%rax # load uint16\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", Itoa(0))
+		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
 	case T_ARRAY, T_STRUCT:
 		// pure proxy
@@ -281,7 +241,7 @@ func emitVariableAddr(variable *Variable) {
 	if variable.isGlobal {
 		fmtPrintf("  leaq %s(%%rip), %%rax # global variable \"%s\"\n", variable.globalSymbol, variable.name)
 	} else {
-		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable \"%s\"\n", Itoa(int(variable.localOffset)), variable.name)
+		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable \"%s\"\n", mylib.Itoa(int(variable.localOffset)), variable.name)
 	}
 
 	fmtPrintf("  pushq %%rax # variable address\n")
@@ -475,7 +435,7 @@ func emitZeroValue(t *Type) {
 		fmtPrintf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
 		structSize := getSizeOfType(t)
-		fmtPrintf("  # zero value of a struct. size=%s (allocating on heap)\n", Itoa(structSize))
+		fmtPrintf("  # zero value of a struct. size=%s (allocating on heap)\n", mylib.Itoa(structSize))
 		emitCallMalloc(structSize)
 	default:
 		throw(t)
@@ -519,7 +479,7 @@ func emitCap(arg ast.Expr) {
 }
 
 func emitCallMalloc(size int) {
-	fmtPrintf("  pushq $%s\n", Itoa(size))
+	fmtPrintf("  pushq $%s\n", mylib.Itoa(size))
 	// call malloc and return pointer
 	var resultList = []*ast.Field{
 		&ast.Field{
@@ -599,7 +559,7 @@ type Arg struct {
 }
 
 func emitArgs(args []*Arg) int {
-	emitComment(2, "emitArgs len=%s\n", Itoa(len(args)))
+	emitComment(2, "emitArgs len=%s\n", mylib.Itoa(len(args)))
 	var totalPushedSize int
 	for _, arg := range args {
 		var t *Type
@@ -611,14 +571,14 @@ func emitArgs(args []*Arg) int {
 		arg.offset = totalPushedSize
 		totalPushedSize += getPushSizeOfType(t)
 	}
-	fmtPrintf("  subq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
+	fmtPrintf("  subq $%d, %%rsp # for args\n", mylib.Itoa(totalPushedSize))
 	for _, arg := range args {
 		ctx := &evalContext{
 			_type: arg.t,
 		}
 		emitExprIfc(arg.e, ctx)
 	}
-	fmtPrintf("  addq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
+	fmtPrintf("  addq $%d, %%rsp # for args\n", mylib.Itoa(totalPushedSize))
 
 	for _, arg := range args {
 		var t *Type
@@ -629,20 +589,20 @@ func emitArgs(args []*Arg) int {
 		}
 		switch kind(t) {
 		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
-			fmtPrintf("  movq %d-8(%%rsp) , %%rax # load\n", Itoa(-arg.offset))
-			fmtPrintf("  movq %%rax, %d(%%rsp) # store\n", Itoa(+arg.offset))
+			fmtPrintf("  movq %d-8(%%rsp) , %%rax # load\n", mylib.Itoa(-arg.offset))
+			fmtPrintf("  movq %%rax, %d(%%rsp) # store\n", mylib.Itoa(+arg.offset))
 		case T_STRING, T_INTERFACE:
-			fmtPrintf("  movq %d-16(%%rsp), %%rax\n", Itoa(-arg.offset))
-			fmtPrintf("  movq %d-8(%%rsp), %%rcx\n", Itoa(-arg.offset))
-			fmtPrintf("  movq %%rax, %d(%%rsp)\n", Itoa(+arg.offset))
-			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", Itoa(+arg.offset))
+			fmtPrintf("  movq %d-16(%%rsp), %%rax\n", mylib.Itoa(-arg.offset))
+			fmtPrintf("  movq %d-8(%%rsp), %%rcx\n", mylib.Itoa(-arg.offset))
+			fmtPrintf("  movq %%rax, %d(%%rsp)\n", mylib.Itoa(+arg.offset))
+			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", mylib.Itoa(+arg.offset))
 		case T_SLICE:
-			fmtPrintf("  movq %d-24(%%rsp), %%rax\n", Itoa(-arg.offset)) // arg1: slc.ptr
-			fmtPrintf("  movq %d-16(%%rsp), %%rcx\n", Itoa(-arg.offset)) // arg1: slc.len
-			fmtPrintf("  movq %d-8(%%rsp), %%rdx\n", Itoa(-arg.offset))  // arg1: slc.cap
-			fmtPrintf("  movq %%rax, %d+0(%%rsp)\n", Itoa(+arg.offset))  // arg1: slc.ptr
-			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", Itoa(+arg.offset))  // arg1: slc.len
-			fmtPrintf("  movq %%rdx, %d+16(%%rsp)\n", Itoa(+arg.offset)) // arg1: slc.cap
+			fmtPrintf("  movq %d-24(%%rsp), %%rax\n", mylib.Itoa(-arg.offset)) // arg1: slc.ptr
+			fmtPrintf("  movq %d-16(%%rsp), %%rcx\n", mylib.Itoa(-arg.offset)) // arg1: slc.len
+			fmtPrintf("  movq %d-8(%%rsp), %%rdx\n", mylib.Itoa(-arg.offset))  // arg1: slc.cap
+			fmtPrintf("  movq %%rax, %d+0(%%rsp)\n", mylib.Itoa(+arg.offset))  // arg1: slc.ptr
+			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", mylib.Itoa(+arg.offset))  // arg1: slc.len
+			fmtPrintf("  movq %%rdx, %d+16(%%rsp)\n", mylib.Itoa(+arg.offset)) // arg1: slc.cap
 		default:
 			throw(kind(t))
 		}
@@ -1086,10 +1046,10 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 					char = '\r'
 				}
 			}
-			fmtPrintf("  pushq $%d # convert char literal to int\n", Itoa(int(char)))
+			fmtPrintf("  pushq $%d # convert char literal to int\n", mylib.Itoa(int(char)))
 		case "INT":
 			ival := Atoi(e.Value)
-			fmtPrintf("  pushq $%d # number literal\n", Itoa(ival))
+			fmtPrintf("  pushq $%d # number literal\n", mylib.Itoa(ival))
 		case "STRING":
 			// e.Value == ".S%d:%d"
 			sl := getStringLiteral(e)
@@ -1433,7 +1393,7 @@ var typeMap map[string]int = map[string]int{}
 var typeId int = 1
 
 func typeIdToSymbol(id int) string {
-	return "dtype." + Itoa(id)
+	return "dtype." + mylib.Itoa(id)
 }
 
 func getTypeId(s string) int {
@@ -1468,7 +1428,7 @@ func emitListElementAddr(list ast.Expr, elmType *Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
 	fmtPrintf("  popq %%rcx # index id\n")
-	fmtPrintf("  movq $%s, %%rdx # elm size\n", Itoa(getSizeOfType(elmType)))
+	fmtPrintf("  movq $%s, %%rdx # elm size\n", mylib.Itoa(getSizeOfType(elmType)))
 	fmtPrintf("  imulq %%rdx, %%rcx\n")
 	fmtPrintf("  addq %%rcx, %%rax\n")
 	fmtPrintf("  pushq %%rax # addr of element\n")
@@ -1552,15 +1512,15 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 
 	switch knd {
 	case T_SLICE:
-		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
-		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
-		fmtPrintf("  movq %%rdx, %d(%%rsi) # cap to cap\n", Itoa(16))
+		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", mylib.Itoa(0))
+		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", mylib.Itoa(8))
+		fmtPrintf("  movq %%rdx, %d(%%rsi) # cap to cap\n", mylib.Itoa(16))
 	case T_STRING:
-		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
-		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
+		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", mylib.Itoa(0))
+		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", mylib.Itoa(8))
 	case T_INTERFACE:
-		fmtPrintf("  movq %%rax, %d(%%rsi) # store dtype\n", Itoa(0))
-		fmtPrintf("  movq %%rcx, %d(%%rsi) # store data\n", Itoa(8))
+		fmtPrintf("  movq %%rax, %d(%%rsi) # store dtype\n", mylib.Itoa(0))
+		fmtPrintf("  movq %%rcx, %d(%%rsi) # store data\n", mylib.Itoa(8))
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmtPrintf("  movq %%rax, (%%rsi) # assign\n")
 	case T_UINT16:
@@ -1568,7 +1528,7 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	case T_UINT8:
 		fmtPrintf("  movb %%al, (%%rsi) # assign byte\n")
 	case T_STRUCT, T_ARRAY:
-		fmtPrintf("  pushq $%d # size\n", Itoa(getSizeOfType(t)))
+		fmtPrintf("  pushq $%d # size\n", mylib.Itoa(getSizeOfType(t)))
 		fmtPrintf("  pushq %%rsi # dst lhs\n")
 		fmtPrintf("  pushq %%rax # src rhs\n")
 		fmtPrintf("  callq runtime.memcopy\n")
@@ -1969,7 +1929,7 @@ func emitStmt(stmt ast.Stmt) {
 			cc, ok := c.(*ast.CaseClause)
 			assert(ok, "should be *ast.CaseClause")
 			labelid++
-			labelCase := ".L.case." + Itoa(labelid)
+			labelCase := ".L.case." + mylib.Itoa(labelid)
 			labels[i] = labelCase
 			if len(cc.List) == 0 {
 				defaultLabel = labelCase
@@ -2043,7 +2003,7 @@ func emitStmt(stmt ast.Stmt) {
 }
 
 func emitRevertStackTop(t *Type) {
-	fmtPrintf("  addq $%s, %%rsp # revert stack top\n", Itoa(getSizeOfType(t)))
+	fmtPrintf("  addq $%s, %%rsp # revert stack top\n", mylib.Itoa(getSizeOfType(t)))
 }
 
 var labelid int
@@ -2077,12 +2037,12 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	subsymbol := getFuncSubSymbol(fnc)
 	symbol := getFuncSymbol(pkgPrefix, subsymbol)
 	fmtPrintf("%s: # args %d, locals %d\n",
-		symbol, Itoa(int(fnc.argsarea)), Itoa(int(fnc.localarea)))
+		symbol, mylib.Itoa(int(fnc.argsarea)), mylib.Itoa(int(fnc.localarea)))
 
 	fmtPrintf("  pushq %%rbp\n")
 	fmtPrintf("  movq %%rsp, %%rbp\n")
 	if localarea != 0 {
-		fmtPrintf("  subq $%d, %%rsp # local area\n", Itoa(-localarea))
+		fmtPrintf("  subq $%d, %%rsp # local area\n", mylib.Itoa(-localarea))
 	}
 	for _, stmt := range fnc.stmts {
 		emitStmt(stmt)
@@ -2112,7 +2072,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		case *ast.BasicLit:
 			sl := getStringLiteral(vl)
 			fmtPrintf("  .quad %s\n", sl.label)
-			fmtPrintf("  .quad %d\n", Itoa(sl.strlen))
+			fmtPrintf("  .quad %d\n", mylib.Itoa(sl.strlen))
 		default:
 			panic("Unsupported global string value")
 		}
@@ -2631,7 +2591,7 @@ func serializeType(t *Type) string {
 			}
 			return "[]" + serializeType(e2t(e.Elt))
 		} else {
-			return "[" + Itoa(evalInt(e.Len)) + "]" + serializeType(e2t(e.Elt))
+			return "[" + mylib.Itoa(evalInt(e.Len)) + "]" + serializeType(e2t(e.Elt))
 		}
 	case *ast.StarExpr:
 		return "*" + serializeType(e2t(e.X))
@@ -2807,7 +2767,7 @@ func getStructFieldOffset(field *ast.Field) int {
 
 func setStructFieldOffset(field *ast.Field, offset int) {
 	comment := &ast.Comment{
-		Text: Itoa(offset),
+		Text: mylib.Itoa(offset),
 	}
 	commentGroup := &ast.CommentGroup{
 		List: []*ast.Comment{comment},
@@ -3844,9 +3804,9 @@ func main() {
 	for name, id := range typeMap {
 		symbol := typeIdToSymbol(id)
 		fmtPrintf("%s: # %s\n", symbol, name)
-		fmtPrintf("  .quad %s\n", Itoa(id))
-		fmtPrintf("  .quad .S.dtype.%s\n", Itoa(id))
-		fmtPrintf(".S.dtype.%s:\n", Itoa(id))
+		fmtPrintf("  .quad %s\n", mylib.Itoa(id))
+		fmtPrintf("  .quad .S.dtype.%s\n", mylib.Itoa(id))
+		fmtPrintf(".S.dtype.%s:\n", mylib.Itoa(id))
 		fmtPrintf("  .string \"%s\"\n", name)
 	}
 	fmtPrintf("\n")

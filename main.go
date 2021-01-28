@@ -48,7 +48,7 @@ func fmtSprintf(format string, a...interface{}) string {
 				case string:
 					str = _arg
 				case int:
-					str = Itoa(_arg)
+					str = mylib.Itoa(_arg)
 				}
 				argIndex++
 				for _, _c := range []uint8(str) {
@@ -99,46 +99,6 @@ func Atoi(gs string) int {
 	return n
 }
 
-func Itoa(ival int) string {
-	if ival == 0 {
-		return "0"
-	}
-
-	var buf = make([]uint8, 100, 100)
-	var r = make([]uint8, 100, 100)
-
-	var next int
-	var right int
-	var ix = 0
-	var minus bool
-	minus = false
-	for ix = 0; ival != 0; ix = ix + 1 {
-		if ival < 0 {
-			ival = -1 * ival
-			minus = true
-			r[0] = '-'
-		} else {
-			next = ival / 10
-			right = ival - next*10
-			ival = next
-			buf[ix] = uint8('0' + right)
-		}
-	}
-
-	var j int
-	var c uint8
-	for j = 0; j < ix; j = j + 1 {
-		c = buf[ix-j-1]
-		if minus {
-			r[j+1] = c
-		} else {
-			r[j] = c
-		}
-	}
-
-	return string(r[0:ix])
-}
-
 func inArray(x string, list []string) bool {
 	for _, v := range list {
 		if v == x {
@@ -184,7 +144,7 @@ func (s *scanner) Init(src []uint8) {
 	s.ch = ' '
 	s.nextOffset = 0
 	s.insertSemi = false
-	logf("src len = %s\n", Itoa(len(s.src)))
+	logf("src len = %s\n", mylib.Itoa(len(s.src)))
 	s.next()
 }
 
@@ -505,7 +465,7 @@ func (s *scanner) Scan() *TokenContainer {
 		case 1:
 			tok = "EOF"
 		default:
-			panic2(__func__, "unknown char:"+string([]uint8{ch})+":"+Itoa(int(ch)))
+			panic2(__func__, "unknown char:"+string([]uint8{ch})+":"+mylib.Itoa(int(ch)))
 			tok = "UNKNOWN"
 		}
 	}
@@ -910,11 +870,11 @@ func (p *parser) next0() {
 func (p *parser) next() {
 	p.next0()
 	if p.tok.tok == ";" {
-		logf(" [parser] pointing at : \"%s\" newline (%s)\n", p.tok.tok, Itoa(p.scanner.offset))
+		logf(" [parser] pointing at : \"%s\" newline (%s)\n", p.tok.tok, mylib.Itoa(p.scanner.offset))
 	} else if p.tok.tok == "IDENT" {
-		logf(" [parser] pointing at: IDENT \"%s\" (%s)\n", p.tok.lit, Itoa(p.scanner.offset))
+		logf(" [parser] pointing at: IDENT \"%s\" (%s)\n", p.tok.lit, mylib.Itoa(p.scanner.offset))
 	} else {
-		logf(" [parser] pointing at: \"%s\" %s (%s)\n", p.tok.tok, p.tok.lit, Itoa(p.scanner.offset))
+		logf(" [parser] pointing at: \"%s\" %s (%s)\n", p.tok.tok, p.tok.lit, mylib.Itoa(p.scanner.offset))
 	}
 
 	if p.tok.tok == "COMMENT" {
@@ -1127,7 +1087,7 @@ func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astFiel
 			break
 		}
 	}
-	logf(" [%s] collected list n=%s\n", __func__, Itoa(len(list)))
+	logf(" [%s] collected list n=%s\n", __func__, mylib.Itoa(len(list)))
 
 	var params []*astField
 
@@ -1185,7 +1145,7 @@ func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astFiel
 		params[i] = &astField{
 			Type: typ,
 		}
-		logf(" [DEBUG] range i = %s\n", Itoa(i))
+		logf(" [DEBUG] range i = %s\n", mylib.Itoa(i))
 	}
 	logf("  end %s\n", __func__)
 	return params
@@ -1616,14 +1576,14 @@ func precedence(op string) int {
 }
 
 func (p *parser) parseBinaryExpr(prec1 int) *astExpr {
-	logf("   begin parseBinaryExpr() prec1=%s\n", Itoa(prec1))
+	logf("   begin parseBinaryExpr() prec1=%s\n", mylib.Itoa(prec1))
 	var x = p.parseUnaryExpr()
 	var oprec int
 	for {
 		var op = p.tok.tok
 		oprec = precedence(op)
-		logf(" oprec %s\n", Itoa(oprec))
-		logf(" precedence \"%s\" %s < %s\n", op, Itoa(oprec), Itoa(prec1))
+		logf(" oprec %s\n", mylib.Itoa(oprec))
+		logf(" precedence \"%s\" %s < %s\n", op, mylib.Itoa(oprec), mylib.Itoa(prec1))
 		if oprec < prec1 {
 			logf("   end parseBinaryExpr() (NonBinary)\n")
 			return x
@@ -1710,7 +1670,7 @@ func (p *parser) parseForStmt() *astStmt {
 	if isRange {
 		assert(s2.dtype == "*astAssignStmt", "type mismatch", __func__)
 		as = s2.assignStmt
-		logf(" [DEBUG] range as len lhs=%s\n", Itoa(len(as.Lhs)))
+		logf(" [DEBUG] range as len lhs=%s\n", mylib.Itoa(len(as.Lhs)))
 		var key *astExpr
 		var value *astExpr
 		switch len(as.Lhs) {
@@ -2148,7 +2108,7 @@ func (p *parser) parseFuncDecl() astDecl {
 	if results == nil {
 		logf(" [parserFuncDecl] %s sig.results is nil\n", ident.Name)
 	} else {
-		logf(" [parserFuncDecl] %s sig.results.List = %s\n", ident.Name, Itoa(len(sig.results.List)))
+		logf(" [parserFuncDecl] %s sig.results.List = %s\n", ident.Name, mylib.Itoa(len(sig.results.List)))
 	}
 	var body *astBlockStmt
 	if p.tok.tok == "{" {
@@ -2228,7 +2188,7 @@ func (p *parser) parseFile() *astFile {
 	}
 
 	var unresolved []*astIdent
-	logf(" [parserFile] resolving parser's unresolved (n=%s)\n", Itoa(len(p.unresolved)))
+	logf(" [parserFile] resolving parser's unresolved (n=%s)\n", mylib.Itoa(len(p.unresolved)))
 	for _, idnt := range p.unresolved {
 		logf(" [parserFile] resolving ident %s ...\n", idnt.Name)
 		var obj *astObject = scopeLookup(p.pkgScope, idnt.Name)
@@ -2240,7 +2200,7 @@ func (p *parser) parseFile() *astFile {
 			unresolved = append(unresolved, idnt)
 		}
 	}
-	logf(" [parserFile] Unresolved (n=%s)\n", Itoa(len(unresolved)))
+	logf(" [parserFile] Unresolved (n=%s)\n", mylib.Itoa(len(unresolved)))
 
 	var f = &astFile{}
 	f.Name = packageName
@@ -2329,13 +2289,13 @@ func emitPushStackTop(condType *Type, comment string) {
 }
 
 func emitRevertStackPointer(size int) {
-	fmtPrintf("  addq $%s, %%rsp # revert stack pointer\n", Itoa(size))
+	fmtPrintf("  addq $%s, %%rsp # revert stack pointer\n", mylib.Itoa(size))
 }
 
 func emitAddConst(addValue int, comment string) {
 	emitComment(2, "Add const: %s\n", comment)
 	fmtPrintf("  popq %%rax\n")
-	fmtPrintf("  addq $%s, %%rax\n", Itoa(addValue))
+	fmtPrintf("  addq $%s, %%rax\n", mylib.Itoa(addValue))
 	fmtPrintf("  pushq %%rax\n")
 }
 
@@ -2346,30 +2306,30 @@ func emitLoad(t *Type) {
 	emitPopAddress(kind(t))
 	switch kind(t) {
 	case T_SLICE:
-		fmtPrintf("  movq %d(%%rax), %%rdx\n", Itoa(16))
-		fmtPrintf("  movq %d(%%rax), %%rcx\n", Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax\n", Itoa(0))
+		fmtPrintf("  movq %d(%%rax), %%rdx\n", mylib.Itoa(16))
+		fmtPrintf("  movq %d(%%rax), %%rcx\n", mylib.Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rdx # cap\n")
 		fmtPrintf("  pushq %%rcx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		fmtPrintf("  movq %d(%%rax), %%rdx # len\n", Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax # ptr\n", Itoa(0))
+		fmtPrintf("  movq %d(%%rax), %%rdx # len\n", mylib.Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax # ptr\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rdx # len\n")
 		fmtPrintf("  pushq %%rax # ptr\n")
 	case T_INTERFACE:
-		fmtPrintf("  movq %d(%%rax), %%rdx # data\n", Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax # dtype\n", Itoa(0))
+		fmtPrintf("  movq %d(%%rax), %%rdx # data\n", mylib.Itoa(8))
+		fmtPrintf("  movq %d(%%rax), %%rax # dtype\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rdx # data\n")
 		fmtPrintf("  pushq %%rax # dtype\n")
 	case T_UINT8:
-		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", Itoa(0))
+		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
 	case T_UINT16:
-		fmtPrintf("  movzwq %d(%%rax), %%rax # load uint16\n", Itoa(0))
+		fmtPrintf("  movzwq %d(%%rax), %%rax # load uint16\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", Itoa(0))
+		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", mylib.Itoa(0))
 		fmtPrintf("  pushq %%rax\n")
 	case T_ARRAY, T_STRUCT:
 		// pure proxy
@@ -2385,7 +2345,7 @@ func emitVariableAddr(variable *Variable) {
 	if variable.isGlobal {
 		fmtPrintf("  leaq %s(%%rip), %%rax # global variable addr \"%s\"\n", variable.globalSymbol,  variable.name)
 	} else {
-		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable addr \"%s\"\n", Itoa(variable.localOffset),  variable.name)
+		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable addr \"%s\"\n", mylib.Itoa(variable.localOffset),  variable.name)
 	}
 
 	fmtPrintf("  pushq %%rax # variable address\n")
@@ -2584,7 +2544,7 @@ func emitZeroValue(t *Type) {
 		fmtPrintf("  pushq $0 # %s zero value\n", kind(t))
 	case T_STRUCT:
 		var structSize = getSizeOfType(t)
-		fmtPrintf("# zero value of a struct. size=%s (allocating on heap)\n", Itoa(structSize))
+		fmtPrintf("# zero value of a struct. size=%s (allocating on heap)\n", mylib.Itoa(structSize))
 		emitCallMalloc(structSize)
 	default:
 		panic2(__func__, "TBI:"+kind(t))
@@ -2630,7 +2590,7 @@ func emitCap(arg *astExpr) {
 }
 
 func emitCallMalloc(size int) {
-	fmtPrintf("  pushq $%s\n", Itoa(size))
+	fmtPrintf("  pushq $%s\n", mylib.Itoa(size))
 	// call malloc and return pointer
 	var resultList = []*astField{
 		&astField{
@@ -2653,7 +2613,7 @@ func emitStructLiteral(e *astCompositeLit) {
 		kvExpr = elm.keyValueExpr
 		assert(kvExpr.Key.dtype == "*astIdent", "wrong dtype 2:" + elm.dtype, __func__)
 		var fieldName = kvExpr.Key.ident
-		fmtPrintf("  #  - [%s] : key=%s, value=%s\n", Itoa(i), fieldName.Name, kvExpr.Value.dtype)
+		fmtPrintf("  #  - [%s] : key=%s, value=%s\n", mylib.Itoa(i), fieldName.Name, kvExpr.Value.dtype)
 		var field = lookupStructField(getStructTypeSpec(structType), fieldName.Name)
 		var fieldType = e2t(field.Type)
 		var fieldOffset = getStructFieldOffset(field)
@@ -2678,7 +2638,7 @@ func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []*astExpr) {
 	for i, elm := range elts {
 		// emit lhs
 		emitPushStackTop(tUintptr, "malloced address")
-		emitAddConst(elmSize*i, "malloced address + elmSize * index ("+Itoa(i)+")")
+		emitAddConst(elmSize*i, "malloced address + elmSize * index ("+mylib.Itoa(i)+")")
 		ctx := &evalContext{
 			_type: elmType,
 		}
@@ -2720,14 +2680,14 @@ func emitArgs(args []*Arg) int {
 		arg.offset = totalPushedSize
 		totalPushedSize = totalPushedSize + getPushSizeOfType(t)
 	}
-	fmtPrintf("  subq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
+	fmtPrintf("  subq $%d, %%rsp # for args\n", mylib.Itoa(totalPushedSize))
 	for _, arg := range args {
 		ctx := &evalContext{
 			_type: arg.t,
 		}
 		emitExprIfc(arg.e, ctx)
 	}
-	fmtPrintf("  addq $%d, %%rsp # for args\n", Itoa(totalPushedSize))
+	fmtPrintf("  addq $%d, %%rsp # for args\n", mylib.Itoa(totalPushedSize))
 
 	for _, arg := range args {
 		var t *Type
@@ -2738,20 +2698,20 @@ func emitArgs(args []*Arg) int {
 		}
 		switch kind(t) {
 		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
-			fmtPrintf("  movq %d-8(%%rsp) , %%rax # load\n", Itoa(-arg.offset))
-			fmtPrintf("  movq %%rax, %d(%%rsp) # store\n", Itoa(+arg.offset))
+			fmtPrintf("  movq %d-8(%%rsp) , %%rax # load\n", mylib.Itoa(-arg.offset))
+			fmtPrintf("  movq %%rax, %d(%%rsp) # store\n", mylib.Itoa(+arg.offset))
 		case T_STRING, T_INTERFACE:
-			fmtPrintf("  movq %d-16(%%rsp), %%rax\n", Itoa(-arg.offset))
-			fmtPrintf("  movq %d-8(%%rsp), %%rcx\n", Itoa(-arg.offset))
-			fmtPrintf("  movq %%rax, %d(%%rsp)\n", Itoa(+arg.offset))
-			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", Itoa(+arg.offset))
+			fmtPrintf("  movq %d-16(%%rsp), %%rax\n", mylib.Itoa(-arg.offset))
+			fmtPrintf("  movq %d-8(%%rsp), %%rcx\n", mylib.Itoa(-arg.offset))
+			fmtPrintf("  movq %%rax, %d(%%rsp)\n", mylib.Itoa(+arg.offset))
+			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", mylib.Itoa(+arg.offset))
 		case T_SLICE:
-			fmtPrintf("  movq %d-24(%%rsp), %%rax\n", Itoa(-arg.offset)) // arg1: slc.ptr
-			fmtPrintf("  movq %d-16(%%rsp), %%rcx\n", Itoa(-arg.offset)) // arg1: slc.len
-			fmtPrintf("  movq %d-8(%%rsp), %%rdx\n", Itoa(-arg.offset))  // arg1: slc.cap
-			fmtPrintf("  movq %%rax, %d+0(%%rsp)\n", Itoa(+arg.offset))  // arg1: slc.ptr
-			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", Itoa(+arg.offset))  // arg1: slc.len
-			fmtPrintf("  movq %%rdx, %d+16(%%rsp)\n", Itoa(+arg.offset)) // arg1: slc.cap
+			fmtPrintf("  movq %d-24(%%rsp), %%rax\n", mylib.Itoa(-arg.offset)) // arg1: slc.ptr
+			fmtPrintf("  movq %d-16(%%rsp), %%rcx\n", mylib.Itoa(-arg.offset)) // arg1: slc.len
+			fmtPrintf("  movq %d-8(%%rsp), %%rdx\n", mylib.Itoa(-arg.offset))  // arg1: slc.cap
+			fmtPrintf("  movq %%rax, %d+0(%%rsp)\n", mylib.Itoa(+arg.offset))  // arg1: slc.ptr
+			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", mylib.Itoa(+arg.offset))  // arg1: slc.len
+			fmtPrintf("  movq %%rdx, %d+16(%%rsp)\n", mylib.Itoa(+arg.offset)) // arg1: slc.cap
 		default:
 			throw(kind(t))
 		}
@@ -2772,7 +2732,7 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr, exp
 	var arg *Arg
 	lenParams := len(params)
 	for argIndex, eArg := range eArgs {
-		emitComment(2, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, Itoa(argIndex), Itoa(lenParams))
+		emitComment(2, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, mylib.Itoa(argIndex), mylib.Itoa(lenParams))
 		if argIndex < lenParams {
 			param = params[argIndex]
 			if param.Type.dtype == "*astEllipsis" {
@@ -2811,7 +2771,7 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr, exp
 		args = append(args, _arg)
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
-		emitComment(2, "len(args)=%s, len(params)=%s\n", Itoa(len(args)), Itoa(len(params)))
+		emitComment(2, "len(args)=%s, len(params)=%s\n", mylib.Itoa(len(args)), mylib.Itoa(len(params)))
 		var param = params[len(args)]
 		if param == nil {
 			panic2(__func__, "param should not be nil")
@@ -2997,7 +2957,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 		if fn.Name == "print" {
 			emitExpr(eArgs[0], nil)
 			fmtPrintf("  callq runtime.printstring\n")
-			fmtPrintf("  addq $%s, %%rsp # revert \n", Itoa(16))
+			fmtPrintf("  addq $%s, %%rsp # revert \n", mylib.Itoa(16))
 			return
 		}
 
@@ -3168,14 +3128,14 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		switch e.basicLit.Kind {
 		case "INT":
 			var ival = Atoi(e.basicLit.Value)
-			fmtPrintf("  pushq $%d # number literal\n", Itoa(ival))
+			fmtPrintf("  pushq $%d # number literal\n", mylib.Itoa(ival))
 		case "STRING":
 			var sl = getStringLiteral(e.basicLit)
 			if sl.strlen == 0 {
 				// zero value
 				emitZeroValue(tString)
 			} else {
-				fmtPrintf("  pushq $%d # str len\n", Itoa(sl.strlen))
+				fmtPrintf("  pushq $%d # str len\n", mylib.Itoa(sl.strlen))
 				fmtPrintf("  leaq %s, %%rax # str ptr\n", sl.label)
 				fmtPrintf("  pushq %%rax # str ptr\n")
 			}
@@ -3196,7 +3156,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 					char = '\r'
 				}
 			}
-			fmtPrintf("  pushq $%d # convert char literal to int\n", Itoa(int(char)))
+			fmtPrintf("  pushq $%d # convert char literal to int\n", mylib.Itoa(int(char)))
 		default:
 			panic2(__func__, "[*astBasicLit] TBI : "+e.basicLit.Kind)
 		}
@@ -3296,8 +3256,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			switch e.binaryExpr.Op {
 			case "&&":
 				labelid++
-				var labelExitWithFalse = fmtSprintf(".L.%s.false", Itoa(labelid))
-				var labelExit = fmtSprintf(".L.%d.exit", Itoa(labelid))
+				var labelExitWithFalse = fmtSprintf(".L.%s.false", mylib.Itoa(labelid))
+				var labelExit = fmtSprintf(".L.%d.exit", mylib.Itoa(labelid))
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitPopBool("left")
 				fmtPrintf("  cmpq $1, %%rax\n")
@@ -3313,8 +3273,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 				fmtPrintf("  %s:\n", labelExit)
 			case "||":
 				labelid++
-				var labelExitWithTrue = fmtSprintf(".L.%d.true", Itoa(labelid))
-				var labelExit = fmtSprintf(".L.%d.exit", Itoa(labelid))
+				var labelExitWithTrue = fmtSprintf(".L.%d.true", mylib.Itoa(labelid))
+				var labelExit = fmtSprintf(".L.%d.exit", mylib.Itoa(labelid))
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitPopBool("left")
 				fmtPrintf("  cmpq $1, %%rax\n")
@@ -3416,8 +3376,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			var length = len(e.compositeLit.Elts)
 			emitArrayLiteral(arrayType, length, e.compositeLit.Elts)
 			emitPopAddress("malloc")
-			fmtPrintf("  pushq $%d # slice.cap\n", Itoa(length))
-			fmtPrintf("  pushq $%d # slice.len\n", Itoa(length))
+			fmtPrintf("  pushq $%d # slice.cap\n", mylib.Itoa(length))
+			fmtPrintf("  pushq $%d # slice.len\n", mylib.Itoa(length))
 			fmtPrintf("  pushq %%rax # slice.ptr\n")
 		default:
 			panic2(__func__, "Unexpected kind="+k)
@@ -3440,8 +3400,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		fmtPrintf("  cmpq $1, %%rax\n")
 
 		labelid++
-		labelTypeAssertionEnd := fmtSprintf(".L.end_type_assertion.%d", Itoa(labelid))
-		labelElse := fmtSprintf(".L.unmatch.%d", Itoa(labelid))
+		labelTypeAssertionEnd := fmtSprintf(".L.end_type_assertion.%d", mylib.Itoa(labelid))
+		labelElse := fmtSprintf(".L.unmatch.%d", mylib.Itoa(labelid))
 		fmtPrintf("  jne %s # jmp if false\n", labelElse)
 
 		// if matched
@@ -3515,7 +3475,7 @@ type typeEntry struct {
 var typeId int = 1
 
 func typeIdToSymbol(id int) string {
-	return "dtype." + Itoa(id)
+	return "dtype." + mylib.Itoa(id)
 }
 
 func getTypeId(serialized string) int {
@@ -3539,13 +3499,13 @@ func emitDtypeSymbol(t *Type) {
 	typeId := getTypeId(str)
 	typeSymbol := typeIdToSymbol(typeId)
 	fmtPrintf("  leaq %s(%%rip), %%rax # typeid \"%s\"\n", typeSymbol, str)
-	fmtPrintf("  pushq %%rax # type symbol %s\n", Itoa(typeId), typeSymbol)
+	fmtPrintf("  pushq %%rax # type symbol %s\n", mylib.Itoa(typeId), typeSymbol)
 }
 
 func newNumberLiteral(x int) *astBasicLit {
 	var r = &astBasicLit{}
 	r.Kind = "INT"
-	r.Value = Itoa(x)
+	r.Value = mylib.Itoa(x)
 	return r
 }
 
@@ -3553,7 +3513,7 @@ func emitListElementAddr(list *astExpr, elmType *Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
 	fmtPrintf("  popq %%rcx # index id\n")
-	fmtPrintf("  movq $%s, %%rdx # elm size\n", Itoa(getSizeOfType(elmType)))
+	fmtPrintf("  movq $%s, %%rdx # elm size\n", mylib.Itoa(getSizeOfType(elmType)))
 	fmtPrintf("  imulq %%rdx, %%rcx\n")
 	fmtPrintf("  addq %%rcx, %%rax\n")
 	fmtPrintf("  pushq %%rax # addr of element\n")
@@ -3634,15 +3594,15 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	}
 	switch knd {
 	case T_SLICE:
-		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
-		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
-		fmtPrintf("  movq %%rdx, %d(%%rsi) # cap to cap\n", Itoa(16))
+		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", mylib.Itoa(0))
+		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", mylib.Itoa(8))
+		fmtPrintf("  movq %%rdx, %d(%%rsi) # cap to cap\n", mylib.Itoa(16))
 	case T_STRING:
-		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", Itoa(0))
-		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", Itoa(8))
+		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", mylib.Itoa(0))
+		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", mylib.Itoa(8))
 	case T_INTERFACE:
-		fmtPrintf("  movq %%rax, %d(%%rsi) # store dtype\n", Itoa(0))
-		fmtPrintf("  movq %%rcx, %d(%%rsi) # store data\n", Itoa(8))
+		fmtPrintf("  movq %%rax, %d(%%rsi) # store dtype\n", mylib.Itoa(0))
+		fmtPrintf("  movq %%rcx, %d(%%rsi) # store data\n", mylib.Itoa(8))
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmtPrintf("  movq %%rax, (%%rsi) # assign\n")
 	case T_UINT16:
@@ -3650,7 +3610,7 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	case T_UINT8:
 		fmtPrintf("  movb %%al, (%%rsi) # assign byte\n")
 	case T_STRUCT, T_ARRAY:
-		fmtPrintf("  pushq $%d # size\n", Itoa(getSizeOfType(t)))
+		fmtPrintf("  pushq $%d # size\n", mylib.Itoa(getSizeOfType(t)))
 		fmtPrintf("  pushq %%rsi # dst lhs\n")
 		fmtPrintf("  pushq %%rax # src rhs\n")
 		fmtPrintf("  callq runtime.memcopy\n")
@@ -3808,8 +3768,8 @@ func emitStmt(stmt *astStmt) {
 		emitComment(2, "if\n")
 
 		labelid++
-		var labelEndif = ".L.endif." + Itoa(labelid)
-		var labelElse = ".L.else." + Itoa(labelid)
+		var labelEndif = ".L.endif." + mylib.Itoa(labelid)
+		var labelElse = ".L.else." + mylib.Itoa(labelid)
 
 		emitExpr(stmt.ifStmt.Cond, nil)
 		emitPopBool("if condition")
@@ -3831,9 +3791,9 @@ func emitStmt(stmt *astStmt) {
 		emitComment(2, "end if\n")
 	case "*astForStmt":
 		labelid++
-		var labelCond = ".L.for.cond." + Itoa(labelid)
-		var labelPost = ".L.for.post." + Itoa(labelid)
-		var labelExit = ".L.for.exit." + Itoa(labelid)
+		var labelCond = ".L.for.cond." + mylib.Itoa(labelid)
+		var labelPost = ".L.for.post." + mylib.Itoa(labelid)
+		var labelExit = ".L.for.exit." + mylib.Itoa(labelid)
 		//forStmt, ok := mapForNodeToFor[s]
 		//assert(ok, "map value should exist")
 		stmt.forStmt.labelPost = labelPost
@@ -3859,9 +3819,9 @@ func emitStmt(stmt *astStmt) {
 		fmtPrintf("  %s:\n", labelExit)
 	case "*astRangeStmt": // only for array and slice
 		labelid++
-		var labelCond = ".L.range.cond." + Itoa(labelid)
-		var labelPost = ".L.range.post." + Itoa(labelid)
-		var labelExit = ".L.range.exit." + Itoa(labelid)
+		var labelCond = ".L.range.cond." + mylib.Itoa(labelid)
+		var labelPost = ".L.range.post." + mylib.Itoa(labelid)
+		var labelExit = ".L.range.exit." + mylib.Itoa(labelid)
 
 		stmt.rangeStmt.labelPost = labelPost
 		stmt.rangeStmt.labelExit = labelExit
@@ -3963,23 +3923,23 @@ func emitStmt(stmt *astStmt) {
 		emitStore(getTypeOfExpr(stmt.incDecStmt.X), true, false)
 	case "*astSwitchStmt":
 		labelid++
-		var labelEnd = fmtSprintf(".L.switch.%s.exit", Itoa(labelid))
+		var labelEnd = fmtSprintf(".L.switch.%s.exit", mylib.Itoa(labelid))
 		if stmt.switchStmt.Tag == nil {
 			panic2(__func__, "Omitted tag is not supported yet")
 		}
 		emitExpr(stmt.switchStmt.Tag, nil)
 		var condType = getTypeOfExpr(stmt.switchStmt.Tag)
 		var cases = stmt.switchStmt.Body.List
-		emitComment(2, "[DEBUG] cases len=%s\n", Itoa(len(cases)))
+		emitComment(2, "[DEBUG] cases len=%s\n", mylib.Itoa(len(cases)))
 		var labels = make([]string, len(cases), len(cases))
 		var defaultLabel string
 		emitComment(2, "Start comparison with cases\n")
 		for i, c := range cases {
-			emitComment(2, "CASES idx=%s\n", Itoa(i))
+			emitComment(2, "CASES idx=%s\n", mylib.Itoa(i))
 			assert(c.dtype == "*astCaseClause", "should be *astCaseClause", __func__)
 			var cc = c.caseClause
 			labelid++
-			var labelCase = ".L.case." + Itoa(labelid)
+			var labelCase = ".L.case." + mylib.Itoa(labelid)
 			labels[i] = labelCase
 			if len(cc.List) == 0 { // @TODO implement slice nil comparison
 				defaultLabel = labelCase
@@ -4022,7 +3982,7 @@ func emitStmt(stmt *astStmt) {
 		typeSwitch := stmt.typeSwitchStmt.node
 //		assert(ok, "should exist")
 		labelid++
-		labelEnd := fmtSprintf(".L.typeswitch.%d.exit", Itoa(labelid))
+		labelEnd := fmtSprintf(".L.typeswitch.%d.exit", mylib.Itoa(labelid))
 
 		// subjectVariable = subject
 		emitVariableAddr(typeSwitch.subjectVariable)
@@ -4037,7 +3997,7 @@ func emitStmt(stmt *astStmt) {
 			cc := c.caseClause
 			//assert(ok, "should be *ast.CaseClause")
 			labelid++
-			labelCase := ".L.case." + Itoa(labelid)
+			labelCase := ".L.case." + mylib.Itoa(labelid)
 			labels[i] = labelCase
 			if len(cc.List) == 0 { // @TODO implement slice nil comparison
 				defaultLabel = labelCase
@@ -4136,7 +4096,7 @@ func blockStmt2Stmt(block *astBlockStmt) *astStmt {
 }
 
 func emitRevertStackTop(t *Type) {
-	fmtPrintf("  addq $%s, %%rsp # revert stack top\n", Itoa(getSizeOfType(t)))
+	fmtPrintf("  addq $%s, %%rsp # revert stack top\n", mylib.Itoa(getSizeOfType(t)))
 }
 
 var labelid int
@@ -4170,12 +4130,12 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	var subsymbol = getFuncSubSymbol(fnc)
 	var symbol = getFuncSymbol(pkgName, subsymbol)
 	fmtPrintf("%s: # args %d, locals %d\n",
-		symbol, Itoa(int(fnc.argsarea)), Itoa(int(fnc.localarea)))
+		symbol, mylib.Itoa(int(fnc.argsarea)), mylib.Itoa(int(fnc.localarea)))
 
 	fmtPrintf("  pushq %%rbp\n")
 	fmtPrintf("  movq %%rsp, %%rbp\n")
 	if localarea != 0 {
-		fmtPrintf("  subq $%d, %%rsp # local area\n", Itoa(-localarea))
+		fmtPrintf("  subq $%d, %%rsp # local area\n", mylib.Itoa(-localarea))
 	}
 
 	if fnc.Body != nil {
@@ -4213,7 +4173,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		case "*astBasicLit":
 			var sl = getStringLiteral(val.basicLit)
 			fmtPrintf("  .quad %s\n", sl.label)
-			fmtPrintf("  .quad %d\n", Itoa(sl.strlen))
+			fmtPrintf("  .quad %d\n", mylib.Itoa(sl.strlen))
 		default:
 			panic("Unsupported global string value")
 		}
@@ -4309,7 +4269,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			panic2(__func__, "array length >= 10 is not supported yet.")
 		}
 		var length = evalInt(arrayType.Len)
-		emitComment(0, "[emitGlobalVariable] array length uint8=%s\n", Itoa(length))
+		emitComment(0, "[emitGlobalVariable] array length uint8=%s\n", mylib.Itoa(length))
 		var zeroValue string
 		var kind string = kind(e2t(arrayType.Elt))
 		switch kind {
@@ -4338,7 +4298,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 
 func generateCode(pkg *PkgContainer) {
 	fmtPrintf(".data\n")
-	emitComment(0, "string literals len = %s\n", Itoa(len(stringLiterals)))
+	emitComment(0, "string literals len = %s\n", mylib.Itoa(len(stringLiterals)))
 	for _, con := range stringLiterals {
 		emitComment(0, "string literals\n")
 		fmtPrintf("%s:\n", con.sl.label)
@@ -4702,7 +4662,7 @@ func serializeType(t *Type) string {
 			}
 			return "[]" + serializeType(e2t(e.Elt))
 		} else {
-			return "[" + Itoa(evalInt(e.Len)) + "]" + serializeType(e2t(e.Elt))
+			return "[" + mylib.Itoa(evalInt(e.Len)) + "]" + serializeType(e2t(e.Elt))
 		}
 	case "*astStarExpr":
 		e := t.e.starExpr
@@ -5011,14 +4971,14 @@ func registerStringLiteral(lit *astBasicLit) {
 		}
 	}
 
-	label := fmtSprintf(".%s.S%d", pkg.name, Itoa(stringIndex))
+	label := fmtSprintf(".%s.S%d", pkg.name, mylib.Itoa(stringIndex))
 	stringIndex++
 
 	sl := &sliteral{}
 	sl.label = label
 	sl.strlen = strlen - 2
 	sl.value = lit.Value
-	logf(" [registerStringLiteral] label=%s, strlen=%s %s\n", sl.label, Itoa(sl.strlen), sl.value)
+	logf(" [registerStringLiteral] label=%s, strlen=%s %s\n", sl.label, mylib.Itoa(sl.strlen), sl.value)
 	cont := &stringLiteralsContainer{}
 	cont.sl = sl
 	cont.lit = lit
@@ -5167,7 +5127,7 @@ func walkStmt(stmt *astStmt) {
 		t := e2t(typ)
 		valSpec.Name.Obj.Variable = currentFunc.registerLocalVariable(valSpec.Name.Name, t)
 		logf(" var %s offset = %d\n", valSpec.Name.Obj.Name,
-			Itoa(valSpec.Name.Obj.Variable.localOffset))
+			mylib.Itoa(valSpec.Name.Obj.Variable.localOffset))
 		if valSpec.Value != nil {
 			walkExpr(valSpec.Value)
 		}
@@ -5892,7 +5852,7 @@ func resolveUniverse(file *astFile, universe *astScope) {
 
 	// inject predeclared identifers
 	var unresolved []*astIdent
-	logf(" [SEMA] resolving file.Unresolved (n=%s)\n", Itoa(len(file.Unresolved)))
+	logf(" [SEMA] resolving file.Unresolved (n=%s)\n", mylib.Itoa(len(file.Unresolved)))
 	for _, ident := range file.Unresolved {
 		logf(" [SEMA] resolving ident %s ... \n", ident.Name)
 		var obj *astObject = scopeLookup(universe, ident.Name)
@@ -5958,7 +5918,7 @@ func main() {
 		showHelp()
 		return
 	} else if os.Args[1] == "panic" {
-		panicVersion := Itoa(mylib.Sum(1 , 1))
+		panicVersion := mylib.Itoa(mylib.Sum(1 , 1))
 		panic("I am panic version " + panicVersion)
 	}
 
@@ -5998,9 +5958,9 @@ func main() {
 		name := te.serialized
 		symbol := typeIdToSymbol(id)
 		fmtPrintf("%s: # %s\n", symbol, name)
-		fmtPrintf("  .quad %s\n", Itoa(id))
-		fmtPrintf("  .quad .S.dtype.%s\n", Itoa(id))
-		fmtPrintf(".S.dtype.%s:\n", Itoa(id))
+		fmtPrintf("  .quad %s\n", mylib.Itoa(id))
+		fmtPrintf("  .quad .S.dtype.%s\n", mylib.Itoa(id))
+		fmtPrintf(".S.dtype.%s:\n", mylib.Itoa(id))
 		fmtPrintf("  .string \"%s\"\n", name)
 	}
 	fmtPrintf("\n")
