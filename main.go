@@ -5865,7 +5865,7 @@ func main() {
 		}
 	}
 	var inputFile = arg
-	var sourceFiles = []string{"runtime.go", inputFile}
+	var sourceFiles = []string{"runtime" + ".go", inputFile}
 
 	for _, sourceFile := range sourceFiles {
 		fmtPrintf("# file: %s\n", sourceFile)

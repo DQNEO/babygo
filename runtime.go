@@ -215,7 +215,7 @@ func append24(old [][]int, elm []int) (uintptr, int, int) {
 
 func catstrings(a string, b string) string {
 	var totallen = len(a) + len(b)
-	var r = make([]uint8, totallen, totallen)
+	var r = make([]uint8, totallen, totallen+1) // +1 is a workaround for syscall.Open. see runtime.s
 	var i int
 	for i = 0; i < len(a); i = i + 1 {
 		r[i] = a[i]

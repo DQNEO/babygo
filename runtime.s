@@ -50,7 +50,7 @@ runtime.printstring:
 
 // func Open(path string, mode int, perm int) (fd int)
 syscall.Open:
-  movq  8(%rsp), %rax # arg0:str.ptr
+  movq  8(%rsp), %rax # arg0:str.ptr # @TODO This is a BUG! we should add a trailing null terminator
   movq 16(%rsp), %rdi # arg0:str.len (ignored)
   movq 24(%rsp), %rsi # arg1:flag int
   movq 32(%rsp), %rdx # arg2:perm int
