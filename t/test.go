@@ -23,21 +23,19 @@ func writeln(s interface{}) {
 }
 
 func Sprintf(format string, a []string) string {
-
 	var buf []uint8
 	var inPercent bool
 	var argIndex int
-	var c uint8
-	for _, c = range []uint8(format) {
+	for _, c := range []uint8(format) {
 		if inPercent {
 			if c == '%' {
 				buf = append(buf, c)
 			} else {
-				var arg string = a[argIndex]
+				arg := a[argIndex]
+
+				var str string = arg // // p.printArg(arg, c)
 				argIndex++
-				var s string = arg // // p.printArg(arg, c)
-				var _c uint8
-				for _, _c = range []uint8(s) {
+				for _, _c := range []uint8(str) {
 					buf = append(buf, _c)
 				}
 			}
