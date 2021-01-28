@@ -2,6 +2,7 @@ package main
 
 import "os"
 import "syscall"
+import "github.com/DQNEO/babygo/extlib/mylib"
 
 // --- utils ---
 func write(x interface{}) {
@@ -86,6 +87,12 @@ func nop1() {}
 func nop2() {}
 
 // --- test funcs ---
+func testExtLib() {
+	y := mylib.Sum(3, 4)
+	write("# testExtLib() => ")
+	writeln(itoa(y))
+}
+
 func passVargs(a... interface{}) {
 	takeInterfaceVaargs(a...)
 }
@@ -1775,6 +1782,7 @@ func testMisc() {
 }
 
 func test() {
+	testExtLib()
 	testExpandSlice()
 	testFullSlice()
 	testInterfaceVaargs()
