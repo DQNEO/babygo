@@ -2219,6 +2219,14 @@ var tUint8 *Type = &Type{
 	},
 }
 
+var tByte *Type = &Type{
+	e: &ast.Ident{
+		NamePos: 0,
+		Name:    "byte",
+		Obj:     gUint8,
+	},
+}
+
 var tSliceOfString *Type = &Type{
 	e: &ast.ArrayType{
 		Len: nil,
@@ -3594,6 +3602,7 @@ func createUniverse() *ast.Scope {
 	universe.Insert(gBool)
 	universe.Insert(gInt)
 	universe.Insert(gUint8)
+	universe.Objects["byte"] = gUint8 // byte is alias of uint8
 	universe.Insert(gUint16)
 
 	// predeclared constants

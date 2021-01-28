@@ -4633,7 +4633,7 @@ func kind(t *Type) string {
 			return T_INT32
 		case "string":
 			return T_STRING
-		case "uint8":
+		case "uint8", "byte":
 			return T_UINT8
 		case "uint16":
 			return T_UINT16
@@ -5700,6 +5700,12 @@ func createUniverse() *astScope {
 
 	scopeInsert(universe, gInt)
 	scopeInsert(universe, gUint8)
+
+	universe.Objects = append(universe.Objects, &objectEntry{
+		name: "byte",
+		obj:  gUint8,
+	})
+
 	scopeInsert(universe, gUint16)
 	scopeInsert(universe, gUintptr)
 	scopeInsert(universe, gString)

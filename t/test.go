@@ -22,13 +22,17 @@ func writeln(s interface{}) {
 	write("\n")
 }
 
-
-
 func nop() {}
 func nop1() {}
 func nop2() {}
 
 // --- test funcs ---
+func testByteType() {
+	var b byte = uint8('x')
+	var s string = string([]byte{b})
+	writeln(s)
+}
+
 func testExtLib() {
 	y := mylib.Sum(3, 4)
 	write("# testExtLib() => ")
@@ -1684,6 +1688,7 @@ func testMisc() {
 }
 
 func test() {
+	testByteType()
 	testExtLib()
 	testExpandSlice()
 	testFullSlice()

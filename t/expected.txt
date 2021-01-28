@@ -1,3 +1,4 @@
+x
 # testExtLib() => 7
 3
 2
