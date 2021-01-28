@@ -28,7 +28,7 @@ $(tmp)/babygo: $(tmp) main.go
 	go build -o $(tmp)/babygo main.go
 
 $(tmp)/babygo2: $(tmp)/babygo runtime.go runtime.s
-	$(tmp)/babygo -DF -DG main.go > $(tmp)/babygo-main.s
+	$(tmp)/babygo $(GOPATH) -DF -DG main.go > $(tmp)/babygo-main.s
 	cp $(tmp)/babygo-main.s ./.shared/ # for debug
 	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/babygo2 $(tmp)/babygo2.o
@@ -41,19 +41,19 @@ $(tmp)/test0: t/test.go $(tmp)/pre runtime.go runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test0 $(tmp)/test0.o
 
 $(tmp)/test-cross: t/test.go $(tmp)/cross
-	$(tmp)/cross -DF -DG t/test.go > $(tmp)/cross-test.s
+	$(tmp)/cross $(GOPATH) -DF -DG t/test.go > $(tmp)/cross-test.s
 	cp $(tmp)/cross-test.s ./.shared/
 	as -o $(tmp)/test-cross.o $(tmp)/cross-test.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test-cross $(tmp)/test-cross.o
 
 $(tmp)/test1: t/test.go $(tmp)/babygo runtime.go runtime.s
-	$(tmp)/babygo -DF -DG t/test.go > $(tmp)/babygo-DF-DG-test.s
+	$(tmp)/babygo $(GOPATH) -DF -DG t/test.go > $(tmp)/babygo-DF-DG-test.s
 	cp $(tmp)/babygo-DF-DG-test.s ./.shared/
 	as -o $(tmp)/test1.o $(tmp)/babygo-DF-DG-test.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test1 $(tmp)/test1.o
 
 $(tmp)/test2: t/test.go $(tmp)/babygo2
-	$(tmp)/babygo2 -DF -DG t/test.go > $(tmp)/babygo2-DF-DG-test.s
+	$(tmp)/babygo2 $(GOPATH) -DF -DG t/test.go > $(tmp)/babygo2-DF-DG-test.s
 	cp $(tmp)/babygo2-DF-DG-test.s ./.shared/
 	as -o $(tmp)/test2.o $(tmp)/babygo2-DF-DG-test.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test2 $(tmp)/test2.o
@@ -79,8 +79,8 @@ test2: $(tmp)/test2 t/expected.txt
 .PHONY: selfhost
 selfhost: $(tmp)/babygo $(tmp)/babygo2
 	@echo "testing self host ..."
-	$(tmp)/babygo  main.go > $(tmp)/2gen_strip.s
-	$(tmp)/babygo2 main.go > $(tmp)/3gen_strip.s
+	$(tmp)/babygo  $(GOPATH)  main.go > $(tmp)/2gen_strip.s
+	$(tmp)/babygo2 $(GOPATH)  main.go > $(tmp)/3gen_strip.s
 	diff $(tmp)/2gen_strip.s $(tmp)/3gen_strip.s
 	@echo "self host is ok"
 

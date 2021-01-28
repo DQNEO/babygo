@@ -5943,7 +5943,6 @@ func showHelp() {
 const GOPATH string = "/root/go"
 
 func main() {
-	srcPath := GOPATH + "/src"
 	var universe = createUniverse()
 
 	if len(os.Args) == 1 {
@@ -5962,6 +5961,8 @@ func main() {
 	}
 
 	var arg string
+	var gopath string = os.Args[1]
+	srcPath := gopath + "/src"
 	for _, arg = range os.Args {
 		switch arg {
 		case "-DF":
@@ -5970,7 +5971,7 @@ func main() {
 			debugCodeGen = true
 		}
 	}
-	var inputFile = arg
+	var inputFile = arg // last arg is the inputFile
 	xlibFilename := srcPath + "/" + "github.com/DQNEO/babygo/extlib/mylib" + "/mylib.go"
 	var sourceFiles = []string{"runtime.go", xlibFilename,  inputFile}
 
