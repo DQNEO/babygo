@@ -2,6 +2,7 @@ package main
 
 import "syscall"
 import "os"
+import "github.com/DQNEO/babygo/extlib/mylib"
 
 // --- foundation ---
 var __func__ = "__func__"
@@ -5957,7 +5958,8 @@ func main() {
 		showHelp()
 		return
 	} else if os.Args[1] == "panic" {
-		panic("I am panic")
+		panicVersion := Itoa(mylib.Sum(1 , 1))
+		panic("I am panic version " + panicVersion)
 	}
 
 	var arg string
