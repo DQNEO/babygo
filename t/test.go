@@ -22,7 +22,7 @@ func writeln(s interface{}) {
 	write("\n")
 }
 
-func Sprintf(format string, a []string) string {
+func Sprintf(format string, a...string) string {
 	var buf []uint8
 	var inPercent bool
 	var argIndex int
@@ -641,7 +641,7 @@ func testIsLetter() {
 }
 
 func funcVaarg1(f string, a ...string) {
-	write(Sprintf(f, a))
+	write(Sprintf(f, a...))
 }
 
 func funcVaarg2(a int, b ...int) {
@@ -1027,10 +1027,10 @@ func testSprintf() {
 	a[0] = mylib.Itoa(1234)
 	a[1] = "c"
 	a[2] = "efg"
-	var s string = Sprintf("%sab%sd%s", a)
+	var s string = Sprintf("%sab%sd%s", a...)
 	write(s)
 
-	var s2 string = Sprintf("%%rax", nil)
+	var s2 string = Sprintf("%%rax")
 	write(s2)
 	write("|\n")
 }
