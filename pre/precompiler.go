@@ -3697,49 +3697,13 @@ func createUniverse() *ast.Scope {
 	return universe
 }
 
-// search index of the specified char from backward
-func LastIndexByte(s string, c uint8) int {
-	for i:=len(s)-1;i>=0;i-- {
-		if s[i] == c {
-			return i
-		}
-	}
-	// not found
-	return -1
-}
-
-// "foo/bar/buz" => "buz"
-func Base(path string) string {
-	if len(path) == 0 {
-		return "."
-	}
-
-	if path == "/" {
-		return "/"
-	}
-
-	if path[len(path) - 1] == '/' {
-		path = path[0:len(path) - 1]
-	}
-
-	found := LastIndexByte(path, '/')
-	if found == -1 {
-		// not found
-		return path
-	}
-
-	_len := len(path)
-	r := path[found+1:_len]
-	return r
-}
-
 func resolveUniverse(file *ast.File, universe *ast.Scope) {
 	var unresolved []*ast.Ident
 	var mapImports = map[string]bool{}
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		path := imprt.Path.Value[1:len( imprt.Path.Value)-1]
-		base := Base(path)
+		base := mylib.Base(path)
 		mapImports[base] = true
 	}
 	for _, ident := range file.Unresolved {

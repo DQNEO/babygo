@@ -45,3 +45,39 @@ func Itoa(ival int) string {
 
 	return string(r[0:ix])
 }
+
+// search index of the specified char from backward
+func LastIndexByte(s string, c uint8) int {
+	for i:=len(s)-1;i>=0;i-- {
+		if s[i] == c {
+			return i
+		}
+	}
+	// not found
+	return -1
+}
+
+// "foo/bar/buz" => "buz"
+func Base(path string) string {
+	if len(path) == 0 {
+		return "."
+	}
+
+	if path == "/" {
+		return "/"
+	}
+
+	if path[len(path) - 1] == '/' {
+		path = path[0:len(path) - 1]
+	}
+
+	found := LastIndexByte(path, '/')
+	if found == -1 {
+		// not found
+		return path
+	}
+
+	_len := len(path)
+	r := path[found+1:_len]
+	return r
+}
