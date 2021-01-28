@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"syscall"
 
 	"go/ast"
@@ -3811,10 +3812,8 @@ type PkgContainer struct {
 	funcs []*Func
 }
 
-const GOPATH string = "/root/go"
-
 func main() {
-	srcPath := GOPATH + "/src"
+	srcPath := os.Getenv("GOPATH") + "/src"
 	var universe = createUniverse()
 
 	xlibFilename := srcPath + "/" + "github.com/DQNEO/babygo/extlib/mylib" + "/mylib.go"
