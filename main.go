@@ -5830,12 +5830,22 @@ func main() {
 			debugCodeGen = true
 		}
 	}
-	var inputFile = arg // last arg is the inputFile
-	xlibFilename := srcPath + "/" + "github.com/DQNEO/babygo/extlib/mylib" + "/mylib.go"
-	var sourceFiles = []string{"runtime.go", xlibFilename,  inputFile}
 
-	for _, sourceFile := range sourceFiles {
-		mylib.Printf("# file: %s\n", sourceFile)
+	var mainFile = arg // last arg
+
+	runtimefile := "runtime.go"
+	var imports []string = []string{
+		"github.com/DQNEO/babygo/extlib/mylib", // @TODO read this from file
+	}
+	imprt := imports[0]
+	file := mylib.Base(imprt) + ".go" // mylib.go
+
+	xlibFilename := srcPath + "/" + imprt + "/" + file
+
+	var packages = []string{runtimefile, xlibFilename, mainFile}
+
+	for _, sourceFile := range packages {
+		mylib.Printf("# pkg file: %s\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil
 		astFile := parseFile(sourceFile)
