@@ -19,7 +19,7 @@ $(tmp)/pre: $(tmp) pre/precompiler.go
 	go build -o $(tmp)/pre pre/precompiler.go
 
 $(tmp)/cross: main.go runtime.go runtime.s $(tmp)/pre
-	$(tmp)/pre < main.go > $(tmp)/pre-main.s
+	$(tmp)/pre main.go > $(tmp)/pre-main.s
 	cp $(tmp)/pre-main.s ./.shared/ # for debug
 	as -o $(tmp)/cross.o $(tmp)/pre-main.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/cross $(tmp)/cross.o
@@ -35,7 +35,7 @@ $(tmp)/babygo2: $(tmp)/babygo runtime.go runtime.s
 
 # Build test binaries
 $(tmp)/test0: t/test.go $(tmp)/pre runtime.go runtime.s
-	$(tmp)/pre < t/test.go > $(tmp)/pre-test.s
+	$(tmp)/pre t/test.go > $(tmp)/pre-test.s
 	cp $(tmp)/pre-test.s ./.shared/
 	as -o $(tmp)/test0.o $(tmp)/pre-test.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test0 $(tmp)/test0.o

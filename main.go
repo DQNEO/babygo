@@ -5801,8 +5801,6 @@ func showHelp() {
 const GOPATH string = "/root/go"
 
 func main() {
-	var universe = createUniverse()
-
 	if len(os.Args) == 1 {
 		showHelp()
 		return
@@ -5818,6 +5816,8 @@ func main() {
 		panicVersion := mylib.Itoa(mylib.Sum(1 , 1))
 		panic("I am panic version " + panicVersion)
 	}
+
+	var universe = createUniverse()
 
 	var arg string
 	var gopath string = os.Args[1]

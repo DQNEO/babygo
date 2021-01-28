@@ -3675,13 +3675,36 @@ type PkgContainer struct {
 	funcs []*Func
 }
 
+func showHelp() {
+	mylib.Printf("Usage:\n")
+	mylib.Printf("    pre version:  show version\n")
+	mylib.Printf("    pre [-DF] [-DG] filename\n")
+}
+
 func main() {
-	mylib.Printf("# dummy version: %d\n", mylib.Sum(1,1))
+	if len(os.Args) == 1 {
+		showHelp()
+		return
+	}
+
+	if os.Args[1] == "version" {
+		mylib.Printf("babygo version 0.1.0  linux/amd64\n")
+		return
+	} else if os.Args[1] == "help" {
+		showHelp()
+		return
+	} else if os.Args[1] == "panic" {
+		panicVersion := mylib.Itoa(mylib.Sum(1 , 1))
+		panic("I am panic version " + panicVersion)
+	}
+
 	srcPath := os.Getenv("GOPATH") + "/src"
 	var universe = createUniverse()
 
+	var mainFile = os.Args[1]
+
 	xlibFilename := srcPath + "/" + "github.com/DQNEO/babygo/extlib/mylib" + "/mylib.go"
-	var packages = []string{"runtime.go", xlibFilename, "/dev/stdin"}
+	var packages = []string{"runtime.go", xlibFilename, mainFile}
 
 	for _, sourceFile := range packages {
 
