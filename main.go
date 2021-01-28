@@ -33,11 +33,6 @@ func logf(format string, a ...interface{}) {
 }
 
 // --- libs ---
-func fmtPrintf(format string, a ...interface{}) {
-	var s = mylib.Sprintf(format, a...)
-	syscall.Write(1, []uint8(s))
-}
-
 func inArray(x string, list []string) bool {
 	for _, v := range list {
 		if v == x {
@@ -2185,57 +2180,57 @@ func evalInt(expr *astExpr) int {
 }
 
 func emitPopPrimitive(comment string) {
-	fmtPrintf("  popq %%rax # result of %s\n", comment)
+	mylib.Printf("  popq %%rax # result of %s\n", comment)
 }
 
 func emitPopBool(comment string) {
-	fmtPrintf("  popq %%rax # result of %s\n", comment)
+	mylib.Printf("  popq %%rax # result of %s\n", comment)
 }
 
 func emitPopAddress(comment string) {
-	fmtPrintf("  popq %%rax # address of %s\n", comment)
+	mylib.Printf("  popq %%rax # address of %s\n", comment)
 }
 
 func emitPopString() {
-	fmtPrintf("  popq %%rax # string.ptr\n")
-	fmtPrintf("  popq %%rcx # string.len\n")
+	mylib.Printf("  popq %%rax # string.ptr\n")
+	mylib.Printf("  popq %%rcx # string.len\n")
 }
 
 func emitPopInterFace() {
-	fmtPrintf("  popq %%rax # eface.dtype\n")
-	fmtPrintf("  popq %%rcx # eface.data\n")
+	mylib.Printf("  popq %%rax # eface.dtype\n")
+	mylib.Printf("  popq %%rcx # eface.data\n")
 }
 
 func emitPopSlice() {
-	fmtPrintf("  popq %%rax # slice.ptr\n")
-	fmtPrintf("  popq %%rcx # slice.len\n")
-	fmtPrintf("  popq %%rdx # slice.cap\n")
+	mylib.Printf("  popq %%rax # slice.ptr\n")
+	mylib.Printf("  popq %%rcx # slice.len\n")
+	mylib.Printf("  popq %%rdx # slice.cap\n")
 }
 
 func emitPushStackTop(condType *Type, comment string) {
 	switch kind(condType) {
 	case T_STRING:
-		fmtPrintf("  movq 8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", comment)
-		fmtPrintf("  movq 0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", comment)
-		fmtPrintf("  pushq %%rcx # str.len\n")
-		fmtPrintf("  pushq %%rax # str.ptr\n")
+		mylib.Printf("  movq 8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", comment)
+		mylib.Printf("  movq 0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", comment)
+		mylib.Printf("  pushq %%rcx # str.len\n")
+		mylib.Printf("  pushq %%rax # str.ptr\n")
 	case T_POINTER, T_UINTPTR, T_BOOL, T_INT, T_UINT8, T_UINT16:
-		fmtPrintf("  movq (%%rsp), %%rax # copy stack top value (%s) \n", comment)
-		fmtPrintf("  pushq %%rax\n")
+		mylib.Printf("  movq (%%rsp), %%rax # copy stack top value (%s) \n", comment)
+		mylib.Printf("  pushq %%rax\n")
 	default:
 		throw(kind(condType))
 	}
 }
 
 func emitRevertStackPointer(size int) {
-	fmtPrintf("  addq $%s, %%rsp # revert stack pointer\n", mylib.Itoa(size))
+	mylib.Printf("  addq $%s, %%rsp # revert stack pointer\n", mylib.Itoa(size))
 }
 
 func emitAddConst(addValue int, comment string) {
 	emitComment(2, "Add const: %s\n", comment)
-	fmtPrintf("  popq %%rax\n")
-	fmtPrintf("  addq $%s, %%rax\n", mylib.Itoa(addValue))
-	fmtPrintf("  pushq %%rax\n")
+	mylib.Printf("  popq %%rax\n")
+	mylib.Printf("  addq $%s, %%rax\n", mylib.Itoa(addValue))
+	mylib.Printf("  pushq %%rax\n")
 }
 
 func emitLoad(t *Type) {
@@ -2245,34 +2240,34 @@ func emitLoad(t *Type) {
 	emitPopAddress(kind(t))
 	switch kind(t) {
 	case T_SLICE:
-		fmtPrintf("  movq %d(%%rax), %%rdx\n", mylib.Itoa(16))
-		fmtPrintf("  movq %d(%%rax), %%rcx\n", mylib.Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax\n", mylib.Itoa(0))
-		fmtPrintf("  pushq %%rdx # cap\n")
-		fmtPrintf("  pushq %%rcx # len\n")
-		fmtPrintf("  pushq %%rax # ptr\n")
+		mylib.Printf("  movq %d(%%rax), %%rdx\n", mylib.Itoa(16))
+		mylib.Printf("  movq %d(%%rax), %%rcx\n", mylib.Itoa(8))
+		mylib.Printf("  movq %d(%%rax), %%rax\n", mylib.Itoa(0))
+		mylib.Printf("  pushq %%rdx # cap\n")
+		mylib.Printf("  pushq %%rcx # len\n")
+		mylib.Printf("  pushq %%rax # ptr\n")
 	case T_STRING:
-		fmtPrintf("  movq %d(%%rax), %%rdx # len\n", mylib.Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax # ptr\n", mylib.Itoa(0))
-		fmtPrintf("  pushq %%rdx # len\n")
-		fmtPrintf("  pushq %%rax # ptr\n")
+		mylib.Printf("  movq %d(%%rax), %%rdx # len\n", mylib.Itoa(8))
+		mylib.Printf("  movq %d(%%rax), %%rax # ptr\n", mylib.Itoa(0))
+		mylib.Printf("  pushq %%rdx # len\n")
+		mylib.Printf("  pushq %%rax # ptr\n")
 	case T_INTERFACE:
-		fmtPrintf("  movq %d(%%rax), %%rdx # data\n", mylib.Itoa(8))
-		fmtPrintf("  movq %d(%%rax), %%rax # dtype\n", mylib.Itoa(0))
-		fmtPrintf("  pushq %%rdx # data\n")
-		fmtPrintf("  pushq %%rax # dtype\n")
+		mylib.Printf("  movq %d(%%rax), %%rdx # data\n", mylib.Itoa(8))
+		mylib.Printf("  movq %d(%%rax), %%rax # dtype\n", mylib.Itoa(0))
+		mylib.Printf("  pushq %%rdx # data\n")
+		mylib.Printf("  pushq %%rax # dtype\n")
 	case T_UINT8:
-		fmtPrintf("  movzbq %d(%%rax), %%rax # load uint8\n", mylib.Itoa(0))
-		fmtPrintf("  pushq %%rax\n")
+		mylib.Printf("  movzbq %d(%%rax), %%rax # load uint8\n", mylib.Itoa(0))
+		mylib.Printf("  pushq %%rax\n")
 	case T_UINT16:
-		fmtPrintf("  movzwq %d(%%rax), %%rax # load uint16\n", mylib.Itoa(0))
-		fmtPrintf("  pushq %%rax\n")
+		mylib.Printf("  movzwq %d(%%rax), %%rax # load uint16\n", mylib.Itoa(0))
+		mylib.Printf("  pushq %%rax\n")
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmtPrintf("  movq %d(%%rax), %%rax # load int\n", mylib.Itoa(0))
-		fmtPrintf("  pushq %%rax\n")
+		mylib.Printf("  movq %d(%%rax), %%rax # load int\n", mylib.Itoa(0))
+		mylib.Printf("  pushq %%rax\n")
 	case T_ARRAY, T_STRUCT:
 		// pure proxy
-		fmtPrintf("  pushq %%rax\n")
+		mylib.Printf("  pushq %%rax\n")
 	default:
 		panic2(__func__, "TBI:kind="+kind(t))
 	}
@@ -2282,12 +2277,12 @@ func emitVariableAddr(variable *Variable) {
 	emitComment(2, "emit Addr of variable \"%s\" \n", variable.name)
 
 	if variable.isGlobal {
-		fmtPrintf("  leaq %s(%%rip), %%rax # global variable addr \"%s\"\n", variable.globalSymbol,  variable.name)
+		mylib.Printf("  leaq %s(%%rip), %%rax # global variable addr \"%s\"\n", variable.globalSymbol,  variable.name)
 	} else {
-		fmtPrintf("  leaq %d(%%rbp), %%rax # local variable addr \"%s\"\n", mylib.Itoa(variable.localOffset),  variable.name)
+		mylib.Printf("  leaq %d(%%rbp), %%rax # local variable addr \"%s\"\n", mylib.Itoa(variable.localOffset),  variable.name)
 	}
 
-	fmtPrintf("  pushq %%rax # variable address\n")
+	mylib.Printf("  pushq %%rax # variable address\n")
 }
 
 func emitListHeadAddr(list *astExpr) {
@@ -2298,11 +2293,11 @@ func emitListHeadAddr(list *astExpr) {
 	case T_SLICE:
 		emitExpr(list, nil)
 		emitPopSlice()
-		fmtPrintf("  pushq %%rax # slice.ptr\n")
+		mylib.Printf("  pushq %%rax # slice.ptr\n")
 	case T_STRING:
 		emitExpr(list, nil)
 		emitPopString()
-		fmtPrintf("  pushq %%rax # string.ptr\n")
+		mylib.Printf("  pushq %%rax # string.ptr\n")
 	default:
 		panic2(__func__, "kind="+kind(getTypeOfExpr(list)))
 	}
@@ -2338,8 +2333,8 @@ func emitAddr(expr *astExpr) {
 		emitExpr(expr.starExpr.X, nil)
 	case "*astSelectorExpr": // (X).Sel
 		if isOsArgs(expr.selectorExpr) {
-			fmtPrintf("  leaq %s(%%rip), %%rax # hack for os.Args\n", "runtime.__args__")
-			fmtPrintf("  pushq %%rax\n")
+			mylib.Printf("  leaq %s(%%rip), %%rax # hack for os.Args\n", "runtime.__args__")
+			mylib.Printf("  pushq %%rax\n")
 			return
 		}
 		var typeOfX = getTypeOfExpr(expr.selectorExpr.X)
@@ -2416,8 +2411,8 @@ func emitConversion(toType *Type, arg0 *astExpr) {
 			case T_SLICE: // string(slice)
 				emitExpr(arg0, nil) // slice
 				emitPopSlice()
-				fmtPrintf("  pushq %%rcx # str len\n")
-				fmtPrintf("  pushq %%rax # str ptr\n")
+				mylib.Printf("  pushq %%rcx # str len\n")
+				mylib.Printf("  pushq %%rax # str ptr\n")
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			emitComment(2, "[emitConversion] to int \n")
@@ -2446,9 +2441,9 @@ func emitConversion(toType *Type, arg0 *astExpr) {
 		emitComment(2, "Conversion of string => slice \n")
 		emitExpr(arg0, nil)
 		emitPopString()
-		fmtPrintf("  pushq %%rcx # cap\n")
-		fmtPrintf("  pushq %%rcx # len\n")
-		fmtPrintf("  pushq %%rax # ptr\n")
+		mylib.Printf("  pushq %%rcx # cap\n")
+		mylib.Printf("  pushq %%rcx # len\n")
+		mylib.Printf("  pushq %%rax # ptr\n")
 	case "*astParenExpr":
 		emitConversion(e2t(to.parenExpr.X), arg0)
 	case "*astStarExpr": // (*T)(e)
@@ -2470,20 +2465,20 @@ func emitConversion(toType *Type, arg0 *astExpr) {
 func emitZeroValue(t *Type) {
 	switch kind(t) {
 	case T_SLICE:
-		fmtPrintf("  pushq $0 # slice cap\n")
-		fmtPrintf("  pushq $0 # slice len\n")
-		fmtPrintf("  pushq $0 # slice ptr\n")
+		mylib.Printf("  pushq $0 # slice cap\n")
+		mylib.Printf("  pushq $0 # slice len\n")
+		mylib.Printf("  pushq $0 # slice ptr\n")
 	case T_STRING:
-		fmtPrintf("  pushq $0 # string len\n")
-		fmtPrintf("  pushq $0 # string ptr\n")
+		mylib.Printf("  pushq $0 # string len\n")
+		mylib.Printf("  pushq $0 # string ptr\n")
 	case T_INTERFACE:
-		fmtPrintf("  pushq $0 # interface data\n")
-		fmtPrintf("  pushq $0 # interface dtype\n")
+		mylib.Printf("  pushq $0 # interface data\n")
+		mylib.Printf("  pushq $0 # interface dtype\n")
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
-		fmtPrintf("  pushq $0 # %s zero value\n", kind(t))
+		mylib.Printf("  pushq $0 # %s zero value\n", kind(t))
 	case T_STRUCT:
 		var structSize = getSizeOfType(t)
-		fmtPrintf("# zero value of a struct. size=%s (allocating on heap)\n", mylib.Itoa(structSize))
+		mylib.Printf("# zero value of a struct. size=%s (allocating on heap)\n", mylib.Itoa(structSize))
 		emitCallMalloc(structSize)
 	default:
 		panic2(__func__, "TBI:"+kind(t))
@@ -2500,11 +2495,11 @@ func emitLen(arg *astExpr) {
 	case T_SLICE:
 		emitExpr(arg, nil)
 		emitPopSlice()
-		fmtPrintf("  pushq %%rcx # len\n")
+		mylib.Printf("  pushq %%rcx # len\n")
 	case T_STRING:
 		emitExpr(arg, nil)
 		emitPopString()
-		fmtPrintf("  pushq %%rcx # len\n")
+		mylib.Printf("  pushq %%rcx # len\n")
 	default:
 		throw(kind(getTypeOfExpr(arg)))
 	}
@@ -2520,7 +2515,7 @@ func emitCap(arg *astExpr) {
 	case T_SLICE:
 		emitExpr(arg, nil)
 		emitPopSlice()
-		fmtPrintf("  pushq %%rdx # cap\n")
+		mylib.Printf("  pushq %%rdx # cap\n")
 	case T_STRING:
 		panic("cap() cannot accept string type")
 	default:
@@ -2529,21 +2524,21 @@ func emitCap(arg *astExpr) {
 }
 
 func emitCallMalloc(size int) {
-	fmtPrintf("  pushq $%s\n", mylib.Itoa(size))
+	mylib.Printf("  pushq $%s\n", mylib.Itoa(size))
 	// call malloc and return pointer
 	var resultList = []*astField{
 		&astField{
 			Type:    tUintptr.e,
 		},
 	}
-	fmtPrintf("  callq runtime.malloc\n") // no need to invert args orders
+	mylib.Printf("  callq runtime.malloc\n") // no need to invert args orders
 	emitRevertStackPointer(intSize)
 	emitReturnedValue(resultList)
 }
 
 func emitStructLiteral(e *astCompositeLit) {
 	// allocate heap area with zero value
-	fmtPrintf("  # Struct literal\n")
+	mylib.Printf("  # Struct literal\n")
 	var structType = e2t(e.Type)
 	emitZeroValue(structType) // push address of the new storage
 	var kvExpr *astKeyValueExpr
@@ -2552,7 +2547,7 @@ func emitStructLiteral(e *astCompositeLit) {
 		kvExpr = elm.keyValueExpr
 		assert(kvExpr.Key.dtype == "*astIdent", "wrong dtype 2:" + elm.dtype, __func__)
 		var fieldName = kvExpr.Key.ident
-		fmtPrintf("  #  - [%s] : key=%s, value=%s\n", mylib.Itoa(i), fieldName.Name, kvExpr.Value.dtype)
+		mylib.Printf("  #  - [%s] : key=%s, value=%s\n", mylib.Itoa(i), fieldName.Name, kvExpr.Value.dtype)
 		var field = lookupStructField(getStructTypeSpec(structType), fieldName.Name)
 		var fieldType = e2t(field.Type)
 		var fieldOffset = getStructFieldOffset(field)
@@ -2588,16 +2583,16 @@ func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []*astExpr) {
 
 func emitInvertBoolValue() {
 	emitPopBool("")
-	fmtPrintf("  xor $1, %%rax\n")
-	fmtPrintf("  pushq %%rax\n")
+	mylib.Printf("  xor $1, %%rax\n")
+	mylib.Printf("  pushq %%rax\n")
 }
 
 func emitTrue() {
-	fmtPrintf("  pushq $1 # true\n")
+	mylib.Printf("  pushq $1 # true\n")
 }
 
 func emitFalse() {
-	fmtPrintf("  pushq $0 # false\n")
+	mylib.Printf("  pushq $0 # false\n")
 }
 
 type Arg struct {
@@ -2619,14 +2614,14 @@ func emitArgs(args []*Arg) int {
 		arg.offset = totalPushedSize
 		totalPushedSize = totalPushedSize + getPushSizeOfType(t)
 	}
-	fmtPrintf("  subq $%d, %%rsp # for args\n", mylib.Itoa(totalPushedSize))
+	mylib.Printf("  subq $%d, %%rsp # for args\n", mylib.Itoa(totalPushedSize))
 	for _, arg := range args {
 		ctx := &evalContext{
 			_type: arg.t,
 		}
 		emitExprIfc(arg.e, ctx)
 	}
-	fmtPrintf("  addq $%d, %%rsp # for args\n", mylib.Itoa(totalPushedSize))
+	mylib.Printf("  addq $%d, %%rsp # for args\n", mylib.Itoa(totalPushedSize))
 
 	for _, arg := range args {
 		var t *Type
@@ -2637,20 +2632,20 @@ func emitArgs(args []*Arg) int {
 		}
 		switch kind(t) {
 		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
-			fmtPrintf("  movq %d-8(%%rsp) , %%rax # load\n", mylib.Itoa(-arg.offset))
-			fmtPrintf("  movq %%rax, %d(%%rsp) # store\n", mylib.Itoa(+arg.offset))
+			mylib.Printf("  movq %d-8(%%rsp) , %%rax # load\n", mylib.Itoa(-arg.offset))
+			mylib.Printf("  movq %%rax, %d(%%rsp) # store\n", mylib.Itoa(+arg.offset))
 		case T_STRING, T_INTERFACE:
-			fmtPrintf("  movq %d-16(%%rsp), %%rax\n", mylib.Itoa(-arg.offset))
-			fmtPrintf("  movq %d-8(%%rsp), %%rcx\n", mylib.Itoa(-arg.offset))
-			fmtPrintf("  movq %%rax, %d(%%rsp)\n", mylib.Itoa(+arg.offset))
-			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", mylib.Itoa(+arg.offset))
+			mylib.Printf("  movq %d-16(%%rsp), %%rax\n", mylib.Itoa(-arg.offset))
+			mylib.Printf("  movq %d-8(%%rsp), %%rcx\n", mylib.Itoa(-arg.offset))
+			mylib.Printf("  movq %%rax, %d(%%rsp)\n", mylib.Itoa(+arg.offset))
+			mylib.Printf("  movq %%rcx, %d+8(%%rsp)\n", mylib.Itoa(+arg.offset))
 		case T_SLICE:
-			fmtPrintf("  movq %d-24(%%rsp), %%rax\n", mylib.Itoa(-arg.offset)) // arg1: slc.ptr
-			fmtPrintf("  movq %d-16(%%rsp), %%rcx\n", mylib.Itoa(-arg.offset)) // arg1: slc.len
-			fmtPrintf("  movq %d-8(%%rsp), %%rdx\n", mylib.Itoa(-arg.offset))  // arg1: slc.cap
-			fmtPrintf("  movq %%rax, %d+0(%%rsp)\n", mylib.Itoa(+arg.offset))  // arg1: slc.ptr
-			fmtPrintf("  movq %%rcx, %d+8(%%rsp)\n", mylib.Itoa(+arg.offset))  // arg1: slc.len
-			fmtPrintf("  movq %%rdx, %d+16(%%rsp)\n", mylib.Itoa(+arg.offset)) // arg1: slc.cap
+			mylib.Printf("  movq %d-24(%%rsp), %%rax\n", mylib.Itoa(-arg.offset)) // arg1: slc.ptr
+			mylib.Printf("  movq %d-16(%%rsp), %%rcx\n", mylib.Itoa(-arg.offset)) // arg1: slc.len
+			mylib.Printf("  movq %d-8(%%rsp), %%rdx\n", mylib.Itoa(-arg.offset))  // arg1: slc.cap
+			mylib.Printf("  movq %%rax, %d+0(%%rsp)\n", mylib.Itoa(+arg.offset))  // arg1: slc.ptr
+			mylib.Printf("  movq %%rcx, %d+8(%%rsp)\n", mylib.Itoa(+arg.offset))  // arg1: slc.len
+			mylib.Printf("  movq %%rdx, %d+16(%%rsp)\n", mylib.Itoa(+arg.offset)) // arg1: slc.cap
 		default:
 			throw(kind(t))
 		}
@@ -2746,7 +2741,7 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr, exp
 func emitCall(symbol string, args []*Arg, results []*astField) {
 	emitComment(2, "[%s] %s\n", __func__, symbol)
 	var totalPushedSize = emitArgs(args)
-	fmtPrintf("  callq %s\n", symbol)
+	mylib.Printf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
 	emitReturnedValue(results)
 }
@@ -2760,17 +2755,17 @@ func emitReturnedValue(resultList []*astField) {
 		var knd = kind(e2t(retval0.Type))
 		switch knd {
 		case T_STRING:
-			fmtPrintf("  pushq %%rdi # str len\n")
-			fmtPrintf("  pushq %%rax # str ptr\n")
+			mylib.Printf("  pushq %%rdi # str len\n")
+			mylib.Printf("  pushq %%rax # str ptr\n")
 		case T_INTERFACE:
-			fmtPrintf("  pushq %%rdi # ifc data\n")
-			fmtPrintf("  pushq %%rax # ifc dtype\n")
+			mylib.Printf("  pushq %%rdi # ifc data\n")
+			mylib.Printf("  pushq %%rax # ifc dtype\n")
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-			fmtPrintf("  pushq %%rax\n")
+			mylib.Printf("  pushq %%rax\n")
 		case T_SLICE:
-			fmtPrintf("  pushq %%rsi # slice cap\n")
-			fmtPrintf("  pushq %%rdi # slice len\n")
-			fmtPrintf("  pushq %%rax # slice ptr\n")
+			mylib.Printf("  pushq %%rsi # slice cap\n")
+			mylib.Printf("  pushq %%rdi # slice len\n")
+			mylib.Printf("  pushq %%rax # slice ptr\n")
 		default:
 			panic2(__func__, "Unexpected kind="+knd)
 		}
@@ -2895,8 +2890,8 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 		var fn = fun.ident
 		if fn.Name == "print" {
 			emitExpr(eArgs[0], nil)
-			fmtPrintf("  callq runtime.printstring\n")
-			fmtPrintf("  addq $%s, %%rsp # revert \n", mylib.Itoa(16))
+			mylib.Printf("  callq runtime.printstring\n")
+			mylib.Printf("  addq $%s, %%rsp # revert \n", mylib.Itoa(16))
 			return
 		}
 
@@ -3067,16 +3062,16 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		switch e.basicLit.Kind {
 		case "INT":
 			var ival = mylib.Atoi(e.basicLit.Value)
-			fmtPrintf("  pushq $%d # number literal\n", mylib.Itoa(ival))
+			mylib.Printf("  pushq $%d # number literal\n", mylib.Itoa(ival))
 		case "STRING":
 			var sl = getStringLiteral(e.basicLit)
 			if sl.strlen == 0 {
 				// zero value
 				emitZeroValue(tString)
 			} else {
-				fmtPrintf("  pushq $%d # str len\n", mylib.Itoa(sl.strlen))
-				fmtPrintf("  leaq %s, %%rax # str ptr\n", sl.label)
-				fmtPrintf("  pushq %%rax # str ptr\n")
+				mylib.Printf("  pushq $%d # str len\n", mylib.Itoa(sl.strlen))
+				mylib.Printf("  leaq %s, %%rax # str ptr\n", sl.label)
+				mylib.Printf("  pushq %%rax # str ptr\n")
 			}
 		case "CHAR":
 			var val = e.basicLit.Value
@@ -3095,7 +3090,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 					char = '\r'
 				}
 			}
-			fmtPrintf("  pushq $%d # convert char literal to int\n", mylib.Itoa(int(char)))
+			mylib.Printf("  pushq $%d # convert char literal to int\n", mylib.Itoa(int(char)))
 		default:
 			panic2(__func__, "[*astBasicLit] TBI : "+e.basicLit.Kind)
 		}
@@ -3109,35 +3104,35 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 				// cap = len = high = low
 				emitExpr(e.sliceExpr.High, nil)
 				emitExpr(e.sliceExpr.Low, nil)  // intval
-				fmtPrintf("  popq %%rcx # low\n")
-				fmtPrintf("  popq %%rax # max\n")
-				fmtPrintf("  subq %%rcx, %%rax # cap = max - low\n")
-				fmtPrintf("  pushq %%rax # cap\n")
-				fmtPrintf("  pushq %%rax # len\n")
+				mylib.Printf("  popq %%rcx # low\n")
+				mylib.Printf("  popq %%rax # max\n")
+				mylib.Printf("  subq %%rcx, %%rax # cap = max - low\n")
+				mylib.Printf("  pushq %%rax # cap\n")
+				mylib.Printf("  pushq %%rax # len\n")
 			} else {
 				// cap = max - low
 				emitExpr(e.sliceExpr.Max, nil)
 				emitExpr(e.sliceExpr.Low, nil)
-				fmtPrintf("  popq %%rcx # low\n")
-				fmtPrintf("  popq %%rax # max\n")
-				fmtPrintf("  subq %%rcx, %%rax # max - low\n")
-				fmtPrintf("  pushq %%rax # len\n")
+				mylib.Printf("  popq %%rcx # low\n")
+				mylib.Printf("  popq %%rax # max\n")
+				mylib.Printf("  subq %%rcx, %%rax # max - low\n")
+				mylib.Printf("  pushq %%rax # len\n")
 				// len = high - low
 				emitExpr(e.sliceExpr.High, nil)
 				emitExpr(e.sliceExpr.Low, nil)  // intval
-				fmtPrintf("  popq %%rcx # low\n")
-				fmtPrintf("  popq %%rax # high\n")
-				fmtPrintf("  subq %%rcx, %%rax # cap = max - low\n")
-				fmtPrintf("  pushq %%rax # len\n")
+				mylib.Printf("  popq %%rcx # low\n")
+				mylib.Printf("  popq %%rax # high\n")
+				mylib.Printf("  subq %%rcx, %%rax # cap = max - low\n")
+				mylib.Printf("  pushq %%rax # len\n")
 			}
 		case T_STRING:
 			// len = high - low
 			emitExpr(e.sliceExpr.High, nil)
 			emitExpr(e.sliceExpr.Low, nil)
-			fmtPrintf("  popq %%rcx # low\n")
-			fmtPrintf("  popq %%rax # high\n")
-			fmtPrintf("  subq %%rcx, %%rax # high - low\n")
-			fmtPrintf("  pushq %%rax # len\n")
+			mylib.Printf("  popq %%rcx # low\n")
+			mylib.Printf("  popq %%rax # high\n")
+			mylib.Printf("  subq %%rcx, %%rax # high - low\n")
+			mylib.Printf("  pushq %%rax # len\n")
 			// no cap
 		default:
 			panic2(__func__, "Unknown kind="+kind(listType))
@@ -3153,9 +3148,9 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			emitExpr(e.unaryExpr.X, nil)
 		case "-":
 			emitExpr(e.unaryExpr.X, nil)
-			fmtPrintf("  popq %%rax # e.X\n")
-			fmtPrintf("  imulq $-1, %%rax\n")
-			fmtPrintf("  pushq %%rax\n")
+			mylib.Printf("  popq %%rax # e.X\n")
+			mylib.Printf("  imulq $-1, %%rax\n")
+			mylib.Printf("  pushq %%rax\n")
 		case "&":
 			emitAddr(e.unaryExpr.X)
 		case "!":
@@ -3199,72 +3194,72 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 				var labelExit = mylib.Sprintf(".L.%d.exit", mylib.Itoa(labelid))
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitPopBool("left")
-				fmtPrintf("  cmpq $1, %%rax\n")
+				mylib.Printf("  cmpq $1, %%rax\n")
 				// exit with false if left is false
-				fmtPrintf("  jne %s\n", labelExitWithFalse)
+				mylib.Printf("  jne %s\n", labelExitWithFalse)
 
 				// if left is true, then eval right and exit
 				emitExpr(e.binaryExpr.Y, nil) // right
-				fmtPrintf("  jmp %s\n", labelExit)
+				mylib.Printf("  jmp %s\n", labelExit)
 
-				fmtPrintf("  %s:\n", labelExitWithFalse)
+				mylib.Printf("  %s:\n", labelExitWithFalse)
 				emitFalse()
-				fmtPrintf("  %s:\n", labelExit)
+				mylib.Printf("  %s:\n", labelExit)
 			case "||":
 				labelid++
 				var labelExitWithTrue = mylib.Sprintf(".L.%d.true", mylib.Itoa(labelid))
 				var labelExit = mylib.Sprintf(".L.%d.exit", mylib.Itoa(labelid))
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitPopBool("left")
-				fmtPrintf("  cmpq $1, %%rax\n")
+				mylib.Printf("  cmpq $1, %%rax\n")
 				// exit with true if left is true
-				fmtPrintf("  je %s\n", labelExitWithTrue)
+				mylib.Printf("  je %s\n", labelExitWithTrue)
 
 				// if left is false, then eval right and exit
 				emitExpr(e.binaryExpr.Y, nil) // right
-				fmtPrintf("  jmp %s\n", labelExit)
+				mylib.Printf("  jmp %s\n", labelExit)
 
-				fmtPrintf("  %s:\n", labelExitWithTrue)
+				mylib.Printf("  %s:\n", labelExitWithTrue)
 				emitTrue()
-				fmtPrintf("  %s:\n", labelExit)
+				mylib.Printf("  %s:\n", labelExit)
 			case "+":
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitExpr(e.binaryExpr.Y, nil)   // right
-				fmtPrintf("  popq %%rcx # right\n")
-				fmtPrintf("  popq %%rax # left\n")
-				fmtPrintf("  addq %%rcx, %%rax\n")
-				fmtPrintf("  pushq %%rax\n")
+				mylib.Printf("  popq %%rcx # right\n")
+				mylib.Printf("  popq %%rax # left\n")
+				mylib.Printf("  addq %%rcx, %%rax\n")
+				mylib.Printf("  pushq %%rax\n")
 			case "-":
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitExpr(e.binaryExpr.Y, nil)   // right
-				fmtPrintf("  popq %%rcx # right\n")
-				fmtPrintf("  popq %%rax # left\n")
-				fmtPrintf("  subq %%rcx, %%rax\n")
-				fmtPrintf("  pushq %%rax\n")
+				mylib.Printf("  popq %%rcx # right\n")
+				mylib.Printf("  popq %%rax # left\n")
+				mylib.Printf("  subq %%rcx, %%rax\n")
+				mylib.Printf("  pushq %%rax\n")
 			case "*":
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitExpr(e.binaryExpr.Y, nil)   // right
-				fmtPrintf("  popq %%rcx # right\n")
-				fmtPrintf("  popq %%rax # left\n")
-				fmtPrintf("  imulq %%rcx, %%rax\n")
-				fmtPrintf("  pushq %%rax\n")
+				mylib.Printf("  popq %%rcx # right\n")
+				mylib.Printf("  popq %%rax # left\n")
+				mylib.Printf("  imulq %%rcx, %%rax\n")
+				mylib.Printf("  pushq %%rax\n")
 			case "%":
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitExpr(e.binaryExpr.Y, nil)   // right
-				fmtPrintf("  popq %%rcx # right\n")
-				fmtPrintf("  popq %%rax # left\n")
-				fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
-				fmtPrintf("  divq %%rcx\n")
-				fmtPrintf("  movq %%rdx, %%rax\n")
-				fmtPrintf("  pushq %%rax\n")
+				mylib.Printf("  popq %%rcx # right\n")
+				mylib.Printf("  popq %%rax # left\n")
+				mylib.Printf("  movq $0, %%rdx # init %%rdx\n")
+				mylib.Printf("  divq %%rcx\n")
+				mylib.Printf("  movq %%rdx, %%rax\n")
+				mylib.Printf("  pushq %%rax\n")
 			case "/":
 				emitExpr(e.binaryExpr.X, nil) // left
 				emitExpr(e.binaryExpr.Y, nil)   // right
-				fmtPrintf("  popq %%rcx # right\n")
-				fmtPrintf("  popq %%rax # left\n")
-				fmtPrintf("  movq $0, %%rdx # init %%rdx\n")
-				fmtPrintf("  divq %%rcx\n")
-				fmtPrintf("  pushq %%rax\n")
+				mylib.Printf("  popq %%rcx # right\n")
+				mylib.Printf("  popq %%rax # left\n")
+				mylib.Printf("  movq $0, %%rdx # init %%rdx\n")
+				mylib.Printf("  divq %%rcx\n")
+				mylib.Printf("  pushq %%rax\n")
 			case "==":
 				var t = getTypeOfExpr(e.binaryExpr.X)
 				emitExpr(e.binaryExpr.X, nil) // left
@@ -3315,71 +3310,71 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			var length = len(e.compositeLit.Elts)
 			emitArrayLiteral(arrayType, length, e.compositeLit.Elts)
 			emitPopAddress("malloc")
-			fmtPrintf("  pushq $%d # slice.cap\n", mylib.Itoa(length))
-			fmtPrintf("  pushq $%d # slice.len\n", mylib.Itoa(length))
-			fmtPrintf("  pushq %%rax # slice.ptr\n")
+			mylib.Printf("  pushq $%d # slice.cap\n", mylib.Itoa(length))
+			mylib.Printf("  pushq $%d # slice.len\n", mylib.Itoa(length))
+			mylib.Printf("  pushq %%rax # slice.ptr\n")
 		default:
 			panic2(__func__, "Unexpected kind="+k)
 		}
 	case "*astTypeAssertExpr":
 		emitExpr(e.typeAssertExpr.X, nil)
-		fmtPrintf("  popq %%rax # type id\n")
-		fmtPrintf("  popq %%rcx # data\n")
-		fmtPrintf("  pushq %%rax # type id\n")
+		mylib.Printf("  popq %%rax # type id\n")
+		mylib.Printf("  popq %%rcx # data\n")
+		mylib.Printf("  pushq %%rax # type id\n")
 
 		typ := e2t(e.typeAssertExpr.Type)
 		sType := serializeType(typ)
 		_id := getTypeId(sType)
 		typeSymbol := typeIdToSymbol(_id)
 		// check if type matches
-		fmtPrintf("  leaq %s(%%rip), %%rax # typeid\n", typeSymbol)
-		fmtPrintf("  pushq %%rax # type id\n")
+		mylib.Printf("  leaq %s(%%rip), %%rax # typeid\n", typeSymbol)
+		mylib.Printf("  pushq %%rax # type id\n")
 		emitCompExpr("sete") // this pushes 1 or 0 in the end
 		emitPopBool("type assertion ok value")
-		fmtPrintf("  cmpq $1, %%rax\n")
+		mylib.Printf("  cmpq $1, %%rax\n")
 
 		labelid++
 		labelTypeAssertionEnd := mylib.Sprintf(".L.end_type_assertion.%d", mylib.Itoa(labelid))
 		labelElse := mylib.Sprintf(".L.unmatch.%d", mylib.Itoa(labelid))
-		fmtPrintf("  jne %s # jmp if false\n", labelElse)
+		mylib.Printf("  jne %s # jmp if false\n", labelElse)
 
 		// if matched
 		if ctx.okContext != nil {
 			emitComment(2, " double value context\n")
 			if ctx.okContext.needMain {
 				emitExpr(e.typeAssertExpr.X, nil)
-				fmtPrintf("  popq %%rax # garbage\n")
+				mylib.Printf("  popq %%rax # garbage\n")
 				emitLoad(e2t(e.typeAssertExpr.Type)) // load dynamic data
 			}
 			if ctx.okContext.needOk {
-				fmtPrintf("  pushq $1 # ok = true\n")
+				mylib.Printf("  pushq $1 # ok = true\n")
 			}
 		} else {
 			emitComment(2, " single value context\n")
 			emitExpr(e.typeAssertExpr.X, nil)
-			fmtPrintf("  popq %%rax # garbage\n")
+			mylib.Printf("  popq %%rax # garbage\n")
 			emitLoad(e2t(e.typeAssertExpr.Type)) // load dynamic data
 		}
 
 		// exit
-		fmtPrintf("  jmp %s\n", labelTypeAssertionEnd)
+		mylib.Printf("  jmp %s\n", labelTypeAssertionEnd)
 
 		// if not matched
-		fmtPrintf("  %s:\n", labelElse)
+		mylib.Printf("  %s:\n", labelElse)
 		if ctx.okContext != nil {
 			emitComment(2, " double value context\n")
 			if ctx.okContext.needMain {
 				emitZeroValue(typ)
 			}
 			if ctx.okContext.needOk {
-				fmtPrintf("  pushq $0 # ok = false\n")
+				mylib.Printf("  pushq $0 # ok = false\n")
 			}
 		} else {
 			emitComment(2, " single value context\n")
 			emitZeroValue(typ)
 		}
 
-		fmtPrintf("  %s:\n", labelTypeAssertionEnd)
+		mylib.Printf("  %s:\n", labelTypeAssertionEnd)
 	default:
 		panic2(__func__, "[emitExpr] `TBI:"+e.dtype)
 	}
@@ -3437,8 +3432,8 @@ func emitDtypeSymbol(t *Type) {
 	str := serializeType(t)
 	typeId := getTypeId(str)
 	typeSymbol := typeIdToSymbol(typeId)
-	fmtPrintf("  leaq %s(%%rip), %%rax # typeid \"%s\"\n", typeSymbol, str)
-	fmtPrintf("  pushq %%rax # type symbol %s\n", mylib.Itoa(typeId), typeSymbol)
+	mylib.Printf("  leaq %s(%%rip), %%rax # typeid \"%s\"\n", typeSymbol, str)
+	mylib.Printf("  pushq %%rax # type symbol %s\n", mylib.Itoa(typeId), typeSymbol)
 }
 
 func newNumberLiteral(x int) *astBasicLit {
@@ -3451,11 +3446,11 @@ func newNumberLiteral(x int) *astBasicLit {
 func emitListElementAddr(list *astExpr, elmType *Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
-	fmtPrintf("  popq %%rcx # index id\n")
-	fmtPrintf("  movq $%s, %%rdx # elm size\n", mylib.Itoa(getSizeOfType(elmType)))
-	fmtPrintf("  imulq %%rdx, %%rcx\n")
-	fmtPrintf("  addq %%rcx, %%rax\n")
-	fmtPrintf("  pushq %%rax # addr of element\n")
+	mylib.Printf("  popq %%rcx # index id\n")
+	mylib.Printf("  movq $%s, %%rdx # elm size\n", mylib.Itoa(getSizeOfType(elmType)))
+	mylib.Printf("  imulq %%rdx, %%rcx\n")
+	mylib.Printf("  addq %%rcx, %%rax\n")
+	mylib.Printf("  pushq %%rax # addr of element\n")
 }
 
 func emitCompEq(t *Type) {
@@ -3466,7 +3461,7 @@ func emitCompEq(t *Type) {
 				Type:    tBool.e,
 			},
 		}
-		fmtPrintf("  callq runtime.cmpstrings\n")
+		mylib.Printf("  callq runtime.cmpstrings\n")
 		emitRevertStackPointer(stringSize * 2)
 		emitReturnedValue(resultList)
 	case T_INTERFACE:
@@ -3475,7 +3470,7 @@ func emitCompEq(t *Type) {
 				Type:    tBool.e,
 			},
 		}
-		fmtPrintf("  callq runtime.cmpinterface\n")
+		mylib.Printf("  callq runtime.cmpinterface\n")
 		emitRevertStackPointer(interfaceSize * 2)
 		emitReturnedValue(resultList)
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
@@ -3489,12 +3484,12 @@ func emitCompEq(t *Type) {
 
 //@TODO handle larger types than int
 func emitCompExpr(inst string) {
-	fmtPrintf("  popq %%rcx # right\n")
-	fmtPrintf("  popq %%rax # left\n")
-	fmtPrintf("  cmpq %%rcx, %%rax\n")
-	fmtPrintf("  %s %%al\n", inst)
-	fmtPrintf("  movzbq %%al, %%rax\n") // true:1, false:0
-	fmtPrintf("  pushq %%rax\n")
+	mylib.Printf("  popq %%rcx # right\n")
+	mylib.Printf("  popq %%rax # left\n")
+	mylib.Printf("  cmpq %%rcx, %%rax\n")
+	mylib.Printf("  %s %%al\n", inst)
+	mylib.Printf("  movzbq %%al, %%rax\n") // true:1, false:0
+	mylib.Printf("  pushq %%rax\n")
 }
 
 func emitPop(knd string) {
@@ -3523,36 +3518,36 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	emitComment(2, "emitStore(%s)\n", knd)
 	if rhsTop {
 		emitPop(knd) // rhs
-		fmtPrintf("  popq %%rsi # lhs addr\n")
+		mylib.Printf("  popq %%rsi # lhs addr\n")
 	} else {
-		fmtPrintf("  popq %%rsi # lhs addr\n")
+		mylib.Printf("  popq %%rsi # lhs addr\n")
 		emitPop(knd) // rhs
 	}
 	if pushLhs {
-		fmtPrintf("  pushq %%rsi # lhs addr\n")
+		mylib.Printf("  pushq %%rsi # lhs addr\n")
 	}
 	switch knd {
 	case T_SLICE:
-		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", mylib.Itoa(0))
-		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", mylib.Itoa(8))
-		fmtPrintf("  movq %%rdx, %d(%%rsi) # cap to cap\n", mylib.Itoa(16))
+		mylib.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", mylib.Itoa(0))
+		mylib.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", mylib.Itoa(8))
+		mylib.Printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", mylib.Itoa(16))
 	case T_STRING:
-		fmtPrintf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", mylib.Itoa(0))
-		fmtPrintf("  movq %%rcx, %d(%%rsi) # len to len\n", mylib.Itoa(8))
+		mylib.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", mylib.Itoa(0))
+		mylib.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", mylib.Itoa(8))
 	case T_INTERFACE:
-		fmtPrintf("  movq %%rax, %d(%%rsi) # store dtype\n", mylib.Itoa(0))
-		fmtPrintf("  movq %%rcx, %d(%%rsi) # store data\n", mylib.Itoa(8))
+		mylib.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", mylib.Itoa(0))
+		mylib.Printf("  movq %%rcx, %d(%%rsi) # store data\n", mylib.Itoa(8))
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmtPrintf("  movq %%rax, (%%rsi) # assign\n")
+		mylib.Printf("  movq %%rax, (%%rsi) # assign\n")
 	case T_UINT16:
-		fmtPrintf("  movw %%ax, (%%rsi) # assign word\n")
+		mylib.Printf("  movw %%ax, (%%rsi) # assign word\n")
 	case T_UINT8:
-		fmtPrintf("  movb %%al, (%%rsi) # assign byte\n")
+		mylib.Printf("  movb %%al, (%%rsi) # assign byte\n")
 	case T_STRUCT, T_ARRAY:
-		fmtPrintf("  pushq $%d # size\n", mylib.Itoa(getSizeOfType(t)))
-		fmtPrintf("  pushq %%rsi # dst lhs\n")
-		fmtPrintf("  pushq %%rax # src rhs\n")
-		fmtPrintf("  callq runtime.memcopy\n")
+		mylib.Printf("  pushq $%d # size\n", mylib.Itoa(getSizeOfType(t)))
+		mylib.Printf("  pushq %%rsi # dst lhs\n")
+		mylib.Printf("  pushq %%rax # src rhs\n")
+		mylib.Printf("  callq runtime.memcopy\n")
 		emitRevertStackPointer(ptrSize*2 + intSize)
 	default:
 		panic2(__func__, "TBI:"+kind(t))
@@ -3605,7 +3600,7 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 }
 
 func emitStmt(stmt *astStmt) {
-	fmtPrintf("\n")
+	mylib.Printf("\n")
 	emitComment(2, "Statement %s\n", stmt.dtype)
 	switch dtypeOf(stmt) {
 	case "*astBlockStmt":
@@ -3648,7 +3643,7 @@ func emitStmt(stmt *astStmt) {
 		//var valueSpec *astValueSpec = genDecl.Specs[0]
 		//var obj *astObject = valueSpec.Name.Obj
 		//var typ *astExpr = valueSpec.Type
-		//fmtPrintf("[emitStmt] TBI declSpec:%s\n", valueSpec.Name.Name)
+		//mylib.Printf("[emitStmt] TBI declSpec:%s\n", valueSpec.Name.Name)
 		//os.Exit(1)
 
 	case "*astAssignStmt":
@@ -3668,8 +3663,8 @@ func emitStmt(stmt *astStmt) {
 		node := stmt.returnStmt.node
 		funcType := node.fnc.funcType
 		if len(stmt.returnStmt.Results) == 0 {
-			fmtPrintf("  leave\n")
-			fmtPrintf("  ret\n")
+			mylib.Printf("  leave\n")
+			mylib.Printf("  ret\n")
 		} else if len(stmt.returnStmt.Results) == 1 {
 			targetType := e2t(funcType.Results.List[0].Type)
 			ctx := &evalContext{
@@ -3679,27 +3674,27 @@ func emitStmt(stmt *astStmt) {
 			var knd = kind(targetType)
 			switch knd {
 			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-				fmtPrintf("  popq %%rax # return 64bit\n")
+				mylib.Printf("  popq %%rax # return 64bit\n")
 			case T_STRING, T_INTERFACE:
-				fmtPrintf("  popq %%rax # return string (head)\n")
-				fmtPrintf("  popq %%rdi # return string (tail)\n")
+				mylib.Printf("  popq %%rax # return string (head)\n")
+				mylib.Printf("  popq %%rdi # return string (tail)\n")
 			case T_SLICE:
-				fmtPrintf("  popq %%rax # return string (head)\n")
-				fmtPrintf("  popq %%rdi # return string (body)\n")
-				fmtPrintf("  popq %%rsi # return string (tail)\n")
+				mylib.Printf("  popq %%rax # return string (head)\n")
+				mylib.Printf("  popq %%rdi # return string (body)\n")
+				mylib.Printf("  popq %%rsi # return string (tail)\n")
 			default:
 				panic2(__func__, "[*astReturnStmt] TBI:"+knd)
 			}
-			fmtPrintf("  leave\n")
-			fmtPrintf("  ret\n")
+			mylib.Printf("  leave\n")
+			mylib.Printf("  ret\n")
 		} else if len(stmt.returnStmt.Results) == 3 {
 			// Special treatment to return a slice
 			emitExpr(stmt.returnStmt.Results[2], nil) // @FIXME
 			emitExpr(stmt.returnStmt.Results[1], nil) // @FIXME
 			emitExpr(stmt.returnStmt.Results[0], nil) // @FIXME
-			fmtPrintf("  popq %%rax # return 64bit\n")
-			fmtPrintf("  popq %%rdi # return 64bit\n")
-			fmtPrintf("  popq %%rsi # return 64bit\n")
+			mylib.Printf("  popq %%rax # return 64bit\n")
+			mylib.Printf("  popq %%rdi # return 64bit\n")
+			mylib.Printf("  popq %%rsi # return 64bit\n")
 		} else {
 			panic2(__func__, "[*astReturnStmt] TBI\n")
 		}
@@ -3712,21 +3707,21 @@ func emitStmt(stmt *astStmt) {
 
 		emitExpr(stmt.ifStmt.Cond, nil)
 		emitPopBool("if condition")
-		fmtPrintf("  cmpq $1, %%rax\n")
+		mylib.Printf("  cmpq $1, %%rax\n")
 		var bodyStmt = &astStmt{}
 		bodyStmt.dtype = "*astBlockStmt"
 		bodyStmt.blockStmt = stmt.ifStmt.Body
 		if stmt.ifStmt.Else != nil {
-			fmtPrintf("  jne %s # jmp if false\n", labelElse)
+			mylib.Printf("  jne %s # jmp if false\n", labelElse)
 			emitStmt(bodyStmt) // then
-			fmtPrintf("  jmp %s\n", labelEndif)
-			fmtPrintf("  %s:\n", labelElse)
+			mylib.Printf("  jmp %s\n", labelEndif)
+			mylib.Printf("  %s:\n", labelElse)
 			emitStmt(stmt.ifStmt.Else) // then
 		} else {
-			fmtPrintf("  jne %s # jmp if false\n", labelEndif)
+			mylib.Printf("  jne %s # jmp if false\n", labelEndif)
 			emitStmt(bodyStmt) // then
 		}
-		fmtPrintf("  %s:\n", labelEndif)
+		mylib.Printf("  %s:\n", labelEndif)
 		emitComment(2, "end if\n")
 	case "*astForStmt":
 		labelid++
@@ -3742,20 +3737,20 @@ func emitStmt(stmt *astStmt) {
 			emitStmt(stmt.forStmt.Init)
 		}
 
-		fmtPrintf("  %s:\n", labelCond)
+		mylib.Printf("  %s:\n", labelCond)
 		if stmt.forStmt.Cond != nil {
 			emitExpr(stmt.forStmt.Cond, nil)
 			emitPopBool("for condition")
-			fmtPrintf("  cmpq $1, %%rax\n")
-			fmtPrintf("  jne %s # jmp if false\n", labelExit)
+			mylib.Printf("  cmpq $1, %%rax\n")
+			mylib.Printf("  jne %s # jmp if false\n", labelExit)
 		}
 		emitStmt(blockStmt2Stmt(stmt.forStmt.Body))
-		fmtPrintf("  %s:\n", labelPost) // used for "continue"
+		mylib.Printf("  %s:\n", labelPost) // used for "continue"
 		if stmt.forStmt.Post != nil {
 			emitStmt(stmt.forStmt.Post)
 		}
-		fmtPrintf("  jmp %s\n", labelCond)
-		fmtPrintf("  %s:\n", labelExit)
+		mylib.Printf("  jmp %s\n", labelCond)
+		mylib.Printf("  %s:\n", labelExit)
 	case "*astRangeStmt": // only for array and slice
 		labelid++
 		var labelCond = ".L.range.cond." + mylib.Itoa(labelid)
@@ -3796,7 +3791,7 @@ func emitStmt(stmt *astStmt) {
 		// else
 		//   exit
 		emitComment(2, "ForRange Condition\n")
-		fmtPrintf("  %s:\n", labelCond)
+		mylib.Printf("  %s:\n", labelCond)
 
 		emitVariableAddr(stmt.rangeStmt.indexvar)
 		emitLoad(tInt)
@@ -3804,8 +3799,8 @@ func emitStmt(stmt *astStmt) {
 		emitLoad(tInt)
 		emitCompExpr("setl")
 		emitPopBool(" indexvar < lenvar")
-		fmtPrintf("  cmpq $1, %%rax\n")
-		fmtPrintf("  jne %s # jmp if false\n", labelExit)
+		mylib.Printf("  cmpq $1, %%rax\n")
+		mylib.Printf("  jne %s # jmp if false\n", labelExit)
 
 		emitComment(2, "assign list[indexvar] value variables\n")
 		var elemType = getTypeOfExpr(stmt.rangeStmt.Value)
@@ -3824,7 +3819,7 @@ func emitStmt(stmt *astStmt) {
 
 		// Post statement: Increment indexvar and go next
 		emitComment(2, "ForRange Post statement\n")
-		fmtPrintf("  %s:\n", labelPost)           // used for "continue"
+		mylib.Printf("  %s:\n", labelPost)           // used for "continue"
 		emitVariableAddr(stmt.rangeStmt.indexvar) // lhs
 		emitVariableAddr(stmt.rangeStmt.indexvar) // rhs
 		emitLoad(tInt)
@@ -3842,9 +3837,9 @@ func emitStmt(stmt *astStmt) {
 			}
 		}
 
-		fmtPrintf("  jmp %s\n", labelCond)
+		mylib.Printf("  jmp %s\n", labelCond)
 
-		fmtPrintf("  %s:\n", labelExit)
+		mylib.Printf("  %s:\n", labelExit)
 
 	case "*astIncDecStmt":
 		var addValue int
@@ -3890,8 +3885,8 @@ func emitStmt(stmt *astStmt) {
 				emitExpr(e, nil)
 				emitCompEq(condType)
 				emitPopBool(" of switch-case comparison")
-				fmtPrintf("  cmpq $1, %%rax\n")
-				fmtPrintf("  je %s # jump if match\n", labelCase)
+				mylib.Printf("  cmpq $1, %%rax\n")
+				mylib.Printf("  je %s # jump if match\n", labelCase)
 			}
 		}
 		emitComment(2, "End comparison with cases\n")
@@ -3899,23 +3894,23 @@ func emitStmt(stmt *astStmt) {
 		// if no case matches, then jump to
 		if defaultLabel != "" {
 			// default
-			fmtPrintf("  jmp %s\n", defaultLabel)
+			mylib.Printf("  jmp %s\n", defaultLabel)
 		} else {
 			// exit
-			fmtPrintf("  jmp %s\n", labelEnd)
+			mylib.Printf("  jmp %s\n", labelEnd)
 		}
 
 		emitRevertStackTop(condType)
 		for i, c := range cases {
 			assert(c.dtype == "*astCaseClause", "should be *astCaseClause", __func__)
 			var cc = c.caseClause
-			fmtPrintf("%s:\n", labels[i])
+			mylib.Printf("%s:\n", labels[i])
 			for _, _s := range cc.Body {
 				emitStmt(_s)
 			}
-			fmtPrintf("  jmp %s\n", labelEnd)
+			mylib.Printf("  jmp %s\n", labelEnd)
 		}
-		fmtPrintf("%s:\n", labelEnd)
+		mylib.Printf("%s:\n", labelEnd)
 	case "*astTypeSwitchStmt":
 		s := stmt.typeSwitchStmt
 		typeSwitch := stmt.typeSwitchStmt.node
@@ -3950,8 +3945,8 @@ func emitStmt(stmt *astStmt) {
 				emitCompExpr("sete") // this pushes 1 or 0 in the end
 
 				emitPopBool(" of switch-case comparison")
-				fmtPrintf("  cmpq $1, %%rax\n")
-				fmtPrintf("  je %s # jump if match\n", labelCase)
+				mylib.Printf("  cmpq $1, %%rax\n")
+				mylib.Printf("  je %s # jump if match\n", labelCase)
 			}
 		}
 		emitComment(2, "End comparison with cases\n")
@@ -3959,17 +3954,17 @@ func emitStmt(stmt *astStmt) {
 		// if no case matches, then jump to
 		if defaultLabel != "" {
 			// default
-			fmtPrintf("  jmp %s\n", defaultLabel)
+			mylib.Printf("  jmp %s\n", defaultLabel)
 		} else {
 			// exit
-			fmtPrintf("  jmp %s\n", labelEnd)
+			mylib.Printf("  jmp %s\n", labelEnd)
 		}
 
 		for i, typeSwitchCaseClose := range typeSwitch.cases {
 			if typeSwitchCaseClose.variable != nil {
 				typeSwitch.assignIdent.Obj.Variable = typeSwitchCaseClose.variable
 			}
-			fmtPrintf("%s:\n", labels[i])
+			mylib.Printf("%s:\n", labels[i])
 
 			for _, _s := range typeSwitchCaseClose.orig.Body {
 				if typeSwitchCaseClose.variable != nil {
@@ -3981,9 +3976,9 @@ func emitStmt(stmt *astStmt) {
 					emitAddr(expr)
 					emitVariableAddr(typeSwitch.subjectVariable)
 					emitLoad(tEface)
-					fmtPrintf("  popq %%rax # ifc.dtype\n")
-					fmtPrintf("  popq %%rcx # ifc.data\n")
-					fmtPrintf("  push %%rcx # ifc.data\n")
+					mylib.Printf("  popq %%rax # ifc.dtype\n")
+					mylib.Printf("  popq %%rcx # ifc.data\n")
+					mylib.Printf("  push %%rcx # ifc.data\n")
 					emitLoad(typeSwitchCaseClose.variableType)
 
 					emitStore(typeSwitchCaseClose.variableType, true, false)
@@ -3991,9 +3986,9 @@ func emitStmt(stmt *astStmt) {
 
 				emitStmt(_s)
 			}
-			fmtPrintf("  jmp %s\n", labelEnd)
+			mylib.Printf("  jmp %s\n", labelEnd)
 		}
-		fmtPrintf("%s:\n", labelEnd)
+		mylib.Printf("%s:\n", labelEnd)
 
 	case "*astBranchStmt":
 		var containerFor = stmt.branchStmt.currentFor
@@ -4008,7 +4003,7 @@ func emitStmt(stmt *astStmt) {
 			default:
 				panic2(__func__, "unexpected container dtype="+containerFor.dtype)
 			}
-			fmtPrintf("jmp %s # continue\n", labelToGo)
+			mylib.Printf("jmp %s # continue\n", labelToGo)
 		case "break":
 			switch dtypeOf(containerFor) {
 			case "*astForStmt":
@@ -4018,7 +4013,7 @@ func emitStmt(stmt *astStmt) {
 			default:
 				panic2(__func__, "unexpected container dtype="+containerFor.dtype)
 			}
-			fmtPrintf("jmp %s # break\n", labelToGo)
+			mylib.Printf("jmp %s # break\n", labelToGo)
 		default:
 			panic2(__func__, "unexpected tok="+stmt.branchStmt.Tok)
 		}
@@ -4035,7 +4030,7 @@ func blockStmt2Stmt(block *astBlockStmt) *astStmt {
 }
 
 func emitRevertStackTop(t *Type) {
-	fmtPrintf("  addq $%s, %%rsp # revert stack top\n", mylib.Itoa(getSizeOfType(t)))
+	mylib.Printf("  addq $%s, %%rsp # revert stack top\n", mylib.Itoa(getSizeOfType(t)))
 }
 
 var labelid int
@@ -4065,31 +4060,31 @@ func getFuncSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	var localarea = fnc.localarea
-	fmtPrintf("\n")
+	mylib.Printf("\n")
 	var subsymbol = getFuncSubSymbol(fnc)
 	var symbol = getFuncSymbol(pkgName, subsymbol)
-	fmtPrintf("%s: # args %d, locals %d\n",
+	mylib.Printf("%s: # args %d, locals %d\n",
 		symbol, mylib.Itoa(int(fnc.argsarea)), mylib.Itoa(int(fnc.localarea)))
 
-	fmtPrintf("  pushq %%rbp\n")
-	fmtPrintf("  movq %%rsp, %%rbp\n")
+	mylib.Printf("  pushq %%rbp\n")
+	mylib.Printf("  movq %%rsp, %%rbp\n")
 	if localarea != 0 {
-		fmtPrintf("  subq $%d, %%rsp # local area\n", mylib.Itoa(-localarea))
+		mylib.Printf("  subq $%d, %%rsp # local area\n", mylib.Itoa(-localarea))
 	}
 
 	if fnc.Body != nil {
 		emitStmt(blockStmt2Stmt(fnc.Body))
 	}
 
-	fmtPrintf("  leave\n")
-	fmtPrintf("  ret\n")
+	mylib.Printf("  leave\n")
+	mylib.Printf("  ret\n")
 }
 
 func emitGlobalVariableComplex(name *astIdent, t *Type, val *astExpr) {
 	typeKind := kind(t)
 	switch typeKind {
 	case T_POINTER:
-		fmtPrintf("# init global %s: # T %s\n", name.Name, typeKind)
+		mylib.Printf("# init global %s: # T %s\n", name.Name, typeKind)
 		lhs := &astExpr{
 			ident: name,
 			dtype: "*astIdent",
@@ -4100,38 +4095,38 @@ func emitGlobalVariableComplex(name *astIdent, t *Type, val *astExpr) {
 
 func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr) {
 	typeKind := kind(t)
-	fmtPrintf("%s.%s: # T %s\n", pkg.name, name.Name, typeKind)
+	mylib.Printf("%s.%s: # T %s\n", pkg.name, name.Name, typeKind)
 	switch typeKind {
 	case T_STRING:
 		if val == nil {
-			fmtPrintf("  .quad 0\n")
-			fmtPrintf("  .quad 0\n")
+			mylib.Printf("  .quad 0\n")
+			mylib.Printf("  .quad 0\n")
 			return
 		}
 		switch dtypeOf(val) {
 		case "*astBasicLit":
 			var sl = getStringLiteral(val.basicLit)
-			fmtPrintf("  .quad %s\n", sl.label)
-			fmtPrintf("  .quad %d\n", mylib.Itoa(sl.strlen))
+			mylib.Printf("  .quad %s\n", sl.label)
+			mylib.Printf("  .quad %d\n", mylib.Itoa(sl.strlen))
 		default:
 			panic("Unsupported global string value")
 		}
 	case T_INTERFACE:
 		// only zero value
-		fmtPrintf("  .quad 0 # dtype\n")
-		fmtPrintf("  .quad 0 # data\n")
+		mylib.Printf("  .quad 0 # dtype\n")
+		mylib.Printf("  .quad 0 # data\n")
 	case T_BOOL:
 		if val == nil {
-			fmtPrintf("  .quad 0 # bool zero value\n")
+			mylib.Printf("  .quad 0 # bool zero value\n")
 			return
 		}
 		switch dtypeOf(val) {
 		case "*astIdent":
 			switch val.ident.Obj {
 			case gTrue:
-				fmtPrintf("  .quad 1 # bool true\n")
+				mylib.Printf("  .quad 1 # bool true\n")
 			case gFalse:
-				fmtPrintf("  .quad 0 # bool false\n")
+				mylib.Printf("  .quad 0 # bool false\n")
 			default:
 				panic2(__func__, "")
 			}
@@ -4140,54 +4135,54 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		}
 	case T_INT:
 		if val == nil {
-			fmtPrintf("  .quad 0\n")
+			mylib.Printf("  .quad 0\n")
 			return
 		}
 		switch dtypeOf(val) {
 		case "*astBasicLit":
-			fmtPrintf("  .quad %s\n", val.basicLit.Value)
+			mylib.Printf("  .quad %s\n", val.basicLit.Value)
 		default:
 			panic("Unsupported global value")
 		}
 	case T_UINT8:
 		if val == nil {
-			fmtPrintf("  .byte 0\n")
+			mylib.Printf("  .byte 0\n")
 			return
 		}
 		switch dtypeOf(val) {
 		case "*astBasicLit":
-			fmtPrintf("  .byte %s\n", val.basicLit.Value)
+			mylib.Printf("  .byte %s\n", val.basicLit.Value)
 		default:
 			panic("Unsupported global value")
 		}
 	case T_UINT16:
 		if val == nil {
-			fmtPrintf("  .word 0\n")
+			mylib.Printf("  .word 0\n")
 			return
 		}
 		switch dtypeOf(val) {
 		case "*astBasicLit":
-			fmtPrintf("  .word %s\n", val.basicLit.Value)
+			mylib.Printf("  .word %s\n", val.basicLit.Value)
 		default:
 			panic("Unsupported global value")
 		}
 	case T_POINTER:
 		// will be set in the initGlobal func
-		fmtPrintf("  .quad 0\n")
+		mylib.Printf("  .quad 0\n")
 	case T_UINTPTR:
 		if val != nil {
 			panic("Unsupported global value")
 		}
 		// only zero value
-		fmtPrintf("  .quad 0\n")
+		mylib.Printf("  .quad 0\n")
 	case T_SLICE:
 		if val != nil {
 			panic("Unsupported global value")
 		}
 		// only zero value
-		fmtPrintf("  .quad 0 # ptr\n")
-		fmtPrintf("  .quad 0 # len\n")
-		fmtPrintf("  .quad 0 # cap\n")
+		mylib.Printf("  .quad 0 # ptr\n")
+		mylib.Printf("  .quad 0 # len\n")
+		mylib.Printf("  .quad 0 # cap\n")
 	case T_ARRAY:
 		// only zero value
 		if val != nil {
@@ -4228,7 +4223,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 
 		var i int
 		for i = 0; i < length; i++ {
-			fmtPrintf(zeroValue)
+			mylib.Printf(zeroValue)
 		}
 	default:
 		panic2(__func__, "TBI:kind="+typeKind)
@@ -4236,12 +4231,12 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 }
 
 func generateCode(pkg *PkgContainer) {
-	fmtPrintf(".data\n")
+	mylib.Printf(".data\n")
 	emitComment(0, "string literals len = %s\n", mylib.Itoa(len(stringLiterals)))
 	for _, con := range stringLiterals {
 		emitComment(0, "string literals\n")
-		fmtPrintf("%s:\n", con.sl.label)
-		fmtPrintf("  .string %s\n", con.sl.value)
+		mylib.Printf("%s:\n", con.sl.label)
+		mylib.Printf("  .string %s\n", con.sl.value)
 	}
 
 	for _, spec := range pkg.vars {
@@ -4252,9 +4247,9 @@ func generateCode(pkg *PkgContainer) {
 		emitGlobalVariable(pkg, spec.Name, t, spec.Value)
 	}
 
-	fmtPrintf("\n")
-	fmtPrintf(".text\n")
-	fmtPrintf("%s.__initGlobals:\n", pkg.name)
+	mylib.Printf("\n")
+	mylib.Printf(".text\n")
+	mylib.Printf("%s.__initGlobals:\n", pkg.name)
 	for _, spec := range pkg.vars {
 		if spec.Value == nil{
 			continue
@@ -4266,7 +4261,7 @@ func generateCode(pkg *PkgContainer) {
 		}
 		emitGlobalVariableComplex(spec.Name, t, val)
 	}
-	fmtPrintf("  ret\n")
+	mylib.Printf("  ret\n")
 
 	for _, fnc := range pkg.funcs {
 		emitFuncDecl(pkg.name, fnc)
@@ -5798,9 +5793,9 @@ type PkgContainer struct {
 }
 
 func showHelp() {
-	fmtPrintf("Usage:\n")
-	fmtPrintf("    babygo version:  show version\n")
-	fmtPrintf("    babygo [-DF] [-DG] filename\n")
+	mylib.Printf("Usage:\n")
+	mylib.Printf("    babygo version:  show version\n")
+	mylib.Printf("    babygo [-DF] [-DG] filename\n")
 }
 
 const GOPATH string = "/root/go"
@@ -5814,7 +5809,7 @@ func main() {
 	}
 
 	if os.Args[1] == "version" {
-		fmtPrintf("babygo version 0.1.0  linux/amd64\n")
+		mylib.Printf("babygo version 0.1.0  linux/amd64\n")
 		return
 	} else if os.Args[1] == "help" {
 		showHelp()
@@ -5840,7 +5835,7 @@ func main() {
 	var sourceFiles = []string{"runtime.go", xlibFilename,  inputFile}
 
 	for _, sourceFile := range sourceFiles {
-		fmtPrintf("# file: %s\n", sourceFile)
+		mylib.Printf("# file: %s\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil
 		astFile := parseFile(sourceFile)
@@ -5853,19 +5848,19 @@ func main() {
 	}
 
 	// emitting dynamic types
-	fmtPrintf("# ------- Dynamic Types ------\n")
-	fmtPrintf(".data\n")
+	mylib.Printf("# ------- Dynamic Types ------\n")
+	mylib.Printf(".data\n")
 	for _, te := range typeMap {
 		id := te.id
 		name := te.serialized
 		symbol := typeIdToSymbol(id)
-		fmtPrintf("%s: # %s\n", symbol, name)
-		fmtPrintf("  .quad %s\n", mylib.Itoa(id))
-		fmtPrintf("  .quad .S.dtype.%s\n", mylib.Itoa(id))
-		fmtPrintf(".S.dtype.%s:\n", mylib.Itoa(id))
-		fmtPrintf("  .string \"%s\"\n", name)
+		mylib.Printf("%s: # %s\n", symbol, name)
+		mylib.Printf("  .quad %s\n", mylib.Itoa(id))
+		mylib.Printf("  .quad .S.dtype.%s\n", mylib.Itoa(id))
+		mylib.Printf(".S.dtype.%s:\n", mylib.Itoa(id))
+		mylib.Printf("  .string \"%s\"\n", name)
 	}
-	fmtPrintf("\n")
+	mylib.Printf("\n")
 
 }
 

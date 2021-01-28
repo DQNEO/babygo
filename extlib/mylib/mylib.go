@@ -1,5 +1,7 @@
 package mylib
 
+import "syscall"
+
 const DUMMY string = "dummy"
 
 func Sum(a int, b int) int {
@@ -106,6 +108,11 @@ func Atoi(gs string) int {
 	}
 
 	return n
+}
+
+func Printf(format string, a ...interface{}) {
+	var s = Sprintf(format, a...)
+	syscall.Write(1, []uint8(s))
 }
 
 func Sprintf(format string, a...interface{}) string {
