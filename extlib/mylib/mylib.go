@@ -81,3 +81,29 @@ func Base(path string) string {
 	r := path[found+1:_len]
 	return r
 }
+
+func Atoi(gs string) int {
+	if len(gs) == 0 {
+		return 0
+	}
+	var n int
+
+	var isMinus bool
+	for _, b := range []uint8(gs) {
+		if b == '.' {
+			return -999 // @FIXME all no number should return error
+		}
+		if b == '-' {
+			isMinus = true
+			continue
+		}
+		var x uint8 = b - uint8('0')
+		n = n * 10
+		n = n + int(x)
+	}
+	if isMinus {
+		n = -n
+	}
+
+	return n
+}

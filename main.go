@@ -73,32 +73,6 @@ func fmtPrintf(format string, a ...interface{}) {
 	syscall.Write(1, []uint8(s))
 }
 
-func Atoi(gs string) int {
-	if len(gs) == 0 {
-		return 0
-	}
-	var n int
-
-	var isMinus bool
-	for _, b := range []uint8(gs) {
-		if b == '.' {
-			return -999 // @FIXME all no number should return error
-		}
-		if b == '-' {
-			isMinus = true
-			continue
-		}
-		var x uint8 = b - uint8('0')
-		n = n * 10
-		n = n + int(x)
-	}
-	if isMinus {
-		n = -n
-	}
-
-	return n
-}
-
 func inArray(x string, list []string) bool {
 	for _, v := range list {
 		if v == x {
@@ -2240,7 +2214,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 func evalInt(expr *astExpr) int {
 	switch dtypeOf(expr) {
 	case "*astBasicLit":
-		return Atoi(expr.basicLit.Value)
+		return mylib.Atoi(expr.basicLit.Value)
 	}
 	return 0
 }
@@ -3127,7 +3101,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		//		emitComment(0, "basicLit.Kind = %s \n", e.basicLit.Kind)
 		switch e.basicLit.Kind {
 		case "INT":
-			var ival = Atoi(e.basicLit.Value)
+			var ival = mylib.Atoi(e.basicLit.Value)
 			fmtPrintf("  pushq $%d # number literal\n", mylib.Itoa(ival))
 		case "STRING":
 			var sl = getStringLiteral(e.basicLit)

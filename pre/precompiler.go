@@ -81,32 +81,6 @@ func fmtPrintf(format string, a ...interface{}) {
 	syscall.Write(1, []uint8(s))
 }
 
-func Atoi(gs string) int {
-	if len(gs) == 0 {
-		return 0
-	}
-	var n int
-
-	var isMinus bool
-	for _, b := range []uint8(gs) {
-		if b == '.' {
-			return -999 // @FIXME all no number should return error
-		}
-		if b == '-' {
-			isMinus = true
-			continue
-		}
-		var x uint8 = b - uint8('0')
-		n = n * 10
-		n = n + int(x)
-	}
-	if isMinus {
-		n = -n
-	}
-
-	return n
-}
-
 // --- parser ---
 func parseFile(fset *token.FileSet, filename string) *ast.File {
 	f, err := parser.ParseFile(fset, filename, nil, 0)
@@ -135,7 +109,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 func evalInt(expr ast.Expr) int {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
-		return Atoi(e.Value)
+		return mylib.Atoi(e.Value)
 	}
 	return 0
 }
@@ -1048,7 +1022,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			}
 			fmtPrintf("  pushq $%d # convert char literal to int\n", mylib.Itoa(int(char)))
 		case "INT":
-			ival := Atoi(e.Value)
+			ival := mylib.Atoi(e.Value)
 			fmtPrintf("  pushq $%d # number literal\n", mylib.Itoa(ival))
 		case "STRING":
 			// e.Value == ".S%d:%d"
@@ -2761,7 +2735,7 @@ func getStructFieldOffset(field *ast.Field) int {
 		panic("Doc is nil:" + field.Names[0].Name)
 	}
 	text := field.Doc.List[0].Text
-	offset := Atoi(text)
+	offset := mylib.Atoi(text)
 	return offset
 }
 
