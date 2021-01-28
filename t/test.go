@@ -26,7 +26,16 @@ func nop() {}
 func nop1() {}
 func nop2() {}
 
+// -- strings ---
+
 // --- test funcs ---
+func testSplit() {
+	s := mylib.Split("foo/bar", "/")
+	mylib.Printf("%d\n", len(s)+1) // 3
+	mylib.Printf("%s\n", s[0])     // foo
+	mylib.Printf("%s\n", s[1])     // bar
+}
+
 func testByteType() {
 	var b byte = uint8('x')
 	var s string = string([]byte{b})
@@ -1688,6 +1697,7 @@ func testMisc() {
 }
 
 func test() {
+	testSplit()
 	testByteType()
 	testExtLib()
 	testExpandSlice()

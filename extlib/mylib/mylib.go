@@ -48,6 +48,27 @@ func Itoa(ival int) string {
 	return string(r[0:ix])
 }
 
+// "foo/bar", "/" => []string{"foo", "bar"}
+func Split(s string, ssep string) []string {
+	if len(ssep) > 1 {
+		panic("no supported")
+	}
+	sepchar := ssep[0]
+	var buf []byte
+	var r []string
+	for _, b := range []byte(s) {
+		if b == sepchar {
+			r = append(r, string(buf))
+			buf = nil
+		} else {
+			buf = append(buf, b)
+		}
+	}
+	r = append(r, string(buf))
+
+	return r
+}
+
 // search index of the specified char from backward
 func LastIndexByte(s string, c uint8) int {
 	for i:=len(s)-1;i>=0;i-- {
