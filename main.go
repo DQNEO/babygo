@@ -520,6 +520,7 @@ var astCon string = "Con"
 var astTyp string = "Typ"
 var astVar string = "Var"
 var astFun string = "Fun"
+var astPkg string = "Pkg"
 
 type signature struct {
 	params  *astFieldList
@@ -808,6 +809,7 @@ type astFuncDecl struct {
 
 type astFile struct {
 	Name       string
+	Imports []*astImportSpec
 	Decls      []astDecl
 	Unresolved []*astIdent
 }
@@ -850,7 +852,7 @@ const FILE_SIZE int = 2000000
 
 func readFile(filename string) []uint8 {
 	var fd int
-	// @TODO check error
+	logf("Opening %s\n", filename)
 	fd, _ = syscall.Open(filename, O_READONLY, 0)
 	if fd < 0 {
 		panic("syscall.Open failed: " + filename)
@@ -884,6 +886,7 @@ type parser struct {
 	topScope   *astScope
 	pkgScope   *astScope
 	scanner    *scanner
+	imports    []*astImportSpec
 }
 
 func (p *parser) openScope() {
@@ -2183,7 +2186,8 @@ func (p *parser) parseFile() *astFile {
 	p.pkgScope = p.topScope
 
 	for p.tok.tok == "import" {
-		p.parseImportDecl()
+		importSpec := p.parseImportDecl()
+		p.imports = append(p.imports, importSpec)
 	}
 
 	logf("\n")
@@ -2241,6 +2245,7 @@ func (p *parser) parseFile() *astFile {
 	f.Name = packageName
 	f.Decls = decls
 	f.Unresolved = unresolved
+	f.Imports = p.imports
 	logf(" [%s] end\n", __func__)
 	return f
 }
@@ -3039,12 +3044,23 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 			funcType = funcTypeSyscallSyscall
 		default:
 			// Assume method call
-			receiver = selectorExpr.X
-			var receiverType = getTypeOfExpr(receiver)
-			var method = lookupMethod(receiverType, selectorExpr.Sel)
-			funcType = method.funcType
-			var subsymbol = getMethodSymbol(method)
-			symbol = getFuncSymbol(pkg.name, subsymbol)
+			fn := selectorExpr
+			xIdent := fn.X.ident
+			if xIdent.Obj == nil {
+				throw("xIdent.Obj  should not be nil:" + xIdent.Name)
+			}
+			if xIdent.Obj.Kind == astPkg {
+				// pkg.Sel()
+				funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+				funcType = funcdecl.Type
+			} else {
+				receiver = selectorExpr.X
+				var receiverType = getTypeOfExpr(receiver)
+				var method = lookupMethod(receiverType, selectorExpr.Sel)
+				funcType = method.funcType
+				var subsymbol = getMethodSymbol(method)
+				symbol = getFuncSymbol(pkg.name, subsymbol)
+			}
 		}
 	case "*astParenExpr":
 		panic2(__func__, "[astParenExpr] TBI ")
@@ -4547,10 +4563,20 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				funcType = funcTypeSyscallSyscall
 				return	e2t(funcType.Results.List[0].Type)
 			default:
-				var xType = getTypeOfExpr(fun.selectorExpr.X)
-				var method = lookupMethod(xType, fun.selectorExpr.Sel)
-				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value", __func__)
-				return e2t(method.funcType.Results.List[0].Type)
+				fn := fun.selectorExpr
+				xIdent := fn.X.ident
+				if xIdent.Obj == nil {
+					panic2(__func__,  "xIdent.Obj should not be nil")
+				}
+				if xIdent.Obj.Kind == astPkg {
+					funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+					return e2t(funcdecl.Type.Results.List[0].Type)
+				} else {
+					var xType = getTypeOfExpr(fun.selectorExpr.X)
+					var method = lookupMethod(xType, fun.selectorExpr.Sel)
+					assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value", __func__)
+					return e2t(method.funcType.Results.List[0].Type)
+				}
 			}
 		case "*astInterfaceType":
 			return tEface
@@ -5158,7 +5184,7 @@ func walkStmt(stmt *astStmt) {
 			} else {
 				panic("type inference is not supported: " + obj.Name)
 			}
-
+			logf("infered type of %s is %s, rhs=%s\n", obj.Name, typ.e.dtype, rhs.dtype)
 			obj.Variable = currentFunc.registerLocalVariable(obj.Name, typ)
 		} else {
 			walkExpr(rhs)
@@ -5376,6 +5402,13 @@ func walkExpr(expr *astExpr) {
 	}
 }
 
+var ExportedQualifiedIdents []*exportEntry
+
+type exportEntry struct {
+	qi string
+	funcdecl *astFuncDecl
+}
+
 func walk(pkg *PkgContainer, file *astFile) {
 	var typeSpecs []*astTypeSpec
 	var funcDecls []*astFuncDecl
@@ -5413,6 +5446,11 @@ func walk(pkg *PkgContainer, file *astFile) {
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
+		exportEntry := &exportEntry{
+			qi: pkg.name + "." + funcDecl.Name.Name,
+			funcdecl: funcDecl,
+		}
+		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
 		if funcDecl.Body != nil {
 			if funcDecl.Recv != nil { // is Method
 				var method = newMethod(funcDecl)
@@ -5803,9 +5841,54 @@ func createUniverse() *astScope {
 	return universe
 }
 
+// search index of the specified char from backward
+func LastIndexByte(s string, c uint8) int {
+	for i:=len(s)-1;i>=0;i-- {
+		if s[i] == c {
+			return i
+		}
+	}
+	// not found
+	return -1
+}
+
+// "foo/bar/buz" => "buz"
+func Base(path string) string {
+	if len(path) == 0 {
+		return "."
+	}
+
+	if path == "/" {
+		return "/"
+	}
+
+	if path[len(path) - 1] == '/' {
+		path = path[0:len(path) - 1]
+	}
+
+	found := LastIndexByte(path, '/')
+
+	if found == -1 {
+		// not found
+		return path
+	}
+
+	_len := len(path)
+	var r string = path[found+1:_len]
+	return r
+}
+
 func resolveUniverse(file *astFile, universe *astScope) {
-	logf(" [%s] start\n", __func__)
-	// create universe scope
+	logf("[%s] start\n", __func__)
+
+	var mapImports []string
+	for _, imprt := range file.Imports {
+		// unwrap double quote "..."
+		rawPath := imprt.Path[1:(len(imprt.Path) - 1)]
+		base := Base(rawPath)
+		mapImports = append(mapImports, base)
+	}
+
 	// inject predeclared identifers
 	var unresolved []*astIdent
 	logf(" [SEMA] resolving file.Unresolved (n=%s)\n", Itoa(len(file.Unresolved)))
@@ -5816,13 +5899,32 @@ func resolveUniverse(file *astFile, universe *astScope) {
 			logf(" matched\n")
 			ident.Obj = obj
 		} else {
-			// we should allow unresolved for now.
-			// e.g foo in X{foo:bar,}
-			logf("Unresolved (maybe struct field name in composite literal): "+ident.Name)
-			unresolved = append(unresolved, ident)
+			if inArray(ident.Name, mapImports) {
+				ident.Obj = &astObject{
+					Kind: astPkg,
+					Name: ident.Name,
+				}
+				logf("# resolved: %s\n", ident.Name)
+			} else {
+				// we should allow unresolved for now.
+				// e.g foo in X{foo:bar,}
+				logf("Unresolved (maybe struct field name in composite literal): "+ident.Name)
+				unresolved = append(unresolved, ident)
+			}
 		}
 	}
 }
+
+func lookupForeignFunc(pkg string, identifier string) *astFuncDecl {
+	key := pkg + "." + identifier
+	for _, entry := range ExportedQualifiedIdents {
+		if entry.qi == key {
+			return entry.funcdecl
+		}
+	}
+	return nil
+}
+
 
 var pkg *PkgContainer
 
@@ -5838,8 +5940,11 @@ func showHelp() {
 	fmtPrintf("    babygo [-DF] [-DG] filename\n")
 }
 
+const GOPATH string = "/root/go"
+
 func main() {
 	var universe = createUniverse()
+
 	if len(os.Args) == 1 {
 		showHelp()
 		return
@@ -5856,6 +5961,8 @@ func main() {
 	}
 
 	var arg string
+	var gopath string = os.Args[1]
+	srcPath := gopath + "/src"
 	for _, arg = range os.Args {
 		switch arg {
 		case "-DF":
@@ -5864,8 +5971,9 @@ func main() {
 			debugCodeGen = true
 		}
 	}
-	var inputFile = arg
-	var sourceFiles = []string{"runtime" + ".go", inputFile}
+	var inputFile = arg // last arg is the inputFile
+	xlibFilename := srcPath + "/" + "github.com/DQNEO/babygo/extlib/mylib" + "/mylib.go"
+	var sourceFiles = []string{"runtime.go", xlibFilename,  inputFile}
 
 	for _, sourceFile := range sourceFiles {
 		fmtPrintf("# file: %s\n", sourceFile)

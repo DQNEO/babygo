@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"syscall"
 
 	"go/ast"
@@ -918,13 +919,24 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			// func body is in runtime.s
 			funcType = funcTypeSyscallSyscall
 		default:
-			// Assume method call
-			receiver = fn.X
-			receiverType := getTypeOfExpr(receiver)
-			method := lookupMethod(receiverType, fn.Sel)
-			funcType = method.funcType
-			subsymbol := getMethodSymbol(method)
-			symbol = getFuncSymbol(pkg.name, subsymbol)
+			xIdent := fn.X.(*ast.Ident)
+			if xIdent.Obj == nil {
+				throw(xIdent)
+			}
+			if xIdent.Obj.Kind == ast.Pkg {
+				// pkg.Sel()
+				funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+				funcType = funcdecl.Type
+			} else {
+				// Assume method call
+				rcvType := getTypeOfExpr(fn.X)
+				method := lookupMethod(rcvType, fn.Sel)
+				funcType = method.funcType
+				subsymbol := getMethodSymbol(method)
+				symbol = getFuncSymbol(pkg.name, subsymbol)
+
+				receiver = fn.X
+			}
 		}
 	default:
 		throw(fun)
@@ -2492,11 +2504,21 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				funcType = funcTypeSyscallSyscall
 				return	e2t(funcType.Results.List[0].Type)
 			default:
-				// Assume method call
-				xType := getTypeOfExpr(fn.X)
-				method := lookupMethod(xType, fn.Sel)
-				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value")
-				return e2t(method.funcType.Results.List[0].Type)
+				xIdent := fn.X.(*ast.Ident)
+				if xIdent.Obj == nil {
+					throw(xIdent)
+				}
+				if xIdent.Obj.Kind == ast.Pkg {
+					// pkg.Sel()
+					funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+					return e2t(funcdecl.Type.Results.List[0].Type)
+				} else {
+					// Assume method call
+					rcvType := getTypeOfExpr(fn.X)
+					method := lookupMethod(rcvType, fn.Sel)
+					assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value")
+					return e2t(method.funcType.Results.List[0].Type)
+				}
 			}
 		case *ast.InterfaceType:
 			return tEface
@@ -3359,6 +3381,7 @@ func walk(pkg *PkgContainer, f *ast.File) {
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
+		ExportedQualifiedIdents[pkg.name + "." + funcDecl.Name.Name] = funcDecl
 		if funcDecl.Body != nil {
 			if funcDecl.Recv != nil { // is Method
 				method := newMethod(funcDecl)
@@ -3712,15 +3735,72 @@ func createUniverse() *ast.Scope {
 	return universe
 }
 
-func resolveUniverse(fiile *ast.File, universe *ast.Scope) {
+// search index of the specified char from backward
+func LastIndexByte(s string, c byte) int {
+	for i:=len(s)-1;i>=0;i-- {
+		if s[i] == c {
+			return i
+		}
+	}
+	// not found
+	return -1
+}
+
+// "foo/bar/buz" => "buz"
+func Base(path string) string {
+	if len(path) == 0 {
+		return "."
+	}
+
+	if path == "/" {
+		return "/"
+	}
+	if path[len(path) - 1] == '/' {
+		path = path[:len(path) - 1]
+	}
+	found := LastIndexByte(path, '/')
+	if found == -1 {
+		// not found
+		return path
+	}
+
+	return path[found+1:]
+}
+
+func resolveUniverse(file *ast.File, universe *ast.Scope) {
 	var unresolved []*ast.Ident
-	for _, ident := range fiile.Unresolved {
+	var mapImports = map[string]bool{}
+	for _, imprt := range file.Imports {
+		// unwrap double quote "..."
+		path := imprt.Path.Value[1:len( imprt.Path.Value)-1]
+		base := Base(path)
+		mapImports[base] = true
+	}
+	for _, ident := range file.Unresolved {
 		if obj := universe.Lookup(ident.Name); obj != nil {
 			ident.Obj = obj
 		} else {
-			unresolved = append(unresolved, ident)
+			// lookup imported package name
+			if mapImports[ident.Name] {
+				ident.Obj = &ast.Object{
+					Kind: ast.Pkg,
+					Name: ident.Name,
+				}
+				logf("# resolved: %s\n", ident.Name)
+			} else {
+				logf("# unresolved: %s\n" , ident.Name)
+				unresolved = append(unresolved, ident)
+			}
 		}
 	}
+}
+
+
+var ExportedQualifiedIdents map[string]interface{} = map[string]interface{}{}
+
+func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
+	x ,_ := ExportedQualifiedIdents[pkg + "." + identifier]
+	return x.(*ast.FuncDecl)
 }
 
 // --- main ---
@@ -3733,10 +3813,14 @@ type PkgContainer struct {
 }
 
 func main() {
+	srcPath := os.Getenv("GOPATH") + "/src"
 	var universe = createUniverse()
-	var sourceFiles = []string{"runtime.go", "/dev/stdin"}
+
+	xlibFilename := srcPath + "/" + "github.com/DQNEO/babygo/extlib/mylib" + "/mylib.go"
+	var sourceFiles = []string{"runtime.go", xlibFilename, "/dev/stdin"}
 
 	for _, sourceFile := range sourceFiles {
+
 		fmtPrintf("# file: %s\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil
