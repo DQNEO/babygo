@@ -8,6 +8,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+
+	"github.com/DQNEO/babygo/extlib/mylib"
 )
 
 // --- foundation ---
@@ -3819,6 +3821,7 @@ func main() {
 	xlibFilename := srcPath + "/" + "github.com/DQNEO/babygo/extlib/mylib" + "/mylib.go"
 	var sourceFiles = []string{"runtime.go", xlibFilename, "/dev/stdin"}
 
+	fmtPrintf("# dummy version: %d\n", mylib.Sum(1,1))
 	for _, sourceFile := range sourceFiles {
 
 		fmtPrintf("# file: %s\n", sourceFile)
