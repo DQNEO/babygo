@@ -1,7 +1,6 @@
 # binaries
-/precompiler
-/babygo
-/babygo2
+/pre.mac
+/babygo.mac
 
 # intermediate files
 /tmp/*

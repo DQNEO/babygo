@@ -1,0 +1,31 @@
+# build from Mac OS
+
+.PHONY: all
+all: test test1
+
+.PHONY: test
+
+# test all
+test: test0 cross test1 self
+
+pre.mac: pre/precompiler.go
+	go build -o pre.mac pre/precompiler.go
+
+.PHONY: test0
+test0: t/test.go pre.mac runtime.go runtime.s
+	./pre.mac t/test.go > .shared/pre-test.s
+
+.PHONY: cross
+cross: main.go runtime.go runtime.s pre.mac
+	./pre.mac main.go > .shared/pre-main.s
+
+babygo.mac: main.go
+	go build -o babygo.mac main.go
+
+.PHONY: test1
+test1: babygo.mac t/test.go
+	./babygo.mac ${HOME} -DF -DG t/test.go > .shared/babygo-DF-DG-test.s
+
+.PHONY: self
+self: babygo.mac main.go
+	./babygo.mac ${HOME} main.go > .shared/babygo-main.s

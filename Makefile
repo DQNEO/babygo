@@ -33,7 +33,6 @@ $(tmp)/babygo2: $(tmp)/babygo runtime.go runtime.s
 	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/babygo2 $(tmp)/babygo2.o
 
-# Build test binaries
 $(tmp)/test0: t/test.go $(tmp)/pre runtime.go runtime.s
 	$(tmp)/pre t/test.go > $(tmp)/pre-test.s
 	cp $(tmp)/pre-test.s ./.shared/
