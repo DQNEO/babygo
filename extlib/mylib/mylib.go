@@ -6,6 +6,7 @@ func Sum(a int, b int) int {
 	return a + b
 }
 
+// package strconv
 func Itoa(ival int) string {
 	if ival == 0 {
 		return "0"
@@ -44,6 +45,32 @@ func Itoa(ival int) string {
 	}
 
 	return string(r[0:ix])
+}
+
+func Atoi(gs string) int {
+	if len(gs) == 0 {
+		return 0
+	}
+	var n int
+
+	var isMinus bool
+	for _, b := range []uint8(gs) {
+		if b == '.' {
+			return -999 // @FIXME all no number should return error
+		}
+		if b == '-' {
+			isMinus = true
+			continue
+		}
+		var x uint8 = b - uint8('0')
+		n = n * 10
+		n = n + int(x)
+	}
+	if isMinus {
+		n = -n
+	}
+
+	return n
 }
 
 // "foo/bar", "/" => []string{"foo", "bar"}
@@ -122,32 +149,7 @@ func Base(path string) string {
 	return r
 }
 
-func Atoi(gs string) int {
-	if len(gs) == 0 {
-		return 0
-	}
-	var n int
-
-	var isMinus bool
-	for _, b := range []uint8(gs) {
-		if b == '.' {
-			return -999 // @FIXME all no number should return error
-		}
-		if b == '-' {
-			isMinus = true
-			continue
-		}
-		var x uint8 = b - uint8('0')
-		n = n * 10
-		n = n + int(x)
-	}
-	if isMinus {
-		n = -n
-	}
-
-	return n
-}
-
+// package fmt
 func Printf(format string, a ...interface{}) {
 	var s = Sprintf(format, a...)
 	syscall.Write(1, []uint8(s))
