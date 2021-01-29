@@ -12,7 +12,8 @@ func nop2() {}
 // https://golang.org/ref/spec#Slice_expressions
 func testSliceExpr() {
 	a := [5]int{1, 2, 3, 4, 5}
-	s := a[1:4]
+	var s []int
+	s = a[1:4]
 	for _, elm := range s {
 		write(elm)
 	}
@@ -27,6 +28,29 @@ func testSliceExpr() {
 	write(len(s))
 	write(cap(s))
 	writeln("")
+
+	s = a[1:]
+	for _, elm := range s {
+		write(elm)
+	}
+	write(len(s))
+	write(cap(s))
+	writeln("")
+
+	s = a[:]
+	for _, elm := range s {
+		write(elm)
+	}
+	write(len(s))
+	write(cap(s))
+	writeln("")
+
+	str := "12345"
+	str2 := str[:]
+	writeln(str2)
+	writeln(str[1:])
+	writeln(str[:4])
+	writeln(str[1:3])
 }
 
 func testPath() {

@@ -1226,7 +1226,12 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				mylib.Printf("  pushq %%rax # new cap\n")
 
 				// new len = high - low
-				emitExpr(e.High, nil)
+				if e.High != nil {
+					emitExpr(e.High, nil)
+				} else {
+					// high = len(orig)
+					emitLen(e.X)
+				}
 				emitExpr(low, nil)
 				mylib.Printf("  popq %%rcx # low\n")
 				mylib.Printf("  popq %%rax # high\n")
@@ -1249,8 +1254,13 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				mylib.Printf("  pushq %%rax # new len\n")
 			}
 		case T_STRING:
-			// len = high - low
-			emitExpr(e.High, nil) // intval
+			// new len = high - low
+			if e.High != nil {
+				emitExpr(e.High, nil)
+			} else {
+				// high = len(orig)
+				emitLen(e.X)
+			}
 			emitExpr(low, nil)  // intval
 			mylib.Printf("  popq %%rcx # low\n")
 			mylib.Printf("  popq %%rax # high\n")
