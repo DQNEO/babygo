@@ -5,31 +5,10 @@ import "syscall"
 import "github.com/DQNEO/babygo/extlib/mylib"
 import "github.com/DQNEO/babygo/extlib/mylib2"
 
-// --- utils ---
-func write(x interface{}) {
-	var s string
-	switch xx := x.(type) {
-	case int:
-		s = mylib.Itoa(xx)
-	case string:
-		s = xx
-	}
-	var slc []uint8 = []uint8(s)
-	syscall.Write(1, slc)
-}
-
-func writeln(s interface{}) {
-	write(s)
-	write("\n")
-}
-
 func nop() {}
 func nop1() {}
 func nop2() {}
 
-// -- strings ---
-
-// --- test funcs ---
 func testPath() {
 	// Copied from https://golang.org/pkg/path/#Base
 	writeln(mylib.Base("/a/b"))
@@ -1712,7 +1691,25 @@ func testMisc() {
 	writeln(mylib.Itoa(i42))
 }
 
-func test() {
+// --- utils ---
+func write(x interface{}) {
+	var s string
+	switch xx := x.(type) {
+	case int:
+		s = mylib.Itoa(xx)
+	case string:
+		s = xx
+	}
+	var slc []uint8 = []uint8(s)
+	syscall.Write(1, slc)
+}
+
+func writeln(s interface{}) {
+	write(s)
+	write("\n")
+}
+
+func main() {
 	testPath()
 	testSplit()
 	testByteType()
@@ -1805,8 +1802,4 @@ func test() {
 
 	testMisc()
 	//print("test end\n")
-}
-
-func main() {
-	test()
 }
