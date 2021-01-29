@@ -38,7 +38,11 @@ func testStrings() {
 		panic("ERROR")
 	}
 
-
+	if mylib.Contains("foo/bar", "/") {
+		mylib.Printf("ok\n")
+	} else {
+		panic("ERROR")
+	}
 }
 
 // https://golang.org/ref/spec#Slice_expressions
