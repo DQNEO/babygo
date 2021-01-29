@@ -105,6 +105,31 @@ func HasPrefix(s string, prefix string) bool {
 	return true
 }
 
+func HasSuffix(s string, suffix string) bool {
+	if len(s) >= len(suffix) {
+		var low int = len(s) - len(suffix)
+		var lensb int = len(s)
+		var suf []byte
+		sb := []byte(s)
+		suf = sb[low:lensb] // lensb is required
+		return eq2(suf, []byte(suffix))
+	}
+	return false
+}
+
+func eq2(a []byte, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := 0; i < len(a); i++ {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // search index of the specified char from backward
 func LastIndexByte(s string, c uint8) int {
 	for i:=len(s)-1;i>=0;i-- {

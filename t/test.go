@@ -29,7 +29,16 @@ func testStrings() {
 	if mylib.HasPrefix(target, "buz") {
 		panic("error")
 	}
-	mylib.Printf("4\n")
+
+	s2 := "main.go"
+	suffix := ".go"
+	if mylib.HasSuffix(s2, suffix) {
+		mylib.Printf("1\n")
+	} else {
+		panic("ERROR")
+	}
+
+
 }
 
 // https://golang.org/ref/spec#Slice_expressions
