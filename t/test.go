@@ -3,6 +3,7 @@ package main
 import "os"
 import "syscall"
 import "github.com/DQNEO/babygo/extlib/mylib"
+import "github.com/DQNEO/babygo/extlib/mylib2"
 
 // --- utils ---
 func write(x interface{}) {
@@ -43,7 +44,7 @@ func testByteType() {
 }
 
 func testExtLib() {
-	y := mylib.Sum(3, 4)
+	y := mylib2.Sum2(3, 4)
 	write("# testExtLib() => ")
 	writeln(mylib.Itoa(y))
 }

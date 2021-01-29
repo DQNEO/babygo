@@ -3293,7 +3293,8 @@ func walk(pkg *PkgContainer, f *ast.File) {
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
-		ExportedQualifiedIdents[pkg.name + "." + funcDecl.Name.Name] = funcDecl
+		key := pkg.name + "." + funcDecl.Name.Name
+		ExportedQualifiedIdents[key] = funcDecl
 		if funcDecl.Body != nil {
 			if funcDecl.Recv != nil { // is Method
 				method := newMethod(funcDecl)
@@ -3684,7 +3685,11 @@ var ExportedQualifiedIdents map[string]interface{} = map[string]interface{}{}
 
 func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
 	x ,_ := ExportedQualifiedIdents[pkg + "." + identifier]
-	return x.(*ast.FuncDecl)
+	decl, ok := x.(*ast.FuncDecl)
+	if ! ok {
+		throw(ExportedQualifiedIdents)
+	}
+	return decl
 }
 
 // --- main ---
@@ -3762,7 +3767,7 @@ func main() {
 	}
 	for _, pkg := range extPackagesUsed {
 		logf("ext package: %s\n", pkg)
-		pkgDir := srcPath + "/" + extPackagesUsed[0]
+		pkgDir := srcPath + "/" + pkg
 		fname := findFilesInDir(pkgDir)
 		extfile := pkgDir + "/" + fname
 		packagesToBuild = append(packagesToBuild, extfile)
@@ -3779,7 +3784,7 @@ func main() {
 		pkg = &PkgContainer{
 			name: astFile.Name.Name,
 		}
-		logf("Package:   %s\n", pkg.name)
+		logf("@@@ Walking package:   %s\n", pkg.name)
 		walk(pkg, astFile)
 		generateCode(pkg)
 	}

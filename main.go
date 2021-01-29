@@ -5413,10 +5413,6 @@ func walk(pkg *PkgContainer, file *astFile) {
 				pkg.funcs = append(pkg.funcs, fnc)
 			}
 		}
-
-		if len(stringLiterals) == 0 {
-			panic2(__func__, "stringLiterals is empty\n")
-		}
 }
 
 // --- universe ---
@@ -5883,7 +5879,7 @@ func main() {
 	}
 	for _, pkg := range extPackagesUsed {
 		logf("ext package: %s\n", pkg)
-		pkgDir := srcPath + "/" + extPackagesUsed[0]
+		pkgDir := srcPath + "/" + pkg
 		fname := findFilesInDir(pkgDir)
 		extfile := pkgDir + "/" + fname
 		packagesToBuild = append(packagesToBuild, extfile)
