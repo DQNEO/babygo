@@ -2,6 +2,7 @@ package main
 
 import "os"
 import "syscall"
+import "github.com/DQNEO/babygo/extlib/strings"
 import "github.com/DQNEO/babygo/extlib/mylib"
 import "github.com/DQNEO/babygo/extlib/mylib2"
 
@@ -12,33 +13,33 @@ func nop2() {}
 // test package strings
 func testStrings() {
 	// Split
-	s := mylib.Split("foo/bar", "/")
+	s := strings.Split("foo/bar", "/")
 	mylib.Printf("%d\n", len(s)+1) // 3
 	mylib.Printf("%s\n", s[0])     // foo
 	mylib.Printf("%s\n", s[1])     // bar
 
 	target := "foo bar buz"
-	if !mylib.HasPrefix(target, "foo") {
+	if !strings.HasPrefix(target, "foo") {
 		panic("error")
 	}
 
-	if mylib.HasPrefix(target, " ") {
+	if strings.HasPrefix(target, " ") {
 		panic("error")
 	}
 
-	if mylib.HasPrefix(target, "buz") {
+	if strings.HasPrefix(target, "buz") {
 		panic("error")
 	}
 
 	s2 := "main.go"
 	suffix := ".go"
-	if mylib.HasSuffix(s2, suffix) {
+	if strings.HasSuffix(s2, suffix) {
 		mylib.Printf("1\n")
 	} else {
 		panic("ERROR")
 	}
 
-	if mylib.Contains("foo/bar", "/") {
+	if strings.Contains("foo/bar", "/") {
 		mylib.Printf("ok\n")
 	} else {
 		panic("ERROR")

@@ -2,6 +2,7 @@ package main
 
 import "syscall"
 import "os"
+import "github.com/DQNEO/babygo/extlib/strings"
 import "github.com/DQNEO/babygo/extlib/mylib"
 
 // --- foundation ---
@@ -5887,6 +5888,10 @@ func main() {
 		case "-DG":
 			debugCodeGen = true
 		}
+	}
+
+	if strings.Contains("a", "abc") {
+		logf("a dirty workaround to use strings package")
 	}
 
 	var mainFile = arg // last arg
