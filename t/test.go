@@ -9,6 +9,29 @@ func nop() {}
 func nop1() {}
 func nop2() {}
 
+// test package strings
+func testStrings() {
+	// Split
+	s := mylib.Split("foo/bar", "/")
+	mylib.Printf("%d\n", len(s)+1) // 3
+	mylib.Printf("%s\n", s[0])     // foo
+	mylib.Printf("%s\n", s[1])     // bar
+
+	target := "foo bar buz"
+	if !mylib.HasPrefix(target, "foo") {
+		panic("error")
+	}
+
+	if mylib.HasPrefix(target, " ") {
+		panic("error")
+	}
+
+	if mylib.HasPrefix(target, "buz") {
+		panic("error")
+	}
+	mylib.Printf("4\n")
+}
+
 // https://golang.org/ref/spec#Slice_expressions
 func testSliceExpr() {
 	a := [5]int{1, 2, 3, 4, 5}
@@ -66,13 +89,6 @@ func testPath() {
 	writeln(mylib.Dir("a/"))
 	writeln(mylib.Dir("/"))
 	writeln(mylib.Dir(""))
-}
-
-func testSplit() {
-	s := mylib.Split("foo/bar", "/")
-	mylib.Printf("%d\n", len(s)+1) // 3
-	mylib.Printf("%s\n", s[0])     // foo
-	mylib.Printf("%s\n", s[1])     // bar
 }
 
 func testByteType() {
@@ -1754,9 +1770,9 @@ func writeln(s interface{}) {
 }
 
 func main() {
+	testStrings()
 	testSliceExpr()
 	testPath()
-	testSplit()
 	testByteType()
 	testExtLib()
 	testExpandSlice()

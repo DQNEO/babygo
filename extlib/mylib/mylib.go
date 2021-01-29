@@ -73,6 +73,8 @@ func Atoi(gs string) int {
 	return n
 }
 
+// package strings
+
 // "foo/bar", "/" => []string{"foo", "bar"}
 func Split(s string, ssep string) []string {
 	if len(ssep) > 1 {
@@ -94,6 +96,15 @@ func Split(s string, ssep string) []string {
 	return r
 }
 
+func HasPrefix(s string, prefix string) bool {
+	for i, bp := range []byte(prefix) {
+		if bp != s[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // search index of the specified char from backward
 func LastIndexByte(s string, c uint8) int {
 	for i:=len(s)-1;i>=0;i-- {
@@ -105,6 +116,7 @@ func LastIndexByte(s string, c uint8) int {
 	return -1
 }
 
+// package path
 // "foo/bar/buz" => "foo/bar"
 func Dir(path string) string {
 	if len(path) == 0 {
