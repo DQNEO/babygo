@@ -30,6 +30,21 @@ func nop2() {}
 // -- strings ---
 
 // --- test funcs ---
+func testPath() {
+	// Copied from https://golang.org/pkg/path/#Base
+	writeln(mylib.Base("/a/b"))
+	writeln(mylib.Base("/"))
+	writeln(mylib.Base(""))
+
+	// Copied from https://golang.org/pkg/mylib/#Dir
+	writeln(mylib.Dir("/a/b/c"))
+	writeln(mylib.Dir("a/b/c"))
+	writeln(mylib.Dir("/a/"))
+	writeln(mylib.Dir("a/"))
+	writeln(mylib.Dir("/"))
+	writeln(mylib.Dir(""))
+}
+
 func testSplit() {
 	s := mylib.Split("foo/bar", "/")
 	mylib.Printf("%d\n", len(s)+1) // 3
@@ -1698,6 +1713,7 @@ func testMisc() {
 }
 
 func test() {
+	testPath()
 	testSplit()
 	testByteType()
 	testExtLib()

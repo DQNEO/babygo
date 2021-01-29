@@ -3102,6 +3102,15 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		var list = e.sliceExpr.X
 		var listType = getTypeOfExpr(list)
 
+		// For convenience, any of the indices may be omitted.
+		// A missing low index defaults to zero;
+		if e.sliceExpr.Low == nil {
+			e.sliceExpr.Low = eZeroInt
+		}
+
+		// a missing high index defaults to the length of the sliced operand:
+		// @TODO
+
 		switch kind(listType) {
 		case T_SLICE, T_ARRAY:
 			if e.sliceExpr.Max == nil {
@@ -5428,6 +5437,16 @@ var eNil = &astExpr{
 		Name: "nil",
 	},
 }
+
+var eZeroInt = &astExpr{
+	dtype: "*astBasicLit",
+	basicLit: &astBasicLit{
+		Value: "0",
+		Kind: "INT",
+	},
+}
+
+
 var gTrue = &astObject{
 	Kind: astCon,
 	Name: "true",

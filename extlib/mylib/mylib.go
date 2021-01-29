@@ -78,6 +78,25 @@ func LastIndexByte(s string, c uint8) int {
 	return -1
 }
 
+// "foo/bar/buz" => "foo/bar"
+func Dir(path string) string {
+	if len(path) == 0 {
+		return "."
+	}
+
+	if path == "/" {
+		return "/"
+	}
+
+	found := LastIndexByte(path, '/')
+	if found == -1 {
+		// not found
+		return path
+	}
+
+	return path[:found]
+}
+
 // "foo/bar/buz" => "buz"
 func Base(path string) string {
 	if len(path) == 0 {
