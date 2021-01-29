@@ -3117,29 +3117,36 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		switch kind(listType) {
 		case T_SLICE, T_ARRAY:
 			if e.sliceExpr.Max == nil {
-				// cap = len = high = low
-				emitExpr(e.sliceExpr.High, nil)
-				emitExpr(low, nil)  // intval
+				// new cap = cap(operand) - low
+				emitCap(e.sliceExpr.X)
+				emitExpr(low, nil)
 				mylib.Printf("  popq %%rcx # low\n")
-				mylib.Printf("  popq %%rax # max\n")
-				mylib.Printf("  subq %%rcx, %%rax # cap = max - low\n")
-				mylib.Printf("  pushq %%rax # cap\n")
-				mylib.Printf("  pushq %%rax # len\n")
+				mylib.Printf("  popq %%rax # orig_cap\n")
+				mylib.Printf("  subq %%rcx, %%rax # orig_cap - low\n")
+				mylib.Printf("  pushq %%rax # new cap\n")
+
+				// new len = high - low
+				emitExpr(e.sliceExpr.High, nil)
+				emitExpr(low, nil)
+				mylib.Printf("  popq %%rcx # low\n")
+				mylib.Printf("  popq %%rax # high\n")
+				mylib.Printf("  subq %%rcx, %%rax # high - low\n")
+				mylib.Printf("  pushq %%rax # new len\n")
 			} else {
-				// cap = max - low
+				// new cap = max - low
 				emitExpr(e.sliceExpr.Max, nil)
 				emitExpr(low, nil)
 				mylib.Printf("  popq %%rcx # low\n")
 				mylib.Printf("  popq %%rax # max\n")
 				mylib.Printf("  subq %%rcx, %%rax # max - low\n")
-				mylib.Printf("  pushq %%rax # len\n")
-				// len = high - low
+				mylib.Printf("  pushq %%rax # new cap\n")
+				// new len = high - low
 				emitExpr(e.sliceExpr.High, nil)
-				emitExpr(low, nil)  // intval
+				emitExpr(low, nil)
 				mylib.Printf("  popq %%rcx # low\n")
 				mylib.Printf("  popq %%rax # high\n")
 				mylib.Printf("  subq %%rcx, %%rax # cap = max - low\n")
-				mylib.Printf("  pushq %%rax # len\n")
+				mylib.Printf("  pushq %%rax # new len\n")
 			}
 		case T_STRING:
 			// len = high - low

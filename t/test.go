@@ -9,6 +9,26 @@ func nop() {}
 func nop1() {}
 func nop2() {}
 
+// https://golang.org/ref/spec#Slice_expressions
+func testSliceExpr() {
+	a := [5]int{1, 2, 3, 4, 5}
+	s := a[1:4]
+	for _, elm := range s {
+		write(elm)
+	}
+	write(len(s))
+	write(cap(s))
+	writeln("")
+
+	s = a[:2]
+	for _, elm := range s {
+		write(elm)
+	}
+	write(len(s))
+	write(cap(s))
+	writeln("")
+}
+
 func testPath() {
 	// Copied from https://golang.org/pkg/path/#Base
 	writeln(mylib.Base("/a/b"))
@@ -1710,6 +1730,7 @@ func writeln(s interface{}) {
 }
 
 func main() {
+	testSliceExpr()
 	testPath()
 	testSplit()
 	testByteType()
