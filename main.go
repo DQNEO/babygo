@@ -3104,8 +3104,11 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 
 		// For convenience, any of the indices may be omitted.
 		// A missing low index defaults to zero;
-		if e.sliceExpr.Low == nil {
-			e.sliceExpr.Low = eZeroInt
+		var low *astExpr
+		if e.sliceExpr.Low != nil {
+			low = e.sliceExpr.Low
+		} else {
+			low = eZeroInt
 		}
 
 		// a missing high index defaults to the length of the sliced operand:
@@ -3116,7 +3119,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			if e.sliceExpr.Max == nil {
 				// cap = len = high = low
 				emitExpr(e.sliceExpr.High, nil)
-				emitExpr(e.sliceExpr.Low, nil)  // intval
+				emitExpr(low, nil)  // intval
 				mylib.Printf("  popq %%rcx # low\n")
 				mylib.Printf("  popq %%rax # max\n")
 				mylib.Printf("  subq %%rcx, %%rax # cap = max - low\n")
@@ -3125,14 +3128,14 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			} else {
 				// cap = max - low
 				emitExpr(e.sliceExpr.Max, nil)
-				emitExpr(e.sliceExpr.Low, nil)
+				emitExpr(low, nil)
 				mylib.Printf("  popq %%rcx # low\n")
 				mylib.Printf("  popq %%rax # max\n")
 				mylib.Printf("  subq %%rcx, %%rax # max - low\n")
 				mylib.Printf("  pushq %%rax # len\n")
 				// len = high - low
 				emitExpr(e.sliceExpr.High, nil)
-				emitExpr(e.sliceExpr.Low, nil)  // intval
+				emitExpr(low, nil)  // intval
 				mylib.Printf("  popq %%rcx # low\n")
 				mylib.Printf("  popq %%rax # high\n")
 				mylib.Printf("  subq %%rcx, %%rax # cap = max - low\n")
@@ -3141,7 +3144,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		case T_STRING:
 			// len = high - low
 			emitExpr(e.sliceExpr.High, nil)
-			emitExpr(e.sliceExpr.Low, nil)
+			emitExpr(low, nil)
 			mylib.Printf("  popq %%rcx # low\n")
 			mylib.Printf("  popq %%rax # high\n")
 			mylib.Printf("  subq %%rcx, %%rax # high - low\n")
@@ -3151,7 +3154,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			panic2(__func__, "Unknown kind="+kind(listType))
 		}
 
-		emitExpr(e.sliceExpr.Low, nil)
+		emitExpr(low, nil)
 		var elmType = getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
 	case "*astUnaryExpr":

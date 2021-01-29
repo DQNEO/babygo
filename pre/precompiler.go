@@ -1204,8 +1204,11 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 
 		// For convenience, any of the indices may be omitted.
 		// A missing low index defaults to zero;
-		if e.Low == nil {
-			e.Low = eZeroInt
+		var low ast.Expr
+		if e.Low != nil {
+			low = e.Low
+		} else {
+			low = eZeroInt
 		}
 
 		// a missing high index defaults to the length of the sliced operand:
@@ -1216,7 +1219,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			if e.Max == nil {
 				// cap = len = high = low
 				emitExpr(e.High, nil) // intval
-				emitExpr(e.Low, nil)  // intval
+				emitExpr(low, nil)  // intval
 				mylib.Printf("  popq %%rcx # low\n")
 				mylib.Printf("  popq %%rax # high\n")
 				mylib.Printf("  subq %%rcx, %%rax # high - low\n")
@@ -1225,14 +1228,14 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			} else {
 				// cap = max - low
 				emitExpr(e.Max, nil) // intval
-				emitExpr(e.Low, nil)  // intval
+				emitExpr(low, nil)  // intval
 				mylib.Printf("  popq %%rcx # low\n")
 				mylib.Printf("  popq %%rax # high\n")
 				mylib.Printf("  subq %%rcx, %%rax # max - low\n")
 				mylib.Printf("  pushq %%rax # cap\n")
 				// len = high - low
 				emitExpr(e.High, nil) // intval
-				emitExpr(e.Low, nil)  // intval
+				emitExpr(low, nil)  // intval
 				mylib.Printf("  popq %%rcx # low\n")
 				mylib.Printf("  popq %%rax # high\n")
 				mylib.Printf("  subq %%rcx, %%rax # high - low\n")
@@ -1241,7 +1244,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		case T_STRING:
 			// len = high - low
 			emitExpr(e.High, nil) // intval
-			emitExpr(e.Low, nil)  // intval
+			emitExpr(low, nil)  // intval
 			mylib.Printf("  popq %%rcx # low\n")
 			mylib.Printf("  popq %%rax # high\n")
 			mylib.Printf("  subq %%rcx, %%rax # high - low\n")
@@ -1251,7 +1254,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			throw(list)
 		}
 
-		emitExpr(e.Low, nil) // index number
+		emitExpr(low, nil) // index number
 		elmType := getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
 	case *ast.TypeAssertExpr:
