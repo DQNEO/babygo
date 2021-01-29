@@ -2069,7 +2069,7 @@ func (p *parser) parseFuncDecl() astDecl {
 	return decl
 }
 
-func (p *parser) parseFile() *astFile {
+func (p *parser) parseFile(importsOnly bool) *astFile {
 	// expect "package" keyword
 	p.expect("package", __func__)
 	p.unresolved = nil
@@ -2090,7 +2090,7 @@ func (p *parser) parseFile() *astFile {
 	var decls []astDecl
 	var decl astDecl
 
-	for p.tok.tok != "EOF" {
+	for !importsOnly && p.tok.tok != "EOF" {
 		switch p.tok.tok {
 		case "var", "const":
 			var spec = p.parseValueSpec(p.tok.tok)
@@ -2145,13 +2145,17 @@ func (p *parser) parseFile() *astFile {
 	return f
 }
 
-func parseFile(filename string) *astFile {
+func parseImports(filename string) *astFile {
+	return parseFile(filename, true)
+}
+
+func parseFile(filename string, importsOnly bool) *astFile {
 	var text = readSource(filename)
 
 	var p = &parser{}
 	p.scanner = &scanner{}
 	p.init(text)
-	return p.parseFile()
+	return p.parseFile(importsOnly)
 }
 
 // --- codegen ---
@@ -5806,6 +5810,21 @@ func showHelp() {
 
 const GOPATH string = "/root/go"
 
+// "foo/bar" => "bar.go"
+func findFilesInDir(dir string) string {
+	fname := mylib.Base(dir) + ".go"
+	return fname
+}
+
+func isStdLib(path string) bool {
+	for _, b := range []uint8(path) {
+		if b == '/' {
+			return false
+		}
+	}
+	return true
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		showHelp()
@@ -5838,23 +5857,43 @@ func main() {
 	}
 
 	var mainFile = arg // last arg
-
-	runtimefile := "runtime.go"
-	var imports []string = []string{
-		"github.com/DQNEO/babygo/extlib/mylib", // @TODO read this from file
+	logf("input file: \"%s\"\n", mainFile)
+	logf("Parsing imports\n")
+	astFile0 := parseImports(mainFile)
+	var importPaths []string
+	for _, importSpec := range astFile0.Imports {
+		rawValue := importSpec.Path
+		logf("import %s\n", rawValue)
+		path :=  rawValue[1:len(rawValue)-1]
+		importPaths = append(importPaths, path)
 	}
-	imprt := imports[0]
-	file := mylib.Base(imprt) + ".go" // mylib.go
+	var stdPackagesUsed []string
+	var extPackagesUsed []string
+	for _, path := range importPaths {
+		if isStdLib(path) {
+			stdPackagesUsed = append(stdPackagesUsed, path)
+		} else {
+			extPackagesUsed = append(extPackagesUsed, path)
+		}
+	}
 
-	xlibFilename := srcPath + "/" + imprt + "/" + file
-
-	var packages = []string{runtimefile, xlibFilename, mainFile}
-
-	for _, sourceFile := range packages {
+	var packagesToBuild = []string{"runtime.go"}
+	for _, pkg := range stdPackagesUsed {
+		logf("std package: %s\n", pkg)
+	}
+	for _, pkg := range extPackagesUsed {
+		logf("ext package: %s\n", pkg)
+		pkgDir := srcPath + "/" + extPackagesUsed[0]
+		fname := findFilesInDir(pkgDir)
+		extfile := pkgDir + "/" + fname
+		packagesToBuild = append(packagesToBuild, extfile)
+	}
+	packagesToBuild = append(packagesToBuild, mainFile)
+	for _, sourceFile := range packagesToBuild {
 		mylib.Printf("# pkg file: %s\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil
-		astFile := parseFile(sourceFile)
+		astFile := parseFile(sourceFile, false)
 		resolveUniverse(astFile, universe)
 		pkg = &PkgContainer{
 			name: astFile.Name,

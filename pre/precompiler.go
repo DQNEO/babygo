@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 
 	"go/ast"
@@ -41,6 +42,14 @@ func logf(format string, a ...interface{}) {
 }
 
 // --- parser ---
+func parseImports(fset *token.FileSet, filename string) *ast.File {
+	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
+	if err != nil {
+		panic(err)
+	}
+	return f
+}
+
 func parseFile(fset *token.FileSet, filename string) *ast.File {
 	f, err := parser.ParseFile(fset, filename, nil, 0)
 	if err != nil {
@@ -3639,12 +3648,15 @@ func createUniverse() *ast.Scope {
 	return universe
 }
 
+
+
 func resolveUniverse(file *ast.File, universe *ast.Scope) {
 	var unresolved []*ast.Ident
 	var mapImports = map[string]bool{}
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
-		path := imprt.Path.Value[1:len( imprt.Path.Value)-1]
+		rawValue := imprt.Path.Value
+		path :=  rawValue[1:len(rawValue)-1]
 		base := mylib.Base(path)
 		mapImports[base] = true
 	}
@@ -3690,6 +3702,16 @@ func showHelp() {
 	mylib.Printf("    pre [-DF] [-DG] filename\n")
 }
 
+// "foo/bar" => "bar.go"
+func findFilesInDir(dir string) string {
+	fname := mylib.Base(dir) + ".go"
+	return fname
+}
+
+func isStdLib(path string) bool {
+	return !strings.Contains(path, "/")
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		showHelp()
@@ -3707,20 +3729,51 @@ func main() {
 		panic("I am panic version " + panicVersion)
 	}
 
+	logf("Build start\n")
+
 	srcPath := os.Getenv("GOPATH") + "/src"
 	var universe = createUniverse()
 
 	var mainFile = os.Args[1]
+	logf("input file: \"%s\"\n", mainFile)
 
-	xlibFilename := srcPath + "/" + "github.com/DQNEO/babygo/extlib/mylib" + "/mylib.go"
-	var packages = []string{"runtime.go", xlibFilename, mainFile}
-
-	for _, sourceFile := range packages {
-
-		mylib.Printf("# file: %s\n", sourceFile)
+	fset := &token.FileSet{}
+	logf("Parsing imports\n")
+	astFile0 := parseImports(fset, mainFile)
+	var importPaths []string
+	for _, importSpec := range astFile0.Imports {
+		rawValue := importSpec.Path.Value
+		logf("import %s\n", rawValue)
+		path :=  rawValue[1:len(rawValue)-1]
+		importPaths = append(importPaths, path)
+	}
+	var stdPackagesUsed []string
+	var extPackagesUsed []string
+	for _, path := range importPaths {
+		if isStdLib(path) {
+			stdPackagesUsed = append(stdPackagesUsed, path)
+		} else {
+			extPackagesUsed = append(extPackagesUsed, path)
+		}
+	}
+	var packagesToBuild = []string{"runtime.go"}
+	for _, pkg := range stdPackagesUsed {
+		logf("std package: %s\n", pkg)
+	}
+	for _, pkg := range extPackagesUsed {
+		logf("ext package: %s\n", pkg)
+		pkgDir := srcPath + "/" + extPackagesUsed[0]
+		fname := findFilesInDir(pkgDir)
+		extfile := pkgDir + "/" + fname
+		packagesToBuild = append(packagesToBuild, extfile)
+	}
+	packagesToBuild = append(packagesToBuild, mainFile)
+	for _, sourceFile := range packagesToBuild {
+		logf("Building package file: %s\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil
 		fset := &token.FileSet{}
+
 		astFile := parseFile(fset, sourceFile)
 		resolveUniverse(astFile, universe)
 		pkg = &PkgContainer{
