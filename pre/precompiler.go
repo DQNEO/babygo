@@ -3741,15 +3741,45 @@ func showHelp() {
 }
 
 // "foo/bar" => "bar.go"
-func findFilesInDir(dir string) string {
+func findFilesInDir(dir string) []string {
 	fname := mylib.Base(dir) + ".go"
-	return fname
+	return []string{fname}
 }
 
 func isStdLib(path string) bool {
 	return !strings.Contains(path, "/")
 }
 
+func getImportPathsFromFile(file string) map[string]bool {
+	fset := &token.FileSet{}
+	astFile0 := parseImports(fset, file)
+	var paths  = map[string]bool{}
+	for _, importSpec := range astFile0.Imports {
+		rawValue := importSpec.Path.Value
+		logf("import %s\n", rawValue)
+		path :=  rawValue[1:len(rawValue)-1]
+		paths[path] = true
+	}
+	return paths
+}
+
+func collectDependency(tree map[string]map[string]bool, paths map[string]bool) {
+	for pkgPath, _ := range paths {
+		if isStdLib(pkgPath) {
+			// stdlib has no source code for now
+			tree[pkgPath] = nil
+			continue
+		}
+		pkgDir := srcPath + "/" + pkgPath
+		fnames := findFilesInDir(pkgDir)
+		fname := fnames[0]
+		file := pkgDir + "/" + fname
+		_paths := getImportPathsFromFile(file)
+		tree[pkgPath] = _paths
+	}
+}
+
+var srcPath = os.Getenv("GOPATH") + "/src"
 func main() {
 	if len(os.Args) == 1 {
 		showHelp()
@@ -3769,25 +3799,22 @@ func main() {
 
 	logf("Build start\n")
 
-	srcPath := os.Getenv("GOPATH") + "/src"
 	var universe = createUniverse()
 
 	var mainFile = os.Args[1]
 	logf("input file: \"%s\"\n", mainFile)
 
-	fset := &token.FileSet{}
 	logf("Parsing imports\n")
-	astFile0 := parseImports(fset, mainFile)
-	var importPaths []string
-	for _, importSpec := range astFile0.Imports {
-		rawValue := importSpec.Path.Value
-		logf("import %s\n", rawValue)
-		path :=  rawValue[1:len(rawValue)-1]
-		importPaths = append(importPaths, path)
-	}
+
+
 	var stdPackagesUsed []string
 	var extPackagesUsed []string
-	for _, path := range importPaths {
+	importPaths := getImportPathsFromFile(mainFile)
+	var tree = map[string]map[string]bool{}
+
+	collectDependency(tree, importPaths)
+
+	for path, _ := range tree {
 		if isStdLib(path) {
 			stdPackagesUsed = append(stdPackagesUsed, path)
 		} else {
@@ -3801,8 +3828,8 @@ func main() {
 	for _, pkg := range extPackagesUsed {
 		logf("ext package: %s\n", pkg)
 		pkgDir := srcPath + "/" + pkg
-		fname := findFilesInDir(pkgDir)
-		extfile := pkgDir + "/" + fname
+		fnames := findFilesInDir(pkgDir)
+		extfile := pkgDir + "/" + fnames[0]
 		packagesToBuild = append(packagesToBuild, extfile)
 	}
 	packagesToBuild = append(packagesToBuild, mainFile)
