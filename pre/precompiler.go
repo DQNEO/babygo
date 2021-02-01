@@ -3763,19 +3763,55 @@ func getImportPathsFromFile(file string) map[string]bool {
 	return paths
 }
 
+func removeNode(tree map[string]map[string]bool, node string) {
+	for _ , paths := range tree {
+		delete(paths, node)
+	}
+
+	delete(tree, node)
+}
+
+// Sort all packages in topological ordering. (i.e. topological sort)
+// In the result list, the independent (lowest level) packages come first.
+func sortTree(tree map[string]map[string]bool) []string {
+	logf("sortTree start\n")
+	var sorted []string
+	for len(tree) > 0{
+		for _path, children := range tree {
+			if len(children) == 0 {
+				// leaf node
+				logf("Found leaf node: %s\n", _path)
+				sorted = append(sorted, _path)
+				removeNode(tree, _path)
+			}
+		}
+
+	}
+
+	logf("sortTree end\n")
+	return sorted
+}
+
 func collectDependency(tree map[string]map[string]bool, paths map[string]bool) {
 	for pkgPath, _ := range paths {
+		logf("collectDependency in %s\n", pkgPath)
 		if isStdLib(pkgPath) {
 			// stdlib has no source code for now
 			tree[pkgPath] = nil
+			logf("  is stdlib. SKIP.\n")
 			continue
 		}
-		pkgDir := srcPath + "/" + pkgPath
-		fnames := findFilesInDir(pkgDir)
-		fname := fnames[0]
-		file := pkgDir + "/" + fname
-		_paths := getImportPathsFromFile(file)
-		tree[pkgPath] = _paths
+		fnames := findFilesInDir(srcPath + "/" + pkgPath)
+		var importsOfPkg = map[string]bool{}
+		for _, fname := range fnames {
+			importPathsOfFile := getImportPathsFromFile(srcPath + "/" + pkgPath + "/" + fname)
+			for _path, _ := range importPathsOfFile {
+				logf("  found %s\n", _path)
+				importsOfPkg[_path] = true
+			}
+		}
+		tree[pkgPath] = importsOfPkg
+		collectDependency(tree, importsOfPkg)
 	}
 }
 
@@ -3813,8 +3849,12 @@ func main() {
 	var tree = map[string]map[string]bool{}
 
 	collectDependency(tree, importPaths)
-
-	for path, _ := range tree {
+	sortedPackages := sortTree(tree)
+	logf("sortedPackages:\n")
+	for _, pth := range sortedPackages {
+		logf("  %s\n", pth)
+	}
+	for _, path := range sortedPackages {
 		if isStdLib(path) {
 			stdPackagesUsed = append(stdPackagesUsed, path)
 		} else {
@@ -3832,6 +3872,7 @@ func main() {
 		extfile := pkgDir + "/" + fnames[0]
 		packagesToBuild = append(packagesToBuild, extfile)
 	}
+
 	packagesToBuild = append(packagesToBuild, mainFile)
 	for _, sourceFile := range packagesToBuild {
 		logf("Building package file: %s\n", sourceFile)
