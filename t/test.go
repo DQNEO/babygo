@@ -1,5 +1,6 @@
 package main
 
+import "github.com/DQNEO/babygo/extlib/myfmt"
 import "os"
 import "syscall"
 import "github.com/DQNEO/babygo/extlib/strings"
@@ -14,9 +15,9 @@ func nop2() {}
 func testStrings() {
 	// Split
 	s := strings.Split("foo/bar", "/")
-	mylib.Printf("%d\n", len(s)+1) // 3
-	mylib.Printf("%s\n", s[0])     // foo
-	mylib.Printf("%s\n", s[1])     // bar
+	myfmt.Printf("%d\n", len(s)+1) // 3
+	myfmt.Printf("%s\n", s[0])     // foo
+	myfmt.Printf("%s\n", s[1])     // bar
 
 	target := "foo bar buz"
 	if !strings.HasPrefix(target, "foo") {
@@ -34,13 +35,13 @@ func testStrings() {
 	s2 := "main.go"
 	suffix := ".go"
 	if strings.HasSuffix(s2, suffix) {
-		mylib.Printf("1\n")
+		myfmt.Printf("1\n")
 	} else {
 		panic("ERROR")
 	}
 
 	if strings.Contains("foo/bar", "/") {
-		mylib.Printf("ok\n")
+		myfmt.Printf("ok\n")
 	} else {
 		panic("ERROR")
 	}
@@ -114,7 +115,7 @@ func testByteType() {
 func testExtLib() {
 	y := mylib2.Sum2(3, 4)
 	write("# testExtLib() => ")
-	writeln(mylib.Itoa(y))
+	writeln(myfmt.Itoa(y))
 }
 
 func passVargs(a... interface{}) {
@@ -240,7 +241,7 @@ func testTypeSwitch() {
 	case *int:
 		x := ifc.(*int)
 		writeln("type is *int")
-		writeln(mylib.Itoa(*x))
+		writeln(myfmt.Itoa(*x))
 	case string:
 		x := ifc.(string)
 		writeln("type is string")
@@ -271,7 +272,7 @@ func testTypeSwitch() {
 	switch yyy := ifc.(type) {
 	case MyStruct:
 		writeln("type is MySruct")
-		writeln(mylib.Itoa(yyy.field2))
+		writeln(myfmt.Itoa(yyy.field2))
 	default:
 		panic("ERROR")
 	}
@@ -331,14 +332,14 @@ func testInterfaceAssertion() {
 	i, ok = ifc.(int)
 	if ok {
 		writeln(" type matched")
-		write(mylib.Itoa(i))
+		write(myfmt.Itoa(i))
 	} else {
 		panic("FAILED")
 	}
 
 	var j int
 	j = ifc.(int)
-	write(mylib.Itoa(j))
+	write(myfmt.Itoa(j))
 	_, ok = ifc.(int) // error!!!
 	if ok {
 		writeln("ok")
@@ -347,7 +348,7 @@ func testInterfaceAssertion() {
 	}
 
 	i, _ = ifc.(int)
-	write(mylib.Itoa(i))
+	write(myfmt.Itoa(i))
 
 	_, _ = ifc.(int)
 	writeln("end of testInterfaceAssertion")
@@ -426,14 +427,14 @@ func testForRangeShortDecl() {
 	var ary []int = []int{3, 2, 1, 0}
 
 	for _, w := range ary {
-		write(mylib.Itoa(w))
+		write(myfmt.Itoa(w))
 	}
 	writeln("")
 
 	var i int = 20210122
 	for i, www := range ary {
-		write(mylib.Itoa(i))
-		write(mylib.Itoa(www))
+		write(myfmt.Itoa(i))
+		write(myfmt.Itoa(www))
 	}
 	writeln("")
 
@@ -456,9 +457,9 @@ func testInferVarTypes() {
 
 	writeln(gi)
 	writeln(gs)
-	writeln(mylib.Itoa(gslc[2]))
-	writeln(mylib.Itoa(gstrctPtr.field2))
-	writeln(mylib.Itoa(gstrct.field1))
+	writeln(myfmt.Itoa(gslc[2]))
+	writeln(myfmt.Itoa(gstrctPtr.field2))
+	writeln(myfmt.Itoa(gstrct.field1))
 }
 
 var gInt int = 1010
@@ -477,8 +478,8 @@ func testGlobalValues() {
 		writeln("gBool is true")
 	}
 	writeln(gString)
-	writeln(mylib.Itoa(gPointer.field2))
-	writeln(mylib.Itoa(int(gChar)))
+	writeln(myfmt.Itoa(gPointer.field2))
+	writeln(myfmt.Itoa(int(gChar)))
 }
 
 func testShortVarDecl() {
@@ -508,7 +509,7 @@ func testStructPointerMethods() {
 	var f1 = p.getField1() // infer method return type
 	writeln(f1)
 	p.setField1(20)
-	writeln(mylib.Itoa(p.getField1()))
+	writeln(myfmt.Itoa(p.getField1()))
 }
 
 func (p *MyStruct) getField1() int {
@@ -556,11 +557,11 @@ func (p *T) mp(a int) {
 func testPointerMethod() {
 	var v T = 1
 	v.mv(2)
-	writeln(mylib.Itoa(int(v)))
+	writeln(myfmt.Itoa(int(v)))
 
 	var p *T = &v
 	p.mp(3)
-	writeln(mylib.Itoa(int(v)))
+	writeln(myfmt.Itoa(int(v)))
 }
 
 type MyAnotherType int
@@ -587,8 +588,8 @@ func (x MyType) add10() int {
 
 func testMethodSimple() {
 	var x MyType = 4
-	writeln(mylib.Itoa(x.add10()))
-	writeln(mylib.Itoa(add10(x)))
+	writeln(myfmt.Itoa(x.add10()))
+	writeln(myfmt.Itoa(add10(x)))
 }
 
 func testOsArgs() {
@@ -602,21 +603,21 @@ func testStructLiteralWithContents() {
 		field1: 10,
 		field2: 20,
 	}
-	writeln(mylib.Itoa(strct.field1))
-	writeln(mylib.Itoa(strct.field2))
+	writeln(myfmt.Itoa(strct.field1))
+	writeln(myfmt.Itoa(strct.field2))
 
 	var strct2 = MyStruct{
 		field2: 20,
 	}
-	writeln(mylib.Itoa(strct2.field1))
-	writeln(mylib.Itoa(strct2.field2))
+	writeln(myfmt.Itoa(strct2.field1))
+	writeln(myfmt.Itoa(strct2.field2))
 
 	var strctp = &MyStruct{
 		field1: 30,
 		field2: 40,
 	}
-	writeln(mylib.Itoa(strctp.field1))
-	writeln(mylib.Itoa(strctp.field2))
+	writeln(myfmt.Itoa(strctp.field1))
+	writeln(myfmt.Itoa(strctp.field2))
 }
 
 func returnPointerOfStruct() *MyStruct {
@@ -628,8 +629,8 @@ func returnPointerOfStruct() *MyStruct {
 
 func testAddressOfStructLiteral() {
 	var strct *MyStruct = returnPointerOfStruct()
-	writeln(mylib.Itoa(strct.field1))
-	writeln(mylib.Itoa(strct.field2))
+	writeln(myfmt.Itoa(strct.field1))
+	writeln(myfmt.Itoa(strct.field2))
 }
 
 
@@ -641,40 +642,40 @@ func testStructCopy() {
 	var strct2 MyStruct = MyStruct{}
 	strct2 = strct
 
-	writeln(mylib.Itoa(strct2.field1))
-	writeln(mylib.Itoa(strct2.field2))
+	writeln(myfmt.Itoa(strct2.field1))
+	writeln(myfmt.Itoa(strct2.field2))
 
 	// assert 2 struct does not share memory
 	strct2.field1 = 789
-	writeln(mylib.Itoa(strct.field1))
+	writeln(myfmt.Itoa(strct.field1))
 }
 
 func testStructLiteral() {
 	var strct MyStruct = MyStruct{}
-	writeln(mylib.Itoa(strct.field1))
-	writeln(mylib.Itoa(strct.field2))
+	writeln(myfmt.Itoa(strct.field1))
+	writeln(myfmt.Itoa(strct.field2))
 
 	strct.field1 = 123
 	strct.field2 = 456
 
-	writeln(mylib.Itoa(strct.field1))
-	writeln(mylib.Itoa(strct.field2))
+	writeln(myfmt.Itoa(strct.field1))
+	writeln(myfmt.Itoa(strct.field2))
 }
 
 func testStructZeroValue() {
 	var strct MyStruct
-	writeln(mylib.Itoa(strct.field1))
-	writeln(mylib.Itoa(strct.field2))
+	writeln(myfmt.Itoa(strct.field1))
+	writeln(myfmt.Itoa(strct.field2))
 }
 
 func testAtoi() {
-	writeln(mylib.Itoa(mylib.Atoi("")))  // "0"
-	writeln(mylib.Itoa(mylib.Atoi("0"))) // "0"
-	writeln(mylib.Itoa(mylib.Atoi("1")))
-	writeln(mylib.Itoa(mylib.Atoi("12")))
-	writeln(mylib.Itoa(mylib.Atoi("1234567890")))
-	writeln(mylib.Itoa(mylib.Atoi("-1234567890")))
-	writeln(mylib.Itoa(mylib.Atoi("-7")))
+	writeln(myfmt.Itoa(mylib.Atoi("")))  // "0"
+	writeln(myfmt.Itoa(mylib.Atoi("0"))) // "0"
+	writeln(myfmt.Itoa(mylib.Atoi("1")))
+	writeln(myfmt.Itoa(mylib.Atoi("12")))
+	writeln(myfmt.Itoa(mylib.Atoi("1234567890")))
+	writeln(myfmt.Itoa(mylib.Atoi("-1234567890")))
+	writeln(myfmt.Itoa(mylib.Atoi("-7")))
 }
 
 func isLetter_(ch uint8) bool {
@@ -694,12 +695,12 @@ func testIsLetter() {
 }
 
 func funcVaarg1(f string, a ...interface{}) {
-	write(mylib.Sprintf(f, a...))
+	write(myfmt.Sprintf(f, a...))
 }
 
 func funcVaarg2(a int, b ...int) {
 	if b == nil {
-		write(mylib.Itoa(a))
+		write(myfmt.Itoa(a))
 		writeln(" nil vaargs ok")
 	} else {
 		writeln("ERROR")
@@ -871,7 +872,7 @@ func testLogicalAndOr() {
 const MY_CONST_INT_VALUE int = 24
 
 func testConst() {
-	writeln(mylib.Itoa(MY_CONST_INT_VALUE))
+	writeln(myfmt.Itoa(MY_CONST_INT_VALUE))
 }
 
 func testForOmissible() {
@@ -882,19 +883,19 @@ func testForOmissible() {
 			break
 		}
 	}
-	write(mylib.Itoa(i))
+	write(myfmt.Itoa(i))
 
 	i = 0
 	for i < 3 {
 		i++
 	}
-	write(mylib.Itoa(i))
+	write(myfmt.Itoa(i))
 
 	i = 0
 	for i < 4 {
 		i++
 	}
-	write(mylib.Itoa(i))
+	write(myfmt.Itoa(i))
 
 	write("\n")
 }
@@ -905,37 +906,37 @@ func testForBreakContinue() {
 		if i == 3 {
 			break
 		}
-		write(mylib.Itoa(i))
+		write(myfmt.Itoa(i))
 	}
 	write("exit")
-	writeln(mylib.Itoa(i))
+	writeln(myfmt.Itoa(i))
 
 	for i = 0; i < 10; i = i + 1 {
 		if i < 7 {
 			continue
 		}
-		write(mylib.Itoa(i))
+		write(myfmt.Itoa(i))
 	}
 	write("exit")
-	writeln(mylib.Itoa(i))
+	writeln(myfmt.Itoa(i))
 
 	var ary []int = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	for _, i = range ary {
 		if i == 3 {
 			break
 		}
-		write(mylib.Itoa(i))
+		write(myfmt.Itoa(i))
 	}
 	write("exit")
-	writeln(mylib.Itoa(i))
+	writeln(myfmt.Itoa(i))
 	for _, i = range ary {
 		if i < 7 {
 			continue
 		}
-		write(mylib.Itoa(i))
+		write(myfmt.Itoa(i))
 	}
 	write("exit")
-	writeln(mylib.Itoa(i))
+	writeln(myfmt.Itoa(i))
 }
 
 func returnTrue1() bool {
@@ -1043,8 +1044,8 @@ func testArrayCopy() {
 	var bInt [3]int = aInt
 	aInt[1] = 20
 
-	write(mylib.Itoa(aInt[1]))
-	write(mylib.Itoa(bInt[1]))
+	write(myfmt.Itoa(aInt[1]))
+	write(myfmt.Itoa(bInt[1]))
 	write("\n")
 }
 
@@ -1052,7 +1053,7 @@ func testLocalArrayWithMoreTypes() {
 	var aInt [3]int = [3]int{1, 2, 3}
 	var i int
 	for _, i = range aInt {
-		writeln(mylib.Itoa(i))
+		writeln(myfmt.Itoa(i))
 	}
 
 	var aString [3]string = [3]string{"a", "bb", "ccc"}
@@ -1069,9 +1070,9 @@ func testLocalArrayWithMoreTypes() {
 
 func testLocalArray() {
 	var aInt [3]int = [3]int{1, 2, 3}
-	write(mylib.Itoa(aInt[0]))
-	write(mylib.Itoa(aInt[1]))
-	write(mylib.Itoa(aInt[2]))
+	write(myfmt.Itoa(aInt[0]))
+	write(myfmt.Itoa(aInt[1]))
+	write(myfmt.Itoa(aInt[2]))
 	write("\n")
 }
 
@@ -1080,10 +1081,10 @@ func testSprintf() {
 	a[0] = 1234
 	a[1] = "c"
 	a[2] = "efg"
-	var s string = mylib.Sprintf("%sab%sd%s", a...)
+	var s string = myfmt.Sprintf("%sab%sd%s", a...)
 	write(s)
 
-	var s2 string = mylib.Sprintf("%%rax")
+	var s2 string = myfmt.Sprintf("%%rax")
 	write(s2)
 	write("|\n")
 }
@@ -1117,7 +1118,7 @@ func testAppendPtr() {
 	}
 
 	for _, p = range slc {
-		write(mylib.Itoa(p.field1)) // 123456789
+		write(myfmt.Itoa(p.field1)) // 123456789
 	}
 	write("\n")
 }
@@ -1132,7 +1133,7 @@ func testAppendString() {
 	for _, s = range slc {
 		write(s)
 	}
-	writeln(mylib.Itoa(len(slc))) // 3
+	writeln(myfmt.Itoa(len(slc))) // 3
 }
 
 func testAppendInt() {
@@ -1145,7 +1146,7 @@ func testAppendInt() {
 	slc = append(slc, 10)
 
 	for _, i = range slc {
-		write(mylib.Itoa(i)) // 12345678910
+		write(myfmt.Itoa(i)) // 12345678910
 	}
 	write("\n")
 }
@@ -1158,13 +1159,13 @@ func testAppendByte() {
 	}
 	slc = append(slc, 10) // '\n'
 	write(string(slc))
-	writeln(mylib.Itoa(len(slc))) // 27
+	writeln(myfmt.Itoa(len(slc))) // 27
 }
 
 func testSringIndex() {
 	var s string = "abcde"
 	var char uint8 = s[3]
-	writeln(mylib.Itoa(int(char)))
+	writeln(myfmt.Itoa(int(char)))
 }
 
 func testSubstring() {
@@ -1199,7 +1200,7 @@ func testForrangeKey() {
 	slc[1] = "b"
 	slc[2] = "c"
 	for i, s = range slc {
-		write(mylib.Itoa(i))
+		write(myfmt.Itoa(i))
 		writeln(s)
 	}
 }
@@ -1227,7 +1228,7 @@ func testForrange() {
 	writeln("going to loop 4 times")
 	var a int
 	for _, a = range globalintarray {
-		write(mylib.Itoa(a))
+		write(myfmt.Itoa(a))
 	}
 	writeln("")
 
@@ -1243,7 +1244,7 @@ func testForrange() {
 
 func newStruct() *MyStruct {
 	var strct *MyStruct = new(MyStruct)
-	writeln(mylib.Itoa(strct.field2))
+	writeln(myfmt.Itoa(strct.field2))
 	strct.field2 = 2
 	return strct
 }
@@ -1251,20 +1252,20 @@ func newStruct() *MyStruct {
 func testNewStruct() {
 	var strct *MyStruct
 	strct = newStruct()
-	writeln(mylib.Itoa(strct.field1))
-	writeln(mylib.Itoa(strct.field2))
+	writeln(myfmt.Itoa(strct.field1))
+	writeln(myfmt.Itoa(strct.field2))
 }
 
 var nilSlice []*MyStruct
 
 func testNilSlice() {
 	nilSlice = make([]*MyStruct, 2, 2)
-	writeln(mylib.Itoa(len(nilSlice)))
-	writeln(mylib.Itoa(cap(nilSlice)))
+	writeln(myfmt.Itoa(len(nilSlice)))
+	writeln(myfmt.Itoa(cap(nilSlice)))
 
 	nilSlice = nil
-	writeln(mylib.Itoa(len(nilSlice)))
-	writeln(mylib.Itoa(cap(nilSlice)))
+	writeln(myfmt.Itoa(len(nilSlice)))
+	writeln(myfmt.Itoa(cap(nilSlice)))
 }
 
 func testZeroValues() {
@@ -1277,9 +1278,9 @@ func testZeroValues() {
 	var h int = 1
 	var i int
 	var j int = 2
-	writeln(mylib.Itoa(h))
-	writeln(mylib.Itoa(i))
-	writeln(mylib.Itoa(j))
+	writeln(myfmt.Itoa(h))
+	writeln(myfmt.Itoa(i))
+	writeln(myfmt.Itoa(j))
 
 	if i == 0 {
 		writeln("int zero ok")
@@ -1291,11 +1292,11 @@ func testZeroValues() {
 func testIncrDecr() {
 	var i int = 0
 	i++
-	writeln(mylib.Itoa(i))
+	writeln(myfmt.Itoa(i))
 
 	i--
 	i--
-	writeln(mylib.Itoa(i))
+	writeln(myfmt.Itoa(i))
 }
 
 type MyStruct struct {
@@ -1358,7 +1359,7 @@ func testSliceOfPointers() {
 	var x int
 	for i = 0; i < 2; i = i + 1 {
 		x = structPointers[i].field2
-		writeln(mylib.Itoa(x))
+		writeln(myfmt.Itoa(x))
 	}
 }
 
@@ -1370,14 +1371,14 @@ func testStructPointer() {
 
 	var i int
 	i = strct.field1
-	writeln(mylib.Itoa(i))
+	writeln(myfmt.Itoa(i))
 
 	strct.field2 = 456
-	writeln(mylib.Itoa(_strct.field2))
+	writeln(myfmt.Itoa(_strct.field2))
 
 	strct.field1 = 777
 	strct.field2 = strct.field1
-	writeln(mylib.Itoa(strct.field2))
+	writeln(myfmt.Itoa(strct.field2))
 }
 
 func testStruct() {
@@ -1386,14 +1387,14 @@ func testStruct() {
 
 	var i int
 	i = strct.field1
-	writeln(mylib.Itoa(i))
+	writeln(myfmt.Itoa(i))
 
 	strct.field2 = 456
-	writeln(mylib.Itoa(strct.field2))
+	writeln(myfmt.Itoa(strct.field2))
 
 	strct.field1 = 777
 	strct.field2 = strct.field1
-	writeln(mylib.Itoa(strct.field2))
+	writeln(myfmt.Itoa(strct.field2))
 }
 
 func testPointer() {
@@ -1402,9 +1403,9 @@ func testPointer() {
 	var p *int
 	p = &i
 	j = *p
-	writeln(mylib.Itoa(j))
+	writeln(myfmt.Itoa(j))
 	*p = 11
-	writeln(mylib.Itoa(i))
+	writeln(myfmt.Itoa(i))
 
 	var c uint8 = 'A'
 	var pc *uint8
@@ -1418,7 +1419,7 @@ func testPointer() {
 
 func testDeclValue() {
 	var i int = 123
-	writeln(mylib.Itoa(i))
+	writeln(myfmt.Itoa(i))
 }
 
 func testStringComparison() {
@@ -1475,22 +1476,22 @@ func testConcateStrings() {
 func testLenCap() {
 	var x []uint8
 	x = make([]uint8, 0, 0)
-	writeln(mylib.Itoa(len(x)))
+	writeln(myfmt.Itoa(len(x)))
 
-	writeln(mylib.Itoa(cap(x)))
+	writeln(myfmt.Itoa(cap(x)))
 
 	x = make([]uint8, 12, 24)
-	writeln(mylib.Itoa(len(x)))
+	writeln(myfmt.Itoa(len(x)))
 
-	writeln(mylib.Itoa(cap(x)))
+	writeln(myfmt.Itoa(cap(x)))
 
-	writeln(mylib.Itoa(len(globalintarray)))
+	writeln(myfmt.Itoa(len(globalintarray)))
 
-	writeln(mylib.Itoa(cap(globalintarray)))
+	writeln(myfmt.Itoa(cap(globalintarray)))
 
 	var s string
 	s = "hello\n"
-	writeln(mylib.Itoa(len(s))) // 6
+	writeln(myfmt.Itoa(len(s))) // 6
 }
 
 func testMakeSlice() {
@@ -1504,22 +1505,22 @@ func testMakeSlice() {
 func testNew() {
 	var i *int
 	i = new(int)
-	writeln(mylib.Itoa(*i)) // 0
+	writeln(myfmt.Itoa(*i)) // 0
 }
 
 func testItoa() {
-	writeln(mylib.Itoa(0))
-	writeln(mylib.Itoa(1))
-	writeln(mylib.Itoa(12))
-	writeln(mylib.Itoa(123))
-	writeln(mylib.Itoa(12345))
-	writeln(mylib.Itoa(12345678))
-	writeln(mylib.Itoa(1234567890))
-	writeln(mylib.Itoa(54321))
-	writeln(mylib.Itoa(-1))
-	writeln(mylib.Itoa(-54321))
-	writeln(mylib.Itoa(-7654321))
-	writeln(mylib.Itoa(-1234567890))
+	writeln(myfmt.Itoa(0))
+	writeln(myfmt.Itoa(1))
+	writeln(myfmt.Itoa(12))
+	writeln(myfmt.Itoa(123))
+	writeln(myfmt.Itoa(12345))
+	writeln(myfmt.Itoa(12345678))
+	writeln(myfmt.Itoa(1234567890))
+	writeln(myfmt.Itoa(54321))
+	writeln(myfmt.Itoa(-1))
+	writeln(myfmt.Itoa(-54321))
+	writeln(myfmt.Itoa(-7654321))
+	writeln(myfmt.Itoa(-1234567890))
 }
 
 var globalintarray [4]int
@@ -1541,12 +1542,12 @@ func testIndexExprOfSlice() {
 
 	var i int
 	for i = 0; i < 4; i = i + 1 {
-		write(mylib.Itoa(intslice[i]))
+		write(myfmt.Itoa(intslice[i]))
 	}
 	write("\n")
 
 	for i = 0; i < 4; i = i + 1 {
-		write(mylib.Itoa(globalintarray[i]))
+		write(myfmt.Itoa(globalintarray[i]))
 	}
 	write("\n")
 }
@@ -1762,7 +1763,7 @@ func testMisc() {
 	var i42 int
 	i42 = sum(globalint, globalint2) + locali3
 
-	writeln(mylib.Itoa(i42))
+	writeln(myfmt.Itoa(i42))
 }
 
 // --- utils ---
@@ -1770,7 +1771,7 @@ func write(x interface{}) {
 	var s string
 	switch xx := x.(type) {
 	case int:
-		s = mylib.Itoa(xx)
+		s = myfmt.Itoa(xx)
 	case string:
 		s = xx
 	}
