@@ -3772,10 +3772,10 @@ func removeNode(tree map[string]map[string]bool, node string) {
 	delete(tree, node)
 }
 
-// Sort all packages in topological ordering. (i.e. topological sort)
+// Do topological sort
 // In the result list, the independent (lowest level) packages come first.
-func sortTree(tree map[string]map[string]bool) []string {
-	logf("sortTree start\n")
+func sortTopologically(tree map[string]map[string]bool) []string {
+	logf("sortTopologically start\n")
 	var sorted []string
 	for len(tree) > 0{
 		for _path, children := range tree {
@@ -3789,7 +3789,7 @@ func sortTree(tree map[string]map[string]bool) []string {
 
 	}
 
-	logf("sortTree end\n")
+	logf("sortTopologically end\n")
 	return sorted
 }
 
@@ -3803,16 +3803,16 @@ func collectDependency(tree map[string]map[string]bool, paths map[string]bool) {
 			continue
 		}
 		fnames := findFilesInDir(srcPath + "/" + pkgPath)
-		var importsOfPkg = map[string]bool{}
+		var children = map[string]bool{}
 		for _, fname := range fnames {
 			importPathsOfFile := getImportPathsFromFile(srcPath + "/" + pkgPath + "/" + fname)
 			for _path, _ := range importPathsOfFile {
 				logf("  found %s\n", _path)
-				importsOfPkg[_path] = true
+				children[_path] = true
 			}
 		}
-		tree[pkgPath] = importsOfPkg
-		collectDependency(tree, importsOfPkg)
+		tree[pkgPath] = children
+		collectDependency(tree, children)
 	}
 }
 
@@ -3850,7 +3850,7 @@ func main() {
 	var tree = map[string]map[string]bool{}
 
 	collectDependency(tree, importPaths)
-	sortedPackages := sortTree(tree)
+	sortedPackages := sortTopologically(tree)
 	logf("sortedPackages:\n")
 	for _, pth := range sortedPackages {
 		logf("  %s\n", pth)

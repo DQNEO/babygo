@@ -4370,7 +4370,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				panic2(__func__, "cannot decide type of cont ="+expr.ident.Obj.Name)
 			}
 		default:
-			panic2(__func__, "2:Obj.Kind="+expr.ident.Obj.Kind)
+			panic2(__func__, "2:Obj=" + expr.ident.Obj.Name + expr.ident.Obj.Kind)
 		}
 	case "*astBasicLit":
 		switch expr.basicLit.Kind {
@@ -5820,7 +5820,9 @@ func resolveUniverse(file *astFile, universe *astScope) {
 
 func lookupForeignFunc(pkg string, identifier string) *astFuncDecl {
 	key := pkg + "." + identifier
+	logf("lookupForeignFunc... %s\n", key)
 	for _, entry := range ExportedQualifiedIdents {
+		logf("  looking into %s\n", entry.qi)
 		if entry.qi == key {
 			return entry.funcdecl
 		}
@@ -5846,9 +5848,9 @@ func showHelp() {
 const GOPATH string = "/root/go"
 
 // "foo/bar" => "bar.go"
-func findFilesInDir(dir string) string {
+func findFilesInDir(dir string) []string {
 	fname := mylib.Base(dir) + ".go"
-	return fname
+	return []string{fname}
 }
 
 func isStdLib(path string) bool {
@@ -5872,6 +5874,50 @@ func getImportPathsFromFile(file string) []string {
 	return 	importPaths
 }
 
+func isInTree(tree []*depEntry, path string) bool {
+	for _, entry := range tree {
+		if entry.path == path {
+			return true
+		}
+	}
+	return false
+}
+func collectDependency(tree []*depEntry, paths []string) []*depEntry {
+	logf(" collectDependency\n")
+	for _, pkgPath := range paths {
+		if isInTree(tree, pkgPath) {
+			continue
+		}
+		logf("   in pkgPath=%s\n", pkgPath)
+		if isStdLib(pkgPath) {
+			tree = append(tree, &depEntry{
+				path:     pkgPath,
+				children: nil,
+			})
+			continue
+		}
+
+		fnames := findFilesInDir(pkgPath)
+		var children []string
+		for _, fname := range fnames {
+			fullPath := srcPath + "/" + pkgPath + "/" + fname
+			_paths := getImportPathsFromFile(fullPath)
+			for _, p := range _paths {
+				children = append(children, p)
+			}
+		}
+
+		newEntry := &depEntry{
+			path:     pkgPath,
+			children: children,
+		}
+		tree = append(tree, newEntry)
+		tree = collectDependency(tree, children)
+	}
+	return tree
+}
+
+var srcPath string
 func main() {
 	if len(os.Args) == 1 {
 		showHelp()
@@ -5893,7 +5939,7 @@ func main() {
 
 	var arg string
 	var gopath string = os.Args[1]
-	srcPath := gopath + "/src"
+	srcPath = gopath + "/src"
 	for _, arg = range os.Args {
 		switch arg {
 		case "-DF":
@@ -5912,9 +5958,30 @@ func main() {
 	logf("Parsing imports\n")
 
 	importPaths := getImportPathsFromFile(mainFile)
+	var tree []*depEntry
+	tree = collectDependency(tree, importPaths)
+	logf("====TREE====\n")
+	for _, _pkg := range tree {
+		logf("pkg: %s\n", _pkg.path)
+		for _, child := range _pkg.children {
+			logf("  %s\n", child)
+		}
+	}
+
+
 	var stdPackagesUsed []string
 	var extPackagesUsed []string
-	for _, path := range importPaths {
+	var sortedPaths []string
+
+	for _, entry := range tree {
+		logf("depEntry: %s\n", entry.path)
+		logf("  num children: %d\n", len(entry.children))
+		sortedPaths = append(sortedPaths, entry.path)
+	}
+
+	logf("Sorted packages\n")
+	for _, path := range sortedPaths {
+		logf("  %s\n", path)
 		if isStdLib(path) {
 			stdPackagesUsed = append(stdPackagesUsed, path)
 		} else {
@@ -5922,20 +5989,25 @@ func main() {
 		}
 	}
 
+
+
 	var packagesToBuild = []string{"runtime.go"}
-	for _, pkg := range stdPackagesUsed {
-		logf("std package: %s\n", pkg)
+	for _, p := range stdPackagesUsed {
+		logf("std package: %s\n", p)
 	}
-	for _, pkg := range extPackagesUsed {
-		logf("ext package: %s\n", pkg)
-		pkgDir := srcPath + "/" + pkg
-		fname := findFilesInDir(pkgDir)
-		extfile := pkgDir + "/" + fname
+	for _, p := range extPackagesUsed {
+		logf("ext package: %s\n", p)
+		pkgDir := srcPath + "/" + p
+		logf("srcPath=%s\n", srcPath)
+		fnames := findFilesInDir(pkgDir)
+		extfile := pkgDir + "/" + fnames[0]
+		logf("# extfile: %s\n", extfile)
 		packagesToBuild = append(packagesToBuild, extfile)
 	}
+
 	packagesToBuild = append(packagesToBuild, mainFile)
+
 	for _, sourceFile := range packagesToBuild {
-		myfmt.Printf("# pkg file: %s\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil
 		astFile := parseFile(sourceFile, false)
@@ -5962,6 +6034,11 @@ func main() {
 	}
 	myfmt.Printf("\n")
 
+}
+
+type depEntry struct {
+	path string
+	children []string
 }
 
 func newExpr(x interface{}) *astExpr {
