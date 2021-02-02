@@ -5860,6 +5860,18 @@ func isStdLib(path string) bool {
 	return true
 }
 
+func getImportPathsFromFile(file string) []string {
+	astFile0 := parseImports(file)
+	var importPaths []string
+	for _, importSpec := range astFile0.Imports {
+		rawValue := importSpec.Path
+		logf("import %s\n", rawValue)
+		path :=  rawValue[1:len(rawValue)-1]
+		importPaths = append(importPaths, path)
+	}
+	return 	importPaths
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		showHelp()
@@ -5898,14 +5910,8 @@ func main() {
 	var mainFile = arg // last arg
 	logf("input file: \"%s\"\n", mainFile)
 	logf("Parsing imports\n")
-	astFile0 := parseImports(mainFile)
-	var importPaths []string
-	for _, importSpec := range astFile0.Imports {
-		rawValue := importSpec.Path
-		logf("import %s\n", rawValue)
-		path :=  rawValue[1:len(rawValue)-1]
-		importPaths = append(importPaths, path)
-	}
+
+	importPaths := getImportPathsFromFile(mainFile)
 	var stdPackagesUsed []string
 	var extPackagesUsed []string
 	for _, path := range importPaths {

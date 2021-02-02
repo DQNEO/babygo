@@ -12,6 +12,18 @@ func nop1() {}
 func nop2() {}
 
 // test package strings
+func returnSlice() []string {
+	r := []string{"aa", "bb", "cc"}
+	return r
+}
+
+func testReturnSlice() {
+	slice := returnSlice()
+	write(slice[0])
+	write(slice[1])
+	writeln(slice[2])
+}
+
 func testStrings() {
 	// Split
 	s := strings.Split("foo/bar", "/")
@@ -1785,6 +1797,7 @@ func writeln(s interface{}) {
 }
 
 func main() {
+	testReturnSlice()
 	testStrings()
 	testSliceExpr()
 	testPath()
