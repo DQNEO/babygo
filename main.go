@@ -5918,6 +5918,54 @@ func collectDependency(tree []*depEntry, paths []string) []*depEntry {
 }
 
 var srcPath string
+
+func removeLeafNode(tree []*depEntry, sortedPaths []string) []*depEntry {
+	// remove leaf node
+	var newTree []*depEntry
+	for _, entry := range tree {
+		if inArray(entry.path, sortedPaths) {
+			continue
+		}
+		de := &depEntry{
+			path:     entry.path,
+			children: nil,
+		}
+		for _, child := range entry.children {
+			if inArray(child, sortedPaths) {
+				continue
+			}
+			de.children = append(de.children, child)
+		}
+		newTree = append(newTree, de)
+	}
+	return newTree
+}
+
+func collectLeafNode(sortedPaths []string, tree []*depEntry) []string {
+	for _, entry := range tree {
+		if len(entry.children) == 0 {
+			// leaf node
+			logf("Found leaf node: %s\n", entry.path)
+			logf("  num children: %d\n", len(entry.children))
+			sortedPaths = append(sortedPaths, entry.path)
+		}
+	}
+	return sortedPaths
+}
+
+func sortDepTree(tree []*depEntry) []string {
+	var sortedPaths []string
+	logf("====TREE====\n")
+	for {
+		if len(tree) == 0 {
+			break
+		}
+		sortedPaths = collectLeafNode(sortedPaths, tree)
+		tree = removeLeafNode(tree, sortedPaths)
+	}
+	return sortedPaths
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		showHelp()
@@ -5971,15 +6019,10 @@ func main() {
 
 	var stdPackagesUsed []string
 	var extPackagesUsed []string
-	var sortedPaths []string
 
-	for _, entry := range tree {
-		logf("depEntry: %s\n", entry.path)
-		logf("  num children: %d\n", len(entry.children))
-		sortedPaths = append(sortedPaths, entry.path)
-	}
+	sortedPaths := sortDepTree(tree)
 
-	logf("Sorted packages\n")
+	logf("=== Sorted packages ===\n")
 	for _, path := range sortedPaths {
 		logf("  %s\n", path)
 		if isStdLib(path) {
@@ -5988,8 +6031,6 @@ func main() {
 			extPackagesUsed = append(extPackagesUsed, path)
 		}
 	}
-
-
 
 	var packagesToBuild = []string{"runtime.go"}
 	for _, p := range stdPackagesUsed {
