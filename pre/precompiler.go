@@ -218,7 +218,7 @@ func emitAddr(expr ast.Expr) {
 			panic(" \"_\" has no address")
 		}
 		if e.Obj == nil {
-			throw(expr)
+			panic("ident.Obj is nil: " + e.Name)
 		}
 		if e.Obj.Kind == ast.Var {
 			assert(e.Obj.Data != nil, "e.Obj.Data should not be nil: Obj.Name=" + e.Obj.Name)
@@ -805,20 +805,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			// This is actually not a call
 			emitExpr(eArgs[0], nil)
 			return
-		case "os.Exit":
-			funcType = funcTypeOsExit
-		case "syscall.Open":
-			// func body is in runtime.s
-			funcType = funcTypeSyscallOpen
-		case "syscall.Read":
-			// func body is in runtime.s
-			funcType = funcTypeSyscallRead
-		case "syscall.Write":
-			// func body is in runtime.s
-			funcType = funcTypeSyscallWrite
-		case "syscall.Syscall":
-			// func body is in runtime.s
-			funcType = funcTypeSyscallSyscall
 		default:
 			xIdent := fn.X.(*ast.Ident)
 			if xIdent.Obj == nil {
@@ -2422,31 +2408,11 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			if !ok {
 				throw(fn)
 			}
-			var funcType *ast.FuncType
 			symbol := fmt.Sprintf("%s.%s", xIdent.Name, fn.Sel)
 			switch symbol {
 			case "unsafe.Pointer":
 				// unsafe.Pointer(x)
 				return tUintptr
-			case "os.Exit":
-				funcType = funcTypeOsExit
-				return nil
-			case "syscall.Open":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallOpen
-				return	e2t(funcType.Results.List[0].Type)
-			case "syscall.Read":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallRead
-				return	e2t(funcType.Results.List[0].Type)
-			case "syscall.Write":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallWrite
-				return	e2t(funcType.Results.List[0].Type)
-			case "syscall.Syscall":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallSyscall
-				return	e2t(funcType.Results.List[0].Type)
 			default:
 				xIdent := fn.X.(*ast.Ident)
 				if xIdent.Obj == nil {
@@ -3541,106 +3507,6 @@ var gPanic = &ast.Object{
 	Type: nil,
 }
 
-// func type of runtime functions
-var funcTypeOsExit = &ast.FuncType{
-	Params: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-		},
-	},
-	Results: nil,
-}
-
-var funcTypeSyscallOpen = &ast.FuncType{
-	Params: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tString.e,
-			},
-			&ast.Field{
-				Type:  tInt.e,
-			},
-			&ast.Field{
-				Type:  tInt.e,
-			},
-		},
-	},
-	Results: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-		},
-	},
-}
-
-var funcTypeSyscallRead = &ast.FuncType{
-	Params: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-			&ast.Field{
-				Type: generalSlice,
-			},
-		},
-	},
-	Results: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-		},
-	},
-}
-
-var funcTypeSyscallWrite = &ast.FuncType{
-	Params: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-			&ast.Field{
-				Type: generalSlice,
-			},
-		},
-	},
-	Results: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-		},
-	},
-}
-
-var funcTypeSyscallSyscall = &ast.FuncType{
-	Params: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tUintptr.e,
-			},
-			&ast.Field{
-				Type:  tUintptr.e,
-			},
-			&ast.Field{
-				Type:  tUintptr.e,
-			},
-			&ast.Field{
-				Type:  tUintptr.e,
-			},
-		},
-	},
-	Results: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tUintptr.e,
-			},
-		},
-	},
-}
 func createUniverse() *ast.Scope {
 	universe := &ast.Scope{
 		Outer:   nil,

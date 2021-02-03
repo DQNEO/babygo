@@ -39,48 +39,17 @@ os.Exit:
   movq $60, %rax      # sys_exit
   syscall
 
-runtime.printstring:
-  movq  8(%rsp), %rdi # arg0:ptr
-  movq 16(%rsp), %rsi # arg1:len
-  pushq %rsi
-  pushq %rdi
-  pushq $2 # stderr
-  pushq $1 # sys_write
-  callq syscall.Syscall
-  addq $8 * 4, %rsp
-  ret
-
-// func Open(path string, mode int, perm int) (fd int)
-syscall.Open:
-  movq  8(%rsp), %rax # arg0:str.ptr # @TODO This is a BUG! we should add a trailing null terminator
-  movq 16(%rsp), %rdi # arg0:str.len (ignored)
-  movq 24(%rsp), %rsi # arg1:flag int
-  movq 32(%rsp), %rdx # arg2:perm int
-
-  pushq %rdx # perm
-  pushq %rsi # flag
-  pushq %rax # path
-  pushq $2   # sys_open
-  callq syscall.Syscall
-  addq $8 * 4, %rsp
-  ret
-
-// func Read(fd int, p []byte) (n int)
-syscall.Read:
-  movq  8(%rsp), %rax # arg0:fd
-  movq 16(%rsp), %rdi # arg1:ptr
-  movq 24(%rsp), %rsi # arg1:len (ignored)
-  movq 32(%rsp), %rdx # arg1:cap
-  pushq %rdx # cap
-  pushq %rdi # ptr
-  pushq %rax # fd
-  pushq $0   # sys_read
-  callq syscall.Syscall
-  addq $8 * 4, %rsp
+// func Syscall(trap, a1, a2, a3 uintptr) uintptr
+syscall.Syscall:
+  movq   8(%rsp), %rax # syscall number
+  movq  16(%rsp), %rdi # arg0
+  movq  24(%rsp), %rsi # arg1
+  movq  32(%rsp), %rdx # arg2
+  syscall
   ret
 
 // func Write(fd int, p []byte) int
-syscall.Write:
+runtime.Write:
   movq  8(%rsp), %rax # arg0:fd
   movq 16(%rsp), %rdi # arg1:ptr
   movq 24(%rsp), %rsi # arg2:len
@@ -93,10 +62,21 @@ syscall.Write:
   ret
 
 // func Syscall(trap, a1, a2, a3 uintptr) uintptr
-syscall.Syscall:
+runtime.Syscall:
   movq   8(%rsp), %rax # syscall number
   movq  16(%rsp), %rdi # arg0
   movq  24(%rsp), %rsi # arg1
   movq  32(%rsp), %rdx # arg2
   syscall
+  ret
+
+runtime.printstring:
+  movq  8(%rsp), %rdi # arg0:ptr
+  movq 16(%rsp), %rsi # arg1:len
+  pushq %rsi
+  pushq %rdi
+  pushq $2 # stderr
+  pushq $1 # sys_write
+  callq syscall.Syscall
+  addq $8 * 4, %rsp
   ret

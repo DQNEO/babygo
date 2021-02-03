@@ -1121,9 +1121,11 @@ func (p *parser) parseResult(scope *astScope) *astFieldList {
 	}
 	var typ = p.tryType()
 	var list []*astField
-	list = append(list, &astField{
-		Type: typ,
-	})
+	if typ != nil {
+		list = append(list, &astField{
+			Type: typ,
+		})
+	}
 	logf(" [%s] end\n", __func__)
 	return &astFieldList{
 		List: list,
@@ -2040,6 +2042,8 @@ func (p *parser) parseFuncDecl() astDecl {
 	if p.tok.tok == "(" {
 		logf("  [parserFuncDecl] parsing method")
 		receivers = p.parseParameters(scope, false)
+	} else {
+		logf("  [parserFuncDecl] parsing function")
 	}
 	var ident = p.parseIdent() // func name
 	var sig = p.parseSignature(scope)
@@ -2057,6 +2061,7 @@ func (p *parser) parseFuncDecl() astDecl {
 		logf(" end parseBody()\n")
 		p.expectSemi(__func__)
 	} else {
+		logf(" no function body\n")
 		p.expectSemi(__func__)
 	}
 	var decl astDecl
@@ -2942,16 +2947,6 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 		case "unsafe.Pointer":
 			emitExpr(eArgs[0], nil)
 			return
-		case "os.Exit":
-			funcType = funcTypeOsExit
-		case "syscall.Open":
-			funcType = funcTypeSyscallOpen
-		case "syscall.Read":
-			funcType = funcTypeSyscallRead
-		case "syscall.Write":
-			funcType = funcTypeSyscallWrite
-		case "syscall.Syscall":
-			funcType = funcTypeSyscallSyscall
 		default:
 			// Assume method call
 			fn := selectorExpr
@@ -4480,32 +4475,11 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "*astSelectorExpr": // (X).Sel()
 			assert(fun.selectorExpr.X.dtype == "*astIdent", "want ident, but got " + fun.selectorExpr.X.dtype, __func__)
 			xIdent :=  fun.selectorExpr.X.ident
-			var funcType *astFuncType
 			symbol := xIdent.Name + "." + fun.selectorExpr.Sel.Name
 			switch symbol {
 			case "unsafe.Pointer":
 				// unsafe.Pointer(x)
 				return tUintptr
-			case "os.Exit":
-				funcType = funcTypeOsExit
-				var r *Type
-				return r
-			case "syscall.Open":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallOpen
-				return	e2t(funcType.Results.List[0].Type)
-			case "syscall.Read":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallRead
-				return	e2t(funcType.Results.List[0].Type)
-			case "syscall.Write":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallWrite
-				return	e2t(funcType.Results.List[0].Type)
-			case "syscall.Syscall":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallSyscall
-				return	e2t(funcType.Results.List[0].Type)
 			default:
 				fn := fun.selectorExpr
 				xIdent := fn.X.ident
@@ -5657,104 +5631,6 @@ var tSliceOfString = &Type{
 var generalSlice = &astExpr{
 	dtype: "*astIdent",
 	ident: &astIdent{},
-}
-
-// func type of runtime functions
-var funcTypeOsExit = &astFuncType{
-	Params: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tInt.e,
-			},
-		},
-	},
-	Results: nil,
-}
-
-var funcTypeSyscallOpen = &astFuncType{
-	Params: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tString.e,
-			},
-			&astField{
-				Type:  tInt.e,
-			},
-			&astField{
-				Type:  tInt.e,
-			},
-		},
-	},
-	Results: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tInt.e,
-			},
-		},
-	},
-}
-var funcTypeSyscallRead = &astFuncType{
-	Params: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tInt.e,
-			},
-			&astField{
-				Type: generalSlice,
-			},
-		},
-	},
-	Results: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tInt.e,
-			},
-		},
-	},
-}
-var funcTypeSyscallWrite = &astFuncType{
-	Params: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tInt.e,
-			},
-			&astField{
-				Type: generalSlice,
-			},
-		},
-	},
-	Results: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tInt.e,
-			},
-		},
-	},
-}
-var funcTypeSyscallSyscall = &astFuncType{
-	Params: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tUintptr.e,
-			},
-			&astField{
-				Type:  tUintptr.e,
-			},
-			&astField{
-				Type:  tUintptr.e,
-			},
-			&astField{
-				Type:  tUintptr.e,
-			},
-		},
-	},
-	Results: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tUintptr.e,
-			},
-		},
-	},
 }
 
 func createUniverse() *astScope {
