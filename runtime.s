@@ -39,17 +39,6 @@ os.Exit:
   movq $60, %rax      # sys_exit
   syscall
 
-runtime.printstring:
-  movq  8(%rsp), %rdi # arg0:ptr
-  movq 16(%rsp), %rsi # arg1:len
-  pushq %rsi
-  pushq %rdi
-  pushq $2 # stderr
-  pushq $1 # sys_write
-  callq syscall.Syscall
-  addq $8 * 4, %rsp
-  ret
-
 // func Syscall(trap, a1, a2, a3 uintptr) uintptr
 syscall.Syscall:
   movq   8(%rsp), %rax # syscall number
@@ -79,4 +68,15 @@ runtime.Syscall:
   movq  24(%rsp), %rsi # arg1
   movq  32(%rsp), %rdx # arg2
   syscall
+  ret
+
+runtime.printstring:
+  movq  8(%rsp), %rdi # arg0:ptr
+  movq 16(%rsp), %rsi # arg1:len
+  pushq %rsi
+  pushq %rdi
+  pushq $2 # stderr
+  pushq $1 # sys_write
+  callq syscall.Syscall
+  addq $8 * 4, %rsp
   ret
