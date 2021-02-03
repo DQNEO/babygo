@@ -210,12 +210,6 @@ func emitListHeadAddr(list ast.Expr) {
 	}
 }
 
-func isOsArgs(e *ast.SelectorExpr) bool {
-	//return false
-	xIdent, isIdent := e.X.(*ast.Ident)
-	return isIdent && xIdent.Name == "os" && e.Sel.Name == "Args"
-}
-
 func emitAddr(expr ast.Expr) {
 	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
@@ -246,11 +240,6 @@ func emitAddr(expr ast.Expr) {
 	case *ast.StarExpr:
 		emitExpr(e.X, nil)
 	case *ast.SelectorExpr: // (X).Sel
-		if isOsArgs(e) {
-			//myfmt.Printf("  leaq %s(%%rip), %%rax # hack for os.Args\n", "runtime.__args__")
-//			myfmt.Printf("  pushq %%rax\n")
-//			return
-		}
 		typeOfX := getTypeOfExpr(e.X)
 		var structType *Type
 		switch kind(typeOfX) {
@@ -968,7 +957,6 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		if isIdent && ident.Obj.Kind == ast.Pkg {
 			ident := lookupForeignVar(ident.Name, e.Sel.Name)
 			emitExpr(ident, ctx)
-			//panic("TBD: Lookup symbole table to find foreign variable")
 		} else {
 			emitComment(2, "emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
 			emitAddr(e)
@@ -2508,13 +2496,15 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	case *ast.SelectorExpr:
 		// X.Sel
 		emitComment(2, "getTypeOfExpr(%s.%s)\n", e.X, e.Sel)
-		if isOsArgs(e) {
-			// os.Args
-			return tSliceOfString
+		ident, isIdent := e.X.(*ast.Ident)
+		if isIdent && ident.Obj.Kind == ast.Pkg {
+			ident := lookupForeignVar(ident.Name, e.Sel.Name)
+			return getTypeOfExpr(ident)
+		} else {
+			structType := getStructTypeOfX(e)
+			field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
+			return e2t(field.Type)
 		}
-		structType := getStructTypeOfX(e)
-		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
-		return e2t(field.Type)
 	case *ast.CompositeLit:
 		return e2t(e.Type)
 	case *ast.ParenExpr:

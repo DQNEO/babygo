@@ -2324,10 +2324,6 @@ func emitListHeadAddr(list *astExpr) {
 	}
 }
 
-func isOsArgs(e *astSelectorExpr) bool {
-	return e.X.dtype == "*astIdent" && e.X.ident.Name == "os" && e.Sel.Name == "Args"
-}
-
 func emitAddr(expr *astExpr) {
 	emitComment(2, "[emitAddr] %s\n", expr.dtype)
 	switch dtypeOf(expr) {
@@ -2353,11 +2349,6 @@ func emitAddr(expr *astExpr) {
 	case "*astStarExpr":
 		emitExpr(expr.starExpr.X, nil)
 	case "*astSelectorExpr": // (X).Sel
-		if isOsArgs(expr.selectorExpr) {
-			myfmt.Printf("  leaq %s(%%rip), %%rax # hack for os.Args\n", "runtime.__args__")
-			myfmt.Printf("  pushq %%rax\n")
-			return
-		}
 		var typeOfX = getTypeOfExpr(expr.selectorExpr.X)
 		var structType *Type
 		switch kind(typeOfX) {
@@ -3069,8 +3060,14 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case "*astSelectorExpr":
-		emitAddr(e)
-		emitLoad(getTypeOfExpr(e))
+		if e.selectorExpr.X.dtype == "*astIdent" && e.selectorExpr.X.ident.Obj.Kind == astPkg {
+			ident := lookupForeignVar(e.selectorExpr.X.ident.Name, e.selectorExpr.Sel.Name)
+			e := newExpr(ident)
+			emitExpr(e, ctx)
+		} else {
+			emitAddr(e)
+			emitLoad(getTypeOfExpr(e))
+		}
 	case "*astCallExpr":
 		var fun = e.callExpr.Fun
 		emitComment(2, "[%s][*astCallExpr]\n", __func__)
@@ -4563,13 +4560,14 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			return getTypeOfExpr(expr.binaryExpr.X)
 		}
 	case "*astSelectorExpr":
-		if isOsArgs(expr.selectorExpr) {
-			// os.Args
-			return tSliceOfString
+		if expr.selectorExpr.X.dtype == "*astIdent" && expr.selectorExpr.X.ident.Obj.Kind == astPkg {
+			ident := lookupForeignVar(expr.selectorExpr.X.ident.Name, expr.selectorExpr.Sel.Name)
+			return getTypeOfExpr(newExpr(ident))
+		} else {
+			var structType = getStructTypeOfX(expr.selectorExpr)
+			var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
+			return e2t(field.Type)
 		}
-		var structType = getStructTypeOfX(expr.selectorExpr)
-		var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
-		return e2t(field.Type)
 	case "*astCompositeLit":
 		return e2t(expr.compositeLit.Type)
 	case "*astParenExpr":
@@ -5353,7 +5351,7 @@ var ExportedQualifiedIdents []*exportEntry
 
 type exportEntry struct {
 	qi string
-	funcdecl *astFuncDecl
+	any interface{} // *astFuncDecl|*astIdent(variable)
 }
 
 func walk(pkg *PkgContainer, file *astFile) {
@@ -5395,7 +5393,7 @@ func walk(pkg *PkgContainer, file *astFile) {
 	for _, funcDecl := range funcDecls {
 		exportEntry := &exportEntry{
 			qi: pkg.name + "." + funcDecl.Name.Name,
-			funcdecl: funcDecl,
+			any: funcDecl,
 		}
 		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
 		if funcDecl.Body != nil {
@@ -5420,6 +5418,11 @@ func walk(pkg *PkgContainer, file *astFile) {
 		}
 		nameIdent.Obj.Variable = newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(valSpec.Type))
 		pkg.vars = append(pkg.vars, valSpec)
+		exportEntry := &exportEntry{
+			qi: pkg.name + "." + nameIdent.Name,
+			any: nameIdent,
+		}
+		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
 		if valSpec.Value != nil {
 			walkExpr(valSpec.Value)
 		}
@@ -5838,13 +5841,37 @@ func resolveUniverse(file *astFile, universe *astScope) {
 	}
 }
 
+func lookupForeignVar(pkg string, identifier string) *astIdent {
+	key := pkg + "." + identifier
+	logf("lookupForeignVar... %s\n", key)
+	for _, entry := range ExportedQualifiedIdents {
+		logf("  looking into %s\n", entry.qi)
+		if entry.qi == key {
+			var ident *astIdent
+			var ok bool
+			ident, ok = entry.any.(*astIdent)
+			if !ok  {
+				panic("not ident")
+			}
+			return ident
+		}
+	}
+	return nil
+}
+
 func lookupForeignFunc(pkg string, identifier string) *astFuncDecl {
 	key := pkg + "." + identifier
 	logf("lookupForeignFunc... %s\n", key)
 	for _, entry := range ExportedQualifiedIdents {
 		logf("  looking into %s\n", entry.qi)
 		if entry.qi == key {
-			return entry.funcdecl
+			var fdecl *astFuncDecl
+			var ok bool
+			fdecl, ok = entry.any.(*astFuncDecl)
+			if !ok  {
+				panic("not fdecl")
+			}
+			return fdecl
 		}
 	}
 	return nil

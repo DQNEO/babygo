@@ -16,7 +16,6 @@ const SYS_BRK int = 12
 const SYS_EXIT int = 60
 
 var __argv__ []*uint8 // C argv
-var __args__ []string   // GO os.Args
 
 func heapInit() {
 	heapHead = brk(0)
@@ -37,16 +36,16 @@ func cstring2string(b *uint8) string {
 	return string(buf)
 }
 
-func argsInit() {
+// create os.Args
+func runtime_args() []string {
 	var a *uint8
+	var r []string
 	for _, a = range __argv__ {
 		var s string = cstring2string(a)
-		__args__ = append(__args__, s)
+		r = append(r, s)
 	}
-}
 
-func runtime_args() []string {
-	return __args__
+	return r
 }
 
 func brk(addr uintptr) uintptr {
