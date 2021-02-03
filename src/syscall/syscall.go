@@ -3,6 +3,7 @@ package syscall
 import "unsafe"
 
 const SYS_READ int = 0
+const SYS_WRITE int = 1
 const SYS_OPEN int = 2
 
 func Read(fd int, buf []byte) uintptr {
@@ -19,6 +20,14 @@ func Open(path string, mode int, perm int) uintptr {
 	p := &buf[0]
 	var ret uintptr
 	ret = Syscall(uintptr(SYS_OPEN), uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(perm))
+	return ret
+}
+
+func Write(fd int, buf []byte) uintptr {
+	p := &buf[0]
+	_len := len(buf)
+	var ret uintptr
+	ret  = Syscall(uintptr(SYS_WRITE), uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_len))
 	return ret
 }
 

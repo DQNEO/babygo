@@ -805,9 +805,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			// This is actually not a call
 			emitExpr(eArgs[0], nil)
 			return
-		case "syscall.Write":
-			// func body is in runtime.s
-			funcType = funcTypeSyscallWrite
 		case "syscall.Syscall":
 			// func body is in runtime.s
 			funcType = funcTypeSyscallSyscall
@@ -2420,10 +2417,6 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			case "unsafe.Pointer":
 				// unsafe.Pointer(x)
 				return tUintptr
-			case "syscall.Write":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallWrite
-				return	e2t(funcType.Results.List[0].Type)
 			case "syscall.Syscall":
 				// func body is in runtime.s
 				funcType = funcTypeSyscallSyscall
@@ -3520,26 +3513,6 @@ var gPanic = &ast.Object{
 	Decl: nil,
 	Data: nil,
 	Type: nil,
-}
-
-var funcTypeSyscallWrite = &ast.FuncType{
-	Params: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-			&ast.Field{
-				Type: generalSlice,
-			},
-		},
-	},
-	Results: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-		},
-	},
 }
 
 var funcTypeSyscallSyscall = &ast.FuncType{

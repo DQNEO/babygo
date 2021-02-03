@@ -3,7 +3,6 @@
 
 package runtime
 
-import "syscall"
 import "unsafe"
 
 const heapSize uintptr = 320205360
@@ -50,15 +49,18 @@ func runtime_args() []string {
 
 func brk(addr uintptr) uintptr {
 	var ret uintptr
-	ret, _, _ = syscall.Syscall(uintptr(SYS_BRK), addr, uintptr(0), uintptr(0))
+	ret = Syscall(uintptr(SYS_BRK), addr, uintptr(0), uintptr(0))
 	return ret
 }
 
 func panic(x string) {
 	var s = "panic: " + x + "\n\n"
-	syscall.Write(2, []uint8(s))
-	syscall.Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
+	Write(2, []uint8(s))
+	Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
 }
+
+func Write(fd int, p []byte) int
+func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
 
 func memzeropad(addr1 uintptr, size uintptr) {
 	var p *uint8 = (*uint8)(unsafe.Pointer(addr1))
