@@ -8,7 +8,6 @@ import (
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
-	"github.com/DQNEO/babygo/lib/strings"
 )
 
 // --- foundation ---
@@ -2315,9 +2314,9 @@ func emitVariableAddr(variable *Variable) {
 	emitComment(2, "emit Addr of variable \"%s\" \n", variable.name)
 
 	if variable.isGlobal {
-		myfmt.Printf("  leaq %s(%%rip), %%rax # global variable addr \"%s\"\n", variable.globalSymbol,  variable.name)
+		myfmt.Printf("  leaq %s(%%rip), %%rax # global variable \"%s\"\n", variable.globalSymbol,  variable.name)
 	} else {
-		myfmt.Printf("  leaq %d(%%rbp), %%rax # local variable addr \"%s\"\n", strconv.Itoa(variable.localOffset),  variable.name)
+		myfmt.Printf("  leaq %d(%%rbp), %%rax # local variable \"%s\"\n", strconv.Itoa(variable.localOffset),  variable.name)
 	}
 
 	myfmt.Printf("  pushq %%rax # variable address\n")
@@ -3486,8 +3485,8 @@ func emitDtypeSymbol(t *Type) {
 	str := serializeType(t)
 	typeId := getTypeId(str)
 	typeSymbol := typeIdToSymbol(typeId)
-	myfmt.Printf("  leaq %s(%%rip), %%rax # typeid \"%s\"\n", typeSymbol, str)
-	myfmt.Printf("  pushq %%rax # type symbol %s\n", strconv.Itoa(typeId), typeSymbol)
+	myfmt.Printf("  leaq %s(%%rip), %%rax # type symbol \"%s\"\n", typeSymbol, str)
+	myfmt.Printf("  pushq %%rax           # type symbol\n")
 }
 
 func newNumberLiteral(x int) *astBasicLit {
@@ -5857,8 +5856,6 @@ func collectDependency(tree []*depEntry, paths []string) []*depEntry {
 	return tree
 }
 
-var srcPath string
-
 func removeLeafNode(tree []*depEntry, sortedPaths []string) []*depEntry {
 	// remove leaf node
 	var newTree []*depEntry
@@ -5906,6 +5903,12 @@ func sortDepTree(tree []*depEntry) []string {
 	return sortedPaths
 }
 
+func getGopath() string {
+	return os.Args[1]
+}
+
+var srcPath string
+
 func main() {
 	if len(os.Args) == 1 {
 		showHelp()
@@ -5923,11 +5926,12 @@ func main() {
 		panic("I am panic version " + panicVersion)
 	}
 
-	var universe = createUniverse()
+	logf("Build start\n")
+	srcPath = getGopath() + "/src"
 
+	var universe = createUniverse()
 	var arg string
-	var gopath string = os.Args[1]
-	srcPath = gopath + "/src"
+
 	for _, arg = range os.Args {
 		switch arg {
 		case "-DF":
@@ -5935,10 +5939,6 @@ func main() {
 		case "-DG":
 			debugCodeGen = true
 		}
-	}
-
-	if strings.Contains("a", "abc") {
-		logf("a dirty workaround to use strings package")
 	}
 
 	var mainFile = arg // last arg

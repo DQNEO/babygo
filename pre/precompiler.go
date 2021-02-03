@@ -33,7 +33,7 @@ func panic2(caller string, x string) {
 	panic("[" + caller + "] " + x)
 }
 
-var debugFrontEnd bool = true
+var debugFrontEnd bool
 
 func logf(format string, a ...interface{}) {
 	if !debugFrontEnd {
@@ -62,7 +62,7 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 }
 
 // --- codegen ---
-var debugCodeGen bool = true
+var debugCodeGen bool
 
 func emitComment(indent int, format string, a ...interface{}) {
 	if !debugCodeGen {
@@ -1371,7 +1371,7 @@ func emitDtypeSymbol(t *Type) {
 	typeId := getTypeId(str)
 	typeSymbol := typeIdToSymbol(typeId)
 	myfmt.Printf("  leaq %s(%%rip), %%rax # type symbol \"%s\"\n", typeSymbol, str)
-	myfmt.Printf("  pushq %%rax           # type symbol %s\n", typeSymbol)
+	myfmt.Printf("  pushq %%rax           # type symbol\n")
 }
 
 func newNumberLiteral(x int) *ast.BasicLit {
@@ -3706,7 +3706,12 @@ func collectDependency(tree map[string]map[string]bool, paths map[string]bool) {
 	}
 }
 
-var srcPath = os.Getenv("GOPATH") + "/src"
+func getGoPath() string {
+	return os.Getenv("GOPATH")
+}
+
+var srcPath string
+
 func main() {
 	if len(os.Args) == 1 {
 		showHelp()
@@ -3725,14 +3730,23 @@ func main() {
 	}
 
 	logf("Build start\n")
+	srcPath = getGoPath() + "/src"
 
 	var universe = createUniverse()
+	var arg string
 
-	var mainFile = os.Args[1]
+	for _, arg = range os.Args {
+		switch arg {
+		case "-DF":
+			debugFrontEnd = true
+		case "-DG":
+			debugCodeGen = true
+		}
+	}
+
+	var mainFile = arg
 	logf("input file: \"%s\"\n", mainFile)
-
 	logf("Parsing imports\n")
-
 
 	var stdPackagesUsed []string
 	var extPackagesUsed []string
