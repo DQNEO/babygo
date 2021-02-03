@@ -5,7 +5,7 @@ package runtime
 
 import "unsafe"
 
-const heapSize uintptr = 320205360
+const heapSize uintptr = 620205360
 
 var heapHead uintptr
 var heapCurrent uintptr
