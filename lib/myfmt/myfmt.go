@@ -1,6 +1,6 @@
 package myfmt
 
-import "github.com/DQNEO/babygo/extlib/strconv"
+import "github.com/DQNEO/babygo/lib/strconv"
 import "syscall"
 
 

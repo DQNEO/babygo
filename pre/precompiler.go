@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/DQNEO/babygo/extlib/myfmt"
-	path2 "github.com/DQNEO/babygo/extlib/path"
-	"github.com/DQNEO/babygo/extlib/strconv"
+	"github.com/DQNEO/babygo/lib/myfmt"
+	path2 "github.com/DQNEO/babygo/lib/path"
+	"github.com/DQNEO/babygo/lib/strconv"
 	"os"
 	"strings"
 	"syscall"
@@ -13,7 +13,7 @@ import (
 	"go/parser"
 	"go/token"
 
-	"github.com/DQNEO/babygo/extlib/mylib"
+	"github.com/DQNEO/babygo/lib/mylib"
 )
 
 // --- foundation ---

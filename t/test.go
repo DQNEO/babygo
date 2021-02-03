@@ -1,12 +1,12 @@
 package main
 
-import "github.com/DQNEO/babygo/extlib/myfmt"
-import "github.com/DQNEO/babygo/extlib/path"
-import "github.com/DQNEO/babygo/extlib/strconv"
+import "github.com/DQNEO/babygo/lib/myfmt"
+import "github.com/DQNEO/babygo/lib/path"
+import "github.com/DQNEO/babygo/lib/strconv"
 import "os"
 import "syscall"
-import "github.com/DQNEO/babygo/extlib/strings"
-import "github.com/DQNEO/babygo/extlib/mylib"
+import "github.com/DQNEO/babygo/lib/strings"
+import "github.com/DQNEO/babygo/lib/mylib"
 
 func nop() {}
 func nop1() {}

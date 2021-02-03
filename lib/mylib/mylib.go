@@ -1,6 +1,6 @@
 package mylib
 
-import "github.com/DQNEO/babygo/extlib/mylib2"
+import "github.com/DQNEO/babygo/lib/mylib2"
 
 func Sum(a int, b int) int {
 	return a + b

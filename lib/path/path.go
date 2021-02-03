@@ -1,6 +1,6 @@
 package path
 
-import "github.com/DQNEO/babygo/extlib/strings"
+import "github.com/DQNEO/babygo/lib/strings"
 
 // "foo/bar/buz" => "foo/bar"
 func Dir(path string) string {

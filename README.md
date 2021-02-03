@@ -11,12 +11,12 @@ It is made from scratch and can compile itself.
 
 It depends only on `as` as an assembler and `ld` as a linker.
 
-It is composed of only 3 files.
+It is composed of only a fiew files.
 
 * main.go - the main compiler
 * runtime.go - runtime
 * runtime.s - low level of runtime
-* extlib/mylib/mylib.go - standard library
+* lib/ - libraries
 
 # Design
 
