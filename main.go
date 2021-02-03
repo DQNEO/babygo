@@ -1,12 +1,15 @@
 package main
 
-import "github.com/DQNEO/babygo/lib/myfmt"
-import "github.com/DQNEO/babygo/lib/path"
-import "github.com/DQNEO/babygo/lib/strconv"
-import "syscall"
-import "os"
-import "github.com/DQNEO/babygo/lib/strings"
-import "github.com/DQNEO/babygo/lib/mylib"
+import (
+	"os"
+	"syscall"
+
+	"github.com/DQNEO/babygo/lib/myfmt"
+	"github.com/DQNEO/babygo/lib/mylib"
+	"github.com/DQNEO/babygo/lib/path"
+	"github.com/DQNEO/babygo/lib/strconv"
+	"github.com/DQNEO/babygo/lib/strings"
+)
 
 // --- foundation ---
 var __func__ = "__func__"
@@ -857,15 +860,14 @@ func (p *parser) parseIdent() *astIdent {
 	}
 }
 
-func (p *parser) parseImportDecl() *astImportSpec {
-	p.expect("import", __func__)
+func (p *parser) parseImportSpec() *astImportSpec {
 	var pth = p.tok.lit
 	p.next()
-	p.expectSemi(__func__)
-
-	return &astImportSpec{
+	spec := &astImportSpec{
 		Path: pth,
 	}
+	p.imports = append(p.imports, spec)
+	return spec
 }
 
 func (p *parser) tryVarType(ellipsisOK bool) *astExpr {
@@ -2085,8 +2087,19 @@ func (p *parser) parseFile(importsOnly bool) *astFile {
 	p.pkgScope = p.topScope
 
 	for p.tok.tok == "import" {
-		importSpec := p.parseImportDecl()
-		p.imports = append(p.imports, importSpec)
+		p.expect("import", __func__)
+		if p.tok.tok == "(" {
+			p.next()
+			for p.tok.tok != ")" {
+				p.parseImportSpec()
+				p.expectSemi(__func__)
+			}
+			p.next()
+			p.expectSemi(__func__)
+		} else {
+			p.parseImportSpec()
+			p.expectSemi(__func__)
+		}
 	}
 
 	logf("\n")
