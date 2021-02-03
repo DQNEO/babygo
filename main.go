@@ -1121,9 +1121,11 @@ func (p *parser) parseResult(scope *astScope) *astFieldList {
 	}
 	var typ = p.tryType()
 	var list []*astField
-	list = append(list, &astField{
-		Type: typ,
-	})
+	if typ != nil {
+		list = append(list, &astField{
+			Type: typ,
+		})
+	}
 	logf(" [%s] end\n", __func__)
 	return &astFieldList{
 		List: list,
@@ -2040,6 +2042,8 @@ func (p *parser) parseFuncDecl() astDecl {
 	if p.tok.tok == "(" {
 		logf("  [parserFuncDecl] parsing method")
 		receivers = p.parseParameters(scope, false)
+	} else {
+		logf("  [parserFuncDecl] parsing function")
 	}
 	var ident = p.parseIdent() // func name
 	var sig = p.parseSignature(scope)
@@ -2057,6 +2061,7 @@ func (p *parser) parseFuncDecl() astDecl {
 		logf(" end parseBody()\n")
 		p.expectSemi(__func__)
 	} else {
+		logf(" no function body\n")
 		p.expectSemi(__func__)
 	}
 	var decl astDecl
