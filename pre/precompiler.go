@@ -805,8 +805,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			// This is actually not a call
 			emitExpr(eArgs[0], nil)
 			return
-		case "os.Exit":
-			funcType = funcTypeOsExit
 		case "syscall.Open":
 			// func body is in runtime.s
 			funcType = funcTypeSyscallOpen
@@ -2428,9 +2426,6 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			case "unsafe.Pointer":
 				// unsafe.Pointer(x)
 				return tUintptr
-			case "os.Exit":
-				funcType = funcTypeOsExit
-				return nil
 			case "syscall.Open":
 				// func body is in runtime.s
 				funcType = funcTypeSyscallOpen
@@ -3539,18 +3534,6 @@ var gPanic = &ast.Object{
 	Decl: nil,
 	Data: nil,
 	Type: nil,
-}
-
-// func type of runtime functions
-var funcTypeOsExit = &ast.FuncType{
-	Params: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-		},
-	},
-	Results: nil,
 }
 
 var funcTypeSyscallOpen = &ast.FuncType{

@@ -1894,5 +1894,5 @@ func main() {
 	testGlobalCharArray()
 
 	testMisc()
-	//print("test end\n")
+	os.Exit(0)
 }
