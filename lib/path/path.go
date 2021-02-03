@@ -41,7 +41,5 @@ func Base(path string) string {
 		return path
 	}
 
-	_len := len(path)
-	r := path[found+1 : _len]
-	return r
+	return path[found+1:]
 }
