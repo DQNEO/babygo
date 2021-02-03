@@ -25,6 +25,7 @@ runtime.rt0_go:
   callq runtime.argsInit # this must be after heap init
   callq runtime.__initGlobals
   callq main.__initGlobals
+  callq os.init # init os.Args
   callq main.main
 
   movq $0, %rdi  # status 0

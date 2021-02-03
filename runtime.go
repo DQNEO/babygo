@@ -45,6 +45,9 @@ func argsInit() {
 	}
 }
 
+func runtime_args() []string {
+	return __args__
+}
 
 func brk(addr uintptr) uintptr {
 	var ret uintptr

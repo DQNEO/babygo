@@ -2922,6 +2922,9 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 		// general function call
 		symbol = getFuncSymbol(pkg.name, fn.Name)
 		emitComment(2, "[%s][*astIdent][default] start\n", __func__)
+		if pkg.name == "os" && fn.Name == "runtime_args" {
+			symbol = "runtime.runtime_args"
+		}
 
 		var obj = fn.Obj
 		if obj.Decl == nil {
@@ -4279,6 +4282,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 }
 
 func generateCode(pkg *PkgContainer) {
+	myfmt.Printf("#===================== generateCode %s =====================\n", pkg.name)
 	myfmt.Printf(".data\n")
 	emitComment(0, "string literals len = %s\n", strconv.Itoa(len(stringLiterals)))
 	for _, con := range stringLiterals {
@@ -5663,6 +5667,7 @@ var funcTypeOsExit = &astFuncType{
 	},
 	Results: nil,
 }
+
 var funcTypeSyscallOpen = &astFuncType{
 	Params: &astFieldList{
 		List: []*astField{
@@ -6050,6 +6055,12 @@ func main() {
 	var packagesToBuild = []string{"runtime.go"}
 	for _, p := range stdPackagesUsed {
 		logf("std package: %s\n", p)
+		pkgDir := srcPath + "/github.com/DQNEO/babygo/src/" + p
+		logf("srcPath=%s\n", srcPath)
+		fnames := findFilesInDir(pkgDir)
+		srcFile := pkgDir + "/" + fnames[0]
+		logf("# internal file: %s\n", srcFile)
+		packagesToBuild = append(packagesToBuild, srcFile)
 	}
 	for _, p := range extPackagesUsed {
 		logf("ext package: %s\n", p)
@@ -6057,13 +6068,14 @@ func main() {
 		logf("srcPath=%s\n", srcPath)
 		fnames := findFilesInDir(pkgDir)
 		extfile := pkgDir + "/" + fnames[0]
-		logf("# extfile: %s\n", extfile)
+		logf("# external file: %s\n", extfile)
 		packagesToBuild = append(packagesToBuild, extfile)
 	}
 
 	packagesToBuild = append(packagesToBuild, mainFile)
 
 	for _, sourceFile := range packagesToBuild {
+		myfmt.Printf("# package %s ============================================\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil
 		astFile := parseFile(sourceFile, false)
