@@ -50,21 +50,6 @@ runtime.printstring:
   addq $8 * 4, %rsp
   ret
 
-// func Open(path string, mode int, perm int) (fd int)
-syscall.Open:
-  movq  8(%rsp), %rax # arg0:str.ptr # @TODO This is a BUG! we should add a trailing null terminator
-  movq 16(%rsp), %rdi # arg0:str.len (ignored)
-  movq 24(%rsp), %rsi # arg1:flag int
-  movq 32(%rsp), %rdx # arg2:perm int
-
-  pushq %rdx # perm
-  pushq %rsi # flag
-  pushq %rax # path
-  pushq $2   # sys_open
-  callq syscall.Syscall
-  addq $8 * 4, %rsp
-  ret
-
 // func Write(fd int, p []byte) int
 syscall.Write:
   movq  8(%rsp), %rax # arg0:fd
