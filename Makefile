@@ -5,9 +5,16 @@ tmp = /tmp/babygo
 all: test
 
 .PHONY: test
-
 # test all
 test: test0 test1 test2 selfhost test-cross
+
+# compare output of test0 and test1
+compare: t/test.go $(tmp)/pre $(tmp)/babygo runtime.go runtime.s
+	$(tmp)/pre t/test.go > $(tmp)/pre-test.s
+	cp $(tmp)/pre-test.s ./.shared/
+	$(tmp)/babygo $(GOPATH) t/test.go > $(tmp)/babygo-test.s
+	cp $(tmp)/babygo-test.s ./.shared/
+	diff -u ./.shared/pre-test.s ./.shared/babygo-test.s
 
 $(tmp):
 	mkdir -p $(tmp)
