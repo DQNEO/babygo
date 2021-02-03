@@ -2506,7 +2506,7 @@ func emitZeroValue(t *Type) {
 		myfmt.Printf("  pushq $0 # %s zero value\n", kind(t))
 	case T_STRUCT:
 		var structSize = getSizeOfType(t)
-		myfmt.Printf("# zero value of a struct. size=%s (allocating on heap)\n", strconv.Itoa(structSize))
+		emitComment(2, "zero value of a struct. size=%s (allocating on heap)\n", strconv.Itoa(structSize))
 		emitCallMalloc(structSize)
 	default:
 		panic2(__func__, "TBI:"+kind(t))
@@ -2575,7 +2575,7 @@ func emitStructLiteral(e *astCompositeLit) {
 		kvExpr = elm.keyValueExpr
 		assert(kvExpr.Key.dtype == "*astIdent", "wrong dtype 2:" + elm.dtype, __func__)
 		var fieldName = kvExpr.Key.ident
-		myfmt.Printf("  #  - [%s] : key=%s, value=%s\n", strconv.Itoa(i), fieldName.Name, kvExpr.Value.dtype)
+		emitComment(2,"  - [%s] : key=%s, value=%s\n", strconv.Itoa(i), fieldName.Name, kvExpr.Value.dtype)
 		var field = lookupStructField(getStructTypeSpec(structType), fieldName.Name)
 		var fieldType = e2t(field.Type)
 		var fieldOffset = getStructFieldOffset(field)
@@ -2630,6 +2630,7 @@ type Arg struct {
 }
 
 func emitArgs(args []*Arg) int {
+	emitComment(2, "emitArgs len=%s\n", strconv.Itoa(len(args)))
 	var totalPushedSize int
 	//var arg *astExpr
 	for _, arg := range args {
@@ -3653,8 +3654,7 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 }
 
 func emitStmt(stmt *astStmt) {
-	myfmt.Printf("\n")
-	emitComment(2, "Statement %s\n", stmt.dtype)
+	emitComment(2, "== Statement %s ==\n", stmt.dtype)
 	switch dtypeOf(stmt) {
 	case "*astBlockStmt":
 		for _, stmt2 := range stmt.blockStmt.List {
@@ -4105,8 +4105,8 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 }
 
 func emitFuncDecl(pkgName string, fnc *Func) {
+	myfmt.Printf("# emitFuncDecl\n")
 	var localarea = fnc.localarea
-	myfmt.Printf("\n")
 	var symbol string
 	if fnc.method != nil {
 		symbol = getMethodSymbol(fnc.method)
@@ -4317,6 +4317,8 @@ func generateCode(pkg *PkgContainer) {
 	for _, fnc := range pkg.funcs {
 		emitFuncDecl(pkg.name, fnc)
 	}
+
+	myfmt.Printf("\n")
 }
 
 // --- type ---
@@ -5995,7 +5997,7 @@ func main() {
 	packagesToBuild = append(packagesToBuild, mainFile)
 
 	for _, sourceFile := range packagesToBuild {
-		myfmt.Printf("# package %s ============================================\n", sourceFile)
+		logf("# package %s ============================================\n", sourceFile)
 		stringIndex = 0
 		stringLiterals = nil
 		astFile := parseFile(sourceFile, false)

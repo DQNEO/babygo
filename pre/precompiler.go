@@ -370,7 +370,7 @@ func emitZeroValue(t *Type) {
 		myfmt.Printf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
 		structSize := getSizeOfType(t)
-		myfmt.Printf("  # zero value of a struct. size=%s (allocating on heap)\n", strconv.Itoa(structSize))
+		emitComment(2, "zero value of a struct. size=%s (allocating on heap)\n", strconv.Itoa(structSize))
 		emitCallMalloc(structSize)
 	default:
 		throw(t)
@@ -437,7 +437,7 @@ func emitStructLiteral(e *ast.CompositeLit) {
 		assert(ok, "expect *ast.KeyValueExpr")
 		fieldName, ok := kvExpr.Key.(*ast.Ident)
 		assert(ok, "expect *ast.Ident")
-		fmt.Printf("  #  - [%d] : key=%s, value=%T\n", i, fieldName.Name, kvExpr.Value)
+		emitComment(2, "- [%d] : key=%s, value=%T\n", i, fieldName.Name, kvExpr.Value)
 		field := lookupStructField(getStructTypeSpec(structType), fieldName.Name)
 		fieldType := e2t(field.Type)
 		fieldOffset := getStructFieldOffset(field)
@@ -1546,7 +1546,6 @@ func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 }
 
 func emitStmt(stmt ast.Stmt) {
-	myfmt.Printf("\n")
 	emitComment(2, "== Statement %T ==\n", stmt)
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
@@ -1984,8 +1983,8 @@ func getPackageSymbol(pkgPrefix string, subsymbol string) string {
 }
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
+	myfmt.Printf("# emitFuncDecl\n")
 	var localarea int = int(fnc.localarea)
-	myfmt.Printf("\n")
 	var symbol string
 	if fnc.method != nil {
 		symbol = getMethodSymbol(fnc.method)
@@ -2129,6 +2128,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 }
 
 func generateCode(pkg *PkgContainer) {
+	myfmt.Printf("#===================== generateCode %s =====================\n", pkg.name)
 	fmt.Printf(".data\n")
 	for _, con := range stringLiterals {
 		emitComment(0, "string literals\n")
