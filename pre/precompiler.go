@@ -3804,7 +3804,16 @@ func main() {
 	// emitting dynamic types
 	myfmt.Printf("# ------- Dynamic Types ------\n")
 	myfmt.Printf(".data\n")
+
+	sliceTypeMap := make([]string, len(typeMap) + 1)
+
 	for name, id := range typeMap {
+		sliceTypeMap[id] = name
+	}
+	for id, name := range sliceTypeMap {
+		if name == "" {
+			continue
+		}
 		symbol := typeIdToSymbol(id)
 		myfmt.Printf("%s: # %s\n", symbol, name)
 		myfmt.Printf("  .quad %s\n", strconv.Itoa(id))
