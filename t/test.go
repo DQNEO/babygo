@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"reflect"
 	"syscall"
 
 	"github.com/DQNEO/babygo/lib/myfmt"
@@ -15,7 +16,27 @@ func nop() {}
 func nop1() {}
 func nop2() {}
 
-// test package strings
+func testReflect() {
+	var i int = 123
+	rt := reflect.TypeOf(i)
+	myfmt.Printf("%s\n", rt.String()) // int
+
+	rt = reflect.TypeOf(&i)
+	myfmt.Printf("%s\n", rt.String()) // *int
+
+	rt = reflect.TypeOf("hello")
+	myfmt.Printf("%s\n", rt.String()) // string
+
+	myStruct := MyStruct{}
+	rt = reflect.TypeOf(myStruct)
+	myfmt.Printf("%s\n", rt.String()) // main.MyStruct
+
+	myStructP := &MyStruct{}
+	rt = reflect.TypeOf(myStructP)
+	myfmt.Printf("%s\n", rt.String()) // *main.MyStruct
+}
+
+
 func returnSlice() []string {
 	r := []string{"aa", "bb", "cc"}
 	return r
@@ -1804,6 +1825,7 @@ func writeln(s interface{}) {
 }
 
 func main() {
+	testReflect()
 	testReturnSlice()
 	testStrings()
 	testSliceExpr()
