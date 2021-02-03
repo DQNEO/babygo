@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/DQNEO/babygo/extlib/myfmt"
+	path2 "github.com/DQNEO/babygo/extlib/path"
 	"github.com/DQNEO/babygo/extlib/strconv"
 	"os"
 	"strings"
@@ -3693,7 +3694,7 @@ func resolveUniverse(file *ast.File, universe *ast.Scope) {
 		// unwrap double quote "..."
 		rawValue := imprt.Path.Value
 		path :=  rawValue[1:len(rawValue)-1]
-		base := mylib.Base(path)
+		base := path2.Base(path)
 		mapImports[base] = true
 	}
 	for _, ident := range file.Unresolved {
@@ -3744,7 +3745,7 @@ func showHelp() {
 
 // "foo/bar" => "bar.go"
 func findFilesInDir(dir string) []string {
-	fname := mylib.Base(dir) + ".go"
+	fname := path2.Base(dir) + ".go"
 	return []string{fname}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import "github.com/DQNEO/babygo/extlib/myfmt"
+import "github.com/DQNEO/babygo/extlib/path"
 import "github.com/DQNEO/babygo/extlib/strconv"
 import "os"
 import "syscall"
@@ -105,17 +106,17 @@ func testSliceExpr() {
 
 func testPath() {
 	// Copied from https://golang.org/pkg/path/#Base
-	writeln(mylib.Base("/a/b"))
-	writeln(mylib.Base("/"))
-	writeln(mylib.Base(""))
+	writeln(path.Base("/a/b"))
+	writeln(path.Base("/"))
+	writeln(path.Base(""))
 
 	// Copied from https://golang.org/pkg/mylib/#Dir
-	writeln(mylib.Dir("/a/b/c"))
-	writeln(mylib.Dir("a/b/c"))
-	writeln(mylib.Dir("/a/"))
-	writeln(mylib.Dir("a/"))
-	writeln(mylib.Dir("/"))
-	writeln(mylib.Dir(""))
+	writeln(path.Dir("/a/b/c"))
+	writeln(path.Dir("a/b/c"))
+	writeln(path.Dir("/a/"))
+	writeln(path.Dir("a/"))
+	writeln(path.Dir("/"))
+	writeln(path.Dir(""))
 }
 
 func testByteType() {

@@ -1,6 +1,7 @@
 package main
 
 import "github.com/DQNEO/babygo/extlib/myfmt"
+import "github.com/DQNEO/babygo/extlib/path"
 import "github.com/DQNEO/babygo/extlib/strconv"
 import "syscall"
 import "os"
@@ -858,12 +859,12 @@ func (p *parser) parseIdent() *astIdent {
 
 func (p *parser) parseImportDecl() *astImportSpec {
 	p.expect("import", __func__)
-	var path = p.tok.lit
+	var pth = p.tok.lit
 	p.next()
 	p.expectSemi(__func__)
 
 	return &astImportSpec{
-		Path: path,
+		Path: pth,
 	}
 }
 
@@ -5789,7 +5790,7 @@ func resolveUniverse(file *astFile, universe *astScope) {
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		rawPath := imprt.Path[1:(len(imprt.Path) - 1)]
-		base := mylib.Base(rawPath)
+		base := path.Base(rawPath)
 		mapImports = append(mapImports, base)
 	}
 
@@ -5850,12 +5851,12 @@ const GOPATH string = "/root/go"
 
 // "foo/bar" => "bar.go"
 func findFilesInDir(dir string) []string {
-	fname := mylib.Base(dir) + ".go"
+	fname := path.Base(dir) + ".go"
 	return []string{fname}
 }
 
-func isStdLib(path string) bool {
-	for _, b := range []uint8(path) {
+func isStdLib(pth string) bool {
+	for _, b := range []uint8(pth) {
 		if b == '/' {
 			return false
 		}
@@ -5869,15 +5870,15 @@ func getImportPathsFromFile(file string) []string {
 	for _, importSpec := range astFile0.Imports {
 		rawValue := importSpec.Path
 		logf("import %s\n", rawValue)
-		path :=  rawValue[1:len(rawValue)-1]
-		importPaths = append(importPaths, path)
+		pth :=  rawValue[1:len(rawValue)-1]
+		importPaths = append(importPaths, pth)
 	}
 	return 	importPaths
 }
 
-func isInTree(tree []*depEntry, path string) bool {
+func isInTree(tree []*depEntry, pth string) bool {
 	for _, entry := range tree {
-		if entry.path == path {
+		if entry.path == pth {
 			return true
 		}
 	}
@@ -6024,12 +6025,12 @@ func main() {
 	sortedPaths := sortDepTree(tree)
 
 	logf("=== Sorted packages ===\n")
-	for _, path := range sortedPaths {
-		logf("  %s\n", path)
-		if isStdLib(path) {
-			stdPackagesUsed = append(stdPackagesUsed, path)
+	for _, pth := range sortedPaths {
+		logf("  %s\n", pth)
+		if isStdLib(pth) {
+			stdPackagesUsed = append(stdPackagesUsed, pth)
 		} else {
-			extPackagesUsed = append(extPackagesUsed, path)
+			extPackagesUsed = append(extPackagesUsed, pth)
 		}
 	}
 
