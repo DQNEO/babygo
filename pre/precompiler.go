@@ -218,7 +218,7 @@ func emitAddr(expr ast.Expr) {
 			panic(" \"_\" has no address")
 		}
 		if e.Obj == nil {
-			throw(expr)
+			panic("ident.Obj is nil: " + e.Name)
 		}
 		if e.Obj.Kind == ast.Var {
 			assert(e.Obj.Data != nil, "e.Obj.Data should not be nil: Obj.Name=" + e.Obj.Name)
