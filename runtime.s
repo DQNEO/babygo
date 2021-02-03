@@ -65,20 +65,6 @@ syscall.Open:
   addq $8 * 4, %rsp
   ret
 
-// func Read(fd int, p []byte) (n int)
-syscall.Read:
-  movq  8(%rsp), %rax # arg0:fd
-  movq 16(%rsp), %rdi # arg1:ptr
-  movq 24(%rsp), %rsi # arg1:len (ignored)
-  movq 32(%rsp), %rdx # arg1:cap
-  pushq %rdx # cap
-  pushq %rdi # ptr
-  pushq %rax # fd
-  pushq $0   # sys_read
-  callq syscall.Syscall
-  addq $8 * 4, %rsp
-  ret
-
 // func Write(fd int, p []byte) int
 syscall.Write:
   movq  8(%rsp), %rax # arg0:fd

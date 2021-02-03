@@ -808,9 +808,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		case "syscall.Open":
 			// func body is in runtime.s
 			funcType = funcTypeSyscallOpen
-		case "syscall.Read":
-			// func body is in runtime.s
-			funcType = funcTypeSyscallRead
 		case "syscall.Write":
 			// func body is in runtime.s
 			funcType = funcTypeSyscallWrite
@@ -2430,10 +2427,6 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				// func body is in runtime.s
 				funcType = funcTypeSyscallOpen
 				return	e2t(funcType.Results.List[0].Type)
-			case "syscall.Read":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallRead
-				return	e2t(funcType.Results.List[0].Type)
 			case "syscall.Write":
 				// func body is in runtime.s
 				funcType = funcTypeSyscallWrite
@@ -3547,26 +3540,6 @@ var funcTypeSyscallOpen = &ast.FuncType{
 			},
 			&ast.Field{
 				Type:  tInt.e,
-			},
-		},
-	},
-	Results: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-		},
-	},
-}
-
-var funcTypeSyscallRead = &ast.FuncType{
-	Params: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tInt.e,
-			},
-			&ast.Field{
-				Type: generalSlice,
 			},
 		},
 	},

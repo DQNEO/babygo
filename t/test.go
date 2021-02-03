@@ -738,6 +738,9 @@ func testOpenRead() {
 	var buf []uint8 = make([]uint8, 300, 300)
 	var n int
 	n, _ = syscall.Read(fd, buf)
+	if n < 279 {
+		panic("ERROR")
+	}
 	writeln(n) // should be 280
 	var readbytes []uint8 = buf[0:n]
 	writeln(string(readbytes))
