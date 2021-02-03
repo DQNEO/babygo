@@ -787,7 +787,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			fn.Name = "makeSlice"
 		}
 		// general function call
-		symbol = getFuncSymbol(pkg.name, fn.Name)
+		symbol = getPackageSymbol(pkg.name, fn.Name)
 		if pkg.name == "os" && fn.Name == "runtime_args" {
 			symbol = "runtime.runtime_args"
 		}
@@ -819,8 +819,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				rcvType := getTypeOfExpr(fn.X)
 				method := lookupMethod(rcvType, fn.Sel)
 				funcType = method.funcType
-				subsymbol := getMethodSymbol(method)
-				symbol = getFuncSymbol(pkg.name, subsymbol)
+				symbol = getMethodSymbol(method)
 
 				receiver = fn.X
 			}
@@ -1970,32 +1969,29 @@ var labelid int
 
 func getMethodSymbol(method *Method) string {
 	rcvTypeName := method.rcvNamedType
-	if method.isPtrMethod {
-		return "$" + rcvTypeName.Name + "." + method.name // pointer
-	} else {
-		return rcvTypeName.Name + "." + method.name // value
-	}
-}
-
-func getFuncSubSymbol(fnc *Func) string {
 	var subsymbol string
-	if fnc.method != nil {
-		subsymbol = getMethodSymbol(fnc.method)
+	if method.isPtrMethod {
+		subsymbol = "$" + rcvTypeName.Name + "." + method.name // pointer
 	} else {
-		subsymbol = fnc.name
+		subsymbol = rcvTypeName.Name + "." + method.name // value
 	}
-	return subsymbol
+
+	return getPackageSymbol(method.pkgName, subsymbol)
 }
 
-func getFuncSymbol(pkgPrefix string, subsymbol string) string {
+func getPackageSymbol(pkgPrefix string, subsymbol string) string {
 	return pkgPrefix + "." + subsymbol
 }
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	var localarea int = int(fnc.localarea)
 	myfmt.Printf("\n")
-	subsymbol := getFuncSubSymbol(fnc)
-	symbol := getFuncSymbol(pkgPrefix, subsymbol)
+	var symbol string
+	if fnc.method != nil {
+		symbol = getMethodSymbol(fnc.method)
+	} else {
+		symbol = getPackageSymbol(pkgPrefix, fnc.name)
+	}
 	myfmt.Printf("%s: # args %d, locals %d\n",
 		symbol, strconv.Itoa(int(fnc.argsarea)), strconv.Itoa(int(fnc.localarea)))
 
@@ -2610,6 +2606,13 @@ func kind(t *Type) TypeKind {
 		return T_SLICE // @TODO is this right ?
 	case *ast.InterfaceType:
 		return T_INTERFACE
+	case *ast.SelectorExpr:
+		full := fmt.Sprintf("%s.%s", e.X, e.Sel)
+		if full == "unsafe.Pointer" {
+			return T_POINTER
+		} else {
+			throw(e)
+		}
 	default:
 		throw(t)
 	}
@@ -2822,6 +2825,7 @@ type Func struct {
 }
 
 type Method struct {
+	pkgName string
 	rcvNamedType *ast.Ident
 	isPtrMethod  bool
 	name string
@@ -2922,7 +2926,7 @@ func newLocalVariable(name string, localoffset localoffsetint, t *Type) *Variabl
 // https://golang.org/ref/spec#Method_sets
 var typesWithMethods map[string]map[string]*Method = map[string]map[string]*Method{} // map[TypeName][MethodName]*Func
 
-func newMethod(funcDecl *ast.FuncDecl) *Method {
+func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	rcvType := funcDecl.Recv.List[0].Type
 	rcvPointerType , ok := rcvType.(*ast.StarExpr)
 	var isPtr bool
@@ -2935,6 +2939,7 @@ func newMethod(funcDecl *ast.FuncDecl) *Method {
 		throw(rcvType)
 	}
 	method := &Method{
+		pkgName: pkgName,
 		rcvNamedType: rcvNamedType,
 		isPtrMethod : isPtr,
 		name: funcDecl.Name.Name,
@@ -3297,7 +3302,7 @@ func walk(pkg *PkgContainer, f *ast.File) {
 		ExportedQualifiedIdents[key] = funcDecl
 		if funcDecl.Body != nil {
 			if funcDecl.Recv != nil { // is Method
-				method := newMethod(funcDecl)
+				method := newMethod(pkg.name, funcDecl)
 				registerMethod(method)
 			}
 		}
@@ -3361,7 +3366,7 @@ func walk(pkg *PkgContainer, f *ast.File) {
 			}
 
 			if funcDecl.Recv != nil { // is Method
-				fnc.method = newMethod(funcDecl)
+				fnc.method = newMethod(pkg.name, funcDecl)
 			}
 			pkg.funcs = append(pkg.funcs, fnc)
 		}
@@ -3790,6 +3795,7 @@ func main() {
 		myfmt.Printf("%s: # %s\n", symbol, name)
 		myfmt.Printf("  .quad %s\n", strconv.Itoa(id))
 		myfmt.Printf("  .quad .S.dtype.%s\n", strconv.Itoa(id))
+		myfmt.Printf("  .quad %d\n", strconv.Itoa(len(name)))
 		myfmt.Printf(".S.dtype.%s:\n", strconv.Itoa(id))
 		myfmt.Printf("  .string \"%s\"\n", name)
 	}

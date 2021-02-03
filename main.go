@@ -975,6 +975,18 @@ func (p *parser) parseStructType() *astExpr {
 func (p *parser) parseTypeName() *astExpr {
 	logf(" [%s] begin\n", __func__)
 	var ident = p.parseIdent()
+	if p.tok.tok == "." {
+		// ident is a package name
+		p.next() // consume "."
+		eIdent := newExpr(ident)
+		//p.resolve(eIdent)
+		sel := p.parseIdent()
+		selectorExpr := &astSelectorExpr{
+			X:   eIdent,
+			Sel: sel,
+		}
+		return newExpr(selectorExpr)
+	}
 	logf(" [%s] end\n", __func__)
 	return newExpr(ident)
 }
@@ -2916,7 +2928,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 			fn.Name = "makeSlice"
 		}
 		// general function call
-		symbol = getFuncSymbol(pkg.name, fn.Name)
+		symbol = getPackageSymbol(pkg.name, fn.Name)
 		emitComment(2, "[%s][*astIdent][default] start\n", __func__)
 		if pkg.name == "os" && fn.Name == "runtime_args" {
 			symbol = "runtime.runtime_args"
@@ -2963,8 +2975,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 				var receiverType = getTypeOfExpr(receiver)
 				var method = lookupMethod(receiverType, selectorExpr.Sel)
 				funcType = method.funcType
-				var subsymbol = getMethodSymbol(method)
-				symbol = getFuncSymbol(pkg.name, subsymbol)
+				symbol = getMethodSymbol(method)
 			}
 		}
 	case "*astParenExpr":
@@ -4080,32 +4091,29 @@ var labelid int
 
 func getMethodSymbol(method *Method) string {
 	var rcvTypeName = method.rcvNamedType
-	if method.isPtrMethod {
-		return "$" + rcvTypeName.Name + "." + method.name // pointer
-	} else {
-		return rcvTypeName.Name + "." + method.name // value
-	}
-}
-
-func getFuncSubSymbol(fnc *Func) string {
 	var subsymbol string
-	if fnc.method != nil {
-		subsymbol = getMethodSymbol(fnc.method)
+	if method.isPtrMethod {
+		subsymbol =  "$" + rcvTypeName.Name + "." + method.name // pointer
 	} else {
-		subsymbol = fnc.name
+		subsymbol =  rcvTypeName.Name + "." + method.name // value
 	}
-	return subsymbol
+
+	return getPackageSymbol(method.pkgName, subsymbol)
 }
 
-func getFuncSymbol(pkgName string, subsymbol string) string {
+func getPackageSymbol(pkgName string, subsymbol string) string {
 	return pkgName + "." + subsymbol
 }
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	var localarea = fnc.localarea
 	myfmt.Printf("\n")
-	var subsymbol = getFuncSubSymbol(fnc)
-	var symbol = getFuncSymbol(pkgName, subsymbol)
+	var symbol string
+	if fnc.method != nil {
+		symbol = getMethodSymbol(fnc.method)
+	} else {
+		symbol = getPackageSymbol(pkgName, fnc.name)
+	}
 	myfmt.Printf("%s: # args %d, locals %d\n",
 		symbol, strconv.Itoa(int(fnc.argsarea)), strconv.Itoa(int(fnc.localarea)))
 
@@ -4690,6 +4698,13 @@ func kind(t *Type) string {
 		return T_INTERFACE
 	case "*astParenExpr":
 		panic(t.e.parenExpr)
+	case "*astSelectorExpr":
+		full := t.e.selectorExpr.X.ident.Name + "." + t.e.selectorExpr.Sel.Name
+		if full == "unsafe.Pointer" {
+			return T_POINTER
+		} else {
+			panic2(__func__, "Unkown type")
+		}
 	default:
 		panic2(__func__, "Unkown dtype:"+t.e.dtype)
 	}
@@ -4869,6 +4884,7 @@ type Func struct {
 }
 
 type Method struct {
+	pkgName string
 	rcvNamedType *astIdent
 	isPtrMethod  bool
 	name string
@@ -4987,7 +5003,7 @@ func findNamedType(typeName string) *namedTypeEntry {
 	return typ
 }
 
-func newMethod(funcDecl *astFuncDecl) *Method {
+func newMethod(pkgName string, funcDecl *astFuncDecl) *Method {
 	var rcvType = funcDecl.Recv.List[0].Type
 	var isPtr bool
 	if rcvType.dtype == "*astStarExpr" {
@@ -4998,6 +5014,7 @@ func newMethod(funcDecl *astFuncDecl) *Method {
 	var rcvNamedType = rcvType.ident
 
 	var method = &Method{
+		pkgName: pkgName,
 		rcvNamedType: rcvNamedType,
 		isPtrMethod : isPtr,
 		name: funcDecl.Name.Name,
@@ -5372,7 +5389,7 @@ func walk(pkg *PkgContainer, file *astFile) {
 		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
 		if funcDecl.Body != nil {
 			if funcDecl.Recv != nil { // is Method
-				var method = newMethod(funcDecl)
+				var method = newMethod(pkg.name, funcDecl)
 				registerMethod(method)
 			}
 		}
@@ -5433,7 +5450,7 @@ func walk(pkg *PkgContainer, file *astFile) {
 				fnc.Body = funcDecl.Body
 
 				if funcDecl.Recv != nil { // Method
-					fnc.method = newMethod(funcDecl)
+					fnc.method = newMethod(pkg.name, funcDecl)
 				}
 				pkg.funcs = append(pkg.funcs, fnc)
 			}
@@ -6000,6 +6017,7 @@ func main() {
 		myfmt.Printf("%s: # %s\n", symbol, name)
 		myfmt.Printf("  .quad %s\n", strconv.Itoa(id))
 		myfmt.Printf("  .quad .S.dtype.%s\n", strconv.Itoa(id))
+		myfmt.Printf("  .quad %d\n", strconv.Itoa(len(name)))
 		myfmt.Printf(".S.dtype.%s:\n", strconv.Itoa(id))
 		myfmt.Printf("  .string \"%s\"\n", name)
 	}
