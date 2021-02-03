@@ -5,7 +5,6 @@ import "os"
 import "syscall"
 import "github.com/DQNEO/babygo/extlib/strings"
 import "github.com/DQNEO/babygo/extlib/mylib"
-import "github.com/DQNEO/babygo/extlib/mylib2"
 
 func nop() {}
 func nop1() {}
@@ -125,7 +124,7 @@ func testByteType() {
 }
 
 func testExtLib() {
-	y := mylib2.Sum2(3, 4)
+	y := mylib.Sum2(3, 4)
 	write("# testExtLib() => ")
 	writeln(myfmt.Itoa(y))
 }

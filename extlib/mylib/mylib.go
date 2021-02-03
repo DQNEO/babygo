@@ -1,9 +1,15 @@
 package mylib
 
+import "github.com/DQNEO/babygo/extlib/mylib2"
 import "github.com/DQNEO/babygo/extlib/strings"
+
 
 func Sum(a int, b int) int {
 	return a + b
+}
+
+func Sum2(a int, b int) int {
+	return mylib2.Sum2(a, b)
 }
 
 func Atoi(gs string) int {
