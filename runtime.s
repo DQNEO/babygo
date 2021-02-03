@@ -22,15 +22,17 @@ runtime.rt0_go:
   movq %rax, runtime.__argv__+16(%rip) # cap
 
   callq runtime.heapInit
-  callq runtime.argsInit # this must be after heap init
   callq runtime.__initGlobals
+
+  callq os.init # for os.Args
+
   callq main.__initGlobals
   callq main.main
 
   movq $0, %rdi  # status 0
   movq $60, %rax # sys_exit
   syscall
-# End of program
+  # End of program
 
 os.Exit:
   movq  8(%rsp), %rdi # arg0:status

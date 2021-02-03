@@ -210,11 +210,6 @@ func emitListHeadAddr(list ast.Expr) {
 	}
 }
 
-func isOsArgs(e *ast.SelectorExpr) bool {
-	xIdent, isIdent := e.X.(*ast.Ident)
-	return isIdent && xIdent.Name == "os" && e.Sel.Name == "Args"
-}
-
 func emitAddr(expr ast.Expr) {
 	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
@@ -245,11 +240,6 @@ func emitAddr(expr ast.Expr) {
 	case *ast.StarExpr:
 		emitExpr(e.X, nil)
 	case *ast.SelectorExpr: // (X).Sel
-		if isOsArgs(e) {
-			myfmt.Printf("  leaq %s(%%rip), %%rax # hack for os.Args\n", "runtime.__args__")
-			myfmt.Printf("  pushq %%rax\n")
-			return
-		}
 		typeOfX := getTypeOfExpr(e.X)
 		var structType *Type
 		switch kind(typeOfX) {
@@ -798,6 +788,10 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		}
 		// general function call
 		symbol = getFuncSymbol(pkg.name, fn.Name)
+		if pkg.name == "os" && fn.Name == "runtime_args" {
+			symbol = "runtime.runtime_args"
+		}
+
 		obj := fn.Obj //.Kind == FN
 		fndecl, ok := obj.Decl.(*ast.FuncDecl)
 		if !ok {
@@ -958,9 +952,16 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		emitAddr(e)
 		emitLoadFromMemoryAndPush(getTypeOfExpr(e))
 	case *ast.SelectorExpr: // 1 value X.Sel
-		emitComment(2, "emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
-		emitAddr(e)
-		emitLoadFromMemoryAndPush(getTypeOfExpr(e))
+		// pkg.Var or strct.field
+		ident, isIdent := e.X.(*ast.Ident)
+		if isIdent && ident.Obj.Kind == ast.Pkg {
+			ident := lookupForeignVar(ident.Name, e.Sel.Name)
+			emitExpr(ident, ctx)
+		} else {
+			emitComment(2, "emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
+			emitAddr(e)
+			emitLoadFromMemoryAndPush(getTypeOfExpr(e))
+		}
 	case *ast.CallExpr: // multi values Fun(Args)
 		var fun = e.Fun
 		emitComment(2, "callExpr=%#v\n", fun)
@@ -2495,13 +2496,15 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	case *ast.SelectorExpr:
 		// X.Sel
 		emitComment(2, "getTypeOfExpr(%s.%s)\n", e.X, e.Sel)
-		if isOsArgs(e) {
-			// os.Args
-			return tSliceOfString
+		ident, isIdent := e.X.(*ast.Ident)
+		if isIdent && ident.Obj.Kind == ast.Pkg {
+			ident := lookupForeignVar(ident.Name, e.Sel.Name)
+			return getTypeOfExpr(ident)
+		} else {
+			structType := getStructTypeOfX(e)
+			field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
+			return e2t(field.Type)
 		}
-		structType := getStructTypeOfX(e)
-		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
-		return e2t(field.Type)
 	case *ast.CompositeLit:
 		return e2t(e.Type)
 	case *ast.ParenExpr:
@@ -3352,8 +3355,10 @@ func walk(pkg *PkgContainer, f *ast.File) {
 			}
 			varSpec.Type = t.e
 		}
-		nameIdent.Obj.Data = newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
+		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
+		nameIdent.Obj.Data = variable
 		pkg.vars = append(pkg.vars, varSpec)
+		ExportedQualifiedIdents[pkg.name + "." + nameIdent.Obj.Name] = nameIdent
 		for _, v := range varSpec.Values {
 			// mainly to collect string literals
 			walkExpr(v)
@@ -3719,6 +3724,18 @@ func resolveUniverse(file *ast.File, universe *ast.Scope) {
 
 var ExportedQualifiedIdents map[string]interface{} = map[string]interface{}{}
 
+func lookupForeignVar(pkg string, identifier string) *ast.Ident {
+	x , found := ExportedQualifiedIdents[pkg + "." + identifier]
+	if !found {
+		panic(pkg + "." + identifier + " Not found in ExportedQualifiedIdents")
+	}
+	ident, ok := x.(*ast.Ident)
+	if ! ok {
+		throw(ExportedQualifiedIdents)
+	}
+	return ident
+}
+
 func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
 	x ,_ := ExportedQualifiedIdents[pkg + "." + identifier]
 	decl, ok := x.(*ast.FuncDecl)
@@ -3867,6 +3884,12 @@ func main() {
 	var packagesToBuild = []string{"runtime.go"}
 	for _, pkg := range stdPackagesUsed {
 		logf("std package: %s\n", pkg)
+		pkgDir := srcPath + "/github.com/DQNEO/babygo/src/" + pkg
+		logf("srcPath=%s\n", srcPath)
+		fnames := findFilesInDir(pkgDir)
+		srcFile := pkgDir + "/" + fnames[0]
+		logf("# internal file: %s\n", srcFile)
+		packagesToBuild = append(packagesToBuild, srcFile)
 	}
 	for _, pkg := range extPackagesUsed {
 		logf("ext package: %s\n", pkg)
