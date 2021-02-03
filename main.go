@@ -2947,8 +2947,6 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 		case "unsafe.Pointer":
 			emitExpr(eArgs[0], nil)
 			return
-		case "syscall.Syscall":
-			funcType = funcTypeSyscallSyscall
 		default:
 			// Assume method call
 			fn := selectorExpr
@@ -4477,16 +4475,11 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "*astSelectorExpr": // (X).Sel()
 			assert(fun.selectorExpr.X.dtype == "*astIdent", "want ident, but got " + fun.selectorExpr.X.dtype, __func__)
 			xIdent :=  fun.selectorExpr.X.ident
-			var funcType *astFuncType
 			symbol := xIdent.Name + "." + fun.selectorExpr.Sel.Name
 			switch symbol {
 			case "unsafe.Pointer":
 				// unsafe.Pointer(x)
 				return tUintptr
-			case "syscall.Syscall":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallSyscall
-				return	e2t(funcType.Results.List[0].Type)
 			default:
 				fn := fun.selectorExpr
 				xIdent := fn.X.ident
@@ -5638,32 +5631,6 @@ var tSliceOfString = &Type{
 var generalSlice = &astExpr{
 	dtype: "*astIdent",
 	ident: &astIdent{},
-}
-
-var funcTypeSyscallSyscall = &astFuncType{
-	Params: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tUintptr.e,
-			},
-			&astField{
-				Type:  tUintptr.e,
-			},
-			&astField{
-				Type:  tUintptr.e,
-			},
-			&astField{
-				Type:  tUintptr.e,
-			},
-		},
-	},
-	Results: &astFieldList{
-		List: []*astField{
-			&astField{
-				Type:  tUintptr.e,
-			},
-		},
-	},
 }
 
 func createUniverse() *astScope {

@@ -805,9 +805,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			// This is actually not a call
 			emitExpr(eArgs[0], nil)
 			return
-		case "syscall.Syscall":
-			// func body is in runtime.s
-			funcType = funcTypeSyscallSyscall
 		default:
 			xIdent := fn.X.(*ast.Ident)
 			if xIdent.Obj == nil {
@@ -2411,16 +2408,11 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			if !ok {
 				throw(fn)
 			}
-			var funcType *ast.FuncType
 			symbol := fmt.Sprintf("%s.%s", xIdent.Name, fn.Sel)
 			switch symbol {
 			case "unsafe.Pointer":
 				// unsafe.Pointer(x)
 				return tUintptr
-			case "syscall.Syscall":
-				// func body is in runtime.s
-				funcType = funcTypeSyscallSyscall
-				return	e2t(funcType.Results.List[0].Type)
 			default:
 				xIdent := fn.X.(*ast.Ident)
 				if xIdent.Obj == nil {
@@ -3515,31 +3507,6 @@ var gPanic = &ast.Object{
 	Type: nil,
 }
 
-var funcTypeSyscallSyscall = &ast.FuncType{
-	Params: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tUintptr.e,
-			},
-			&ast.Field{
-				Type:  tUintptr.e,
-			},
-			&ast.Field{
-				Type:  tUintptr.e,
-			},
-			&ast.Field{
-				Type:  tUintptr.e,
-			},
-		},
-	},
-	Results: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  tUintptr.e,
-			},
-		},
-	},
-}
 func createUniverse() *ast.Scope {
 	universe := &ast.Scope{
 		Outer:   nil,
