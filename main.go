@@ -4250,10 +4250,6 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		if arrayType.Len.dtype != "*astBasicLit" {
 			panic2(__func__, "shoulbe basic literal")
 		}
-		var basicLit = arrayType.Len.basicLit
-		if len(basicLit.Value) > 1 {
-			panic2(__func__, "array length >= 10 is not supported yet.")
-		}
 		var length = evalInt(arrayType.Len)
 		emitComment(0, "[emitGlobalVariable] array length uint8=%s\n", strconv.Itoa(length))
 		var zeroValue string
@@ -4771,6 +4767,8 @@ func getSizeOfType(t *Type) int {
 		return 8
 	case T_UINT8:
 		return 1
+	case T_UINT16:
+		return 2
 	case T_BOOL:
 		return 8
 	case T_STRUCT:

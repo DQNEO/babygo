@@ -2673,6 +2673,8 @@ func getSizeOfType(t *Type) int {
 		return gInt.Data.(int)
 	case T_UINT8:
 		return gUint8.Data.(int)
+	case T_UINT16:
+		return gUint16.Data.(int)
 	case T_BOOL:
 		return gInt.Data.(int)
 	case T_ARRAY:
@@ -2685,7 +2687,7 @@ func getSizeOfType(t *Type) int {
 	case T_INTERFACE:
 		return interfaceSize
 	default:
-		throw(t)
+		throw(t.e)
 	}
 	return varSize
 }
