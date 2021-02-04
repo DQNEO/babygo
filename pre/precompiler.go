@@ -3683,19 +3683,22 @@ func sortTopologically(tree map[string]map[string]bool) []string {
 	return sorted
 }
 
+func getPackageDir(importPath string) string {
+	if isStdLib(importPath) {
+		return srcPath + "/github.com/DQNEO/babygo/src/" + importPath
+	} else {
+		return srcPath + "/" + importPath
+	}
+}
+
 func collectDependency(tree map[string]map[string]bool, paths map[string]bool) {
 	for pkgPath, _ := range paths {
 		logf("collectDependency in %s\n", pkgPath)
-		if isStdLib(pkgPath) {
-			// stdlib has no source code for now
-			tree[pkgPath] = nil
-			logf("  is stdlib. SKIP.\n")
-			continue
-		}
-		fnames := findFilesInDir(srcPath + "/" + pkgPath)
+		packageDir := getPackageDir(pkgPath)
+		fnames := findFilesInDir(packageDir)
 		var children = map[string]bool{}
 		for _, fname := range fnames {
-			importPathsOfFile := getImportPathsFromFile(srcPath + "/" + pkgPath + "/" + fname)
+			importPathsOfFile := getImportPathsFromFile(packageDir + "/" + fname)
 			for _path, _ := range importPathsOfFile {
 				logf("  found %s\n", _path)
 				children[_path] = true

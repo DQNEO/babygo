@@ -5823,6 +5823,15 @@ func isInTree(tree []*depEntry, pth string) bool {
 	}
 	return false
 }
+
+func getPackageDir(importPath string) string {
+	if isStdLib(importPath) {
+		return srcPath + "/github.com/DQNEO/babygo/src/" + importPath
+	} else {
+		return srcPath + "/" + importPath
+	}
+}
+
 func collectDependency(tree []*depEntry, paths []string) []*depEntry {
 	logf(" collectDependency\n")
 	for _, pkgPath := range paths {
@@ -5830,19 +5839,11 @@ func collectDependency(tree []*depEntry, paths []string) []*depEntry {
 			continue
 		}
 		logf("   in pkgPath=%s\n", pkgPath)
-		if isStdLib(pkgPath) {
-			tree = append(tree, &depEntry{
-				path:     pkgPath,
-				children: nil,
-			})
-			continue
-		}
-
-		fnames := findFilesInDir(pkgPath)
+		packageDir := getPackageDir(pkgPath)
+		fnames := findFilesInDir(packageDir)
 		var children []string
 		for _, fname := range fnames {
-			fullPath := srcPath + "/" + pkgPath + "/" + fname
-			_paths := getImportPathsFromFile(fullPath)
+			_paths := getImportPathsFromFile(packageDir + "/" + fname)
 			for _, p := range _paths {
 				children = append(children, p)
 			}
