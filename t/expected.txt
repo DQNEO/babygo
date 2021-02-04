@@ -1,3 +1,4 @@
+env FOO=bar
 int
 *int
 string

@@ -790,6 +790,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		symbol = getPackageSymbol(pkg.name, fn.Name)
 		if pkg.name == "os" && fn.Name == "runtime_args" {
 			symbol = "runtime.runtime_args"
+		} else if pkg.name == "os" && fn.Name == "runtime_getenv" {
+			symbol = "runtime.runtime_getenv"
 		}
 
 		obj := fn.Obj //.Kind == FN
@@ -3710,10 +3712,6 @@ func collectDependency(tree map[string]map[string]bool, paths map[string]bool) {
 	}
 }
 
-func getGoPath() string {
-	return os.Getenv("GOPATH")
-}
-
 var srcPath string
 
 func main() {
@@ -3734,7 +3732,7 @@ func main() {
 	}
 
 	logf("Build start\n")
-	srcPath = getGoPath() + "/src"
+	srcPath = os.Getenv("GOPATH") + "/src"
 
 	var universe = createUniverse()
 	var arg string

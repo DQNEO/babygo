@@ -2932,6 +2932,8 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 		emitComment(2, "[%s][*astIdent][default] start\n", __func__)
 		if pkg.name == "os" && fn.Name == "runtime_args" {
 			symbol = "runtime.runtime_args"
+		} else if pkg.name == "os" && fn.Name == "runtime_getenv" {
+			symbol = "runtime.runtime_getenv"
 		}
 
 		var obj = fn.Obj
@@ -5907,10 +5909,6 @@ func sortDepTree(tree []*depEntry) []string {
 	return sortedPaths
 }
 
-func getGopath() string {
-	return os.Args[1]
-}
-
 var srcPath string
 
 func main() {
@@ -5931,7 +5929,7 @@ func main() {
 	}
 
 	logf("Build start\n")
-	srcPath = getGopath() + "/src"
+	srcPath = os.Getenv("GOPATH") + "/src"
 
 	var universe = createUniverse()
 	var arg string

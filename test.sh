@@ -1,6 +1,7 @@
 #!/bin/bash
 set -u
 program=$1
+export FOO=bar
 ${program} myargs 1>/tmp/actual.1 2> /tmp/actual.2
 if [[ $? -eq 0 ]]; then
   :
