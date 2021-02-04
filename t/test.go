@@ -20,10 +20,14 @@ func nop2() {}
 
 func testGetdents64() {
 	dirents := mylib.GetDirents("t")
+	var counter int
 	for _, dirent := range dirents {
-		myfmt.Printf("%s\n", dirent)
+		if dirent == "." || dirent == ".." {
+			continue
+		}
+		counter++
 	}
-	//myfmt.Printf("%d\n", counter)
+	myfmt.Printf("%d\n", counter)
 }
 
 func testEnv() {

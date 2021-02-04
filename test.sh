@@ -13,7 +13,7 @@ else
   exit $exit_status
 fi
 
-diff t/expected.txt /tmp/actual.1
+diff -u t/expected.txt /tmp/actual.1
 if [[ $? -ne 0 ]]; then
   echo FAILED
   exit 1

@@ -1,9 +1,4 @@
-.
-..
-hello.go
-test.go
-expected.txt
-text.txt
+4
 env FOO=bar
 int
 *int
