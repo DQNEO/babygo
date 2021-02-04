@@ -96,5 +96,6 @@ func GetDirents(dir string) []string {
 			counter++
 		}
 	}
+
 	return entries
 }

@@ -3636,10 +3636,19 @@ func showHelp() {
 	myfmt.Printf("    pre [-DF] [-DG] filename\n")
 }
 
-// "foo/bar" => "bar.go"
+// "some/dir" => []string{"a.go", "b.go"}
 func findFilesInDir(dir string) []string {
-	fname := path2.Base(dir) + ".go"
-	return []string{fname}
+	//fname := path2.Base(dir) + ".go"
+	//return []string{fname}
+	dirents := mylib.GetDirents(dir)
+	var r []string
+	for _, dirent := range dirents {
+		if dirent == "." || dirent == ".." {
+			continue
+		}
+		r = append(r, dirent)
+	}
+	return r
 }
 
 func isStdLib(path string) bool {
