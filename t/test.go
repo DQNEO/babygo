@@ -16,6 +16,20 @@ func nop() {}
 func nop1() {}
 func nop2() {}
 
+
+
+func testGetdents64() {
+	dirents := mylib.GetDirents("t")
+	var counter int
+	for _, dirent := range dirents {
+		if dirent == "." || dirent == ".." {
+			continue
+		}
+		counter++
+	}
+	myfmt.Printf("%d\n", counter)
+}
+
 func testEnv() {
 	var gopath string = os.Getenv("FOO")
 	myfmt.Printf("env FOO=%s\n", gopath)
@@ -1830,6 +1844,7 @@ func writeln(s interface{}) {
 }
 
 func main() {
+	testGetdents64()
 	testEnv()
 	testReflect()
 	testReturnSlice()

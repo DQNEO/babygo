@@ -2673,6 +2673,8 @@ func getSizeOfType(t *Type) int {
 		return gInt.Data.(int)
 	case T_UINT8:
 		return gUint8.Data.(int)
+	case T_UINT16:
+		return gUint16.Data.(int)
 	case T_BOOL:
 		return gInt.Data.(int)
 	case T_ARRAY:
@@ -2685,7 +2687,7 @@ func getSizeOfType(t *Type) int {
 	case T_INTERFACE:
 		return interfaceSize
 	default:
-		throw(t)
+		throw(t.e)
 	}
 	return varSize
 }
@@ -3634,10 +3636,19 @@ func showHelp() {
 	myfmt.Printf("    pre [-DF] [-DG] filename\n")
 }
 
-// "foo/bar" => "bar.go"
+// "some/dir" => []string{"a.go", "b.go"}
 func findFilesInDir(dir string) []string {
-	fname := path2.Base(dir) + ".go"
-	return []string{fname}
+	//fname := path2.Base(dir) + ".go"
+	//return []string{fname}
+	dirents := mylib.GetDirents(dir)
+	var r []string
+	for _, dirent := range dirents {
+		if dirent == "." || dirent == ".." {
+			continue
+		}
+		r = append(r, dirent)
+	}
+	return r
 }
 
 func isStdLib(path string) bool {
