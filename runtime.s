@@ -34,11 +34,6 @@ runtime.rt0_go:
   syscall
   # End of program
 
-os.Exit:
-  movq  8(%rsp), %rdi # arg0:status
-  movq $60, %rax      # sys_exit
-  syscall
-
 // func Syscall(trap, a1, a2, a3 uintptr) uintptr
 syscall.Syscall:
   movq   8(%rsp), %rax # syscall number

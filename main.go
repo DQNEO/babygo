@@ -5768,6 +5768,7 @@ func lookupForeignFunc(pkg string, identifier string) *astFuncDecl {
 			return fdecl
 		}
 	}
+	panic("function not found: " + key)
 	return nil
 }
 

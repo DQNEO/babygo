@@ -3299,6 +3299,7 @@ func walk(pkg *PkgContainer, f *ast.File) {
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		key := pkg.name + "." + funcDecl.Name.Name
+		logf("ExportedQualifiedIdents added: %s\n" , key)
 		ExportedQualifiedIdents[key] = funcDecl
 		if funcDecl.Body != nil {
 			if funcDecl.Recv != nil { // is Method
@@ -3611,7 +3612,7 @@ func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
 	x ,_ := ExportedQualifiedIdents[pkg + "." + identifier]
 	decl, ok := x.(*ast.FuncDecl)
 	if ! ok {
-		throw(ExportedQualifiedIdents)
+		panic("Function not found: " + pkg + "." + identifier)
 	}
 	return decl
 }
