@@ -5909,10 +5909,6 @@ func sortDepTree(tree []*depEntry) []string {
 	return sortedPaths
 }
 
-func getGopath() string {
-	return os.Args[1]
-}
-
 var srcPath string
 
 func main() {
@@ -5933,7 +5929,7 @@ func main() {
 	}
 
 	logf("Build start\n")
-	srcPath = getGopath() + "/src"
+	srcPath = os.Getenv("GOPATH") + "/src"
 
 	var universe = createUniverse()
 	var arg string
