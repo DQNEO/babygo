@@ -5,7 +5,7 @@ import "unsafe"
 const SYS_READ int = 0
 const SYS_WRITE int = 1
 const SYS_OPEN int = 2
-const _x64_getdents64 int = 217
+const SYS_GETDENTS64 int = 217
 
 func Read(fd int, buf []byte) uintptr {
 	p := &buf[0]
@@ -35,7 +35,7 @@ func Write(fd int, buf []byte) uintptr {
 func Getdents(fd int, buf []byte) int {
 	var _p0 unsafe.Pointer
 	_p0 = unsafe.Pointer(&buf[0])
-	nread := Syscall(uintptr(_x64_getdents64), uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+	nread := Syscall(uintptr(SYS_GETDENTS64), uintptr(fd), uintptr(_p0), uintptr(len(buf)))
 	return int(nread)
 }
 
