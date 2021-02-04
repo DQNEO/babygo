@@ -790,6 +790,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		symbol = getPackageSymbol(pkg.name, fn.Name)
 		if pkg.name == "os" && fn.Name == "runtime_args" {
 			symbol = "runtime.runtime_args"
+		} else if pkg.name == "os" && fn.Name == "runtime_getenv" {
+			symbol = "runtime.runtime_getenv"
 		}
 
 		obj := fn.Obj //.Kind == FN

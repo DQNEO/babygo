@@ -16,11 +16,68 @@ const SYS_EXIT int = 60
 
 var __argv__ []*uint8 // C argv
 
+// Environment variables
+var envp uintptr
+var envlines []string // []{"FOO=BAR\0", "HOME=/home/...\0", ..}
+
+type envEntry struct {
+	key string
+	value string
+}
+
+var Envs []*envEntry
+
 func heapInit() {
 	heapHead = brk(0)
 	heapTail = brk(heapHead + heapSize)
 	heapCurrent = heapHead
 }
+
+
+// Inital stack layout is illustrated in this page
+// http://asm.sourceforge.net/articles/startup.html#st
+func envInit() {
+	var p uintptr // **byte
+
+	for p = envp; true ; p = p + 8{
+		var bpp **byte = (**byte)(unsafe.Pointer(p))
+		if *bpp == nil {
+			break
+		}
+		envlines = append(envlines, cstring2string(*bpp))
+	}
+
+
+	for _, envline := range envlines {
+		var i int
+		var c byte
+		for i, c = range []byte(envline) {
+			if c == '=' {
+				break
+			}
+		}
+		key := envline[:i]
+		value := envline[i+1:]
+
+		entry := &envEntry{
+			key:   key,
+			value: value,
+		}
+		Envs = append(Envs, entry)
+
+	}
+}
+
+func runtime_getenv(key string) string {
+	for _, e := range Envs {
+		if e.key == key {
+			return e.value
+		}
+	}
+
+	return ""
+}
+
 
 func cstring2string(b *uint8) string {
 	var buf []uint8

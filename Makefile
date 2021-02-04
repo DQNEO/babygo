@@ -20,7 +20,7 @@ $(tmp):
 	mkdir -p $(tmp)
 
 t/expected.txt: t/test.go
-	go run t/test.go myargs > t/expected.txt
+	export FOO=bar; go run t/test.go myargs > t/expected.txt
 
 $(tmp)/pre: $(tmp) pre/precompiler.go
 	go build -o $(tmp)/pre pre/precompiler.go

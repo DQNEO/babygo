@@ -16,6 +16,11 @@ func nop() {}
 func nop1() {}
 func nop2() {}
 
+func testEnv() {
+	var gopath string = os.Getenv("FOO")
+	myfmt.Printf("env FOO=%s\n", gopath)
+}
+
 func testReflect() {
 	var i int = 123
 	rt := reflect.TypeOf(i)
@@ -1825,6 +1830,7 @@ func writeln(s interface{}) {
 }
 
 func main() {
+	testEnv()
 	testReflect()
 	testReturnSlice()
 	testStrings()

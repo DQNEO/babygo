@@ -2932,6 +2932,8 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 		emitComment(2, "[%s][*astIdent][default] start\n", __func__)
 		if pkg.name == "os" && fn.Name == "runtime_args" {
 			symbol = "runtime.runtime_args"
+		} else if pkg.name == "os" && fn.Name == "runtime_getenv" {
+			symbol = "runtime.runtime_getenv"
 		}
 
 		var obj = fn.Obj
