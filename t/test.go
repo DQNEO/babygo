@@ -36,19 +36,6 @@ type linux_dirent struct {
 	d_name    byte
 }
 
-func cstring2string(b *byte) string {
-	var bs []byte
-	for {
-		if b == nil || *b == 0 {
-			break
-		}
-		bs = append(bs, *b)
-		p := uintptr(unsafe.Pointer(b)) + 1
-		b = (*byte)(unsafe.Pointer(p))
-	}
-	return string(bs)
-}
-
 func print_dirp(dirp *linux_dirent) {
 	//var reclen int = int(dirp.d_reclen1)
 
@@ -61,7 +48,7 @@ func print_dirp(dirp *linux_dirent) {
 	//fmt.Printf("%d  ", dirp.d_type)
 	p := unsafe.Pointer(&dirp.d_name)
 	var bp *byte = (*byte)(p)
-	var s string = cstring2string(bp)
+	var s string = mylib.Cstring2string(bp)
 	//return
 	myfmt.Printf("%s", s)
 	myfmt.Printf("\n")
