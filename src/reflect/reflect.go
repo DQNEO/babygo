@@ -2,12 +2,12 @@ package reflect
 
 import "unsafe"
 
-type ReflectType struct {
+type Type struct {
 	X interface{}
 }
 
-func TypeOf(x interface{}) *ReflectType {
-	return &ReflectType{
+func TypeOf(x interface{}) *Type {
+	return &Type{
 		X:x,
 	}
 }
@@ -22,7 +22,7 @@ type _type struct {
 	name string
 }
 
-func (t *ReflectType) String() string {
+func (t *Type) String() string {
 	switch t.X.(type) {
 	//case int:
 	//	return "int"
@@ -34,7 +34,6 @@ func (t *ReflectType) String() string {
 		var pEface *eface = (*eface)(unsafe.Pointer(ifcAddr))
 		typ := pEface._type
 		return typ.name
-		//return "Unknown"
 	}
 }
 
