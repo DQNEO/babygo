@@ -6,15 +6,7 @@ all: test
 
 .PHONY: test
 # test all
-test: test0 test1 test2 selfhost test-cross
-
-# compare output of test0 and test1
-compare: t/test.go $(tmp)/pre $(tmp)/babygo runtime.go runtime.s
-	$(tmp)/pre t/test.go > $(tmp)/pre-test.s
-	cp $(tmp)/pre-test.s ./.shared/
-	$(tmp)/babygo t/test.go > $(tmp)/babygo-test.s
-	cp $(tmp)/babygo-test.s ./.shared/
-	diff -u ./.shared/pre-test.s ./.shared/babygo-test.s | head -n 20
+test: test0 compare-test selfhost
 
 $(tmp):
 	mkdir -p $(tmp)
@@ -40,46 +32,37 @@ $(tmp)/babygo2: $(tmp)/babygo runtime.go runtime.s
 	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/babygo2 $(tmp)/babygo2.o
 
-$(tmp)/test0: t/test.go $(tmp)/pre runtime.go runtime.s
+$(tmp)/pre-test.s: t/test.go $(tmp)/pre runtime.go runtime.s
 	$(tmp)/pre t/test.go > $(tmp)/pre-test.s
 	cp $(tmp)/pre-test.s ./.shared/
+
+$(tmp)/cross-test.s: t/test.go $(tmp)/cross
+	$(tmp)/cross t/test.go > $(tmp)/cross-test.s
+	cp $(tmp)/cross-test.s ./.shared/
+
+$(tmp)/babygo-test.s: t/test.go $(tmp)/babygo runtime.go runtime.s
+	$(tmp)/babygo t/test.go > $(tmp)/babygo-test.s
+	cp $(tmp)/babygo-test.s ./.shared/
+
+$(tmp)/babygo2-test.s: t/test.go $(tmp)/babygo2
+	$(tmp)/babygo2 t/test.go > $(tmp)/babygo2-test.s
+	cp $(tmp)/babygo2-test.s ./.shared/
+
+# compare output of test0 and test1
+.PHONY: compare-test
+compare-test: $(tmp)/pre-test.s $(tmp)/babygo-test.s $(tmp)/babygo2-test.s $(tmp)/cross-test.s
+	diff -u $(tmp)/pre-test.s $(tmp)/babygo-test.s
+	diff -u $(tmp)/pre-test.s $(tmp)/babygo2-test.s
+	diff -u $(tmp)/pre-test.s $(tmp)/cross-test.s
+
+# Run test binaries
+$(tmp)/test0: $(tmp)/pre-test.s runtime.s
 	as -o $(tmp)/test0.o $(tmp)/pre-test.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test0 $(tmp)/test0.o
 
-$(tmp)/test-cross: t/test.go $(tmp)/cross
-	$(tmp)/cross -DF -DG t/test.go > $(tmp)/cross-test.s
-	cp $(tmp)/cross-test.s ./.shared/
-	as -o $(tmp)/test-cross.o $(tmp)/cross-test.s runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/test-cross $(tmp)/test-cross.o
-
-$(tmp)/test1: t/test.go $(tmp)/babygo runtime.go runtime.s
-	$(tmp)/babygo -DF -DG t/test.go > $(tmp)/babygo-DF-DG-test.s
-	cp $(tmp)/babygo-DF-DG-test.s ./.shared/
-	as -o $(tmp)/test1.o $(tmp)/babygo-DF-DG-test.s runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/test1 $(tmp)/test1.o
-
-$(tmp)/test2: t/test.go $(tmp)/babygo2
-	$(tmp)/babygo2 -DF -DG t/test.go > $(tmp)/babygo2-DF-DG-test.s
-	cp $(tmp)/babygo2-DF-DG-test.s ./.shared/
-	as -o $(tmp)/test2.o $(tmp)/babygo2-DF-DG-test.s runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/test2 $(tmp)/test2.o
-
-# Run test binaries
 .PHONY: test0
 test0: $(tmp)/test0 t/expected.txt
 	./test.sh $(tmp)/test0
-
-.PHOTNY: test-cross
-test-cross: $(tmp)/test-cross t/expected.txt
-	./test.sh $(tmp)/test-cross
-
-.PHONY: test1
-test1: $(tmp)/test1 t/expected.txt
-	./test.sh $(tmp)/test1
-
-.PHONY: test2
-test2: $(tmp)/test2 t/expected.txt
-	./test.sh $(tmp)/test2
 
 # test self hosting by comparing 2gen.s and 3gen.s
 .PHONY: selfhost
