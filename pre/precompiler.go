@@ -6,7 +6,6 @@ import (
 	path2 "github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"os"
-	"sort"
 	"strings"
 	"syscall"
 
@@ -3692,7 +3691,7 @@ func sortTopologically(tree map[string]map[string]bool) []string {
 	var sorted []string
 	for len(tree) > 0{
 		keys := getKeys(tree)
-		sort.Strings(keys)
+		mylib.SortStrings(keys)
 		for _, _path := range keys {
 			children := tree[_path]
 			if len(children) == 0 {
@@ -3781,16 +3780,16 @@ func main() {
 
 	collectDependency(tree, importPaths)
 
-	keys := getKeys(tree)
-	fmt.Printf("# Unsorted Keys:\n")
-	for _, k := range keys {
-		fmt.Printf("#   %s\n", k)
-	}
-	sort.Strings(keys)
-	fmt.Printf("# Sorted Keys:\n")
-	for _, k := range keys {
-		fmt.Printf("#   %s\n", k)
-	}
+	//keys := getKeys(tree)
+	//fmt.Printf("# Unsorted Keys:\n")
+	//for _, k := range keys {
+	//	fmt.Printf("#   %s\n", k)
+	//}
+	//sort.Strings(keys)
+	//fmt.Printf("# Sorted Keys:\n")
+	//for _, k := range keys {
+	//	fmt.Printf("#   %s\n", k)
+	//}
 
 	sortedPackages := sortTopologically(tree)
 	for _, path := range sortedPackages {

@@ -5908,6 +5908,21 @@ func collectLeafNode(sortedPaths []string, tree []*depEntry) []string {
 
 func sortDepTree(tree []*depEntry) []string {
 	var sortedPaths []string
+
+	var keys []string
+	for _, entry := range tree {
+		keys = append(keys, entry.path)
+	}
+	mylib.SortStrings(keys)
+	var newTree []*depEntry
+	for _, key := range keys {
+		for _, entry := range tree {
+			if entry.path == key {
+				newTree = append(newTree, entry)
+			}
+		}
+	}
+	tree = newTree
 	logf("====TREE====\n")
 	for {
 		if len(tree) == 0 {
