@@ -1464,19 +1464,13 @@ func (p *parser) parseIndexOrSlice(x *astExpr) *astExpr {
 		if ncolons == 2 {
 			sliceExpr.Max = index[2]
 		}
-		return &astExpr{
-			dtype:     "*astSliceExpr",
-			sliceExpr: sliceExpr,
-		}
+		return newExpr(sliceExpr)
 	}
 
 	var indexExpr = &astIndexExpr{}
 	indexExpr.X = x
 	indexExpr.Index = index[0]
-	var r = &astExpr{}
-	r.dtype = "*astIndexExpr"
-	r.indexExpr = indexExpr
-	return r
+	return newExpr(indexExpr)
 }
 
 func (p *parser) parseUnaryExpr() *astExpr {
@@ -1487,20 +1481,18 @@ func (p *parser) parseUnaryExpr() *astExpr {
 		var tok = p.tok.tok
 		p.next()
 		var x = p.parseUnaryExpr()
-		r = &astExpr{}
-		r.dtype = "*astUnaryExpr"
-		r.unaryExpr = &astUnaryExpr{}
 		logf(" [DEBUG] unary op = %s\n", tok)
-		r.unaryExpr.Op = tok
-		r.unaryExpr.X = x
+		r = newExpr(&astUnaryExpr{
+			X:  x,
+			Op: tok,
+		})
 		return r
 	case "*":
 		p.next() // consume "*"
 		var x = p.parseUnaryExpr()
-		r = &astExpr{}
-		r.dtype = "*astStarExpr"
-		r.starExpr = &astStarExpr{}
-		r.starExpr.X = x
+		r = newExpr(&astStarExpr{
+			X: x,
+		})
 		return r
 	}
 	r = p.parsePrimaryExpr()
@@ -1547,9 +1539,7 @@ func (p *parser) parseBinaryExpr(prec1 int) *astExpr {
 		binaryExpr.X = x
 		binaryExpr.Y = y
 		binaryExpr.Op = op
-		var r = &astExpr{}
-		r.dtype = "*astBinaryExpr"
-		r.binaryExpr = binaryExpr
+		var r = newExpr(binaryExpr)
 		x = r
 	}
 	logf("   end parseBinaryExpr()\n")
@@ -1810,9 +1800,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 			rangeUnary = &astUnaryExpr{}
 			rangeUnary.Op = "range"
 			rangeUnary.X = rangeX
-			y = &astExpr{}
-			y.dtype = "*astUnaryExpr"
-			y.unaryExpr = rangeUnary
+			y = newExpr(rangeUnary)
 			isRange = true
 		} else {
 			y = p.parseExpr() // rhs
@@ -2830,9 +2818,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 				//assert(ok, "should be *ast.ArrayType")
 				var elmSize = getSizeOfType(e2t(arrayType.Elt))
 				var numlit = newNumberLiteral(elmSize)
-				var eNumLit = &astExpr{}
-				eNumLit.dtype = "*astBasicLit"
-				eNumLit.basicLit = numlit
+				var eNumLit = newExpr(numlit)
 
 				var args []*Arg = []*Arg{
 					// elmSize
@@ -3677,9 +3663,7 @@ func emitStmt(stmt *astStmt) {
 		assert(ok, "should be ok", __func__)
 		var t = e2t(valSpec.Type)
 		var ident = valSpec.Name
-		var lhs = &astExpr{}
-		lhs.dtype = "*astIdent"
-		lhs.ident = ident
+		var lhs = newExpr(ident)
 		var rhs *astExpr
 		if valSpec.Value == nil {
 			emitComment(2, "lhs addresss\n")
@@ -4022,10 +4006,7 @@ func emitStmt(stmt *astStmt) {
 			for _, _s := range typeSwitchCaseClose.orig.Body {
 				if typeSwitchCaseClose.variable != nil {
 					// do assignment
-					expr := &astExpr{
-						dtype: "*astIdent",
-						ident: typeSwitch.assignIdent,
-					}
+					expr := newExpr(typeSwitch.assignIdent)
 					emitAddr(expr)
 					emitVariableAddr(typeSwitch.subjectVariable)
 					emitLoad(tEface)
@@ -4135,10 +4116,7 @@ func emitGlobalVariableComplex(name *astIdent, t *Type, val *astExpr) {
 	switch typeKind {
 	case T_POINTER:
 		myfmt.Printf("# init global %s: # T %s\n", name.Name, typeKind)
-		lhs := &astExpr{
-			ident: name,
-			dtype: "*astIdent",
-		}
+		lhs := newExpr(name)
 		emitAssign(lhs, val)
 	}
 }
@@ -4414,10 +4392,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			var starExpr = &astStarExpr{}
 			var t = getTypeOfExpr(expr.unaryExpr.X)
 			starExpr.X = t.e
-			var eStarExpr = &astExpr{}
-			eStarExpr.dtype = "*astStarExpr"
-			eStarExpr.starExpr = starExpr
-			return e2t(eStarExpr)
+			return e2t(newExpr(starExpr))
 		case "range":
 			listType := getTypeOfExpr(expr.unaryExpr.X)
 			elmType := getElementTypeOfListType(listType)
@@ -4444,10 +4419,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				case gNew:
 					var starExpr = &astStarExpr{}
 					starExpr.X = expr.callExpr.Args[0]
-					var eStarExpr = &astExpr{}
-					eStarExpr.dtype = "*astStarExpr"
-					eStarExpr.starExpr = starExpr
-					return e2t(eStarExpr)
+					return e2t(newExpr(starExpr))
 				case gMake:
 					return e2t(expr.callExpr.Args[0])
 				case gAppend:
@@ -4520,10 +4492,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		var t = &astArrayType{}
 		t.Len = nil
 		t.Elt = elementTyp
-		var e = &astExpr{}
-		e.dtype = "*astArrayType"
-		e.arrayType = t
-		return e2t(e)
+		return e2t(newExpr(t))
 	case "*astStarExpr":
 		var t = getTypeOfExpr(expr.starExpr.X)
 		var ptrType = t.e.starExpr
@@ -5280,9 +5249,7 @@ func walkExpr(expr *astExpr) {
 					basicLit = &astBasicLit{}
 					basicLit.Kind = "STRING"
 					basicLit.Value = "\"" + currentFunc.name + "\""
-					newArg = &astExpr{}
-					newArg.dtype = "*astBasicLit"
-					newArg.basicLit = basicLit
+					newArg = newExpr(basicLit)
 					expr.callExpr.Args[i] = newArg
 					arg = newArg
 				}
