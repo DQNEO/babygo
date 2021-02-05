@@ -3374,9 +3374,9 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		}
 	case "*astTypeAssertExpr":
 		emitExpr(e.typeAssertExpr.X, nil)
-		myfmt.Printf("  popq %%rax # type id\n")
-		myfmt.Printf("  popq %%rcx # data\n")
-		myfmt.Printf("  pushq %%rax # type id\n")
+		myfmt.Printf("  popq  %%rax # ifc.dtype\n")
+		myfmt.Printf("  popq  %%rcx # ifc.data\n")
+		myfmt.Printf("  pushq %%rax # ifc.data\n")
 
 		typ := e2t(e.typeAssertExpr.Type)
 		sType := serializeType(typ)
