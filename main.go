@@ -2324,7 +2324,7 @@ func emitListHeadAddr(list *astExpr) {
 }
 
 func emitAddr(expr *astExpr) {
-	emitComment(2, "[emitAddr] %s\n", expr.dtype)
+	emitComment(2, "[emitAddr] %s\n", dtypeOf(expr))
 	switch dtypeOf(expr) {
 	case "*astIdent":
 		if expr.ident.Name == "_" {
@@ -2376,7 +2376,7 @@ func emitAddr(expr *astExpr) {
 			panic2(__func__, "TBI "+ knd)
 		}
 	default:
-		panic2(__func__, "TBI "+expr.dtype)
+		panic2(__func__, "TBI "+ dtypeOf(expr))
 	}
 }
 
@@ -2402,7 +2402,7 @@ func isType(expr *astExpr) bool {
 	case "*astInterfaceType":
 		return true
 	default:
-		emitComment(2, "[isType][%s] is not considered a type\n", expr.dtype)
+		emitComment(2, "[isType][%s] is not considered a type\n", dtypeOf(expr))
 	}
 
 	return false
@@ -2930,10 +2930,11 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 		funcType = fndecl.Type
 	case "*astSelectorExpr":
 		var selectorExpr = fun.selectorExpr
-		if selectorExpr.X.dtype != "*astIdent" {
-			panic2(__func__, "TBI selectorExpr.X.dtype="+selectorExpr.X.dtype)
+		if !isExprIdent(selectorExpr.X) {
+			panic2(__func__, "TBI selectorExpr.X.dtype="+ dtypeOf(selectorExpr.X))
 		}
-		symbol = selectorExpr.X.ident.Name + "." + selectorExpr.Sel.Name
+		xIdent := expr2Ident(selectorExpr.X)
+		symbol = xIdent.Name + "." + selectorExpr.Sel.Name
 		switch symbol {
 		case "unsafe.Pointer":
 			emitExpr(eArgs[0], nil)
@@ -2960,7 +2961,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 	case "*astParenExpr":
 		panic2(__func__, "[astParenExpr] TBI ")
 	default:
-		panic2(__func__, "TBI fun.dtype="+fun.dtype)
+		panic2(__func__, "TBI fun.dtype="+ dtypeOf(fun))
 	}
 
 	var args = prepareArgs(funcType, receiver, eArgs, hasEllissis)
