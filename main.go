@@ -5973,15 +5973,22 @@ func main() {
 	var extPackagesUsed []string
 
 	sortedPaths := sortDepTree(tree)
-
-	logf("=== Sorted packages ===\n")
 	for _, pth := range sortedPaths {
-		logf("  %s\n", pth)
 		if isStdLib(pth) {
 			stdPackagesUsed = append(stdPackagesUsed, pth)
 		} else {
 			extPackagesUsed = append(extPackagesUsed, pth)
 		}
+	}
+
+	myfmt.Printf("# === sorted stdPackagesUsed ===\n")
+	for _, pth := range stdPackagesUsed {
+		myfmt.Printf("#  %s\n", pth)
+	}
+
+	myfmt.Printf("# === sorted extPackagesUsed ===\n")
+	for _, pth := range extPackagesUsed {
+		myfmt.Printf("#  %s\n", pth)
 	}
 
 	var packagesToBuild = []string{"runtime.go"}
