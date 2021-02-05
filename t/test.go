@@ -16,15 +16,15 @@ func nop() {}
 func nop1() {}
 func nop2() {}
 
-func receiveBytes(a uint8, b uint8) uint8 {
-	var c uint8 = 'c'
-	return c
+func receiveBytes(a uint8, b uint8, c uint8) uint8 {
+	var r uint8 = a
+	return r
 }
 
 func testPassBytes() {
 	var a uint8 = 'a'
 	var b uint8 = 'b'
-	c := receiveBytes(a, b)
+	c := receiveBytes(a, b, 'c')
 	buf := []uint8{c}
 	s := string(buf)
 	myfmt.Printf("s=%s\n", s)
