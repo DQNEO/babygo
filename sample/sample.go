@@ -1,8 +1,21 @@
 // How to compile:
-// go tool compile -N -S sample.go
+// go tool compile -N -S -l sample.go
 package main
 
 func min() {
+}
+
+func receiveBytes(a uint8, b uint8, c uint8) uint8 {
+	var r uint8 = a
+	return r
+}
+
+func testPassBytes() {
+	var a uint8 = 'a'
+	var b uint8 = 'b'
+	var c uint8 = 'c'
+	d := receiveBytes(a, b, c)
+	println(d)
 }
 
 func char(a byte) byte {
