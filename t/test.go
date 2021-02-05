@@ -16,6 +16,19 @@ func nop() {}
 func nop1() {}
 func nop2() {}
 
+func receiveBytes(a uint8, b uint8) uint8 {
+	var c uint8 = 'c'
+	return c
+}
+
+func testPassBytes() {
+	var a uint8 = 'a'
+	var b uint8 = 'b'
+	c := receiveBytes(a, b)
+	buf := []uint8{c}
+	s := string(buf)
+	myfmt.Printf("s=%s\n", s)
+}
 
 func testSortStrings() {
 	ss := []string{
@@ -1869,6 +1882,7 @@ func writeln(s interface{}) {
 }
 
 func main() {
+	testPassBytes()
 	testSortStrings()
 	testGetdents64()
 	testEnv()

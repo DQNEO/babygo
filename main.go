@@ -2785,7 +2785,7 @@ func emitReturnedValue(resultList []*astField) {
 		case T_INTERFACE:
 			myfmt.Printf("  pushq %%rdi # ifc data\n")
 			myfmt.Printf("  pushq %%rax # ifc dtype\n")
-		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+		case T_BOOL, T_UINT8, T_INT, T_UINTPTR, T_POINTER:
 			myfmt.Printf("  pushq %%rax\n")
 		case T_SLICE:
 			myfmt.Printf("  pushq %%rsi # slice cap\n")
@@ -3726,7 +3726,7 @@ func emitStmt(stmt *astStmt) {
 			emitExprIfc(stmt.returnStmt.Results[0], ctx)
 			var knd = kind(targetType)
 			switch knd {
-			case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+			case T_BOOL, T_UINT8, T_INT, T_UINTPTR, T_POINTER:
 				myfmt.Printf("  popq %%rax # return 64bit\n")
 			case T_STRING, T_INTERFACE:
 				myfmt.Printf("  popq %%rax # return string (head)\n")
