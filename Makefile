@@ -6,7 +6,7 @@ all: test
 
 .PHONY: test
 # test all
-test: test0 compare selfhost test-cross
+test: test0 test1 test2 selfhost test-cross
 
 # compare output of test0 and test1
 compare: t/test.go $(tmp)/pre $(tmp)/babygo runtime.go runtime.s
