@@ -1803,9 +1803,8 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 	case ";":
 		var exprStmt = &astExprStmt{}
 		exprStmt.X = x[0]
-		s = newStmt(exprStmt)
 		logf(" parseSimpleStmt end ; %s\n", __func__)
-		return s
+		return newStmt(exprStmt)
 	}
 
 	switch stok {
@@ -1829,10 +1828,9 @@ func (p *parser) parseStmt() *astStmt {
 	switch p.tok.tok {
 	case "var":
 		var genDecl = p.parseDecl("var")
-		s = &astStmt{}
-		s.dtype = "*astDeclStmt"
-		s.DeclStmt = &astDeclStmt{}
-		s.DeclStmt.Decl = genDecl
+		s = newStmt(&astDeclStmt{
+			Decl: genDecl,
+		})
 		logf(" = end parseStmt()\n")
 	case "IDENT", "*":
 		s = p.parseSimpleStmt(false)
@@ -1881,10 +1879,7 @@ func (p *parser) parseBranchStmt(tok string) *astStmt {
 
 	var branchStmt = &astBranchStmt{}
 	branchStmt.Tok = tok
-	var s = &astStmt{}
-	s.dtype = "*astBranchStmt"
-	s.branchStmt = branchStmt
-	return s
+	return newStmt(branchStmt)
 }
 
 func (p *parser) parseReturnStmt() *astStmt {
@@ -1896,10 +1891,7 @@ func (p *parser) parseReturnStmt() *astStmt {
 	p.expectSemi(__func__)
 	var returnStmt = &astReturnStmt{}
 	returnStmt.Results = x
-	var r = &astStmt{}
-	r.dtype = "*astReturnStmt"
-	r.returnStmt = returnStmt
-	return r
+	return newStmt(returnStmt)
 }
 
 func (p *parser) parseStmtList () []*astStmt {
@@ -3719,9 +3711,7 @@ func emitStmt(stmt *astStmt) {
 		emitExpr(stmt.ifStmt.Cond, nil)
 		emitPopBool("if condition")
 		myfmt.Printf("  cmpq $1, %%rax\n")
-		var bodyStmt = &astStmt{}
-		bodyStmt.dtype = "*astBlockStmt"
-		bodyStmt.blockStmt = stmt.ifStmt.Body
+		bodyStmt := newStmt(stmt.ifStmt.Body)
 		if stmt.ifStmt.Else != nil {
 			myfmt.Printf("  jne %s # jmp if false\n", labelElse)
 			emitStmt(bodyStmt) // then
@@ -4029,10 +4019,7 @@ func emitStmt(stmt *astStmt) {
 }
 
 func blockStmt2Stmt(block *astBlockStmt) *astStmt {
-	var stmt = &astStmt{}
-	stmt.dtype = "*astBlockStmt"
-	stmt.blockStmt = block
-	return stmt
+	return newStmt(block)
 }
 
 func emitRevertStackTop(t *Type) {
@@ -5097,10 +5084,7 @@ func walkStmt(stmt *astStmt) {
 		if stmt.forStmt.Post != nil {
 			walkStmt(stmt.forStmt.Post)
 		}
-		var _s = &astStmt{}
-		_s.dtype = "*astBlockStmt"
-		_s.blockStmt = stmt.forStmt.Body
-		walkStmt(_s)
+		walkStmt(newStmt(stmt.forStmt.Body))
 		currentFor = stmt.forStmt.Outer
 	case "*astRangeStmt":
 		walkExpr(stmt.rangeStmt.X)
