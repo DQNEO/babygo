@@ -99,3 +99,45 @@ func GetDirents(dir string) []string {
 
 	return entries
 }
+
+func needSwap(a string, b string) bool {
+	//myfmt.Printf("# comparing %s <-> %s\n", a, b)
+	if len(a) == 0 {
+		return false
+	}
+	var i int
+	for i=0;i<len(a);i++ {
+		if i == len(b) {
+			//myfmt.Printf("#    loose. right is shorter.\n")
+			return true
+		}
+		var aa int = int(a[i])
+		var bb int = int(b[i])
+		//myfmt.Printf("#    comparing byte at i=%d %s <-> %s\n", i, aa, bb)
+		if aa < bb {
+			return false
+		} else if aa > bb {
+			//myfmt.Printf("#    loose at i=%d %s > %s\n", i, aa, bb)
+			return true
+		}
+	}
+	return false
+}
+
+func SortStrings(ss []string) {
+	var i int
+	var j int
+	for i=0;i<len(ss);i++ {
+		for j=0;j<len(ss)-1;j++ {
+			a := ss[j]
+			b := ss[j+1]
+			if needSwap(a, b) {
+				//myfmt.Printf("#    loose\n")
+				ss[j] = b
+				ss[j+1] = a
+			} else {
+				//myfmt.Printf("#     won\n")
+			}
+		}
+	}
+}

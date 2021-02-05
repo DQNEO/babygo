@@ -17,6 +17,31 @@ func nop1() {}
 func nop2() {}
 
 
+func testSortStrings() {
+	ss := []string{
+		// sample strings
+		"github.com/DQNEO/babygo/lib/strings",
+		"unsafe",
+		"reflect",
+		"github.com/DQNEO/babygo/lib/myfmt",
+		"github.com/DQNEO/babygo/lib/mylib2",
+		"github.com/DQNEO/babygo/lib/strconv",
+		"syscall",
+		"github.com/DQNEO/babygo/lib/mylib",
+		"github.com/DQNEO/babygo/lib/path",
+		"os",
+	}
+
+	myfmt.Printf("--------------------------------\n")
+	for _, s := range ss {
+		myfmt.Printf("%s\n", s)
+	}
+	mylib.SortStrings(ss)
+	myfmt.Printf("--------------------------------\n")
+	for _, s := range ss {
+		myfmt.Printf("%s\n", s)
+	}
+}
 
 func testGetdents64() {
 	dirents := mylib.GetDirents("t")
@@ -1844,6 +1869,7 @@ func writeln(s interface{}) {
 }
 
 func main() {
+	testSortStrings()
 	testGetdents64()
 	testEnv()
 	testReflect()
