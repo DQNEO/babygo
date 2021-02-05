@@ -1787,9 +1787,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 		as.Lhs = x
 		as.Rhs = make([]*astExpr, 1, 1)
 		as.Rhs[0] = y
-		var s = &astStmt{}
-		s.dtype = "*astAssignStmt"
-		s.assignStmt = as
+		s := newStmt(as)
 		s.isRange = isRange
 		if as.Tok == ":=" {
 			lhss := x
