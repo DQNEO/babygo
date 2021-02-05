@@ -3045,8 +3045,12 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		emitAddr(e)
 		emitLoad(getTypeOfExpr(e))
 	case "*astSelectorExpr":
-		if e.selectorExpr.X.dtype == "*astIdent" && e.selectorExpr.X.ident.Obj.Kind == astPkg {
-			ident := lookupForeignVar(e.selectorExpr.X.ident.Name, e.selectorExpr.Sel.Name)
+		x := e.selectorExpr.X
+		var xIdent *astIdent
+		var ok bool
+		xIdent ,ok = x.ifc.(*astIdent)
+		if ok && xIdent.Obj.Kind == astPkg {
+			ident := lookupForeignVar(xIdent.Name, e.selectorExpr.Sel.Name)
 			e := newExpr(ident)
 			emitExpr(e, ctx)
 		} else {
@@ -3334,13 +3338,11 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		case T_STRUCT:
 			emitStructLiteral(e.compositeLit)
 		case T_ARRAY:
-			assert(e.compositeLit.Type.dtype == "*astArrayType", "expect *ast.ArrayType", __func__)
-			var arrayType = e.compositeLit.Type.arrayType
+			arrayType := expr2ArrayType(e.compositeLit.Type)
 			var arrayLen = evalInt(arrayType.Len)
 			emitArrayLiteral(arrayType, arrayLen, e.compositeLit.Elts)
 		case T_SLICE:
-			assert(e.compositeLit.Type.dtype == "*astArrayType", "expect *ast.ArrayType", __func__)
-			var arrayType = e.compositeLit.Type.arrayType
+			arrayType := expr2ArrayType(e.compositeLit.Type)
 			var length = len(e.compositeLit.Elts)
 			emitArrayLiteral(arrayType, length, e.compositeLit.Elts)
 			emitPopAddress("malloc")
@@ -3686,7 +3688,7 @@ func emitStmt(stmt *astStmt) {
 		}
 		var lhs = stmt.assignStmt.Lhs[0]
 		var rhs = stmt.assignStmt.Rhs[0]
-		if len(stmt.assignStmt.Lhs) == 2 && rhs.dtype == "*astTypeAssertExpr" {
+		if len(stmt.assignStmt.Lhs) == 2 && isExprTypeAssertExpr(rhs) {
 			emitAssignWithOK(stmt.assignStmt.Lhs, rhs)
 		} else {
 			emitAssign(lhs, rhs)
@@ -3808,8 +3810,7 @@ func emitStmt(stmt *astStmt) {
 
 		// init key variable with 0
 		if stmt.rangeStmt.Key != nil {
-			assert(stmt.rangeStmt.Key.dtype == "*astIdent", "key expr should be an ident", __func__)
-			var keyIdent = stmt.rangeStmt.Key.ident
+			keyIdent := expr2Ident(stmt.rangeStmt.Key)
 			if keyIdent.Name != "_" {
 				emitAddr(stmt.rangeStmt.Key) // lhs
 				emitZeroValue(tInt)
@@ -3859,8 +3860,7 @@ func emitStmt(stmt *astStmt) {
 		emitStore(tInt, true, false)
 
 		if stmt.rangeStmt.Key != nil {
-			assert(stmt.rangeStmt.Key.dtype == "*astIdent", "key expr should be an ident", __func__)
-			var keyIdent = stmt.rangeStmt.Key.ident
+			keyIdent := expr2Ident(stmt.rangeStmt.Key)
 			if keyIdent.Name != "_" {
 				emitAddr(stmt.rangeStmt.Key)              // lhs
 				emitVariableAddr(stmt.rangeStmt.indexvar) // rhs
@@ -4445,8 +4445,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "*astArrayType":
 			return e2t(fun)
 		case "*astSelectorExpr": // (X).Sel()
-			assert(fun.selectorExpr.X.dtype == "*astIdent", "want ident, but got " + fun.selectorExpr.X.dtype, __func__)
-			xIdent :=  fun.selectorExpr.X.ident
+			xIdent := expr2Ident(fun.selectorExpr.X)
 			symbol := xIdent.Name + "." + fun.selectorExpr.Sel.Name
 			switch symbol {
 			case "unsafe.Pointer":
@@ -4503,7 +4502,11 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			return getTypeOfExpr(expr.binaryExpr.X)
 		}
 	case "*astSelectorExpr":
-		if expr.selectorExpr.X.dtype == "*astIdent" && expr.selectorExpr.X.ident.Obj.Kind == astPkg {
+		x := expr.selectorExpr.X
+		var xIdent *astIdent
+		var ok bool
+		xIdent, ok = x.ifc.(*astIdent)
+		if ok && xIdent.Obj.Kind == astPkg {
 			ident := lookupForeignVar(expr.selectorExpr.X.ident.Name, expr.selectorExpr.Sel.Name)
 			return getTypeOfExpr(newExpr(ident))
 		} else {
@@ -4686,8 +4689,7 @@ func getStructTypeOfX(e *astSelectorExpr) *Type {
 		structType = typeOfX
 	case T_POINTER:
 		// ptr.field => e.X . e.Sel
-		assert(typeOfX.e.dtype == "*astStarExpr", "should be astStarExpr", __func__)
-		var ptrType = typeOfX.e.starExpr
+		ptrType := expr2StarExpr(typeOfX.e)
 		structType = e2t(ptrType.X)
 	default:
 		panic2(__func__, "TBI")
@@ -4969,13 +4971,12 @@ func findNamedType(typeName string) *namedTypeEntry {
 func newMethod(pkgName string, funcDecl *astFuncDecl) *Method {
 	var rcvType = funcDecl.Recv.List[0].Type
 	var isPtr bool
-	if rcvType.dtype == "*astStarExpr" {
+	if isExprStarExpr(rcvType) {
 		isPtr = true
-		rcvType = rcvType.starExpr.X
+		rcvType = expr2StarExpr(rcvType).X
 	}
-	assert(rcvType.dtype == "*astIdent", "receiver type should be ident", __func__)
-	var rcvNamedType = rcvType.ident
 
+	rcvNamedType := expr2Ident(rcvType)
 	var method = &Method{
 		pkgName: pkgName,
 		rcvNamedType: rcvNamedType,
@@ -5005,11 +5006,11 @@ func registerMethod(method *Method) {
 
 func lookupMethod(rcvT *Type, methodName *astIdent) *Method {
 	var rcvType = rcvT.e
-	if rcvType.dtype == "*astStarExpr" {
-		rcvType = rcvType.starExpr.X
+	if isExprStarExpr(rcvType) {
+		rcvType = expr2StarExpr(rcvType).X
 	}
-	assert(rcvType.dtype == "*astIdent", "receiver type should be ident", __func__)
-	var rcvTypeName = rcvType.ident
+
+	var rcvTypeName = expr2Ident(rcvType)
 	var nt = findNamedType(rcvTypeName.Name)
 	if nt == nil {
 		panic(rcvTypeName.Name + " has no moethodeiverTypeName:")
@@ -5022,8 +5023,7 @@ func lookupMethod(rcvT *Type, methodName *astIdent) *Method {
 	}
 
 	panic("method not found: " + methodName.Name)
-	var r *Method
-	return r
+	return nil
 }
 
 func walkStmt(stmt *astStmt) {
@@ -5073,7 +5073,7 @@ func walkStmt(stmt *astStmt) {
 		var lhs = stmt.assignStmt.Lhs[0]
 		var rhs = stmt.assignStmt.Rhs[0]
 		if stmt.assignStmt.Tok == ":=" {
-			assert(lhs.dtype == "*astIdent", "should be ident", __func__)
+			assert(isExprIdent(lhs), "should be ident", __func__)
 			var obj = lhs.ident.Obj
 			assert(obj.Kind == astVar, "should be ast.Var", __func__)
 			walkExpr(rhs)
@@ -5238,8 +5238,8 @@ func walkExpr(expr *astExpr) {
 		var basicLit *astBasicLit
 		var newArg *astExpr
 		for i, arg := range expr.callExpr.Args {
-			if arg.dtype == "*astIdent" {
-				var ident = arg.ident
+			if isExprIdent(arg) {
+				ident := expr2Ident(arg)
 				if ident.Name == "__func__" && ident.Obj.Kind == astVar {
 					basicLit = &astBasicLit{}
 					basicLit.Kind = "STRING"
@@ -5980,15 +5980,16 @@ type depEntry struct {
 	children []string
 }
 
-func isExprTypeAssertExpr(e *astExpr) bool {
-	var ok bool
-	_, ok = e.ifc.(*astTypeAssertExpr)
-	return ok
-}
-
 func isExprBasicLit(e *astExpr) bool {
 	var ok bool
 	_, ok = e.ifc.(*astBasicLit)
+	return ok
+}
+
+
+func isExprStarExpr(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astStarExpr)
 	return ok
 }
 
@@ -5998,10 +5999,37 @@ func isExprEllipsis(e *astExpr) bool {
 	return ok
 }
 
+func isExprTypeAssertExpr(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astTypeAssertExpr)
+	return ok
+}
+
 func isExprIdent(e *astExpr) bool {
 	var ok bool
 	_, ok = e.ifc.(*astIdent)
 	return ok
+}
+
+func expr2ArrayType(e *astExpr) *astArrayType {
+	var r *astArrayType
+	var ok bool
+	r, ok = e.ifc.(*astArrayType)
+	if ! ok {
+		panic("Not *astArrayType")
+	}
+	return r
+}
+
+
+func expr2StarExpr(e *astExpr) *astStarExpr {
+	var r *astStarExpr
+	var ok bool
+	r, ok = e.ifc.(*astStarExpr)
+	if ! ok {
+		panic("Not *astStarExpr")
+	}
+	return r
 }
 
 func expr2KeyValueExpr(e *astExpr) *astKeyValueExpr {
