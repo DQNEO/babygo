@@ -5429,22 +5429,13 @@ var gNil = &astObject{
 	Name : "nil",
 }
 
-var eNil = &astExpr{
-	dtype : "*astIdent",
-	ident : &astIdent{
-		Obj:  gNil,
-		Name: "nil",
-	},
+var identNil = &astIdent{
+	Obj:  gNil,
+	Name: "nil",
 }
 
-var eZeroInt = &astExpr{
-	dtype: "*astBasicLit",
-	basicLit: &astBasicLit{
-		Value: "0",
-		Kind: "INT",
-	},
-}
-
+var eNil *astExpr
+var eZeroInt *astExpr
 
 var gTrue = &astObject{
 	Kind: astCon,
@@ -5517,104 +5508,15 @@ var gPanic = &astObject{
 	Name: "panic",
 }
 
-var tInt = &Type{
-	e: &astExpr{
-		dtype: "*astIdent",
-		ident : &astIdent{
-			Name: "int",
-			Obj: gInt,
-		},
-	},
-}
-
-// Rune
-var tInt32 = &Type{
-	e: &astExpr{
-		dtype: "*astIdent",
-		ident : &astIdent{
-			Name: "int32",
-			Obj: gInt32,
-		},
-	},
-}
-
-var tUint8 = &Type{
-	e: &astExpr{
-		dtype: "*astIdent",
-		ident: &astIdent{
-			Name: "uint8",
-			Obj:  gUint8,
-		},
-	},
-}
-
-var tUint16 = &Type{
-	e: &astExpr{
-		dtype: "*astIdent",
-		ident: &astIdent{
-			Name: "uint16",
-			Obj:  gUint16,
-		},
-	},
-}
-var tUintptr = &Type{
-	e: &astExpr{
-		dtype: "*astIdent",
-		ident: &astIdent{
-			Name: "uintptr",
-			Obj:  gUintptr,
-		},
-	},
-}
-
-var tString = &Type{
-	e : &astExpr{
-		dtype : "*astIdent",
-		ident : &astIdent{
-			Name : "string",
-			Obj : gString,
-		},
-	},
-}
-
-var tEface *Type = &Type{
-	e: &astExpr{
-		dtype: "*astInterfaceType",
-		interfaceType: &astInterfaceType{},
-	},
-}
-
-
-var tBool = &Type{
-	e : &astExpr{
-		dtype : "*astIdent",
-		ident : &astIdent{
-			Name : "bool",
-			Obj : gBool,
-		},
-	},
-}
-
-var tSliceOfString = &Type{
-	e: &astExpr{
-		dtype: "*astArrayType",
-		arrayType: &astArrayType{
-			Len: nil,
-			Elt: &astExpr{
-				dtype: "*astIdent",
-				ident: &astIdent{
-					Name: "string",
-					Obj: gString,
-				},
-			},
-		},
-	},
-}
-
-var generalSlice = &astExpr{
-	dtype: "*astIdent",
-	ident: &astIdent{},
-}
+var tInt *Type
+var tInt32 *Type // Rune
+var tUint8 *Type
+var tUint16 *Type
+var tUintptr *Type
+var tString *Type
+var tEface *Type
+var tBool *Type
+var generalSlice *astExpr
 
 func createUniverse() *astScope {
 	var universe = new(astScope)
@@ -5918,6 +5820,62 @@ func main() {
 
 	logf("Build start\n")
 	srcPath = os.Getenv("GOPATH") + "/src"
+
+	eNil = newExpr(identNil)
+	eZeroInt = newExpr(&astBasicLit{
+		Value: "0",
+		Kind:  "INT",
+	})
+	generalSlice = newExpr(&astIdent{})
+	tInt = &Type{
+		e: newExpr(&astIdent{
+			Name: "int",
+			Obj:  gInt,
+		}),
+	}
+	tInt32 = &Type{
+		e: newExpr(&astIdent{
+			Name: "int32",
+			Obj:  gInt32,
+		}),
+	}
+	tUint8 = &Type{
+		e: newExpr(&astIdent{
+			Name: "uint8",
+			Obj:  gUint8,
+		}),
+	}
+
+	tUint16 = &Type{
+		e: newExpr(&astIdent{
+			Name: "uint16",
+			Obj:  gUint16,
+		}),
+	}
+	tUintptr = &Type{
+		e: newExpr(&astIdent{
+			Name: "uintptr",
+			Obj:  gUintptr,
+		}),
+	}
+
+	tString = &Type{
+		e: newExpr(&astIdent{
+			Name: "string",
+			Obj:  gString,
+		}),
+	}
+
+	tEface = &Type{
+		e: newExpr(&astInterfaceType{}),
+	}
+
+	tBool = &Type{
+		e: newExpr(&astIdent{
+			Name: "bool",
+			Obj:  gBool,
+		}),
+	}
 
 	var universe = createUniverse()
 	var arg string
