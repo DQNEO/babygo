@@ -1,4 +1,4 @@
-s=c
+s=a
 --------------------------------
 github.com/DQNEO/babygo/lib/strings
 unsafe
