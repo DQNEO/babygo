@@ -1405,7 +1405,7 @@ func (p *parser) parseLiteralValue(typ *astExpr) *astExpr {
 func dtypeOf(x interface{}) string {
 	switch xx := x.(type) {
 	case *astExpr:
-		return xx.dtype
+		return dtypeOfExpr(xx)
 	case *astStmt:
 		return xx.dtype
 	}
@@ -1558,8 +1558,10 @@ func makeExpr(s *astStmt) *astExpr {
 		var r *astExpr
 		return r
 	}
-	if s.dtype != "*astExprStmt" {
-		panic2(__func__, "unexpected dtype="+s.dtype)
+	var ok bool
+	_, ok = s.ifc.(*astExprStmt)
+	if !ok {
+		panic2(__func__, "unexpected dtype="+dtypeOf(s))
 	}
 	if s.exprStmt == nil {
 		panic2(__func__, "exprStmt is nil")
@@ -1645,10 +1647,8 @@ func (p *parser) parseIfStmt() *astStmt {
 	p.expect("if", __func__)
 	parserExprLev = -1
 	var condStmt *astStmt = p.parseSimpleStmt(false)
-	if condStmt.dtype != "*astExprStmt" {
-		panic2(__func__, "unexpected dtype="+condStmt.dtype)
-	}
-	var cond = condStmt.exprStmt.X
+	exprStmt := stmt2ExprStmt(condStmt)
+	var cond = exprStmt.X
 	parserExprLev = 0
 	var body = p.parseBlockStmt()
 	var else_ *astStmt
@@ -2434,7 +2434,7 @@ func emitConversion(toType *Type, arg0 *astExpr) {
 			emitConvertToInterface(getTypeOfExpr(arg0))
 		}
 	default:
-		panic2(__func__, "TBI :"+to.dtype)
+		panic2(__func__, "TBI :"+ dtypeOf(to))
 	}
 }
 
@@ -2521,7 +2521,7 @@ func emitStructLiteral(e *astCompositeLit) {
 	for i, elm := range e.Elts {
 		kvExpr = expr2KeyValueExpr(elm)
 		fieldName := expr2Ident(kvExpr.Key)
-		emitComment(2,"  - [%s] : key=%s, value=%s\n", strconv.Itoa(i), fieldName.Name, kvExpr.Value.dtype)
+		emitComment(2,"  - [%s] : key=%s, value=%s\n", strconv.Itoa(i), fieldName.Name, dtypeOf(kvExpr.Value))
 		var field = lookupStructField(getStructTypeSpec(structType), fieldName.Name)
 		var fieldType = e2t(field.Type)
 		var fieldOffset = getStructFieldOffset(field)
@@ -2897,7 +2897,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 	case "*astSelectorExpr":
 		var selectorExpr = fun.selectorExpr
 		if !isExprIdent(selectorExpr.X) {
-			panic2(__func__, "TBI selectorExpr.X.dtype="+ dtypeOf(selectorExpr.X))
+			panic2(__func__, "TBI selectorExpr.X="+ dtypeOf(selectorExpr.X))
 		}
 		xIdent := expr2Ident(selectorExpr.X)
 		symbol = xIdent.Name + "." + selectorExpr.Sel.Name
@@ -2973,7 +2973,7 @@ type evalContext struct {
 
 func emitExpr(e *astExpr, ctx *evalContext) bool {
 	var isNilObject bool
-	emitComment(2, "[emitExpr] dtype=%s\n", e.dtype)
+	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(e))
 	switch dtypeOf(e) {
 	case "*astIdent":
 		var ident = e.ident
@@ -3380,7 +3380,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 
 		myfmt.Printf("  %s:\n", labelTypeAssertionEnd)
 	default:
-		panic2(__func__, "[emitExpr] `TBI:"+e.dtype)
+		panic2(__func__, "[emitExpr] `TBI:"+dtypeOf(e))
 	}
 
 	return isNilObject
@@ -3593,7 +3593,7 @@ func emitAssignWithOK(lhss []*astExpr, rhs *astExpr) {
 }
 
 func emitAssign(lhs *astExpr, rhs *astExpr) {
-	emitComment(2, "Assignment: emitAddr(lhs:%s)\n", lhs.dtype)
+	emitComment(2, "Assignment: emitAddr(lhs:%s)\n", dtypeOf(lhs))
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	ctx := &evalContext{
@@ -3632,7 +3632,7 @@ func emitStmt(stmt *astStmt) {
 		if valSpec.Value == nil {
 			emitComment(2, "lhs addresss\n")
 			emitAddr(lhs)
-			emitComment(2, "emitZeroValue for %s\n", t.e.dtype)
+			emitComment(2, "emitZeroValue for %s\n", dtypeOf(t.e))
 			emitZeroValue(t)
 			emitComment(2, "Assignment: zero value\n")
 			emitStore(t, true, false)
@@ -4173,16 +4173,14 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		if val != nil {
 			panic("Unsupported global value")
 		}
-		if t.e.dtype != "*astArrayType" {
-			panic2(__func__, "Unexpected type:"+t.e.dtype)
-		}
-		var arrayType = t.e.arrayType
+		var arrayType = expr2ArrayType(t.e)
 		if arrayType.Len == nil {
 			panic2(__func__, "global slice is not supported")
 		}
-		if arrayType.Len.dtype != "*astBasicLit" {
+		if dtypeOf(arrayType.Len) != "*astBasicLit" {
 			panic2(__func__, "shoulbe basic literal")
 		}
+
 		var length = evalInt(arrayType.Len)
 		emitComment(0, "[emitGlobalVariable] array length uint8=%s\n", strconv.Itoa(length))
 		var zeroValue string
@@ -4510,7 +4508,7 @@ func serializeType(t *Type) string {
 		panic("TBD: generalSlice")
 	}
 
-	switch t.e.dtype {
+	switch dtypeOf(t.e) {
 	case "*astIdent":
 		e := t.e.ident
 		if t.e.ident.Obj == nil {
@@ -4564,7 +4562,7 @@ func serializeType(t *Type) string {
 	case "*astInterfaceType":
 		return "interface"
 	default:
-		throw(t.e.dtype)
+		throw(dtypeOf(t.e))
 	}
 	return ""
 }
@@ -4579,7 +4577,7 @@ func kind(t *Type) string {
 	}
 
 	var e = t.e
-	switch t.e.dtype {
+	switch dtypeOf(e) {
 	case "*astIdent":
 		var ident = t.e.ident
 		switch ident.Name {
@@ -4632,7 +4630,7 @@ func kind(t *Type) string {
 			panic2(__func__, "Unkown type")
 		}
 	default:
-		panic2(__func__, "Unkown dtype:"+t.e.dtype)
+		panic2(__func__, "Unkown dtype:"+dtypeOf(t.e))
 	}
 	panic2(__func__, "error")
 	return ""
@@ -4662,13 +4660,13 @@ func getStructTypeOfX(e *astSelectorExpr) *Type {
 func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
-		switch t.e.dtype {
+		switch dtypeOf(t.e) {
 	case "*astArrayType":
 		return e2t(t.e.arrayType.Elt)
 	case "*astEllipsis":
 		return e2t(t.e.ellipsis.Elt)
 	default:
-		throw(t.e.dtype)
+		throw(dtypeOf(t.e))
 	}
 	case T_STRING:
 		return tUint8
@@ -5146,7 +5144,7 @@ func walkStmt(stmt *astStmt) {
 			typeSwitch.subject = typeAssertExpr.X
 			walkExpr(typeAssertExpr.X)
 		default:
-			throw(s.Assign.dtype)
+			throw(dtypeOf(s.Assign))
 		}
 
 		typeSwitch.subjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
@@ -5180,14 +5178,14 @@ func walkStmt(stmt *astStmt) {
 			walkStmt(s_)
 		}
 	default:
-		panic2(__func__, "TBI: stmt.dtype="+stmt.dtype)
+		panic2(__func__, "TBI: stmt.dtype="+dtypeOf(stmt))
 	}
 }
 
 var currentFor *astStmt
 
 func walkExpr(expr *astExpr) {
-	logf(" [walkExpr] dtype=%s\n", expr.dtype)
+	logf(" [walkExpr] dtype=%s\n", dtypeOf(expr))
 	switch dtypeOf(expr) {
 	case "*astIdent":
 		// what to do ?
@@ -5254,7 +5252,7 @@ func walkExpr(expr *astExpr) {
 	case "*astTypeAssertExpr":
 		walkExpr(expr.typeAssertExpr.X)
 	default:
-		panic2(__func__, "TBI:"+expr.dtype)
+		panic2(__func__, "TBI:"+dtypeOf(expr))
 	}
 }
 
@@ -5970,6 +5968,16 @@ func isExprIdent(e *astExpr) bool {
 	return ok
 }
 
+func stmt2ExprStmt(s *astStmt) *astExprStmt {
+	var r *astExprStmt
+	var ok bool
+	r, ok = s.ifc.(*astExprStmt)
+	if !ok {
+		panic("Not *astExprStmt")
+	}
+	return r
+}
+
 func expr2ArrayType(e *astExpr) *astArrayType {
 	var r *astArrayType
 	var ok bool
@@ -6059,11 +6067,51 @@ func newStmt(x interface{}) *astStmt {
 	return r
 }
 
+func dtypeOfExpr(expr *astExpr) string {
+	x := expr.ifc
+	switch x.(type) {
+	case *astIdent:
+		return "*astIdent"
+	case *astArrayType:
+		return "*astArrayType"
+	case *astBasicLit:
+		return "*astBasicLit"
+	case *astCallExpr:
+		return "*astCallExpr"
+	case *astBinaryExpr:
+		return "*astBinaryExpr"
+	case *astUnaryExpr:
+		return "*astUnaryExpr"
+	case *astSelectorExpr:
+		return "*astSelectorExpr"
+	case *astIndexExpr:
+		return "*astIndexExpr"
+	case *astSliceExpr:
+		return "*astSliceExpr"
+	case *astStarExpr:
+		return "*astStarExpr"
+	case *astParenExpr:
+		return "*astParenExpr"
+	case *astStructType:
+		return "*astStructType"
+	case *astCompositeLit:
+		return "*astCompositeLit"
+	case *astKeyValueExpr:
+		return "*astKeyValueExpr"
+	case *astEllipsis:
+		return "*astEllipsis"
+	case *astInterfaceType:
+		return "*astInterfaceType"
+	case *astTypeAssertExpr:
+		return "*astTypeAssertExpr"
+	}
+	panic("Unkonwn type")
+}
+
 func newExpr(x interface{}) *astExpr {
 	r := &astExpr{
 		ifc: x,
 	}
-
 	switch xx := x.(type) {
 	case *astIdent:
 		r.dtype = "*astIdent"
