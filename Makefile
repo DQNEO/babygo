@@ -14,7 +14,7 @@ compare: t/test.go $(tmp)/pre $(tmp)/babygo runtime.go runtime.s
 	cp $(tmp)/pre-test.s ./.shared/
 	$(tmp)/babygo t/test.go > $(tmp)/babygo-test.s
 	cp $(tmp)/babygo-test.s ./.shared/
-	diff -u ./.shared/pre-test.s ./.shared/babygo-test.s
+	diff -u ./.shared/pre-test.s ./.shared/babygo-test.s | head -n 20
 
 $(tmp):
 	mkdir -p $(tmp)
