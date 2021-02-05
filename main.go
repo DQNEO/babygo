@@ -560,6 +560,7 @@ type astFuncType struct {
 
 type astStmt struct {
 	dtype          string
+	ifc            interface{}
 	DeclStmt       *astDeclStmt
 	exprStmt       *astExprStmt
 	blockStmt      *astBlockStmt
@@ -1626,24 +1627,18 @@ func (p *parser) parseForStmt() *astStmt {
 		rangeStmt.X = rangeX
 		rangeStmt.Body = body
 		rangeStmt.Tok = as.Tok
-		var r = &astStmt{}
-		r.dtype = "*astRangeStmt"
-		r.rangeStmt = rangeStmt
 		p.closeScope()
 		logf(" end %s\n", __func__)
-		return r
+		return newStmt(rangeStmt)
 	}
 	var forStmt = &astForStmt{}
 	forStmt.Init = s1
 	forStmt.Cond = makeExpr(s2)
 	forStmt.Post = s3
 	forStmt.Body = body
-	var r = &astStmt{}
-	r.dtype = "*astForStmt"
-	r.forStmt = forStmt
 	p.closeScope()
 	logf(" end %s\n", __func__)
-	return r
+	return newStmt(forStmt)
 }
 
 func (p *parser) parseIfStmt() *astStmt {
@@ -1664,9 +1659,7 @@ func (p *parser) parseIfStmt() *astStmt {
 		} else {
 			var elseblock = p.parseBlockStmt()
 			p.expectSemi(__func__)
-			else_ = &astStmt{}
-			else_.dtype = "*astBlockStmt"
-			else_.blockStmt = elseblock
+			else_ = newStmt(elseblock)
 		}
 	} else {
 		p.expectSemi(__func__)
@@ -1676,10 +1669,7 @@ func (p *parser) parseIfStmt() *astStmt {
 	ifStmt.Body = body
 	ifStmt.Else = else_
 
-	var r = &astStmt{}
-	r.dtype = "*astIfStmt"
-	r.ifStmt = ifStmt
-	return r
+	return newStmt(ifStmt)
 }
 
 func (p *parser) parseCaseClause() *astCaseClause {
@@ -1738,9 +1728,7 @@ func (p *parser) parseSwitchStmt() *astStmt {
 	var ccs *astStmt
 	for p.tok.tok == "case" || p.tok.tok == "default" {
 		cc = p.parseCaseClause()
-		ccs = &astStmt{}
-		ccs.dtype = "*astCaseClause"
-		ccs.caseClause = cc
+		ccs = newStmt(cc)
 		list = append(list, ccs)
 	}
 	p.expect("}", __func__)
@@ -1751,21 +1739,16 @@ func (p *parser) parseSwitchStmt() *astStmt {
 	typeSwitch := isTypeSwitchGuard(s2)
 
 	p.closeScope()
-	var s = &astStmt{}
 	if typeSwitch {
-		s.dtype = "*astTypeSwitchStmt"
-		s.typeSwitchStmt = &astTypeSwitchStmt{
+		return newStmt(&astTypeSwitchStmt{
 			Assign: s2,
 			Body:   body,
-		}
-		return s
+		})
 	} else {
-		s.dtype = "*astSwitchStmt"
-		s.switchStmt = &astSwitchStmt{
+		return newStmt(&astSwitchStmt{
 			Body: body,
 			Tag:  makeExpr(s2),
-		}
-		return s
+		})
 	}
 }
 
@@ -1818,32 +1801,25 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 		logf(" parseSimpleStmt end =, := %s\n", __func__)
 		return s
 	case ";":
-		s.dtype = "*astExprStmt"
 		var exprStmt = &astExprStmt{}
 		exprStmt.X = x[0]
-		s.exprStmt = exprStmt
+		s = newStmt(exprStmt)
 		logf(" parseSimpleStmt end ; %s\n", __func__)
 		return s
 	}
 
 	switch stok {
 	case "++", "--":
-		var s = &astStmt{}
 		var sInc = &astIncDecStmt{}
 		sInc.X = x[0]
 		sInc.Tok = stok
-		s.dtype = "*astIncDecStmt"
-		s.incDecStmt = sInc
 		p.next() // consume "++" or "--"
-		return s
+		return newStmt(sInc)
 	}
 	var exprStmt = &astExprStmt{}
 	exprStmt.X = x[0]
-	var r = &astStmt{}
-	r.dtype = "*astExprStmt"
-	r.exprStmt = exprStmt
 	logf(" parseSimpleStmt end (final) %s\n", __func__)
-	return r
+	return newStmt(exprStmt)
 }
 
 func (p *parser) parseStmt() *astStmt {
@@ -6049,6 +6025,54 @@ func expr2Ident(e *astExpr) *astIdent {
 	r, ok = e.ifc.(*astIdent)
 	if ! ok {
 		panic("Not *astIdent")
+	}
+	return r
+}
+
+func newStmt(x interface{}) *astStmt {
+	r := &astStmt{
+		ifc: x,
+	}
+	switch xx := x.(type) {
+	case *astDeclStmt:
+		r.dtype = "*astDeclStmt"
+		r.DeclStmt = xx
+	case *astExprStmt:
+		r.dtype = "*astExprStmt"
+		r.exprStmt = xx
+	case *astBlockStmt:
+		r.dtype = "*astBlockStmt"
+		r.blockStmt = xx
+	case *astAssignStmt:
+		r.dtype = "*astAssignStmt"
+		r.assignStmt = xx
+	case *astReturnStmt:
+		r.dtype = "*astReturnStmt"
+		r.returnStmt = xx
+	case *astIfStmt:
+		r.dtype = "*astIfStmt"
+		r.ifStmt = xx
+	case *astForStmt:
+		r.dtype = "*astForStmt"
+		r.forStmt = xx
+	case *astIncDecStmt:
+		r.dtype = "*astIncDecStmt"
+		r.incDecStmt = xx
+	case *astRangeStmt:
+		r.dtype = "*astRangeStmt"
+		r.rangeStmt = xx
+	case *astBranchStmt:
+		r.dtype = "*astBranchStmt"
+		r.branchStmt = xx
+	case *astSwitchStmt:
+		r.dtype = "*astSwitchStmt"
+		r.switchStmt = xx
+	case *astTypeSwitchStmt:
+		r.dtype = "*astTypeSwitchStmt"
+		r.typeSwitchStmt = xx
+	case *astCaseClause:
+		r.dtype = "*astCaseClause"
+		r.caseClause = xx
 	}
 	return r
 }
