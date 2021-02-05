@@ -6,6 +6,7 @@ import (
 	path2 "github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"os"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -3676,13 +3677,24 @@ func removeNode(tree map[string]map[string]bool, node string) {
 	delete(tree, node)
 }
 
+func getKeys(tree map[string]map[string]bool) []string {
+	var keys []string
+	for k, _ := range tree {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // Do topological sort
 // In the result list, the independent (lowest level) packages come first.
 func sortTopologically(tree map[string]map[string]bool) []string {
 	logf("sortTopologically start\n")
 	var sorted []string
 	for len(tree) > 0{
-		for _path, children := range tree {
+		keys := getKeys(tree)
+		sort.Strings(keys)
+		for _, _path := range keys {
+			children := tree[_path]
 			if len(children) == 0 {
 				// leaf node
 				logf("Found leaf node: %s\n", _path)
@@ -3690,6 +3702,7 @@ func sortTopologically(tree map[string]map[string]bool) []string {
 				removeNode(tree, _path)
 			}
 		}
+
 
 	}
 
@@ -3767,6 +3780,14 @@ func main() {
 	var tree = map[string]map[string]bool{}
 
 	collectDependency(tree, importPaths)
+
+	keys := getKeys(tree)
+	sort.Strings(keys)
+	fmt.Printf("# SortedKeys:\n")
+	for _, k := range keys {
+		fmt.Printf("#   %s\n", k)
+	}
+
 	sortedPackages := sortTopologically(tree)
 	for _, path := range sortedPackages {
 		if isStdLib(path) {
