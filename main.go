@@ -2719,18 +2719,14 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr, exp
 		// collect args as a slice
 		var sliceType = &astArrayType{}
 		sliceType.Elt = variadicElmType
-		var eSliceType = &astExpr{}
-		eSliceType.dtype = "*astArrayType"
-		eSliceType.arrayType = sliceType
+		var eSliceType = newExpr(sliceType)
 		var sliceLiteral = &astCompositeLit{}
 		sliceLiteral.Type = eSliceType
 		sliceLiteral.Elts = variadicArgs
-		var eSliceLiteral = &astExpr{}
-		eSliceLiteral.compositeLit = sliceLiteral
-		eSliceLiteral.dtype = "*astCompositeLit"
-		var _arg = &Arg{}
-		_arg.e = eSliceLiteral
-		_arg.t = e2t(eSliceType)
+		var _arg = &Arg{
+			e : newExpr(sliceLiteral),
+			t : e2t(eSliceType),
+		}
 		args = append(args, _arg)
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
