@@ -3782,8 +3782,12 @@ func main() {
 	collectDependency(tree, importPaths)
 
 	keys := getKeys(tree)
+	fmt.Printf("# Unsorted Keys:\n")
+	for _, k := range keys {
+		fmt.Printf("#   %s\n", k)
+	}
 	sort.Strings(keys)
-	fmt.Printf("# SortedKeys:\n")
+	fmt.Printf("# Sorted Keys:\n")
 	for _, k := range keys {
 		fmt.Printf("#   %s\n", k)
 	}
