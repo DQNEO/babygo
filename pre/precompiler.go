@@ -1234,14 +1234,14 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
 				myfmt.Printf("  popq %%rax # max\n")
-				myfmt.Printf("  subq %%rcx, %%rax # max - low\n")
+				myfmt.Printf("  subq %%rcx, %%rax # new cap = max - low\n")
 				myfmt.Printf("  pushq %%rax # new cap\n")
 				// new len = high - low
 				emitExpr(e.High, nil)
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
 				myfmt.Printf("  popq %%rax # high\n")
-				myfmt.Printf("  subq %%rcx, %%rax # high - low\n")
+				myfmt.Printf("  subq %%rcx, %%rax # new len = high - low\n")
 				myfmt.Printf("  pushq %%rax # new len\n")
 			}
 		case T_STRING:
@@ -3768,10 +3768,6 @@ func main() {
 
 	collectDependency(tree, importPaths)
 	sortedPackages := sortTopologically(tree)
-	logf("sortedPackages:\n")
-	for _, pth := range sortedPackages {
-		logf("  %s\n", pth)
-	}
 	for _, path := range sortedPackages {
 		if isStdLib(path) {
 			stdPackagesUsed = append(stdPackagesUsed, path)
@@ -3779,6 +3775,17 @@ func main() {
 			extPackagesUsed = append(extPackagesUsed, path)
 		}
 	}
+
+	myfmt.Printf("# === sorted stdPackagesUsed ===\n")
+	for _, pth := range stdPackagesUsed {
+		myfmt.Printf("#  %s\n", pth)
+	}
+
+	myfmt.Printf("# === sorted extPackagesUsed ===\n")
+	for _, pth := range extPackagesUsed {
+		myfmt.Printf("#  %s\n", pth)
+	}
+
 	var packagesToBuild = []string{"runtime.go"}
 	for _, pkg := range stdPackagesUsed {
 		logf("std package: %s\n", pkg)

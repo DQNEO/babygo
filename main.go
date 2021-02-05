@@ -3154,6 +3154,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 				if e.sliceExpr.High != nil {
 					emitExpr(e.sliceExpr.High, nil)
 				} else {
+					// high = len(orig)
 					emitLen(e.sliceExpr.X)
 				}
 				emitExpr(low, nil)
@@ -3167,14 +3168,14 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
 				myfmt.Printf("  popq %%rax # max\n")
-				myfmt.Printf("  subq %%rcx, %%rax # max - low\n")
+				myfmt.Printf("  subq %%rcx, %%rax # new cap = max - low\n")
 				myfmt.Printf("  pushq %%rax # new cap\n")
 				// new len = high - low
 				emitExpr(e.sliceExpr.High, nil)
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
 				myfmt.Printf("  popq %%rax # high\n")
-				myfmt.Printf("  subq %%rcx, %%rax # cap = max - low\n")
+				myfmt.Printf("  subq %%rcx, %%rax # new len = high - low\n")
 				myfmt.Printf("  pushq %%rax # new len\n")
 			}
 		case T_STRING:
@@ -3374,17 +3375,18 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		}
 	case "*astTypeAssertExpr":
 		emitExpr(e.typeAssertExpr.X, nil)
-		myfmt.Printf("  popq %%rax # type id\n")
-		myfmt.Printf("  popq %%rcx # data\n")
-		myfmt.Printf("  pushq %%rax # type id\n")
+		myfmt.Printf("  popq  %%rax # ifc.dtype\n")
+		myfmt.Printf("  popq  %%rcx # ifc.data\n")
+		myfmt.Printf("  pushq %%rax # ifc.data\n")
 
 		typ := e2t(e.typeAssertExpr.Type)
 		sType := serializeType(typ)
 		_id := getTypeId(sType)
 		typeSymbol := typeIdToSymbol(_id)
 		// check if type matches
-		myfmt.Printf("  leaq %s(%%rip), %%rax # typeid\n", typeSymbol)
-		myfmt.Printf("  pushq %%rax # type id\n")
+		myfmt.Printf("  leaq %s(%%rip), %%rax # ifc.dtype\n", typeSymbol)
+		myfmt.Printf("  pushq %%rax           # ifc.dtype\n")
+
 		emitCompExpr("sete") // this pushes 1 or 0 in the end
 		emitPopBool("type assertion ok value")
 		myfmt.Printf("  cmpq $1, %%rax\n")
@@ -5971,15 +5973,22 @@ func main() {
 	var extPackagesUsed []string
 
 	sortedPaths := sortDepTree(tree)
-
-	logf("=== Sorted packages ===\n")
 	for _, pth := range sortedPaths {
-		logf("  %s\n", pth)
 		if isStdLib(pth) {
 			stdPackagesUsed = append(stdPackagesUsed, pth)
 		} else {
 			extPackagesUsed = append(extPackagesUsed, pth)
 		}
+	}
+
+	myfmt.Printf("# === sorted stdPackagesUsed ===\n")
+	for _, pth := range stdPackagesUsed {
+		myfmt.Printf("#  %s\n", pth)
+	}
+
+	myfmt.Printf("# === sorted extPackagesUsed ===\n")
+	for _, pth := range extPackagesUsed {
+		myfmt.Printf("#  %s\n", pth)
 	}
 
 	var packagesToBuild = []string{"runtime.go"}
