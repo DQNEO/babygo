@@ -1048,19 +1048,11 @@ func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astFiel
 			panic2(__func__, "Ident list is not supported")
 		}
 		var eIdent = list[0]
-		if eIdent.dtype != "*astIdent" {
-			panic2(__func__, "Unexpected dtype")
-		}
-		var ident = eIdent.ident
-		if ident == nil {
-			panic2(__func__, "Ident should not be nil")
-		}
+		ident := expr2Ident(eIdent)
 		logf(" [%s] ident.Name=%s\n", __func__, ident.Name)
-		logf(" [%s] typ=%s\n", __func__, typ.dtype)
 		var field = &astField{}
 		field.Name = ident
 		field.Type = typ
-		logf(" [%s]: Field %s %s\n", __func__, field.Name.Name, field.Type.dtype)
 		params = append(params, field)
 		declareField(field, scope, astVar, ident)
 		p.resolve(typ)
@@ -1194,10 +1186,10 @@ func (p *parser) resolve(x *astExpr) {
 	p.tryResolve(x, true)
 }
 func (p *parser) tryResolve(x *astExpr, collectUnresolved bool) {
-	if x.dtype != "*astIdent" {
+	if !isExprIdent(x) {
 		return
 	}
-	var ident = x.ident
+	ident := expr2Ident(x)
 	if ident.Name == "_" {
 		return
 	}
@@ -1426,7 +1418,7 @@ func isLiteralType(x *astExpr) bool {
 	switch dtypeOf(x) {
 	case pastIdent:
 	case "*astSelectorExpr":
-		return x.selectorExpr.X.dtype == "*astIdent"
+		return isExprIdent(x.selectorExpr.X)
 	case "*astArrayType":
 	case "*astStructType":
 	case "*astMapType":
@@ -1711,7 +1703,10 @@ func (p *parser) parseCaseClause() *astCaseClause {
 }
 
 func isTypeSwitchAssert(x *astExpr) bool {
-	return x.dtype == "*astTypeAssertExpr" && x.typeAssertExpr.Type == nil
+	var ok bool
+	var typeAssertExpr *astTypeAssertExpr
+	typeAssertExpr, ok = x.ifc.(*astTypeAssertExpr)
+	return ok && typeAssertExpr.Type == nil
 }
 
 func isTypeSwitchGuard(s *astStmt) bool {
@@ -1816,7 +1811,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 		if as.Tok == ":=" {
 			lhss := x
 			for _, lhs := range lhss {
-				assert(lhs.dtype == "*astIdent", "should be ident", __func__)
+				assert(isExprIdent(lhs), "should be ident", __func__)
 				declare(as, p.topScope, astVar, lhs.ident)
 			}
 		}
@@ -2362,7 +2357,6 @@ func emitAddr(expr *astExpr) {
 			emitAddr(expr.selectorExpr.X)
 		case T_POINTER:
 			// ptr.field
-			assert(typeOfX.e.dtype == "*astStarExpr", "should be *astStarExpr", __func__)
 			var ptrType = typeOfX.e.starExpr
 			structType = e2t(ptrType.X)
 			emitExpr(expr.selectorExpr.X, nil)
@@ -2559,10 +2553,8 @@ func emitStructLiteral(e *astCompositeLit) {
 	emitZeroValue(structType) // push address of the new storage
 	var kvExpr *astKeyValueExpr
 	for i, elm := range e.Elts {
-		assert(elm.dtype == "*astKeyValueExpr", "wrong dtype 1:" + elm.dtype, __func__)
-		kvExpr = elm.keyValueExpr
-		assert(kvExpr.Key.dtype == "*astIdent", "wrong dtype 2:" + elm.dtype, __func__)
-		var fieldName = kvExpr.Key.ident
+		kvExpr = expr2KeyValueExpr(elm)
+		fieldName := expr2Ident(kvExpr.Key)
 		emitComment(2,"  - [%s] : key=%s, value=%s\n", strconv.Itoa(i), fieldName.Name, kvExpr.Value.dtype)
 		var field = lookupStructField(getStructTypeSpec(structType), fieldName.Name)
 		var fieldType = e2t(field.Type)
@@ -5983,6 +5975,38 @@ func main() {
 type depEntry struct {
 	path string
 	children []string
+}
+
+func isExprTypeAssertExpr(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astTypeAssertExpr)
+	return ok
+}
+
+func isExprIdent(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astIdent)
+	return ok
+}
+
+func expr2KeyValueExpr(e *astExpr) *astKeyValueExpr {
+	var r *astKeyValueExpr
+	var ok bool
+	r, ok = e.ifc.(*astKeyValueExpr)
+	if ! ok {
+		panic("Not *astKeyValueExpr")
+	}
+	return r
+}
+
+func expr2Ident(e *astExpr) *astIdent {
+	var r *astIdent
+	var ok bool
+	r, ok = e.ifc.(*astIdent)
+	if ! ok {
+		panic("Not *astIdent")
+	}
+	return r
 }
 
 func newExpr(x interface{}) *astExpr {
