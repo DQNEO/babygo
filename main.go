@@ -3383,8 +3383,9 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		_id := getTypeId(sType)
 		typeSymbol := typeIdToSymbol(_id)
 		// check if type matches
-		myfmt.Printf("  leaq %s(%%rip), %%rax # typeid\n", typeSymbol)
-		myfmt.Printf("  pushq %%rax # type id\n")
+		myfmt.Printf("  leaq %s(%%rip), %%rax # ifc.dtype\n", typeSymbol)
+		myfmt.Printf("  pushq %%rax           # ifc.dtype\n")
+
 		emitCompExpr("sete") // this pushes 1 or 0 in the end
 		emitPopBool("type assertion ok value")
 		myfmt.Printf("  cmpq $1, %%rax\n")
