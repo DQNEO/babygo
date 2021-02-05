@@ -2678,8 +2678,11 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr, exp
 		emitComment(2, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, strconv.Itoa(argIndex), strconv.Itoa(lenParams))
 		if argIndex < lenParams {
 			param = params[argIndex]
-			if param.Type.dtype == "*astEllipsis" {
-				variadicElmType = param.Type.ellipsis.Elt
+			var ellipsis *astEllipsis
+			var ok bool
+			ellipsis, ok = param.Type.ifc.(*astEllipsis)
+			if ok {
+				variadicElmType = ellipsis.Elt
 				variadicArgs = make([]*astExpr, 0, 20)
 			}
 		}
@@ -2718,7 +2721,7 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr, exp
 		if param.Type == nil {
 			panic2(__func__, "param.Type should not be nil")
 		}
-		assert(param.Type.dtype == "*astEllipsis", "internal error", __func__)
+		assert(isExprEllipsis(param.Type), "internal error", __func__)
 
 		var _arg = &Arg{}
 		_arg.e = eNil
@@ -2987,7 +2990,7 @@ func emitNamedConst(ident *astIdent, ctx *evalContext) {
 	assert(ok, "valSpec should not be nil", __func__)
 	assert(valSpec != nil, "valSpec should not be nil", __func__)
 	assert(valSpec.Value != nil, "valSpec should not be nil", __func__)
-	assert(valSpec.Value.dtype == "*astBasicLit", "const value should be a literal", __func__)
+	assert(isExprBasicLit(valSpec.Value), "const value should be a literal", __func__)
 	emitExprIfc(valSpec.Value, ctx)
 }
 
@@ -5980,6 +5983,18 @@ type depEntry struct {
 func isExprTypeAssertExpr(e *astExpr) bool {
 	var ok bool
 	_, ok = e.ifc.(*astTypeAssertExpr)
+	return ok
+}
+
+func isExprBasicLit(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astBasicLit)
+	return ok
+}
+
+func isExprEllipsis(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astEllipsis)
 	return ok
 }
 
