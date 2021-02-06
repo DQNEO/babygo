@@ -437,7 +437,6 @@ type astObject struct {
 
 type astExpr struct {
 	ifc            interface{}
-	//unaryExpr      *astUnaryExpr
 }
 
 type astField struct {
@@ -543,8 +542,6 @@ type astFuncType struct {
 
 type astStmt struct {
 	ifc            interface{}
-	isRange        bool
-
 }
 
 type astDeclStmt struct {
@@ -561,9 +558,10 @@ type astIncDecStmt struct {
 }
 
 type astAssignStmt struct {
-	Lhs []*astExpr
-	Tok string
-	Rhs []*astExpr
+	Lhs     []*astExpr
+	Tok     string
+	Rhs     []*astExpr
+	isRange bool
 }
 
 type astReturnStmt struct {
@@ -1542,7 +1540,10 @@ func (p *parser) parseForStmt() *astStmt {
 	if p.tok.tok != "{" {
 		if p.tok.tok != ";" {
 			s2 = p.parseSimpleStmt(true)
-			isRange = s2.isRange
+			var isAssign bool
+			var assign *astAssignStmt
+			assign, isAssign = s2.ifc.(*astAssignStmt)
+			isRange = isAssign && assign.isRange
 			logf(" [%s] isRange=true\n", __func__)
 		}
 		if !isRange && p.tok.tok == ";" {
@@ -1744,8 +1745,8 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 		as.Lhs = x
 		as.Rhs = make([]*astExpr, 1, 1)
 		as.Rhs[0] = y
+		as.isRange = isRange
 		s := newStmt(as)
-		s.isRange = isRange
 		if as.Tok == ":=" {
 			lhss := x
 			for _, lhs := range lhss {
