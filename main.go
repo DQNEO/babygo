@@ -436,25 +436,25 @@ type astObject struct {
 }
 
 type astExpr struct {
-	dtype         string
-	ifc           interface{}
-	ident         *astIdent
-	arrayType     *astArrayType
-	basicLit      *astBasicLit
-	callExpr      *astCallExpr
-	binaryExpr    *astBinaryExpr
-	unaryExpr     *astUnaryExpr
-	selectorExpr  *astSelectorExpr
-	indexExpr     *astIndexExpr
-	sliceExpr     *astSliceExpr
-	starExpr      *astStarExpr
-	parenExpr     *astParenExpr
-	structType    *astStructType
-	compositeLit  *astCompositeLit
-	keyValueExpr  *astKeyValueExpr
-	ellipsis      *astEllipsis
-	interfaceType *astInterfaceType
-	typeAssertExpr    *astTypeAssertExpr
+	ifc            interface{}
+	ident          *astIdent
+	arrayType      *astArrayType
+	basicLit       *astBasicLit
+	callExpr       *astCallExpr
+	binaryExpr     *astBinaryExpr
+	unaryExpr      *astUnaryExpr
+	selectorExpr   *astSelectorExpr
+	indexExpr      *astIndexExpr
+	sliceExpr      *astSliceExpr
+	starExpr       *astStarExpr
+	parenExpr      *astParenExpr
+	structType     *astStructType
+	compositeLit   *astCompositeLit
+	keyValueExpr   *astKeyValueExpr
+	ellipsis       *astEllipsis
+	interfaceType  *astInterfaceType
+	typeAssertExpr *astTypeAssertExpr
+	dtype          string
 }
 
 type astField struct {
@@ -3559,7 +3559,7 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 }
 
 func isBlankIdentifier(e *astExpr) bool {
-	if e.dtype != "*astIdent" {
+	if !isExprIdent(e) {
 		return false
 	}
 	return e.ident.Name == "_"
@@ -3604,7 +3604,7 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 }
 
 func emitStmt(stmt *astStmt) {
-	emitComment(2, "== Statement %s ==\n", stmt.dtype)
+	emitComment(2, "== Statement %s ==\n", dtypeOf(stmt))
 	switch dtypeOf(stmt) {
 	case "*astBlockStmt":
 		for _, stmt2 := range stmt.blockStmt.List {
@@ -3867,7 +3867,7 @@ func emitStmt(stmt *astStmt) {
 		emitComment(2, "Start comparison with cases\n")
 		for i, c := range cases {
 			emitComment(2, "CASES idx=%s\n", strconv.Itoa(i))
-			assert(c.dtype == "*astCaseClause", "should be *astCaseClause", __func__)
+			assert(dtypeOf(c) == "*astCaseClause", "should be *astCaseClause", __func__)
 			var cc = c.caseClause
 			labelid++
 			var labelCase = ".L.case." + strconv.Itoa(labelid)
@@ -3899,7 +3899,7 @@ func emitStmt(stmt *astStmt) {
 
 		emitRevertStackTop(condType)
 		for i, c := range cases {
-			assert(c.dtype == "*astCaseClause", "should be *astCaseClause", __func__)
+			assert(dtypeOf(c) == "*astCaseClause", "should be *astCaseClause", __func__)
 			var cc = c.caseClause
 			myfmt.Printf("%s:\n", labels[i])
 			for _, _s := range cc.Body {
@@ -3995,7 +3995,7 @@ func emitStmt(stmt *astStmt) {
 			case "*astRangeStmt":
 				labelToGo = containerFor.rangeStmt.labelPost
 			default:
-				panic2(__func__, "unexpected container dtype="+containerFor.dtype)
+				panic2(__func__, "unexpected container dtype="+dtypeOf(containerFor))
 			}
 			myfmt.Printf("jmp %s # continue\n", labelToGo)
 		case "break":
@@ -4005,14 +4005,14 @@ func emitStmt(stmt *astStmt) {
 			case "*astRangeStmt":
 				labelToGo = containerFor.rangeStmt.labelExit
 			default:
-				panic2(__func__, "unexpected container dtype="+containerFor.dtype)
+				panic2(__func__, "unexpected container dtype="+dtypeOf(containerFor))
 			}
 			myfmt.Printf("jmp %s # break\n", labelToGo)
 		default:
 			panic2(__func__, "unexpected tok="+stmt.branchStmt.Tok)
 		}
 	default:
-		panic2(__func__, "TBI:"+stmt.dtype)
+		panic2(__func__, "TBI:"+dtypeOf(stmt))
 	}
 }
 
@@ -4430,7 +4430,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "*astInterfaceType":
 			return tEface
 		default:
-			panic2(__func__, "[astCallExpr] dtype="+expr.callExpr.Fun.dtype)
+			panic2(__func__, "[astCallExpr] dtype="+ dtypeOf(expr.callExpr.Fun))
 		}
 	case "*astSliceExpr":
 		var underlyingCollectionType = getTypeOfExpr(expr.sliceExpr.X)
@@ -4439,7 +4439,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			return tString
 		}
 		var elementTyp *astExpr
-		switch underlyingCollectionType.e.dtype {
+		switch dtypeOf(underlyingCollectionType.e) {
 		case "*astArrayType":
 			elementTyp = underlyingCollectionType.e.arrayType.Elt
 		}
@@ -4483,7 +4483,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	case "*astInterfaceType":
 		return tEface
 	default:
-		panic2(__func__, "TBI:dtype="+expr.dtype)
+		panic2(__func__, "TBI:dtype="+dtypeOf(expr))
 	}
 
 	panic2(__func__, "nil type is not allowed\n")
@@ -4736,10 +4736,7 @@ func setStructFieldOffset(field *astField, offset int) {
 }
 
 func getStructFields(structTypeSpec *astTypeSpec) []*astField {
-	if structTypeSpec.Type.dtype != "*astStructType" {
-		panic2(__func__, "Unexpected dtype")
-	}
-	var structType = structTypeSpec.Type.structType
+	var structType = expr2StructType(structTypeSpec.Type)
 	return structType.Fields.List
 }
 
@@ -4747,11 +4744,7 @@ func getStructTypeSpec(namedStructType *Type) *astTypeSpec {
 	if kind(namedStructType) != T_STRUCT {
 		panic2(__func__, "not T_STRUCT")
 	}
-	if namedStructType.e.dtype != "*astIdent" {
-		panic2(__func__, "astIdent expected got " + namedStructType.e.dtype)
-	}
-
-	var ident = namedStructType.e.ident
+	ident := expr2Ident(namedStructType.e)
 	var typeSpec *astTypeSpec
 	var ok bool
 	typeSpec , ok = ident.Obj.Decl.(*astTypeSpec)
@@ -4987,7 +4980,7 @@ func lookupMethod(rcvT *Type, methodName *astIdent) *Method {
 }
 
 func walkStmt(stmt *astStmt) {
-	logf(" [%s] begin dtype=%s\n", __func__, stmt.dtype)
+	logf(" [%s] begin dtype=%s\n", __func__, dtypeOf(stmt))
 	switch dtypeOf(stmt) {
 	case "*astDeclStmt":
 		logf(" [%s] *ast.DeclStmt\n", __func__)
@@ -5020,7 +5013,7 @@ func walkStmt(stmt *astStmt) {
 		}
 		var typ = valSpec.Type // Type can be nil
 		logf(" [walkStmt] valSpec Name=%s, Type=%s\n",
-			valSpec.Name.Name, typ.dtype)
+			valSpec.Name.Name, dtypeOf(typ))
 
 		t := e2t(typ)
 		valSpec.Name.Obj.Variable = currentFunc.registerLocalVariable(valSpec.Name.Name, t)
@@ -5043,7 +5036,7 @@ func walkStmt(stmt *astStmt) {
 			} else {
 				panic("type inference is not supported: " + obj.Name)
 			}
-			logf("infered type of %s is %s, rhs=%s\n", obj.Name, typ.e.dtype, rhs.dtype)
+			logf("infered type of %s is %s, rhs=%s\n", obj.Name, dtypeOf(typ.e), dtypeOf(rhs))
 			obj.Variable = currentFunc.registerLocalVariable(obj.Name, typ)
 		} else {
 			walkExpr(rhs)
@@ -5126,7 +5119,7 @@ func walkStmt(stmt *astStmt) {
 		typeSwitch := &nodeTypeSwitchStmt{}
 		stmt.typeSwitchStmt.node = typeSwitch
 		var assignIdent *astIdent
-		switch s.Assign.dtype {
+		switch dtypeOf(s.Assign) {
 		case "*astExprStmt":
 			typeAssertExpr := s.Assign.exprStmt.X.typeAssertExpr
 			//assert(ok, "should be *ast.TypeAssertExpr")
@@ -6005,6 +5998,16 @@ func expr2KeyValueExpr(e *astExpr) *astKeyValueExpr {
 	r, ok = e.ifc.(*astKeyValueExpr)
 	if ! ok {
 		panic("Not *astKeyValueExpr")
+	}
+	return r
+}
+
+func expr2StructType(e *astExpr) *astStructType {
+	var r *astStructType
+	var ok bool
+	r, ok = e.ifc.(*astStructType)
+	if ! ok {
+		panic("Not *astStructType")
 	}
 	return r
 }
