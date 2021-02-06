@@ -440,7 +440,6 @@ type astExpr struct {
 	ident          *astIdent
 	callExpr       *astCallExpr
 	unaryExpr      *astUnaryExpr
-	selectorExpr   *astSelectorExpr
 }
 
 type astField struct {
@@ -2286,22 +2285,22 @@ func emitAddr(expr *astExpr) {
 	case *astStarExpr:
 		emitExpr(expr2StarExpr(expr).X, nil)
 	case *astSelectorExpr: // (X).Sel
-		var typeOfX = getTypeOfExpr(expr.selectorExpr.X)
+		var typeOfX = getTypeOfExpr(e.X)
 		var structType *Type
 		switch kind(typeOfX) {
 		case T_STRUCT:
 			// strct.field
 			structType = typeOfX
-			emitAddr(expr.selectorExpr.X)
+			emitAddr(e.X)
 		case T_POINTER:
 			// ptr.field
 			var ptrType = expr2StarExpr(typeOfX.e)
 			structType = e2t(ptrType.X)
-			emitExpr(expr.selectorExpr.X, nil)
+			emitExpr(e.X, nil)
 		default:
 			panic2(__func__, "TBI:"+kind(typeOfX))
 		}
-		var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
+		var field = lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		var offset = getStructFieldOffset(field)
 		emitAddConst(offset, "struct head address + struct.field offset")
 	case *astCompositeLit:
@@ -2722,7 +2721,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 	var symbol string
 	var receiver *astExpr
 	var funcType *astFuncType
-	switch fun.ifc.(type)  {
+	switch fn := fun.ifc.(type)  {
 	case *astIdent:
 		emitComment(2, "[%s][*astIdent]\n", __func__)
 		var fnIdent = fun.ident
@@ -2829,7 +2828,6 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 			return
 		}
 
-		var fn = fun.ident
 		if fn.Name == "print" {
 			emitExpr(eArgs[0], nil)
 			myfmt.Printf("  callq runtime.printstring\n")
@@ -2865,7 +2863,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 		}
 		funcType = fndecl.Type
 	case *astSelectorExpr:
-		var selectorExpr = fun.selectorExpr
+		var selectorExpr = fn
 		if !isExprIdent(selectorExpr.X) {
 			panic2(__func__, "TBI selectorExpr.X="+ dtypeOf(selectorExpr.X))
 		}
@@ -2982,9 +2980,9 @@ func emitExpr(expr *astExpr, ctx *evalContext) bool {
 		emitAddr(expr)
 		emitLoad(getTypeOfExpr(expr))
 	case *astSelectorExpr:
-		x := expr.selectorExpr.X
+		x := e.X
 		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
-			ident := lookupForeignVar(expr2Ident(x).Name, expr.selectorExpr.Sel.Name)
+			ident := lookupForeignVar(expr2Ident(x).Name, e.Sel.Name)
 			e := newExpr(ident)
 			emitExpr(e, ctx)
 		} else {
@@ -4373,14 +4371,14 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case *astArrayType:
 			return e2t(fun)
 		case *astSelectorExpr: // (X).Sel()
-			xIdent := expr2Ident(fun.selectorExpr.X)
-			symbol := xIdent.Name + "." + fun.selectorExpr.Sel.Name
+			xIdent := expr2Ident(fn.X)
+			symbol := xIdent.Name + "." + fn.Sel.Name
 			switch symbol {
 			case "unsafe.Pointer":
 				// unsafe.Pointer(x)
 				return tUintptr
 			default:
-				fn := fun.selectorExpr
+				fn := fn
 				xIdent := fn.X.ident
 				if xIdent.Obj == nil {
 					panic2(__func__,  "xIdent.Obj should not be nil")
@@ -4389,8 +4387,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 					funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
 					return e2t(funcdecl.Type.Results.List[0].Type)
 				} else {
-					var xType = getTypeOfExpr(fun.selectorExpr.X)
-					var method = lookupMethod(xType, fun.selectorExpr.Sel)
+					var xType = getTypeOfExpr(fn.X)
+					var method = lookupMethod(xType, fn.Sel)
 					assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value", __func__)
 					return e2t(method.funcType.Results.List[0].Type)
 				}
@@ -4431,13 +4429,13 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			return getTypeOfExpr(binaryExpr.X)
 		}
 	case *astSelectorExpr:
-		x := expr.selectorExpr.X
+		x := e.X
 		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
-			ident := lookupForeignVar(expr.selectorExpr.X.ident.Name, expr.selectorExpr.Sel.Name)
+			ident := lookupForeignVar(e.X.ident.Name, e.Sel.Name)
 			return getTypeOfExpr(newExpr(ident))
 		} else {
-			var structType = getStructTypeOfX(expr.selectorExpr)
-			var field = lookupStructField(getStructTypeSpec(structType), expr.selectorExpr.Sel.Name)
+			var structType = getStructTypeOfX(e)
+			var field = lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 			return e2t(field.Type)
 		}
 	case *astCompositeLit:
@@ -4585,7 +4583,7 @@ func kind(t *Type) string {
 	case *astParenExpr:
 		panic(dtypeOf(e))
 	case *astSelectorExpr:
-		full := t.e.selectorExpr.X.ident.Name + "." + t.e.selectorExpr.Sel.Name
+		full := e.X.ident.Name + "." + e.Sel.Name
 		if full == "unsafe.Pointer" {
 			return T_POINTER
 		} else {
@@ -6024,8 +6022,6 @@ func newExpr(x interface{}) *astExpr {
 		r.callExpr = xx
 	case *astUnaryExpr:
 		r.unaryExpr = xx
-	case *astSelectorExpr:
-		r.selectorExpr = xx
 	}
 	return r
 }
