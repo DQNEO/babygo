@@ -438,7 +438,6 @@ type astObject struct {
 type astExpr struct {
 	ifc            interface{}
 	ident          *astIdent
-	arrayType      *astArrayType
 	basicLit       *astBasicLit
 	callExpr       *astCallExpr
 	binaryExpr     *astBinaryExpr
@@ -2406,7 +2405,7 @@ func emitConversion(toType *Type, arg0 *astExpr) {
 			}
 		}
 	case "*astArrayType": // Conversion to slice
-		var arrayType = to.arrayType
+		var arrayType = expr2ArrayType(to)
 		if arrayType.Len != nil {
 			panic2(__func__, "internal error")
 		}
@@ -2465,7 +2464,7 @@ func emitLen(arg *astExpr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
 		var typ = getTypeOfExpr(arg)
-		var arrayType = typ.e.arrayType
+		var arrayType = expr2ArrayType(typ.e)
 		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
 		emitExpr(arg, nil)
@@ -2485,7 +2484,7 @@ func emitCap(arg *astExpr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
 		var typ = getTypeOfExpr(arg)
-		var arrayType = typ.e.arrayType
+		var arrayType = expr2ArrayType(typ.e)
 		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
 		emitExpr(arg, nil)
@@ -2774,7 +2773,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 			switch kind(typeArg) {
 			case T_SLICE:
 				// make([]T, ...)
-				var arrayType = typeArg.e.arrayType
+				var arrayType = expr2ArrayType(typeArg.e)
 				//assert(ok, "should be *ast.ArrayType")
 				var elmSize = getSizeOfType(e2t(arrayType.Elt))
 				var numlit = newNumberLiteral(elmSize)
@@ -4440,7 +4439,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		var elementTyp *astExpr
 		switch dtypeOf(underlyingCollectionType.e) {
 		case "*astArrayType":
-			elementTyp = underlyingCollectionType.e.arrayType.Elt
+			elementTyp = expr2ArrayType(underlyingCollectionType.e).Elt
 		}
 		var t = &astArrayType{}
 		t.Len = nil
@@ -4544,7 +4543,7 @@ func serializeType(t *Type) string {
 	case "*astStructType":
 		return "struct"
 	case "*astArrayType":
-		e := t.e.arrayType
+		e := expr2ArrayType(t.e)
 		if e.Len == nil {
 			if e.Elt == nil {
 				panic(e)
@@ -4608,7 +4607,7 @@ func kind(t *Type) string {
 	case "*astStructType":
 		return T_STRUCT
 	case "*astArrayType":
-		if e.arrayType.Len == nil {
+		if expr2ArrayType(e).Len == nil {
 			return T_SLICE
 		} else {
 			return T_ARRAY
@@ -4661,7 +4660,7 @@ func getElementTypeOfListType(t *Type) *Type {
 	case T_SLICE, T_ARRAY:
 		switch dtypeOf(t.e) {
 	case "*astArrayType":
-		return e2t(t.e.arrayType.Elt)
+		return e2t(expr2ArrayType(t.e).Elt)
 	case "*astEllipsis":
 		return e2t(t.e.ellipsis.Elt)
 	default:
@@ -4684,8 +4683,9 @@ func getSizeOfType(t *Type) int {
 	case T_STRING:
 		return 16
 	case T_ARRAY:
-		var elemSize = getSizeOfType(e2t(t.e.arrayType.Elt))
-		return elemSize * evalInt(t.e.arrayType.Len)
+		arrayType := expr2ArrayType(t.e)
+		var elemSize = getSizeOfType(e2t(arrayType.Elt))
+		return elemSize * evalInt(arrayType.Len)
 	case T_INT, T_UINTPTR, T_POINTER:
 		return 8
 	case T_UINT8:
@@ -6117,8 +6117,6 @@ func newExpr(x interface{}) *astExpr {
 	switch xx := x.(type) {
 	case *astIdent:
 		r.ident = xx
-	case *astArrayType:
-		r.arrayType = xx
 	case *astBasicLit:
 		r.basicLit = xx
 	case *astCallExpr:
