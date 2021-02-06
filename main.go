@@ -1567,7 +1567,7 @@ func (p *parser) parseForStmt() *astStmt {
 	var as *astAssignStmt
 	var rangeX *astExpr
 	if isRange {
-		assert(dtypeOf(s2) == "*astAssignStmt", "type mismatch", __func__)
+		assert(isStmtAssignStmt(s2), "type mismatch:" + dtypeOf(s2), __func__)
 		as = stmt2AssignStmt(s2)
 		logf(" [DEBUG] range as len lhs=%s\n", strconv.Itoa(len(as.Lhs)))
 		var key *astExpr
@@ -3821,7 +3821,7 @@ func emitStmt(stmt *astStmt) {
 		emitComment(2, "Start comparison with cases\n")
 		for i, c := range cases {
 			emitComment(2, "CASES idx=%s\n", strconv.Itoa(i))
-			assert(dtypeOf(c) == "*astCaseClause", "should be *astCaseClause", __func__)
+			assert(isStmtCaseClause(c), "should be *astCaseClause", __func__)
 			cc := stmt2CaseClause(c)
 			labelid++
 			var labelCase = ".L.case." + strconv.Itoa(labelid)
@@ -3853,7 +3853,7 @@ func emitStmt(stmt *astStmt) {
 
 		emitRevertStackTop(condType)
 		for i, c := range cases {
-			assert(dtypeOf(c) == "*astCaseClause", "should be *astCaseClause", __func__)
+			assert(isStmtCaseClause(c), "should be *astCaseClause", __func__)
 			var cc = stmt2CaseClause(c)
 			myfmt.Printf("%s:\n", labels[i])
 			for _, _s := range cc.Body {
@@ -5882,6 +5882,18 @@ func newStmt(x interface{}) *astStmt {
 	return &astStmt{
 		ifc: x,
 	}
+}
+
+func isStmtAssignStmt(s *astStmt) bool {
+	var ok bool
+	_, ok = s.ifc.(*astAssignStmt)
+	return ok
+}
+
+func isStmtCaseClause(s *astStmt) bool {
+	var ok bool
+	_, ok = s.ifc.(*astCaseClause)
+	return ok
 }
 
 func stmt2AssignStmt(s *astStmt) *astAssignStmt {
