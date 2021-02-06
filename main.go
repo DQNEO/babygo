@@ -450,7 +450,6 @@ type astExpr struct {
 	keyValueExpr   *astKeyValueExpr
 	ellipsis       *astEllipsis
 	interfaceType  *astInterfaceType
-	typeAssertExpr *astTypeAssertExpr
 }
 
 type astField struct {
@@ -3301,12 +3300,11 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			panic2(__func__, "Unexpected kind="+k)
 		}
 	case "*astTypeAssertExpr":
-		emitExpr(e.typeAssertExpr.X, nil)
+		emitExpr(expr2TypeAssertExpr(e).X, nil)
 		myfmt.Printf("  popq  %%rax # ifc.dtype\n")
 		myfmt.Printf("  popq  %%rcx # ifc.data\n")
 		myfmt.Printf("  pushq %%rax # ifc.data\n")
-
-		typ := e2t(e.typeAssertExpr.Type)
+		typ := e2t(expr2TypeAssertExpr(e).Type)
 		sType := serializeType(typ)
 		_id := getTypeId(sType)
 		typeSymbol := typeIdToSymbol(_id)
@@ -3327,18 +3325,18 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		if ctx.okContext != nil {
 			emitComment(2, " double value context\n")
 			if ctx.okContext.needMain {
-				emitExpr(e.typeAssertExpr.X, nil)
+				emitExpr(expr2TypeAssertExpr(e).X, nil)
 				myfmt.Printf("  popq %%rax # garbage\n")
-				emitLoad(e2t(e.typeAssertExpr.Type)) // load dynamic data
+				emitLoad(e2t(expr2TypeAssertExpr(e).Type)) // load dynamic data
 			}
 			if ctx.okContext.needOk {
 				myfmt.Printf("  pushq $1 # ok = true\n")
 			}
 		} else {
 			emitComment(2, " single value context\n")
-			emitExpr(e.typeAssertExpr.X, nil)
+			emitExpr(expr2TypeAssertExpr(e).X, nil)
 			myfmt.Printf("  popq %%rax # garbage\n")
-			emitLoad(e2t(e.typeAssertExpr.Type)) // load dynamic data
+			emitLoad(e2t(expr2TypeAssertExpr(e).Type)) // load dynamic data
 		}
 
 		// exit
@@ -4458,7 +4456,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	case "*astParenExpr":
 		return getTypeOfExpr(expr.parenExpr.X)
 	case "*astTypeAssertExpr":
-		return e2t(expr.typeAssertExpr.Type)
+		return e2t(expr2TypeAssertExpr(expr).Type)
 	case "*astInterfaceType":
 		return tEface
 	default:
@@ -5101,7 +5099,7 @@ func walkStmt(stmt *astStmt) {
 		var assignIdent *astIdent
 		switch dtypeOf(s.Assign) {
 		case "*astExprStmt":
-			typeAssertExpr := s.Assign.exprStmt.X.typeAssertExpr
+			typeAssertExpr := expr2TypeAssertExpr(s.Assign.exprStmt.X)
 			//assert(ok, "should be *ast.TypeAssertExpr")
 			typeSwitch.subject = typeAssertExpr.X
 			walkExpr(typeAssertExpr.X)
@@ -5112,7 +5110,7 @@ func walkStmt(stmt *astStmt) {
 			//assert(ok, "lhs should be ident")
 			typeSwitch.assignIdent = assignIdent
 			// ident will be a new local variable in each case clause
-			typeAssertExpr := s.Assign.assignStmt.Rhs[0].typeAssertExpr
+			typeAssertExpr := expr2TypeAssertExpr(s.Assign.assignStmt.Rhs[0])
 			//assert(ok, "should be *ast.TypeAssertExpr")
 			typeSwitch.subject = typeAssertExpr.X
 			walkExpr(typeAssertExpr.X)
@@ -5224,7 +5222,7 @@ func walkExpr(expr *astExpr) {
 	case "*astInterfaceType":
 		// interface{}(e)  conversion. Nothing to do.
 	case "*astTypeAssertExpr":
-		walkExpr(expr.typeAssertExpr.X)
+		walkExpr(expr2TypeAssertExpr(expr).X)
 	default:
 		panic2(__func__, "TBI:"+dtypeOf(expr))
 	}
@@ -6152,8 +6150,6 @@ func newExpr(x interface{}) *astExpr {
 		r.ellipsis = xx
 	case *astInterfaceType:
 		r.interfaceType = xx
-	case *astTypeAssertExpr:
-		r.typeAssertExpr = xx
 	}
 	return r
 }
