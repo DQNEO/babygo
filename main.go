@@ -438,7 +438,6 @@ type astObject struct {
 type astExpr struct {
 	ifc            interface{}
 	ident          *astIdent
-	basicLit       *astBasicLit
 	callExpr       *astCallExpr
 	binaryExpr     *astBinaryExpr
 	unaryExpr      *astUnaryExpr
@@ -2158,7 +2157,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 func evalInt(expr *astExpr) int {
 	switch dtypeOf(expr) {
 	case "*astBasicLit":
-		return strconv.Atoi(expr.basicLit.Value)
+		return strconv.Atoi(expr2BasicLit(expr).Value)
 	}
 	return 0
 }
@@ -3034,12 +3033,13 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		emitExpr(e.parenExpr.X, ctx)
 	case "*astBasicLit":
 		//		emitComment(0, "basicLit.Kind = %s \n", e.basicLit.Kind)
-		switch e.basicLit.Kind {
+		basicLit := expr2BasicLit(e)
+		switch basicLit.Kind {
 		case "INT":
-			var ival = strconv.Atoi(e.basicLit.Value)
+			var ival = strconv.Atoi(basicLit.Value)
 			myfmt.Printf("  pushq $%d # number literal\n", strconv.Itoa(ival))
 		case "STRING":
-			var sl = getStringLiteral(e.basicLit)
+			var sl = getStringLiteral(basicLit)
 			if sl.strlen == 0 {
 				// zero value
 				emitZeroValue(tString)
@@ -3049,7 +3049,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 				myfmt.Printf("  pushq %%rax # str ptr\n")
 			}
 		case "CHAR":
-			var val = e.basicLit.Value
+			var val = basicLit.Value
 			var char = val[1]
 			if val[1] == '\\' {
 				switch val[2] {
@@ -3067,7 +3067,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			}
 			myfmt.Printf("  pushq $%d # convert char literal to int\n", strconv.Itoa(int(char)))
 		default:
-			panic2(__func__, "[*astBasicLit] TBI : "+e.basicLit.Kind)
+			panic2(__func__, "[*astBasicLit] TBI : "+basicLit.Kind)
 		}
 	case "*astSliceExpr":
 		var list = e.sliceExpr.X
@@ -4088,7 +4088,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		}
 		switch dtypeOf(val) {
 		case "*astBasicLit":
-			var sl = getStringLiteral(val.basicLit)
+			var sl = getStringLiteral(expr2BasicLit(val))
 			myfmt.Printf("  .quad %s\n", sl.label)
 			myfmt.Printf("  .quad %d\n", strconv.Itoa(sl.strlen))
 		default:
@@ -4123,7 +4123,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		}
 		switch dtypeOf(val) {
 		case "*astBasicLit":
-			myfmt.Printf("  .quad %s\n", val.basicLit.Value)
+			myfmt.Printf("  .quad %s\n", expr2BasicLit(val).Value)
 		default:
 			panic("Unsupported global value")
 		}
@@ -4134,7 +4134,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		}
 		switch dtypeOf(val) {
 		case "*astBasicLit":
-			myfmt.Printf("  .byte %s\n", val.basicLit.Value)
+			myfmt.Printf("  .byte %s\n", expr2BasicLit(val).Value)
 		default:
 			panic("Unsupported global value")
 		}
@@ -4145,7 +4145,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		}
 		switch dtypeOf(val) {
 		case "*astBasicLit":
-			myfmt.Printf("  .word %s\n", val.basicLit.Value)
+			myfmt.Printf("  .word %s\n", expr2BasicLit(val).Value)
 		default:
 			panic("Unsupported global value")
 		}
@@ -4320,7 +4320,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			panic2(__func__, "2:Obj=" + expr.ident.Obj.Name + expr.ident.Obj.Kind)
 		}
 	case "*astBasicLit":
-		switch expr.basicLit.Kind {
+		basicLit := expr2BasicLit(expr)
+		switch basicLit.Kind {
 		case "STRING":
 			return tString
 		case "INT":
@@ -4328,7 +4329,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case "CHAR":
 			return tInt32
 		default:
-			panic2(__func__, "TBI:"+expr.basicLit.Kind)
+			panic2(__func__, "TBI:"+basicLit.Kind)
 		}
 	case "*astIndexExpr":
 		var list = expr.indexExpr.X
@@ -5201,9 +5202,10 @@ func walkExpr(expr *astExpr) {
 			walkExpr(arg)
 		}
 	case "*astBasicLit":
-		switch expr.basicLit.Kind {
+		basicLit := expr2BasicLit(expr)
+		switch basicLit.Kind {
 		case "STRING":
-			registerStringLiteral(expr.basicLit)
+			registerStringLiteral(basicLit)
 		}
 	case "*astCompositeLit":
 		for _, v := range expr.compositeLit.Elts {
@@ -5980,6 +5982,15 @@ func expr2ArrayType(e *astExpr) *astArrayType {
 	return r
 }
 
+func expr2BasicLit(e *astExpr) *astBasicLit {
+	var r *astBasicLit
+	var ok bool
+	r, ok = e.ifc.(*astBasicLit)
+	if ! ok {
+		panic("Not *astBasicLit")
+	}
+	return r
+}
 
 func expr2StarExpr(e *astExpr) *astStarExpr {
 	var r *astStarExpr
@@ -6117,8 +6128,6 @@ func newExpr(x interface{}) *astExpr {
 	switch xx := x.(type) {
 	case *astIdent:
 		r.ident = xx
-	case *astBasicLit:
-		r.basicLit = xx
 	case *astCallExpr:
 		r.callExpr = xx
 	case *astBinaryExpr:
