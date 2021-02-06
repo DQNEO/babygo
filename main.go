@@ -2943,16 +2943,16 @@ type evalContext struct {
 	_type     *Type
 }
 
-func emitExpr(e *astExpr, ctx *evalContext) bool {
+func emitExpr(expr *astExpr, ctx *evalContext) bool {
 	var isNilObject bool
-	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(e))
-	switch expr := e.ifc.(type)  {
+	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(expr))
+	switch e := expr.ifc.(type)  {
 	case *astIdent:
-		var ident = e.ident
+		var ident = expr.ident
 		if ident.Obj == nil {
 			panic2(__func__, "ident unresolved:"+ident.Name)
 		}
-		switch e.ident.Obj {
+		switch expr.ident.Obj {
 		case gTrue:
 			emitTrue()
 		case gFalse:
@@ -2966,8 +2966,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		default:
 			switch ident.Obj.Kind {
 			case astVar:
-				emitAddr(e)
-				var t = getTypeOfExpr(e)
+				emitAddr(expr)
+				var t = getTypeOfExpr(expr)
 				emitLoad(t)
 			case astCon:
 				emitNamedConst(ident, ctx)
@@ -2978,34 +2978,34 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			}
 		}
 	case *astIndexExpr:
-		emitAddr(e)
-		emitLoad(getTypeOfExpr(e))
+		emitAddr(expr)
+		emitLoad(getTypeOfExpr(expr))
 	case *astStarExpr:
-		emitAddr(e)
-		emitLoad(getTypeOfExpr(e))
+		emitAddr(expr)
+		emitLoad(getTypeOfExpr(expr))
 	case *astSelectorExpr:
-		x := e.selectorExpr.X
+		x := expr.selectorExpr.X
 		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
-			ident := lookupForeignVar(expr2Ident(x).Name, e.selectorExpr.Sel.Name)
+			ident := lookupForeignVar(expr2Ident(x).Name, expr.selectorExpr.Sel.Name)
 			e := newExpr(ident)
 			emitExpr(e, ctx)
 		} else {
-			emitAddr(e)
-			emitLoad(getTypeOfExpr(e))
+			emitAddr(expr)
+			emitLoad(getTypeOfExpr(expr))
 		}
 	case *astCallExpr:
-		var fun = e.callExpr.Fun
+		var fun = expr.callExpr.Fun
 		emitComment(2, "[%s][*astCallExpr]\n", __func__)
 		if isType(fun) {
-			emitConversion(e2t(fun), e.callExpr.Args[0])
+			emitConversion(e2t(fun), expr.callExpr.Args[0])
 		} else {
-			emitFuncall(fun, e.callExpr.Args, e.callExpr.Ellipsis)
+			emitFuncall(fun, expr.callExpr.Args, expr.callExpr.Ellipsis)
 		}
 	case *astParenExpr:
-		emitExpr(expr.X, ctx)
+		emitExpr(e.X, ctx)
 	case *astBasicLit:
-		//		emitComment(0, "basicLit.Kind = %s \n", e.basicLit.Kind)
-		basicLit := expr2BasicLit(e)
+		//		emitComment(0, "basicLit.Kind = %s \n", expr.basicLit.Kind)
+		basicLit := expr2BasicLit(expr)
 		switch basicLit.Kind {
 		case "INT":
 			var ival = strconv.Atoi(basicLit.Value)
@@ -3042,14 +3042,14 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			panic2(__func__, "[*astBasicLit] TBI : "+basicLit.Kind)
 		}
 	case *astSliceExpr:
-		var list = e.sliceExpr.X
+		var list = expr.sliceExpr.X
 		var listType = getTypeOfExpr(list)
 
 		// For convenience, any of the indices may be omitted.
 		// A missing low index defaults to zero;
 		var low *astExpr
-		if e.sliceExpr.Low != nil {
-			low = e.sliceExpr.Low
+		if expr.sliceExpr.Low != nil {
+			low = expr.sliceExpr.Low
 		} else {
 			low = eZeroInt
 		}
@@ -3059,9 +3059,9 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 
 		switch kind(listType) {
 		case T_SLICE, T_ARRAY:
-			if e.sliceExpr.Max == nil {
+			if expr.sliceExpr.Max == nil {
 				// new cap = cap(operand) - low
-				emitCap(e.sliceExpr.X)
+				emitCap(expr.sliceExpr.X)
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
 				myfmt.Printf("  popq %%rax # orig_cap\n")
@@ -3069,11 +3069,11 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 				myfmt.Printf("  pushq %%rax # new cap\n")
 
 				// new len = high - low
-				if e.sliceExpr.High != nil {
-					emitExpr(e.sliceExpr.High, nil)
+				if expr.sliceExpr.High != nil {
+					emitExpr(expr.sliceExpr.High, nil)
 				} else {
 					// high = len(orig)
-					emitLen(e.sliceExpr.X)
+					emitLen(expr.sliceExpr.X)
 				}
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
@@ -3082,14 +3082,14 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 				myfmt.Printf("  pushq %%rax # new len\n")
 			} else {
 				// new cap = max - low
-				emitExpr(e.sliceExpr.Max, nil)
+				emitExpr(expr.sliceExpr.Max, nil)
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
 				myfmt.Printf("  popq %%rax # max\n")
 				myfmt.Printf("  subq %%rcx, %%rax # new cap = max - low\n")
 				myfmt.Printf("  pushq %%rax # new cap\n")
 				// new len = high - low
-				emitExpr(e.sliceExpr.High, nil)
+				emitExpr(expr.sliceExpr.High, nil)
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
 				myfmt.Printf("  popq %%rax # high\n")
@@ -3098,10 +3098,10 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			}
 		case T_STRING:
 			// new len = high - low
-			if e.sliceExpr.High != nil {
-				emitExpr(e.sliceExpr.High, nil)
+			if expr.sliceExpr.High != nil {
+				emitExpr(expr.sliceExpr.High, nil)
 			} else {
-				emitLen(e.sliceExpr.X)
+				emitLen(expr.sliceExpr.X)
 			}
 			emitExpr(low, nil)
 			myfmt.Printf("  popq %%rcx # low\n")
@@ -3117,25 +3117,25 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		var elmType = getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
 	case *astUnaryExpr:
-		emitComment(2, "[DEBUG] unary op = %s\n", e.unaryExpr.Op)
-		switch e.unaryExpr.Op {
+		emitComment(2, "[DEBUG] unary op = %s\n", expr.unaryExpr.Op)
+		switch expr.unaryExpr.Op {
 		case "+":
-			emitExpr(e.unaryExpr.X, nil)
+			emitExpr(expr.unaryExpr.X, nil)
 		case "-":
-			emitExpr(e.unaryExpr.X, nil)
+			emitExpr(expr.unaryExpr.X, nil)
 			myfmt.Printf("  popq %%rax # e.X\n")
 			myfmt.Printf("  imulq $-1, %%rax\n")
 			myfmt.Printf("  pushq %%rax\n")
 		case "&":
-			emitAddr(e.unaryExpr.X)
+			emitAddr(expr.unaryExpr.X)
 		case "!":
-			emitExpr(e.unaryExpr.X, nil)
+			emitExpr(expr.unaryExpr.X, nil)
 			emitInvertBoolValue()
 		default:
-			panic2(__func__, "TBI:astUnaryExpr:"+e.unaryExpr.Op)
+			panic2(__func__, "TBI:astUnaryExpr:"+expr.unaryExpr.Op)
 		}
 	case *astBinaryExpr:
-		binaryExpr := expr2BinaryExpr(e)
+		binaryExpr := expr2BinaryExpr(expr)
 
 		if kind(getTypeOfExpr(binaryExpr.X)) == T_STRING {
 			var args []*Arg
@@ -3272,18 +3272,18 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		}
 	case *astCompositeLit:
 		// slice , array, map or struct
-		var k = kind(e2t(expr.Type))
+		var k = kind(e2t(e.Type))
 		switch k {
 		case T_STRUCT:
-			emitStructLiteral(expr)
+			emitStructLiteral(e)
 		case T_ARRAY:
-			arrayType := expr2ArrayType(expr.Type)
+			arrayType := expr2ArrayType(e.Type)
 			var arrayLen = evalInt(arrayType.Len)
-			emitArrayLiteral(arrayType, arrayLen, expr.Elts)
+			emitArrayLiteral(arrayType, arrayLen, e.Elts)
 		case T_SLICE:
-			arrayType := expr2ArrayType(expr.Type)
-			var length = len(expr.Elts)
-			emitArrayLiteral(arrayType, length, expr.Elts)
+			arrayType := expr2ArrayType(e.Type)
+			var length = len(e.Elts)
+			emitArrayLiteral(arrayType, length, e.Elts)
 			emitPopAddress("malloc")
 			myfmt.Printf("  pushq $%d # slice.cap\n", strconv.Itoa(length))
 			myfmt.Printf("  pushq $%d # slice.len\n", strconv.Itoa(length))
@@ -3292,11 +3292,11 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			panic2(__func__, "Unexpected kind="+k)
 		}
 	case *astTypeAssertExpr:
-		emitExpr(expr2TypeAssertExpr(e).X, nil)
+		emitExpr(expr2TypeAssertExpr(expr).X, nil)
 		myfmt.Printf("  popq  %%rax # ifc.dtype\n")
 		myfmt.Printf("  popq  %%rcx # ifc.data\n")
 		myfmt.Printf("  pushq %%rax # ifc.data\n")
-		typ := e2t(expr2TypeAssertExpr(e).Type)
+		typ := e2t(expr2TypeAssertExpr(expr).Type)
 		sType := serializeType(typ)
 		_id := getTypeId(sType)
 		typeSymbol := typeIdToSymbol(_id)
@@ -3317,18 +3317,18 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		if ctx.okContext != nil {
 			emitComment(2, " double value context\n")
 			if ctx.okContext.needMain {
-				emitExpr(expr2TypeAssertExpr(e).X, nil)
+				emitExpr(expr2TypeAssertExpr(expr).X, nil)
 				myfmt.Printf("  popq %%rax # garbage\n")
-				emitLoad(e2t(expr2TypeAssertExpr(e).Type)) // load dynamic data
+				emitLoad(e2t(expr2TypeAssertExpr(expr).Type)) // load dynamic data
 			}
 			if ctx.okContext.needOk {
 				myfmt.Printf("  pushq $1 # ok = true\n")
 			}
 		} else {
 			emitComment(2, " single value context\n")
-			emitExpr(expr2TypeAssertExpr(e).X, nil)
+			emitExpr(expr2TypeAssertExpr(expr).X, nil)
 			myfmt.Printf("  popq %%rax # garbage\n")
-			emitLoad(e2t(expr2TypeAssertExpr(e).Type)) // load dynamic data
+			emitLoad(e2t(expr2TypeAssertExpr(expr).Type)) // load dynamic data
 		}
 
 		// exit
@@ -3351,7 +3351,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 
 		myfmt.Printf("  %s:\n", labelTypeAssertionEnd)
 	default:
-		panic2(__func__, "[emitExpr] `TBI:"+dtypeOf(e))
+		panic2(__func__, "[emitExpr] `TBI:"+dtypeOf(expr))
 	}
 
 	return isNilObject
