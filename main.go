@@ -454,7 +454,6 @@ type astExpr struct {
 	ellipsis       *astEllipsis
 	interfaceType  *astInterfaceType
 	typeAssertExpr *astTypeAssertExpr
-	dtype          string
 }
 
 type astField struct {
@@ -6117,55 +6116,38 @@ func newExpr(x interface{}) *astExpr {
 	}
 	switch xx := x.(type) {
 	case *astIdent:
-		r.dtype = "*astIdent"
 		r.ident = xx
 	case *astArrayType:
-		r.dtype = "*astArrayType"
 		r.arrayType = xx
 	case *astBasicLit:
-		r.dtype = "*astBasicLit"
 		r.basicLit = xx
 	case *astCallExpr:
-		r.dtype = "*astCallExpr"
 		r.callExpr = xx
 	case *astBinaryExpr:
-		r.dtype = "*astBinaryExpr"
 		r.binaryExpr = xx
 	case *astUnaryExpr:
-		r.dtype = "*astUnaryExpr"
 		r.unaryExpr = xx
 	case *astSelectorExpr:
-		r.dtype = "*astSelectorExpr"
 		r.selectorExpr = xx
 	case *astIndexExpr:
-		r.dtype = "*astIndexExpr"
 		r.indexExpr = xx
 	case *astSliceExpr:
-		r.dtype = "*astSliceExpr"
 		r.sliceExpr = xx
 	case *astStarExpr:
-		r.dtype = "*astStarExpr"
 		r.starExpr = xx
 	case *astParenExpr:
-		r.dtype = "*astParenExpr"
 		r.parenExpr = xx
 	case *astStructType:
-		r.dtype = "*astStructType"
 		r.structType = xx
 	case *astCompositeLit:
-		r.dtype = "*astCompositeLit"
 		r.compositeLit = xx
 	case *astKeyValueExpr:
-		r.dtype = "*astKeyValueExpr"
 		r.keyValueExpr = xx
 	case *astEllipsis:
-		r.dtype = "*astEllipsis"
 		r.ellipsis = xx
 	case *astInterfaceType:
-		r.dtype = "*astInterfaceType"
 		r.interfaceType = xx
 	case *astTypeAssertExpr:
-		r.dtype = "*astTypeAssertExpr"
 		r.typeAssertExpr = xx
 	}
 	return r
