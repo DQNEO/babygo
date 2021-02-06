@@ -436,8 +436,10 @@ type astObject struct {
 	Variable *Variable
 }
 
+type Expr interface{}
+
 type astExpr struct {
-	ifc            interface{}
+	ifc           Expr
 }
 
 type astField struct {
@@ -541,8 +543,10 @@ type astFuncType struct {
 	Results *astFieldList
 }
 
+type Stmt interface{}
+
 type astStmt struct {
-	ifc            interface{}
+	ifc Stmt
 }
 
 type astDeclStmt struct {
@@ -1374,7 +1378,7 @@ func (p *parser) parseLiteralValue(typ *astExpr) *astExpr {
 func dtypeOf(x interface{}) string {
 	switch xx := x.(type) {
 	case *astExpr:
-		return dtypeOfExpr(xx)
+		return dtypeOfExpr(xx.ifc)
 	case *astStmt:
 		return dtypeOfStmt(xx)
 	}
@@ -5932,9 +5936,8 @@ func dtypeOfStmt(stmt *astStmt) string {
 	return typ.String()
 }
 
-func dtypeOfExpr(expr *astExpr) string {
-	x := expr.ifc
-	typ := reflect.TypeOf(x)
+func dtypeOfExpr(ifc Expr) string {
+	typ := reflect.TypeOf(ifc)
 	return typ.String()
 }
 
