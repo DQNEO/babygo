@@ -442,7 +442,6 @@ type astExpr struct {
 	unaryExpr      *astUnaryExpr
 	selectorExpr   *astSelectorExpr
 	indexExpr      *astIndexExpr
-	sliceExpr      *astSliceExpr
 }
 
 type astField struct {
@@ -3042,14 +3041,14 @@ func emitExpr(expr *astExpr, ctx *evalContext) bool {
 			panic2(__func__, "[*astBasicLit] TBI : "+basicLit.Kind)
 		}
 	case *astSliceExpr:
-		var list = expr.sliceExpr.X
+		var list = e.X
 		var listType = getTypeOfExpr(list)
 
 		// For convenience, any of the indices may be omitted.
 		// A missing low index defaults to zero;
 		var low *astExpr
-		if expr.sliceExpr.Low != nil {
-			low = expr.sliceExpr.Low
+		if e.Low != nil {
+			low = e.Low
 		} else {
 			low = eZeroInt
 		}
@@ -3059,9 +3058,9 @@ func emitExpr(expr *astExpr, ctx *evalContext) bool {
 
 		switch kind(listType) {
 		case T_SLICE, T_ARRAY:
-			if expr.sliceExpr.Max == nil {
+			if e.Max == nil {
 				// new cap = cap(operand) - low
-				emitCap(expr.sliceExpr.X)
+				emitCap(e.X)
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
 				myfmt.Printf("  popq %%rax # orig_cap\n")
@@ -3069,11 +3068,11 @@ func emitExpr(expr *astExpr, ctx *evalContext) bool {
 				myfmt.Printf("  pushq %%rax # new cap\n")
 
 				// new len = high - low
-				if expr.sliceExpr.High != nil {
-					emitExpr(expr.sliceExpr.High, nil)
+				if e.High != nil {
+					emitExpr(e.High, nil)
 				} else {
 					// high = len(orig)
-					emitLen(expr.sliceExpr.X)
+					emitLen(e.X)
 				}
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
@@ -3082,14 +3081,14 @@ func emitExpr(expr *astExpr, ctx *evalContext) bool {
 				myfmt.Printf("  pushq %%rax # new len\n")
 			} else {
 				// new cap = max - low
-				emitExpr(expr.sliceExpr.Max, nil)
+				emitExpr(e.Max, nil)
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
 				myfmt.Printf("  popq %%rax # max\n")
 				myfmt.Printf("  subq %%rcx, %%rax # new cap = max - low\n")
 				myfmt.Printf("  pushq %%rax # new cap\n")
 				// new len = high - low
-				emitExpr(expr.sliceExpr.High, nil)
+				emitExpr(e.High, nil)
 				emitExpr(low, nil)
 				myfmt.Printf("  popq %%rcx # low\n")
 				myfmt.Printf("  popq %%rax # high\n")
@@ -3098,10 +3097,10 @@ func emitExpr(expr *astExpr, ctx *evalContext) bool {
 			}
 		case T_STRING:
 			// new len = high - low
-			if expr.sliceExpr.High != nil {
-				emitExpr(expr.sliceExpr.High, nil)
+			if e.High != nil {
+				emitExpr(e.High, nil)
 			} else {
-				emitLen(expr.sliceExpr.X)
+				emitLen(e.X)
 			}
 			emitExpr(low, nil)
 			myfmt.Printf("  popq %%rcx # low\n")
@@ -4403,7 +4402,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			panic2(__func__, "[astCallExpr] dtype="+ dtypeOf(expr.callExpr.Fun))
 		}
 	case *astSliceExpr:
-		var underlyingCollectionType = getTypeOfExpr(expr.sliceExpr.X)
+		var underlyingCollectionType = getTypeOfExpr(e.X)
 		if kind(underlyingCollectionType) == T_STRING {
 			// str2 = str1[n:m]
 			return tString
@@ -6030,8 +6029,6 @@ func newExpr(x interface{}) *astExpr {
 		r.selectorExpr = xx
 	case *astIndexExpr:
 		r.indexExpr = xx
-	case *astSliceExpr:
-		r.sliceExpr = xx
 	}
 	return r
 }
