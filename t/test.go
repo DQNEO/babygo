@@ -12,6 +12,34 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testSprinfMore() {
+	var s string
+	s = myfmt.Sprintf("hello")
+	writeln(s)
+	s = myfmt.Sprintf("%%rax")
+	writeln(s)
+
+	var i int = 1234
+	s = myfmt.Sprintf("number %d", i)
+	writeln(s)
+
+	var str = "I am string"
+	s = myfmt.Sprintf("string %s", str)
+	writeln(s)
+
+	s = myfmt.Sprintf("string %d", str)
+	writeln(s)
+
+	s = myfmt.Sprintf("types are %T", str)
+	writeln(s)
+
+	s = myfmt.Sprintf("types are %T", i)
+	writeln(s)
+
+	s = myfmt.Sprintf("types are %T", &i)
+	writeln(s)
+}
+
 var anotherVar string = "Another Hello\n"
 
 func testAnotherFile() {
@@ -1866,6 +1894,7 @@ func testMisc() {
 }
 
 func main() {
+	testSprinfMore()
 	testAnotherFile()
 	testPassBytes()
 	testSortStrings()

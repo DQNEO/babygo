@@ -1,42 +1,71 @@
 package myfmt
 
-import "github.com/DQNEO/babygo/lib/strconv"
+import (
+	"github.com/DQNEO/babygo/lib/strconv"
+	"reflect"
+)
 import "syscall"
 
-
 func Sprintf(format string, a ...interface{}) string {
-	var buf []uint8
+	var r []uint8
 	var inPercent bool
 	var argIndex int
+
+	//syscall.Write(1, []uint8("# @@@ Sprintf start. format=" + format + "\n"))
+
 	for _, c := range []uint8(format) {
+		//syscall.Write(1, []uint8{c})
 		if inPercent {
-			if c == '%' {
-				buf = append(buf, c)
+			//syscall.Write(1, []uint8("@inPercent@"))
+			if c == '%' { // "%%"
+				r = append(r, '%')
 			} else {
 				arg := a[argIndex]
+				var sign uint8 = c
 				var str string
-				switch _arg := arg.(type) {
-				case string:
-					str = _arg
-				case int:
-					str = strconv.Itoa(_arg)
+				switch sign {
+				case 's':
+					switch _arg := arg.(type) {
+					case string:
+						str = _arg
+					case int:
+						str = strconv.Itoa(_arg) // %!s(int=123)
+					}
+					for _, _c := range []uint8(str) {
+						r = append(r, _c)
+					}
+				case 'd':
+					switch _arg := arg.(type) {
+					case string:
+						str = _arg // "%!d(string=" + _arg + ")"
+					case int:
+						str = strconv.Itoa(_arg)
+					}
+					for _, _c := range []uint8(str) {
+						r = append(r, _c)
+					}
+				case 'T':
+					t := reflect.TypeOf(arg)
+					str = t.String()
+					for _, _c := range []uint8(str) {
+						r = append(r, _c)
+					}
+				default:
+					panic("Unknown format:" + strconv.Itoa(int(sign)))
 				}
 				argIndex++
-				for _, _c := range []uint8(str) {
-					buf = append(buf, _c)
-				}
 			}
 			inPercent = false
 		} else {
 			if c == '%' {
 				inPercent = true
 			} else {
-				buf = append(buf, c)
+				r = append(r, c)
 			}
 		}
 	}
 
-	return string(buf)
+	return string(r)
 }
 
 // package fmt
