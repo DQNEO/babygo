@@ -1400,11 +1400,11 @@ func dtypeOf(x interface{}) string {
 	panic("Unexpected")
 }
 
-func isLiteralType(x *astExpr) bool {
-	switch x.ifc.(type) {
+func isLiteralType(expr *astExpr) bool {
+	switch e := expr.ifc.(type) {
 	case *astIdent:
 	case *astSelectorExpr:
-		return isExprIdent(x.selectorExpr.X)
+		return isExprIdent(e.X)
 	case *astArrayType:
 	case *astStructType:
 	//case *astMapType:
@@ -2265,9 +2265,9 @@ func emitListHeadAddr(list *astExpr) {
 
 func emitAddr(expr *astExpr) {
 	emitComment(2, "[emitAddr] %s\n", dtypeOf(expr))
-	switch expr.ifc.(type)  {
+	switch e := expr.ifc.(type)  {
 	case *astIdent:
-		if expr.ident.Name == "_" {
+		if e.Name == "_" {
 			panic(" \"_\" has no address")
 		}
 		if expr.ident.Obj == nil {
@@ -3576,9 +3576,9 @@ func emitAssign(lhs *astExpr, rhs *astExpr) {
 
 func emitStmt(stmt *astStmt) {
 	emitComment(2, "== Statement %s ==\n", dtypeOf(stmt))
-	switch stmt.ifc.(type)  {
+	switch s := stmt.ifc.(type)  {
 	case *astBlockStmt:
-		for _, stmt2 := range stmt.blockStmt.List {
+		for _, stmt2 := range s.List {
 			emitStmt(stmt2)
 		}
 	case *astExprStmt:
@@ -3880,8 +3880,7 @@ func emitStmt(stmt *astStmt) {
 		}
 		myfmt.Printf("%s:\n", labelEnd)
 	case *astTypeSwitchStmt:
-		s := stmt.typeSwitchStmt
-		typeSwitch := stmt.typeSwitchStmt.node
+		typeSwitch := s.node
 //		assert(ok, "should exist")
 		labelid++
 		labelEnd := myfmt.Sprintf(".L.typeswitch.%d.exit", strconv.Itoa(labelid))
@@ -3960,21 +3959,21 @@ func emitStmt(stmt *astStmt) {
 		var labelToGo string
 		switch stmt.branchStmt.Tok {
 		case "continue":
-			switch containerFor.ifc.(type)  {
+			switch s := containerFor.ifc.(type)  {
 			case *astForStmt:
-				labelToGo = containerFor.forStmt.labelPost
+				labelToGo = s.labelPost
 			case *astRangeStmt:
-				labelToGo = containerFor.rangeStmt.labelPost
+				labelToGo = s.labelPost
 			default:
 				panic2(__func__, "unexpected container dtype="+dtypeOf(containerFor))
 			}
 			myfmt.Printf("jmp %s # continue\n", labelToGo)
 		case "break":
-			switch containerFor.ifc.(type)  {
+			switch s := containerFor.ifc.(type)  {
 			case *astForStmt:
-				labelToGo = containerFor.forStmt.labelExit
+				labelToGo = s.labelExit
 			case *astRangeStmt:
-				labelToGo = containerFor.rangeStmt.labelExit
+				labelToGo = s.labelExit
 			default:
 				panic2(__func__, "unexpected container dtype="+dtypeOf(containerFor))
 			}
@@ -4059,9 +4058,9 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			myfmt.Printf("  .quad 0\n")
 			return
 		}
-		switch val.ifc.(type)  {
+		switch vl := val.ifc.(type)  {
 		case *astBasicLit:
-			var sl = getStringLiteral(expr2BasicLit(val))
+			var sl = getStringLiteral(vl)
 			myfmt.Printf("  .quad %s\n", sl.label)
 			myfmt.Printf("  .quad %d\n", strconv.Itoa(sl.strlen))
 		default:
@@ -4076,9 +4075,9 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			myfmt.Printf("  .quad 0 # bool zero value\n")
 			return
 		}
-		switch val.ifc.(type)  {
+		switch vl := val.ifc.(type)  {
 		case *astIdent:
-			switch val.ident.Obj {
+			switch vl.Obj {
 			case gTrue:
 				myfmt.Printf("  .quad 1 # bool true\n")
 			case gFalse:
@@ -4094,9 +4093,9 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			myfmt.Printf("  .quad 0\n")
 			return
 		}
-		switch val.ifc.(type)  {
+		switch vl := val.ifc.(type)  {
 		case *astBasicLit:
-			myfmt.Printf("  .quad %s\n", expr2BasicLit(val).Value)
+			myfmt.Printf("  .quad %s\n", vl.Value)
 		default:
 			panic("Unsupported global value")
 		}
@@ -4105,9 +4104,9 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			myfmt.Printf("  .byte 0\n")
 			return
 		}
-		switch val.ifc.(type)  {
+		switch vl := val.ifc.(type)  {
 		case *astBasicLit:
-			myfmt.Printf("  .byte %s\n", expr2BasicLit(val).Value)
+			myfmt.Printf("  .byte %s\n", vl.Value)
 		default:
 			panic("Unsupported global value")
 		}
@@ -4477,11 +4476,10 @@ func serializeType(t *Type) string {
 		panic("TBD: generalSlice")
 	}
 
-	switch t.e.ifc.(type) {
+	switch e := t.e.ifc.(type) {
 	case *astIdent:
-		e := t.e.ident
-		if t.e.ident.Obj == nil {
-			panic("Unresolved identifier:" + t.e.ident.Name)
+		if e.Obj == nil {
+			panic("Unresolved identifier:" + e.Name)
 		}
 		if e.Obj.Kind == astVar {
 			throw("bug?")
@@ -4514,7 +4512,6 @@ func serializeType(t *Type) string {
 	case *astStructType:
 		return "struct"
 	case *astArrayType:
-		e := expr2ArrayType(t.e)
 		if e.Len == nil {
 			if e.Elt == nil {
 				panic(e)
@@ -4524,7 +4521,6 @@ func serializeType(t *Type) string {
 			return "[" + strconv.Itoa(evalInt(e.Len)) + "]" + serializeType(e2t(e.Elt))
 		}
 	case *astStarExpr:
-		e := expr2StarExpr(t.e)
 		return "*" + serializeType(e2t(e.X))
 	case *astEllipsis: // x ...T
 		panic("TBD: Ellipsis")
@@ -4547,7 +4543,7 @@ func kind(t *Type) string {
 
 	switch e := t.e.ifc.(type)  {
 	case *astIdent:
-		var ident = t.e.ident
+		var ident = e
 		switch ident.Name {
 		case "uintptr":
 			return T_UINTPTR
@@ -4628,11 +4624,11 @@ func getStructTypeOfX(e *astSelectorExpr) *Type {
 func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
-		switch t.e.ifc.(type) {
+		switch e := t.e.ifc.(type) {
 	case *astArrayType:
-		return e2t(expr2ArrayType(t.e).Elt)
+		return e2t(e.Elt)
 	case *astEllipsis:
-		return e2t(expr2Ellipsis(t.e).Elt)
+		return e2t(e.Elt)
 	default:
 		throw(dtypeOf(t.e))
 	}
@@ -5087,14 +5083,14 @@ func walkStmt(stmt *astStmt) {
 		typeSwitch := &nodeTypeSwitchStmt{}
 		stmt.typeSwitchStmt.node = typeSwitch
 		var assignIdent *astIdent
-		switch s.Assign.ifc.(type) {
+		switch s2 := s.Assign.ifc.(type) {
 		case *astExprStmt:
-			typeAssertExpr := expr2TypeAssertExpr(s.Assign.exprStmt.X)
+			typeAssertExpr := expr2TypeAssertExpr(s2.X)
 			//assert(ok, "should be *ast.TypeAssertExpr")
 			typeSwitch.subject = typeAssertExpr.X
 			walkExpr(typeAssertExpr.X)
 		case *astAssignStmt:
-			lhs := s.Assign.assignStmt.Lhs[0]
+			lhs := s2.Lhs[0]
 			//var ok bool
 			assignIdent = lhs.ident
 			//assert(ok, "lhs should be ident")
