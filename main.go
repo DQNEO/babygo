@@ -543,8 +543,6 @@ type astFuncType struct {
 
 type astStmt struct {
 	ifc            interface{}
-	DeclStmt       *astDeclStmt
-	exprStmt       *astExprStmt
 	isRange        bool
 
 }
@@ -1661,7 +1659,7 @@ func isTypeSwitchAssert(x *astExpr) bool {
 func isTypeSwitchGuard(stmt *astStmt) bool {
 	switch s := stmt.ifc.(type) {
 	case *astExprStmt:
-		if isTypeSwitchAssert(stmt.exprStmt.X) {
+		if isTypeSwitchAssert(s.X) {
 			return true
 		}
 	case *astAssignStmt:
@@ -5880,16 +5878,9 @@ type depEntry struct {
 }
 
 func newStmt(x interface{}) *astStmt {
-	r := &astStmt{
+	return &astStmt{
 		ifc: x,
 	}
-	switch xx := x.(type) {
-	case *astDeclStmt:
-		r.DeclStmt = xx
-	case *astExprStmt:
-		r.exprStmt = xx
-	}
-	return r
 }
 
 func stmt2AssignStmt(s *astStmt) *astAssignStmt {
