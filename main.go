@@ -448,8 +448,6 @@ type astExpr struct {
 	structType     *astStructType
 	compositeLit   *astCompositeLit
 	keyValueExpr   *astKeyValueExpr
-	ellipsis       *astEllipsis
-	interfaceType  *astInterfaceType
 }
 
 type astField struct {
@@ -4641,7 +4639,7 @@ func getElementTypeOfListType(t *Type) *Type {
 	case "*astArrayType":
 		return e2t(expr2ArrayType(t.e).Elt)
 	case "*astEllipsis":
-		return e2t(t.e.ellipsis.Elt)
+		return e2t(expr2Ellipsis(t.e).Elt)
 	default:
 		throw(dtypeOf(t.e))
 	}
@@ -6146,10 +6144,6 @@ func newExpr(x interface{}) *astExpr {
 		r.compositeLit = xx
 	case *astKeyValueExpr:
 		r.keyValueExpr = xx
-	case *astEllipsis:
-		r.ellipsis = xx
-	case *astInterfaceType:
-		r.interfaceType = xx
 	}
 	return r
 }
