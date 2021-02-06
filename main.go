@@ -443,10 +443,6 @@ type astExpr struct {
 	selectorExpr   *astSelectorExpr
 	indexExpr      *astIndexExpr
 	sliceExpr      *astSliceExpr
-	parenExpr      *astParenExpr
-	structType     *astStructType
-	compositeLit   *astCompositeLit
-	keyValueExpr   *astKeyValueExpr
 }
 
 type astField struct {
@@ -2325,7 +2321,7 @@ func emitAddr(expr *astExpr) {
 }
 
 func isType(expr *astExpr) bool {
-	switch expr.ifc.(type)  {
+	switch e := expr.ifc.(type)  {
 	case *astArrayType:
 		return true
 	case *astIdent:
@@ -2340,7 +2336,7 @@ func isType(expr *astExpr) bool {
 			expr.ident.Obj.Name, expr.ident.Obj.Kind)
 		return expr.ident.Obj.Kind == astTyp
 	case *astParenExpr:
-		return isType(expr.parenExpr.X)
+		return isType(e.X)
 	case *astStarExpr:
 		return isType(expr2StarExpr(expr).X)
 	case *astInterfaceType:
@@ -2357,7 +2353,7 @@ func isType(expr *astExpr) bool {
 func emitConversion(toType *Type, arg0 *astExpr) {
 	emitComment(2, "[emitConversion]\n")
 	var to = toType.e
-	switch to.ifc.(type)  {
+	switch tt := to.ifc.(type)  {
 	case *astIdent:
 		switch to.ident.Obj {
 		case gString: // string(e)
@@ -2399,7 +2395,7 @@ func emitConversion(toType *Type, arg0 *astExpr) {
 		myfmt.Printf("  pushq %%rcx # len\n")
 		myfmt.Printf("  pushq %%rax # ptr\n")
 	case *astParenExpr:
-		emitConversion(e2t(to.parenExpr.X), arg0)
+		emitConversion(e2t(tt.X), arg0)
 	case *astStarExpr: // (*T)(e)
 		emitComment(2, "[emitConversion] to pointer \n")
 		emitExpr(arg0, nil)
@@ -2950,7 +2946,7 @@ type evalContext struct {
 func emitExpr(e *astExpr, ctx *evalContext) bool {
 	var isNilObject bool
 	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(e))
-	switch e.ifc.(type)  {
+	switch expr := e.ifc.(type)  {
 	case *astIdent:
 		var ident = e.ident
 		if ident.Obj == nil {
@@ -3006,7 +3002,7 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 			emitFuncall(fun, e.callExpr.Args, e.callExpr.Ellipsis)
 		}
 	case *astParenExpr:
-		emitExpr(e.parenExpr.X, ctx)
+		emitExpr(expr.X, ctx)
 	case *astBasicLit:
 		//		emitComment(0, "basicLit.Kind = %s \n", e.basicLit.Kind)
 		basicLit := expr2BasicLit(e)
@@ -3276,18 +3272,18 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		}
 	case *astCompositeLit:
 		// slice , array, map or struct
-		var k = kind(e2t(e.compositeLit.Type))
+		var k = kind(e2t(expr.Type))
 		switch k {
 		case T_STRUCT:
-			emitStructLiteral(e.compositeLit)
+			emitStructLiteral(expr)
 		case T_ARRAY:
-			arrayType := expr2ArrayType(e.compositeLit.Type)
+			arrayType := expr2ArrayType(expr.Type)
 			var arrayLen = evalInt(arrayType.Len)
-			emitArrayLiteral(arrayType, arrayLen, e.compositeLit.Elts)
+			emitArrayLiteral(arrayType, arrayLen, expr.Elts)
 		case T_SLICE:
-			arrayType := expr2ArrayType(e.compositeLit.Type)
-			var length = len(e.compositeLit.Elts)
-			emitArrayLiteral(arrayType, length, e.compositeLit.Elts)
+			arrayType := expr2ArrayType(expr.Type)
+			var length = len(expr.Elts)
+			emitArrayLiteral(arrayType, length, expr.Elts)
 			emitPopAddress("malloc")
 			myfmt.Printf("  pushq $%d # slice.cap\n", strconv.Itoa(length))
 			myfmt.Printf("  pushq $%d # slice.len\n", strconv.Itoa(length))
@@ -4252,7 +4248,7 @@ const T_POINTER string = "T_POINTER"
 
 func getTypeOfExpr(expr *astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
-	switch expr.ifc.(type)  {
+	switch e := expr.ifc.(type)  {
 	case *astIdent:
 		if expr.ident.Obj == nil {
 			panic(expr.ident.Name)
@@ -4334,9 +4330,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	case *astCallExpr:
 		emitComment(2, "[%s] *astCallExpr\n", __func__)
 		var fun = expr.callExpr.Fun
-		switch fun.ifc.(type)  {
+		switch fn := fun.ifc.(type)  {
 		case *astIdent:
-			var fn = fun.ident
 			if fn.Obj == nil {
 				panic2(__func__, "[astCallExpr] nil Obj is not allowed")
 			}
@@ -4373,8 +4368,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				panic2(__func__, "[astCallExpr] Fun ident "+fn.Name)
 			}
 		case *astParenExpr: // (X)(e) funcall or conversion
-			if isType(fun.parenExpr.X) {
-				return e2t(fun.parenExpr.X)
+			if isType(fn.X) {
+				return e2t(fn.X)
 			} else {
 				panic("TBI: what should we do ?")
 			}
@@ -4449,9 +4444,9 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			return e2t(field.Type)
 		}
 	case *astCompositeLit:
-		return e2t(expr.compositeLit.Type)
+		return e2t(e.Type)
 	case *astParenExpr:
-		return getTypeOfExpr(expr.parenExpr.X)
+		return getTypeOfExpr(e.X)
 	case *astTypeAssertExpr:
 		return e2t(expr2TypeAssertExpr(expr).Type)
 	case *astInterfaceType:
@@ -4550,8 +4545,7 @@ func kind(t *Type) string {
 		return T_SLICE
 	}
 
-	var e = t.e
-	switch e.ifc.(type)  {
+	switch e := t.e.ifc.(type)  {
 	case *astIdent:
 		var ident = t.e.ident
 		switch ident.Name {
@@ -4583,7 +4577,7 @@ func kind(t *Type) string {
 	case *astStructType:
 		return T_STRUCT
 	case *astArrayType:
-		if expr2ArrayType(e).Len == nil {
+		if e.Len == nil {
 			return T_SLICE
 		} else {
 			return T_ARRAY
@@ -4595,7 +4589,7 @@ func kind(t *Type) string {
 	case *astInterfaceType:
 		return T_INTERFACE
 	case *astParenExpr:
-		panic(t.e.parenExpr)
+		panic(dtypeOf(e))
 	case *astSelectorExpr:
 		full := t.e.selectorExpr.X.ident.Name + "." + t.e.selectorExpr.Sel.Name
 		if full == "unsafe.Pointer" {
@@ -6042,14 +6036,6 @@ func newExpr(x interface{}) *astExpr {
 		r.indexExpr = xx
 	case *astSliceExpr:
 		r.sliceExpr = xx
-	case *astParenExpr:
-		r.parenExpr = xx
-	case *astStructType:
-		r.structType = xx
-	case *astCompositeLit:
-		r.compositeLit = xx
-	case *astKeyValueExpr:
-		r.keyValueExpr = xx
 	}
 	return r
 }
