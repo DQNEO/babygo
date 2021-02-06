@@ -2119,6 +2119,8 @@ func evalInt(expr *astExpr) int {
 	switch expr.ifc.(type)  {
 	case *astBasicLit:
 		return strconv.Atoi(expr2BasicLit(expr).Value)
+	default:
+		panic("Unknown type")
 	}
 	return 0
 }
@@ -4130,11 +4132,8 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 		if arrayType.Len == nil {
 			panic2(__func__, "global slice is not supported")
 		}
-		if dtypeOf(arrayType.Len) != "*astBasicLit" {
-			panic2(__func__, "shoulbe basic literal")
-		}
-
-		var length = evalInt(arrayType.Len)
+		bl := expr2BasicLit(arrayType.Len)
+		var length = evalInt(newExpr(bl))
 		emitComment(0, "[emitGlobalVariable] array length uint8=%s\n", strconv.Itoa(length))
 		var zeroValue string
 		var kind string = kind(e2t(arrayType.Elt))
