@@ -438,7 +438,6 @@ type astObject struct {
 type astExpr struct {
 	ifc            interface{}
 	ident          *astIdent
-	callExpr       *astCallExpr
 	unaryExpr      *astUnaryExpr
 }
 
@@ -2990,12 +2989,12 @@ func emitExpr(expr *astExpr, ctx *evalContext) bool {
 			emitLoad(getTypeOfExpr(expr))
 		}
 	case *astCallExpr:
-		var fun = expr.callExpr.Fun
+		var fun = e.Fun
 		emitComment(2, "[%s][*astCallExpr]\n", __func__)
 		if isType(fun) {
-			emitConversion(e2t(fun), expr.callExpr.Args[0])
+			emitConversion(e2t(fun), e.Args[0])
 		} else {
-			emitFuncall(fun, expr.callExpr.Args, expr.callExpr.Ellipsis)
+			emitFuncall(fun, e.Args, e.Ellipsis)
 		}
 	case *astParenExpr:
 		emitExpr(e.X, ctx)
@@ -4324,7 +4323,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		}
 	case *astCallExpr:
 		emitComment(2, "[%s] *astCallExpr\n", __func__)
-		var fun = expr.callExpr.Fun
+		var fun = e.Fun
 		switch fn := fun.ifc.(type)  {
 		case *astIdent:
 			if fn.Obj == nil {
@@ -4339,12 +4338,12 @@ func getTypeOfExpr(expr *astExpr) *Type {
 					return tInt
 				case gNew:
 					var starExpr = &astStarExpr{}
-					starExpr.X = expr.callExpr.Args[0]
+					starExpr.X = e.Args[0]
 					return e2t(newExpr(starExpr))
 				case gMake:
-					return e2t(expr.callExpr.Args[0])
+					return e2t(e.Args[0])
 				case gAppend:
-					return e2t(expr.callExpr.Args[0])
+					return e2t(e.Args[0])
 				}
 				var decl = fn.Obj.Decl
 				if decl == nil {
@@ -4396,7 +4395,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		case *astInterfaceType:
 			return tEface
 		default:
-			panic2(__func__, "[astCallExpr] dtype="+ dtypeOf(expr.callExpr.Fun))
+			panic2(__func__, "[astCallExpr] dtype="+ dtypeOf(e.Fun))
 		}
 	case *astSliceExpr:
 		var underlyingCollectionType = getTypeOfExpr(e.X)
@@ -6018,8 +6017,6 @@ func newExpr(x interface{}) *astExpr {
 	switch xx := x.(type) {
 	case *astIdent:
 		r.ident = xx
-	case *astCallExpr:
-		r.callExpr = xx
 	case *astUnaryExpr:
 		r.unaryExpr = xx
 	}
