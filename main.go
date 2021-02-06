@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"reflect"
 	"syscall"
 
 	"github.com/DQNEO/babygo/lib/myfmt"
@@ -5960,43 +5961,8 @@ func dtypeOfStmt(stmt *astStmt) string {
 
 func dtypeOfExpr(expr *astExpr) string {
 	x := expr.ifc
-	switch x.(type) {
-	case *astIdent:
-		return "*astIdent"
-	case *astArrayType:
-		return "*astArrayType"
-	case *astBasicLit:
-		return "*astBasicLit"
-	case *astCallExpr:
-		return "*astCallExpr"
-	case *astBinaryExpr:
-		return "*astBinaryExpr"
-	case *astUnaryExpr:
-		return "*astUnaryExpr"
-	case *astSelectorExpr:
-		return "*astSelectorExpr"
-	case *astIndexExpr:
-		return "*astIndexExpr"
-	case *astSliceExpr:
-		return "*astSliceExpr"
-	case *astStarExpr:
-		return "*astStarExpr"
-	case *astParenExpr:
-		return "*astParenExpr"
-	case *astStructType:
-		return "*astStructType"
-	case *astCompositeLit:
-		return "*astCompositeLit"
-	case *astKeyValueExpr:
-		return "*astKeyValueExpr"
-	case *astEllipsis:
-		return "*astEllipsis"
-	case *astInterfaceType:
-		return "*astInterfaceType"
-	case *astTypeAssertExpr:
-		return "*astTypeAssertExpr"
-	}
-	panic("Unkonwn type")
+	typ := reflect.TypeOf(x)
+	return typ.String()
 }
 
 func newExpr(expr interface{}) *astExpr {
