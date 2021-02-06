@@ -437,8 +437,8 @@ type astObject struct {
 
 type astExpr struct {
 	ifc            interface{}
-	ident          *astIdent
 	unaryExpr      *astUnaryExpr
+	ident *astIdent
 }
 
 type astField struct {
@@ -924,12 +924,12 @@ func (p *parser) parseFieldDecl(scope *astScope) *astField {
 	var typ = p.tryVarType(false)
 
 	p.expectSemi(__func__)
-
+	ident := expr2Ident(varType)
 	var field = &astField{
 		Type : typ,
-		Name : varType.ident,
+		Name : ident,
 	}
-	declareField(field, scope, astVar, varType.ident)
+	declareField(field, scope, astVar, ident)
 	p.resolve(typ)
 	return field
 }
@@ -1763,7 +1763,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 			lhss := x
 			for _, lhs := range lhss {
 				assert(isExprIdent(lhs), "should be ident", __func__)
-				declare(as, p.topScope, astVar, lhs.ident)
+				declare(as, p.topScope, astVar, expr2Ident(lhs))
 			}
 		}
 		logf(" parseSimpleStmt end =, := %s\n", __func__)
@@ -2266,15 +2266,15 @@ func emitAddr(expr *astExpr) {
 		if e.Name == "_" {
 			panic(" \"_\" has no address")
 		}
-		if expr.ident.Obj == nil {
-			throw("expr.ident.Obj is nil: " + expr.ident.Name)
+		if e.Obj == nil {
+			throw("e.Obj is nil: " + e.Name)
 		}
-		if expr.ident.Obj.Kind == astVar {
-			assert(expr.ident.Obj.Variable != nil,
-				"ERROR: Obj.Variable is not set for ident : "+expr.ident.Obj.Name, __func__)
-			emitVariableAddr(expr.ident.Obj.Variable)
+		if e.Obj.Kind == astVar {
+			assert(e.Obj.Variable != nil,
+				"ERROR: Obj.Variable is not set for ident : "+e.Obj.Name, __func__)
+			emitVariableAddr(e.Obj.Variable)
 		} else {
-			panic2(__func__, "Unexpected Kind "+expr.ident.Obj.Kind)
+			panic2(__func__, "Unexpected Kind "+e.Obj.Kind)
 		}
 	case *astIndexExpr:
 		emitExpr(e.Index, nil) // index number
@@ -2321,16 +2321,16 @@ func isType(expr *astExpr) bool {
 	case *astArrayType:
 		return true
 	case *astIdent:
-		if expr.ident == nil {
+		if e == nil {
 			panic2(__func__, "ident should not be nil")
 		}
-		if expr.ident.Obj == nil {
-			panic2(__func__, " unresolved ident:"+expr.ident.Name)
+		if e.Obj == nil {
+			panic2(__func__, " unresolved ident:"+e.Name)
 		}
-		emitComment(2, "[isType][DEBUG] expr.ident.Name = %s\n", expr.ident.Name)
-		emitComment(2, "[isType][DEBUG] expr.ident.Obj = %s,%s\n",
-			expr.ident.Obj.Name, expr.ident.Obj.Kind)
-		return expr.ident.Obj.Kind == astTyp
+		emitComment(2, "[isType][DEBUG] e.Name = %s\n", e.Name)
+		emitComment(2, "[isType][DEBUG] e.Obj = %s,%s\n",
+			e.Obj.Name, e.Obj.Kind)
+		return e.Obj.Kind == astTyp
 	case *astParenExpr:
 		return isType(e.X)
 	case *astStarExpr:
@@ -2943,11 +2943,11 @@ func emitExpr(expr *astExpr, ctx *evalContext) bool {
 	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(expr))
 	switch e := expr.ifc.(type)  {
 	case *astIdent:
-		var ident = expr.ident
+		var ident = e
 		if ident.Obj == nil {
 			panic2(__func__, "ident unresolved:"+ident.Name)
 		}
-		switch expr.ident.Obj {
+		switch e.Obj {
 		case gTrue:
 			emitTrue()
 		case gFalse:
@@ -4244,10 +4244,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
 	switch e := expr.ifc.(type)  {
 	case *astIdent:
-		if expr.ident.Obj == nil {
-			panic(expr.ident.Name)
+		if e.Obj == nil {
+			panic(e.Name)
 		}
-		switch expr.ident.Obj.Kind {
+		switch e.Obj.Kind {
 		case astVar:
 			// injected type is the 1st priority
 			// this use case happens in type switch with short decl var
@@ -4255,10 +4255,10 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			// case T:
 			//    y := ident // <= type of ident cannot be associated directly with ident
 			//
-			if expr.ident.Obj.Variable != nil {
-				return expr.ident.Obj.Variable.typ
+			if e.Obj.Variable != nil {
+				return e.Obj.Variable.typ
 			}
-			switch decl := expr.ident.Obj.Decl.(type) {
+			switch decl := e.Obj.Decl.(type) {
 			case *astValueSpec:
 				var t = &Type{}
 				t.e = decl.Type
@@ -4273,18 +4273,18 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				panic2(__func__, "unkown dtype ")
 			}
 		case astCon:
-			switch expr.ident.Obj {
+			switch e.Obj {
 			case gTrue, gFalse:
 				return tBool
 			}
-			switch decl2 := expr.ident.Obj.Decl.(type) {
+			switch decl2 := e.Obj.Decl.(type) {
 			case *astValueSpec:
 				return e2t(decl2.Type)
 			default:
-				panic2(__func__, "cannot decide type of cont ="+expr.ident.Obj.Name)
+				panic2(__func__, "cannot decide type of cont ="+e.Obj.Name)
 			}
 		default:
-			panic2(__func__, "2:Obj=" + expr.ident.Obj.Name + expr.ident.Obj.Kind)
+			panic2(__func__, "2:Obj=" + e.Obj.Name + e.Obj.Kind)
 		}
 	case *astBasicLit:
 		basicLit := expr2BasicLit(expr)
@@ -4377,8 +4377,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 				// unsafe.Pointer(x)
 				return tUintptr
 			default:
-				fn := fn
-				xIdent := fn.X.ident
+				xIdent := expr2Ident(fn.X)
 				if xIdent.Obj == nil {
 					panic2(__func__,  "xIdent.Obj should not be nil")
 				}
@@ -4430,7 +4429,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	case *astSelectorExpr:
 		x := e.X
 		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
-			ident := lookupForeignVar(e.X.ident.Name, e.Sel.Name)
+			ident := lookupForeignVar(expr2Ident(x).Name, e.Sel.Name)
 			return getTypeOfExpr(newExpr(ident))
 		} else {
 			var structType = getStructTypeOfX(e)
@@ -4582,7 +4581,7 @@ func kind(t *Type) string {
 	case *astParenExpr:
 		panic(dtypeOf(e))
 	case *astSelectorExpr:
-		full := e.X.ident.Name + "." + e.Sel.Name
+		full := expr2Ident(e.X).Name + "." + e.Sel.Name
 		if full == "unsafe.Pointer" {
 			return T_POINTER
 		} else {
