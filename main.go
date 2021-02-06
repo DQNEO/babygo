@@ -5910,138 +5910,6 @@ type depEntry struct {
 	children []string
 }
 
-func isExprBasicLit(e *astExpr) bool {
-	var ok bool
-	_, ok = e.ifc.(*astBasicLit)
-	return ok
-}
-
-
-func isExprStarExpr(e *astExpr) bool {
-	var ok bool
-	_, ok = e.ifc.(*astStarExpr)
-	return ok
-}
-
-func isExprEllipsis(e *astExpr) bool {
-	var ok bool
-	_, ok = e.ifc.(*astEllipsis)
-	return ok
-}
-
-func isExprTypeAssertExpr(e *astExpr) bool {
-	var ok bool
-	_, ok = e.ifc.(*astTypeAssertExpr)
-	return ok
-}
-
-func isExprIdent(e *astExpr) bool {
-	var ok bool
-	_, ok = e.ifc.(*astIdent)
-	return ok
-}
-
-func stmt2ExprStmt(s *astStmt) *astExprStmt {
-	var r *astExprStmt
-	var ok bool
-	r, ok = s.ifc.(*astExprStmt)
-	if !ok {
-		panic("Not *astExprStmt")
-	}
-	return r
-}
-
-func expr2ArrayType(e *astExpr) *astArrayType {
-	var r *astArrayType
-	var ok bool
-	r, ok = e.ifc.(*astArrayType)
-	if ! ok {
-		panic("Not *astArrayType")
-	}
-	return r
-}
-
-func expr2BasicLit(e *astExpr) *astBasicLit {
-	var r *astBasicLit
-	var ok bool
-	r, ok = e.ifc.(*astBasicLit)
-	if ! ok {
-		panic("Not *astBasicLit")
-	}
-	return r
-}
-
-func expr2StarExpr(e *astExpr) *astStarExpr {
-	var r *astStarExpr
-	var ok bool
-	r, ok = e.ifc.(*astStarExpr)
-	if ! ok {
-		panic("Not *astStarExpr")
-	}
-	return r
-}
-
-func expr2KeyValueExpr(e *astExpr) *astKeyValueExpr {
-	var r *astKeyValueExpr
-	var ok bool
-	r, ok = e.ifc.(*astKeyValueExpr)
-	if ! ok {
-		panic("Not *astKeyValueExpr")
-	}
-	return r
-}
-
-func expr2StructType(e *astExpr) *astStructType {
-	var r *astStructType
-	var ok bool
-	r, ok = e.ifc.(*astStructType)
-	if ! ok {
-		panic("Not *astStructType")
-	}
-	return r
-}
-
-func expr2TypeAssertExpr(e *astExpr) *astTypeAssertExpr {
-	var r *astTypeAssertExpr
-	var ok bool
-	r, ok = e.ifc.(*astTypeAssertExpr)
-	if ! ok {
-		panic("Not *astTypeAssertExpr")
-	}
-	return r
-}
-
-func expr2Ellipsis(e *astExpr) *astEllipsis {
-	var r *astEllipsis
-	var ok bool
-	r, ok = e.ifc.(*astEllipsis)
-	if ! ok {
-		panic("Not *astEllipsis")
-	}
-	return r
-}
-
-func expr2BinaryExpr(e *astExpr) *astBinaryExpr {
-	var r *astBinaryExpr
-	var ok bool
-	r, ok = e.ifc.(*astBinaryExpr)
-	if ! ok {
-		panic("Not *astBinaryExpr")
-	}
-	return r
-}
-
-
-func expr2Ident(e *astExpr) *astIdent {
-	var r *astIdent
-	var ok bool
-	r, ok = e.ifc.(*astIdent)
-	if ! ok {
-		panic("Not *astIdent")
-	}
-	return r
-}
-
 func newStmt(x interface{}) *astStmt {
 	r := &astStmt{
 		ifc: x,
@@ -6089,6 +5957,17 @@ func newStmt(x interface{}) *astStmt {
 	}
 	return r
 }
+
+func stmt2ExprStmt(s *astStmt) *astExprStmt {
+	var r *astExprStmt
+	var ok bool
+	r, ok = s.ifc.(*astExprStmt)
+	if !ok {
+		panic("Not *astExprStmt")
+	}
+	return r
+}
+
 
 func dtypeOfExpr(expr *astExpr) string {
 	x := expr.ifc
@@ -6159,4 +6038,126 @@ func newExpr(x interface{}) *astExpr {
 	}
 	return r
 }
+
+func expr2Ident(e *astExpr) *astIdent {
+	var r *astIdent
+	var ok bool
+	r, ok = e.ifc.(*astIdent)
+	if ! ok {
+		panic("Not *astIdent")
+	}
+	return r
+}
+
+func expr2BinaryExpr(e *astExpr) *astBinaryExpr {
+	var r *astBinaryExpr
+	var ok bool
+	r, ok = e.ifc.(*astBinaryExpr)
+	if ! ok {
+		panic("Not *astBinaryExpr")
+	}
+	return r
+}
+
+func expr2Ellipsis(e *astExpr) *astEllipsis {
+	var r *astEllipsis
+	var ok bool
+	r, ok = e.ifc.(*astEllipsis)
+	if ! ok {
+		panic("Not *astEllipsis")
+	}
+	return r
+}
+
+func expr2TypeAssertExpr(e *astExpr) *astTypeAssertExpr {
+	var r *astTypeAssertExpr
+	var ok bool
+	r, ok = e.ifc.(*astTypeAssertExpr)
+	if ! ok {
+		panic("Not *astTypeAssertExpr")
+	}
+	return r
+}
+
+func expr2ArrayType(e *astExpr) *astArrayType {
+	var r *astArrayType
+	var ok bool
+	r, ok = e.ifc.(*astArrayType)
+	if ! ok {
+		panic("Not *astArrayType")
+	}
+	return r
+}
+
+func expr2BasicLit(e *astExpr) *astBasicLit {
+	var r *astBasicLit
+	var ok bool
+	r, ok = e.ifc.(*astBasicLit)
+	if ! ok {
+		panic("Not *astBasicLit")
+	}
+	return r
+}
+
+func expr2StarExpr(e *astExpr) *astStarExpr {
+	var r *astStarExpr
+	var ok bool
+	r, ok = e.ifc.(*astStarExpr)
+	if ! ok {
+		panic("Not *astStarExpr")
+	}
+	return r
+}
+
+func expr2KeyValueExpr(e *astExpr) *astKeyValueExpr {
+	var r *astKeyValueExpr
+	var ok bool
+	r, ok = e.ifc.(*astKeyValueExpr)
+	if ! ok {
+		panic("Not *astKeyValueExpr")
+	}
+	return r
+}
+
+func expr2StructType(e *astExpr) *astStructType {
+	var r *astStructType
+	var ok bool
+	r, ok = e.ifc.(*astStructType)
+	if ! ok {
+		panic("Not *astStructType")
+	}
+	return r
+}
+
+func isExprBasicLit(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astBasicLit)
+	return ok
+}
+
+
+func isExprStarExpr(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astStarExpr)
+	return ok
+}
+
+func isExprEllipsis(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astEllipsis)
+	return ok
+}
+
+func isExprTypeAssertExpr(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astTypeAssertExpr)
+	return ok
+}
+
+func isExprIdent(e *astExpr) bool {
+	var ok bool
+	_, ok = e.ifc.(*astIdent)
+	return ok
+}
+
 
