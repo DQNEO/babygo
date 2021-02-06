@@ -441,7 +441,6 @@ type astExpr struct {
 	callExpr       *astCallExpr
 	unaryExpr      *astUnaryExpr
 	selectorExpr   *astSelectorExpr
-	indexExpr      *astIndexExpr
 }
 
 type astField struct {
@@ -2280,8 +2279,8 @@ func emitAddr(expr *astExpr) {
 			panic2(__func__, "Unexpected Kind "+expr.ident.Obj.Kind)
 		}
 	case *astIndexExpr:
-		emitExpr(expr.indexExpr.Index, nil) // index number
-		var list = expr.indexExpr.X
+		emitExpr(e.Index, nil) // index number
+		var list = e.X
 		var elmType = getTypeOfExpr(expr)
 		emitListElementAddr(list, elmType)
 	case *astStarExpr:
@@ -4303,7 +4302,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			panic2(__func__, "TBI:"+basicLit.Kind)
 		}
 	case *astIndexExpr:
-		var list = expr.indexExpr.X
+		var list = e.X
 		return getElementTypeOfListType(getTypeOfExpr(list))
 	case *astUnaryExpr:
 		switch expr.unaryExpr.Op {
@@ -6027,8 +6026,6 @@ func newExpr(x interface{}) *astExpr {
 		r.unaryExpr = xx
 	case *astSelectorExpr:
 		r.selectorExpr = xx
-	case *astIndexExpr:
-		r.indexExpr = xx
 	}
 	return r
 }
