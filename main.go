@@ -539,11 +539,7 @@ type astFuncType struct {
 	Results *astFieldList
 }
 
-type Stmt interface{}
-
-type astStmt struct {
-	ifc Stmt
-}
+type astStmt interface{}
 
 type astDeclStmt struct {
 	Decl astDecl
@@ -573,23 +569,23 @@ type astReturnStmt struct {
 type astBranchStmt struct {
 	Tok        string
 	Label      string
-	currentFor *astStmt
+	currentFor astStmt
 }
 
 type astBlockStmt struct {
-	List []*astStmt
+	List []astStmt
 }
 
 type astIfStmt struct {
-	Init *astStmt
+	Init astStmt
 	Cond astExpr
 	Body *astBlockStmt
-	Else *astStmt
+	Else astStmt
 }
 
 type astCaseClause struct {
 	List []astExpr
-	Body []*astStmt
+	Body []astStmt
 }
 
 type astSwitchStmt struct {
@@ -599,9 +595,9 @@ type astSwitchStmt struct {
 }
 
 type astTypeSwitchStmt struct {
-	Assign *astStmt
-	Body *astBlockStmt
-	node *nodeTypeSwitchStmt
+	Assign astStmt
+	Body   *astBlockStmt
+	node   *nodeTypeSwitchStmt
 }
 
 type nodeReturnStmt struct {
@@ -622,11 +618,11 @@ type TypeSwitchCaseClose struct {
 }
 
 type astForStmt struct {
-	Init      *astStmt
+	Init      astStmt
 	Cond      astExpr
-	Post      *astStmt
+	Post      astStmt
 	Body      *astBlockStmt
-	Outer     *astStmt // outer loop
+	Outer     astStmt // outer loop
 	labelPost string
 	labelExit string
 }
@@ -637,7 +633,7 @@ type astRangeStmt struct {
 	Value     astExpr
 	X         astExpr
 	Body      *astBlockStmt
-	Outer     *astStmt // outer loop
+	Outer     astStmt // outer loop
 	labelPost string
 	labelExit string
 	lenvar    *Variable
@@ -1372,11 +1368,8 @@ func (p *parser) parseLiteralValue(typ astExpr) astExpr {
 }
 
 func dtypeOf(x interface{}) string {
-	switch xx := x.(type) {
-	case *astStmt:
-		return dtypeOfStmt(xx)
-	}
-	return dtypeOfExpr(x)
+	typ := reflect.TypeOf(x)
+	return typ.String()
 }
 
 func isLiteralType(expr astExpr) bool {
@@ -1516,7 +1509,7 @@ func (p *parser) parseRhs() astExpr {
 }
 
 // Extract astExpr from ExprStmt. Returns nil if input is nil
-func makeExpr(s *astStmt) astExpr {
+func makeExpr(s astStmt) astExpr {
 	logf(" begin %s\n", __func__)
 	if s == nil {
 		var r astExpr
@@ -1525,14 +1518,14 @@ func makeExpr(s *astStmt) astExpr {
 	return stmt2ExprStmt(s).X
 }
 
-func (p *parser) parseForStmt() *astStmt {
+func (p *parser) parseForStmt() astStmt {
 	logf(" begin %s\n", __func__)
 	p.expect("for", __func__)
 	p.openScope()
 
-	var s1 *astStmt
-	var s2 *astStmt
-	var s3 *astStmt
+	var s1 astStmt
+	var s2 astStmt
+	var s3 astStmt
 	var isRange bool
 	parserExprLev = -1
 	if p.tok.tok != "{" {
@@ -1540,7 +1533,7 @@ func (p *parser) parseForStmt() *astStmt {
 			s2 = p.parseSimpleStmt(true)
 			var isAssign bool
 			var assign *astAssignStmt
-			assign, isAssign = s2.ifc.(*astAssignStmt)
+			assign, isAssign = s2.(*astAssignStmt)
 			isRange = isAssign && assign.isRange
 			logf(" [%s] isRange=true\n", __func__)
 		}
@@ -1602,15 +1595,15 @@ func (p *parser) parseForStmt() *astStmt {
 	return newStmt(forStmt)
 }
 
-func (p *parser) parseIfStmt() *astStmt {
+func (p *parser) parseIfStmt() astStmt {
 	p.expect("if", __func__)
 	parserExprLev = -1
-	var condStmt *astStmt = p.parseSimpleStmt(false)
+	var condStmt astStmt = p.parseSimpleStmt(false)
 	exprStmt := stmt2ExprStmt(condStmt)
 	var cond = exprStmt.X
 	parserExprLev = 0
 	var body = p.parseBlockStmt()
-	var else_ *astStmt
+	var else_ astStmt
 	if p.tok.tok == "else" {
 		p.next()
 		if p.tok.tok == "if" {
@@ -1655,8 +1648,8 @@ func isTypeSwitchAssert(x astExpr) bool {
 	return isExprTypeAssertExpr(x) && expr2TypeAssertExpr(x).Type == nil
 }
 
-func isTypeSwitchGuard(stmt *astStmt) bool {
-	switch s := stmt.ifc.(type) {
+func isTypeSwitchGuard(stmt astStmt) bool {
+	switch s := stmt.(type) {
 	case *astExprStmt:
 		if isTypeSwitchAssert(s.X) {
 			return true
@@ -1669,19 +1662,19 @@ func isTypeSwitchGuard(stmt *astStmt) bool {
 	return false
 }
 
-func (p *parser) parseSwitchStmt() *astStmt {
+func (p *parser) parseSwitchStmt() astStmt {
 	p.expect("switch", __func__)
 	p.openScope()
 
-	var s2 *astStmt
+	var s2 astStmt
 	parserExprLev = -1
 	s2 = p.parseSimpleStmt(false)
 	parserExprLev = 0
 
 	p.expect("{", __func__)
-	var list []*astStmt
+	var list []astStmt
 	var cc *astCaseClause
-	var ccs *astStmt
+	var ccs astStmt
 	for p.tok.tok == "case" || p.tok.tok == "default" {
 		cc = p.parseCaseClause()
 		ccs = newStmt(cc)
@@ -1715,7 +1708,7 @@ func (p *parser) parseLhsList() []astExpr {
 	return list
 }
 
-func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
+func (p *parser) parseSimpleStmt(isRangeOK bool) astStmt {
 	logf(" begin %s\n", __func__)
 	var x = p.parseLhsList()
 	var stok = p.tok.tok
@@ -1775,10 +1768,10 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 	return newStmt(exprStmt)
 }
 
-func (p *parser) parseStmt() *astStmt {
+func (p *parser) parseStmt() astStmt {
 	logf("\n")
 	logf(" = begin %s\n", __func__)
-	var s *astStmt
+	var s astStmt
 	switch p.tok.tok {
 	case "var":
 		var genDecl = p.parseDecl("var")
@@ -1826,7 +1819,7 @@ func (p *parser) parseRhsList() []astExpr {
 	return list
 }
 
-func (p *parser) parseBranchStmt(tok string) *astStmt {
+func (p *parser) parseBranchStmt(tok string) astStmt {
 	p.expect(tok, __func__)
 
 	p.expectSemi(__func__)
@@ -1836,7 +1829,7 @@ func (p *parser) parseBranchStmt(tok string) *astStmt {
 	return newStmt(branchStmt)
 }
 
-func (p *parser) parseReturnStmt() *astStmt {
+func (p *parser) parseReturnStmt() astStmt {
 	p.expect("return", __func__)
 	var x []astExpr
 	if p.tok.tok != ";" && p.tok.tok != "}" {
@@ -1848,8 +1841,8 @@ func (p *parser) parseReturnStmt() *astStmt {
 	return newStmt(returnStmt)
 }
 
-func (p *parser) parseStmtList () []*astStmt {
-	var list []*astStmt
+func (p *parser) parseStmtList () []astStmt {
+	var list []astStmt
 	for p.tok.tok != "}" && p.tok.tok != "EOF" && p.tok.tok != "case" && p.tok.tok != "default" {
 		var stmt = p.parseStmt()
 		list = append(list, stmt)
@@ -3557,9 +3550,9 @@ func emitAssign(lhs astExpr, rhs astExpr) {
 	emitStore(getTypeOfExpr(lhs), true, false)
 }
 
-func emitStmt(stmt *astStmt) {
+func emitStmt(stmt astStmt) {
 	emitComment(2, "== Statement %s ==\n", dtypeOf(stmt))
-	switch s := stmt.ifc.(type)  {
+	switch s := stmt.(type)  {
 	case *astBlockStmt:
 		for _, stmt2 := range s.List {
 			emitStmt(stmt2)
@@ -3942,7 +3935,7 @@ func emitStmt(stmt *astStmt) {
 		var labelToGo string
 		switch s.Tok {
 		case "continue":
-			switch s := containerFor.ifc.(type)  {
+			switch s := containerFor.(type)  {
 			case *astForStmt:
 				labelToGo = s.labelPost
 			case *astRangeStmt:
@@ -3952,7 +3945,7 @@ func emitStmt(stmt *astStmt) {
 			}
 			myfmt.Printf("jmp %s # continue\n", labelToGo)
 		case "break":
-			switch s := containerFor.ifc.(type)  {
+			switch s := containerFor.(type)  {
 			case *astForStmt:
 				labelToGo = s.labelExit
 			case *astRangeStmt:
@@ -3969,7 +3962,7 @@ func emitStmt(stmt *astStmt) {
 	}
 }
 
-func blockStmt2Stmt(block *astBlockStmt) *astStmt {
+func blockStmt2Stmt(block *astBlockStmt) astStmt {
 	return newStmt(block)
 }
 
@@ -4923,9 +4916,9 @@ func lookupMethod(rcvT *Type, methodName *astIdent) *Method {
 	return nil
 }
 
-func walkStmt(stmt *astStmt) {
+func walkStmt(stmt astStmt) {
 	logf(" [%s] begin dtype=%s\n", __func__, dtypeOf(stmt))
-	switch s := stmt.ifc.(type) {
+	switch s := stmt.(type) {
 	case *astDeclStmt:
 		logf(" [%s] *ast.DeclStmt\n", __func__)
 		if s == nil {
@@ -5062,7 +5055,7 @@ func walkStmt(stmt *astStmt) {
 		typeSwitch := &nodeTypeSwitchStmt{}
 		s.node = typeSwitch
 		var assignIdent *astIdent
-		switch s2 := s.Assign.ifc.(type) {
+		switch s2 := s.Assign.(type) {
 		case *astExprStmt:
 			typeAssertExpr := expr2TypeAssertExpr(s2.X)
 			//assert(ok, "should be *ast.TypeAssertExpr")
@@ -5118,7 +5111,7 @@ func walkStmt(stmt *astStmt) {
 	}
 }
 
-var currentFor *astStmt
+var currentFor astStmt
 
 func walkExpr(expr astExpr) {
 	logf(" [walkExpr] dtype=%s\n", dtypeOf(expr))
@@ -5875,63 +5868,50 @@ type depEntry struct {
 	children []string
 }
 
-func newStmt(x interface{}) *astStmt {
-	return &astStmt{
-		ifc: x,
-	}
+func newStmt(x interface{}) astStmt {
+	return x
 }
 
-func isStmtAssignStmt(s *astStmt) bool {
+func isStmtAssignStmt(s astStmt) bool {
 	var ok bool
-	_, ok = s.ifc.(*astAssignStmt)
+	_, ok = s.(*astAssignStmt)
 	return ok
 }
 
-func isStmtCaseClause(s *astStmt) bool {
+func isStmtCaseClause(s astStmt) bool {
 	var ok bool
-	_, ok = s.ifc.(*astCaseClause)
+	_, ok = s.(*astCaseClause)
 	return ok
 }
 
-func stmt2AssignStmt(s *astStmt) *astAssignStmt {
+func stmt2AssignStmt(s astStmt) *astAssignStmt {
 	var r *astAssignStmt
 	var ok bool
-	r, ok = s.ifc.(*astAssignStmt)
+	r, ok = s.(*astAssignStmt)
 	if !ok {
 		panic("Not *astAssignStmt")
 	}
 	return r
 }
 
-func stmt2ExprStmt(s *astStmt) *astExprStmt {
+func stmt2ExprStmt(s astStmt) *astExprStmt {
 	var r *astExprStmt
 	var ok bool
-	r, ok = s.ifc.(*astExprStmt)
+	r, ok = s.(*astExprStmt)
 	if !ok {
 		panic("Not *astExprStmt")
 	}
 	return r
 }
 
-func stmt2CaseClause(s *astStmt) *astCaseClause {
+func stmt2CaseClause(s astStmt) *astCaseClause {
 	var r *astCaseClause
 	var ok bool
-	r, ok = s.ifc.(*astCaseClause)
+	r, ok = s.(*astCaseClause)
 	if !ok {
 		panic("Not *astCaseClause")
 	}
 	return r
-}
-
-func dtypeOfStmt(stmt *astStmt) string {
-	x_ := stmt.ifc
-	typ := reflect.TypeOf(x_)
-	return typ.String()
-}
-
-func dtypeOfExpr(ifc astExpr) string {
-	typ := reflect.TypeOf(ifc)
-	return typ.String()
 }
 
 func newExpr(expr interface{}) astExpr {
