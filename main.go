@@ -444,7 +444,6 @@ type astExpr struct {
 	selectorExpr   *astSelectorExpr
 	indexExpr      *astIndexExpr
 	sliceExpr      *astSliceExpr
-	starExpr       *astStarExpr
 	parenExpr      *astParenExpr
 	structType     *astStructType
 	compositeLit   *astCompositeLit
@@ -2309,7 +2308,7 @@ func emitAddr(expr *astExpr) {
 		var elmType = getTypeOfExpr(expr)
 		emitListElementAddr(list, elmType)
 	case "*astStarExpr":
-		emitExpr(expr.starExpr.X, nil)
+		emitExpr(expr2StarExpr(expr).X, nil)
 	case "*astSelectorExpr": // (X).Sel
 		var typeOfX = getTypeOfExpr(expr.selectorExpr.X)
 		var structType *Type
@@ -2320,7 +2319,7 @@ func emitAddr(expr *astExpr) {
 			emitAddr(expr.selectorExpr.X)
 		case T_POINTER:
 			// ptr.field
-			var ptrType = typeOfX.e.starExpr
+			var ptrType = expr2StarExpr(typeOfX.e)
 			structType = e2t(ptrType.X)
 			emitExpr(expr.selectorExpr.X, nil)
 		default:
@@ -2361,7 +2360,7 @@ func isType(expr *astExpr) bool {
 	case "*astParenExpr":
 		return isType(expr.parenExpr.X)
 	case "*astStarExpr":
-		return isType(expr.starExpr.X)
+		return isType(expr2StarExpr(expr).X)
 	case "*astInterfaceType":
 		return true
 	default:
@@ -4447,8 +4446,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		t.Elt = elementTyp
 		return e2t(newExpr(t))
 	case "*astStarExpr":
-		var t = getTypeOfExpr(expr.starExpr.X)
-		var ptrType = t.e.starExpr
+		var t = getTypeOfExpr(expr2StarExpr(expr).X)
+		var ptrType = expr2StarExpr(t.e)
 		if ptrType == nil {
 			panic2(__func__, "starExpr shoud not be nil")
 		}
@@ -4554,7 +4553,7 @@ func serializeType(t *Type) string {
 			return "[" + strconv.Itoa(evalInt(e.Len)) + "]" + serializeType(e2t(e.Elt))
 		}
 	case "*astStarExpr":
-		e := t.e.starExpr
+		e := expr2StarExpr(t.e)
 		return "*" + serializeType(e2t(e.X))
 	case "*astEllipsis": // x ...T
 		panic("TBD: Ellipsis")
@@ -5231,7 +5230,7 @@ func walkExpr(expr *astExpr) {
 		}
 		walkExpr(expr.sliceExpr.X)
 	case "*astStarExpr":
-		walkExpr(expr.starExpr.X)
+		walkExpr(expr2StarExpr(expr).X)
 	case "*astSelectorExpr":
 		walkExpr(expr.selectorExpr.X)
 	case "*astArrayType": // []T(e)
@@ -6140,8 +6139,6 @@ func newExpr(x interface{}) *astExpr {
 		r.indexExpr = xx
 	case *astSliceExpr:
 		r.sliceExpr = xx
-	case *astStarExpr:
-		r.starExpr = xx
 	case *astParenExpr:
 		r.parenExpr = xx
 	case *astStructType:
