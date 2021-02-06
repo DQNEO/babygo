@@ -438,7 +438,6 @@ type astObject struct {
 type astExpr struct {
 	ifc            interface{}
 	unaryExpr      *astUnaryExpr
-	ident *astIdent
 }
 
 type astField struct {
@@ -5046,7 +5045,7 @@ func walkStmt(stmt *astStmt) {
 		if stmt.rangeStmt.Tok == ":=" {
 			listType := getTypeOfExpr(stmt.rangeStmt.X)
 
-			keyIdent := stmt.rangeStmt.Key.ident
+			keyIdent := expr2Ident(stmt.rangeStmt.Key)
 			//@TODO map key can be any type
 			//keyType := getKeyTypeOfListType(listType)
 			var keyType *Type = tInt
@@ -5054,7 +5053,7 @@ func walkStmt(stmt *astStmt) {
 
 			// determine type of Value
 			elmType := getElementTypeOfListType(listType)
-			valueIdent := stmt.rangeStmt.Value.ident
+			valueIdent := expr2Ident(stmt.rangeStmt.Value)
 			valueIdent.Obj.Variable = currentFunc.registerLocalVariable(valueIdent.Name, elmType)
 		}
 		stmt.rangeStmt.lenvar = lenvar
@@ -5086,7 +5085,7 @@ func walkStmt(stmt *astStmt) {
 		case *astAssignStmt:
 			lhs := s2.Lhs[0]
 			//var ok bool
-			assignIdent = lhs.ident
+			assignIdent = expr2Ident(lhs)
 			//assert(ok, "lhs should be ident")
 			typeSwitch.assignIdent = assignIdent
 			// ident will be a new local variable in each case clause
@@ -6014,8 +6013,6 @@ func newExpr(expr interface{}) *astExpr {
 		ifc: expr,
 	}
 	switch xx := expr.(type) {
-	case *astIdent:
-		r.ident = xx
 	case *astUnaryExpr:
 		r.unaryExpr = xx
 	}
