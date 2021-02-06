@@ -5927,36 +5927,9 @@ func stmt2CaseClause(s *astStmt) *astCaseClause {
 }
 
 func dtypeOfStmt(stmt *astStmt) string {
-	x := stmt.ifc
-	switch x.(type) {
-	case *astDeclStmt:
-		return "*astDeclStmt"
-	case *astExprStmt:
-		return "*astExprStmt"
-	case *astBlockStmt:
-		return "*astBlockStmt"
-	case *astAssignStmt:
-		return "*astAssignStmt"
-	case *astReturnStmt:
-		return "*astReturnStmt"
-	case *astIfStmt:
-		return "*astIfStmt"
-	case *astForStmt:
-		return "*astForStmt"
-	case *astIncDecStmt:
-		return "*astIncDecStmt"
-	case *astRangeStmt:
-		return "*astRangeStmt"
-	case *astBranchStmt:
-		return "*astBranchStmt"
-	case *astSwitchStmt:
-		return "*astSwitchStmt"
-	case *astTypeSwitchStmt:
-		return "*astTypeSwitchStmt"
-	case *astCaseClause:
-		return "*astCaseClause"
-	}
-	panic("Unknown type")
+	x_ := stmt.ifc
+	typ := reflect.TypeOf(x_)
+	return typ.String()
 }
 
 func dtypeOfExpr(expr *astExpr) string {
