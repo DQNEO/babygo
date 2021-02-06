@@ -2351,7 +2351,7 @@ func emitConversion(toType *Type, arg0 *astExpr) {
 	var to = toType.e
 	switch tt := to.ifc.(type)  {
 	case *astIdent:
-		switch to.ident.Obj {
+		switch tt.Obj {
 		case gString: // string(e)
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
@@ -2364,16 +2364,16 @@ func emitConversion(toType *Type, arg0 *astExpr) {
 			emitComment(2, "[emitConversion] to int \n")
 			emitExpr(arg0, nil)
 		default:
-			if to.ident.Obj.Kind == astTyp {
+			if tt.Obj.Kind == astTyp {
 				var isTypeSpec bool
-				_, isTypeSpec = to.ident.Obj.Decl.(*astTypeSpec)
+				_, isTypeSpec = tt.Obj.Decl.(*astTypeSpec)
 				if !isTypeSpec {
 					panic2(__func__, "Something is wrong")
 				}
-				//e2t(to.ident.Obj.Decl.typeSpec.Type))
+				//e2t(tt.Obj.Decl.typeSpec.Type))
 				emitExpr(arg0, nil)
 			} else{
-				panic2(__func__, "[*astIdent] TBI : "+to.ident.Obj.Name)
+				panic2(__func__, "[*astIdent] TBI : "+tt.Obj.Name)
 			}
 		}
 	case *astArrayType: // Conversion to slice
@@ -2723,7 +2723,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 	switch fn := fun.ifc.(type)  {
 	case *astIdent:
 		emitComment(2, "[%s][*astIdent]\n", __func__)
-		var fnIdent = fun.ident
+		var fnIdent = fn
 		switch fnIdent.Obj {
 		case gLen:
 			var arg = eArgs[0]
@@ -2875,7 +2875,7 @@ func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
 		default:
 			// Assume method call
 			fn := selectorExpr
-			xIdent := fn.X.ident
+			xIdent := expr2Ident(fn.X)
 			if xIdent.Obj == nil {
 				throw("xIdent.Obj  should not be nil:" + xIdent.Name)
 			}
@@ -3528,7 +3528,7 @@ func isBlankIdentifier(e *astExpr) bool {
 	if !isExprIdent(e) {
 		return false
 	}
-	return e.ident.Name == "_"
+	return expr2Ident(e).Name == "_"
 }
 
 func emitAssignWithOK(lhss []*astExpr, rhs *astExpr) {
@@ -4986,7 +4986,7 @@ func walkStmt(stmt *astStmt) {
 		var rhs = stmt.assignStmt.Rhs[0]
 		if stmt.assignStmt.Tok == ":=" {
 			assert(isExprIdent(lhs), "should be ident", __func__)
-			var obj = lhs.ident.Obj
+			var obj = expr2Ident(lhs).Obj
 			assert(obj.Kind == astVar, "should be ast.Var", __func__)
 			walkExpr(rhs)
 			// infer type
@@ -6009,11 +6009,11 @@ func dtypeOfExpr(expr *astExpr) string {
 	panic("Unkonwn type")
 }
 
-func newExpr(x interface{}) *astExpr {
+func newExpr(expr interface{}) *astExpr {
 	r := &astExpr{
-		ifc: x,
+		ifc: expr,
 	}
-	switch xx := x.(type) {
+	switch xx := expr.(type) {
 	case *astIdent:
 		r.ident = xx
 	case *astUnaryExpr:
