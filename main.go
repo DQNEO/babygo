@@ -551,7 +551,6 @@ type astFuncType struct {
 }
 
 type astStmt struct {
-	dtype          string
 	ifc            interface{}
 	DeclStmt       *astDeclStmt
 	exprStmt       *astExprStmt
@@ -1399,7 +1398,7 @@ func dtypeOf(x interface{}) string {
 	case *astExpr:
 		return dtypeOfExpr(xx)
 	case *astStmt:
-		return xx.dtype
+		return dtypeOfStmt(xx)
 	}
 
 	panic("Unexpected")
@@ -1588,7 +1587,7 @@ func (p *parser) parseForStmt() *astStmt {
 	var as *astAssignStmt
 	var rangeX *astExpr
 	if isRange {
-		assert(s2.dtype == "*astAssignStmt", "type mismatch", __func__)
+		assert(dtypeOf(s2) == "*astAssignStmt", "type mismatch", __func__)
 		as = s2.assignStmt
 		logf(" [DEBUG] range as len lhs=%s\n", strconv.Itoa(len(as.Lhs)))
 		var key *astExpr
@@ -5913,43 +5912,30 @@ func newStmt(x interface{}) *astStmt {
 	}
 	switch xx := x.(type) {
 	case *astDeclStmt:
-		r.dtype = "*astDeclStmt"
 		r.DeclStmt = xx
 	case *astExprStmt:
-		r.dtype = "*astExprStmt"
 		r.exprStmt = xx
 	case *astBlockStmt:
-		r.dtype = "*astBlockStmt"
 		r.blockStmt = xx
 	case *astAssignStmt:
-		r.dtype = "*astAssignStmt"
 		r.assignStmt = xx
 	case *astReturnStmt:
-		r.dtype = "*astReturnStmt"
 		r.returnStmt = xx
 	case *astIfStmt:
-		r.dtype = "*astIfStmt"
 		r.ifStmt = xx
 	case *astForStmt:
-		r.dtype = "*astForStmt"
 		r.forStmt = xx
 	case *astIncDecStmt:
-		r.dtype = "*astIncDecStmt"
 		r.incDecStmt = xx
 	case *astRangeStmt:
-		r.dtype = "*astRangeStmt"
 		r.rangeStmt = xx
 	case *astBranchStmt:
-		r.dtype = "*astBranchStmt"
 		r.branchStmt = xx
 	case *astSwitchStmt:
-		r.dtype = "*astSwitchStmt"
 		r.switchStmt = xx
 	case *astTypeSwitchStmt:
-		r.dtype = "*astTypeSwitchStmt"
 		r.typeSwitchStmt = xx
 	case *astCaseClause:
-		r.dtype = "*astCaseClause"
 		r.caseClause = xx
 	}
 	return r
@@ -5965,6 +5951,38 @@ func stmt2ExprStmt(s *astStmt) *astExprStmt {
 	return r
 }
 
+func dtypeOfStmt(stmt *astStmt) string {
+	x := stmt.ifc
+	switch x.(type) {
+	case *astDeclStmt:
+		return "*astDeclStmt"
+	case *astExprStmt:
+		return "*astExprStmt"
+	case *astBlockStmt:
+		return "*astBlockStmt"
+	case *astAssignStmt:
+		return "*astAssignStmt"
+	case *astReturnStmt:
+		return "*astReturnStmt"
+	case *astIfStmt:
+		return "*astIfStmt"
+	case *astForStmt:
+		return "*astForStmt"
+	case *astIncDecStmt:
+		return "*astIncDecStmt"
+	case *astRangeStmt:
+		return "*astRangeStmt"
+	case *astBranchStmt:
+		return "*astBranchStmt"
+	case *astSwitchStmt:
+		return "*astSwitchStmt"
+	case *astTypeSwitchStmt:
+		return "*astTypeSwitchStmt"
+	case *astCaseClause:
+		return "*astCaseClause"
+	}
+	panic("Unknown type")
+}
 
 func dtypeOfExpr(expr *astExpr) string {
 	x := expr.ifc
