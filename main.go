@@ -437,7 +437,7 @@ type astObject struct {
 
 type astExpr struct {
 	ifc            interface{}
-	unaryExpr      *astUnaryExpr
+	//unaryExpr      *astUnaryExpr
 }
 
 type astField struct {
@@ -1594,7 +1594,7 @@ func (p *parser) parseForStmt() *astStmt {
 			panic2(__func__, "Unexpected len of as.Lhs")
 		}
 
-		rangeX = as.Rhs[0].unaryExpr.X
+		rangeX = expr2UnaryExpr(as.Rhs[0]).X
 		var rangeStmt = &astRangeStmt{}
 		rangeStmt.Key = key
 		rangeStmt.Value = value
@@ -3111,22 +3111,22 @@ func emitExpr(expr *astExpr, ctx *evalContext) bool {
 		var elmType = getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
 	case *astUnaryExpr:
-		emitComment(2, "[DEBUG] unary op = %s\n", expr.unaryExpr.Op)
-		switch expr.unaryExpr.Op {
+		emitComment(2, "[DEBUG] unary op = %s\n", e.Op)
+		switch e.Op {
 		case "+":
-			emitExpr(expr.unaryExpr.X, nil)
+			emitExpr(e.X, nil)
 		case "-":
-			emitExpr(expr.unaryExpr.X, nil)
+			emitExpr(e.X, nil)
 			myfmt.Printf("  popq %%rax # e.X\n")
 			myfmt.Printf("  imulq $-1, %%rax\n")
 			myfmt.Printf("  pushq %%rax\n")
 		case "&":
-			emitAddr(expr.unaryExpr.X)
+			emitAddr(e.X)
 		case "!":
-			emitExpr(expr.unaryExpr.X, nil)
+			emitExpr(e.X, nil)
 			emitInvertBoolValue()
 		default:
-			panic2(__func__, "TBI:astUnaryExpr:"+expr.unaryExpr.Op)
+			panic2(__func__, "TBI:astUnaryExpr:"+e.Op)
 		}
 	case *astBinaryExpr:
 		binaryExpr := expr2BinaryExpr(expr)
@@ -4301,24 +4301,24 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		var list = e.X
 		return getElementTypeOfListType(getTypeOfExpr(list))
 	case *astUnaryExpr:
-		switch expr.unaryExpr.Op {
+		switch e.Op {
 		case "+":
-			return getTypeOfExpr(expr.unaryExpr.X)
+			return getTypeOfExpr(e.X)
 		case "-":
-			return getTypeOfExpr(expr.unaryExpr.X)
+			return getTypeOfExpr(e.X)
 		case "!":
 			return tBool
 		case "&":
 			var starExpr = &astStarExpr{}
-			var t = getTypeOfExpr(expr.unaryExpr.X)
+			var t = getTypeOfExpr(e.X)
 			starExpr.X = t.e
 			return e2t(newExpr(starExpr))
 		case "range":
-			listType := getTypeOfExpr(expr.unaryExpr.X)
+			listType := getTypeOfExpr(e.X)
 			elmType := getElementTypeOfListType(listType)
 			return elmType
 		default:
-			panic2(__func__, "TBI: Op="+expr.unaryExpr.Op)
+			panic2(__func__, "TBI: Op="+e.Op)
 		}
 	case *astCallExpr:
 		emitComment(2, "[%s] *astCallExpr\n", __func__)
@@ -6012,10 +6012,6 @@ func newExpr(expr interface{}) *astExpr {
 	r := &astExpr{
 		ifc: expr,
 	}
-	switch xx := expr.(type) {
-	case *astUnaryExpr:
-		r.unaryExpr = xx
-	}
 	return r
 }
 
@@ -6035,6 +6031,16 @@ func expr2BinaryExpr(e *astExpr) *astBinaryExpr {
 	r, ok = e.ifc.(*astBinaryExpr)
 	if ! ok {
 		panic("Not *astBinaryExpr")
+	}
+	return r
+}
+
+func expr2UnaryExpr(e *astExpr) *astUnaryExpr {
+	var r *astUnaryExpr
+	var ok bool
+	r, ok = e.ifc.(*astUnaryExpr)
+	if ! ok {
+		panic("Not *astUnaryExpr")
 	}
 	return r
 }
