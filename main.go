@@ -436,15 +436,11 @@ type astObject struct {
 	Variable *Variable
 }
 
-type Expr interface{}
-
-type astExpr struct {
-	ifc           Expr
-}
+type astExpr interface{}
 
 type astField struct {
 	Name   *astIdent
-	Type   *astExpr
+	Type   astExpr
 	Offset int
 }
 
@@ -458,7 +454,7 @@ type astIdent struct {
 }
 
 type astEllipsis struct {
-	Elt *astExpr
+	Elt astExpr
 }
 
 type astBasicLit struct {
@@ -467,67 +463,67 @@ type astBasicLit struct {
 }
 
 type astCompositeLit struct {
-	Type *astExpr
-	Elts []*astExpr
+	Type astExpr
+	Elts []astExpr
 }
 
 type astKeyValueExpr struct {
-	Key *astExpr
-	Value *astExpr
+	Key   astExpr
+	Value astExpr
 }
 
 type astParenExpr struct {
-	X *astExpr
+	X astExpr
 }
 
 type astSelectorExpr struct {
-	X   *astExpr
+	X   astExpr
 	Sel *astIdent
 }
 
 type astIndexExpr struct {
-	X     *astExpr
-	Index *astExpr
+	X     astExpr
+	Index astExpr
 }
 
 type astSliceExpr struct {
-	X      *astExpr
-	Low    *astExpr
-	High   *astExpr
-	Max    *astExpr
+	X      astExpr
+	Low    astExpr
+	High   astExpr
+	Max    astExpr
 	Slice3 bool
 }
 
 type astCallExpr struct {
-	Fun      *astExpr   // function expression
-	Args     []*astExpr // function arguments; or nil
+	Fun      astExpr   // function expression
+	Args     []astExpr // function arguments; or nil
 	Ellipsis bool
 }
 
 type astStarExpr struct {
-	X *astExpr
+	X astExpr
 }
 
 type astUnaryExpr struct {
-	X  *astExpr
+	X  astExpr
 	Op string
 }
 
 type astBinaryExpr struct {
-	X  *astExpr
-	Y  *astExpr
+	X  astExpr
+	Y  astExpr
 	Op string
 }
 
 type astTypeAssertExpr struct {
-	X *astExpr
-	Type *astExpr // asserted type; nil means type switch X.(type)
+	X    astExpr
+	Type astExpr // asserted type; nil means type switch X.(type)
 }
 
 // Type nodes
 type astArrayType struct {
-	Len *astExpr
-	Elt *astExpr
+	Len astExpr
+	Elt astExpr
 }
 
 type astStructType struct {
@@ -554,23 +550,23 @@ type astDeclStmt struct {
 }
 
 type astExprStmt struct {
-	X *astExpr
+	X astExpr
 }
 
 type astIncDecStmt struct {
-	X   *astExpr
+	X   astExpr
 	Tok string
 }
 
 type astAssignStmt struct {
-	Lhs     []*astExpr
+	Lhs     []astExpr
 	Tok     string
-	Rhs     []*astExpr
+	Rhs     []astExpr
 	isRange bool
 }
 
 type astReturnStmt struct {
-	Results []*astExpr
+	Results []astExpr
 	node    *nodeReturnStmt
 }
 
@@ -586,18 +582,18 @@ type astBlockStmt struct {
 
 type astIfStmt struct {
 	Init *astStmt
-	Cond *astExpr
+	Cond astExpr
 	Body *astBlockStmt
 	Else *astStmt
 }
 
 type astCaseClause struct {
-	List []*astExpr
+	List []astExpr
 	Body []*astStmt
 }
 
 type astSwitchStmt struct {
-	Tag  *astExpr
+	Tag  astExpr
 	Body *astBlockStmt
 	// lableExit string
 }
@@ -613,7 +609,7 @@ type nodeReturnStmt struct {
 }
 
 type nodeTypeSwitchStmt struct {
-	subject         *astExpr
+	subject         astExpr
 	subjectVariable *Variable
 	assignIdent     *astIdent
 	cases           []*TypeSwitchCaseClose
@@ -627,7 +623,7 @@ type TypeSwitchCaseClose struct {
 
 type astForStmt struct {
 	Init      *astStmt
-	Cond      *astExpr
+	Cond      astExpr
 	Post      *astStmt
 	Body      *astBlockStmt
 	Outer     *astStmt // outer loop
@@ -637,9 +633,9 @@ type astForStmt struct {
 
 
 type astRangeStmt struct {
-	Key       *astExpr
-	Value     *astExpr
-	X         *astExpr
+	Key       astExpr
+	Value     astExpr
+	X         astExpr
 	Body      *astBlockStmt
 	Outer     *astStmt // outer loop
 	labelPost string
@@ -655,13 +651,13 @@ type astImportSpec struct {
 
 type astValueSpec struct {
 	Name  *astIdent
-	Type  *astExpr
-	Value *astExpr
+	Type  astExpr
+	Value astExpr
 }
 
 type astTypeSpec struct {
 	Name *astIdent
-	Type *astExpr
+	Type astExpr
 }
 
 // Pseudo interface for *ast.Decl
@@ -843,7 +839,7 @@ func (p *parser) parseImportSpec() *astImportSpec {
 	return spec
 }
 
-func (p *parser) tryVarType(ellipsisOK bool) *astExpr {
+func (p *parser) tryVarType(ellipsisOK bool) astExpr {
 	if ellipsisOK && p.tok.tok == "..." {
 		p.next() // consume "..."
 		var typ = p.tryIdentOrType()
@@ -860,7 +856,7 @@ func (p *parser) tryVarType(ellipsisOK bool) *astExpr {
 	return p.tryIdentOrType()
 }
 
-func (p *parser) parseVarType(ellipsisOK bool) *astExpr {
+func (p *parser) parseVarType(ellipsisOK bool) astExpr {
 	logf(" [%s] begin\n", __func__)
 	var typ = p.tryVarType(ellipsisOK)
 	if typ == nil {
@@ -870,7 +866,7 @@ func (p *parser) parseVarType(ellipsisOK bool) *astExpr {
 	return typ
 }
 
-func (p *parser) tryType() *astExpr {
+func (p *parser) tryType() astExpr {
 	logf(" [%s] begin\n", __func__)
 	var typ = p.tryIdentOrType()
 	if typ != nil {
@@ -880,12 +876,12 @@ func (p *parser) tryType() *astExpr {
 	return typ
 }
 
-func (p *parser) parseType() *astExpr {
+func (p *parser) parseType() astExpr {
 	var typ = p.tryType()
 	return typ
 }
 
-func (p *parser) parsePointerType() *astExpr {
+func (p *parser) parsePointerType() astExpr {
 	p.expect("*", __func__)
 	var base = p.parseType()
 	return newExpr(&astStarExpr{
@@ -893,9 +889,9 @@ func (p *parser) parsePointerType() *astExpr {
 	})
 }
 
-func (p *parser) parseArrayType() *astExpr {
+func (p *parser) parseArrayType() astExpr {
 	p.expect("[", __func__)
-	var ln *astExpr
+	var ln astExpr
 	if p.tok.tok != "]" {
 		ln = p.parseRhs()
 	}
@@ -924,7 +920,7 @@ func (p *parser) parseFieldDecl(scope *astScope) *astField {
 	return field
 }
 
-func (p *parser) parseStructType() *astExpr {
+func (p *parser) parseStructType() astExpr {
 	p.expect("struct", __func__)
 	p.expect("{", __func__)
 
@@ -945,7 +941,7 @@ func (p *parser) parseStructType() *astExpr {
 	})
 }
 
-func (p *parser) parseTypeName() *astExpr {
+func (p *parser) parseTypeName() astExpr {
 	logf(" [%s] begin\n", __func__)
 	var ident = p.parseIdent()
 	if p.tok.tok == "." {
@@ -964,7 +960,7 @@ func (p *parser) parseTypeName() *astExpr {
 	return newExpr(ident)
 }
 
-func (p *parser) tryIdentOrType() *astExpr {
+func (p *parser) tryIdentOrType() astExpr {
 	logf(" [%s] begin\n", __func__)
 	switch p.tok.tok {
 	case "IDENT":
@@ -1000,7 +996,7 @@ func (p *parser) tryIdentOrType() *astExpr {
 
 func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astField {
 	logf(" [%s] begin\n", __func__)
-	var list []*astExpr
+	var list []astExpr
 	for {
 		var varType = p.parseVarType(ellipsisOK)
 		list = append(list, varType)
@@ -1156,10 +1152,10 @@ func declare(decl interface{}, scope *astScope, kind string, ident *astIdent) {
 
 }
 
-func (p *parser) resolve(x *astExpr) {
+func (p *parser) resolve(x astExpr) {
 	p.tryResolve(x, true)
 }
-func (p *parser) tryResolve(x *astExpr, collectUnresolved bool) {
+func (p *parser) tryResolve(x astExpr, collectUnresolved bool) {
 	if !isExprIdent(x) {
 		return
 	}
@@ -1183,7 +1179,7 @@ func (p *parser) tryResolve(x *astExpr, collectUnresolved bool) {
 	}
 }
 
-func (p *parser) parseOperand() *astExpr {
+func (p *parser) parseOperand() astExpr {
 	logf("   begin %s\n", __func__)
 	switch p.tok.tok {
 	case "IDENT":
@@ -1220,15 +1216,15 @@ func (p *parser) parseOperand() *astExpr {
 	return typ
 }
 
-func (p *parser) parseRhsOrType() *astExpr {
+func (p *parser) parseRhsOrType() astExpr {
 	var x = p.parseExpr()
 	return x
 }
 
-func (p *parser) parseCallExpr(fn *astExpr) *astExpr {
+func (p *parser) parseCallExpr(fn astExpr) astExpr {
 	p.expect("(", __func__)
 	logf(" [parsePrimaryExpr] p.tok.tok=%s\n", p.tok.tok)
-	var list []*astExpr
+	var list []astExpr
 	var ellipsis bool
 	for p.tok.tok != ")" {
 		var arg = p.parseExpr()
@@ -1259,7 +1255,7 @@ func (p *parser) parseCallExpr(fn *astExpr) *astExpr {
 
 var parserExprLev int // < 0: in control clause, >= 0: in expression
 
-func (p *parser) parsePrimaryExpr() *astExpr {
+func (p *parser) parsePrimaryExpr() astExpr {
 	logf("   begin %s\n", __func__)
 	var x = p.parseOperand()
 
@@ -1319,7 +1315,7 @@ func (p *parser) parsePrimaryExpr() *astExpr {
 	return x
 }
 
-func (p *parser) parseTypeAssertion(x *astExpr) *astExpr {
+func (p *parser) parseTypeAssertion(x astExpr) astExpr {
 	p.expect("(", __func__)
 	typ := p.parseType()
 	p.expect(")", __func__)
@@ -1329,9 +1325,9 @@ func (p *parser) parseTypeAssertion(x *astExpr) *astExpr {
 	})
 }
 
-func (p *parser) parseElement() *astExpr {
+func (p *parser) parseElement() astExpr {
 	var x = p.parseExpr() // key or value
-	var v *astExpr
+	var v astExpr
 	var kvExpr *astKeyValueExpr
 	if p.tok.tok == ":" {
 		p.next() // skip ":"
@@ -1345,9 +1341,9 @@ func (p *parser) parseElement() *astExpr {
 	return x
 }
 
-func (p *parser) parseElementList() []*astExpr {
-	var list []*astExpr
-	var e *astExpr
+func (p *parser) parseElementList() []astExpr {
+	var list []astExpr
+	var e astExpr
 	for p.tok.tok != "}" {
 		e = p.parseElement()
 		list = append(list, e)
@@ -1359,10 +1355,10 @@ func (p *parser) parseElementList() []*astExpr {
 	return list
 }
 
-func (p *parser) parseLiteralValue(typ *astExpr) *astExpr {
+func (p *parser) parseLiteralValue(typ astExpr) astExpr {
 	logf("   start %s\n", __func__)
 	p.expect("{", __func__)
-	var elts []*astExpr
+	var elts []astExpr
 	if p.tok.tok != "}" {
 		elts = p.parseElementList()
 	}
@@ -1377,17 +1373,14 @@ func (p *parser) parseLiteralValue(typ *astExpr) *astExpr {
 
 func dtypeOf(x interface{}) string {
 	switch xx := x.(type) {
-	case *astExpr:
-		return dtypeOfExpr(xx.ifc)
 	case *astStmt:
 		return dtypeOfStmt(xx)
 	}
-
-	panic("Unexpected")
+	return dtypeOfExpr(x)
 }
 
-func isLiteralType(expr *astExpr) bool {
-	switch e := expr.ifc.(type) {
+func isLiteralType(expr astExpr) bool {
+	switch e := expr.(type) {
 	case *astIdent:
 	case *astSelectorExpr:
 		return isExprIdent(e.X)
@@ -1401,9 +1394,9 @@ func isLiteralType(expr *astExpr) bool {
 	return true
 }
 
-func (p *parser) parseIndexOrSlice(x *astExpr) *astExpr {
+func (p *parser) parseIndexOrSlice(x astExpr) astExpr {
 	p.expect("[", __func__)
-	var index = make([]*astExpr, 3, 3)
+	var index = make([]astExpr, 3, 3)
 	if p.tok.tok != ":" {
 		index[0] = p.parseRhs()
 	}
@@ -1437,8 +1430,8 @@ func (p *parser) parseIndexOrSlice(x *astExpr) *astExpr {
 	return newExpr(indexExpr)
 }
 
-func (p *parser) parseUnaryExpr() *astExpr {
-	var r *astExpr
+func (p *parser) parseUnaryExpr() astExpr {
+	var r astExpr
 	logf("   begin parseUnaryExpr()\n")
 	switch p.tok.tok {
 	case "+", "-", "!", "&":
@@ -1484,7 +1477,7 @@ func precedence(op string) int {
 	return 0
 }
 
-func (p *parser) parseBinaryExpr(prec1 int) *astExpr {
+func (p *parser) parseBinaryExpr(prec1 int) astExpr {
 	logf("   begin parseBinaryExpr() prec1=%s\n", strconv.Itoa(prec1))
 	var x = p.parseUnaryExpr()
 	var oprec int
@@ -1510,23 +1503,23 @@ func (p *parser) parseBinaryExpr(prec1 int) *astExpr {
 	return x
 }
 
-func (p *parser) parseExpr() *astExpr {
+func (p *parser) parseExpr() astExpr {
 	logf("   begin p.parseExpr()\n")
 	var e = p.parseBinaryExpr(1)
 	logf("   end p.parseExpr()\n")
 	return e
 }
 
-func (p *parser) parseRhs() *astExpr {
+func (p *parser) parseRhs() astExpr {
 	var x = p.parseExpr()
 	return x
 }
 
-// Extract Expr from ExprStmt. Returns nil if input is nil
-func makeExpr(s *astStmt) *astExpr {
+// Extract astExpr from ExprStmt. Returns nil if input is nil
+func makeExpr(s *astStmt) astExpr {
 	logf(" begin %s\n", __func__)
 	if s == nil {
-		var r *astExpr
+		var r astExpr
 		return r
 	}
 	return stmt2ExprStmt(s).X
@@ -1570,13 +1563,13 @@ func (p *parser) parseForStmt() *astStmt {
 	p.expectSemi(__func__)
 
 	var as *astAssignStmt
-	var rangeX *astExpr
+	var rangeX astExpr
 	if isRange {
 		assert(isStmtAssignStmt(s2), "type mismatch:" + dtypeOf(s2), __func__)
 		as = stmt2AssignStmt(s2)
 		logf(" [DEBUG] range as len lhs=%s\n", strconv.Itoa(len(as.Lhs)))
-		var key *astExpr
-		var value *astExpr
+		var key astExpr
+		var value astExpr
 		switch len(as.Lhs) {
 		case 0:
 		case 1:
@@ -1640,7 +1633,7 @@ func (p *parser) parseIfStmt() *astStmt {
 
 func (p *parser) parseCaseClause() *astCaseClause {
 	logf(" [%s] start\n", __func__)
-	var list []*astExpr
+	var list []astExpr
 	if p.tok.tok == "case" {
 		p.next() // consume "case"
 		list = p.parseRhsList()
@@ -1658,7 +1651,7 @@ func (p *parser) parseCaseClause() *astCaseClause {
 	return r
 }
 
-func isTypeSwitchAssert(x *astExpr) bool {
+func isTypeSwitchAssert(x astExpr) bool {
 	return isExprTypeAssertExpr(x) && expr2TypeAssertExpr(x).Type == nil
 }
 
@@ -1715,7 +1708,7 @@ func (p *parser) parseSwitchStmt() *astStmt {
 	}
 }
 
-func (p *parser) parseLhsList() []*astExpr {
+func (p *parser) parseLhsList() []astExpr {
 	logf(" [%s] start\n", __func__)
 	var list = p.parseExprList()
 	logf(" end %s\n", __func__)
@@ -1727,8 +1720,8 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 	var x = p.parseLhsList()
 	var stok = p.tok.tok
 	var isRange = false
-	var y *astExpr
-	var rangeX *astExpr
+	var y astExpr
+	var rangeX astExpr
 	var rangeUnary *astUnaryExpr
 	switch stok {
 	case ":=", "=":
@@ -1748,7 +1741,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) *astStmt {
 		var as = &astAssignStmt{}
 		as.Tok = assignToken
 		as.Lhs = x
-		as.Rhs = make([]*astExpr, 1, 1)
+		as.Rhs = make([]astExpr, 1, 1)
 		as.Rhs[0] = y
 		as.isRange = isRange
 		s := newStmt(as)
@@ -1813,9 +1806,9 @@ func (p *parser) parseStmt() *astStmt {
 	return s
 }
 
-func (p *parser) parseExprList() []*astExpr {
+func (p *parser) parseExprList() []astExpr {
 	logf(" [%s] start\n", __func__)
-	var list []*astExpr
+	var list []astExpr
 	var e = p.parseExpr()
 	list = append(list, e)
 	for p.tok.tok == "," {
@@ -1828,7 +1821,7 @@ func (p *parser) parseExprList() []*astExpr {
 	return list
 }
 
-func (p *parser) parseRhsList() []*astExpr {
+func (p *parser) parseRhsList() []astExpr {
 	var list = p.parseExprList()
 	return list
 }
@@ -1845,7 +1838,7 @@ func (p *parser) parseBranchStmt(tok string) *astStmt {
 
 func (p *parser) parseReturnStmt() *astStmt {
 	p.expect("return", __func__)
-	var x []*astExpr
+	var x []astExpr
 	if p.tok.tok != ";" && p.tok.tok != "}" {
 		x = p.parseRhsList()
 	}
@@ -1898,7 +1891,7 @@ func (p *parser) parseDecl(keyword string) *astGenDecl {
 		p.expect(keyword, __func__)
 		var ident = p.parseIdent()
 		var typ = p.parseType()
-		var value *astExpr
+		var value astExpr
 		if p.tok.tok == "=" {
 			p.next()
 			value = p.parseExpr()
@@ -1939,7 +1932,7 @@ func (p *parser) parseValueSpec(keyword string) *astValueSpec {
 	var ident = p.parseIdent()
 	logf(" var = %s\n", ident.Name)
 	var typ = p.parseType()
-	var value *astExpr
+	var value astExpr
 	if p.tok.tok == "=" {
 		p.next()
 		value = p.parseExpr()
@@ -2120,8 +2113,8 @@ func emitComment(indent int, format string, a ...interface{}) {
 	syscall.Write(1, []uint8(s))
 }
 
-func evalInt(expr *astExpr) int {
-	switch expr.ifc.(type)  {
+func evalInt(expr astExpr) int {
+	switch expr.(type)  {
 	case *astBasicLit:
 		return strconv.Atoi(expr2BasicLit(expr).Value)
 	default:
@@ -2236,7 +2229,7 @@ func emitVariableAddr(variable *Variable) {
 	myfmt.Printf("  pushq %%rax # variable address\n")
 }
 
-func emitListHeadAddr(list *astExpr) {
+func emitListHeadAddr(list astExpr) {
 	var t = getTypeOfExpr(list)
 	switch kind(t) {
 	case T_ARRAY:
@@ -2254,9 +2247,9 @@ func emitListHeadAddr(list *astExpr) {
 	}
 }
 
-func emitAddr(expr *astExpr) {
+func emitAddr(expr astExpr) {
 	emitComment(2, "[emitAddr] %s\n", dtypeOf(expr))
-	switch e := expr.ifc.(type)  {
+	switch e := expr.(type)  {
 	case *astIdent:
 		if e.Name == "_" {
 			panic(" \"_\" has no address")
@@ -2311,8 +2304,8 @@ func emitAddr(expr *astExpr) {
 	}
 }
 
-func isType(expr *astExpr) bool {
-	switch e := expr.ifc.(type)  {
+func isType(expr astExpr) bool {
+	switch e := expr.(type)  {
 	case *astArrayType:
 		return true
 	case *astIdent:
@@ -2341,10 +2334,10 @@ func isType(expr *astExpr) bool {
 }
 
 // explicit conversion T(e)
-func emitConversion(toType *Type, arg0 *astExpr) {
+func emitConversion(toType *Type, arg0 astExpr) {
 	emitComment(2, "[emitConversion]\n")
 	var to = toType.e
-	switch tt := to.ifc.(type)  {
+	switch tt := to.(type)  {
 	case *astIdent:
 		switch tt.Obj {
 		case gString: // string(e)
@@ -2426,7 +2419,7 @@ func emitZeroValue(t *Type) {
 	}
 }
 
-func emitLen(arg *astExpr) {
+func emitLen(arg astExpr) {
 	emitComment(2, "[%s] begin\n", __func__)
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
@@ -2447,7 +2440,7 @@ func emitLen(arg *astExpr) {
 	emitComment(2, "[%s] end\n", __func__)
 }
 
-func emitCap(arg *astExpr) {
+func emitCap(arg astExpr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
 		var typ = getTypeOfExpr(arg)
@@ -2503,7 +2496,7 @@ func emitStructLiteral(e *astCompositeLit) {
 	}
 }
 
-func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []*astExpr) {
+func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []astExpr) {
 	var elmType = e2t(arrayType.Elt)
 	var elmSize = getSizeOfType(elmType)
 	var memSize = elmSize * arrayLen
@@ -2535,7 +2528,7 @@ func emitFalse() {
 }
 
 type Arg struct {
-	e      *astExpr
+	e      astExpr
 	t      *Type // expected type
 	offset int
 }
@@ -2543,7 +2536,7 @@ type Arg struct {
 func emitArgs(args []*Arg) int {
 	emitComment(2, "emitArgs len=%s\n", strconv.Itoa(len(args)))
 	var totalPushedSize int
-	//var arg *astExpr
+	//var arg astExpr
 	for _, arg := range args {
 		var t *Type
 		if arg.t != nil {
@@ -2594,13 +2587,13 @@ func emitArgs(args []*Arg) int {
 	return totalPushedSize
 }
 
-func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr, expandElipsis bool) []*Arg {
+func prepareArgs(funcType *astFuncType, receiver astExpr, eArgs []astExpr, expandElipsis bool) []*Arg {
 	if funcType == nil {
 		panic("no funcType")
 	}
 	var params = funcType.Params.List
-	var variadicArgs []*astExpr
-	var variadicElmType *astExpr
+	var variadicArgs []astExpr
+	var variadicElmType astExpr
 	var args []*Arg
 	var param *astField
 	var arg *Arg
@@ -2612,7 +2605,7 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr, exp
 			if isExprEllipsis(param.Type) {
 				ellipsis := expr2Ellipsis(param.Type)
 				variadicElmType = ellipsis.Elt
-				variadicArgs = make([]*astExpr, 0, 20)
+				variadicArgs = make([]astExpr, 0, 20)
 			}
 		}
 		if variadicElmType != nil && !expandElipsis {
@@ -2711,11 +2704,11 @@ func emitReturnedValue(resultList []*astField) {
 	}
 }
 
-func emitFuncall(fun *astExpr, eArgs []*astExpr, hasEllissis bool) {
+func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 	var symbol string
-	var receiver *astExpr
+	var receiver astExpr
 	var funcType *astFuncType
-	switch fn := fun.ifc.(type)  {
+	switch fn := fun.(type)  {
 	case *astIdent:
 		emitComment(2, "[%s][*astIdent]\n", __func__)
 		var fnIdent = fn
@@ -2933,10 +2926,10 @@ type evalContext struct {
 	_type     *Type
 }
 
-func emitExpr(expr *astExpr, ctx *evalContext) bool {
+func emitExpr(expr astExpr, ctx *evalContext) bool {
 	var isNilObject bool
 	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(expr))
-	switch e := expr.ifc.(type)  {
+	switch e := expr.(type)  {
 	case *astIdent:
 		var ident = e
 		if ident.Obj == nil {
@@ -3037,7 +3030,7 @@ func emitExpr(expr *astExpr, ctx *evalContext) bool {
 
 		// For convenience, any of the indices may be omitted.
 		// A missing low index defaults to zero;
-		var low *astExpr
+		var low astExpr
 		if e.Low != nil {
 			low = e.Low
 		} else {
@@ -3358,7 +3351,7 @@ func emitConvertToInterface(fromType *Type) {
 	emitDtypeSymbol(fromType)
 }
 
-func emitExprIfc(expr *astExpr, ctx *evalContext) {
+func emitExprIfc(expr astExpr, ctx *evalContext) {
 	isNilObj := emitExpr(expr, ctx)
 	if !isNilObj && ctx != nil && ctx._type != nil && isInterface(ctx._type) && !isInterface(getTypeOfExpr(expr)) {
 		emitConvertToInterface(getTypeOfExpr(expr))
@@ -3408,7 +3401,7 @@ func newNumberLiteral(x int) *astBasicLit {
 	return r
 }
 
-func emitListElementAddr(list *astExpr, elmType *Type) {
+func emitListElementAddr(list astExpr, elmType *Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
 	myfmt.Printf("  popq %%rcx # index id\n")
@@ -3519,14 +3512,14 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	}
 }
 
-func isBlankIdentifier(e *astExpr) bool {
+func isBlankIdentifier(e astExpr) bool {
 	if !isExprIdent(e) {
 		return false
 	}
 	return expr2Ident(e).Name == "_"
 }
 
-func emitAssignWithOK(lhss []*astExpr, rhs *astExpr) {
+func emitAssignWithOK(lhss []astExpr, rhs astExpr) {
 	lhsMain := lhss[0]
 	lhsOK := lhss[1]
 
@@ -3553,7 +3546,7 @@ func emitAssignWithOK(lhss []*astExpr, rhs *astExpr) {
 	}
 }
 
-func emitAssign(lhs *astExpr, rhs *astExpr) {
+func emitAssign(lhs astExpr, rhs astExpr) {
 	emitComment(2, "Assignment: emitAddr(lhs:%s)\n", dtypeOf(lhs))
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
@@ -3589,7 +3582,7 @@ func emitStmt(stmt *astStmt) {
 		var t = e2t(valSpec.Type)
 		var ident = valSpec.Name
 		var lhs = newExpr(ident)
-		var rhs *astExpr
+		var rhs astExpr
 		if valSpec.Value == nil {
 			emitComment(2, "lhs addresss\n")
 			emitAddr(lhs)
@@ -3604,7 +3597,7 @@ func emitStmt(stmt *astStmt) {
 
 		//var valueSpec *astValueSpec = genDecl.Specs[0]
 		//var obj *astObject = valueSpec.Name.Obj
-		//var typ *astExpr = valueSpec.Type
+		//var typ astExpr = valueSpec.Type
 		//mylib.Printf("[emitStmt] TBI declSpec:%s\n", valueSpec.Name.Name)
 		//os.Exit(1)
 
@@ -4028,7 +4021,7 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	myfmt.Printf("  ret\n")
 }
 
-func emitGlobalVariableComplex(name *astIdent, t *Type, val *astExpr) {
+func emitGlobalVariableComplex(name *astIdent, t *Type, val astExpr) {
 	typeKind := kind(t)
 	switch typeKind {
 	case T_POINTER:
@@ -4038,7 +4031,7 @@ func emitGlobalVariableComplex(name *astIdent, t *Type, val *astExpr) {
 	}
 }
 
-func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr) {
+func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val astExpr) {
 	typeKind := kind(t)
 	myfmt.Printf("%s.%s: # T %s\n", pkg.name, name.Name, typeKind)
 	switch typeKind {
@@ -4048,7 +4041,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			myfmt.Printf("  .quad 0\n")
 			return
 		}
-		switch vl := val.ifc.(type)  {
+		switch vl := val.(type)  {
 		case *astBasicLit:
 			var sl = getStringLiteral(vl)
 			myfmt.Printf("  .quad %s\n", sl.label)
@@ -4065,7 +4058,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			myfmt.Printf("  .quad 0 # bool zero value\n")
 			return
 		}
-		switch vl := val.ifc.(type)  {
+		switch vl := val.(type)  {
 		case *astIdent:
 			switch vl.Obj {
 			case gTrue:
@@ -4083,7 +4076,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			myfmt.Printf("  .quad 0\n")
 			return
 		}
-		switch vl := val.ifc.(type)  {
+		switch vl := val.(type)  {
 		case *astBasicLit:
 			myfmt.Printf("  .quad %s\n", vl.Value)
 		default:
@@ -4094,7 +4087,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			myfmt.Printf("  .byte 0\n")
 			return
 		}
-		switch vl := val.ifc.(type)  {
+		switch vl := val.(type)  {
 		case *astBasicLit:
 			myfmt.Printf("  .byte %s\n", vl.Value)
 		default:
@@ -4105,7 +4098,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val *astExpr
 			myfmt.Printf("  .word 0\n")
 			return
 		}
-		switch val.ifc.(type)  {
+		switch val.(type)  {
 		case *astBasicLit:
 			myfmt.Printf("  .word %s\n", expr2BasicLit(val).Value)
 		default:
@@ -4216,7 +4209,7 @@ const interfaceSize int = 16
 
 type Type struct {
 	//kind string
-	e *astExpr
+	e astExpr
 }
 
 const T_STRING string = "T_STRING"
@@ -4232,9 +4225,9 @@ const T_ARRAY string = "T_ARRAY"
 const T_STRUCT string = "T_STRUCT"
 const T_POINTER string = "T_POINTER"
 
-func getTypeOfExpr(expr *astExpr) *Type {
+func getTypeOfExpr(expr astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
-	switch e := expr.ifc.(type)  {
+	switch e := expr.(type)  {
 	case *astIdent:
 		if e.Obj == nil {
 			panic(e.Name)
@@ -4316,7 +4309,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	case *astCallExpr:
 		emitComment(2, "[%s] *astCallExpr\n", __func__)
 		var fun = e.Fun
-		switch fn := fun.ifc.(type)  {
+		switch fn := fun.(type)  {
 		case *astIdent:
 			if fn.Obj == nil {
 				panic2(__func__, "[astCallExpr] nil Obj is not allowed")
@@ -4394,8 +4387,8 @@ func getTypeOfExpr(expr *astExpr) *Type {
 			// str2 = str1[n:m]
 			return tString
 		}
-		var elementTyp *astExpr
-		switch underlyingCollectionType.e.ifc.(type) {
+		var elementTyp astExpr
+		switch underlyingCollectionType.e.(type) {
 		case *astArrayType:
 			elementTyp = expr2ArrayType(underlyingCollectionType.e).Elt
 		}
@@ -4445,7 +4438,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 	return r
 }
 
-func e2t(typeExpr *astExpr) *Type {
+func e2t(typeExpr astExpr) *Type {
 	if typeExpr == nil {
 		panic2(__func__, "nil is not allowed")
 	}
@@ -4462,7 +4455,7 @@ func serializeType(t *Type) string {
 		panic("TBD: generalSlice")
 	}
 
-	switch e := t.e.ifc.(type) {
+	switch e := t.e.(type) {
 	case *astIdent:
 		if e.Obj == nil {
 			panic("Unresolved identifier:" + e.Name)
@@ -4527,7 +4520,7 @@ func kind(t *Type) string {
 		return T_SLICE
 	}
 
-	switch e := t.e.ifc.(type)  {
+	switch e := t.e.(type)  {
 	case *astIdent:
 		var ident = e
 		switch ident.Name {
@@ -4610,7 +4603,7 @@ func getStructTypeOfX(e *astSelectorExpr) *Type {
 func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
-		switch e := t.e.ifc.(type) {
+		switch e := t.e.(type) {
 	case *astArrayType:
 		return e2t(e.Elt)
 	case *astEllipsis:
@@ -4742,14 +4735,14 @@ type stringLiteralsContainer struct {
 }
 
 type Func struct {
-	localvars   []*string
-	localarea   int
-	argsarea    int
-	funcType    *astFuncType
-	rcvType     *astExpr
-	name        string
-	Body        *astBlockStmt
-	method *Method
+	localvars []*string
+	localarea int
+	argsarea  int
+	funcType  *astFuncType
+	rcvType   astExpr
+	name      string
+	Body      *astBlockStmt
+	method    *Method
 }
 
 type Method struct {
@@ -5127,16 +5120,16 @@ func walkStmt(stmt *astStmt) {
 
 var currentFor *astStmt
 
-func walkExpr(expr *astExpr) {
+func walkExpr(expr astExpr) {
 	logf(" [walkExpr] dtype=%s\n", dtypeOf(expr))
-	switch e := expr.ifc.(type) {
+	switch e := expr.(type) {
 	case *astIdent:
 		// what to do ?
 	case *astCallExpr:
 		walkExpr(e.Fun)
 		// Replace __func__ ident by a string literal
 		var basicLit *astBasicLit
-		var newArg *astExpr
+		var newArg astExpr
 		for i, arg := range e.Args {
 			if isExprIdent(arg) {
 				ident := expr2Ident(arg)
@@ -5331,8 +5324,8 @@ var identNil = &astIdent{
 	Name: "nil",
 }
 
-var eNil *astExpr
-var eZeroInt *astExpr
+var eNil astExpr
+var eZeroInt astExpr
 
 var gTrue = &astObject{
 	Kind: astCon,
@@ -5413,7 +5406,7 @@ var tUintptr *Type
 var tString *Type
 var tEface *Type
 var tBool *Type
-var generalSlice *astExpr
+var generalSlice astExpr
 
 func createUniverse() *astScope {
 	var universe = new(astScope)
@@ -5936,146 +5929,144 @@ func dtypeOfStmt(stmt *astStmt) string {
 	return typ.String()
 }
 
-func dtypeOfExpr(ifc Expr) string {
+func dtypeOfExpr(ifc astExpr) string {
 	typ := reflect.TypeOf(ifc)
 	return typ.String()
 }
 
-func newExpr(expr interface{}) *astExpr {
-	r := &astExpr{
-		ifc: expr,
-	}
-	return r
+func newExpr(expr interface{}) astExpr {
+	return expr
 }
 
-func expr2Ident(e *astExpr) *astIdent {
+func expr2Ident(e astExpr) *astIdent {
 	var r *astIdent
 	var ok bool
-	r, ok = e.ifc.(*astIdent)
+	r, ok = e.(*astIdent)
 	if ! ok {
-		panic("Not *astIdent")
+		typ := reflect.TypeOf(e)
+		panic("Not *astIdent but got:" + typ.String())
 	}
 	return r
 }
 
-func expr2BinaryExpr(e *astExpr) *astBinaryExpr {
+func expr2BinaryExpr(e astExpr) *astBinaryExpr {
 	var r *astBinaryExpr
 	var ok bool
-	r, ok = e.ifc.(*astBinaryExpr)
+	r, ok = e.(*astBinaryExpr)
 	if ! ok {
 		panic("Not *astBinaryExpr")
 	}
 	return r
 }
 
-func expr2UnaryExpr(e *astExpr) *astUnaryExpr {
+func expr2UnaryExpr(e astExpr) *astUnaryExpr {
 	var r *astUnaryExpr
 	var ok bool
-	r, ok = e.ifc.(*astUnaryExpr)
+	r, ok = e.(*astUnaryExpr)
 	if ! ok {
 		panic("Not *astUnaryExpr")
 	}
 	return r
 }
 
-func expr2Ellipsis(e *astExpr) *astEllipsis {
+func expr2Ellipsis(e astExpr) *astEllipsis {
 	var r *astEllipsis
 	var ok bool
-	r, ok = e.ifc.(*astEllipsis)
+	r, ok = e.(*astEllipsis)
 	if ! ok {
 		panic("Not *astEllipsis")
 	}
 	return r
 }
 
-func expr2TypeAssertExpr(e *astExpr) *astTypeAssertExpr {
+func expr2TypeAssertExpr(e astExpr) *astTypeAssertExpr {
 	var r *astTypeAssertExpr
 	var ok bool
-	r, ok = e.ifc.(*astTypeAssertExpr)
+	r, ok = e.(*astTypeAssertExpr)
 	if ! ok {
 		panic("Not *astTypeAssertExpr")
 	}
 	return r
 }
 
-func expr2ArrayType(e *astExpr) *astArrayType {
+func expr2ArrayType(e astExpr) *astArrayType {
 	var r *astArrayType
 	var ok bool
-	r, ok = e.ifc.(*astArrayType)
+	r, ok = e.(*astArrayType)
 	if ! ok {
 		panic("Not *astArrayType")
 	}
 	return r
 }
 
-func expr2BasicLit(e *astExpr) *astBasicLit {
+func expr2BasicLit(e astExpr) *astBasicLit {
 	var r *astBasicLit
 	var ok bool
-	r, ok = e.ifc.(*astBasicLit)
+	r, ok = e.(*astBasicLit)
 	if ! ok {
 		panic("Not *astBasicLit")
 	}
 	return r
 }
 
-func expr2StarExpr(e *astExpr) *astStarExpr {
+func expr2StarExpr(e astExpr) *astStarExpr {
 	var r *astStarExpr
 	var ok bool
-	r, ok = e.ifc.(*astStarExpr)
+	r, ok = e.(*astStarExpr)
 	if ! ok {
 		panic("Not *astStarExpr")
 	}
 	return r
 }
 
-func expr2KeyValueExpr(e *astExpr) *astKeyValueExpr {
+func expr2KeyValueExpr(e astExpr) *astKeyValueExpr {
 	var r *astKeyValueExpr
 	var ok bool
-	r, ok = e.ifc.(*astKeyValueExpr)
+	r, ok = e.(*astKeyValueExpr)
 	if ! ok {
 		panic("Not *astKeyValueExpr")
 	}
 	return r
 }
 
-func expr2StructType(e *astExpr) *astStructType {
+func expr2StructType(e astExpr) *astStructType {
 	var r *astStructType
 	var ok bool
-	r, ok = e.ifc.(*astStructType)
+	r, ok = e.(*astStructType)
 	if ! ok {
 		panic("Not *astStructType")
 	}
 	return r
 }
 
-func isExprBasicLit(e *astExpr) bool {
+func isExprBasicLit(e astExpr) bool {
 	var ok bool
-	_, ok = e.ifc.(*astBasicLit)
+	_, ok = e.(*astBasicLit)
 	return ok
 }
 
 
-func isExprStarExpr(e *astExpr) bool {
+func isExprStarExpr(e astExpr) bool {
 	var ok bool
-	_, ok = e.ifc.(*astStarExpr)
+	_, ok = e.(*astStarExpr)
 	return ok
 }
 
-func isExprEllipsis(e *astExpr) bool {
+func isExprEllipsis(e astExpr) bool {
 	var ok bool
-	_, ok = e.ifc.(*astEllipsis)
+	_, ok = e.(*astEllipsis)
 	return ok
 }
 
-func isExprTypeAssertExpr(e *astExpr) bool {
+func isExprTypeAssertExpr(e astExpr) bool {
 	var ok bool
-	_, ok = e.ifc.(*astTypeAssertExpr)
+	_, ok = e.(*astTypeAssertExpr)
 	return ok
 }
 
-func isExprIdent(e *astExpr) bool {
+func isExprIdent(e astExpr) bool {
 	var ok bool
-	_, ok = e.ifc.(*astIdent)
+	_, ok = e.(*astIdent)
 	return ok
 }
 
