@@ -3576,9 +3576,9 @@ func emitStmt(stmt *astStmt) {
 			emitStmt(stmt2)
 		}
 	case *astExprStmt:
-		emitExpr(stmt.exprStmt.X, nil)
+		emitExpr(s.X, nil)
 	case *astDeclStmt:
-		var decl astDecl = stmt.DeclStmt.Decl
+		var decl astDecl = s.Decl
 		var genDecl *astGenDecl
 		var isGenDecl bool
 		genDecl, isGenDecl = decl.(*astGenDecl)
@@ -3613,30 +3613,30 @@ func emitStmt(stmt *astStmt) {
 		//os.Exit(1)
 
 	case *astAssignStmt:
-		switch stmt.assignStmt.Tok {
+		switch s.Tok {
 		case "=":
 		case ":=":
 		default:
 		}
-		var lhs = stmt.assignStmt.Lhs[0]
-		var rhs = stmt.assignStmt.Rhs[0]
-		if len(stmt.assignStmt.Lhs) == 2 && isExprTypeAssertExpr(rhs) {
-			emitAssignWithOK(stmt.assignStmt.Lhs, rhs)
+		var lhs = s.Lhs[0]
+		var rhs = s.Rhs[0]
+		if len(s.Lhs) == 2 && isExprTypeAssertExpr(rhs) {
+			emitAssignWithOK(s.Lhs, rhs)
 		} else {
 			emitAssign(lhs, rhs)
 		}
 	case *astReturnStmt:
-		node := stmt.returnStmt.node
+		node := s.node
 		funcType := node.fnc.funcType
-		if len(stmt.returnStmt.Results) == 0 {
+		if len(s.Results) == 0 {
 			myfmt.Printf("  leave\n")
 			myfmt.Printf("  ret\n")
-		} else if len(stmt.returnStmt.Results) == 1 {
+		} else if len(s.Results) == 1 {
 			targetType := e2t(funcType.Results.List[0].Type)
 			ctx := &evalContext{
 				_type:     targetType,
 			}
-			emitExprIfc(stmt.returnStmt.Results[0], ctx)
+			emitExprIfc(s.Results[0], ctx)
 			var knd = kind(targetType)
 			switch knd {
 			case T_BOOL, T_UINT8, T_INT, T_UINTPTR, T_POINTER:
@@ -3653,11 +3653,11 @@ func emitStmt(stmt *astStmt) {
 			}
 			myfmt.Printf("  leave\n")
 			myfmt.Printf("  ret\n")
-		} else if len(stmt.returnStmt.Results) == 3 {
+		} else if len(s.Results) == 3 {
 			// Special treatment to return a slice
-			emitExpr(stmt.returnStmt.Results[2], nil) // @FIXME
-			emitExpr(stmt.returnStmt.Results[1], nil) // @FIXME
-			emitExpr(stmt.returnStmt.Results[0], nil) // @FIXME
+			emitExpr(s.Results[2], nil) // @FIXME
+			emitExpr(s.Results[1], nil) // @FIXME
+			emitExpr(s.Results[0], nil) // @FIXME
 			myfmt.Printf("  popq %%rax # return 64bit\n")
 			myfmt.Printf("  popq %%rdi # return 64bit\n")
 			myfmt.Printf("  popq %%rsi # return 64bit\n")
@@ -3671,16 +3671,16 @@ func emitStmt(stmt *astStmt) {
 		var labelEndif = ".L.endif." + strconv.Itoa(labelid)
 		var labelElse = ".L.else." + strconv.Itoa(labelid)
 
-		emitExpr(stmt.ifStmt.Cond, nil)
+		emitExpr(s.Cond, nil)
 		emitPopBool("if condition")
 		myfmt.Printf("  cmpq $1, %%rax\n")
-		bodyStmt := newStmt(stmt.ifStmt.Body)
-		if stmt.ifStmt.Else != nil {
+		bodyStmt := newStmt(s.Body)
+		if s.Else != nil {
 			myfmt.Printf("  jne %s # jmp if false\n", labelElse)
 			emitStmt(bodyStmt) // then
 			myfmt.Printf("  jmp %s\n", labelEndif)
 			myfmt.Printf("  %s:\n", labelElse)
-			emitStmt(stmt.ifStmt.Else) // then
+			emitStmt(s.Else) // then
 		} else {
 			myfmt.Printf("  jne %s # jmp if false\n", labelEndif)
 			emitStmt(bodyStmt) // then
@@ -3694,24 +3694,24 @@ func emitStmt(stmt *astStmt) {
 		var labelExit = ".L.for.exit." + strconv.Itoa(labelid)
 		//forStmt, ok := mapForNodeToFor[s]
 		//assert(ok, "map value should exist")
-		stmt.forStmt.labelPost = labelPost
-		stmt.forStmt.labelExit = labelExit
+		s.labelPost = labelPost
+		s.labelExit = labelExit
 
-		if stmt.forStmt.Init != nil {
-			emitStmt(stmt.forStmt.Init)
+		if s.Init != nil {
+			emitStmt(s.Init)
 		}
 
 		myfmt.Printf("  %s:\n", labelCond)
-		if stmt.forStmt.Cond != nil {
-			emitExpr(stmt.forStmt.Cond, nil)
+		if s.Cond != nil {
+			emitExpr(s.Cond, nil)
 			emitPopBool("for condition")
 			myfmt.Printf("  cmpq $1, %%rax\n")
 			myfmt.Printf("  jne %s # jmp if false\n", labelExit)
 		}
-		emitStmt(blockStmt2Stmt(stmt.forStmt.Body))
+		emitStmt(blockStmt2Stmt(s.Body))
 		myfmt.Printf("  %s:\n", labelPost) // used for "continue"
-		if stmt.forStmt.Post != nil {
-			emitStmt(stmt.forStmt.Post)
+		if s.Post != nil {
+			emitStmt(s.Post)
 		}
 		myfmt.Printf("  jmp %s\n", labelCond)
 		myfmt.Printf("  %s:\n", labelExit)
@@ -3721,28 +3721,28 @@ func emitStmt(stmt *astStmt) {
 		var labelPost = ".L.range.post." + strconv.Itoa(labelid)
 		var labelExit = ".L.range.exit." + strconv.Itoa(labelid)
 
-		stmt.rangeStmt.labelPost = labelPost
-		stmt.rangeStmt.labelExit = labelExit
+		s.labelPost = labelPost
+		s.labelExit = labelExit
 		// initialization: store len(rangeexpr)
 		emitComment(2, "ForRange Initialization\n")
 
 		emitComment(2, "  assign length to lenvar\n")
 		// lenvar = len(s.X)
-		emitVariableAddr(stmt.rangeStmt.lenvar)
-		emitLen(stmt.rangeStmt.X)
+		emitVariableAddr(s.lenvar)
+		emitLen(s.X)
 		emitStore(tInt, true, false)
 
 		emitComment(2, "  assign 0 to indexvar\n")
 		// indexvar = 0
-		emitVariableAddr(stmt.rangeStmt.indexvar)
+		emitVariableAddr(s.indexvar)
 		emitZeroValue(tInt)
 		emitStore(tInt, true, false)
 
 		// init key variable with 0
-		if stmt.rangeStmt.Key != nil {
-			keyIdent := expr2Ident(stmt.rangeStmt.Key)
+		if s.Key != nil {
+			keyIdent := expr2Ident(s.Key)
 			if keyIdent.Name != "_" {
-				emitAddr(stmt.rangeStmt.Key) // lhs
+				emitAddr(s.Key) // lhs
 				emitZeroValue(tInt)
 				emitStore(tInt, true, false)
 			}
@@ -3756,9 +3756,9 @@ func emitStmt(stmt *astStmt) {
 		emitComment(2, "ForRange Condition\n")
 		myfmt.Printf("  %s:\n", labelCond)
 
-		emitVariableAddr(stmt.rangeStmt.indexvar)
+		emitVariableAddr(s.indexvar)
 		emitLoad(tInt)
-		emitVariableAddr(stmt.rangeStmt.lenvar)
+		emitVariableAddr(s.lenvar)
 		emitLoad(tInt)
 		emitCompExpr("setl")
 		emitPopBool(" indexvar < lenvar")
@@ -3766,34 +3766,34 @@ func emitStmt(stmt *astStmt) {
 		myfmt.Printf("  jne %s # jmp if false\n", labelExit)
 
 		emitComment(2, "assign list[indexvar] value variables\n")
-		var elemType = getTypeOfExpr(stmt.rangeStmt.Value)
-		emitAddr(stmt.rangeStmt.Value) // lhs
+		var elemType = getTypeOfExpr(s.Value)
+		emitAddr(s.Value) // lhs
 
-		emitVariableAddr(stmt.rangeStmt.indexvar)
+		emitVariableAddr(s.indexvar)
 		emitLoad(tInt) // index value
-		emitListElementAddr(stmt.rangeStmt.X, elemType)
+		emitListElementAddr(s.X, elemType)
 
 		emitLoad(elemType)
 		emitStore(elemType, true, false)
 
 		// Body
 		emitComment(2, "ForRange Body\n")
-		emitStmt(blockStmt2Stmt(stmt.rangeStmt.Body))
+		emitStmt(blockStmt2Stmt(s.Body))
 
 		// Post statement: Increment indexvar and go next
 		emitComment(2, "ForRange Post statement\n")
 		myfmt.Printf("  %s:\n", labelPost)        // used for "continue"
-		emitVariableAddr(stmt.rangeStmt.indexvar) // lhs
-		emitVariableAddr(stmt.rangeStmt.indexvar) // rhs
+		emitVariableAddr(s.indexvar) // lhs
+		emitVariableAddr(s.indexvar) // rhs
 		emitLoad(tInt)
 		emitAddConst(1, "indexvar value ++")
 		emitStore(tInt, true, false)
 
-		if stmt.rangeStmt.Key != nil {
-			keyIdent := expr2Ident(stmt.rangeStmt.Key)
+		if s.Key != nil {
+			keyIdent := expr2Ident(s.Key)
 			if keyIdent.Name != "_" {
-				emitAddr(stmt.rangeStmt.Key)              // lhs
-				emitVariableAddr(stmt.rangeStmt.indexvar) // rhs
+				emitAddr(s.Key)              // lhs
+				emitVariableAddr(s.indexvar) // rhs
 				emitLoad(tInt)
 				emitStore(tInt, true, false)
 			}
@@ -3805,27 +3805,27 @@ func emitStmt(stmt *astStmt) {
 
 	case *astIncDecStmt:
 		var addValue int
-		switch stmt.incDecStmt.Tok {
+		switch s.Tok {
 		case "++":
 			addValue = 1
 		case "--":
 			addValue = -1
 		default:
-			panic2(__func__, "Unexpected Tok="+stmt.incDecStmt.Tok)
+			panic2(__func__, "Unexpected Tok="+s.Tok)
 		}
-		emitAddr(stmt.incDecStmt.X)
-		emitExpr(stmt.incDecStmt.X, nil)
+		emitAddr(s.X)
+		emitExpr(s.X, nil)
 		emitAddConst(addValue, "rhs ++ or --")
-		emitStore(getTypeOfExpr(stmt.incDecStmt.X), true, false)
+		emitStore(getTypeOfExpr(s.X), true, false)
 	case *astSwitchStmt:
 		labelid++
 		var labelEnd = myfmt.Sprintf(".L.switch.%s.exit", strconv.Itoa(labelid))
-		if stmt.switchStmt.Tag == nil {
+		if s.Tag == nil {
 			panic2(__func__, "Omitted tag is not supported yet")
 		}
-		emitExpr(stmt.switchStmt.Tag, nil)
-		var condType = getTypeOfExpr(stmt.switchStmt.Tag)
-		var cases = stmt.switchStmt.Body.List
+		emitExpr(s.Tag, nil)
+		var condType = getTypeOfExpr(s.Tag)
+		var cases = s.Body.List
 		emitComment(2, "[DEBUG] cases len=%s\n", strconv.Itoa(len(cases)))
 		var labels = make([]string, len(cases), len(cases))
 		var defaultLabel string
@@ -3949,9 +3949,9 @@ func emitStmt(stmt *astStmt) {
 		myfmt.Printf("%s:\n", labelEnd)
 
 	case *astBranchStmt:
-		var containerFor = stmt.branchStmt.currentFor
+		var containerFor = s.currentFor
 		var labelToGo string
-		switch stmt.branchStmt.Tok {
+		switch s.Tok {
 		case "continue":
 			switch s := containerFor.ifc.(type)  {
 			case *astForStmt:
@@ -3973,7 +3973,7 @@ func emitStmt(stmt *astStmt) {
 			}
 			myfmt.Printf("jmp %s # break\n", labelToGo)
 		default:
-			panic2(__func__, "unexpected tok="+stmt.branchStmt.Tok)
+			panic2(__func__, "unexpected tok="+s.Tok)
 		}
 	default:
 		panic2(__func__, "TBI:"+dtypeOf(stmt))
@@ -4942,10 +4942,10 @@ func walkStmt(stmt *astStmt) {
 	switch s := stmt.ifc.(type) {
 	case *astDeclStmt:
 		logf(" [%s] *ast.DeclStmt\n", __func__)
-		if stmt.DeclStmt == nil {
+		if s == nil {
 			panic2(__func__, "nil pointer exception\n")
 		}
-		var declStmt = stmt.DeclStmt
+		var declStmt = s
 		if declStmt.Decl == nil {
 			panic2(__func__, "ERROR\n")
 		}
@@ -4981,9 +4981,9 @@ func walkStmt(stmt *astStmt) {
 			walkExpr(valSpec.Value)
 		}
 	case *astAssignStmt:
-		var lhs = stmt.assignStmt.Lhs[0]
-		var rhs = stmt.assignStmt.Rhs[0]
-		if stmt.assignStmt.Tok == ":=" {
+		var lhs = s.Lhs[0]
+		var rhs = s.Rhs[0]
+		if s.Tok == ":=" {
 			assert(isExprIdent(lhs), "should be ident", __func__)
 			var obj = expr2Ident(lhs).Obj
 			assert(obj.Kind == astVar, "should be ast.Var", __func__)
@@ -5000,52 +5000,52 @@ func walkStmt(stmt *astStmt) {
 			walkExpr(rhs)
 		}
 	case *astExprStmt:
-		walkExpr(stmt.exprStmt.X)
+		walkExpr(s.X)
 	case *astReturnStmt:
-		stmt.returnStmt.node = &nodeReturnStmt{
+		s.node = &nodeReturnStmt{
 			fnc: currentFunc,
 		}
-		for _, rt := range stmt.returnStmt.Results {
+		for _, rt := range s.Results {
 			walkExpr(rt)
 		}
 	case *astIfStmt:
-		if stmt.ifStmt.Init != nil {
-			walkStmt(stmt.ifStmt.Init)
+		if s.Init != nil {
+			walkStmt(s.Init)
 		}
-		walkExpr(stmt.ifStmt.Cond)
-		for _, s := range stmt.ifStmt.Body.List {
+		walkExpr(s.Cond)
+		for _, s := range s.Body.List {
 			walkStmt(s)
 		}
-		if stmt.ifStmt.Else != nil {
-			walkStmt(stmt.ifStmt.Else)
+		if s.Else != nil {
+			walkStmt(s.Else)
 		}
 	case *astForStmt:
-		stmt.forStmt.Outer = currentFor
+		s.Outer = currentFor
 		currentFor = stmt
-		if stmt.forStmt.Init != nil {
-			walkStmt(stmt.forStmt.Init)
+		if s.Init != nil {
+			walkStmt(s.Init)
 		}
-		if stmt.forStmt.Cond != nil {
-			walkExpr(stmt.forStmt.Cond)
+		if s.Cond != nil {
+			walkExpr(s.Cond)
 		}
-		if stmt.forStmt.Post != nil {
-			walkStmt(stmt.forStmt.Post)
+		if s.Post != nil {
+			walkStmt(s.Post)
 		}
-		walkStmt(newStmt(stmt.forStmt.Body))
-		currentFor = stmt.forStmt.Outer
+		walkStmt(newStmt(s.Body))
+		currentFor = s.Outer
 	case *astRangeStmt:
-		walkExpr(stmt.rangeStmt.X)
-		stmt.rangeStmt.Outer = currentFor
+		walkExpr(s.X)
+		s.Outer = currentFor
 		currentFor = stmt
-		var _s = blockStmt2Stmt(stmt.rangeStmt.Body)
+		var _s = blockStmt2Stmt(s.Body)
 		walkStmt(_s)
 		var lenvar = currentFunc.registerLocalVariable(".range.len", tInt)
 		var indexvar = currentFunc.registerLocalVariable(".range.index", tInt)
 
-		if stmt.rangeStmt.Tok == ":=" {
-			listType := getTypeOfExpr(stmt.rangeStmt.X)
+		if s.Tok == ":=" {
+			listType := getTypeOfExpr(s.X)
 
-			keyIdent := expr2Ident(stmt.rangeStmt.Key)
+			keyIdent := expr2Ident(s.Key)
 			//@TODO map key can be any type
 			//keyType := getKeyTypeOfListType(listType)
 			var keyType *Type = tInt
@@ -5053,28 +5053,28 @@ func walkStmt(stmt *astStmt) {
 
 			// determine type of Value
 			elmType := getElementTypeOfListType(listType)
-			valueIdent := expr2Ident(stmt.rangeStmt.Value)
+			valueIdent := expr2Ident(s.Value)
 			valueIdent.Obj.Variable = currentFunc.registerLocalVariable(valueIdent.Name, elmType)
 		}
-		stmt.rangeStmt.lenvar = lenvar
-		stmt.rangeStmt.indexvar = indexvar
-		currentFor = stmt.rangeStmt.Outer
+		s.lenvar = lenvar
+		s.indexvar = indexvar
+		currentFor = s.Outer
 	case *astIncDecStmt:
-		walkExpr(stmt.incDecStmt.X)
+		walkExpr(s.X)
 	case *astBlockStmt:
-		for _, s := range stmt.blockStmt.List {
+		for _, s := range s.List {
 			walkStmt(s)
 		}
 	case *astBranchStmt:
-		stmt.branchStmt.currentFor = currentFor
+		s.currentFor = currentFor
 	case *astSwitchStmt:
-		if stmt.switchStmt.Tag != nil {
-			walkExpr(stmt.switchStmt.Tag)
+		if s.Tag != nil {
+			walkExpr(s.Tag)
 		}
-		walkStmt(blockStmt2Stmt(stmt.switchStmt.Body))
+		walkStmt(blockStmt2Stmt(s.Body))
 	case *astTypeSwitchStmt:
 		typeSwitch := &nodeTypeSwitchStmt{}
-		stmt.typeSwitchStmt.node = typeSwitch
+		s.node = typeSwitch
 		var assignIdent *astIdent
 		switch s2 := s.Assign.ifc.(type) {
 		case *astExprStmt:
@@ -5121,14 +5121,14 @@ func walkStmt(stmt *astStmt) {
 			}
 		}
 	case *astCaseClause:
-		for _, e_ := range stmt.caseClause.List {
+		for _, e_ := range s.List {
 			walkExpr(e_)
 		}
-		for _, s_ := range stmt.caseClause.Body {
+		for _, s_ := range s.Body {
 			walkStmt(s_)
 		}
 	default:
-		panic2(__func__, "TBI: stmt.dtype="+dtypeOf(stmt))
+		panic2(__func__, "TBI: s="+dtypeOf(stmt))
 	}
 }
 
