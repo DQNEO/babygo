@@ -5157,15 +5157,15 @@ var currentFor *astStmt
 
 func walkExpr(expr *astExpr) {
 	logf(" [walkExpr] dtype=%s\n", dtypeOf(expr))
-	switch dtypeOf(expr) {
-	case "*astIdent":
+	switch e := expr.ifc.(type) {
+	case *astIdent:
 		// what to do ?
-	case "*astCallExpr":
-		walkExpr(expr.callExpr.Fun)
+	case *astCallExpr:
+		walkExpr(e.Fun)
 		// Replace __func__ ident by a string literal
 		var basicLit *astBasicLit
 		var newArg *astExpr
-		for i, arg := range expr.callExpr.Args {
+		for i, arg := range e.Args {
 			if isExprIdent(arg) {
 				ident := expr2Ident(arg)
 				if ident.Name == "__func__" && ident.Obj.Kind == astVar {
@@ -5173,57 +5173,57 @@ func walkExpr(expr *astExpr) {
 					basicLit.Kind = "STRING"
 					basicLit.Value = "\"" + currentFunc.name + "\""
 					newArg = newExpr(basicLit)
-					expr.callExpr.Args[i] = newArg
+					e.Args[i] = newArg
 					arg = newArg
 				}
 			}
 			walkExpr(arg)
 		}
-	case "*astBasicLit":
-		basicLit := expr2BasicLit(expr)
+	case *astBasicLit:
+		basicLit := e
 		switch basicLit.Kind {
 		case "STRING":
 			registerStringLiteral(basicLit)
 		}
-	case "*astCompositeLit":
-		for _, v := range expr.compositeLit.Elts {
+	case *astCompositeLit:
+		for _, v := range e.Elts {
 			walkExpr(v)
 		}
-	case "*astUnaryExpr":
-		walkExpr(expr.unaryExpr.X)
-	case "*astBinaryExpr":
-		binaryExpr := expr2BinaryExpr(expr)
+	case *astUnaryExpr:
+		walkExpr(e.X)
+	case *astBinaryExpr:
+		binaryExpr := e
 		walkExpr(binaryExpr.X)
 		walkExpr(binaryExpr.Y)
-	case "*astIndexExpr":
-		walkExpr(expr.indexExpr.Index)
-		walkExpr(expr.indexExpr.X)
-	case "*astSliceExpr":
-		if expr.sliceExpr.Low != nil {
-			walkExpr(expr.sliceExpr.Low)
+	case *astIndexExpr:
+		walkExpr(e.Index)
+		walkExpr(e.X)
+	case *astSliceExpr:
+		if e.Low != nil {
+			walkExpr(e.Low)
 		}
-		if expr.sliceExpr.High != nil {
-			walkExpr(expr.sliceExpr.High)
+		if e.High != nil {
+			walkExpr(e.High)
 		}
-		if expr.sliceExpr.Max != nil {
-			walkExpr(expr.sliceExpr.Max)
+		if e.Max != nil {
+			walkExpr(e.Max)
 		}
-		walkExpr(expr.sliceExpr.X)
-	case "*astStarExpr":
-		walkExpr(expr2StarExpr(expr).X)
-	case "*astSelectorExpr":
-		walkExpr(expr.selectorExpr.X)
-	case "*astArrayType": // []T(e)
+		walkExpr(e.X)
+	case *astStarExpr:
+		walkExpr(e.X)
+	case *astSelectorExpr:
+		walkExpr(e.X)
+	case *astArrayType: // []T(e)
 		// do nothing ?
-	case "*astParenExpr":
-		walkExpr(expr.parenExpr.X)
-	case "*astKeyValueExpr":
-		walkExpr(expr.keyValueExpr.Key)
-		walkExpr(expr.keyValueExpr.Value)
-	case "*astInterfaceType":
+	case *astParenExpr:
+		walkExpr(e.X)
+	case *astKeyValueExpr:
+		walkExpr(e.Key)
+		walkExpr(e.Value)
+	case *astInterfaceType:
 		// interface{}(e)  conversion. Nothing to do.
-	case "*astTypeAssertExpr":
-		walkExpr(expr2TypeAssertExpr(expr).X)
+	case *astTypeAssertExpr:
+		walkExpr(e.X)
 	default:
 		panic2(__func__, "TBI:"+dtypeOf(expr))
 	}
