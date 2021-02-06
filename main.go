@@ -541,19 +541,13 @@ type astFuncType struct {
 	Results *astFieldList
 }
 
-type astStmt struct {
+type 	astStmt struct {
 	ifc            interface{}
 	DeclStmt       *astDeclStmt
 	exprStmt       *astExprStmt
 	blockStmt      *astBlockStmt
-	assignStmt     *astAssignStmt
-	returnStmt     *astReturnStmt
-	ifStmt         *astIfStmt
-	forStmt        *astForStmt
-	incDecStmt     *astIncDecStmt
 	isRange        bool
-	rangeStmt      *astRangeStmt
-	branchStmt     *astBranchStmt
+
 }
 
 type astDeclStmt struct {
@@ -1576,7 +1570,7 @@ func (p *parser) parseForStmt() *astStmt {
 	var rangeX *astExpr
 	if isRange {
 		assert(dtypeOf(s2) == "*astAssignStmt", "type mismatch", __func__)
-		as = s2.assignStmt
+		as = stmt2AssignStmt(s2)
 		logf(" [DEBUG] range as len lhs=%s\n", strconv.Itoa(len(as.Lhs)))
 		var key *astExpr
 		var value *astExpr
@@ -1665,14 +1659,14 @@ func isTypeSwitchAssert(x *astExpr) bool {
 	return isExprTypeAssertExpr(x) && expr2TypeAssertExpr(x).Type == nil
 }
 
-func isTypeSwitchGuard(s *astStmt) bool {
-	switch s.ifc.(type) {
+func isTypeSwitchGuard(stmt *astStmt) bool {
+	switch s := stmt.ifc.(type) {
 	case *astExprStmt:
-		if isTypeSwitchAssert(s.exprStmt.X) {
+		if isTypeSwitchAssert(stmt.exprStmt.X) {
 			return true
 		}
 	case *astAssignStmt:
-		if len(s.assignStmt.Lhs) == 1 && len(s.assignStmt.Rhs) == 1 && isTypeSwitchAssert(s.assignStmt.Rhs[0]) {
+		if len(s.Lhs) == 1 && len(s.Rhs) == 1 && isTypeSwitchAssert(s.Rhs[0]) {
 			return true
 		}
 	}
@@ -5086,7 +5080,7 @@ func walkStmt(stmt *astStmt) {
 			//assert(ok, "lhs should be ident")
 			typeSwitch.assignIdent = assignIdent
 			// ident will be a new local variable in each case clause
-			typeAssertExpr := expr2TypeAssertExpr(s.Assign.assignStmt.Rhs[0])
+			typeAssertExpr := expr2TypeAssertExpr(s2.Rhs[0])
 			//assert(ok, "should be *ast.TypeAssertExpr")
 			typeSwitch.subject = typeAssertExpr.X
 			walkExpr(typeAssertExpr.X)
@@ -5897,20 +5891,16 @@ func newStmt(x interface{}) *astStmt {
 		r.exprStmt = xx
 	case *astBlockStmt:
 		r.blockStmt = xx
-	case *astAssignStmt:
-		r.assignStmt = xx
-	case *astReturnStmt:
-		r.returnStmt = xx
-	case *astIfStmt:
-		r.ifStmt = xx
-	case *astForStmt:
-		r.forStmt = xx
-	case *astIncDecStmt:
-		r.incDecStmt = xx
-	case *astRangeStmt:
-		r.rangeStmt = xx
-	case *astBranchStmt:
-		r.branchStmt = xx
+	}
+	return r
+}
+
+func stmt2AssignStmt(s *astStmt) *astAssignStmt {
+	var r *astAssignStmt
+	var ok bool
+	r, ok = s.ifc.(*astAssignStmt)
+	if !ok {
+		panic("Not *astAssignStmt")
 	}
 	return r
 }
