@@ -554,9 +554,6 @@ type astStmt struct {
 	isRange        bool
 	rangeStmt      *astRangeStmt
 	branchStmt     *astBranchStmt
-	switchStmt     *astSwitchStmt
-	typeSwitchStmt *astTypeSwitchStmt
-	caseClause     *astCaseClause
 }
 
 type astDeclStmt struct {
@@ -3833,7 +3830,7 @@ func emitStmt(stmt *astStmt) {
 		for i, c := range cases {
 			emitComment(2, "CASES idx=%s\n", strconv.Itoa(i))
 			assert(dtypeOf(c) == "*astCaseClause", "should be *astCaseClause", __func__)
-			var cc = c.caseClause
+			cc := stmt2CaseClause(c)
 			labelid++
 			var labelCase = ".L.case." + strconv.Itoa(labelid)
 			labels[i] = labelCase
@@ -3865,7 +3862,7 @@ func emitStmt(stmt *astStmt) {
 		emitRevertStackTop(condType)
 		for i, c := range cases {
 			assert(dtypeOf(c) == "*astCaseClause", "should be *astCaseClause", __func__)
-			var cc = c.caseClause
+			var cc = stmt2CaseClause(c)
 			myfmt.Printf("%s:\n", labels[i])
 			for _, _s := range cc.Body {
 				emitStmt(_s)
@@ -3889,7 +3886,7 @@ func emitStmt(stmt *astStmt) {
 		var defaultLabel string
 		emitComment(2, "Start comparison with cases\n")
 		for i, c := range cases {
-			cc := c.caseClause
+			cc := stmt2CaseClause(c)
 			//assert(ok, "should be *ast.CaseClause")
 			labelid++
 			labelCase := ".L.case." + strconv.Itoa(labelid)
@@ -5099,7 +5096,7 @@ func walkStmt(stmt *astStmt) {
 
 		typeSwitch.subjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
 		for _, _case := range s.Body.List {
-			cc := _case.caseClause
+			cc := stmt2CaseClause(_case)
 			tscc := &TypeSwitchCaseClose{
 				orig: cc,
 			}
@@ -5914,12 +5911,6 @@ func newStmt(x interface{}) *astStmt {
 		r.rangeStmt = xx
 	case *astBranchStmt:
 		r.branchStmt = xx
-	case *astSwitchStmt:
-		r.switchStmt = xx
-	case *astTypeSwitchStmt:
-		r.typeSwitchStmt = xx
-	case *astCaseClause:
-		r.caseClause = xx
 	}
 	return r
 }
@@ -5930,6 +5921,16 @@ func stmt2ExprStmt(s *astStmt) *astExprStmt {
 	r, ok = s.ifc.(*astExprStmt)
 	if !ok {
 		panic("Not *astExprStmt")
+	}
+	return r
+}
+
+func stmt2CaseClause(s *astStmt) *astCaseClause {
+	var r *astCaseClause
+	var ok bool
+	r, ok = s.ifc.(*astCaseClause)
+	if !ok {
+		panic("Not *astCaseClause")
 	}
 	return r
 }
