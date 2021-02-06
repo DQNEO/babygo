@@ -1554,15 +1554,7 @@ func makeExpr(s *astStmt) *astExpr {
 		var r *astExpr
 		return r
 	}
-	var ok bool
-	_, ok = s.ifc.(*astExprStmt)
-	if !ok {
-		panic2(__func__, "unexpected dtype="+dtypeOf(s))
-	}
-	if s.exprStmt == nil {
-		panic2(__func__, "exprStmt is nil")
-	}
-	return s.exprStmt.X
+	return stmt2ExprStmt(s).X
 }
 
 func (p *parser) parseForStmt() *astStmt {
@@ -1689,10 +1681,7 @@ func (p *parser) parseCaseClause() *astCaseClause {
 }
 
 func isTypeSwitchAssert(x *astExpr) bool {
-	var ok bool
-	var typeAssertExpr *astTypeAssertExpr
-	typeAssertExpr, ok = x.ifc.(*astTypeAssertExpr)
-	return ok && typeAssertExpr.Type == nil
+	return isExprTypeAssertExpr(x) && expr2TypeAssertExpr(x).Type == nil
 }
 
 func isTypeSwitchGuard(s *astStmt) bool {
@@ -2640,10 +2629,8 @@ func prepareArgs(funcType *astFuncType, receiver *astExpr, eArgs []*astExpr, exp
 		emitComment(2, "[%s][*astIdent][default] loop idx %s, len params %s\n", __func__, strconv.Itoa(argIndex), strconv.Itoa(lenParams))
 		if argIndex < lenParams {
 			param = params[argIndex]
-			var ellipsis *astEllipsis
-			var ok bool
-			ellipsis, ok = param.Type.ifc.(*astEllipsis)
-			if ok {
+			if isExprEllipsis(param.Type) {
+				ellipsis := expr2Ellipsis(param.Type)
 				variadicElmType = ellipsis.Elt
 				variadicArgs = make([]*astExpr, 0, 20)
 			}
@@ -3009,11 +2996,8 @@ func emitExpr(e *astExpr, ctx *evalContext) bool {
 		emitLoad(getTypeOfExpr(e))
 	case "*astSelectorExpr":
 		x := e.selectorExpr.X
-		var xIdent *astIdent
-		var ok bool
-		xIdent ,ok = x.ifc.(*astIdent)
-		if ok && xIdent.Obj.Kind == astPkg {
-			ident := lookupForeignVar(xIdent.Name, e.selectorExpr.Sel.Name)
+		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
+			ident := lookupForeignVar(expr2Ident(x).Name, e.selectorExpr.Sel.Name)
 			e := newExpr(ident)
 			emitExpr(e, ctx)
 		} else {
@@ -4461,10 +4445,7 @@ func getTypeOfExpr(expr *astExpr) *Type {
 		}
 	case "*astSelectorExpr":
 		x := expr.selectorExpr.X
-		var xIdent *astIdent
-		var ok bool
-		xIdent, ok = x.ifc.(*astIdent)
-		if ok && xIdent.Obj.Kind == astPkg {
+		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
 			ident := lookupForeignVar(expr.selectorExpr.X.ident.Name, expr.selectorExpr.Sel.Name)
 			return getTypeOfExpr(newExpr(ident))
 		} else {
@@ -6017,6 +5998,26 @@ func expr2StructType(e *astExpr) *astStructType {
 	r, ok = e.ifc.(*astStructType)
 	if ! ok {
 		panic("Not *astStructType")
+	}
+	return r
+}
+
+func expr2TypeAssertExpr(e *astExpr) *astTypeAssertExpr {
+	var r *astTypeAssertExpr
+	var ok bool
+	r, ok = e.ifc.(*astTypeAssertExpr)
+	if ! ok {
+		panic("Not *astTypeAssertExpr")
+	}
+	return r
+}
+
+func expr2Ellipsis(e *astExpr) *astEllipsis {
+	var r *astEllipsis
+	var ok bool
+	r, ok = e.ifc.(*astEllipsis)
+	if ! ok {
+		panic("Not *astEllipsis")
 	}
 	return r
 }
