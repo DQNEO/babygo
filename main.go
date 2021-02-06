@@ -541,11 +541,10 @@ type astFuncType struct {
 	Results *astFieldList
 }
 
-type 	astStmt struct {
+type astStmt struct {
 	ifc            interface{}
 	DeclStmt       *astDeclStmt
 	exprStmt       *astExprStmt
-	blockStmt      *astBlockStmt
 	isRange        bool
 
 }
@@ -5889,8 +5888,6 @@ func newStmt(x interface{}) *astStmt {
 		r.DeclStmt = xx
 	case *astExprStmt:
 		r.exprStmt = xx
-	case *astBlockStmt:
-		r.blockStmt = xx
 	}
 	return r
 }
