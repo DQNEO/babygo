@@ -5762,21 +5762,32 @@ func main() {
 
 	var universe = createUniverse()
 	var arg string
-
-	for _, arg = range os.Args {
+	var inputFiles []string
+	for _, arg = range os.Args[1:] {
 		switch arg {
 		case "-DF":
 			debugFrontEnd = true
 		case "-DG":
 			debugCodeGen = true
+		default:
+			inputFiles = append(inputFiles, arg)
 		}
 	}
 
-	var mainFile = arg // last arg
-	logf("input file: \"%s\"\n", mainFile)
-	logf("Parsing imports\n")
+	var importPaths []string
 
-	importPaths := getImportPathsFromFile(mainFile)
+	var mainFile = arg // last arg
+	for _, inputFile := range inputFiles {
+		logf("input file: \"%s\"\n", inputFile)
+		logf("Parsing imports\n")
+		_paths := getImportPathsFromFile(inputFile)
+		for _ , p := range _paths {
+			if !inArray(p, importPaths) {
+				importPaths = append(importPaths, p)
+			}
+		}
+	}
+
 	var tree []*depEntry
 	tree = collectDependency(tree, importPaths)
 	logf("====TREE====\n")
