@@ -21,7 +21,7 @@ os
 reflect
 syscall
 unsafe
-5
+4
 env FOO=bar
 int
 *int
