@@ -3815,56 +3815,38 @@ func main() {
 			extPackagesUsed = append(extPackagesUsed, path)
 		}
 	}
-
-	myfmt.Printf("# === sorted stdPackagesUsed ===\n")
-	for _, pth := range stdPackagesUsed {
-		myfmt.Printf("#  %s\n", pth)
-	}
-
-	myfmt.Printf("# === sorted extPackagesUsed ===\n")
-	for _, pth := range extPackagesUsed {
-		myfmt.Printf("#  %s\n", pth)
-	}
-
 	pkgRuntime := &PkgContainer{
 		files: []string{"runtime.go"},
 	}
 	var packagesToBuild = []*PkgContainer{pkgRuntime}
-
+	myfmt.Printf("# === sorted stdPackagesUsed ===\n")
 	for _, _path := range stdPackagesUsed {
-		pkgDir := getPackageDir(_path)
-		fnames := findFilesInDir(pkgDir)
-		var files []string
-		for _, fname := range fnames {
-			srcFile := pkgDir + "/" + fname
-			files = append(files, srcFile)
-		}
+		myfmt.Printf("#  %s\n", _path)
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
 			path : _path,
-			files: files,
 		})
 	}
+	myfmt.Printf("# === sorted extPackagesUsed ===\n")
 	for _, _path := range extPackagesUsed {
-		pkgDir := getPackageDir(_path)
-		fnames := findFilesInDir(pkgDir)
-		var files []string
-		for _, fname := range fnames {
-			srcFile := pkgDir + "/" + fname
-			files = append(files, srcFile)
-		}
+		myfmt.Printf("#  %s\n", _path)
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
 			path : _path,
-			files: files,
 		})
 	}
-
 	mainPkg := &PkgContainer{files: inputFiles}
 	mainPkg.name = "main"
 	packagesToBuild = append(packagesToBuild, mainPkg)
 	for _, _pkg := range packagesToBuild {
 		logf("Building package : %s\n" , _pkg.path)
 		if len(_pkg.files)  == 0 {
-
+			pkgDir := getPackageDir(_pkg.path)
+			fnames := findFilesInDir(pkgDir)
+			var files []string
+			for _, fname := range fnames {
+				srcFile := pkgDir + "/" + fname
+				files = append(files, srcFile)
+			}
+			_pkg.files = files
 		}
 		fset := &token.FileSet{}
 		for _, file := range _pkg.files {
