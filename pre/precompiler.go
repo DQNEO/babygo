@@ -3625,6 +3625,7 @@ func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
 var pkg *PkgContainer
 
 type PkgContainer struct {
+	files []string
 	name string
 	vars []*ast.ValueSpec
 	funcs []*Func
@@ -3810,7 +3811,10 @@ func main() {
 		myfmt.Printf("#  %s\n", pth)
 	}
 
-	var packagesToBuild = []string{"runtime.go"}
+	pkgRuntime := &PkgContainer{
+		files: []string{"runtime.go"},
+	}
+	var packagesToBuild = []*PkgContainer{pkgRuntime}
 	for _, pkg := range stdPackagesUsed {
 		logf("std package: %s\n", pkg)
 		pkgDir := srcPath + "/github.com/DQNEO/babygo/src/" + pkg
@@ -3818,28 +3822,33 @@ func main() {
 		fnames := findFilesInDir(pkgDir)
 		srcFile := pkgDir + "/" + fnames[0]
 		logf("# internal file: %s\n", srcFile)
-		packagesToBuild = append(packagesToBuild, srcFile)
+		pkg := &PkgContainer{
+			files: []string{srcFile},
+		}
+		packagesToBuild = append(packagesToBuild, pkg)
 	}
 	for _, pkg := range extPackagesUsed {
 		logf("ext package: %s\n", pkg)
 		pkgDir := srcPath + "/" + pkg
 		fnames := findFilesInDir(pkgDir)
 		extfile := pkgDir + "/" + fnames[0]
-		packagesToBuild = append(packagesToBuild, extfile)
+		pkg := &PkgContainer{
+			files: []string{extfile},
+		}
+		packagesToBuild = append(packagesToBuild, pkg)
 	}
 
-	packagesToBuild = append(packagesToBuild, mainFile)
-	for _, sourceFile := range packagesToBuild {
-		logf("Building package file: %s\n", sourceFile)
+	mainPkg := &PkgContainer{files: []string{mainFile}}
+	packagesToBuild = append(packagesToBuild, mainPkg)
+	for _, _pkg := range packagesToBuild {
+		logf("Building package file: %s\n", pkg)
 		stringIndex = 0
 		stringLiterals = nil
 		fset := &token.FileSet{}
-
-		astFile := parseFile(fset, sourceFile)
+		astFile := parseFile(fset, _pkg.files[0])
 		resolveUniverse(astFile, universe)
-		pkg = &PkgContainer{
-			name: astFile.Name.Name,
-		}
+		_pkg.name = astFile.Name.Name
+		pkg = _pkg
 		logf("@@@ Walking package:   %s\n", pkg.name)
 		walk(pkg, astFile)
 		generateCode(pkg)
