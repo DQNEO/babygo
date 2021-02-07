@@ -3816,6 +3816,7 @@ func main() {
 		}
 	}
 	pkgRuntime := &PkgContainer{
+		name: "main",
 		files: []string{"runtime.go"},
 	}
 	var packagesToBuild = []*PkgContainer{pkgRuntime}
@@ -3833,8 +3834,10 @@ func main() {
 			path : _path,
 		})
 	}
-	mainPkg := &PkgContainer{files: inputFiles}
-	mainPkg.name = "main"
+	mainPkg := &PkgContainer{
+		name: "main",
+		files: inputFiles,
+	}
 	packagesToBuild = append(packagesToBuild, mainPkg)
 	for _, _pkg := range packagesToBuild {
 		logf("Building package : %s\n" , _pkg.path)
