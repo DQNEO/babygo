@@ -3261,12 +3261,14 @@ func walkExpr(expr ast.Expr) {
 // - collect string literals
 // - collect local variables and set offset
 // - determine types of variable declarations
-func walk(pkg *PkgContainer, f *ast.File) {
+func walk(pkg *PkgContainer) {
+
 	var typeSpecs []*ast.TypeSpec
 	var funcDecls []*ast.FuncDecl
 	var varSpecs []*ast.ValueSpec
 	var constSpecs []*ast.ValueSpec
 
+	f := pkg.astFiles[0]
 	// grouping declarations by type
 	for _, decl := range f.Decls {
 		switch dcl := decl.(type) {
@@ -3625,8 +3627,9 @@ func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
 var pkg *PkgContainer
 
 type PkgContainer struct {
-	files []string
 	name string
+	files []string
+	astFiles []*ast.File
 	vars []*ast.ValueSpec
 	funcs []*Func
 }
@@ -3815,42 +3818,48 @@ func main() {
 		files: []string{"runtime.go"},
 	}
 	var packagesToBuild = []*PkgContainer{pkgRuntime}
+
 	for _, pkg := range stdPackagesUsed {
-		logf("std package: %s\n", pkg)
 		pkgDir := srcPath + "/github.com/DQNEO/babygo/src/" + pkg
-		logf("srcPath=%s\n", srcPath)
 		fnames := findFilesInDir(pkgDir)
-		srcFile := pkgDir + "/" + fnames[0]
-		logf("# internal file: %s\n", srcFile)
-		pkg := &PkgContainer{
-			files: []string{srcFile},
+		var files []string
+		for _, fname := range fnames {
+			srcFile := pkgDir + "/" + fname
+			files = append(files, srcFile)
 		}
-		packagesToBuild = append(packagesToBuild, pkg)
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			files: files,
+		})
 	}
 	for _, pkg := range extPackagesUsed {
-		logf("ext package: %s\n", pkg)
 		pkgDir := srcPath + "/" + pkg
 		fnames := findFilesInDir(pkgDir)
-		extfile := pkgDir + "/" + fnames[0]
-		pkg := &PkgContainer{
-			files: []string{extfile},
+		var files []string
+		for _, fname := range fnames {
+			srcFile := pkgDir + "/" + fname
+			files = append(files, srcFile)
 		}
-		packagesToBuild = append(packagesToBuild, pkg)
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			files: files,
+		})
 	}
 
 	mainPkg := &PkgContainer{files: []string{mainFile}}
 	packagesToBuild = append(packagesToBuild, mainPkg)
 	for _, _pkg := range packagesToBuild {
+		pkg = _pkg
 		logf("Building package file: %s\n", pkg)
 		stringIndex = 0
 		stringLiterals = nil
 		fset := &token.FileSet{}
-		astFile := parseFile(fset, _pkg.files[0])
-		resolveUniverse(astFile, universe)
-		_pkg.name = astFile.Name.Name
-		pkg = _pkg
+		for _, file := range _pkg.files {
+			astFile := parseFile(fset, file)
+			resolveUniverse(astFile, universe)
+			_pkg.name = astFile.Name.Name
+			_pkg.astFiles = append(_pkg.astFiles, astFile)
+		}
 		logf("@@@ Walking package:   %s\n", pkg.name)
-		walk(pkg, astFile)
+		walk(pkg)
 		generateCode(pkg)
 	}
 
