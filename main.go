@@ -5446,9 +5446,7 @@ func createUniverse() *astScope {
 	return universe
 }
 
-func resolveUniverse(file *astFile, universe *astScope) {
-	logf("[%s] start\n", __func__)
-
+func resolveImports(file *astFile) {
 	var mapImports []string
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
@@ -5456,7 +5454,19 @@ func resolveUniverse(file *astFile, universe *astScope) {
 		base := path.Base(rawPath)
 		mapImports = append(mapImports, base)
 	}
+	for _, ident := range file.Unresolved {
+		if inArray(ident.Name, mapImports) {
+			ident.Obj = &astObject{
+				Kind: astPkg,
+				Name: ident.Name,
+			}
+			logf("# resolved: %s\n", ident.Name)
+		}
+	}
+}
 
+func resolveUniverse(file *astFile, universe *astScope) {
+	logf("[%s] start\n", __func__)
 	// inject predeclared identifers
 	var unresolved []*astIdent
 	logf(" [SEMA] resolving file.Unresolved (n=%s)\n", strconv.Itoa(len(file.Unresolved)))
@@ -5467,18 +5477,10 @@ func resolveUniverse(file *astFile, universe *astScope) {
 			logf(" matched\n")
 			ident.Obj = obj
 		} else {
-			if inArray(ident.Name, mapImports) {
-				ident.Obj = &astObject{
-					Kind: astPkg,
-					Name: ident.Name,
-				}
-				logf("# resolved: %s\n", ident.Name)
-			} else {
-				// we should allow unresolved for now.
-				// e.g foo in X{foo:bar,}
-				logf("Unresolved (maybe struct field name in composite literal): "+ident.Name)
-				unresolved = append(unresolved, ident)
-			}
+			// we should allow unresolved for now.
+			// e.g foo in X{foo:bar,}
+			logf("Unresolved (maybe struct field name in composite literal): "+ident.Name)
+			unresolved = append(unresolved, ident)
 		}
 	}
 }
@@ -5856,12 +5858,16 @@ func main() {
 			_pkg.astFiles = append(_pkg.astFiles, astFile)
 		}
 		for _, astFile := range _pkg.astFiles {
+			resolveImports(astFile)
 			resolveUniverse(astFile, universe)
-			pkg = _pkg
-			pkg.Decls = astFile.Decls
-			walk(pkg)
-			generateCode(pkg)
+			for _, dcl := range astFile.Decls {
+				_pkg.Decls = append(_pkg.Decls, dcl)
+			}
 		}
+		pkg = _pkg
+		logf("Walking package: %s\n", pkg.name)
+		walk(pkg)
+		generateCode(pkg)
 	}
 
 	// emitting dynamic types

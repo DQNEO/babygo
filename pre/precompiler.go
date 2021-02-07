@@ -3565,8 +3565,6 @@ func createUniverse() *ast.Scope {
 	return universe
 }
 
-
-
 func resolveImports(file *ast.File) {
 	var mapImports = map[string]bool{}
 	for _, imprt := range file.Imports {
@@ -3866,7 +3864,7 @@ func main() {
 			}
 		}
 		pkg = _pkg
-		logf("@@@ Walking package:   %s\n", pkg.name)
+		logf("Walking package: %s\n", pkg.name)
 		walk(pkg)
 		generateCode(pkg)
 	}
