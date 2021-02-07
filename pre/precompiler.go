@@ -3767,23 +3767,31 @@ func main() {
 
 	var universe = createUniverse()
 	var arg string
-
-	for _, arg = range os.Args {
+	var inputFiles []string
+	for _, arg = range os.Args[1:] {
 		switch arg {
 		case "-DF":
 			debugFrontEnd = true
 		case "-DG":
 			debugCodeGen = true
+		default:
+			inputFiles = append(inputFiles, arg)
 		}
 	}
 
-	var mainFile = arg
-	logf("input file: \"%s\"\n", mainFile)
-	logf("Parsing imports\n")
+	//var mainFile = arg
+	var importPaths = map[string]bool{}
+	for _, inputFile := range inputFiles {
+		logf("input file: \"%s\"\n", inputFile)
+		logf("Parsing imports\n")
+		_paths := getImportPathsFromFile(inputFile)
+		for k, _ := range _paths {
+			importPaths[k] = true
+		}
+	}
 
 	var stdPackagesUsed []string
 	var extPackagesUsed []string
-	importPaths := getImportPathsFromFile(mainFile)
 	var tree = map[string]map[string]bool{}
 
 	collectDependency(tree, importPaths)
@@ -3848,7 +3856,7 @@ func main() {
 		})
 	}
 
-	mainPkg := &PkgContainer{files: []string{mainFile}}
+	mainPkg := &PkgContainer{files: inputFiles}
 	packagesToBuild = append(packagesToBuild, mainPkg)
 	for _, _pkg := range packagesToBuild {
 		logf("Building package : %s\n" , _pkg.path)
