@@ -3831,8 +3831,8 @@ func main() {
 	}
 	var packagesToBuild = []*PkgContainer{pkgRuntime}
 
-	for _, pkg := range stdPackagesUsed {
-		pkgDir := srcPath + "/github.com/DQNEO/babygo/src/" + pkg
+	for _, _path := range stdPackagesUsed {
+		pkgDir := getPackageDir(_path)
 		fnames := findFilesInDir(pkgDir)
 		var files []string
 		for _, fname := range fnames {
@@ -3843,8 +3843,8 @@ func main() {
 			files: files,
 		})
 	}
-	for _, pkg := range extPackagesUsed {
-		pkgDir := srcPath + "/" + pkg
+	for _, _path := range extPackagesUsed {
+		pkgDir := getPackageDir(_path)
 		fnames := findFilesInDir(pkgDir)
 		var files []string
 		for _, fname := range fnames {
