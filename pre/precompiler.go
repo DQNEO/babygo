@@ -3816,7 +3816,7 @@ func main() {
 		}
 	}
 	pkgRuntime := &PkgContainer{
-		name: "main",
+		name: "runtime",
 		files: []string{"runtime.go"},
 	}
 	var packagesToBuild = []*PkgContainer{pkgRuntime}

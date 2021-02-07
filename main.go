@@ -5526,9 +5526,11 @@ func lookupForeignFunc(pkg string, identifier string) *astFuncDecl {
 var pkg *PkgContainer
 
 type PkgContainer struct {
-	name string
-	vars []*astValueSpec
+	name  string
+	vars  []*astValueSpec
 	funcs []*Func
+	files []string
+	path  string
 }
 
 func showHelp() {
@@ -5776,7 +5778,6 @@ func main() {
 
 	var importPaths []string
 
-	var mainFile = arg // last arg
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")
@@ -5788,6 +5789,8 @@ func main() {
 		}
 	}
 
+	var stdPackagesUsed []string
+	var extPackagesUsed []string
 	var tree []*depEntry
 	tree = collectDependency(tree, importPaths)
 	logf("====TREE====\n")
@@ -5798,10 +5801,6 @@ func main() {
 		}
 	}
 
-
-	var stdPackagesUsed []string
-	var extPackagesUsed []string
-
 	sortedPaths := sortDepTree(tree)
 	for _, pth := range sortedPaths {
 		if isStdLib(pth) {
@@ -5811,49 +5810,54 @@ func main() {
 		}
 	}
 
+	pkgRuntime := &PkgContainer{
+		name: "runtime",
+		files: []string{"runtime.go"},
+	}
+	var packagesToBuild =  []*PkgContainer{pkgRuntime}
 	myfmt.Printf("# === sorted stdPackagesUsed ===\n")
-	for _, pth := range stdPackagesUsed {
-		myfmt.Printf("#  %s\n", pth)
+	for _, _path := range stdPackagesUsed {
+		myfmt.Printf("#  %s\n", _path)
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			path : _path,
+		})
 	}
 
 	myfmt.Printf("# === sorted extPackagesUsed ===\n")
-	for _, pth := range extPackagesUsed {
-		myfmt.Printf("#  %s\n", pth)
+	for _, _path := range extPackagesUsed {
+		myfmt.Printf("#  %s\n", _path)
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			path : _path,
+		})
 	}
-
-	var packagesToBuild = []string{"runtime.go"}
-	for _, p := range stdPackagesUsed {
-		logf("std package: %s\n", p)
-		pkgDir := srcPath + "/github.com/DQNEO/babygo/src/" + p
-		logf("srcPath=%s\n", srcPath)
-		fnames := findFilesInDir(pkgDir)
-		srcFile := pkgDir + "/" + fnames[0]
-		logf("# internal file: %s\n", srcFile)
-		packagesToBuild = append(packagesToBuild, srcFile)
+	mainPkg := &PkgContainer{
+		name: "main",
+		files: inputFiles,
 	}
-	for _, p := range extPackagesUsed {
-		logf("ext package: %s\n", p)
-		pkgDir := srcPath + "/" + p
-		logf("srcPath=%s\n", srcPath)
-		fnames := findFilesInDir(pkgDir)
-		extfile := pkgDir + "/" + fnames[0]
-		logf("# external file: %s\n", extfile)
-		packagesToBuild = append(packagesToBuild, extfile)
-	}
-
-	packagesToBuild = append(packagesToBuild, mainFile)
-
-	for _, sourceFile := range packagesToBuild {
-		logf("# package %s ============================================\n", sourceFile)
+	packagesToBuild = append(packagesToBuild,mainPkg)
+	//[]string{"runtime.go"}
+	for _, _pkg := range packagesToBuild {
 		stringIndex = 0
 		stringLiterals = nil
-		astFile := parseFile(sourceFile, false)
-		resolveUniverse(astFile, universe)
-		pkg = &PkgContainer{
-			name: astFile.Name,
+		if len(_pkg.files)  == 0 {
+			pkgDir := getPackageDir(_pkg.path)
+			fnames := findFilesInDir(pkgDir)
+			var files []string
+			for _, fname := range fnames {
+				srcFile := pkgDir + "/" + fname
+				files = append(files, srcFile)
+			}
+			_pkg.files = files
 		}
-		walk(pkg, astFile)
-		generateCode(pkg)
+		for _, file := range _pkg.files {
+			logf("Parsing file: %s\n", file)
+			astFile := parseFile(file, false)
+			_pkg.name = astFile.Name
+			resolveUniverse(astFile, universe)
+			pkg = _pkg
+			walk(pkg, astFile)
+			generateCode(pkg)
+		}
 	}
 
 	// emitting dynamic types
