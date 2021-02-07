@@ -3840,6 +3840,7 @@ func main() {
 			files = append(files, srcFile)
 		}
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			path : _path,
 			files: files,
 		})
 	}
@@ -3852,14 +3853,19 @@ func main() {
 			files = append(files, srcFile)
 		}
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			path : _path,
 			files: files,
 		})
 	}
 
 	mainPkg := &PkgContainer{files: inputFiles}
+	mainPkg.name = "main"
 	packagesToBuild = append(packagesToBuild, mainPkg)
 	for _, _pkg := range packagesToBuild {
 		logf("Building package : %s\n" , _pkg.path)
+		if len(_pkg.files)  == 0 {
+
+		}
 		fset := &token.FileSet{}
 		for _, file := range _pkg.files {
 			logf("Parsing file: %s\n" , file)
