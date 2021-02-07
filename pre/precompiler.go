@@ -2132,7 +2132,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 func generateCode(pkg *PkgContainer) {
 	myfmt.Printf("#===================== generateCode %s =====================\n", pkg.name)
 	fmt.Printf(".data\n")
-	for _, con := range stringLiterals {
+	for _, con := range pkg.stringLiterals {
 		emitComment(0, "string literals\n")
 		fmt.Printf("%s:\n", con.sl.label)
 		fmt.Printf("  .string %s\n", con.sl.value)
@@ -2858,8 +2858,6 @@ func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	return newLocalVariable(name, currentFunc.localarea, t)
 }
 
-var stringLiterals []*stringLiteralsContainer
-var stringIndex int
 var currentFor *ForStmt
 
 var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
@@ -2871,7 +2869,7 @@ var mapReturnStmt = map[*ast.ReturnStmt]*nodeReturnStmt{}
 
 var currentFunc *Func
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
-	for _, container := range stringLiterals {
+	for _, container := range pkg.stringLiterals {
 		if container.lit == lit {
 			return container.sl
 		}
@@ -2893,8 +2891,8 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		}
 	}
 
-	label := fmt.Sprintf(".%s.S%d", pkg.name, stringIndex)
-	stringIndex++
+	label := fmt.Sprintf(".%s.S%d", pkg.name, pkg.stringIndex)
+	pkg.stringIndex++
 
 	sl := &sliteral{
 		label:  label,
@@ -2904,7 +2902,7 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	var cont *stringLiteralsContainer = new(stringLiteralsContainer)
 	cont.sl = sl
 	cont.lit = lit
-	stringLiterals = append(stringLiterals, cont)
+	pkg.stringLiterals = append(pkg.stringLiterals, cont)
 }
 
 func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
@@ -3633,6 +3631,8 @@ type PkgContainer struct {
 	astFiles []*ast.File
 	vars []*ast.ValueSpec
 	funcs []*Func
+	stringLiterals []*stringLiteralsContainer
+	stringIndex int
 }
 
 func showHelp() {
@@ -3850,8 +3850,8 @@ func main() {
 	for _, _pkg := range packagesToBuild {
 		pkg = _pkg
 		logf("Building package : %s\n" , _pkg.path)
-		stringIndex = 0
-		stringLiterals = nil
+		pkg.stringIndex = 0
+		pkg.stringLiterals = nil
 		fset := &token.FileSet{}
 		for _, file := range _pkg.files {
 			logf("Parsing file: %s\n" , file)
