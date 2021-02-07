@@ -3266,9 +3266,8 @@ func walk(pkg *PkgContainer) {
 	var varSpecs []*ast.ValueSpec
 	var constSpecs []*ast.ValueSpec
 
-	f := pkg.astFiles[0]
 	// grouping declarations by type
-	for _, decl := range f.Decls {
+	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
 			specInterface := dcl.Specs[0]
@@ -3568,8 +3567,7 @@ func createUniverse() *ast.Scope {
 
 
 
-func resolveUniverse(file *ast.File, universe *ast.Scope) {
-	var unresolved []*ast.Ident
+func resolveImports(file *ast.File) {
 	var mapImports = map[string]bool{}
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
@@ -3579,24 +3577,28 @@ func resolveUniverse(file *ast.File, universe *ast.Scope) {
 		mapImports[base] = true
 	}
 	for _, ident := range file.Unresolved {
-		if obj := universe.Lookup(ident.Name); obj != nil {
-			ident.Obj = obj
-		} else {
-			// lookup imported package name
-			if mapImports[ident.Name] {
-				ident.Obj = &ast.Object{
-					Kind: ast.Pkg,
-					Name: ident.Name,
-				}
-				logf("# resolved: %s\n", ident.Name)
-			} else {
-				logf("# unresolved: %s\n" , ident.Name)
-				unresolved = append(unresolved, ident)
+		// lookup imported package name
+		if mapImports[ident.Name] {
+			ident.Obj = &ast.Object{
+				Kind: ast.Pkg,
+				Name: ident.Name,
 			}
+			logf("# resolved: %s\n", ident.Name)
 		}
 	}
 }
 
+func resolveUniverse(file *ast.File, universe *ast.Scope) {
+	var unresolved []*ast.Ident
+	for _, ident := range file.Unresolved {
+		if obj := universe.Lookup(ident.Name); obj != nil {
+			ident.Obj = obj
+		} else {
+			logf("# unresolved: %s\n" , ident.Name)
+			unresolved = append(unresolved, ident)
+		}
+	}
+}
 
 var ExportedQualifiedIdents map[string]interface{} = map[string]interface{}{}
 
@@ -3633,6 +3635,7 @@ type PkgContainer struct {
 	funcs []*Func
 	stringLiterals []*stringLiteralsContainer
 	stringIndex int
+	Decls      []ast.Decl
 }
 
 func showHelp() {
@@ -3848,10 +3851,7 @@ func main() {
 	mainPkg := &PkgContainer{files: []string{mainFile}}
 	packagesToBuild = append(packagesToBuild, mainPkg)
 	for _, _pkg := range packagesToBuild {
-		pkg = _pkg
 		logf("Building package : %s\n" , _pkg.path)
-		pkg.stringIndex = 0
-		pkg.stringLiterals = nil
 		fset := &token.FileSet{}
 		for _, file := range _pkg.files {
 			logf("Parsing file: %s\n" , file)
@@ -3860,8 +3860,13 @@ func main() {
 			_pkg.astFiles = append(_pkg.astFiles, astFile)
 		}
 		for _, astFile := range _pkg.astFiles {
+			resolveImports(astFile)
 			resolveUniverse(astFile, universe)
+			for _, dcl := range astFile.Decls {
+				_pkg.Decls = append(_pkg.Decls, dcl)
+			}
 		}
+		pkg = _pkg
 		logf("@@@ Walking package:   %s\n", pkg.name)
 		walk(pkg)
 		generateCode(pkg)
