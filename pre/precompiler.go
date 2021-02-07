@@ -3854,9 +3854,11 @@ func main() {
 		fset := &token.FileSet{}
 		for _, file := range _pkg.files {
 			astFile := parseFile(fset, file)
-			resolveUniverse(astFile, universe)
 			_pkg.name = astFile.Name.Name
 			_pkg.astFiles = append(_pkg.astFiles, astFile)
+		}
+		for _, astFile := range _pkg.astFiles {
+			resolveUniverse(astFile, universe)
 		}
 		logf("@@@ Walking package:   %s\n", pkg.name)
 		walk(pkg)
