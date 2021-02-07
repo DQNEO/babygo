@@ -3627,6 +3627,7 @@ func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
 var pkg *PkgContainer
 
 type PkgContainer struct {
+	path string
 	name string
 	files []string
 	astFiles []*ast.File
@@ -3848,11 +3849,12 @@ func main() {
 	packagesToBuild = append(packagesToBuild, mainPkg)
 	for _, _pkg := range packagesToBuild {
 		pkg = _pkg
-		logf("Building package file: %s\n", pkg)
+		logf("Building package : %s\n" , _pkg.path)
 		stringIndex = 0
 		stringLiterals = nil
 		fset := &token.FileSet{}
 		for _, file := range _pkg.files {
+			logf("Parsing file: %s\n" , file)
 			astFile := parseFile(fset, file)
 			_pkg.name = astFile.Name.Name
 			_pkg.astFiles = append(_pkg.astFiles, astFile)
