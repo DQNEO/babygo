@@ -4155,8 +4155,8 @@ func emitGlobalVariable(pkg *PkgContainer, name *astIdent, t *Type, val astExpr)
 func generateCode(pkg *PkgContainer) {
 	myfmt.Printf("#===================== generateCode %s =====================\n", pkg.name)
 	myfmt.Printf(".data\n")
-	emitComment(0, "string literals len = %s\n", strconv.Itoa(len(stringLiterals)))
-	for _, con := range stringLiterals {
+	emitComment(0, "string literals len = %s\n", strconv.Itoa(len(pkg.stringLiterals)))
+	for _, con := range pkg.stringLiterals {
 		emitComment(0, "string literals\n")
 		myfmt.Printf("%s:\n", con.sl.label)
 		myfmt.Printf("  .string %s\n", con.sl.value)
@@ -4768,13 +4768,10 @@ func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	return newLocalVariable(name, currentFunc.localarea, t)
 }
 
-var stringLiterals []*stringLiteralsContainer
-var stringIndex int
-
 var currentFunc *Func
 
 func getStringLiteral(lit *astBasicLit) *sliteral {
-	for _, container := range stringLiterals {
+	for _, container := range pkg.stringLiterals {
 		if container.lit == lit {
 			return container.sl
 		}
@@ -4800,18 +4797,19 @@ func registerStringLiteral(lit *astBasicLit) {
 		}
 	}
 
-	label := myfmt.Sprintf(".%s.S%d", pkg.name, strconv.Itoa(stringIndex))
-	stringIndex++
+	label := myfmt.Sprintf(".%s.S%d", pkg.name, strconv.Itoa(pkg.stringIndex))
+	pkg.stringIndex++
 
-	sl := &sliteral{}
-	sl.label = label
-	sl.strlen = strlen - 2
-	sl.value = lit.Value
+	sl := &sliteral{
+		label : label,
+		strlen : strlen - 2,
+		value: lit.Value,
+	}
 	logf(" [registerStringLiteral] label=%s, strlen=%s %s\n", sl.label, strconv.Itoa(sl.strlen), sl.value)
 	cont := &stringLiteralsContainer{}
 	cont.sl = sl
 	cont.lit = lit
-	stringLiterals = append(stringLiterals, cont)
+	pkg.stringLiterals = append(pkg.stringLiterals, cont)
 }
 
 func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
@@ -5194,13 +5192,13 @@ type exportEntry struct {
 	any interface{} // *astFuncDecl|*astIdent(variable)
 }
 
-func walk(pkg *PkgContainer, file *astFile) {
+func walk(pkg *PkgContainer) {
 	var typeSpecs []*astTypeSpec
 	var funcDecls []*astFuncDecl
 	var varSpecs []*astValueSpec
 	var constSpecs []*astValueSpec
 
-	for _, decl := range file.Decls {
+	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
 		case *astGenDecl:
 			switch spec := dcl.Spec.(type) {
@@ -5526,11 +5524,15 @@ func lookupForeignFunc(pkg string, identifier string) *astFuncDecl {
 var pkg *PkgContainer
 
 type PkgContainer struct {
-	name  string
-	vars  []*astValueSpec
-	funcs []*Func
-	files []string
-	path  string
+	path     string
+	name     string
+	files    []string
+	astFiles []*astFile
+	vars     []*astValueSpec
+	funcs    []*Func
+	stringLiterals []*stringLiteralsContainer
+	stringIndex int
+	Decls    []astDecl
 }
 
 func showHelp() {
@@ -5837,8 +5839,6 @@ func main() {
 	packagesToBuild = append(packagesToBuild,mainPkg)
 	//[]string{"runtime.go"}
 	for _, _pkg := range packagesToBuild {
-		stringIndex = 0
-		stringLiterals = nil
 		if len(_pkg.files)  == 0 {
 			pkgDir := getPackageDir(_pkg.path)
 			fnames := findFilesInDir(pkgDir)
@@ -5853,9 +5853,13 @@ func main() {
 			logf("Parsing file: %s\n", file)
 			astFile := parseFile(file, false)
 			_pkg.name = astFile.Name
+			_pkg.astFiles = append(_pkg.astFiles, astFile)
+		}
+		for _, astFile := range _pkg.astFiles {
 			resolveUniverse(astFile, universe)
 			pkg = _pkg
-			walk(pkg, astFile)
+			pkg.Decls = astFile.Decls
+			walk(pkg)
 			generateCode(pkg)
 		}
 	}
