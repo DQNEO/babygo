@@ -297,6 +297,6 @@ func (s *astScope) Lookup(name string) *astObject {
 			return oe.obj
 		}
 	}
-	var r *astObject
-	return r
+
+	return nil
 }
