@@ -676,9 +676,10 @@ type astFuncDecl struct {
 
 type astFile struct {
 	Name       string
-	Imports []*astImportSpec
+	Imports    []*astImportSpec
 	Decls      []astDecl
 	Unresolved []*astIdent
+	scope      *astScope
 }
 
 type astScope struct {
@@ -2069,6 +2070,7 @@ func (p *parser) parseFile(importsOnly bool) *astFile {
 
 	var f = &astFile{}
 	f.Name = packageName
+	f.scope = p.pkgScope
 	f.Decls = decls
 	f.Unresolved = unresolved
 	f.Imports = p.imports
@@ -5465,22 +5467,28 @@ func resolveImports(file *astFile) {
 	}
 }
 
-func resolveUniverse(file *astFile, universe *astScope) {
+func resolveUniverse(file *astFile, pkgScope *astScope) {
 	logf("[%s] start\n", __func__)
 	// inject predeclared identifers
 	var unresolved []*astIdent
 	logf(" [SEMA] resolving file.Unresolved (n=%s)\n", strconv.Itoa(len(file.Unresolved)))
 	for _, ident := range file.Unresolved {
 		logf(" [SEMA] resolving ident %s ... \n", ident.Name)
-		var obj *astObject = scopeLookup(universe, ident.Name)
+		var obj *astObject = scopeLookup(pkgScope, ident.Name)
 		if obj != nil {
 			logf(" matched\n")
 			ident.Obj = obj
 		} else {
-			// we should allow unresolved for now.
-			// e.g foo in X{foo:bar,}
-			logf("Unresolved (maybe struct field name in composite literal): "+ident.Name)
-			unresolved = append(unresolved, ident)
+			obj  = scopeLookup(pkgScope.Outer, ident.Name)
+			if obj != nil {
+				logf(" matched\n")
+				ident.Obj = obj
+			} else {
+				// we should allow unresolved for now.
+				// e.g foo in X{foo:bar,}
+				logf("Unresolved (maybe struct field name in composite literal): "+ident.Name)
+				unresolved = append(unresolved, ident)
+			}
 		}
 	}
 }
@@ -5851,15 +5859,19 @@ func main() {
 			}
 			_pkg.files = files
 		}
+		pkgScope := astNewScope(universe)
 		for _, file := range _pkg.files {
 			logf("Parsing file: %s\n", file)
 			astFile := parseFile(file, false)
 			_pkg.name = astFile.Name
 			_pkg.astFiles = append(_pkg.astFiles, astFile)
+			for _, oe := range astFile.scope.Objects {
+				pkgScope.Objects = append(pkgScope.Objects, oe)
+			}
 		}
 		for _, astFile := range _pkg.astFiles {
 			resolveImports(astFile)
-			resolveUniverse(astFile, universe)
+			resolveUniverse(astFile, pkgScope)
 			for _, dcl := range astFile.Decls {
 				_pkg.Decls = append(_pkg.Decls, dcl)
 			}
