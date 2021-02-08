@@ -329,9 +329,9 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		emitComment(2, "Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
 		emitExpr(arg0, nil)
 		emitPopString()
-		fmt.Printf("  pushq %%rcx # cap\n")
-		fmt.Printf("  pushq %%rcx # len\n")
-		fmt.Printf("  pushq %%rax # ptr\n")
+		myfmt.Printf("  pushq %%rcx # cap\n")
+		myfmt.Printf("  pushq %%rcx # len\n")
+		myfmt.Printf("  pushq %%rax # ptr\n")
 	case *ast.ParenExpr: // (T)(arg0)
 		emitConversion(e2t(to.X), arg0)
 	case *ast.StarExpr: // (*T)(arg0)
@@ -383,11 +383,11 @@ func emitLen(arg ast.Expr) {
 	case T_SLICE:
 		emitExpr(arg, nil)
 		emitPopSlice()
-		fmt.Printf("  pushq %%rcx # len\n")
+		myfmt.Printf("  pushq %%rcx # len\n")
 	case T_STRING:
 		emitExpr(arg, nil)
 		emitPopString()
-		fmt.Printf("  pushq %%rcx # len\n")
+		myfmt.Printf("  pushq %%rcx # len\n")
 	default:
 		throw(kind(getTypeOfExpr(arg)))
 	}
@@ -402,7 +402,7 @@ func emitCap(arg ast.Expr) {
 	case T_SLICE:
 		emitExpr(arg, nil)
 		emitPopSlice()
-		fmt.Printf("  pushq %%rdx # cap\n")
+		myfmt.Printf("  pushq %%rdx # cap\n")
 	case T_STRING:
 		panic("cap() cannot accept string type")
 	default:
@@ -477,11 +477,11 @@ func emitInvertBoolValue() {
 }
 
 func emitTrue() {
-	fmt.Printf("  pushq $1 # true\n")
+	myfmt.Printf("  pushq $1 # true\n")
 }
 
 func emitFalse() {
-	fmt.Printf("  pushq $0 # false\n")
+	myfmt.Printf("  pushq $0 # false\n")
 }
 
 type Arg struct {
@@ -631,17 +631,17 @@ func emitReturnedValue(resultList []*ast.Field) {
 		retval0 := resultList[0]
 		switch kind(e2t(retval0.Type)) {
 		case T_STRING:
-			fmt.Printf("  pushq %%rdi # str len\n")
-			fmt.Printf("  pushq %%rax # str ptr\n")
+			myfmt.Printf("  pushq %%rdi # str len\n")
+			myfmt.Printf("  pushq %%rax # str ptr\n")
 		case T_INTERFACE:
 			myfmt.Printf("  pushq %%rdi # ifc data\n")
 			myfmt.Printf("  pushq %%rax # ifc dtype\n")
 		case T_BOOL, T_UINT8, T_INT, T_UINTPTR, T_POINTER:
-			fmt.Printf("  pushq %%rax\n")
+			myfmt.Printf("  pushq %%rax\n")
 		case T_SLICE:
-			fmt.Printf("  pushq %%rsi # slice cap\n")
-			fmt.Printf("  pushq %%rdi # slice len\n")
-			fmt.Printf("  pushq %%rax # slice ptr\n")
+			myfmt.Printf("  pushq %%rsi # slice cap\n")
+			myfmt.Printf("  pushq %%rdi # slice len\n")
+			myfmt.Printf("  pushq %%rax # slice ptr\n")
 		default:
 			throw(kind(e2t(retval0.Type)))
 		}
@@ -989,7 +989,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			} else {
 				fmt.Printf("  pushq $%d # str len\n", sl.strlen)
 				fmt.Printf("  leaq %s, %%rax # str ptr\n", sl.label)
-				fmt.Printf("  pushq %%rax # str ptr\n")
+				myfmt.Printf("  pushq %%rax # str ptr\n")
 			}
 		default:
 			panic("Unexpected literal kind:" + e.Kind.String())
@@ -1182,7 +1182,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			emitPopAddress("malloc")
 			fmt.Printf("  pushq $%d # slice.cap\n", length)
 			fmt.Printf("  pushq $%d # slice.len\n", length)
-			fmt.Printf("  pushq %%rax # slice.ptr\n")
+			myfmt.Printf("  pushq %%rax # slice.ptr\n")
 		default:
 			panic(string(kind(e2t(e.Type))))
 		}
@@ -1638,9 +1638,9 @@ func emitStmt(stmt ast.Stmt) {
 			emitExpr(s.Results[2], nil) // @FIXME
 			emitExpr(s.Results[1], nil) // @FIXME
 			emitExpr(s.Results[0], nil) // @FIXME
-			fmt.Printf("  popq %%rax # return 64bit\n")
-			fmt.Printf("  popq %%rdi # return 64bit\n")
-			fmt.Printf("  popq %%rsi # return 64bit\n")
+			myfmt.Printf("  popq %%rax # return 64bit\n")
+			myfmt.Printf("  popq %%rdi # return 64bit\n")
+			myfmt.Printf("  popq %%rsi # return 64bit\n")
 		} else {
 			panic("TBI")
 		}
@@ -2001,8 +2001,8 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	for _, stmt := range fnc.stmts {
 		emitStmt(stmt)
 	}
-	fmt.Printf("  leave\n")
-	fmt.Printf("  ret\n")
+	myfmt.Printf("  leave\n")
+	myfmt.Printf("  ret\n")
 }
 
 func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
@@ -2071,7 +2071,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 	case T_UINT16:
 		switch vl := val.(type) {
 		case nil:
-			fmt.Printf("  .word 0\n")
+			myfmt.Printf("  .word 0\n")
 		case *ast.BasicLit:
 			fmt.Printf("  .word %s\n", vl.Value)
 		default:
@@ -2119,7 +2119,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			throw(arrayType.Elt)
 		}
 		for i := 0; i < length; i++ {
-			fmt.Printf(zeroValue)
+			myfmt.Printf(zeroValue)
 		}
 	default:
 		throw(typeKind)
@@ -2128,7 +2128,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 
 func generateCode(pkg *PkgContainer) {
 	myfmt.Printf("#===================== generateCode %s =====================\n", pkg.name)
-	fmt.Printf(".data\n")
+	myfmt.Printf(".data\n")
 	for _, con := range pkg.stringLiterals {
 		emitComment(0, "string literals\n")
 		fmt.Printf("%s:\n", con.sl.label)
@@ -2163,7 +2163,7 @@ func generateCode(pkg *PkgContainer) {
 		}
 		emitGlobalVariableComplex(spec.Names[0], t, val)
 	}
-	fmt.Printf("  ret\n")
+	myfmt.Printf("  ret\n")
 
 	var fnc *Func
 	for _, fnc = range pkg.funcs {
