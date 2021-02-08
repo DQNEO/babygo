@@ -2132,7 +2132,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 func generateCode(pkg *PkgContainer) {
 	myfmt.Printf("#===================== generateCode %s =====================\n", pkg.name)
 	fmt.Printf(".data\n")
-	for _, con := range stringLiterals {
+	for _, con := range pkg.stringLiterals {
 		emitComment(0, "string literals\n")
 		fmt.Printf("%s:\n", con.sl.label)
 		fmt.Printf("  .string %s\n", con.sl.value)
@@ -2858,8 +2858,6 @@ func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	return newLocalVariable(name, currentFunc.localarea, t)
 }
 
-var stringLiterals []*stringLiteralsContainer
-var stringIndex int
 var currentFor *ForStmt
 
 var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
@@ -2871,7 +2869,7 @@ var mapReturnStmt = map[*ast.ReturnStmt]*nodeReturnStmt{}
 
 var currentFunc *Func
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
-	for _, container := range stringLiterals {
+	for _, container := range pkg.stringLiterals {
 		if container.lit == lit {
 			return container.sl
 		}
@@ -2893,8 +2891,8 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		}
 	}
 
-	label := fmt.Sprintf(".%s.S%d", pkg.name, stringIndex)
-	stringIndex++
+	label := fmt.Sprintf(".%s.S%d", pkg.name, pkg.stringIndex)
+	pkg.stringIndex++
 
 	sl := &sliteral{
 		label:  label,
@@ -2904,7 +2902,7 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	var cont *stringLiteralsContainer = new(stringLiteralsContainer)
 	cont.sl = sl
 	cont.lit = lit
-	stringLiterals = append(stringLiterals, cont)
+	pkg.stringLiterals = append(pkg.stringLiterals, cont)
 }
 
 func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
@@ -3261,14 +3259,15 @@ func walkExpr(expr ast.Expr) {
 // - collect string literals
 // - collect local variables and set offset
 // - determine types of variable declarations
-func walk(pkg *PkgContainer, f *ast.File) {
+func walk(pkg *PkgContainer) {
+
 	var typeSpecs []*ast.TypeSpec
 	var funcDecls []*ast.FuncDecl
 	var varSpecs []*ast.ValueSpec
 	var constSpecs []*ast.ValueSpec
 
 	// grouping declarations by type
-	for _, decl := range f.Decls {
+	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
 			specInterface := dcl.Specs[0]
@@ -3566,10 +3565,7 @@ func createUniverse() *ast.Scope {
 	return universe
 }
 
-
-
-func resolveUniverse(file *ast.File, universe *ast.Scope) {
-	var unresolved []*ast.Ident
+func resolveImports(file *ast.File) {
 	var mapImports = map[string]bool{}
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
@@ -3579,24 +3575,28 @@ func resolveUniverse(file *ast.File, universe *ast.Scope) {
 		mapImports[base] = true
 	}
 	for _, ident := range file.Unresolved {
-		if obj := universe.Lookup(ident.Name); obj != nil {
-			ident.Obj = obj
-		} else {
-			// lookup imported package name
-			if mapImports[ident.Name] {
-				ident.Obj = &ast.Object{
-					Kind: ast.Pkg,
-					Name: ident.Name,
-				}
-				logf("# resolved: %s\n", ident.Name)
-			} else {
-				logf("# unresolved: %s\n" , ident.Name)
-				unresolved = append(unresolved, ident)
+		// lookup imported package name
+		if mapImports[ident.Name] {
+			ident.Obj = &ast.Object{
+				Kind: ast.Pkg,
+				Name: ident.Name,
 			}
+			logf("# resolved: %s\n", ident.Name)
 		}
 	}
 }
 
+func resolveUniverse(file *ast.File, universe *ast.Scope) {
+	var unresolved []*ast.Ident
+	for _, ident := range file.Unresolved {
+		if obj := universe.Lookup(ident.Name); obj != nil {
+			ident.Obj = obj
+		} else {
+			logf("# unresolved: %s\n" , ident.Name)
+			unresolved = append(unresolved, ident)
+		}
+	}
+}
 
 var ExportedQualifiedIdents map[string]interface{} = map[string]interface{}{}
 
@@ -3625,9 +3625,15 @@ func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
 var pkg *PkgContainer
 
 type PkgContainer struct {
+	path string
 	name string
+	files []string
+	astFiles []*ast.File
 	vars []*ast.ValueSpec
 	funcs []*Func
+	stringLiterals []*stringLiteralsContainer
+	stringIndex int
+	Decls      []ast.Decl
 }
 
 func showHelp() {
@@ -3759,23 +3765,31 @@ func main() {
 
 	var universe = createUniverse()
 	var arg string
-
-	for _, arg = range os.Args {
+	var inputFiles []string
+	for _, arg = range os.Args[1:] {
 		switch arg {
 		case "-DF":
 			debugFrontEnd = true
 		case "-DG":
 			debugCodeGen = true
+		default:
+			inputFiles = append(inputFiles, arg)
 		}
 	}
 
-	var mainFile = arg
-	logf("input file: \"%s\"\n", mainFile)
-	logf("Parsing imports\n")
+	//var mainFile = arg
+	var importPaths = map[string]bool{}
+	for _, inputFile := range inputFiles {
+		logf("input file: \"%s\"\n", inputFile)
+		logf("Parsing imports\n")
+		_paths := getImportPathsFromFile(inputFile)
+		for k, _ := range _paths {
+			importPaths[k] = true
+		}
+	}
 
 	var stdPackagesUsed []string
 	var extPackagesUsed []string
-	importPaths := getImportPathsFromFile(mainFile)
 	var tree = map[string]map[string]bool{}
 
 	collectDependency(tree, importPaths)
@@ -3799,49 +3813,59 @@ func main() {
 			extPackagesUsed = append(extPackagesUsed, path)
 		}
 	}
-
+	pkgRuntime := &PkgContainer{
+		name: "runtime",
+		files: []string{"runtime.go"},
+	}
+	var packagesToBuild = []*PkgContainer{pkgRuntime}
 	myfmt.Printf("# === sorted stdPackagesUsed ===\n")
-	for _, pth := range stdPackagesUsed {
-		myfmt.Printf("#  %s\n", pth)
+	for _, _path := range stdPackagesUsed {
+		myfmt.Printf("#  %s\n", _path)
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			path : _path,
+		})
 	}
-
 	myfmt.Printf("# === sorted extPackagesUsed ===\n")
-	for _, pth := range extPackagesUsed {
-		myfmt.Printf("#  %s\n", pth)
+	for _, _path := range extPackagesUsed {
+		myfmt.Printf("#  %s\n", _path)
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			path : _path,
+		})
 	}
-
-	var packagesToBuild = []string{"runtime.go"}
-	for _, pkg := range stdPackagesUsed {
-		logf("std package: %s\n", pkg)
-		pkgDir := srcPath + "/github.com/DQNEO/babygo/src/" + pkg
-		logf("srcPath=%s\n", srcPath)
-		fnames := findFilesInDir(pkgDir)
-		srcFile := pkgDir + "/" + fnames[0]
-		logf("# internal file: %s\n", srcFile)
-		packagesToBuild = append(packagesToBuild, srcFile)
+	mainPkg := &PkgContainer{
+		name: "main",
+		files: inputFiles,
 	}
-	for _, pkg := range extPackagesUsed {
-		logf("ext package: %s\n", pkg)
-		pkgDir := srcPath + "/" + pkg
-		fnames := findFilesInDir(pkgDir)
-		extfile := pkgDir + "/" + fnames[0]
-		packagesToBuild = append(packagesToBuild, extfile)
-	}
-
-	packagesToBuild = append(packagesToBuild, mainFile)
-	for _, sourceFile := range packagesToBuild {
-		logf("Building package file: %s\n", sourceFile)
-		stringIndex = 0
-		stringLiterals = nil
-		fset := &token.FileSet{}
-
-		astFile := parseFile(fset, sourceFile)
-		resolveUniverse(astFile, universe)
-		pkg = &PkgContainer{
-			name: astFile.Name.Name,
+	packagesToBuild = append(packagesToBuild, mainPkg)
+	for _, _pkg := range packagesToBuild {
+		logf("Building package : %s\n" , _pkg.path)
+		if len(_pkg.files)  == 0 {
+			pkgDir := getPackageDir(_pkg.path)
+			fnames := findFilesInDir(pkgDir)
+			var files []string
+			for _, fname := range fnames {
+				srcFile := pkgDir + "/" + fname
+				files = append(files, srcFile)
+			}
+			_pkg.files = files
 		}
-		logf("@@@ Walking package:   %s\n", pkg.name)
-		walk(pkg, astFile)
+		fset := &token.FileSet{}
+		for _, file := range _pkg.files {
+			logf("Parsing file: %s\n" , file)
+			astFile := parseFile(fset, file)
+			_pkg.name = astFile.Name.Name
+			_pkg.astFiles = append(_pkg.astFiles, astFile)
+		}
+		for _, astFile := range _pkg.astFiles {
+			resolveImports(astFile)
+			resolveUniverse(astFile, universe)
+			for _, dcl := range astFile.Decls {
+				_pkg.Decls = append(_pkg.Decls, dcl)
+			}
+		}
+		pkg = _pkg
+		logf("Walking package: %s\n", pkg.name)
+		walk(pkg)
 		generateCode(pkg)
 	}
 
