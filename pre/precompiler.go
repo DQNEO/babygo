@@ -78,6 +78,8 @@ func evalInt(expr ast.Expr) int {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
 		return strconv.Atoi(e.Value)
+	default:
+		panic("Unknown type")
 	}
 	return 0
 }

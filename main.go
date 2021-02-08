@@ -40,8 +40,6 @@ func logf(format string, a ...interface{}) {
 	syscall.Write(1, []uint8(s))
 }
 
-// --- libs ---
-
 // --- codegen ---
 var debugCodeGen bool
 
@@ -60,9 +58,9 @@ func emitComment(indent int, format string, a ...interface{}) {
 }
 
 func evalInt(expr astExpr) int {
-	switch expr.(type)  {
+	switch e := expr.(type)  {
 	case *astBasicLit:
-		return strconv.Atoi(expr2BasicLit(expr).Value)
+		return strconv.Atoi(e.Value)
 	default:
 		panic("Unknown type")
 	}
