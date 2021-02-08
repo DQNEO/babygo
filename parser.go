@@ -445,7 +445,7 @@ func (p *parser) tryResolve(x astExpr, collectUnresolved bool) {
 
 	var s *astScope
 	for s = p.topScope; s != nil; s = s.Outer {
-		var obj = scopeLookup(s, ident.Name)
+		var obj = s.Lookup(ident.Name)
 		if obj != nil {
 			ident.Obj = obj
 			return
@@ -1334,7 +1334,8 @@ func (p *parser) parseFile(importsOnly bool) *astFile {
 	logf(" [parserFile] resolving parser's unresolved (n=%s)\n", strconv.Itoa(len(p.unresolved)))
 	for _, idnt := range p.unresolved {
 		logf(" [parserFile] resolving ident %s ...\n", idnt.Name)
-		var obj *astObject = scopeLookup(p.pkgScope, idnt.Name)
+		ps := p.pkgScope
+		var obj *astObject = ps.Lookup(idnt.Name)
 		if obj != nil {
 			logf(" resolved \n")
 			idnt.Obj = obj

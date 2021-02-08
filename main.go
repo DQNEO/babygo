@@ -59,7 +59,7 @@ func (s *astScope) Insert(obj *astObject) {
 	})
 }
 
-func scopeLookup(s *astScope, name string) *astObject {
+func (s *astScope) Lookup(name string) *astObject {
 	for _, oe := range s.Objects {
 		if oe.name == name {
 			return oe.obj
@@ -3823,12 +3823,12 @@ func main() {
 			logf(" [SEMA] resolving af.Unresolved (n=%s)\n", strconv.Itoa(len(af.Unresolved)))
 			for _, ident := range af.Unresolved {
 				logf(" [SEMA] resolving ident %s ... \n", ident.Name)
-				var obj *astObject = scopeLookup(pkgScope, ident.Name)
+				var obj *astObject = pkgScope.Lookup(ident.Name)
 				if obj != nil {
 					logf(" matched\n")
 					ident.Obj = obj
 				} else {
-					obj  = scopeLookup(pkgScope.Outer, ident.Name)
+					obj  = universe.Lookup(ident.Name)
 					if obj != nil {
 						logf(" matched\n")
 						ident.Obj = obj
