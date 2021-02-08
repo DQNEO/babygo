@@ -269,4 +269,9 @@ type astScope struct {
 	Objects []*objectEntry
 }
 
+type objectEntry struct {
+	name string
+	obj  *astObject
+}
+
 
