@@ -11,7 +11,7 @@ import (
 
 	"github.com/DQNEO/babygo/lib/myfmt"
 	"github.com/DQNEO/babygo/lib/strconv"
-	path2 "github.com/DQNEO/babygo/lib/path"
+	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strings"
 	"github.com/DQNEO/babygo/lib/mylib"
 )
@@ -3564,8 +3564,8 @@ func resolveImports(file *ast.File) {
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		rawValue := imprt.Path.Value
-		path :=  rawValue[1:len(rawValue)-1]
-		base := path2.Base(path)
+		pth :=  rawValue[1:len(rawValue)-1]
+		base := path.Base(pth)
 		mapImports[base] = true
 	}
 	for _, ident := range file.Unresolved {
@@ -3626,7 +3626,7 @@ func showHelp() {
 
 // "some/dir" => []string{"a.go", "b.go"}
 func findFilesInDir(dir string) []string {
-	//fname := path2.Base(dir) + ".go"
+	//fname := path.Base(dir) + ".go"
 	//return []string{fname}
 	dirents := mylib.GetDirents(dir)
 	var r []string
