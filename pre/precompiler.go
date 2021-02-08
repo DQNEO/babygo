@@ -5,8 +5,8 @@ import (
 	"github.com/DQNEO/babygo/lib/myfmt"
 	path2 "github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
+	"github.com/DQNEO/babygo/lib/strings"
 	"os"
-	"strings"
 	"syscall"
 
 	"go/ast"
@@ -3639,8 +3639,8 @@ func findFilesInDir(dir string) []string {
 	return r
 }
 
-func isStdLib(path string) bool {
-	return !strings.Contains(path, "/")
+func isStdLib(pth string) bool {
+	return !strings.Contains(pth, "/")
 }
 
 func getImportPathsFromFile(file string) map[string]bool {

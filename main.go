@@ -9,6 +9,7 @@ import (
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
+	"github.com/DQNEO/babygo/lib/strings"
 )
 
 // --- foundation ---
@@ -3521,12 +3522,7 @@ func findFilesInDir(dir string) []string {
 }
 
 func isStdLib(pth string) bool {
-	for _, b := range []uint8(pth) {
-		if b == '/' {
-			return false
-		}
-	}
-	return true
+	return !strings.Contains(pth, "/")
 }
 
 func getImportPathsFromFile(file string) []string {
