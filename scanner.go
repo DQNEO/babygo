@@ -1,6 +1,9 @@
 package main
 
-import "github.com/DQNEO/babygo/lib/strconv"
+import (
+	"github.com/DQNEO/babygo/lib/mylib"
+	"github.com/DQNEO/babygo/lib/strconv"
+)
 
 type scanner struct {
 	src        []uint8
@@ -133,7 +136,7 @@ func (s *scanner) Scan() *TokenContainer {
 	var ch = s.ch
 	if isLetter(ch) {
 		lit = s.scanIdentifier()
-		if inArray(lit, keywords) {
+		if mylib.InArray(lit, keywords) {
 			tok = lit
 			switch tok {
 			case "break", "continue", "fallthrough", "return":

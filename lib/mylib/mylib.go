@@ -4,6 +4,15 @@ import "unsafe"
 import "syscall"
 import "github.com/DQNEO/babygo/lib/mylib2"
 
+func InArray(x string, list []string) bool {
+	for _, v := range list {
+		if v == x {
+			return true
+		}
+	}
+	return false
+}
+
 func Sum(a int, b int) int {
 	return a + b
 }

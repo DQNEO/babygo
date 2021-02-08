@@ -40,14 +40,6 @@ func logf(format string, a ...interface{}) {
 }
 
 // --- libs ---
-func inArray(x string, list []string) bool {
-	for _, v := range list {
-		if v == x {
-			return true
-		}
-	}
-	return false
-}
 
 func astNewScope(outer *astScope) *astScope {
 	return &astScope{
@@ -3442,7 +3434,7 @@ func resolveImports(file *astFile) {
 		mapImports = append(mapImports, base)
 	}
 	for _, ident := range file.Unresolved {
-		if inArray(ident.Name, mapImports) {
+		if mylib.InArray(ident.Name, mapImports) {
 			ident.Obj = &astObject{
 				Kind: astPkg,
 				Name: ident.Name,
@@ -3597,7 +3589,7 @@ func removeLeafNode(tree []*depEntry, sortedPaths []string) []*depEntry {
 	// remove leaf node
 	var newTree []*depEntry
 	for _, entry := range tree {
-		if inArray(entry.path, sortedPaths) {
+		if mylib.InArray(entry.path, sortedPaths) {
 			continue
 		}
 		de := &depEntry{
@@ -3605,7 +3597,7 @@ func removeLeafNode(tree []*depEntry, sortedPaths []string) []*depEntry {
 			children: nil,
 		}
 		for _, child := range entry.children {
-			if inArray(child, sortedPaths) {
+			if mylib.InArray(child, sortedPaths) {
 				continue
 			}
 			de.children = append(de.children, child)
@@ -3754,7 +3746,7 @@ func main() {
 		logf("Parsing imports\n")
 		_paths := getImportPathsFromFile(inputFile)
 		for _ , p := range _paths {
-			if !inArray(p, importPaths) {
+			if !mylib.InArray(p, importPaths) {
 				importPaths = append(importPaths, p)
 			}
 		}
