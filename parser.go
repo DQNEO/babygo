@@ -408,7 +408,7 @@ func declareField(decl *astField, scope *astScope, kind string, ident *astIdent)
 
 	// scope insert
 	if ident.Name != "_" {
-		scopeInsert(scope, obj)
+		scope.Insert(obj)
 	}
 }
 
@@ -425,7 +425,7 @@ func declare(decl interface{}, scope *astScope, kind string, ident *astIdent) {
 
 	// scope insert
 	if ident.Name != "_" {
-		scopeInsert(scope, obj)
+		scope.Insert(obj)
 	}
 	logf(" [declare] end\n")
 

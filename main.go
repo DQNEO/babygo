@@ -48,7 +48,7 @@ func astNewScope(outer *astScope) *astScope {
 	}
 }
 
-func scopeInsert(s *astScope, obj *astObject) {
+func (s *astScope) Insert(obj *astObject) {
 	if s == nil {
 		panic2(__func__, "s sholud not be nil\n")
 	}
@@ -3382,43 +3382,43 @@ var generalSlice astExpr
 func createUniverse() *astScope {
 	var universe = new(astScope)
 
-	scopeInsert(universe, gInt)
-	scopeInsert(universe, gUint8)
+	universe.Insert(gInt)
+	universe.Insert(gUint8)
 
 	universe.Objects = append(universe.Objects, &objectEntry{
 		name: "byte",
 		obj:  gUint8,
 	})
 
-	scopeInsert(universe, gUint16)
-	scopeInsert(universe, gUintptr)
-	scopeInsert(universe, gString)
-	scopeInsert(universe, gBool)
-	scopeInsert(universe, gNil)
-	scopeInsert(universe, gTrue)
-	scopeInsert(universe, gFalse)
-	scopeInsert(universe, gNew)
-	scopeInsert(universe, gMake)
-	scopeInsert(universe, gAppend)
-	scopeInsert(universe, gLen)
-	scopeInsert(universe, gCap)
-	scopeInsert(universe, gPanic)
+	universe.Insert(gUint16)
+	universe.Insert(gUintptr)
+	universe.Insert(gString)
+	universe.Insert(gBool)
+	universe.Insert(gNil)
+	universe.Insert(gTrue)
+	universe.Insert(gFalse)
+	universe.Insert(gNew)
+	universe.Insert(gMake)
+	universe.Insert(gAppend)
+	universe.Insert(gLen)
+	universe.Insert(gCap)
+	universe.Insert(gPanic)
 
 	logf(" [%s] scope insertion of predefined identifiers complete\n", __func__)
 
 	// @FIXME package names should not be be in universe
 
-	scopeInsert(universe, &astObject{
+	universe.Insert(&astObject{
 		Kind: "Pkg",
 		Name: "os",
 	})
 
-	scopeInsert(universe, &astObject{
+	universe.Insert(&astObject{
 		Kind: "Pkg",
 		Name: "syscall",
 	})
 
-	scopeInsert(universe, &astObject{
+	universe.Insert(&astObject{
 		Kind: "Pkg",
 		Name: "unsafe",
 	})
