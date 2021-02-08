@@ -14,25 +14,25 @@ $(tmp):
 t/expected.txt: t/test.go
 	export FOO=bar; go run t/test.go t/another.go myargs > t/expected.txt
 
-$(tmp)/pre: $(tmp) pre/precompiler.go
+$(tmp)/pre: $(tmp) pre/precompiler.go lib/*/*
 	go build -o $(tmp)/pre pre/precompiler.go
 
-$(tmp)/cross:  *.go runtime.s $(tmp)/pre
+$(tmp)/cross: *.go src/*/* runtime.s $(tmp)/pre
 	$(tmp)/pre  *.go > $(tmp)/pre-main.s
 	cp $(tmp)/pre-main.s ./.shared/ # for debug
 	as -o $(tmp)/cross.o $(tmp)/pre-main.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/cross $(tmp)/cross.o
 
-$(tmp)/babygo: $(tmp)  *.go
+$(tmp)/babygo: $(tmp)  *.go lib/*/*
 	go build -o $(tmp)/babygo  *.go
 
-$(tmp)/babygo2: $(tmp)/babygo runtime.s
+$(tmp)/babygo2: $(tmp)/babygo src/*/* runtime.s
 	$(tmp)/babygo *.go > $(tmp)/babygo-main.s
 	cp $(tmp)/babygo-main.s ./.shared/ # for debug
 	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/babygo2 $(tmp)/babygo2.o
 
-$(tmp)/pre-test.s: t/test.go $(tmp)/pre runtime.s
+$(tmp)/pre-test.s: t/test.go src/*/* runtime.s $(tmp)/pre
 	$(tmp)/pre t/test.go t/another.go > $(tmp)/pre-test.s
 	cp $(tmp)/pre-test.s ./.shared/
 
@@ -40,7 +40,7 @@ $(tmp)/cross-test.s: t/test.go $(tmp)/cross
 	$(tmp)/cross t/test.go t/another.go > $(tmp)/cross-test.s
 	cp $(tmp)/cross-test.s ./.shared/
 
-$(tmp)/babygo-test.s: t/test.go $(tmp)/babygo runtime.s
+$(tmp)/babygo-test.s: t/test.go src/*/* runtime.s $(tmp)/babygo
 	$(tmp)/babygo t/test.go t/another.go > $(tmp)/babygo-test.s
 	cp $(tmp)/babygo-test.s ./.shared/
 
