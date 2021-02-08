@@ -274,4 +274,29 @@ type objectEntry struct {
 	obj  *astObject
 }
 
+func astNewScope(outer *astScope) *astScope {
+	return &astScope{
+		Outer: outer,
+	}
+}
 
+func (s *astScope) Insert(obj *astObject) {
+	if s == nil {
+		panic2(__func__, "s sholud not be nil\n")
+	}
+
+	s.Objects = append(s.Objects, &objectEntry{
+		name: obj.Name,
+		obj:  obj,
+	})
+}
+
+func (s *astScope) Lookup(name string) *astObject {
+	for _, oe := range s.Objects {
+		if oe.name == name {
+			return oe.obj
+		}
+	}
+	var r *astObject
+	return r
+}
