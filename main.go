@@ -49,8 +49,6 @@ func inArray(x string, list []string) bool {
 	return false
 }
 
-// --- scanner ---
-// --- ast ---
 func astNewScope(outer *astScope) *astScope {
 	return &astScope{
 		Outer: outer,
@@ -78,7 +76,6 @@ func scopeLookup(s *astScope, name string) *astObject {
 	return r
 }
 
-// --- parser ---
 // --- codegen ---
 var debugCodeGen bool
 
