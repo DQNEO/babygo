@@ -12,9 +12,11 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-func nop() {}
-func nop1() {}
-func nop2() {}
+var anotherVar string = "Another Hello\n"
+
+func testAnotherFile() {
+	anotherFunc()
+}
 
 func receiveBytes(a uint8, b uint8, c uint8) uint8 {
 	var r uint8 = a
@@ -1863,25 +1865,8 @@ func testMisc() {
 	writeln(strconv.Itoa(i42))
 }
 
-// --- utils ---
-func write(x interface{}) {
-	var s string
-	switch xx := x.(type) {
-	case int:
-		s = strconv.Itoa(xx)
-	case string:
-		s = xx
-	}
-	var slc []uint8 = []uint8(s)
-	syscall.Write(1, slc)
-}
-
-func writeln(s interface{}) {
-	write(s)
-	write("\n")
-}
-
 func main() {
+	testAnotherFile()
 	testPassBytes()
 	testSortStrings()
 	testGetdents64()
