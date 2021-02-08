@@ -5467,32 +5467,6 @@ func resolveImports(file *astFile) {
 	}
 }
 
-func resolveUniverse(file *astFile, pkgScope *astScope) {
-	logf("[%s] start\n", __func__)
-	// inject predeclared identifers
-	var unresolved []*astIdent
-	logf(" [SEMA] resolving file.Unresolved (n=%s)\n", strconv.Itoa(len(file.Unresolved)))
-	for _, ident := range file.Unresolved {
-		logf(" [SEMA] resolving ident %s ... \n", ident.Name)
-		var obj *astObject = scopeLookup(pkgScope, ident.Name)
-		if obj != nil {
-			logf(" matched\n")
-			ident.Obj = obj
-		} else {
-			obj  = scopeLookup(pkgScope.Outer, ident.Name)
-			if obj != nil {
-				logf(" matched\n")
-				ident.Obj = obj
-			} else {
-				// we should allow unresolved for now.
-				// e.g foo in X{foo:bar,}
-				logf("Unresolved (maybe struct field name in composite literal): "+ident.Name)
-				unresolved = append(unresolved, ident)
-			}
-		}
-	}
-}
-
 func lookupForeignVar(pkg string, identifier string) *astIdent {
 	key := pkg + "." + identifier
 	logf("lookupForeignVar... %s\n", key)
@@ -5869,10 +5843,32 @@ func main() {
 				pkgScope.Objects = append(pkgScope.Objects, oe)
 			}
 		}
-		for _, astFile := range _pkg.astFiles {
-			resolveImports(astFile)
-			resolveUniverse(astFile, pkgScope)
-			for _, dcl := range astFile.Decls {
+		for _, af := range _pkg.astFiles {
+			resolveImports(af)
+			logf("[%s] start\n", __func__)
+			// inject predeclared identifers
+			var unresolved []*astIdent
+			logf(" [SEMA] resolving af.Unresolved (n=%s)\n", strconv.Itoa(len(af.Unresolved)))
+			for _, ident := range af.Unresolved {
+				logf(" [SEMA] resolving ident %s ... \n", ident.Name)
+				var obj *astObject = scopeLookup(pkgScope, ident.Name)
+				if obj != nil {
+					logf(" matched\n")
+					ident.Obj = obj
+				} else {
+					obj  = scopeLookup(pkgScope.Outer, ident.Name)
+					if obj != nil {
+						logf(" matched\n")
+						ident.Obj = obj
+					} else {
+						// we should allow unresolved for now.
+						// e.g foo in X{foo:bar,}
+						logf("Unresolved (maybe struct field name in composite literal): "+ident.Name)
+						unresolved = append(unresolved, ident)
+					}
+				}
+			}
+			for _, dcl := range af.Decls {
 				_pkg.Decls = append(_pkg.Decls, dcl)
 			}
 		}
