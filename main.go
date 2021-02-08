@@ -5797,8 +5797,7 @@ func main() {
 	}
 
 	pkgRuntime := &PkgContainer{
-		name: "runtime",
-		files: []string{"runtime.go"},
+		path: "runtime",
 	}
 	var packagesToBuild =  []*PkgContainer{pkgRuntime}
 	myfmt.Printf("# === sorted stdPackagesUsed ===\n")

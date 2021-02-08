@@ -3802,8 +3802,7 @@ func main() {
 		}
 	}
 	pkgRuntime := &PkgContainer{
-		name: "runtime",
-		files: []string{"runtime.go"},
+		path: "runtime",
 	}
 	var packagesToBuild = []*PkgContainer{pkgRuntime}
 	myfmt.Printf("# === sorted stdPackagesUsed ===\n")
@@ -3832,6 +3831,7 @@ func main() {
 			fnames := findFilesInDir(pkgDir)
 			var files []string
 			for _, fname := range fnames {
+				logf("fname: %s\n" , fname)
 				srcFile := pkgDir + "/" + fname
 				files = append(files, srcFile)
 			}
