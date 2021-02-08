@@ -14,8 +14,8 @@ It depends only on `as` as an assembler and `ld` as a linker.
 It is composed of only a fiew files.
 
 * main.go - the main compiler
-* runtime.go - runtime
 * runtime.s - low level of runtime
+* src/ - internal packages
 * lib/ - libraries
 
 # Design
@@ -67,10 +67,10 @@ hello world!
 
 ```terminal
 # Build babygo (1st generation)
-$ go build -o babygo main.go
+$ go build -o babygo *.go
 
 # Build babygo by babygo (2nd generation)
-$ ./babygo $GOPATH main.go > /tmp/babygo2.s
+$ ./babygo *.go > /tmp/babygo2.s
 $ as -o babygo2.o /tmp/babygo2.s runtime.s
 $ ld -o babygo2 babygo2.o # 2nd generation compiler
 $ ./babygo2 $GOPATH main.go > /tmp/babygo3.s
