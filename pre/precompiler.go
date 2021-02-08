@@ -3586,18 +3586,6 @@ func resolveImports(file *ast.File) {
 	}
 }
 
-func resolveUniverse(file *ast.File, universe *ast.Scope) {
-	var unresolved []*ast.Ident
-	for _, ident := range file.Unresolved {
-		if obj := universe.Lookup(ident.Name); obj != nil {
-			ident.Obj = obj
-		} else {
-			logf("# unresolved: %s\n" , ident.Name)
-			unresolved = append(unresolved, ident)
-		}
-	}
-}
-
 var ExportedQualifiedIdents map[string]interface{} = map[string]interface{}{}
 
 func lookupForeignVar(pkg string, identifier string) *ast.Ident {
@@ -3850,15 +3838,31 @@ func main() {
 			_pkg.files = files
 		}
 		fset := &token.FileSet{}
+		pkgScope := ast.NewScope(universe)
 		for _, file := range _pkg.files {
 			logf("Parsing file: %s\n" , file)
 			astFile := parseFile(fset, file)
 			_pkg.name = astFile.Name.Name
 			_pkg.astFiles = append(_pkg.astFiles, astFile)
+			for _, obj := range astFile.Scope.Objects {
+				pkgScope.Objects[obj.Name] = obj
+			}
 		}
 		for _, astFile := range _pkg.astFiles {
 			resolveImports(astFile)
-			resolveUniverse(astFile, universe)
+			var unresolved []*ast.Ident
+			for _, ident := range astFile.Unresolved {
+				if obj := pkgScope.Lookup(ident.Name); obj != nil {
+					ident.Obj = obj
+				} else {
+					logf("# unresolved: %s\n" , ident.Name)
+					if obj := universe.Lookup(ident.Name); obj != nil {
+						ident.Obj = obj
+					} else {
+						unresolved = append(unresolved, ident)
+					}
+				}
+			}
 			for _, dcl := range astFile.Decls {
 				_pkg.Decls = append(_pkg.Decls, dcl)
 			}

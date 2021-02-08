@@ -16,6 +16,11 @@ func nop() {}
 func nop1() {}
 func nop2() {}
 
+func testAnotherFile() {
+	anotherFunc()
+	os.Exit(0)
+}
+
 func receiveBytes(a uint8, b uint8, c uint8) uint8 {
 	var r uint8 = a
 	return r
@@ -1882,6 +1887,7 @@ func writeln(s interface{}) {
 }
 
 func main() {
+	testAnotherFile()
 	testPassBytes()
 	testSortStrings()
 	testGetdents64()
