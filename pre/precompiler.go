@@ -29,10 +29,6 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
 
-func panic2(caller string, x string) {
-	panic("[" + caller + "] " + x)
-}
-
 var debugFrontEnd bool
 
 func logf(format string, a ...interface{}) {
@@ -141,9 +137,7 @@ func emitAddConst(addValue int, comment string) {
 
 // "Load" means copy data from memory to registers
 func emitLoadFromMemoryAndPush(t *Type) {
-	if t == nil {
-		panic2(__func__, "nil type error\n")
-	}
+	assert(t != nil, "type should not be nil")
 	emitPopAddress(string(kind(t)))
 	switch kind(t) {
 	case T_SLICE:
@@ -176,7 +170,7 @@ func emitLoadFromMemoryAndPush(t *Type) {
 		// pure proxy
 		myfmt.Printf("  pushq %%rax\n")
 	default:
-		panic2(__func__, "TBI:kind="+string(kind(t)))
+		panic(kind(t))
 	}
 }
 
@@ -206,7 +200,7 @@ func emitListHeadAddr(list ast.Expr) {
 		emitPopString()
 		myfmt.Printf("  pushq %%rax # string.ptr\n")
 	default:
-		panic2(__func__, "kind="+string(kind(getTypeOfExpr(list))))
+		panic(kind(t))
 	}
 }
 
