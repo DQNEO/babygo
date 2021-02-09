@@ -132,7 +132,7 @@ func emitAddConst(addValue int, comment string) {
 }
 
 // "Load" means copy data from memory to registers
-func emitLoadFromMemoryAndPush(t *Type) {
+func emitLoadAndPush(t *Type) {
 	assert(t != nil, "type should not be nil")
 	emitPopAddress(string(kind(t)))
 	switch kind(t) {
@@ -915,7 +915,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			switch e.Obj.Kind {
 			case ast.Var:
 				emitAddr(e)
-				emitLoadFromMemoryAndPush(getTypeOfExpr(e))
+				emitLoadAndPush(getTypeOfExpr(e))
 			case ast.Con:
 				emitNamedConst(e, ctx)
 			default:
@@ -924,10 +924,10 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		}
 	case *ast.IndexExpr: // 1 or 2 values
 		emitAddr(e)
-		emitLoadFromMemoryAndPush(getTypeOfExpr(e))
+		emitLoadAndPush(getTypeOfExpr(e))
 	case *ast.StarExpr: // 1 value
 		emitAddr(e)
-		emitLoadFromMemoryAndPush(getTypeOfExpr(e))
+		emitLoadAndPush(getTypeOfExpr(e))
 	case *ast.SelectorExpr: // 1 value X.Sel
 		// pkg.Var or strct.field
 		ident, isIdent := e.X.(*ast.Ident)
@@ -937,7 +937,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		} else {
 			emitComment(2, "emitExpr *ast.SelectorExpr X.%s\n", e.Sel.Name)
 			emitAddr(e)
-			emitLoadFromMemoryAndPush(getTypeOfExpr(e))
+			emitLoadAndPush(getTypeOfExpr(e))
 		}
 	case *ast.CallExpr: // multi values Fun(Args)
 		var fun = e.Fun
@@ -1283,7 +1283,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			if ctx.okContext.needMain {
 				emitExpr(e.X, nil)
 				fmt.Printf("  popq %%rax # garbage\n")
-				emitLoadFromMemoryAndPush(e2t(e.Type)) // load dynamic data
+				emitLoadAndPush(e2t(e.Type)) // load dynamic data
 			}
 			if ctx.okContext.needOk {
 				fmt.Printf("  pushq $1 # ok = true\n")
@@ -1292,7 +1292,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			emitComment(2, " single value context\n")
 			emitExpr(e.X, nil)
 			fmt.Printf("  popq %%rax # garbage\n")
-			emitLoadFromMemoryAndPush(e2t(e.Type)) // load dynamic data
+			emitLoadAndPush(e2t(e.Type)) // load dynamic data
 		}
 
 		// exit
@@ -1737,9 +1737,9 @@ func emitStmt(stmt ast.Stmt) {
 		fmt.Printf("  %s:\n", labelCond)
 
 		emitVariableAddr(rngMisc.indexvar)
-		emitLoadFromMemoryAndPush(tInt)
+		emitLoadAndPush(tInt)
 		emitVariableAddr(rngMisc.lenvar)
-		emitLoadFromMemoryAndPush(tInt)
+		emitLoadAndPush(tInt)
 		emitCompExpr("setl")
 		emitPopBool(" indexvar < lenvar")
 		fmt.Printf("  cmpq $1, %%rax\n")
@@ -1750,10 +1750,10 @@ func emitStmt(stmt ast.Stmt) {
 		emitAddr(s.Value) // lhs
 
 		emitVariableAddr(rngMisc.indexvar)
-		emitLoadFromMemoryAndPush(tInt) // index value
+		emitLoadAndPush(tInt) // index value
 		emitListElementAddr(s.X, elemType)
 
-		emitLoadFromMemoryAndPush(elemType)
+		emitLoadAndPush(elemType)
 		emitStore(elemType, true, false)
 
 		// Body
@@ -1765,7 +1765,7 @@ func emitStmt(stmt ast.Stmt) {
 		fmt.Printf("  %s:\n", labelPost)   // used for "continue"
 		emitVariableAddr(rngMisc.indexvar) // lhs
 		emitVariableAddr(rngMisc.indexvar) // rhs
-		emitLoadFromMemoryAndPush(tInt)
+		emitLoadAndPush(tInt)
 		emitAddConst(1, "indexvar value ++")
 		emitStore(tInt, true, false)
 
@@ -1776,7 +1776,7 @@ func emitStmt(stmt ast.Stmt) {
 			if keyIdent.Name != "_" {
 				emitAddr(s.Key)                    // lhs
 				emitVariableAddr(rngMisc.indexvar) // rhs
-				emitLoadFromMemoryAndPush(tInt)
+				emitLoadAndPush(tInt)
 				emitStore(tInt, true, false)
 			}
 		}
@@ -1885,7 +1885,7 @@ func emitStmt(stmt ast.Stmt) {
 			}
 			for _, e := range cc.List {
 				emitVariableAddr(typeSwitch.subjectVariable)
-				emitLoadFromMemoryAndPush(tEface)
+				emitLoadAndPush(tEface)
 
 				emitDtypeSymbol(e2t(e))
 				emitCompExpr("sete") // this pushes 1 or 0 in the end
@@ -1919,11 +1919,11 @@ func emitStmt(stmt ast.Stmt) {
 					emitAddr(typeSwitch.assignIdent)
 
 					emitVariableAddr(typeSwitch.subjectVariable)
-					emitLoadFromMemoryAndPush(tEface)
+					emitLoadAndPush(tEface)
 					fmt.Printf("  popq %%rax # ifc.dtype\n")
 					fmt.Printf("  popq %%rcx # ifc.data\n")
 					fmt.Printf("  push %%rcx # ifc.data\n")
-					emitLoadFromMemoryAndPush(typeSwitchCaseClose.variableType)
+					emitLoadAndPush(typeSwitchCaseClose.variableType)
 
 					emitStore(typeSwitchCaseClose.variableType, true, false)
 				}

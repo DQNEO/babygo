@@ -117,10 +117,9 @@ func emitAddConst(addValue int, comment string) {
 	fmt.Printf("  pushq %%rax\n")
 }
 
-func emitLoad(t *Type) {
-	if t == nil {
-		panic2(__func__, "nil type error\n")
-	}
+// "Load" means copy data from memory to registers
+func emitLoadAndPush(t *Type) {
+	assert(t != nil, "type should not be nil", __func__)
 	emitPopAddress(kind(t))
 	switch kind(t) {
 	case T_SLICE:
@@ -890,7 +889,7 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 			case astVar:
 				emitAddr(expr)
 				var t = getTypeOfExpr(expr)
-				emitLoad(t)
+				emitLoadAndPush(t)
 			case astCon:
 				emitNamedConst(ident, ctx)
 			case astTyp:
@@ -901,10 +900,10 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 		}
 	case *astIndexExpr:
 		emitAddr(expr)
-		emitLoad(getTypeOfExpr(expr))
+		emitLoadAndPush(getTypeOfExpr(expr))
 	case *astStarExpr:
 		emitAddr(expr)
-		emitLoad(getTypeOfExpr(expr))
+		emitLoadAndPush(getTypeOfExpr(expr))
 	case *astSelectorExpr:
 		x := e.X
 		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
@@ -913,7 +912,7 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 			emitExpr(e, ctx)
 		} else {
 			emitAddr(expr)
-			emitLoad(getTypeOfExpr(expr))
+			emitLoadAndPush(getTypeOfExpr(expr))
 		}
 	case *astCallExpr:
 		var fun = e.Fun
@@ -1241,7 +1240,7 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 			if ctx.okContext.needMain {
 				emitExpr(expr2TypeAssertExpr(expr).X, nil)
 				fmt.Printf("  popq %%rax # garbage\n")
-				emitLoad(e2t(expr2TypeAssertExpr(expr).Type)) // load dynamic data
+				emitLoadAndPush(e2t(expr2TypeAssertExpr(expr).Type)) // load dynamic data
 			}
 			if ctx.okContext.needOk {
 				fmt.Printf("  pushq $1 # ok = true\n")
@@ -1250,7 +1249,7 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 			emitComment(2, " single value context\n")
 			emitExpr(expr2TypeAssertExpr(expr).X, nil)
 			fmt.Printf("  popq %%rax # garbage\n")
-			emitLoad(e2t(expr2TypeAssertExpr(expr).Type)) // load dynamic data
+			emitLoadAndPush(e2t(expr2TypeAssertExpr(expr).Type)) // load dynamic data
 		}
 
 		// exit
@@ -1686,9 +1685,9 @@ func emitStmt(stmt astStmt) {
 		fmt.Printf("  %s:\n", labelCond)
 
 		emitVariableAddr(s.indexvar)
-		emitLoad(tInt)
+		emitLoadAndPush(tInt)
 		emitVariableAddr(s.lenvar)
-		emitLoad(tInt)
+		emitLoadAndPush(tInt)
 		emitCompExpr("setl")
 		emitPopBool(" indexvar < lenvar")
 		fmt.Printf("  cmpq $1, %%rax\n")
@@ -1699,10 +1698,10 @@ func emitStmt(stmt astStmt) {
 		emitAddr(s.Value) // lhs
 
 		emitVariableAddr(s.indexvar)
-		emitLoad(tInt) // index value
+		emitLoadAndPush(tInt) // index value
 		emitListElementAddr(s.X, elemType)
 
-		emitLoad(elemType)
+		emitLoadAndPush(elemType)
 		emitStore(elemType, true, false)
 
 		// Body
@@ -1714,7 +1713,7 @@ func emitStmt(stmt astStmt) {
 		fmt.Printf("  %s:\n", labelPost) // used for "continue"
 		emitVariableAddr(s.indexvar)     // lhs
 		emitVariableAddr(s.indexvar)     // rhs
-		emitLoad(tInt)
+		emitLoadAndPush(tInt)
 		emitAddConst(1, "indexvar value ++")
 		emitStore(tInt, true, false)
 
@@ -1723,7 +1722,7 @@ func emitStmt(stmt astStmt) {
 			if keyIdent.Name != "_" {
 				emitAddr(s.Key)              // lhs
 				emitVariableAddr(s.indexvar) // rhs
-				emitLoad(tInt)
+				emitLoadAndPush(tInt)
 				emitStore(tInt, true, false)
 			}
 		}
@@ -1829,7 +1828,7 @@ func emitStmt(stmt astStmt) {
 			}
 			for _, e := range cc.List {
 				emitVariableAddr(typeSwitch.subjectVariable)
-				emitLoad(tEface)
+				emitLoadAndPush(tEface)
 
 				emitDtypeSymbol(e2t(e))
 				emitCompExpr("sete") // this pushes 1 or 0 in the end
@@ -1862,11 +1861,11 @@ func emitStmt(stmt astStmt) {
 					expr := newExpr(typeSwitch.assignIdent)
 					emitAddr(expr)
 					emitVariableAddr(typeSwitch.subjectVariable)
-					emitLoad(tEface)
+					emitLoadAndPush(tEface)
 					fmt.Printf("  popq %%rax # ifc.dtype\n")
 					fmt.Printf("  popq %%rcx # ifc.data\n")
 					fmt.Printf("  push %%rcx # ifc.data\n")
-					emitLoad(typeSwitchCaseClose.variableType)
+					emitLoadAndPush(typeSwitchCaseClose.variableType)
 
 					emitStore(typeSwitchCaseClose.variableType, true, false)
 				}
