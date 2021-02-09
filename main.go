@@ -869,7 +869,7 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(expr))
 	switch e := expr.(type) {
 	case *astIdent:
-		var ident = e
+		ident := e
 		if ident.Obj == nil {
 			panic2(__func__, "ident unresolved:"+ident.Name)
 		}
@@ -899,11 +899,11 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 			}
 		}
 	case *astIndexExpr:
-		emitAddr(expr)
-		emitLoadAndPush(getTypeOfExpr(expr))
+		emitAddr(e)
+		emitLoadAndPush(getTypeOfExpr(e))
 	case *astStarExpr:
-		emitAddr(expr)
-		emitLoadAndPush(getTypeOfExpr(expr))
+		emitAddr(e)
+		emitLoadAndPush(getTypeOfExpr(e))
 	case *astSelectorExpr:
 		x := e.X
 		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
@@ -926,7 +926,7 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 		emitExpr(e.X, ctx)
 	case *astBasicLit:
 		//		emitComment(0, "basicLit.Kind = %s \n", expr.basicLit.Kind)
-		basicLit := expr2BasicLit(expr)
+		basicLit := e
 		switch basicLit.Kind {
 		case "INT":
 			var ival = strconv.Atoi(basicLit.Value)
@@ -1056,7 +1056,7 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 			panic2(__func__, "TBI:astUnaryExpr:"+e.Op)
 		}
 	case *astBinaryExpr:
-		binaryExpr := expr2BinaryExpr(expr)
+		binaryExpr := e
 
 		if kind(getTypeOfExpr(binaryExpr.X)) == T_STRING {
 			var args []*Arg
@@ -1213,11 +1213,11 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 			panic2(__func__, "Unexpected kind="+k)
 		}
 	case *astTypeAssertExpr:
-		emitExpr(expr2TypeAssertExpr(expr).X, nil)
+		emitExpr(e.X, nil)
 		fmt.Printf("  popq  %%rax # ifc.dtype\n")
 		fmt.Printf("  popq  %%rcx # ifc.data\n")
 		fmt.Printf("  pushq %%rax # ifc.data\n")
-		typ := e2t(expr2TypeAssertExpr(expr).Type)
+		typ := e2t(e.Type)
 		sType := serializeType(typ)
 		_id := getTypeId(sType)
 		typeSymbol := typeIdToSymbol(_id)
@@ -1792,8 +1792,7 @@ func emitStmt(stmt astStmt) {
 
 		emitRevertStackTop(condType)
 		for i, c := range cases {
-			assert(isStmtCaseClause(c), "should be *astCaseClause", __func__)
-			var cc = stmt2CaseClause(c)
+			cc := stmt2CaseClause(c)
 			fmt.Printf("%s:\n", labels[i])
 			for _, _s := range cc.Body {
 				emitStmt(_s)
@@ -2863,9 +2862,6 @@ func walkStmt(stmt astStmt) {
 	switch s := stmt.(type) {
 	case *astDeclStmt:
 		logf(" [%s] *ast.DeclStmt\n", __func__)
-		if s == nil {
-			panic2(__func__, "nil pointer exception\n")
-		}
 		var declStmt = s
 		if declStmt.Decl == nil {
 			panic2(__func__, "ERROR\n")
@@ -2983,8 +2979,8 @@ func walkStmt(stmt astStmt) {
 	case *astIncDecStmt:
 		walkExpr(s.X)
 	case *astBlockStmt:
-		for _, s := range s.List {
-			walkStmt(s)
+		for _, _s := range s.List {
+			walkStmt(_s)
 		}
 	case *astBranchStmt:
 		s.currentFor = currentFor
