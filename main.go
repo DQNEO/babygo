@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"reflect"
 	"syscall"
 
 	"github.com/DQNEO/babygo/lib/myfmt"
@@ -3899,8 +3898,7 @@ func expr2Ident(e astExpr) *astIdent {
 	var ok bool
 	r, ok = e.(*astIdent)
 	if ! ok {
-		typ := reflect.TypeOf(e)
-		panic("Not *astIdent but got:" + typ.String())
+		panic(myfmt.Sprintf("Not *astIdent but got: %T", e))
 	}
 	return r
 }
@@ -4026,9 +4024,7 @@ func isExprIdent(e astExpr) bool {
 	return ok
 }
 
-
 func dtypeOf(x interface{}) string {
-	typ := reflect.TypeOf(x)
-	return typ.String()
+	return myfmt.Sprintf("%T", x)
 }
 
