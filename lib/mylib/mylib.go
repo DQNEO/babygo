@@ -35,6 +35,7 @@ func Cstring2string(b *byte) string {
 }
 
 var _buf [1024]byte
+
 // Translation of http://man7.org/linux/man-pages/man2/getdents64.2.html#top_of_page
 
 //struct linux_dirent64 {
@@ -92,7 +93,7 @@ func GetDirents(dir string) []string {
 		//fmt.Printf("--------------- nread=%d ---------------\n", nread)
 		//fmt.Printf("inode   d_off   d_type  d_reclen    d_name\n")
 		var bpos int
-		for ; bpos < nread; {
+		for bpos < nread {
 			var dirp *linux_dirent
 			p := uintptr(unsafe.Pointer(&buf[0])) + uintptr(bpos)
 			dirp = (*linux_dirent)(unsafe.Pointer(p))
@@ -115,7 +116,7 @@ func needSwap(a string, b string) bool {
 		return false
 	}
 	var i int
-	for i=0;i<len(a);i++ {
+	for i = 0; i < len(a); i++ {
 		if i == len(b) {
 			//fmt.Printf("#    loose. right is shorter.\n")
 			return true
@@ -136,8 +137,8 @@ func needSwap(a string, b string) bool {
 func SortStrings(ss []string) {
 	var i int
 	var j int
-	for i=0;i<len(ss);i++ {
-		for j=0;j<len(ss)-1;j++ {
+	for i = 0; i < len(ss); i++ {
+		for j = 0; j < len(ss)-1; j++ {
 			a := ss[j]
 			b := ss[j+1]
 			if needSwap(a, b) {

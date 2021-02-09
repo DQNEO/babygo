@@ -216,7 +216,7 @@ func emitAddr(expr ast.Expr) {
 			panic("ident.Obj is nil: " + e.Name)
 		}
 		if e.Obj.Kind == ast.Var {
-			assert(e.Obj.Data != nil, "e.Obj.Data should not be nil: Obj.Name=" + e.Obj.Name)
+			assert(e.Obj.Data != nil, "e.Obj.Data should not be nil: Obj.Name="+e.Obj.Name)
 			vr, ok := e.Obj.Data.(*Variable)
 			if !ok {
 				throw(e.Obj.Data)
@@ -337,7 +337,7 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		emitExpr(arg0, nil)
 	case *ast.InterfaceType:
 		emitExpr(arg0, nil)
-		if isInterface(getTypeOfExpr(arg0))  {
+		if isInterface(getTypeOfExpr(arg0)) {
 			// do nothing
 		} else {
 			// Convert dynamic value to interface
@@ -413,8 +413,8 @@ func emitCallMalloc(size int) {
 	// call malloc and return pointer
 	var resultList = []*ast.Field{
 		&ast.Field{
-			Names:   nil,
-			Type:    tUintptr.e,
+			Names: nil,
+			Type:  tUintptr.e,
 		},
 	}
 	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
@@ -428,7 +428,7 @@ func emitStructLiteral(e *ast.CompositeLit) {
 	structType := e2t(e.Type)
 	emitZeroValue(structType) // push address of the new storage
 	for i, elm := range e.Elts {
-		kvExpr , ok := elm.(*ast.KeyValueExpr)
+		kvExpr, ok := elm.(*ast.KeyValueExpr)
 		assert(ok, "expect *ast.KeyValueExpr")
 		fieldName, ok := kvExpr.Key.(*ast.Ident)
 		assert(ok, "expect *ast.Ident")
@@ -560,7 +560,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 			if ok {
 				variadicElmType = elp.Elt
 				variadicArgs = make([]ast.Expr, 0)
- 			}
+			}
 		}
 		if variadicArgs != nil && !expandElipsis {
 			variadicArgs = append(variadicArgs, eArg)
@@ -579,8 +579,8 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		// collect args as a slice
 		sliceType := &ast.ArrayType{Elt: variadicElmType}
 		vargsSliceWrapper := &ast.CompositeLit{
-			Type:       sliceType,
-			Elts:       variadicArgs,
+			Type: sliceType,
+			Elts: variadicArgs,
 		}
 		args = append(args, &Arg{
 			e: vargsSliceWrapper,
@@ -592,8 +592,8 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		elp, ok := param.Type.(*ast.Ellipsis)
 		assert(ok, "compile error")
 		args = append(args, &Arg{
-			e:      eNil,
-			t:      e2t(elp),
+			e: eNil,
+			t: e2t(elp),
 		})
 	}
 
@@ -1027,8 +1027,8 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			case "+":
 				var resultList = []*ast.Field{
 					&ast.Field{
-						Names:   nil,
-						Type:    tString.e,
+						Names: nil,
+						Type:  tString.e,
 					},
 				}
 
@@ -1082,7 +1082,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			case "+":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil)   // right
+				emitExpr(e.Y, nil) // right
 				fmt.Printf("  popq %%rcx # right\n")
 				fmt.Printf("  popq %%rax # left\n")
 				fmt.Printf("  addq %%rcx, %%rax\n")
@@ -1090,7 +1090,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			case "-":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil)   // right
+				emitExpr(e.Y, nil) // right
 				fmt.Printf("  popq %%rcx # right\n")
 				fmt.Printf("  popq %%rax # left\n")
 				fmt.Printf("  subq %%rcx, %%rax\n")
@@ -1098,7 +1098,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			case "*":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil)   // right
+				emitExpr(e.Y, nil) // right
 				fmt.Printf("  popq %%rcx # right\n")
 				fmt.Printf("  popq %%rax # left\n")
 				fmt.Printf("  imulq %%rcx, %%rax\n")
@@ -1106,7 +1106,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			case "%":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil)   // right
+				emitExpr(e.Y, nil) // right
 				fmt.Printf("  popq %%rcx # right\n")
 				fmt.Printf("  popq %%rax # left\n")
 				fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
@@ -1116,7 +1116,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			case "/":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil)   // right
+				emitExpr(e.Y, nil) // right
 				fmt.Printf("  popq %%rcx # right\n")
 				fmt.Printf("  popq %%rax # left\n")
 				fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
@@ -1140,22 +1140,22 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			case "<":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil)   // right
+				emitExpr(e.Y, nil) // right
 				emitCompExpr("setl")
 			case "<=":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil)   // right
+				emitExpr(e.Y, nil) // right
 				emitCompExpr("setle")
 			case ">":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil)   // right
+				emitExpr(e.Y, nil) // right
 				emitCompExpr("setg")
 			case ">=":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil)   // right
+				emitExpr(e.Y, nil) // right
 				emitCompExpr("setge")
 			default:
 				panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
@@ -1246,7 +1246,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				// high = len(orig)
 				emitLen(e.X)
 			}
-			emitExpr(low, nil)  // intval
+			emitExpr(low, nil) // intval
 			fmt.Printf("  popq %%rcx # low\n")
 			fmt.Printf("  popq %%rax # high\n")
 			fmt.Printf("  subq %%rcx, %%rax # high - low\n")
@@ -1394,8 +1394,8 @@ func emitCompEq(t *Type) {
 	case T_STRING:
 		var resultList = []*ast.Field{
 			&ast.Field{
-				Names:   nil,
-				Type:    tBool.e,
+				Names: nil,
+				Type:  tBool.e,
 			},
 		}
 		fmt.Printf("  callq runtime.cmpstrings\n")
@@ -1404,8 +1404,8 @@ func emitCompEq(t *Type) {
 	case T_INTERFACE:
 		var resultList = []*ast.Field{
 			&ast.Field{
-				Names:   nil,
-				Type:    tBool.e,
+				Names: nil,
+				Type:  tBool.e,
 			},
 		}
 		fmt.Printf("  callq runtime.cmpinterface\n")
@@ -1513,7 +1513,7 @@ func emitAssignWithOK(lhss []ast.Expr, rhs ast.Expr) {
 			needMain: needMain,
 			needOk:   needOK,
 		},
-		_type:     nil,
+		_type: nil,
 	}
 	emitExprIfc(rhs, ctx)
 	if needOK {
@@ -1583,11 +1583,11 @@ func emitStmt(stmt ast.Stmt) {
 		case "=", ":=":
 			lhs := s.Lhs[0]
 			rhs := s.Rhs[0]
-			_ , isTypeAssertion := rhs.(*ast.TypeAssertExpr)
+			_, isTypeAssertion := rhs.(*ast.TypeAssertExpr)
 			if len(s.Lhs) == 2 && isTypeAssertion {
 				emitAssignWithOK(s.Lhs, rhs)
 			} else {
-				ident , isIdent := lhs.(*ast.Ident)
+				ident, isIdent := lhs.(*ast.Ident)
 				if isIdent && ident.Name == "_" {
 					panic(" _ is not supported yet")
 				}
@@ -1606,7 +1606,7 @@ func emitStmt(stmt ast.Stmt) {
 			//funcType := nil
 			targetType := e2t(funcType.Results.List[0].Type)
 			ctx := &evalContext{
-				_type:     targetType,
+				_type: targetType,
 			}
 			emitExprIfc(s.Results[0], ctx)
 			var knd = kind(targetType)
@@ -2210,7 +2210,6 @@ var tInt *Type = &Type{
 	},
 }
 
-
 // Rune
 var tInt32 *Type = &Type{
 	e: &ast.Ident{
@@ -2282,7 +2281,7 @@ func isUnsafePointer(selector *ast.SelectorExpr) bool {
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
-		assert(e.Obj != nil, "Obj is nil in ident '" + e.Name + "'")
+		assert(e.Obj != nil, "Obj is nil in ident '"+e.Name+"'")
 		switch e.Obj.Kind {
 		case ast.Var:
 			// injected type is the 1st priority
@@ -2822,15 +2821,15 @@ type Func struct {
 	localarea localoffsetint
 	argsarea  localoffsetint
 	funcType  *ast.FuncType
-	method *Method
+	method    *Method
 }
 
 type Method struct {
-	pkgName string
+	pkgName      string
 	rcvNamedType *ast.Ident
 	isPtrMethod  bool
-	name string
-	funcType *ast.FuncType
+	name         string
+	funcType     *ast.FuncType
 }
 
 type Variable struct {
@@ -2838,13 +2837,13 @@ type Variable struct {
 	isGlobal     bool
 	globalSymbol string
 	localOffset  localoffsetint
-	typ *Type
+	typ          *Type
 }
 
 type localoffsetint int
 
 func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
-	vr := newLocalVariable(name, fnc.argsarea,t)
+	vr := newLocalVariable(name, fnc.argsarea, t)
 	fnc.argsarea += localoffsetint(getSizeOfType(t))
 	return vr
 }
@@ -2865,6 +2864,7 @@ var mapTypeSwitchStmtMeta = map[*ast.TypeSwitchStmt]*TypeSwitchStmt{}
 var mapReturnStmt = map[*ast.ReturnStmt]*nodeReturnStmt{}
 
 var currentFunc *Func
+
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
 	for _, container := range pkg.stringLiterals {
 		if container.lit == lit {
@@ -2906,9 +2906,9 @@ func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
 	return &Variable{
 		name:         name,
 		isGlobal:     true,
-		globalSymbol: pkgName + "." +name,
+		globalSymbol: pkgName + "." + name,
 		localOffset:  0,
-		typ: t,
+		typ:          t,
 	}
 }
 
@@ -2918,7 +2918,7 @@ func newLocalVariable(name string, localoffset localoffsetint, t *Type) *Variabl
 		isGlobal:     false,
 		globalSymbol: "",
 		localOffset:  localoffset,
-		typ: t,
+		typ:          t,
 	}
 }
 
@@ -2927,22 +2927,22 @@ var typesWithMethods map[string]map[string]*Method = map[string]map[string]*Meth
 
 func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	rcvType := funcDecl.Recv.List[0].Type
-	rcvPointerType , ok := rcvType.(*ast.StarExpr)
+	rcvPointerType, ok := rcvType.(*ast.StarExpr)
 	var isPtr bool
 	if ok {
 		isPtr = true
 		rcvType = rcvPointerType.X
 	}
-	rcvNamedType,ok := rcvType.(*ast.Ident)
+	rcvNamedType, ok := rcvType.(*ast.Ident)
 	if !ok {
 		throw(rcvType)
 	}
 	method := &Method{
-		pkgName: pkgName,
+		pkgName:      pkgName,
 		rcvNamedType: rcvNamedType,
-		isPtrMethod : isPtr,
-		name: funcDecl.Name.Name,
-		funcType: funcDecl.Type,
+		isPtrMethod:  isPtr,
+		name:         funcDecl.Name.Name,
+		funcType:     funcDecl.Type,
 	}
 	return method
 }
@@ -2958,7 +2958,7 @@ func registerMethod(method *Method) {
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	rcvType := rcvT.e
-	rcvPointerType , ok := rcvType.(*ast.StarExpr)
+	rcvPointerType, ok := rcvType.(*ast.StarExpr)
 	if ok {
 		rcvType = rcvPointerType.X
 	}
@@ -2966,7 +2966,7 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	if !ok {
 		throw(rcvType)
 	}
-	methodSet,ok := typesWithMethods[rcvTypeName.Name]
+	methodSet, ok := typesWithMethods[rcvTypeName.Name]
 	if !ok {
 		panic(rcvTypeName.Name + " has no moethodeiverTypeName:")
 	}
@@ -2976,7 +2976,6 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	}
 	return method
 }
-
 
 func walkStmt(stmt ast.Stmt) {
 	switch s := stmt.(type) {
@@ -3033,7 +3032,7 @@ func walkStmt(stmt ast.Stmt) {
 		}
 	case *ast.ReturnStmt:
 		mapReturnStmt[s] = &nodeReturnStmt{
-			fnc:currentFunc,
+			fnc: currentFunc,
 		}
 		for _, r := range s.Results {
 			walkExpr(r)
@@ -3140,7 +3139,7 @@ func walkStmt(stmt ast.Stmt) {
 				orig: cc,
 			}
 			typeSwitch.cases = append(typeSwitch.cases, tscc)
-			if  assignIdent != nil && len(cc.List) > 0 {
+			if assignIdent != nil && len(cc.List) > 0 {
 				// inject a variable of that type
 				varType := e2t(cc.List[0])
 				vr := currentFunc.registerLocalVariable(assignIdent.Name, varType)
@@ -3299,7 +3298,7 @@ func walk(pkg *PkgContainer) {
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		key := pkg.name + "." + funcDecl.Name.Name
-		logf("ExportedQualifiedIdents added: %s\n" , key)
+		logf("ExportedQualifiedIdents added: %s\n", key)
 		ExportedQualifiedIdents[key] = funcDecl
 		if funcDecl.Body != nil {
 			if funcDecl.Recv != nil { // is Method
@@ -3330,7 +3329,7 @@ func walk(pkg *PkgContainer) {
 		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		nameIdent.Obj.Data = variable
 		pkg.vars = append(pkg.vars, varSpec)
-		ExportedQualifiedIdents[pkg.name + "." + nameIdent.Obj.Name] = nameIdent
+		ExportedQualifiedIdents[pkg.name+"."+nameIdent.Obj.Name] = nameIdent
 		for _, v := range varSpec.Values {
 			// mainly to collect string literals
 			walkExpr(v)
@@ -3390,7 +3389,7 @@ var eNil = &ast.Ident{
 
 var eZeroInt = &ast.BasicLit{
 	Value: "0",
-	Kind: token.INT,
+	Kind:  token.INT,
 }
 
 var gTrue = &ast.Object{
@@ -3567,7 +3566,7 @@ func resolveImports(file *ast.File) {
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		rawValue := imprt.Path.Value
-		pth :=  rawValue[1:len(rawValue)-1]
+		pth := rawValue[1 : len(rawValue)-1]
 		base := path.Base(pth)
 		mapImports[base] = true
 	}
@@ -3586,21 +3585,21 @@ func resolveImports(file *ast.File) {
 var ExportedQualifiedIdents map[string]interface{} = map[string]interface{}{}
 
 func lookupForeignVar(pkg string, identifier string) *ast.Ident {
-	x , found := ExportedQualifiedIdents[pkg + "." + identifier]
+	x, found := ExportedQualifiedIdents[pkg+"."+identifier]
 	if !found {
 		panic(pkg + "." + identifier + " Not found in ExportedQualifiedIdents")
 	}
 	ident, ok := x.(*ast.Ident)
-	if ! ok {
+	if !ok {
 		throw(ExportedQualifiedIdents)
 	}
 	return ident
 }
 
 func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
-	x ,_ := ExportedQualifiedIdents[pkg + "." + identifier]
+	x, _ := ExportedQualifiedIdents[pkg+"."+identifier]
 	decl, ok := x.(*ast.FuncDecl)
-	if ! ok {
+	if !ok {
 		panic("Function not found: " + pkg + "." + identifier)
 	}
 	return decl
@@ -3610,15 +3609,15 @@ func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
 var pkg *PkgContainer
 
 type PkgContainer struct {
-	path string
-	name string
-	files []string
-	astFiles []*ast.File
-	vars []*ast.ValueSpec
-	funcs []*Func
+	path           string
+	name           string
+	files          []string
+	astFiles       []*ast.File
+	vars           []*ast.ValueSpec
+	funcs          []*Func
 	stringLiterals []*stringLiteralsContainer
-	stringIndex int
-	Decls      []ast.Decl
+	stringIndex    int
+	Decls          []ast.Decl
 }
 
 func showHelp() {
@@ -3649,18 +3648,18 @@ func isStdLib(pth string) bool {
 func getImportPathsFromFile(file string) map[string]bool {
 	fset := &token.FileSet{}
 	astFile0 := parseImports(fset, file)
-	var paths  = map[string]bool{}
+	var paths = map[string]bool{}
 	for _, importSpec := range astFile0.Imports {
 		rawValue := importSpec.Path.Value
 		logf("import %s\n", rawValue)
-		path :=  rawValue[1:len(rawValue)-1]
+		path := rawValue[1 : len(rawValue)-1]
 		paths[path] = true
 	}
 	return paths
 }
 
 func removeNode(tree map[string]map[string]bool, node string) {
-	for _ , paths := range tree {
+	for _, paths := range tree {
 		delete(paths, node)
 	}
 
@@ -3680,7 +3679,7 @@ func getKeys(tree map[string]map[string]bool) []string {
 func sortTopologically(tree map[string]map[string]bool) []string {
 	logf("sortTopologically start\n")
 	var sorted []string
-	for len(tree) > 0{
+	for len(tree) > 0 {
 		keys := getKeys(tree)
 		mylib.SortStrings(keys)
 		for _, _path := range keys {
@@ -3692,7 +3691,6 @@ func sortTopologically(tree map[string]map[string]bool) []string {
 				removeNode(tree, _path)
 			}
 		}
-
 
 	}
 
@@ -3741,7 +3739,7 @@ func main() {
 		showHelp()
 		return
 	} else if os.Args[1] == "panic" {
-		panicVersion := strconv.Itoa(mylib.Sum(1 , 1))
+		panicVersion := strconv.Itoa(mylib.Sum(1, 1))
 		panic("I am panic version " + panicVersion)
 	}
 
@@ -3806,29 +3804,29 @@ func main() {
 	for _, _path := range stdPackagesUsed {
 		fmt.Printf("#  %s\n", _path)
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			path : _path,
+			path: _path,
 		})
 	}
 	fmt.Printf("# === sorted extPackagesUsed ===\n")
 	for _, _path := range extPackagesUsed {
 		fmt.Printf("#  %s\n", _path)
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			path : _path,
+			path: _path,
 		})
 	}
 	mainPkg := &PkgContainer{
-		name: "main",
+		name:  "main",
 		files: inputFiles,
 	}
 	packagesToBuild = append(packagesToBuild, mainPkg)
 	for _, _pkg := range packagesToBuild {
-		logf("Building package : %s\n" , _pkg.path)
-		if len(_pkg.files)  == 0 {
+		logf("Building package : %s\n", _pkg.path)
+		if len(_pkg.files) == 0 {
 			pkgDir := getPackageDir(_pkg.path)
 			fnames := findFilesInDir(pkgDir)
 			var files []string
 			for _, fname := range fnames {
-				logf("fname: %s\n" , fname)
+				logf("fname: %s\n", fname)
 				srcFile := pkgDir + "/" + fname
 				files = append(files, srcFile)
 			}
@@ -3837,7 +3835,7 @@ func main() {
 		fset := &token.FileSet{}
 		pkgScope := ast.NewScope(universe)
 		for _, file := range _pkg.files {
-			logf("Parsing file: %s\n" , file)
+			logf("Parsing file: %s\n", file)
 			astFile := parseFile(fset, file)
 			_pkg.name = astFile.Name.Name
 			_pkg.astFiles = append(_pkg.astFiles, astFile)
@@ -3852,7 +3850,7 @@ func main() {
 				if obj := pkgScope.Lookup(ident.Name); obj != nil {
 					ident.Obj = obj
 				} else {
-					logf("# unresolved: %s\n" , ident.Name)
+					logf("# unresolved: %s\n", ident.Name)
 					if obj := universe.Lookup(ident.Name); obj != nil {
 						ident.Obj = obj
 					} else {
@@ -3874,7 +3872,7 @@ func main() {
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
 
-	sliceTypeMap := make([]string, len(typeMap) + 1)
+	sliceTypeMap := make([]string, len(typeMap)+1)
 
 	for name, id := range typeMap {
 		sliceTypeMap[id] = name

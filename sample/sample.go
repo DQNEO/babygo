@@ -47,8 +47,7 @@ func sumAndMulWithNamedReturn(x int, y int) (sum int, mul int) {
 	return
 }
 
-
-func sum(x int, y int ) int {
+func sum(x int, y int) int {
 	return x + y
 }
 
@@ -59,10 +58,10 @@ func concate(x string, y string) string {
 func main() {
 	min()
 	slice(nil)
-	slice([]byte{'a','b','c'})
+	slice([]byte{'a', 'b', 'c'})
 	arg1(1)
 	arg1ret1(2)
-	sumAndMul(5,7)
+	sumAndMul(5, 7)
 	sumAndMulWithNamedReturn(5, 7)
 	sum(2, 3)
 	concate("hello", " world")

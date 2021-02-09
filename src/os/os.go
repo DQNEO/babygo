@@ -19,5 +19,5 @@ func Getenv(key string) string {
 }
 
 func Exit(status int) {
-	syscall.Syscall(uintptr(SYS_EXIT), uintptr(status), 0 , 0)
+	syscall.Syscall(uintptr(SYS_EXIT), uintptr(status), 0, 0)
 }

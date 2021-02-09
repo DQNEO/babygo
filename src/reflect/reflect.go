@@ -8,7 +8,7 @@ type Type struct {
 
 func TypeOf(x interface{}) *Type {
 	return &Type{
-		X:x,
+		X: x,
 	}
 }
 
@@ -18,7 +18,7 @@ type eface struct {
 }
 
 type _type struct {
-	id int
+	id   int
 	name string
 }
 
@@ -36,4 +36,3 @@ func (t *Type) String() string {
 		return typ.name
 	}
 }
-

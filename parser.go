@@ -178,8 +178,8 @@ func (p *parser) parseArrayType() astExpr {
 	var elt = p.parseType()
 
 	return newExpr(&astArrayType{
-		Elt : elt,
-		Len : ln,
+		Elt: elt,
+		Len: ln,
 	})
 }
 
@@ -191,8 +191,8 @@ func (p *parser) parseFieldDecl(scope *astScope) *astField {
 	p.expectSemi(__func__)
 	ident := expr2Ident(varType)
 	var field = &astField{
-		Type : typ,
-		Name : ident,
+		Type: typ,
+		Name: ident,
 	}
 	declareField(field, scope, astVar, ident)
 	p.resolve(typ)
@@ -215,7 +215,7 @@ func (p *parser) parseStructType() astExpr {
 
 	return newExpr(&astStructType{
 		Fields: &astFieldList{
-			List : list,
+			List: list,
 		},
 	})
 }
@@ -314,8 +314,8 @@ func (p *parser) parseParameterList(scope *astScope, ellipsisOK bool) []*astFiel
 			ident = p.parseIdent()
 			typ = p.parseVarType(ellipsisOK)
 			field = &astField{
-				Name : ident,
-				Type : typ,
+				Name: ident,
+				Type: typ,
 			}
 			params = append(params, field)
 			declareField(field, scope, astVar, ident)
@@ -399,9 +399,9 @@ func (p *parser) parseSignature(scope *astScope) *signature {
 func declareField(decl *astField, scope *astScope, kind string, ident *astIdent) {
 	// declare
 	var obj = &astObject{
-		Decl : decl,
-		Name : ident.Name,
-		Kind : kind,
+		Decl: decl,
+		Name: ident.Name,
+		Kind: kind,
 	}
 
 	ident.Obj = obj
@@ -417,9 +417,9 @@ func declare(decl interface{}, scope *astScope, kind string, ident *astIdent) {
 
 	//valSpec.Name.Obj
 	var obj = &astObject{
-		Decl : decl,
-		Name : ident.Name,
-		Kind : kind,
+		Decl: decl,
+		Name: ident.Name,
+		Kind: kind,
 	}
 	ident.Obj = obj
 
@@ -469,8 +469,8 @@ func (p *parser) parseOperand() astExpr {
 		return eIdent
 	case "INT", "STRING", "CHAR":
 		var basicLit = &astBasicLit{
-			Kind : p.tok.tok,
-			Value : p.tok.lit,
+			Kind:  p.tok.tok,
+			Value: p.tok.lit,
 		}
 		p.next()
 		logf("   end %s\n", __func__)
@@ -526,8 +526,8 @@ func (p *parser) parseCallExpr(fn astExpr) astExpr {
 
 	p.expect(")", __func__)
 	return newExpr(&astCallExpr{
-		Fun:  fn,
-		Args: list,
+		Fun:      fn,
+		Args:     list,
 		Ellipsis: ellipsis,
 	})
 }
@@ -556,8 +556,8 @@ func (p *parser) parsePrimaryExpr() astExpr {
 				// Assume CallExpr
 				var secondIdent = p.parseIdent()
 				var sel = &astSelectorExpr{
-					X : x,
-					Sel : secondIdent,
+					X:   x,
+					Sel: secondIdent,
 				}
 				if p.tok.tok == "(" {
 					var fn = newExpr(sel)
@@ -571,7 +571,7 @@ func (p *parser) parsePrimaryExpr() astExpr {
 			case "(": // type assertion
 				x = p.parseTypeAssertion(x)
 			default:
-				panic2(__func__, "Unexpected token:" + p.tok.tok)
+				panic2(__func__, "Unexpected token:"+p.tok.tok)
 			}
 		case "(":
 			x = p.parseCallExpr(x)
@@ -612,8 +612,8 @@ func (p *parser) parseElement() astExpr {
 		p.next() // skip ":"
 		v = p.parseExpr()
 		kvExpr = &astKeyValueExpr{
-			Key : x,
-			Value : v,
+			Key:   x,
+			Value: v,
 		}
 		x = newExpr(kvExpr)
 	}
@@ -644,7 +644,7 @@ func (p *parser) parseLiteralValue(typ astExpr) astExpr {
 	p.expect("}", __func__)
 
 	logf("   end %s\n", __func__)
-	return  newExpr(&astCompositeLit{
+	return newExpr(&astCompositeLit{
 		Type: typ,
 		Elts: elts,
 	})
@@ -684,10 +684,10 @@ func (p *parser) parseIndexOrSlice(x astExpr) astExpr {
 	if ncolons > 0 {
 		// slice expression
 		var sliceExpr = &astSliceExpr{
-			Slice3 : false,
-			X : x,
-			Low : index[0],
-			High : index[1],
+			Slice3: false,
+			X:      x,
+			Low:    index[0],
+			High:   index[1],
 		}
 		if ncolons == 2 {
 			sliceExpr.Max = index[2]
@@ -836,7 +836,7 @@ func (p *parser) parseForStmt() astStmt {
 	var as *astAssignStmt
 	var rangeX astExpr
 	if isRange {
-		assert(isStmtAssignStmt(s2), "type mismatch:" + dtypeOf(s2), __func__)
+		assert(isStmtAssignStmt(s2), "type mismatch:"+dtypeOf(s2), __func__)
 		as = stmt2AssignStmt(s2)
 		logf(" [DEBUG] range as len lhs=%s\n", strconv.Itoa(len(as.Lhs)))
 		var key astExpr
@@ -1119,7 +1119,7 @@ func (p *parser) parseReturnStmt() astStmt {
 	return newStmt(returnStmt)
 }
 
-func (p *parser) parseStmtList () []astStmt {
+func (p *parser) parseStmtList() []astStmt {
 	var list []astStmt
 	for p.tok.tok != "}" && p.tok.tok != "EOF" && p.tok.tok != "case" && p.tok.tok != "default" {
 		var stmt = p.parseStmt()
@@ -1372,5 +1372,3 @@ func parseFile(filename string, importsOnly bool) *astFile {
 	p.init(text)
 	return p.parseFile(importsOnly)
 }
-
-

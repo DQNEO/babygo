@@ -21,7 +21,7 @@ var envp uintptr
 var envlines []string // []{"FOO=BAR\0", "HOME=/home/...\0", ..}
 
 type envEntry struct {
-	key string
+	key   string
 	value string
 }
 
@@ -33,20 +33,18 @@ func heapInit() {
 	heapCurrent = heapHead
 }
 
-
 // Inital stack layout is illustrated in this page
 // http://asm.sourceforge.net/articles/startup.html#st
 func envInit() {
 	var p uintptr // **byte
 
-	for p = envp; true ; p = p + 8{
+	for p = envp; true; p = p + 8 {
 		var bpp **byte = (**byte)(unsafe.Pointer(p))
 		if *bpp == nil {
 			break
 		}
 		envlines = append(envlines, cstring2string(*bpp))
 	}
-
 
 	for _, envline := range envlines {
 		var i int
@@ -77,7 +75,6 @@ func runtime_getenv(key string) string {
 
 	return ""
 }
-
 
 func cstring2string(b *uint8) string {
 	var buf []uint8
@@ -303,7 +300,7 @@ func cmpstrings(a string, b string) bool {
 
 // Two interface values are equal if they have identical dynamic types and equal dynamic values or if both have value nil.
 func cmpinterface(a uintptr, b uintptr, c uintptr, d uintptr) bool {
-	if a == c && b ==d {
+	if a == c && b == d {
 		return true
 	}
 	return false

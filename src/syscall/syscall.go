@@ -11,7 +11,7 @@ func Read(fd int, buf []byte) uintptr {
 	p := &buf[0]
 	_cap := cap(buf)
 	var ret uintptr
-	ret  = Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_cap))
+	ret = Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_cap))
 	return ret
 }
 
@@ -28,7 +28,7 @@ func Write(fd int, buf []byte) uintptr {
 	p := &buf[0]
 	_len := len(buf)
 	var ret uintptr
-	ret  = Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_len))
+	ret = Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_len))
 	return ret
 }
 

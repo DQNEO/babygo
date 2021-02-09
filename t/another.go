@@ -7,7 +7,7 @@ func anotherFunc() string {
 	return anotherVar
 }
 
-func nop() {}
+func nop()  {}
 func nop1() {}
 func nop2() {}
 

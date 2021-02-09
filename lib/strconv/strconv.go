@@ -65,4 +65,3 @@ func Atoi(gs string) int {
 
 	return n
 }
-

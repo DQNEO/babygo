@@ -43,7 +43,7 @@ func testSprinfMore() {
 	a[0] = 1234
 	a[1] = "c"
 	a[2] = "efg"
-	s  = fmt.Sprintf("%dab%sd%s", a...)
+	s = fmt.Sprintf("%dab%sd%s", a...)
 	writeln(s)
 
 	// type mismatch cases
@@ -137,7 +137,6 @@ func testReflect() {
 	rt = reflect.TypeOf(myStructP)
 	fmt.Printf("%s\n", rt.String()) // *main.MyStruct
 }
-
 
 func returnSlice() []string {
 	r := []string{"aa", "bb", "cc"}
@@ -257,11 +256,11 @@ func testExtLib() {
 	writeln(strconv.Itoa(y))
 }
 
-func passVargs(a... interface{}) {
+func passVargs(a ...interface{}) {
 	takeInterfaceVaargs(a...)
 }
 
-func takeStringVaargs(a...string) {
+func takeStringVaargs(a ...string) {
 	writeln(len(a))
 	for _, s := range a {
 		writeln(s)
@@ -269,7 +268,7 @@ func takeStringVaargs(a...string) {
 }
 
 func testExpandSlice() {
-	var slicexxx = []interface{}{2,4,6}
+	var slicexxx = []interface{}{2, 4, 6}
 	nop()
 	passVargs(slicexxx...)
 
@@ -277,6 +276,7 @@ func testExpandSlice() {
 }
 
 var gArrayForFullSlice [3]int
+
 func testFullSlice() {
 	gArrayForFullSlice = [3]int{
 		2,
@@ -296,7 +296,7 @@ func testFullSlice() {
 	}
 }
 
-func takeInterfaceVaargs(a...interface{}) {
+func takeInterfaceVaargs(a ...interface{}) {
 	writeln(len(a))
 	for _, ifc := range a {
 		writeln(ifc)
@@ -319,26 +319,26 @@ func testConvertToInterface() {
 	// Explicit conversion
 	var ifc interface{} = interface{}(7)
 	var i int
-	i , _ = ifc.(int)
+	i, _ = ifc.(int)
 	writeln(i)
 
 	// Implicit conversion to variable
 	var j int = 8
 	ifc = j
-	i , _ = ifc.(int)
+	i, _ = ifc.(int)
 	writeln(i)
 
 	// Implicit conversion to struct field
 	var k int = 9
 	var strct MyStruct
 	strct.ifc = k
-	i , _ = strct.ifc.(int)
+	i, _ = strct.ifc.(int)
 	writeln(i)
 
 	// Implicit conversion to array element
 	var l int = 10
 	gefacearray[2] = l
-	i , _ = gefacearray[2].(int)
+	i, _ = gefacearray[2].(int)
 	writeln(i)
 
 	// Implicit conversion to struct literal
@@ -348,7 +348,7 @@ func testConvertToInterface() {
 		field2: 2,
 		ifc:    k,
 	}
-	i , _ = strct.ifc.(int)
+	i, _ = strct.ifc.(int)
 	writeln(i)
 
 	// Implicit conversion to array literal
@@ -357,7 +357,7 @@ func testConvertToInterface() {
 		0,
 		12,
 	}
-	i , _ = gefacearray[2].(int)
+	i, _ = gefacearray[2].(int)
 	writeln(i)
 
 	// Implicit conversion to function call
@@ -366,7 +366,7 @@ func testConvertToInterface() {
 
 	// Implicit conversion to return
 	ifc = returnInterface()
-	i , _ = ifc.(int)
+	i, _ = ifc.(int)
 	writeln(i)
 
 	// Implicit conversion to function call (vaargs)
@@ -440,7 +440,6 @@ func testGetInterface() {
 		writeln(i)
 	}
 }
-
 
 func takeInterface(ifc interface{}) {
 	var s int
@@ -580,7 +579,7 @@ func testForRangeShortDecl() {
 	writeln(i)
 }
 
-var gi = 123 // int
+var gi = 123   // int
 var gs = "abc" // string
 var gstrctPtr = &MyStruct{
 	field2: 456,
@@ -592,7 +591,7 @@ func testInferVarTypes() {
 		field1: 789,
 	}
 
-	var gslc = []int{1,2,3}
+	var gslc = []int{1, 2, 3}
 
 	writeln(gi)
 	writeln(gs)
@@ -655,10 +654,9 @@ func (p *MyStruct) getField1() int {
 	return p.field1
 }
 
-func (p *MyStruct) setField1(x int)  {
+func (p *MyStruct) setField1(x int) {
 	p.field1 = x
 }
-
 
 type T int
 
@@ -771,7 +769,6 @@ func testAddressOfStructLiteral() {
 	writeln(strconv.Itoa(strct.field1))
 	writeln(strconv.Itoa(strct.field2))
 }
-
 
 func testStructCopy() {
 	var strct MyStruct = MyStruct{}
@@ -1431,7 +1428,7 @@ func testIncrDecr() {
 type MyStruct struct {
 	field1 int
 	field2 int
-	ifc interface{}
+	ifc    interface{}
 }
 
 var globalstrings1 [2]string

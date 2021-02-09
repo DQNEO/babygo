@@ -89,7 +89,7 @@ func Index(s string, substr string) int {
 
 // search index of the specified char from backward
 func LastIndexByte(s string, c uint8) int {
-	for i:=len(s)-1;i>=0;i-- {
+	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] == c {
 			return i
 		}
@@ -97,4 +97,3 @@ func LastIndexByte(s string, c uint8) int {
 	// not found
 	return -1
 }
-
