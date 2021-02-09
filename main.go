@@ -209,7 +209,7 @@ func emitAddr(expr astExpr) {
 		var elmType = getTypeOfExpr(expr)
 		emitListElementAddr(list, elmType)
 	case *astStarExpr:
-		emitExpr(expr2StarExpr(expr).X, nil)
+		emitExpr(e.X, nil)
 	case *astSelectorExpr: // (X).Sel
 		var typeOfX = getTypeOfExpr(e.X)
 		var structType *Type
@@ -261,7 +261,7 @@ func isType(expr astExpr) bool {
 	case *astParenExpr:
 		return isType(e.X)
 	case *astStarExpr:
-		return isType(expr2StarExpr(expr).X)
+		return isType(e.X)
 	case *astInterfaceType:
 		return true
 	default:
@@ -2336,14 +2336,14 @@ func getTypeOfExpr(expr astExpr) *Type {
 		t.Elt = elementTyp
 		return e2t(newExpr(t))
 	case *astStarExpr:
-		var t = getTypeOfExpr(expr2StarExpr(expr).X)
+		var t = getTypeOfExpr(e.X)
 		var ptrType = expr2StarExpr(t.e)
 		if ptrType == nil {
 			panic2(__func__, "starExpr shoud not be nil")
 		}
 		return e2t(ptrType.X)
 	case *astBinaryExpr:
-		binaryExpr := expr2BinaryExpr(expr)
+		binaryExpr := e
 		switch binaryExpr.Op {
 		case "==", "!=", "<", ">", "<=", ">=":
 			return tBool
