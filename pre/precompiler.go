@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"os"
 	"syscall"
 
@@ -71,7 +69,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 		spaces = append(spaces, ' ')
 	}
 	var format2 = string(spaces) + "# " + format
-	fmt.Printf(format2, a...)
+	myfmt.Printf(format2, a...)
 }
 
 func evalInt(expr ast.Expr) int {
