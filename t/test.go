@@ -39,12 +39,20 @@ func testSprinfMore() {
 	s = myfmt.Sprintf("%d", "xyz")
 	writeln(s)
 
-	// type mismatch cases
-	//s = myfmt.Sprintf("string %d", str)
-	//writeln(s)
+	var a []interface{} = make([]interface{}, 3, 3)
+	a[0] = 1234
+	a[1] = "c"
+	a[2] = "efg"
+	s  = myfmt.Sprintf("%dab%sd%s", a...)
+	writeln(s)
 
-	//s = myfmt.Sprintf("%s", 123)
-	//writeln(s)
+	// type mismatch cases
+	s = myfmt.Sprintf("string %d", str)
+	writeln(s)
+
+	s = myfmt.Sprintf("%s", 123)
+	writeln(s)
+
 }
 
 var anotherVar string = "Another Hello\n"
@@ -1210,20 +1218,6 @@ func testLocalArray() {
 	write("\n")
 }
 
-func testSprintf() {
-	var a []interface{} = make([]interface{}, 3, 3)
-	a[0] = 1234
-	a[1] = "c"
-	a[2] = "efg"
-	var s string = myfmt.Sprintf("%sab%sd%s", a...)
-	write(s)
-
-	var s2 string = myfmt.Sprintf("%%rax")
-	write(s2)
-
-	write("|\n")
-}
-
 func testAppendSlice() {
 	var slcslc [][]string
 	var slc []string
@@ -1961,7 +1955,6 @@ func main() {
 	testArrayCopy()
 	testLocalArrayWithMoreTypes()
 	testLocalArray()
-	testSprintf()
 	testAppendSlice()
 	testAppendPtr()
 	testAppendString()

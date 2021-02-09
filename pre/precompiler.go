@@ -27,7 +27,7 @@ func assert(bol bool, msg string) {
 }
 
 func throw(x interface{}) {
-	panic(fmt.Sprintf("%#v", x))
+	panic(myfmt.Sprintf("%T", x))
 }
 
 var debugFrontEnd bool
@@ -292,7 +292,7 @@ func isType(expr ast.Expr) bool {
 
 // explicit conversion T(e)
 func emitConversion(toType *Type, arg0 ast.Expr) {
-	emitComment(2, "Conversion %s <= %s\n", toType.e, getTypeOfExpr(arg0))
+	emitComment(2, "Conversion\n")
 	switch to := toType.e.(type) {
 	case *ast.Ident:
 		ident := to
@@ -326,7 +326,7 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 			throw(to)
 		}
 		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice")
-		emitComment(2, "Conversion to slice %s <= %s\n", arrayType.Elt, getTypeOfExpr(arg0))
+		emitComment(2, "Conversion to slice\n")
 		emitExpr(arg0, nil)
 		emitPopString()
 		myfmt.Printf("  pushq %%rcx # cap\n")
@@ -917,7 +917,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			isNilObj = true
 		default:
 			if e.Obj == nil {
-				panic(fmt.Sprintf("ident %s is unresolved", e.Name))
+				panic(myfmt.Sprintf("ident %s is unresolved", e.Name))
 			}
 			switch e.Obj.Kind {
 			case ast.Var:
@@ -942,13 +942,12 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			ident := lookupForeignVar(ident.Name, e.Sel.Name)
 			emitExpr(ident, ctx)
 		} else {
-			emitComment(2, "emitExpr *ast.SelectorExpr %s.%s\n", e.X, e.Sel)
+			emitComment(2, "emitExpr *ast.SelectorExpr X.%s\n", e.Sel.Name)
 			emitAddr(e)
 			emitLoadFromMemoryAndPush(getTypeOfExpr(e))
 		}
 	case *ast.CallExpr: // multi values Fun(Args)
 		var fun = e.Fun
-		emitComment(2, "callExpr=%#v\n", fun)
 		// check if it's a conversion
 		if isType(fun) {
 			emitConversion(e2t(fun), e.Args[0])
@@ -987,8 +986,8 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				// zero value
 				emitZeroValue(tString)
 			} else {
-				fmt.Printf("  pushq $%d # str len\n", sl.strlen)
-				fmt.Printf("  leaq %s, %%rax # str ptr\n", sl.label)
+				myfmt.Printf("  pushq $%d # str len\n", sl.strlen)
+				myfmt.Printf("  leaq %s, %%rax # str ptr\n", sl.label)
 				myfmt.Printf("  pushq %%rax # str ptr\n")
 			}
 		default:
@@ -1050,38 +1049,38 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			switch e.Op.String() {
 			case "&&":
 				labelid++
-				labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
-				labelExit := fmt.Sprintf(".L.%d.exit", labelid)
+				labelExitWithFalse := myfmt.Sprintf(".L.%d.false", labelid)
+				labelExit := myfmt.Sprintf(".L.%d.exit", labelid)
 				emitExpr(e.X, nil) // left
 				emitPopBool("left")
-				fmt.Printf("  cmpq $1, %%rax\n")
+				myfmt.Printf("  cmpq $1, %%rax\n")
 				// exit with false if left is false
-				fmt.Printf("  jne %s\n", labelExitWithFalse)
+				myfmt.Printf("  jne %s\n", labelExitWithFalse)
 
 				// if left is true, then eval right and exit
 				emitExpr(e.Y, nil) // right
-				fmt.Printf("  jmp %s\n", labelExit)
+				myfmt.Printf("  jmp %s\n", labelExit)
 
-				fmt.Printf("  %s:\n", labelExitWithFalse)
+				myfmt.Printf("  %s:\n", labelExitWithFalse)
 				emitFalse()
-				fmt.Printf("  %s:\n", labelExit)
+				myfmt.Printf("  %s:\n", labelExit)
 			case "||":
 				labelid++
-				labelExitWithTrue := fmt.Sprintf(".L.%d.true", labelid)
-				labelExit := fmt.Sprintf(".L.%d.exit", labelid)
+				labelExitWithTrue := myfmt.Sprintf(".L.%d.true", labelid)
+				labelExit := myfmt.Sprintf(".L.%d.exit", labelid)
 				emitExpr(e.X, nil) // left
 				emitPopBool("left")
-				fmt.Printf("  cmpq $1, %%rax\n")
+				myfmt.Printf("  cmpq $1, %%rax\n")
 				// exit with true if left is true
-				fmt.Printf("  je %s\n", labelExitWithTrue)
+				myfmt.Printf("  je %s\n", labelExitWithTrue)
 
 				// if left is false, then eval right and exit
 				emitExpr(e.Y, nil) // right
-				fmt.Printf("  jmp %s\n", labelExit)
+				myfmt.Printf("  jmp %s\n", labelExit)
 
-				fmt.Printf("  %s:\n", labelExitWithTrue)
+				myfmt.Printf("  %s:\n", labelExitWithTrue)
 				emitTrue()
-				fmt.Printf("  %s:\n", labelExit)
+				myfmt.Printf("  %s:\n", labelExit)
 			case "+":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
@@ -1161,7 +1160,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				emitExpr(e.Y, nil)   // right
 				emitCompExpr("setge")
 			default:
-				panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
+				panic(myfmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
 			}
 		}
 	case *ast.CompositeLit: // 1 value
@@ -1180,8 +1179,8 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			length := len(e.Elts)
 			emitArrayLiteral(arrayType, length, e.Elts)
 			emitPopAddress("malloc")
-			fmt.Printf("  pushq $%d # slice.cap\n", length)
-			fmt.Printf("  pushq $%d # slice.len\n", length)
+			myfmt.Printf("  pushq $%d # slice.cap\n", length)
+			myfmt.Printf("  pushq $%d # slice.len\n", length)
 			myfmt.Printf("  pushq %%rax # slice.ptr\n")
 		default:
 			panic(string(kind(e2t(e.Type))))
@@ -1278,11 +1277,11 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 
 		emitCompExpr("sete") // this pushes 1 or 0 in the end
 		emitPopBool("type assertion ok value")
-		fmt.Printf("  cmpq $1, %%rax\n")
+		myfmt.Printf("  cmpq $1, %%rax\n")
 
 		labelid++
-		labelTypeAssertionEnd := fmt.Sprintf(".L.end_type_assertion.%d", labelid)
-		labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
+		labelTypeAssertionEnd := myfmt.Sprintf(".L.end_type_assertion.%d", labelid)
+		labelElse := myfmt.Sprintf(".L.unmatch.%d", labelid)
 		myfmt.Printf("  jne %s # jmp if false\n", labelElse)
 
 		// if matched
@@ -1377,7 +1376,7 @@ func newNumberLiteral(x int) *ast.BasicLit {
 	e := &ast.BasicLit{
 		ValuePos: 0,
 		Kind:     token.INT,
-		Value:    fmt.Sprintf("%d", x),
+		Value:    myfmt.Sprintf("%d", x),
 	}
 	return e
 }
@@ -1456,7 +1455,7 @@ func emitPop(knd TypeKind) {
 
 func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	knd := kind(t)
-	emitComment(2, "emitStore(%s)\n", knd)
+	emitComment(2, "emitStore\n")
 	if rhsTop {
 		emitPop(knd) // rhs
 		myfmt.Printf("  popq %%rsi # lhs addr\n")
@@ -1559,7 +1558,6 @@ func emitStmt(stmt ast.Stmt) {
 			case *ast.ValueSpec:
 				var valSpec = ds
 				var t = e2t(valSpec.Type)
-				emitComment(2, "Decl.Specs[0]: Names[0]=%#v, Type=%#v\n", ds.Names[0], t.e)
 				lhs := valSpec.Names[0]
 				var rhs ast.Expr
 				if len(valSpec.Values) == 0 {
@@ -1648,23 +1646,23 @@ func emitStmt(stmt ast.Stmt) {
 		emitComment(2, "if\n")
 
 		labelid++
-		labelEndif := fmt.Sprintf(".L.endif.%d", labelid)
-		labelElse := fmt.Sprintf(".L.else.%d", labelid)
+		labelEndif := myfmt.Sprintf(".L.endif.%d", labelid)
+		labelElse := myfmt.Sprintf(".L.else.%d", labelid)
 
 		emitExpr(s.Cond, nil)
 		emitPopBool("if condition")
-		fmt.Printf("  cmpq $1, %%rax\n")
+		myfmt.Printf("  cmpq $1, %%rax\n")
 		if s.Else != nil {
-			fmt.Printf("  jne %s # jmp if false\n", labelElse)
+			myfmt.Printf("  jne %s # jmp if false\n", labelElse)
 			emitStmt(s.Body) // then
-			fmt.Printf("  jmp %s\n", labelEndif)
-			fmt.Printf("  %s:\n", labelElse)
+			myfmt.Printf("  jmp %s\n", labelEndif)
+			myfmt.Printf("  %s:\n", labelElse)
 			emitStmt(s.Else) // then
 		} else {
-			fmt.Printf("  jne %s # jmp if false\n", labelEndif)
+			myfmt.Printf("  jne %s # jmp if false\n", labelEndif)
 			emitStmt(s.Body) // then
 		}
-		fmt.Printf("  %s:\n", labelEndif)
+		myfmt.Printf("  %s:\n", labelEndif)
 		emitComment(2, "end if\n")
 	case *ast.BlockStmt:
 		for _, stmt := range s.List {
@@ -1672,9 +1670,9 @@ func emitStmt(stmt ast.Stmt) {
 		}
 	case *ast.ForStmt:
 		labelid++
-		labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
-		labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
-		labelExit := fmt.Sprintf(".L.for.exit.%d", labelid)
+		labelCond := myfmt.Sprintf(".L.for.cond.%d", labelid)
+		labelPost := myfmt.Sprintf(".L.for.post.%d", labelid)
+		labelExit := myfmt.Sprintf(".L.for.exit.%d", labelid)
 		forStmt, ok := mapForNodeToFor[s]
 		assert(ok, "map value should exist")
 		forStmt.labelPost = labelPost
@@ -1684,25 +1682,25 @@ func emitStmt(stmt ast.Stmt) {
 			emitStmt(s.Init)
 		}
 
-		fmt.Printf("  %s:\n", labelCond)
+		myfmt.Printf("  %s:\n", labelCond)
 		if s.Cond != nil {
 			emitExpr(s.Cond, nil)
 			emitPopBool("for condition")
-			fmt.Printf("  cmpq $1, %%rax\n")
-			fmt.Printf("  jne %s # jmp if false\n", labelExit)
+			myfmt.Printf("  cmpq $1, %%rax\n")
+			myfmt.Printf("  jne %s # jmp if false\n", labelExit)
 		}
 		emitStmt(s.Body)
-		fmt.Printf("  %s:\n", labelPost) // used for "continue"
+		myfmt.Printf("  %s:\n", labelPost) // used for "continue"
 		if s.Post != nil {
 			emitStmt(s.Post)
 		}
-		fmt.Printf("  jmp %s\n", labelCond)
-		fmt.Printf("  %s:\n", labelExit)
+		myfmt.Printf("  jmp %s\n", labelCond)
+		myfmt.Printf("  %s:\n", labelExit)
 	case *ast.RangeStmt: // only for array and slice
 		labelid++
-		labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
-		labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
-		labelExit := fmt.Sprintf(".L.range.exit.%d", labelid)
+		labelCond := myfmt.Sprintf(".L.range.cond.%d", labelid)
+		labelPost := myfmt.Sprintf(".L.range.post.%d", labelid)
+		labelExit := myfmt.Sprintf(".L.range.exit.%d", labelid)
 
 		forStmt, ok := mapRangeNodeToFor[s]
 		assert(ok, "map value should exist")
@@ -1743,7 +1741,7 @@ func emitStmt(stmt ast.Stmt) {
 		// else
 		//   exit
 		emitComment(2, "ForRange Condition\n")
-		fmt.Printf("  %s:\n", labelCond)
+		myfmt.Printf("  %s:\n", labelCond)
 
 		emitVariableAddr(rngMisc.indexvar)
 		emitLoadFromMemoryAndPush(tInt)
@@ -1751,8 +1749,8 @@ func emitStmt(stmt ast.Stmt) {
 		emitLoadFromMemoryAndPush(tInt)
 		emitCompExpr("setl")
 		emitPopBool(" indexvar < lenvar")
-		fmt.Printf("  cmpq $1, %%rax\n")
-		fmt.Printf("  jne %s # jmp if false\n", labelExit)
+		myfmt.Printf("  cmpq $1, %%rax\n")
+		myfmt.Printf("  jne %s # jmp if false\n", labelExit)
 
 		emitComment(2, "assign list[indexvar] value variables\n")
 		elemType := getTypeOfExpr(s.Value)
@@ -1771,7 +1769,7 @@ func emitStmt(stmt ast.Stmt) {
 
 		// Post statement: Increment indexvar and go next
 		emitComment(2, "ForRange Post statement\n")
-		fmt.Printf("  %s:\n", labelPost)   // used for "continue"
+		myfmt.Printf("  %s:\n", labelPost)   // used for "continue"
 		emitVariableAddr(rngMisc.indexvar) // lhs
 		emitVariableAddr(rngMisc.indexvar) // rhs
 		emitLoadFromMemoryAndPush(tInt)
@@ -1790,9 +1788,9 @@ func emitStmt(stmt ast.Stmt) {
 			}
 		}
 
-		fmt.Printf("  jmp %s\n", labelCond)
+		myfmt.Printf("  jmp %s\n", labelCond)
 
-		fmt.Printf("  %s:\n", labelExit)
+		myfmt.Printf("  %s:\n", labelExit)
 	case *ast.IncDecStmt:
 		var addValue int
 		switch s.Tok.String() {
@@ -1810,7 +1808,7 @@ func emitStmt(stmt ast.Stmt) {
 		emitStore(getTypeOfExpr(s.X), true, false)
 	case *ast.SwitchStmt:
 		labelid++
-		labelEnd := fmt.Sprintf(".L.switch.%d.exit", labelid)
+		labelEnd := myfmt.Sprintf(".L.switch.%d.exit", labelid)
 
 		if s.Init != nil {
 			panic("TBI")
@@ -1828,7 +1826,7 @@ func emitStmt(stmt ast.Stmt) {
 			cc, ok := c.(*ast.CaseClause)
 			assert(ok, "should be *ast.CaseClause")
 			labelid++
-			labelCase := fmt.Sprintf(".L.case.%d", labelid)
+			labelCase := myfmt.Sprintf(".L.case.%d", labelid)
 			labels[i] = labelCase
 			if cc.List == nil {
 				defaultLabel = labelCase
@@ -1841,8 +1839,8 @@ func emitStmt(stmt ast.Stmt) {
 				emitCompEq(condType)
 
 				emitPopBool(" of switch-case comparison")
-				fmt.Printf("  cmpq $1, %%rax\n")
-				fmt.Printf("  je %s # jump if match\n", labelCase)
+				myfmt.Printf("  cmpq $1, %%rax\n")
+				myfmt.Printf("  je %s # jump if match\n", labelCase)
 			}
 		}
 		emitComment(2, "End comparison with cases\n")
@@ -1850,28 +1848,28 @@ func emitStmt(stmt ast.Stmt) {
 		// if no case matches, then jump to
 		if defaultLabel != "" {
 			// default
-			fmt.Printf("  jmp %s\n", defaultLabel)
+			myfmt.Printf("  jmp %s\n", defaultLabel)
 		} else {
 			// exit
-			fmt.Printf("  jmp %s\n", labelEnd)
+			myfmt.Printf("  jmp %s\n", labelEnd)
 		}
 
 		emitRevertStackTop(condType)
 		for i, c := range cases {
 			cc, ok := c.(*ast.CaseClause)
 			assert(ok, "should be *ast.CaseClause")
-			fmt.Printf("%s:\n", labels[i])
+			myfmt.Printf("%s:\n", labels[i])
 			for _, _s := range cc.Body {
 				emitStmt(_s)
 			}
-			fmt.Printf("  jmp %s\n", labelEnd)
+			myfmt.Printf("  jmp %s\n", labelEnd)
 		}
-		fmt.Printf("%s:\n", labelEnd)
+		myfmt.Printf("%s:\n", labelEnd)
 	case *ast.TypeSwitchStmt:
 		typeSwitch, ok := mapTypeSwitchStmtMeta[s]
 		assert(ok, "should exist")
 		labelid++
-		labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
+		labelEnd := myfmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
 		// subjectVariable = subject
 		emitVariableAddr(typeSwitch.subjectVariable)
@@ -1939,9 +1937,9 @@ func emitStmt(stmt ast.Stmt) {
 
 				emitStmt(_s)
 			}
-			fmt.Printf("  jmp %s\n", labelEnd)
+			myfmt.Printf("  jmp %s\n", labelEnd)
 		}
-		fmt.Printf("%s:\n", labelEnd)
+		myfmt.Printf("%s:\n", labelEnd)
 
 	case *ast.BranchStmt:
 		containerFor, ok := mapBranchToFor[s]
@@ -2008,7 +2006,7 @@ func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
 	typeKind := kind(t)
 	switch typeKind {
 	case T_POINTER:
-		fmt.Printf("# init global %s: # T %s\n", name.Name, typeKind)
+		myfmt.Printf("# init global %s:\n", name.Name)
 		emitAssign(name, val)
 	}
 }
@@ -2072,7 +2070,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		case nil:
 			myfmt.Printf("  .word 0\n")
 		case *ast.BasicLit:
-			fmt.Printf("  .word %s\n", vl.Value)
+			myfmt.Printf("  .word %s\n", vl.Value)
 		default:
 			throw(val)
 		}
@@ -2107,13 +2105,13 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		case T_INT:
 			zeroValue = "  .quad 0 # int zero value\n"
 		case T_UINT8:
-			zeroValue = fmt.Sprintf("  .byte 0 # uint8 zero value\n")
+			zeroValue = myfmt.Sprintf("  .byte 0 # uint8 zero value\n")
 		case T_STRING:
-			zeroValue = fmt.Sprintf("  .quad 0 # string zero value (ptr)\n")
-			zeroValue += fmt.Sprintf("  .quad 0 # string zero value (len)\n")
+			zeroValue = myfmt.Sprintf("  .quad 0 # string zero value (ptr)\n")
+			zeroValue += myfmt.Sprintf("  .quad 0 # string zero value (len)\n")
 		case T_INTERFACE:
-			zeroValue = fmt.Sprintf("  .quad 0 # eface zero value (dtype)\n")
-			zeroValue += fmt.Sprintf("  .quad 0 # eface zero value (data)\n")
+			zeroValue = myfmt.Sprintf("  .quad 0 # eface zero value (dtype)\n")
+			zeroValue += myfmt.Sprintf("  .quad 0 # eface zero value (data)\n")
 		default:
 			throw(arrayType.Elt)
 		}
@@ -2130,8 +2128,8 @@ func generateCode(pkg *PkgContainer) {
 	myfmt.Printf(".data\n")
 	for _, con := range pkg.stringLiterals {
 		emitComment(0, "string literals\n")
-		fmt.Printf("%s:\n", con.sl.label)
-		fmt.Printf("  .string %s\n", con.sl.value)
+		myfmt.Printf("%s:\n", con.sl.label)
+		myfmt.Printf("  .string %s\n", con.sl.value)
 	}
 
 	for _, spec := range pkg.vars {
@@ -2455,7 +2453,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		return e2t(ptrType.X)
 	case *ast.SelectorExpr:
 		// X.Sel
-		emitComment(2, "getTypeOfExpr(%s.%s)\n", e.X, e.Sel)
+		emitComment(2, "getTypeOfExpr(X.%s)\n", e.Sel.Name)
 		ident, isIdent := e.X.(*ast.Ident)
 		if isIdent && ident.Obj.Kind == ast.Pkg {
 			ident := lookupForeignVar(ident.Name, e.Sel.Name)
@@ -2472,7 +2470,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	case *ast.TypeAssertExpr:
 		return e2t(e.Type)
 	default:
-		panic(fmt.Sprintf("Unexpected expr type:%#v", expr))
+		throw(expr)
 	}
 	throw(expr)
 	return nil
@@ -2887,7 +2885,7 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		}
 	}
 
-	label := fmt.Sprintf(".%s.S%d", pkg.name, pkg.stringIndex)
+	label := myfmt.Sprintf(".%s.S%d", pkg.name, pkg.stringIndex)
 	pkg.stringIndex++
 
 	sl := &sliteral{
@@ -3779,14 +3777,14 @@ func main() {
 	collectDependency(tree, importPaths)
 
 	//keys := getKeys(tree)
-	//fmt.Printf("# Unsorted Keys:\n")
+	//myfmt.Printf("# Unsorted Keys:\n")
 	//for _, k := range keys {
-	//	fmt.Printf("#   %s\n", k)
+	//	myfmt.Printf("#   %s\n", k)
 	//}
 	//sort.Strings(keys)
-	//fmt.Printf("# Sorted Keys:\n")
+	//myfmt.Printf("# Sorted Keys:\n")
 	//for _, k := range keys {
-	//	fmt.Printf("#   %s\n", k)
+	//	myfmt.Printf("#   %s\n", k)
 	//}
 
 	sortedPackages := sortTopologically(tree)

@@ -30,8 +30,7 @@ func Sprintf(format string, a ...interface{}) string {
 						str = _arg
 					case int: // ("%s", 123)
 						strNumber := strconv.Itoa(_arg)
-						//str = "%!s(int=" + strNumber + ")" // %!s(int=123)
-						str = strNumber
+						str = "%!s(int=" + strNumber + ")" // %!s(int=123)
 					}
 					for _, _c := range []uint8(str) {
 						r = append(r, _c)
@@ -39,9 +38,7 @@ func Sprintf(format string, a ...interface{}) string {
 				case 'd':  // %d
 					switch _arg := arg.(type) {
 					case string: // ("%d", "xyz")
-						//str = "%!d(string=" + _arg + ")" // %!d(string=xyz)
-						str = _arg
-						//panic("Invalid format:" + format)
+						str = "%!d(string=" + _arg + ")" // %!d(string=xyz)
 					case int: // ("%d", 123)
 						str = strconv.Itoa(_arg)
 					}
