@@ -11,7 +11,6 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-// --- foundation ---
 var __func__ = "__func__"
 
 func assert(bol bool, msg string, caller string) {
@@ -39,7 +38,6 @@ func logf(format string, a ...interface{}) {
 	syscall.Write(1, []uint8(s))
 }
 
-// --- codegen ---
 var debugCodeGen bool
 
 func emitComment(indent int, format string, a ...interface{}) {

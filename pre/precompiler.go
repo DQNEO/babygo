@@ -15,9 +15,6 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-// --- foundation ---
-var __func__ = "__func__"
-
 func assert(bol bool, msg string) {
 	if !bol {
 		panic(msg)
@@ -28,18 +25,6 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%T", x))
 }
 
-var debugFrontEnd bool
-
-func logf(format string, a ...interface{}) {
-	if !debugFrontEnd {
-		return
-	}
-	var f = "# " + format
-	var s = fmt.Sprintf(f, a...)
-	syscall.Write(1, []uint8(s))
-}
-
-// --- parser ---
 func parseImports(fset *token.FileSet, filename string) *ast.File {
 	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
 	if err != nil {
@@ -56,7 +41,17 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 	return f
 }
 
-// --- codegen ---
+var debugFrontEnd bool
+
+func logf(format string, a ...interface{}) {
+	if !debugFrontEnd {
+		return
+	}
+	var f = "# " + format
+	var s = fmt.Sprintf(f, a...)
+	syscall.Write(1, []uint8(s))
+}
+
 var debugCodeGen bool
 
 func emitComment(indent int, format string, a ...interface{}) {
