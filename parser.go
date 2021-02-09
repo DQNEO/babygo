@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/DQNEO/babygo/lib/myfmt"
+	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"syscall"
 )
@@ -75,7 +75,7 @@ func (p *parser) next() {
 
 func (p *parser) expect(tok string, who string) {
 	if p.tok.tok != tok {
-		var s = myfmt.Sprintf("%s expected, but got %s", tok, p.tok.tok)
+		var s = fmt.Sprintf("%s expected, but got %s", tok, p.tok.tok)
 		panic2(who, s)
 	}
 	logf(" [%s] consumed \"%s\"\n", who, p.tok.tok)

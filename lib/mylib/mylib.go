@@ -67,8 +67,8 @@ func print_dirp(dirp *linux_dirent) {
 	//var bp *byte = (*byte)(p)
 	//var s string = Cstring2string(bp)
 	//return
-	//myfmt.Printf("%s", s)
-	//myfmt.Printf("\n")
+	//fmt.Printf("%s", s)
+	//fmt.Printf("\n")
 }
 
 const O_READONLY_ int = 0
@@ -110,23 +110,23 @@ func GetDirents(dir string) []string {
 }
 
 func needSwap(a string, b string) bool {
-	//myfmt.Printf("# comparing %s <-> %s\n", a, b)
+	//fmt.Printf("# comparing %s <-> %s\n", a, b)
 	if len(a) == 0 {
 		return false
 	}
 	var i int
 	for i=0;i<len(a);i++ {
 		if i == len(b) {
-			//myfmt.Printf("#    loose. right is shorter.\n")
+			//fmt.Printf("#    loose. right is shorter.\n")
 			return true
 		}
 		var aa int = int(a[i])
 		var bb int = int(b[i])
-		//myfmt.Printf("#    comparing byte at i=%d %s <-> %s\n", i, aa, bb)
+		//fmt.Printf("#    comparing byte at i=%d %s <-> %s\n", i, aa, bb)
 		if aa < bb {
 			return false
 		} else if aa > bb {
-			//myfmt.Printf("#    loose at i=%d %s > %s\n", i, aa, bb)
+			//fmt.Printf("#    loose at i=%d %s > %s\n", i, aa, bb)
 			return true
 		}
 	}
@@ -141,11 +141,11 @@ func SortStrings(ss []string) {
 			a := ss[j]
 			b := ss[j+1]
 			if needSwap(a, b) {
-				//myfmt.Printf("#    loose\n")
+				//fmt.Printf("#    loose\n")
 				ss[j] = b
 				ss[j+1] = a
 			} else {
-				//myfmt.Printf("#     won\n")
+				//fmt.Printf("#     won\n")
 			}
 		}
 	}

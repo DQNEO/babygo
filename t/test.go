@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"syscall"
 
-	"github.com/DQNEO/babygo/lib/myfmt"
+	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -14,43 +14,43 @@ import (
 
 func testSprinfMore() {
 	var s string
-	s = myfmt.Sprintf("hello")
+	s = fmt.Sprintf("hello")
 	writeln(s)
-	s = myfmt.Sprintf("%%rax")
+	s = fmt.Sprintf("%%rax")
 	writeln(s)
 
 	var i int = 1234
-	s = myfmt.Sprintf("number %d", i)
+	s = fmt.Sprintf("number %d", i)
 	writeln(s)
 
 	var str = "I am string"
-	s = myfmt.Sprintf("string %s", str)
+	s = fmt.Sprintf("string %s", str)
 	writeln(s)
 
-	s = myfmt.Sprintf("types are %T", str)
+	s = fmt.Sprintf("types are %T", str)
 	writeln(s)
 
-	s = myfmt.Sprintf("types are %T", i)
+	s = fmt.Sprintf("types are %T", i)
 	writeln(s)
 
-	s = myfmt.Sprintf("types are %T", &i)
+	s = fmt.Sprintf("types are %T", &i)
 	writeln(s)
 
-	s = myfmt.Sprintf("%d", "xyz")
+	s = fmt.Sprintf("%d", "xyz")
 	writeln(s)
 
 	var a []interface{} = make([]interface{}, 3, 3)
 	a[0] = 1234
 	a[1] = "c"
 	a[2] = "efg"
-	s  = myfmt.Sprintf("%dab%sd%s", a...)
+	s  = fmt.Sprintf("%dab%sd%s", a...)
 	writeln(s)
 
 	// type mismatch cases
-	s = myfmt.Sprintf("string %d", str)
+	s = fmt.Sprintf("string %d", str)
 	writeln(s)
 
-	s = myfmt.Sprintf("%s", 123)
+	s = fmt.Sprintf("%s", 123)
 	writeln(s)
 
 }
@@ -72,7 +72,7 @@ func testPassBytes() {
 	c := receiveBytes(a, b, 'c')
 	buf := []uint8{c}
 	s := string(buf)
-	myfmt.Printf("s=%s\n", s)
+	fmt.Printf("s=%s\n", s)
 }
 
 func testSortStrings() {
@@ -81,7 +81,7 @@ func testSortStrings() {
 		"github.com/DQNEO/babygo/lib/strings",
 		"unsafe",
 		"reflect",
-		"github.com/DQNEO/babygo/lib/myfmt",
+		"github.com/DQNEO/babygo/lib/fmt",
 		"github.com/DQNEO/babygo/lib/mylib2",
 		"github.com/DQNEO/babygo/lib/strconv",
 		"syscall",
@@ -90,14 +90,14 @@ func testSortStrings() {
 		"os",
 	}
 
-	myfmt.Printf("--------------------------------\n")
+	fmt.Printf("--------------------------------\n")
 	for _, s := range ss {
-		myfmt.Printf("%s\n", s)
+		fmt.Printf("%s\n", s)
 	}
 	mylib.SortStrings(ss)
-	myfmt.Printf("--------------------------------\n")
+	fmt.Printf("--------------------------------\n")
 	for _, s := range ss {
-		myfmt.Printf("%s\n", s)
+		fmt.Printf("%s\n", s)
 	}
 }
 
@@ -110,32 +110,32 @@ func testGetdents64() {
 		}
 		counter++
 	}
-	myfmt.Printf("%d\n", counter)
+	fmt.Printf("%d\n", counter)
 }
 
 func testEnv() {
 	var gopath string = os.Getenv("FOO")
-	myfmt.Printf("env FOO=%s\n", gopath)
+	fmt.Printf("env FOO=%s\n", gopath)
 }
 
 func testReflect() {
 	var i int = 123
 	rt := reflect.TypeOf(i)
-	myfmt.Printf("%s\n", rt.String()) // int
+	fmt.Printf("%s\n", rt.String()) // int
 
 	rt = reflect.TypeOf(&i)
-	myfmt.Printf("%s\n", rt.String()) // *int
+	fmt.Printf("%s\n", rt.String()) // *int
 
 	rt = reflect.TypeOf("hello")
-	myfmt.Printf("%s\n", rt.String()) // string
+	fmt.Printf("%s\n", rt.String()) // string
 
 	myStruct := MyStruct{}
 	rt = reflect.TypeOf(myStruct)
-	myfmt.Printf("%s\n", rt.String()) // main.MyStruct
+	fmt.Printf("%s\n", rt.String()) // main.MyStruct
 
 	myStructP := &MyStruct{}
 	rt = reflect.TypeOf(myStructP)
-	myfmt.Printf("%s\n", rt.String()) // *main.MyStruct
+	fmt.Printf("%s\n", rt.String()) // *main.MyStruct
 }
 
 
@@ -154,9 +154,9 @@ func testReturnSlice() {
 func testStrings() {
 	// Split
 	s := strings.Split("foo/bar", "/")
-	myfmt.Printf("%d\n", len(s)+1) // 3
-	myfmt.Printf("%s\n", s[0])     // foo
-	myfmt.Printf("%s\n", s[1])     // bar
+	fmt.Printf("%d\n", len(s)+1) // 3
+	fmt.Printf("%s\n", s[0])     // foo
+	fmt.Printf("%s\n", s[1])     // bar
 
 	target := "foo bar buz"
 	if !strings.HasPrefix(target, "foo") {
@@ -174,13 +174,13 @@ func testStrings() {
 	s2 := "main.go"
 	suffix := ".go"
 	if strings.HasSuffix(s2, suffix) {
-		myfmt.Printf("1\n")
+		fmt.Printf("1\n")
 	} else {
 		panic("ERROR")
 	}
 
 	if strings.Contains("foo/bar", "/") {
-		myfmt.Printf("ok\n")
+		fmt.Printf("ok\n")
 	} else {
 		panic("ERROR")
 	}
@@ -834,7 +834,7 @@ func testIsLetter() {
 }
 
 func funcVaarg1(f string, a ...interface{}) {
-	write(myfmt.Sprintf(f, a...))
+	write(fmt.Sprintf(f, a...))
 }
 
 func funcVaarg2(a int, b ...int) {

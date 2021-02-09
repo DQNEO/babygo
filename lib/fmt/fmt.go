@@ -1,4 +1,4 @@
-package myfmt
+package fmt
 
 import (
 	"github.com/DQNEO/babygo/lib/strconv"

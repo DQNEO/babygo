@@ -14,7 +14,7 @@ s=a
 github.com/DQNEO/babygo/lib/strings
 unsafe
 reflect
-github.com/DQNEO/babygo/lib/myfmt
+github.com/DQNEO/babygo/lib/fmt
 github.com/DQNEO/babygo/lib/mylib2
 github.com/DQNEO/babygo/lib/strconv
 syscall
@@ -22,7 +22,7 @@ github.com/DQNEO/babygo/lib/mylib
 github.com/DQNEO/babygo/lib/path
 os
 --------------------------------
-github.com/DQNEO/babygo/lib/myfmt
+github.com/DQNEO/babygo/lib/fmt
 github.com/DQNEO/babygo/lib/mylib
 github.com/DQNEO/babygo/lib/mylib2
 github.com/DQNEO/babygo/lib/path
