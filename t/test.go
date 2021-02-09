@@ -27,9 +27,6 @@ func testSprinfMore() {
 	s = myfmt.Sprintf("string %s", str)
 	writeln(s)
 
-	s = myfmt.Sprintf("string %d", str)
-	writeln(s)
-
 	s = myfmt.Sprintf("types are %T", str)
 	writeln(s)
 
@@ -38,6 +35,16 @@ func testSprinfMore() {
 
 	s = myfmt.Sprintf("types are %T", &i)
 	writeln(s)
+
+	s = myfmt.Sprintf("%d", "xyz")
+	writeln(s)
+
+	// type mismatch cases
+	//s = myfmt.Sprintf("string %d", str)
+	//writeln(s)
+
+	//s = myfmt.Sprintf("%s", 123)
+	//writeln(s)
 }
 
 var anotherVar string = "Another Hello\n"
@@ -1213,6 +1220,7 @@ func testSprintf() {
 
 	var s2 string = myfmt.Sprintf("%%rax")
 	write(s2)
+
 	write("|\n")
 }
 

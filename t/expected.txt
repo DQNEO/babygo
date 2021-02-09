@@ -2,10 +2,10 @@ hello
 %rax
 number 1234
 string I am string
-string I am string
 types are string
 types are int
 types are *int
+xyz
 s=a
 --------------------------------
 github.com/DQNEO/babygo/lib/strings

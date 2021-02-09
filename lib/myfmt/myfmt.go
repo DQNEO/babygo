@@ -24,21 +24,25 @@ func Sprintf(format string, a ...interface{}) string {
 				var sign uint8 = c
 				var str string
 				switch sign {
-				case 's':
+				case 's': // %s
 					switch _arg := arg.(type) {
-					case string:
+					case string: // ("%s", "xyz")
 						str = _arg
-					case int:
-						str = strconv.Itoa(_arg) // %!s(int=123)
+					case int: // ("%s", 123)
+						strNumber := strconv.Itoa(_arg)
+						//str = "%!s(int=" + strNumber + ")" // %!s(int=123)
+						str = strNumber
 					}
 					for _, _c := range []uint8(str) {
 						r = append(r, _c)
 					}
-				case 'd':
+				case 'd':  // %d
 					switch _arg := arg.(type) {
-					case string:
-						str = _arg // "%!d(string=" + _arg + ")"
-					case int:
+					case string: // ("%d", "xyz")
+						//str = "%!d(string=" + _arg + ")" // %!d(string=xyz)
+						str = _arg
+						//panic("Invalid format:" + format)
+					case int: // ("%d", 123)
 						str = strconv.Itoa(_arg)
 					}
 					for _, _c := range []uint8(str) {
