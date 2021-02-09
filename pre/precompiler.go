@@ -798,31 +798,31 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		}
 		funcType = fndecl.Type
 	case *ast.SelectorExpr:
-		symbol = fmt.Sprintf("%s.%s", fn.X, fn.Sel)
-		switch symbol {
-		case "unsafe.Pointer":
+		if isUnsafePointer(fn) {
 			// This is actually not a call
 			emitExpr(eArgs[0], nil)
 			return
-		default:
-			xIdent := fn.X.(*ast.Ident)
-			if xIdent.Obj == nil {
-				throw(xIdent)
-			}
-			if xIdent.Obj.Kind == ast.Pkg {
-				// pkg.Sel()
-				funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
-				funcType = funcdecl.Type
-			} else {
-				// Assume method call
-				rcvType := getTypeOfExpr(fn.X)
-				method := lookupMethod(rcvType, fn.Sel)
-				funcType = method.funcType
-				symbol = getMethodSymbol(method)
-
-				receiver = fn.X
-			}
 		}
+
+		xIdent := fn.X.(*ast.Ident)
+		if xIdent.Obj == nil {
+			throw(xIdent)
+		}
+		if xIdent.Obj.Kind == ast.Pkg {
+			// pkg.Sel()
+			symbol = myfmt.Sprintf("%s.%s", xIdent.Name, fn.Sel.Name)
+			funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+			funcType = funcdecl.Type
+		} else {
+			// Assume method call
+			rcvType := getTypeOfExpr(fn.X)
+			method := lookupMethod(rcvType, fn.Sel)
+			funcType = method.funcType
+			symbol = getMethodSymbol(method)
+
+			receiver = fn.X
+		}
+
 	default:
 		throw(fun)
 	}
@@ -2271,6 +2271,16 @@ var tEface *Type = &Type{
 
 var generalSlice ast.Expr = &ast.Ident{}
 
+func isUnsafePointer(selector *ast.SelectorExpr) bool {
+	xIdent, isIdent := selector.X.(*ast.Ident)
+	if !isIdent {
+		return false
+	}
+	if xIdent.Obj.Kind == ast.Pkg && xIdent.Name == "unsafe" && selector.Sel.Name == "Pointer" {
+		return true
+	}
+	return false
+}
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -2396,31 +2406,28 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case *ast.ArrayType: // conversion [n]T(e) or []T(e)
 			return e2t(fn)
 		case *ast.SelectorExpr: // (X).Sel()
+			if isUnsafePointer(fn) {
+				// unsafe.Pointer(x)
+				return tUintptr
+			}
 			xIdent, ok := fn.X.(*ast.Ident)
 			if !ok {
 				throw(fn)
 			}
-			symbol := fmt.Sprintf("%s.%s", xIdent.Name, fn.Sel)
-			switch symbol {
-			case "unsafe.Pointer":
-				// unsafe.Pointer(x)
-				return tUintptr
-			default:
-				xIdent := fn.X.(*ast.Ident)
-				if xIdent.Obj == nil {
-					throw(xIdent)
-				}
-				if xIdent.Obj.Kind == ast.Pkg {
-					// pkg.Sel()
-					funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
-					return e2t(funcdecl.Type.Results.List[0].Type)
-				} else {
-					// Assume method call
-					rcvType := getTypeOfExpr(fn.X)
-					method := lookupMethod(rcvType, fn.Sel)
-					assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value")
-					return e2t(method.funcType.Results.List[0].Type)
-				}
+			if xIdent.Obj == nil {
+				throw(xIdent)
+			}
+
+			if xIdent.Obj.Kind == ast.Pkg {
+				// pkg.Sel()
+				funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+				return e2t(funcdecl.Type.Results.List[0].Type)
+			} else {
+				// Assume method call
+				rcvType := getTypeOfExpr(fn.X)
+				method := lookupMethod(rcvType, fn.Sel)
+				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value")
+				return e2t(method.funcType.Results.List[0].Type)
 			}
 		case *ast.InterfaceType:
 			return tEface
@@ -2603,12 +2610,10 @@ func kind(t *Type) TypeKind {
 	case *ast.InterfaceType:
 		return T_INTERFACE
 	case *ast.SelectorExpr:
-		full := fmt.Sprintf("%s.%s", e.X, e.Sel)
-		if full == "unsafe.Pointer" {
+		if isUnsafePointer(e) {
 			return T_POINTER
-		} else {
-			throw(e)
 		}
+		throw(e)
 	default:
 		throw(t)
 	}
