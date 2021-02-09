@@ -52,8 +52,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 		spaces = append(spaces, ' ')
 	}
 	var format2 = string(spaces) + "# " + format
-	var s = fmt.Sprintf(format2, a...)
-	syscall.Write(1, []uint8(s))
+	fmt.Printf(format2, a...)
 }
 
 func evalInt(expr astExpr) int {
