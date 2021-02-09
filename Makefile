@@ -11,7 +11,7 @@ test: test0 compare-test selfhost
 $(tmp):
 	mkdir -p $(tmp)
 
-t/expected.txt: t/test.go
+t/expected.txt: t/test.go lib/*/*
 	export FOO=bar; go run t/test.go t/another.go myargs > t/expected.txt
 
 $(tmp)/pre: $(tmp) pre/precompiler.go lib/*/*
