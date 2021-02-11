@@ -187,7 +187,7 @@ func emitListHeadAddr(list astExpr) {
 }
 
 func emitAddr(expr astExpr) {
-	emitComment(2, "[emitAddr] %s\n", dtypeOf(expr))
+	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
 	case *astIdent:
 		if e.Name == "_" {
