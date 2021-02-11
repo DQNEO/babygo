@@ -3693,7 +3693,7 @@ func main() {
 		}
 	}
 
-	var importPaths []string
+	var importPaths []string = []string{"os"}
 
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)

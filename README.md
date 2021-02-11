@@ -46,14 +46,13 @@ $ ./docker-run
 
 ```terminal
 # Build babygo
-$ go build -o babygo main.go
+$ go build -o babygo *.go
 
 
 # Build the hello world program by babygo
-$ ./babygo $GOPATH t/hello.go > /tmp/hello.s
+$ ./babygo t/hello.go > /tmp/hello.s
 $ as -o hello.o /tmp/hello.s runtime.s
-$ ld -o hello hello.o
-
+$ ld -e _rt0_amd64_linux -o hello hello.o
 # You can confirm it's a single static binary
 $ ldd ./hello
         not a dynamic executable
@@ -72,8 +71,8 @@ $ go build -o babygo *.go
 # Build babygo by babygo (2nd generation)
 $ ./babygo *.go > /tmp/babygo2.s
 $ as -o babygo2.o /tmp/babygo2.s runtime.s
-$ ld -o babygo2 babygo2.o # 2nd generation compiler
-$ ./babygo2 $GOPATH main.go > /tmp/babygo3.s
+$ ld -e _rt0_amd64_linux  -o babygo2 babygo2.o # 2nd generation compiler
+$ ./babygo2 *.go > /tmp/babygo3.s
 
 # Assert babygo2.s and babygo3.s are exactly same
 $ diff /tmp/babygo2.s /tmp/babygo3.s
