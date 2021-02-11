@@ -5,3 +5,8 @@
 # intermediate files
 /tmp/*
 /.shared/*
+/babygo
+/babygo2
+/babygo2.o
+/hello
+/hello.o
