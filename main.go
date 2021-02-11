@@ -608,8 +608,7 @@ func prepareArgs(funcType *astFuncType, receiver astExpr, eArgs []astExpr, expan
 }
 
 func emitCall(symbol string, args []*Arg, results []*astField) {
-	emitComment(2, "[%s] %s\n", __func__, symbol)
-	var totalPushedSize = emitArgs(args)
+	totalPushedSize := emitArgs(args)
 	fmt.Printf("  callq %s\n", symbol)
 	emitRevertStackPointer(totalPushedSize)
 	emitReturnedValue(results)
