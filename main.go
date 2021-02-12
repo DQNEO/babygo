@@ -477,14 +477,8 @@ func emitArgs(args []*Arg) int {
 	var totalPushedSize int
 	//var arg astExpr
 	for _, arg := range args {
-		var t *Type
-		if arg.t != nil {
-			t = arg.t
-		} else {
-			t = getTypeOfExpr(arg.e)
-		}
 		arg.offset = totalPushedSize
-		totalPushedSize = totalPushedSize + getPushSizeOfType(t)
+		totalPushedSize = totalPushedSize + getPushSizeOfType(arg.t)
 	}
 	fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
 	for _, arg := range args {
@@ -496,12 +490,7 @@ func emitArgs(args []*Arg) int {
 	fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
 
 	for _, arg := range args {
-		var t *Type
-		if arg.t != nil {
-			t = arg.t
-		} else {
-			t = getTypeOfExpr(arg.e)
-		}
+		t := arg.t
 		switch kind(t) {
 		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
 			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
@@ -715,6 +704,7 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 				// slice
 				&Arg{
 					e: sliceArg,
+					t: e2t(generalSlice),
 				},
 				// element
 				&Arg{
@@ -1060,8 +1050,12 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 
 		if kind(getTypeOfExpr(binaryExpr.X)) == T_STRING {
 			var args []*Arg
-			var argX = &Arg{}
-			var argY = &Arg{}
+			var argX = &Arg{
+				t: tString,
+			}
+			var argY = &Arg{
+				t: tString,
+			}
 			argX.e = binaryExpr.X
 			argY.e = binaryExpr.Y
 			args = append(args, argX)
@@ -2587,6 +2581,9 @@ func getSizeOfType(t *Type) int {
 }
 
 func getPushSizeOfType(t *Type) int {
+	if t == nil {
+		panic("arg.t should not be nil")
+	}
 	switch kind(t) {
 	case T_SLICE:
 		return sliceSize
