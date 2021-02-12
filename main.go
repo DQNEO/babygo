@@ -265,7 +265,7 @@ func isType(expr astExpr) bool {
 	case *astInterfaceType:
 		return true
 	default:
-		emitComment(2, "[isType][%T] is not considered a type\n", expr)
+		emitComment(2, "[isType][%s] is not considered a type\n", dtypeOf(expr))
 	}
 
 	return false
@@ -747,6 +747,7 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 			symbol = "runtime.panic"
 			_args := []*Arg{&Arg{
 				e: eArgs[0],
+				t: tEface,
 			}}
 			emitCall(symbol, _args, nil)
 			return

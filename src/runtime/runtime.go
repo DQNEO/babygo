@@ -1,6 +1,4 @@
 // runtime for 2nd generation compiler
-// +build ignore
-
 package runtime
 
 import "unsafe"
@@ -107,21 +105,18 @@ func brk(addr uintptr) uintptr {
 	return ret
 }
 
-func panic(x interface{}) {
-	switch x.(type) {
+func panic(ifc interface{}) {
+	switch x := ifc.(type) {
 	case string:
 		var s = "panic: " + x + "\n\n"
 		Write(2, []uint8(s))
 		Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
 	default:
-		var s = "panic: " + "Not a string\n\n"
+		var s = "panic: " + "Unknown type" + "\n\n"
 		Write(2, []uint8(s))
 		Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
 	}
 }
-
-func Write(fd int, p []byte) int
-func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
 
 func memzeropad(addr1 uintptr, size uintptr) {
 	var p *uint8 = (*uint8)(unsafe.Pointer(addr1))
@@ -163,12 +158,6 @@ func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
 	var addr uintptr = malloc(size)
 	return addr, slen, scap
 }
-
-// Actually this is an alias to makeSlice
-func makeSlice1(elmSize int, slen int, scap int) []uint8
-func makeSlice8(elmSize int, slen int, scap int) []int
-func makeSlice16(elmSize int, slen int, scap int) []string
-func makeSlice24(elmSize int, slen int, scap int) [][]int
 
 func append1(old []uint8, elm uint8) (uintptr, int, int) {
 	var new_ []uint8
@@ -312,3 +301,13 @@ func cmpinterface(a uintptr, b uintptr, c uintptr, d uintptr) bool {
 	}
 	return false
 }
+
+
+func Write(fd int, p []byte) int
+func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
+
+// Actually this is an alias to makeSlice
+func makeSlice1(elmSize int, slen int, scap int) []uint8
+func makeSlice8(elmSize int, slen int, scap int) []int
+func makeSlice16(elmSize int, slen int, scap int) []string
+func makeSlice24(elmSize int, slen int, scap int) [][]int
