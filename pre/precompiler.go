@@ -491,7 +491,7 @@ func emitArgs(args []*Arg) int {
 		if arg.t != nil {
 			t = arg.t
 		} else {
-			t = getTypeOfExpr(arg.e)
+			panic("arg.t should not be nil")
 		}
 		arg.offset = totalPushedSize
 		totalPushedSize += getPushSizeOfType(t)
@@ -716,7 +716,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				// slice
 				&Arg{
 					e: sliceArg,
-					t: nil,
+					t: e2t(generalSlice),
 				},
 				// elm
 				&Arg{
@@ -750,6 +750,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			symbol = "runtime.panic"
 			_args := []*Arg{&Arg{
 				e: eArgs[0],
+				t: tEface,
 			}}
 			emitCall(symbol, _args, nil)
 			return
@@ -1008,12 +1009,12 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			var args []*Arg = []*Arg{
 				&Arg{
 					e:      e.X,
-					t:      nil,
+					t:      tString,
 					offset: 0,
 				},
 				&Arg{
 					e:      e.Y,
-					t:      nil,
+					t:      tString,
 					offset: 0,
 				},
 			}
@@ -1028,7 +1029,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				}
 
 				emitCall("runtime.catstrings", args, resultList)
-			case "==":
+			case "==": // str1 == str2
 				emitArgs(args)
 				emitCompEq(getTypeOfExpr(e.X))
 			case "!=":

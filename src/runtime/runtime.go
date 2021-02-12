@@ -107,10 +107,17 @@ func brk(addr uintptr) uintptr {
 	return ret
 }
 
-func panic(x string) {
-	var s = "panic: " + x + "\n\n"
-	Write(2, []uint8(s))
-	Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
+func panic(x interface{}) {
+	switch x.(type) {
+	case string:
+		var s = "panic: " + x + "\n\n"
+		Write(2, []uint8(s))
+		Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
+	default:
+		var s = "panic: " + "Not a string\n\n"
+		Write(2, []uint8(s))
+		Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
+	}
 }
 
 func Write(fd int, p []byte) int
