@@ -6,9 +6,6 @@ const SYS_EXIT int = 60
 
 var Args []string
 
-func runtime_args() []string
-func runtime_getenv(key string) string
-
 func init() {
 	Args = runtime_args()
 }
