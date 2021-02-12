@@ -105,10 +105,17 @@ func brk(addr uintptr) uintptr {
 	return ret
 }
 
-func panic(x string) {
-	var s = "panic: " + x + "\n\n"
-	Write(2, []uint8(s))
-	Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
+func panic(ifc interface{}) {
+	switch x := ifc.(type) {
+	case string:
+		var s = "panic: " + x + "\n\n"
+		Write(2, []uint8(s))
+		Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
+	default:
+		var s = "panic: " + "Unknown type" + "\n\n"
+		Write(2, []uint8(s))
+		Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
+	}
 }
 
 func memzeropad(addr1 uintptr, size uintptr) {

@@ -747,6 +747,7 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 			symbol = "runtime.panic"
 			_args := []*Arg{&Arg{
 				e: eArgs[0],
+				t: tEface,
 			}}
 			emitCall(symbol, _args, nil)
 			return
