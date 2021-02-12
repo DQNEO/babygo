@@ -478,40 +478,29 @@ func emitFalse() {
 }
 
 type Arg struct {
-	e      ast.Expr
-	t      *Type // expected type
-	offset int
+	e         ast.Expr
+	paramType *Type // expected type
+	offset    int
 }
 
 func emitArgs(args []*Arg) int {
 	emitComment(2, "emitArgs len=%d\n", len(args))
 	var totalPushedSize int
 	for _, arg := range args {
-		var t *Type
-		if arg.t != nil {
-			t = arg.t
-		} else {
-			t = getTypeOfExpr(arg.e)
-		}
 		arg.offset = totalPushedSize
-		totalPushedSize += getPushSizeOfType(t)
+		totalPushedSize += getPushSizeOfType(arg.paramType)
 	}
 	fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
 	for _, arg := range args {
 		ctx := &evalContext{
-			_type: arg.t,
+			_type: arg.paramType,
 		}
 		emitExprIfc(arg.e, ctx)
 	}
 	fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
 
 	for _, arg := range args {
-		var t *Type
-		if arg.t != nil {
-			t = arg.t
-		} else {
-			t = getTypeOfExpr(arg.e)
-		}
+		t := arg.paramType
 		switch kind(t) {
 		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
 			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
@@ -564,8 +553,8 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 
 		paramType := e2t(param.Type)
 		arg := &Arg{
-			e: eArg,
-			t: paramType,
+			e:         eArg,
+			paramType: paramType,
 		}
 		args = append(args, arg)
 	}
@@ -578,8 +567,8 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 			Elts: variadicArgs,
 		}
 		args = append(args, &Arg{
-			e: vargsSliceWrapper,
-			t: e2t(sliceType),
+			e:         vargsSliceWrapper,
+			paramType: e2t(sliceType),
 		})
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
@@ -587,16 +576,16 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		elp, ok := param.Type.(*ast.Ellipsis)
 		assert(ok, "compile error")
 		args = append(args, &Arg{
-			e: eNil,
-			t: e2t(elp),
+			e:         eNil,
+			paramType: e2t(elp),
 		})
 	}
 
 	if receiver != nil { // method call
 		var receiverAndArgs []*Arg = []*Arg{
 			&Arg{
-				e: receiver,
-				t: getTypeOfExpr(receiver),
+				e:         receiver,
+				paramType: getTypeOfExpr(receiver),
 			},
 		}
 		for _, arg := range args {
@@ -680,18 +669,18 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				var args []*Arg = []*Arg{
 					// elmSize
 					&Arg{
-						e: numlit,
-						t: tInt,
+						e:         numlit,
+						paramType: tInt,
 					},
 					// len
 					&Arg{
-						e: eArgs[1],
-						t: tInt,
+						e:         eArgs[1],
+						paramType: tInt,
 					},
 					// cap
 					&Arg{
-						e: eArgs[2],
-						t: tInt,
+						e:         eArgs[2],
+						paramType: tInt,
 					},
 				}
 
@@ -715,13 +704,13 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			var args []*Arg = []*Arg{
 				// slice
 				&Arg{
-					e: sliceArg,
-					t: nil,
+					e:         sliceArg,
+					paramType: e2t(generalSlice),
 				},
 				// elm
 				&Arg{
-					e: elemArg,
-					t: elmType,
+					e:         elemArg,
+					paramType: elmType,
 				},
 			}
 
@@ -749,8 +738,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		case gPanic:
 			symbol = "runtime.panic"
 			_args := []*Arg{&Arg{
-				e: eArgs[0],
-				t: tEface,
+				e:         eArgs[0],
+				paramType: tEface,
 			}}
 			emitCall(symbol, _args, nil)
 			return
@@ -1008,14 +997,14 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
 			var args []*Arg = []*Arg{
 				&Arg{
-					e:      e.X,
-					t:      nil,
-					offset: 0,
+					e:         e.X,
+					paramType: tString,
+					offset:    0,
 				},
 				&Arg{
-					e:      e.Y,
-					t:      nil,
-					offset: 0,
+					e:         e.Y,
+					paramType: tString,
+					offset:    0,
 				},
 			}
 
@@ -1029,7 +1018,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				}
 
 				emitCall("runtime.catstrings", args, resultList)
-			case "==":
+			case "==": // str1 == str2
 				emitArgs(args)
 				emitCompEq(getTypeOfExpr(e.X))
 			case "!=":
@@ -2685,6 +2674,9 @@ func getSizeOfType(t *Type) int {
 }
 
 func getPushSizeOfType(t *Type) int {
+	if t == nil {
+		panic("arg.paramType should not be nil")
+	}
 	switch kind(t) {
 	case T_SLICE:
 		return sliceSize
