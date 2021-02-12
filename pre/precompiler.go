@@ -487,14 +487,8 @@ func emitArgs(args []*Arg) int {
 	emitComment(2, "emitArgs len=%d\n", len(args))
 	var totalPushedSize int
 	for _, arg := range args {
-		var t *Type
-		if arg.t != nil {
-			t = arg.t
-		} else {
-			panic("arg.t should not be nil")
-		}
 		arg.offset = totalPushedSize
-		totalPushedSize += getPushSizeOfType(t)
+		totalPushedSize += getPushSizeOfType(arg.t)
 	}
 	fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
 	for _, arg := range args {
@@ -506,12 +500,7 @@ func emitArgs(args []*Arg) int {
 	fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
 
 	for _, arg := range args {
-		var t *Type
-		if arg.t != nil {
-			t = arg.t
-		} else {
-			t = getTypeOfExpr(arg.e)
-		}
+		t := arg.t
 		switch kind(t) {
 		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
 			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
@@ -2685,6 +2674,9 @@ func getSizeOfType(t *Type) int {
 }
 
 func getPushSizeOfType(t *Type) int {
+	if t == nil {
+		panic("arg.t should not be nil")
+	}
 	switch kind(t) {
 	case T_SLICE:
 		return sliceSize
