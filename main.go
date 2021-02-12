@@ -1049,17 +1049,15 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 		binaryExpr := e
 
 		if kind(getTypeOfExpr(binaryExpr.X)) == T_STRING {
-			var args []*Arg
-			var argX = &Arg{
-				paramType: tString,
+			args := []*Arg{
+				&Arg{
+					e:         binaryExpr.X,
+					paramType: tString,
+				}, &Arg{
+					e:         binaryExpr.Y,
+					paramType: tString,
+				},
 			}
-			var argY = &Arg{
-				paramType: tString,
-			}
-			argX.e = binaryExpr.X
-			argY.e = binaryExpr.Y
-			args = append(args, argX)
-			args = append(args, argY)
 			switch binaryExpr.Op {
 			case "+":
 				var resultList = []*astField{
@@ -1068,7 +1066,7 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 					},
 				}
 				emitCall("runtime.catstrings", args, resultList)
-			case "==":
+			case "==": // str1 == str2
 				emitArgs(args)
 				emitCompEq(getTypeOfExpr(binaryExpr.X))
 			case "!=":

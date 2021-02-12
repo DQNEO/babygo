@@ -995,7 +995,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		}
 	case *ast.BinaryExpr: // 1 value
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
-			var args []*Arg = []*Arg{
+			args := []*Arg{
 				&Arg{
 					e:         e.X,
 					paramType: tString,
