@@ -1964,6 +1964,12 @@ func getPackageSymbol(pkgPrefix string, subsymbol string) string {
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("# emitFuncDecl\n")
+	if len(fnc.params) > 0 {
+		for i:=0; i<len(fnc.params);  i++{
+			v := fnc.params[i]
+			logf("  #       params %d %d \"%s\"\n", int(v.localOffset), getSizeOfType(v.typ), v.name)
+		}
+	}
 	var localarea int = int(fnc.localarea)
 	var symbol string
 	if fnc.method != nil {
@@ -1972,11 +1978,20 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 		symbol = getPackageSymbol(pkgPrefix, fnc.name)
 	}
 	fmt.Printf("%s: # args %d, locals %d\n", symbol, int(fnc.argsarea), int(fnc.localarea))
-
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
+	if len(fnc.localvars) > 0 {
+		for i:=len(fnc.localvars) -1; i>=0; i--{
+			v := fnc.localvars[i]
+			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -int(v.localOffset), getSizeOfType(v.typ), v.name)
+		}
+	}
+	logf("  #  0(%%rbp) previous rbp\n")
+	logf("  #  8(%%rbp) return address\n")
+
 	if localarea != 0 {
 		fmt.Printf("  subq $%d, %%rsp # local area\n", int(-localarea))
+
 	}
 	for _, stmt := range fnc.stmts {
 		emitStmt(stmt)
@@ -2808,6 +2823,8 @@ type Func struct {
 	stmts     []ast.Stmt
 	localarea localoffsetint
 	argsarea  localoffsetint
+	localvars []*Variable
+	params    []*Variable
 	funcType  *ast.FuncType
 	method    *Method
 }
@@ -2832,14 +2849,21 @@ type localoffsetint int
 
 func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.argsarea, t)
-	fnc.argsarea += localoffsetint(getSizeOfType(t))
+	size := getSizeOfType(t)
+	if size < 8 {
+		logf("param size is too small:%s %s %d\n", fnc.name, name, size)
+	}
+	fnc.argsarea += localoffsetint(size)
+	fnc.params = append(fnc.params, vr)
 	return vr
 }
 
 func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	assert(t != nil && t.e != nil, "type of local var should not be nil")
 	fnc.localarea -= localoffsetint(getSizeOfType(t))
-	return newLocalVariable(name, currentFunc.localarea, t)
+	vr := newLocalVariable(name, currentFunc.localarea, t)
+	fnc.localvars = append(fnc.localvars, vr)
+	return vr
 }
 
 var currentFor *ForStmt
