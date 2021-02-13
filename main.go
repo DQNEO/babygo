@@ -106,8 +106,8 @@ func emitPushStackTop(condType *Type, comment string) {
 	}
 }
 
-func emitRevertStackPointer(size int) {
-	fmt.Printf("  addq $%d, %%rsp # revert stack pointer\n", size)
+func emitFreeParametersArea(size int) {
+	fmt.Printf("  addq $%d, %%rsp # free parameters area\n", size)
 }
 
 func emitAddConst(addValue int, comment string) {
@@ -405,7 +405,7 @@ func emitCallMalloc(size int) {
 		},
 	}
 	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
-	emitRevertStackPointer(intSize)
+	emitFreeParametersArea(intSize)
 	emitReturnedValue(resultList)
 }
 
@@ -474,45 +474,25 @@ type Arg struct {
 
 func emitArgs(args []*Arg) int {
 	emitComment(2, "emitArgs len=%d\n", len(args))
-	var totalPushedSize int
-	//var arg astExpr
+	var totalParamSize int
 	for _, arg := range args {
-		arg.offset = totalPushedSize
-		totalPushedSize = totalPushedSize + getPushSizeOfType(arg.paramType)
+		arg.offset = totalParamSize
+		totalParamSize = totalParamSize + getSizeOfType(arg.paramType)
 	}
-	fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
+	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for _, arg := range args {
+		paramType := arg.paramType
 		ctx := &evalContext{
-			_type: arg.paramType,
+			_type: paramType,
 		}
 		emitExprIfc(arg.e, ctx)
-	}
-	fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
-
-	for _, arg := range args {
-		t := arg.paramType
-		switch kind(t) {
-		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
-			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
-			fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", +arg.offset)
-		case T_STRING, T_INTERFACE:
-			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -arg.offset)
-			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -arg.offset)
-			fmt.Printf("  movq %%rax, %d(%%rsp)\n", +arg.offset)
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", +arg.offset)
-		case T_SLICE:
-			fmt.Printf("  movq %d-24(%%rsp), %%rax\n", -arg.offset) // arg1: slc.ptr
-			fmt.Printf("  movq %d-16(%%rsp), %%rcx\n", -arg.offset) // arg1: slc.len
-			fmt.Printf("  movq %d-8(%%rsp), %%rdx\n", -arg.offset)  // arg1: slc.cap
-			fmt.Printf("  movq %%rax, %d+0(%%rsp)\n", +arg.offset)  // arg1: slc.ptr
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", +arg.offset)  // arg1: slc.len
-			fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", +arg.offset) // arg1: slc.cap
-		default:
-			throw(kind(t))
-		}
+		emitPop(kind(paramType))
+		fmt.Printf("  leaq %d(%%rsp), %%rsi # place to save\n", arg.offset)
+		fmt.Printf("  pushq %%rsi # place to save\n")
+		emitRegiToMem(paramType)
 	}
 
-	return totalPushedSize
+	return totalParamSize
 }
 
 func prepareArgs(funcType *astFuncType, receiver astExpr, eArgs []astExpr, expandElipsis bool) []*Arg {
@@ -597,9 +577,9 @@ func prepareArgs(funcType *astFuncType, receiver astExpr, eArgs []astExpr, expan
 }
 
 func emitCall(symbol string, args []*Arg, results []*astField) {
-	totalPushedSize := emitArgs(args)
+	totalParamsSize := emitArgs(args)
 	fmt.Printf("  callq %s\n", symbol)
-	emitRevertStackPointer(totalPushedSize)
+	emitFreeParametersArea(totalParamsSize)
 	emitReturnedValue(results)
 }
 
@@ -1351,7 +1331,7 @@ func emitCompEq(t *Type) {
 			},
 		}
 		fmt.Printf("  callq runtime.cmpstrings\n")
-		emitRevertStackPointer(stringSize * 2)
+		emitFreeParametersArea(stringSize * 2)
 		emitReturnedValue(resultList)
 	case T_INTERFACE:
 		var resultList = []*astField{
@@ -1360,7 +1340,7 @@ func emitCompEq(t *Type) {
 			},
 		}
 		fmt.Printf("  callq runtime.cmpinterface\n")
-		emitRevertStackPointer(interfaceSize * 2)
+		emitFreeParametersArea(interfaceSize * 2)
 		emitReturnedValue(resultList)
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
@@ -1415,7 +1395,15 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	if pushLhs {
 		fmt.Printf("  pushq %%rsi # lhs addr\n")
 	}
-	switch knd {
+
+	fmt.Printf("  pushq %%rsi # place to save\n")
+	emitRegiToMem(t)
+}
+
+func emitRegiToMem(t *Type) {
+	fmt.Printf("  popq %%rsi # place to save\n")
+	k := kind(t)
+	switch k {
 	case T_SLICE:
 		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
@@ -1427,19 +1415,19 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 		fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8)
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmt.Printf("  movq %%rax, (%%rsi) # assign\n")
+		fmt.Printf("  movq %%rax, %d(%%rsi) # assign\n", 0)
 	case T_UINT16:
-		fmt.Printf("  movw %%ax, (%%rsi) # assign word\n")
+		fmt.Printf("  movw %%ax, %d(%%rsi) # assign word\n", 0)
 	case T_UINT8:
-		fmt.Printf("  movb %%al, (%%rsi) # assign byte\n")
+		fmt.Printf("  movb %%al, %d(%%rsi) # assign byte\n", 0)
 	case T_STRUCT, T_ARRAY:
 		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
 		fmt.Printf("  pushq %%rsi # dst lhs\n")
 		fmt.Printf("  pushq %%rax # src rhs\n")
 		fmt.Printf("  callq runtime.memcopy\n")
-		emitRevertStackPointer(ptrSize*2 + intSize)
+		emitFreeParametersArea(ptrSize*2 + intSize)
 	default:
-		panic2(__func__, "TBI:"+kind(t))
+		panic2(__func__, "TBI:"+k)
 	}
 }
 
@@ -1927,6 +1915,14 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	fmt.Printf("# emitFuncDecl\n")
+	var i int
+	if len(fnc.params) > 0 {
+		for i =0; i<len(fnc.params);  i++{
+			v := fnc.params[i]
+			logf("  #       params %d %d \"%s\"\n", int(v.localOffset), getSizeOfType(v.typ), v.name)
+		}
+	}
+
 	var localarea = fnc.localarea
 	var symbol string
 	if fnc.method != nil {
@@ -1934,11 +1930,18 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	} else {
 		symbol = getPackageSymbol(pkgName, fnc.name)
 	}
-	fmt.Printf("%s: # args %d, locals %d\n",
-		symbol, int(fnc.argsarea), int(fnc.localarea))
-
+	fmt.Printf("%s: # args %d, locals %d\n", symbol, int(fnc.argsarea), int(fnc.localarea))
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
+	if len(fnc.localvars) > 0 {
+		for i=len(fnc.vars) -1; i>=0; i--{
+			v := fnc.vars[i]
+			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -v.localOffset, getSizeOfType(v.typ), v.name)
+		}
+	}
+	logf("  #  0(%%rbp) previous rbp\n")
+	logf("  #  8(%%rbp) return address\n")
+
 	if localarea != 0 {
 		fmt.Printf("  subq $%d, %%rsp # local area\n", -localarea)
 	}
@@ -2670,6 +2673,8 @@ type Func struct {
 	localvars []*string
 	localarea int
 	argsarea  int
+	vars []*Variable
+	params    []*Variable
 	funcType  *astFuncType
 	rcvType   astExpr
 	name      string
@@ -2698,13 +2703,16 @@ type Variable struct {
 func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.argsarea, t)
 	fnc.argsarea = fnc.argsarea + getSizeOfType(t)
+	fnc.params = append(fnc.params, vr)
 	return vr
 }
 
 func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	assert(t != nil && t.e != nil, "type of local var should not be nil", __func__)
 	fnc.localarea = fnc.localarea - getSizeOfType(t)
-	return newLocalVariable(name, currentFunc.localarea, t)
+	vr := newLocalVariable(name, currentFunc.localarea, t)
+	fnc.vars = append(fnc.vars, vr)
+	return vr
 }
 
 var currentFunc *Func

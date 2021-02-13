@@ -1,3 +1,4 @@
+s=c
 hello
 %rax
 number 1234
@@ -9,7 +10,6 @@ types are *int
 1234abcdefg
 string %!d(string=I am string)
 %!s(int=123)
-s=a
 --------------------------------
 github.com/DQNEO/babygo/lib/strings
 unsafe
