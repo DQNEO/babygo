@@ -587,6 +587,52 @@ func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 	emitReturnedValue(results)
 }
 
+func emitReturnStmt(s *ast.ReturnStmt) {
+	node := mapReturnStmt[s]
+	funcType := node.fnc.funcType
+	if len(s.Results) == 0 {
+		fmt.Printf("  leave\n")
+		fmt.Printf("  ret\n")
+	} else if len(s.Results) == 1 {
+		//funcType := nil
+		targetType := e2t(funcType.Results.List[0].Type)
+		ctx := &evalContext{
+			_type: targetType,
+		}
+		emitExprIfc(s.Results[0], ctx)
+		var knd = kind(targetType)
+		switch knd {
+		case T_BOOL, T_INT, T_UINT8, T_UINTPTR, T_POINTER:
+			fmt.Printf("  popq %%rax # return 64bit\n")
+		case T_STRING, T_INTERFACE:
+			fmt.Printf("  popq %%rax # return string (head)\n")
+			fmt.Printf("  popq %%rdi # return string (tail)\n")
+		case T_SLICE:
+			fmt.Printf("  popq %%rax # return string (head)\n")
+			fmt.Printf("  popq %%rdi # return string (body)\n")
+			fmt.Printf("  popq %%rsi # return string (tail)\n")
+		default:
+			panic("TBI:" + knd)
+		}
+
+		fmt.Printf("  leave\n")
+		fmt.Printf("  ret\n")
+	} else if len(s.Results) == 3 {
+		// Special treatment to return a slice by makeSlice()
+		for _, result := range s.Results {
+			assert(getSizeOfType(getTypeOfExpr(result)) == 8, "TBI")
+		}
+		emitExpr(s.Results[2], nil) // @FIXME
+		emitExpr(s.Results[1], nil) // @FIXME
+		emitExpr(s.Results[0], nil) // @FIXME
+		fmt.Printf("  popq %%rax # return 64bit\n")
+		fmt.Printf("  popq %%rdi # return 64bit\n")
+		fmt.Printf("  popq %%rsi # return 64bit\n")
+	} else {
+		panic("TBI")
+	}
+}
+
 func emitReturnedValue(resultList []*ast.Field) {
 	switch len(resultList) {
 	case 0:
@@ -1570,49 +1616,7 @@ func emitStmt(stmt ast.Stmt) {
 			panic("TBI: assignment of " + s.Tok.String())
 		}
 	case *ast.ReturnStmt:
-		node := mapReturnStmt[s]
-		funcType := node.fnc.funcType
-		if len(s.Results) == 0 {
-			fmt.Printf("  leave\n")
-			fmt.Printf("  ret\n")
-		} else if len(s.Results) == 1 {
-			//funcType := nil
-			targetType := e2t(funcType.Results.List[0].Type)
-			ctx := &evalContext{
-				_type: targetType,
-			}
-			emitExprIfc(s.Results[0], ctx)
-			var knd = kind(targetType)
-			switch knd {
-			case T_BOOL, T_INT, T_UINT8, T_UINTPTR, T_POINTER:
-				fmt.Printf("  popq %%rax # return 64bit\n")
-			case T_STRING, T_INTERFACE:
-				fmt.Printf("  popq %%rax # return string (head)\n")
-				fmt.Printf("  popq %%rdi # return string (tail)\n")
-			case T_SLICE:
-				fmt.Printf("  popq %%rax # return string (head)\n")
-				fmt.Printf("  popq %%rdi # return string (body)\n")
-				fmt.Printf("  popq %%rsi # return string (tail)\n")
-			default:
-				panic("TBI:" + knd)
-			}
-
-			fmt.Printf("  leave\n")
-			fmt.Printf("  ret\n")
-		} else if len(s.Results) == 3 {
-			// Special treatment to return a slice by makeSlice()
-			for _, result := range s.Results {
-				assert(getSizeOfType(getTypeOfExpr(result)) == 8, "TBI")
-			}
-			emitExpr(s.Results[2], nil) // @FIXME
-			emitExpr(s.Results[1], nil) // @FIXME
-			emitExpr(s.Results[0], nil) // @FIXME
-			fmt.Printf("  popq %%rax # return 64bit\n")
-			fmt.Printf("  popq %%rdi # return 64bit\n")
-			fmt.Printf("  popq %%rsi # return 64bit\n")
-		} else {
-			panic("TBI")
-		}
+		emitReturnStmt(s)
 	case *ast.IfStmt:
 		emitComment(2, "if\n")
 

@@ -583,6 +583,47 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 	emitReturnedValue(results)
 }
 
+func emitReturnStmt(s *astReturnStmt) {
+	node := s.node
+	funcType := node.fnc.funcType
+	if len(s.Results) == 0 {
+		fmt.Printf("  leave\n")
+		fmt.Printf("  ret\n")
+	} else if len(s.Results) == 1 {
+		targetType := e2t(funcType.Results.List[0].Type)
+		ctx := &evalContext{
+			_type: targetType,
+		}
+		emitExprIfc(s.Results[0], ctx)
+		var knd = kind(targetType)
+		switch knd {
+		case T_BOOL, T_UINT8, T_INT, T_UINTPTR, T_POINTER:
+			fmt.Printf("  popq %%rax # return 64bit\n")
+		case T_STRING, T_INTERFACE:
+			fmt.Printf("  popq %%rax # return string (head)\n")
+			fmt.Printf("  popq %%rdi # return string (tail)\n")
+		case T_SLICE:
+			fmt.Printf("  popq %%rax # return string (head)\n")
+			fmt.Printf("  popq %%rdi # return string (body)\n")
+			fmt.Printf("  popq %%rsi # return string (tail)\n")
+		default:
+			panic2(__func__, "[*astReturnStmt] TBI:"+knd)
+		}
+		fmt.Printf("  leave\n")
+		fmt.Printf("  ret\n")
+	} else if len(s.Results) == 3 {
+		// Special treatment to return a slice
+		emitExpr(s.Results[2], nil) // @FIXME
+		emitExpr(s.Results[1], nil) // @FIXME
+		emitExpr(s.Results[0], nil) // @FIXME
+		fmt.Printf("  popq %%rax # return 64bit\n")
+		fmt.Printf("  popq %%rdi # return 64bit\n")
+		fmt.Printf("  popq %%rsi # return 64bit\n")
+	} else {
+		panic2(__func__, "[*astReturnStmt] TBI\n")
+	}
+}
+
 func emitReturnedValue(resultList []*astField) {
 	switch len(resultList) {
 	case 0:
@@ -1534,44 +1575,7 @@ func emitStmt(stmt astStmt) {
 			emitAssign(lhs, rhs)
 		}
 	case *astReturnStmt:
-		node := s.node
-		funcType := node.fnc.funcType
-		if len(s.Results) == 0 {
-			fmt.Printf("  leave\n")
-			fmt.Printf("  ret\n")
-		} else if len(s.Results) == 1 {
-			targetType := e2t(funcType.Results.List[0].Type)
-			ctx := &evalContext{
-				_type: targetType,
-			}
-			emitExprIfc(s.Results[0], ctx)
-			var knd = kind(targetType)
-			switch knd {
-			case T_BOOL, T_UINT8, T_INT, T_UINTPTR, T_POINTER:
-				fmt.Printf("  popq %%rax # return 64bit\n")
-			case T_STRING, T_INTERFACE:
-				fmt.Printf("  popq %%rax # return string (head)\n")
-				fmt.Printf("  popq %%rdi # return string (tail)\n")
-			case T_SLICE:
-				fmt.Printf("  popq %%rax # return string (head)\n")
-				fmt.Printf("  popq %%rdi # return string (body)\n")
-				fmt.Printf("  popq %%rsi # return string (tail)\n")
-			default:
-				panic2(__func__, "[*astReturnStmt] TBI:"+knd)
-			}
-			fmt.Printf("  leave\n")
-			fmt.Printf("  ret\n")
-		} else if len(s.Results) == 3 {
-			// Special treatment to return a slice
-			emitExpr(s.Results[2], nil) // @FIXME
-			emitExpr(s.Results[1], nil) // @FIXME
-			emitExpr(s.Results[0], nil) // @FIXME
-			fmt.Printf("  popq %%rax # return 64bit\n")
-			fmt.Printf("  popq %%rdi # return 64bit\n")
-			fmt.Printf("  popq %%rsi # return 64bit\n")
-		} else {
-			panic2(__func__, "[*astReturnStmt] TBI\n")
-		}
+		emitReturnStmt(s)
 	case *astIfStmt:
 		emitComment(2, "if\n")
 
