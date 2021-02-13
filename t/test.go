@@ -12,6 +12,21 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func receiveBytes(a uint8, b uint8, c uint8) uint8 {
+	var r uint8 = a
+	return r
+}
+
+func testPassBytes() {
+	var a uint8 = 'a'
+	var b uint8 = 'b'
+	c := receiveBytes(a, b, 'c')
+	buf := []uint8{c}
+	s := string(buf)
+	fmt.Printf("s=%s\n", s)
+	os.Exit(0)
+}
+
 func testSprinfMore() {
 	var s string
 	s = fmt.Sprintf("hello")
@@ -61,19 +76,6 @@ func testAnotherFile() {
 	anotherFunc()
 }
 
-func receiveBytes(a uint8, b uint8, c uint8) uint8 {
-	var r uint8 = a
-	return r
-}
-
-func testPassBytes() {
-	var a uint8 = 'a'
-	var b uint8 = 'b'
-	c := receiveBytes(a, b, 'c')
-	buf := []uint8{c}
-	s := string(buf)
-	fmt.Printf("s=%s\n", s)
-}
 
 func testSortStrings() {
 	ss := []string{
@@ -1893,9 +1895,9 @@ func testMisc() {
 }
 
 func main() {
+	testPassBytes()
 	testSprinfMore()
 	testAnotherFile()
-	testPassBytes()
 	testSortStrings()
 	testGetdents64()
 	testEnv()
