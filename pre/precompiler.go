@@ -494,17 +494,15 @@ func emitArgs(args []*Arg) int {
 	}
 	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for _, arg := range args {
+		paramType := arg.paramType
 		ctx := &evalContext{
-			_type: arg.paramType,
+			_type: paramType,
 		}
 		emitExprIfc(arg.e, ctx)
-		t := arg.paramType
-		knd := kind(t)
-		emitPop(knd)
-		var offset int = arg.offset
-		fmt.Printf("  leaq %d(%%rsp), %%rsi# place to save\n", offset)
+		emitPop(kind(paramType))
+		fmt.Printf("  leaq %d(%%rsp), %%rsi # place to save\n", arg.offset)
 		fmt.Printf("  pushq %%rsi # place to save\n")
-		emitRegiToMem(t, 0)
+		emitRegiToMem(paramType)
 	}
 
 	return totalParamSize
@@ -1435,33 +1433,32 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	}
 
 	fmt.Printf("  pushq %%rsi # place to save\n")
-	emitRegiToMem(t, 0)
+	emitRegiToMem(t)
 }
 
-func emitRegiToMem(t *Type, offset int) {
+func emitRegiToMem(t *Type) {
 	fmt.Printf("  popq %%rsi # place to save\n")
 	k := kind(t)
 	switch k {
 	case T_SLICE:
-		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0 + offset)
-		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8 + offset)
-		fmt.Printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", 16 + offset)
+		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
+		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
+		fmt.Printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", 16)
 	case T_STRING:
-		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0 + offset)
-		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8 + offset)
+		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
+		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
 	case T_INTERFACE:
-		fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0 + offset)
-		fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8 + offset)
+		fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0)
+		fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8)
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmt.Printf("  movq %%rax, %d(%%rsi) # assign\n", 0 + offset)
+		fmt.Printf("  movq %%rax, %d(%%rsi) # assign\n", 0)
 	case T_UINT16:
-		fmt.Printf("  movw %%ax, %d(%%rsi) # assign word\n", 0 + offset)
+		fmt.Printf("  movw %%ax, %d(%%rsi) # assign word\n", 0)
 	case T_UINT8:
-		fmt.Printf("  movb %%al, %d(%%rsi) # assign byte\n", 0 + offset)
+		fmt.Printf("  movb %%al, %d(%%rsi) # assign byte\n", 0)
 	case T_STRUCT, T_ARRAY:
 		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
-		fmt.Printf("  leaq %d(%%rsi) , %%rcx# dst lhs\n", 0 + offset)
-		fmt.Printf("  pushq %%rcx # dst lhs\n")
+		fmt.Printf("  pushq %%rsi # dst lhs\n")
 		fmt.Printf("  pushq %%rax # src rhs\n")
 		fmt.Printf("  callq runtime.memcopy\n")
 		emitFreeParametersArea(ptrSize*2 + intSize)
