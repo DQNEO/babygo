@@ -478,38 +478,19 @@ func emitArgs(args []*Arg) int {
 	//var arg astExpr
 	for _, arg := range args {
 		arg.offset = totalPushedSize
-		totalPushedSize = totalPushedSize + getPushSizeOfType(arg.paramType)
+		totalPushedSize = totalPushedSize + getSizeOfType(arg.paramType)
 	}
 	fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
 	for _, arg := range args {
+		paramType := arg.paramType
 		ctx := &evalContext{
-			_type: arg.paramType,
+			_type: paramType,
 		}
 		emitExprIfc(arg.e, ctx)
-	}
-	fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
-
-	for _, arg := range args {
-		t := arg.paramType
-		switch kind(t) {
-		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
-			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
-			fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", +arg.offset)
-		case T_STRING, T_INTERFACE:
-			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -arg.offset)
-			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -arg.offset)
-			fmt.Printf("  movq %%rax, %d(%%rsp)\n", +arg.offset)
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", +arg.offset)
-		case T_SLICE:
-			fmt.Printf("  movq %d-24(%%rsp), %%rax\n", -arg.offset) // arg1: slc.ptr
-			fmt.Printf("  movq %d-16(%%rsp), %%rcx\n", -arg.offset) // arg1: slc.len
-			fmt.Printf("  movq %d-8(%%rsp), %%rdx\n", -arg.offset)  // arg1: slc.cap
-			fmt.Printf("  movq %%rax, %d+0(%%rsp)\n", +arg.offset)  // arg1: slc.ptr
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", +arg.offset)  // arg1: slc.len
-			fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", +arg.offset) // arg1: slc.cap
-		default:
-			throw(kind(t))
-		}
+		emitPop(kind(paramType))
+		fmt.Printf("  leaq %d(%%rsp), %%rsi # place to save\n", arg.offset)
+		fmt.Printf("  pushq %%rsi # place to save\n")
+		emitRegiToMem(paramType)
 	}
 
 	return totalPushedSize
@@ -1415,7 +1396,15 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	if pushLhs {
 		fmt.Printf("  pushq %%rsi # lhs addr\n")
 	}
-	switch knd {
+
+	fmt.Printf("  pushq %%rsi # place to save\n")
+	emitRegiToMem(t)
+}
+
+func emitRegiToMem(t *Type) {
+	fmt.Printf("  popq %%rsi # place to save\n")
+	k := kind(t)
+	switch k {
 	case T_SLICE:
 		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
@@ -1439,7 +1428,7 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 		fmt.Printf("  callq runtime.memcopy\n")
 		emitRevertStackPointer(ptrSize*2 + intSize)
 	default:
-		panic2(__func__, "TBI:"+kind(t))
+		panic2(__func__, "TBI:"+k)
 	}
 }
 

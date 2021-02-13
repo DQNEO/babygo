@@ -1,3 +1,4 @@
+s=c
 hello
 %rax
 number 1234

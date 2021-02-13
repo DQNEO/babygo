@@ -24,7 +24,6 @@ func testPassBytes() {
 	buf := []uint8{rc}
 	s := string(buf)
 	fmt.Printf("s=%s\n", s)
-	os.Exit(0)
 }
 
 func testSprinfMore() {
@@ -1895,7 +1894,7 @@ func testMisc() {
 }
 
 func main() {
-	//testPassBytes()
+	testPassBytes()
 	testSprinfMore()
 	testAnotherFile()
 	testSortStrings()
