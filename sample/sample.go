@@ -2,7 +2,8 @@
 // go tool compile -N -S -l sample.go
 package main
 
-func min() {
+func multiVars(a uint8, b uint8, c uint8) (uint8, uint8, uint8) {
+	return a, b, c
 }
 
 func receiveBytes(a uint8, b uint8, c uint8) uint8 {
@@ -56,7 +57,7 @@ func concate(x string, y string) string {
 }
 
 func main() {
-	min()
+	multiVars(1,2, 3)
 	slice(nil)
 	slice([]byte{'a', 'b', 'c'})
 	arg1(1)

@@ -97,8 +97,8 @@ sample:
 	make sample/sample.s sample/min.s
 
 sample/sample.s: sample/sample.go
-	# -N: disable optimizations, -S: print assembly listing
-	go tool compile -N -S sample/sample.go > sample/sample.s
+	# -N: disable optimizations, -S: print assembly listing -l: no inline
+	go tool compile -N -S -l sample/sample.go > sample/sample.s
 
 sample/min.s: sample/min.go
 	go tool compile -N -S sample/min.go > sample/min.s
