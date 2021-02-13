@@ -1927,6 +1927,14 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	fmt.Printf("# emitFuncDecl\n")
+	var i int
+	if len(fnc.params) > 0 {
+		for i =0; i<len(fnc.params);  i++{
+			v := fnc.params[i]
+			logf("  #       params %d %d \"%s\"\n", int(v.localOffset), getSizeOfType(v.typ), v.name)
+		}
+	}
+
 	var localarea = fnc.localarea
 	var symbol string
 	if fnc.method != nil {
@@ -1934,11 +1942,18 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	} else {
 		symbol = getPackageSymbol(pkgName, fnc.name)
 	}
-	fmt.Printf("%s: # args %d, locals %d\n",
-		symbol, int(fnc.argsarea), int(fnc.localarea))
-
+	fmt.Printf("%s: # args %d, locals %d\n", symbol, int(fnc.argsarea), int(fnc.localarea))
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
+	if len(fnc.localvars) > 0 {
+		for i=len(fnc.vars) -1; i>=0; i--{
+			v := fnc.vars[i]
+			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -v.localOffset, getSizeOfType(v.typ), v.name)
+		}
+	}
+	logf("  #  0(%%rbp) previous rbp\n")
+	logf("  #  8(%%rbp) return address\n")
+
 	if localarea != 0 {
 		fmt.Printf("  subq $%d, %%rsp # local area\n", -localarea)
 	}
@@ -2670,6 +2685,8 @@ type Func struct {
 	localvars []*string
 	localarea int
 	argsarea  int
+	vars []*Variable
+	params    []*Variable
 	funcType  *astFuncType
 	rcvType   astExpr
 	name      string
@@ -2698,13 +2715,16 @@ type Variable struct {
 func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.argsarea, t)
 	fnc.argsarea = fnc.argsarea + getSizeOfType(t)
+	fnc.params = append(fnc.params, vr)
 	return vr
 }
 
 func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	assert(t != nil && t.e != nil, "type of local var should not be nil", __func__)
 	fnc.localarea = fnc.localarea - getSizeOfType(t)
-	return newLocalVariable(name, currentFunc.localarea, t)
+	vr := newLocalVariable(name, currentFunc.localarea, t)
+	fnc.vars = append(fnc.vars, vr)
+	return vr
 }
 
 var currentFunc *Func
