@@ -2838,9 +2838,6 @@ type localoffsetint int
 func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.argsarea, t)
 	size := getSizeOfType(t)
-	if size < 8 {
-		logf("param size is too small:%s %s %d\n", fnc.name, name, size)
-	}
 	fnc.argsarea += localoffsetint(size)
 	fnc.params = append(fnc.params, vr)
 	return vr
