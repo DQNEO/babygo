@@ -120,8 +120,8 @@ func emitPushStackTop(condType *Type, comment string) {
 	}
 }
 
-func emitRevertStackPointer(size int) {
-	fmt.Printf("  addq $%d, %%rsp # revert stack pointer\n", size)
+func emitFreeParametersArea(size int) {
+	fmt.Printf("  addq $%d, %%rsp # free parameters area\n", size)
 }
 
 func emitAddConst(addValue int, comment string) {
@@ -413,7 +413,7 @@ func emitCallMalloc(size int) {
 		},
 	}
 	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
-	emitRevertStackPointer(intSize)
+	emitFreeParametersArea(intSize)
 	emitReturnedValue(resultList)
 }
 
@@ -483,16 +483,16 @@ type Arg struct {
 	offset    int
 }
 
+// see "ABI of stack layout" in the emitFuncall comment
 func emitArgs(args []*Arg) int {
 	emitComment(2, "emitArgs len=%d\n", len(args))
 
-	var totalArgsSize int
+	var totalParamSize int
 	for _, arg := range args {
-		arg.offset = totalArgsSize
-		totalArgsSize += getSizeOfType(arg.paramType)
+		arg.offset = totalParamSize
+		totalParamSize += getSizeOfType(arg.paramType)
 	}
-	fmt.Printf("  subq $%d, %%rsp # for args (totalArgsSize) \n", totalArgsSize)
-	//fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
+	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for _, arg := range args {
 		ctx := &evalContext{
 			_type: arg.paramType,
@@ -502,39 +502,12 @@ func emitArgs(args []*Arg) int {
 		knd := kind(t)
 		emitPop(knd)
 		var offset int = arg.offset
-		// store
-		fmt.Printf("  movq %%rsp, %%rsi # backup rsp\n")
-		switch knd {
-		case T_SLICE:
-			fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0 + offset)
-			fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8 + offset)
-			fmt.Printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", 16 + offset)
-		case T_STRING:
-			fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0 + offset)
-			fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8 + offset)
-		case T_INTERFACE:
-			fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0 + offset)
-			fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8 + offset)
-		case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-			fmt.Printf("  movq %%rax, %d(%%rsi) # assign\n", 0 + offset)
-		case T_UINT16:
-			fmt.Printf("  movw %%ax, %d(%%rsi) # assign word\n", 0 + offset)
-		case T_UINT8:
-			fmt.Printf("  movb %%al, %d(%%rsi) # assign byte\n", 0 + offset)
-		case T_STRUCT, T_ARRAY:
-			fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
-			fmt.Printf("  pushq %%rsi # dst lhs\n")
-			fmt.Printf("  pushq %%rax # src rhs\n")
-			fmt.Printf("  callq runtime.memcopy\n")
-			emitRevertStackPointer(ptrSize*2 + intSize)
-		default:
-			panic("TBI:" + knd)
-		}
-
+		fmt.Printf("  leaq %d(%%rsp), %%rsi# place to save\n", offset)
+		fmt.Printf("  pushq %%rsi # place to save\n")
+		emitRegiToMem(t, 0)
 	}
-	//fmt.Printf("  addq $%d, %%rsp # for args\n", totalArgsSize)
 
-	return totalArgsSize
+	return totalParamSize
 }
 
 func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, expandElipsis bool) []*Arg {
@@ -610,9 +583,9 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 }
 
 func emitCall(symbol string, args []*Arg, results []*ast.Field) {
-	totalPushedSize := emitArgs(args)
+	totalParamsArea := emitArgs(args)
 	fmt.Printf("  callq %s\n", symbol)
-	emitRevertStackPointer(totalPushedSize)
+	emitFreeParametersArea(totalParamsArea)
 	emitReturnedValue(results)
 }
 
@@ -644,6 +617,33 @@ func emitReturnedValue(resultList []*ast.Field) {
 	}
 }
 
+// ABI of stack layout in function call
+//
+// string:
+//   str.ptr
+//   str.len
+// slice:
+//   slc.ptr
+//   slc.len
+//   slc.cap
+//
+// ABI of function call
+//
+// call f(i1 int, i2 int)
+//   -- stack top
+//   i1
+//   i2
+//   --
+//
+// call f(i int, s string, slc []T)
+//   -- stack top
+//   i
+//   s.ptr
+//   s.len
+//   slc.ptr
+//   slc.len
+//   slc.cap
+//   --
 func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 	var funcType *ast.FuncType
 	var symbol string
@@ -829,34 +829,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 	}
 	emitCall(symbol, args, resultList)
 }
-
-// ABI of stack layout
-//
-// string:
-//   str.ptr
-//   str.len
-// slice:
-//   slc.ptr
-//   slc.len
-//   slc.cap
-//
-// ABI of function call
-//
-// call f(i1 int, i2 int)
-//   -- stack top
-//   i1
-//   i2
-//   --
-//
-// call f(i int, s string, slc []T)
-//   -- stack top
-//   i
-//   s.ptr
-//   s.len
-//   slc.ptr
-//   slc.len
-//   slc.cap
-//   --
 
 func emitNil(targetType *Type) {
 	if targetType == nil {
@@ -1396,7 +1368,7 @@ func emitCompEq(t *Type) {
 			},
 		}
 		fmt.Printf("  callq runtime.cmpstrings\n")
-		emitRevertStackPointer(stringSize * 2)
+		emitFreeParametersArea(stringSize * 2)
 		emitReturnedValue(resultList)
 	case T_INTERFACE:
 		var resultList = []*ast.Field{
@@ -1406,7 +1378,7 @@ func emitCompEq(t *Type) {
 			},
 		}
 		fmt.Printf("  callq runtime.cmpinterface\n")
-		emitRevertStackPointer(interfaceSize * 2)
+		emitFreeParametersArea(interfaceSize * 2)
 		emitReturnedValue(resultList)
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
@@ -1462,34 +1434,41 @@ func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 		fmt.Printf("  pushq %%rsi # lhs addr\n")
 	}
 
-	switch knd {
-	case T_SLICE:
-		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
-		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
-		fmt.Printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", 16)
-	case T_STRING:
-		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
-		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
-	case T_INTERFACE:
-		fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0)
-		fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8)
-	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmt.Printf("  movq %%rax, (%%rsi) # assign\n")
-	case T_UINT16:
-		fmt.Printf("  movw %%ax, (%%rsi) # assign word\n")
-	case T_UINT8:
-		fmt.Printf("  movb %%al, (%%rsi) # assign byte\n")
-	case T_STRUCT, T_ARRAY:
-		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
-		fmt.Printf("  pushq %%rsi # dst lhs\n")
-		fmt.Printf("  pushq %%rax # src rhs\n")
-		fmt.Printf("  callq runtime.memcopy\n")
-		emitRevertStackPointer(ptrSize*2 + intSize)
-	default:
-		panic("TBI:" + knd)
-	}
+	fmt.Printf("  pushq %%rsi # place to save\n")
+	emitRegiToMem(t, 0)
 }
 
+func emitRegiToMem(t *Type, offset int) {
+	fmt.Printf("  popq %%rsi # place to save\n")
+	k := kind(t)
+	switch k {
+	case T_SLICE:
+		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0 + offset)
+		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8 + offset)
+		fmt.Printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", 16 + offset)
+	case T_STRING:
+		fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0 + offset)
+		fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8 + offset)
+	case T_INTERFACE:
+		fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0 + offset)
+		fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8 + offset)
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
+		fmt.Printf("  movq %%rax, %d(%%rsi) # assign\n", 0 + offset)
+	case T_UINT16:
+		fmt.Printf("  movw %%ax, %d(%%rsi) # assign word\n", 0 + offset)
+	case T_UINT8:
+		fmt.Printf("  movb %%al, %d(%%rsi) # assign byte\n", 0 + offset)
+	case T_STRUCT, T_ARRAY:
+		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
+		fmt.Printf("  leaq %d(%%rsi) , %%rcx# dst lhs\n", 0 + offset)
+		fmt.Printf("  pushq %%rcx # dst lhs\n")
+		fmt.Printf("  pushq %%rax # src rhs\n")
+		fmt.Printf("  callq runtime.memcopy\n")
+		emitFreeParametersArea(ptrSize*2 + intSize)
+	default:
+		panic("TBI:" + k)
+	}
+}
 func isBlankIdentifier(e ast.Expr) bool {
 	ident, isIdent := e.(*ast.Ident)
 	if !isIdent {

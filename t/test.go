@@ -20,8 +20,8 @@ func receiveBytes(a uint8, b uint8, c uint8) uint8 {
 func testPassBytes() {
 	var a uint8 = 'a'
 	var b uint8 = 'b'
-	c := receiveBytes(a, b, 'c')
-	buf := []uint8{c}
+	rc := receiveBytes(a, b, 'c')
+	buf := []uint8{rc}
 	s := string(buf)
 	fmt.Printf("s=%s\n", s)
 	os.Exit(0)
