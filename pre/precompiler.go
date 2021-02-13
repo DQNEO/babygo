@@ -485,44 +485,56 @@ type Arg struct {
 
 func emitArgs(args []*Arg) int {
 	emitComment(2, "emitArgs len=%d\n", len(args))
-	var totalPushedSize int
+
+	var totalArgsSize int
 	for _, arg := range args {
-		arg.offset = totalPushedSize
-		totalPushedSize += getPushSizeOfType(arg.paramType)
+		arg.offset = totalArgsSize
+		totalArgsSize += getSizeOfType(arg.paramType)
 	}
-	fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
+	fmt.Printf("  subq $%d, %%rsp # for args (totalArgsSize) \n", totalArgsSize)
+	//fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
 	for _, arg := range args {
 		ctx := &evalContext{
 			_type: arg.paramType,
 		}
 		emitExprIfc(arg.e, ctx)
-	}
-	fmt.Printf("  addq $%d, %%rsp # for args\n", totalPushedSize)
-
-	for _, arg := range args {
 		t := arg.paramType
-		switch kind(t) {
-		case T_BOOL, T_INT, T_UINT8, T_POINTER, T_UINTPTR:
-			fmt.Printf("  movq %d-8(%%rsp) , %%rax # load\n", -arg.offset)
-			fmt.Printf("  movq %%rax, %d(%%rsp) # store\n", +arg.offset)
-		case T_STRING, T_INTERFACE:
-			fmt.Printf("  movq %d-16(%%rsp), %%rax\n", -arg.offset)
-			fmt.Printf("  movq %d-8(%%rsp), %%rcx\n", -arg.offset)
-			fmt.Printf("  movq %%rax, %d(%%rsp)\n", +arg.offset)
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", +arg.offset)
+		knd := kind(t)
+		emitPop(knd)
+		var offset int = arg.offset
+		// store
+		fmt.Printf("  movq %%rsp, %%rsi # backup rsp\n")
+		switch knd {
 		case T_SLICE:
-			fmt.Printf("  movq %d-24(%%rsp), %%rax\n", -arg.offset) // arg1: slc.ptr
-			fmt.Printf("  movq %d-16(%%rsp), %%rcx\n", -arg.offset) // arg1: slc.len
-			fmt.Printf("  movq %d-8(%%rsp), %%rdx\n", -arg.offset)  // arg1: slc.cap
-			fmt.Printf("  movq %%rax, %d+0(%%rsp)\n", +arg.offset)  // arg1: slc.ptr
-			fmt.Printf("  movq %%rcx, %d+8(%%rsp)\n", +arg.offset)  // arg1: slc.len
-			fmt.Printf("  movq %%rdx, %d+16(%%rsp)\n", +arg.offset) // arg1: slc.cap
+			fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0 + offset)
+			fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8 + offset)
+			fmt.Printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", 16 + offset)
+		case T_STRING:
+			fmt.Printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0 + offset)
+			fmt.Printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8 + offset)
+		case T_INTERFACE:
+			fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0 + offset)
+			fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8 + offset)
+		case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
+			fmt.Printf("  movq %%rax, %d(%%rsi) # assign\n", 0 + offset)
+		case T_UINT16:
+			fmt.Printf("  movw %%ax, %d(%%rsi) # assign word\n", 0 + offset)
+		case T_UINT8:
+			fmt.Printf("  movb %%al, %d(%%rsi) # assign byte\n", 0 + offset)
+		case T_STRUCT, T_ARRAY:
+			fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
+			fmt.Printf("  pushq %%rsi # dst lhs\n")
+			fmt.Printf("  pushq %%rax # src rhs\n")
+			fmt.Printf("  callq runtime.memcopy\n")
+			emitRevertStackPointer(ptrSize*2 + intSize)
 		default:
-			throw(kind(t))
+			panic("TBI:" + knd)
 		}
-	}
 
-	return totalPushedSize
+	}
+	//fmt.Printf("  addq $%d, %%rsp # for args\n", totalArgsSize)
+
+	return totalArgsSize
 }
 
 func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, expandElipsis bool) []*Arg {

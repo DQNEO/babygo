@@ -13,7 +13,7 @@ import (
 )
 
 func receiveBytes(a uint8, b uint8, c uint8) uint8 {
-	var r uint8 = a
+	var r uint8 = c
 	return r
 }
 
