@@ -106,8 +106,8 @@ func emitPushStackTop(condType *Type, comment string) {
 	}
 }
 
-func emitRevertStackPointer(size int) {
-	fmt.Printf("  addq $%d, %%rsp # revert stack pointer\n", size)
+func emitFreeParametersArea(size int) {
+	fmt.Printf("  addq $%d, %%rsp # free parameters area\n", size)
 }
 
 func emitAddConst(addValue int, comment string) {
@@ -405,7 +405,7 @@ func emitCallMalloc(size int) {
 		},
 	}
 	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
-	emitRevertStackPointer(intSize)
+	emitFreeParametersArea(intSize)
 	emitReturnedValue(resultList)
 }
 
@@ -474,13 +474,12 @@ type Arg struct {
 
 func emitArgs(args []*Arg) int {
 	emitComment(2, "emitArgs len=%d\n", len(args))
-	var totalPushedSize int
-	//var arg astExpr
+	var totalParamSize int
 	for _, arg := range args {
-		arg.offset = totalPushedSize
-		totalPushedSize = totalPushedSize + getSizeOfType(arg.paramType)
+		arg.offset = totalParamSize
+		totalParamSize = totalParamSize + getSizeOfType(arg.paramType)
 	}
-	fmt.Printf("  subq $%d, %%rsp # for args\n", totalPushedSize)
+	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for _, arg := range args {
 		paramType := arg.paramType
 		ctx := &evalContext{
@@ -493,7 +492,7 @@ func emitArgs(args []*Arg) int {
 		emitRegiToMem(paramType)
 	}
 
-	return totalPushedSize
+	return totalParamSize
 }
 
 func prepareArgs(funcType *astFuncType, receiver astExpr, eArgs []astExpr, expandElipsis bool) []*Arg {
@@ -578,9 +577,9 @@ func prepareArgs(funcType *astFuncType, receiver astExpr, eArgs []astExpr, expan
 }
 
 func emitCall(symbol string, args []*Arg, results []*astField) {
-	totalPushedSize := emitArgs(args)
+	totalParamsSize := emitArgs(args)
 	fmt.Printf("  callq %s\n", symbol)
-	emitRevertStackPointer(totalPushedSize)
+	emitFreeParametersArea(totalParamsSize)
 	emitReturnedValue(results)
 }
 
@@ -1332,7 +1331,7 @@ func emitCompEq(t *Type) {
 			},
 		}
 		fmt.Printf("  callq runtime.cmpstrings\n")
-		emitRevertStackPointer(stringSize * 2)
+		emitFreeParametersArea(stringSize * 2)
 		emitReturnedValue(resultList)
 	case T_INTERFACE:
 		var resultList = []*astField{
@@ -1341,7 +1340,7 @@ func emitCompEq(t *Type) {
 			},
 		}
 		fmt.Printf("  callq runtime.cmpinterface\n")
-		emitRevertStackPointer(interfaceSize * 2)
+		emitFreeParametersArea(interfaceSize * 2)
 		emitReturnedValue(resultList)
 	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 		emitCompExpr("sete")
@@ -1416,17 +1415,17 @@ func emitRegiToMem(t *Type) {
 		fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8)
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmt.Printf("  movq %%rax, (%%rsi) # assign\n")
+		fmt.Printf("  movq %%rax, %d(%%rsi) # assign\n", 0)
 	case T_UINT16:
-		fmt.Printf("  movw %%ax, (%%rsi) # assign word\n")
+		fmt.Printf("  movw %%ax, %d(%%rsi) # assign word\n", 0)
 	case T_UINT8:
-		fmt.Printf("  movb %%al, (%%rsi) # assign byte\n")
+		fmt.Printf("  movb %%al, %d(%%rsi) # assign byte\n", 0)
 	case T_STRUCT, T_ARRAY:
 		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
 		fmt.Printf("  pushq %%rsi # dst lhs\n")
 		fmt.Printf("  pushq %%rax # src rhs\n")
 		fmt.Printf("  callq runtime.memcopy\n")
-		emitRevertStackPointer(ptrSize*2 + intSize)
+		emitFreeParametersArea(ptrSize*2 + intSize)
 	default:
 		panic2(__func__, "TBI:"+k)
 	}

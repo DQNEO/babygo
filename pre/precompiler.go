@@ -581,9 +581,9 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 }
 
 func emitCall(symbol string, args []*Arg, results []*ast.Field) {
-	totalParamsArea := emitArgs(args)
+	totalParamsSize := emitArgs(args)
 	fmt.Printf("  callq %s\n", symbol)
-	emitFreeParametersArea(totalParamsArea)
+	emitFreeParametersArea(totalParamsSize)
 	emitReturnedValue(results)
 }
 
