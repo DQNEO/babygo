@@ -55,7 +55,6 @@ compare-test: $(tmp)/pre-test.s $(tmp)/babygo-test.s $(tmp)/babygo2-test.s $(tmp
 	diff -u $(tmp)/pre-test.s $(tmp)/babygo2-test.s
 	diff -u $(tmp)/pre-test.s $(tmp)/cross-test.s
 
-# Run test binaries
 $(tmp)/test0: $(tmp)/pre-test.s runtime.s
 	as -o $(tmp)/test0.o $(tmp)/pre-test.s runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test0 $(tmp)/test0.o
@@ -63,6 +62,14 @@ $(tmp)/test0: $(tmp)/pre-test.s runtime.s
 .PHONY: test0
 test0: $(tmp)/test0 t/expected.txt
 	./test.sh $(tmp)/test0
+
+$(tmp)/test1: $(tmp)/babygo-test.s runtime.s
+	as -o $(tmp)/test1.o $(tmp)/babygo-test.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/test1 $(tmp)/test1.o
+
+.PHONY: test1
+test1: $(tmp)/test1 t/expected.txt
+	./test.sh $(tmp)/test1
 
 # test self hosting by comparing 2gen.s and 3gen.s
 .PHONY: selfhost
