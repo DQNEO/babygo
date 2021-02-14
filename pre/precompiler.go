@@ -1883,12 +1883,14 @@ func emitStmt(stmt ast.Stmt) {
 			}
 			for _, e := range cc.List {
 				emitVariableAddr(typeSwitch.subjectVariable)
-				emitLoadAndPush(tEface)
+				emitPopAddress("type switch subject")
+				fmt.Printf("  movq (%%rax), %%rax # dtype\n")
+				fmt.Printf("  pushq %%rax # dtype\n")
 
 				emitDtypeSymbol(e2t(e))
 				emitCompExpr("sete") // this pushes 1 or 0 in the end
-
 				emitPopBool(" of switch-case comparison")
+
 				fmt.Printf("  cmpq $1, %%rax\n")
 				fmt.Printf("  je %s # jump if match\n", labelCase)
 			}
