@@ -52,7 +52,7 @@ func Sprintf(format string, a ...interface{}) string {
 						r = append(r, _c)
 					}
 				default:
-					panic("Unknown format:" + strconv.Itoa(int(sign)))
+					panic("Sprintf: Unknown format:" + strconv.Itoa(int(sign)))
 				}
 				argIndex++
 			}
