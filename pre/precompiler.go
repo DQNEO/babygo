@@ -1833,10 +1833,6 @@ func emitStmt(stmt ast.Stmt) {
 					emitPushStackTop(condType, "switch expr")
 					emitExpr(e, nil)
 					emitCompExpr("sete")
-				case T_SLICE:
-					emitPushStackTop(condType, "switch expr")
-					emitExpr(e, nil)
-					emitCompExpr("sete") // @FIXME this is not correct
 				default:
 					throw(kind(condType))
 				}
