@@ -1064,33 +1064,6 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 		}
 	case *astBinaryExpr:
 		binaryExpr := e
-		if kind(getTypeOfExpr(binaryExpr.X)) == T_STRING {
-			switch binaryExpr.Op {
-			case "+":
-				args := []*Arg{
-					&Arg{
-						e:         binaryExpr.X,
-						paramType: tString,
-					}, &Arg{
-						e:         binaryExpr.Y,
-						paramType: tString,
-					},
-				}
-				var resultList = []*astField{
-					&astField{
-						Type: tString.e,
-					},
-				}
-				emitCall("runtime.catstrings", args, resultList)
-			case "==": // str1 == str2
-				emitCompStrings(e.X, e.Y)
-			case "!=":
-				emitCompStrings(e.X, e.Y)
-				emitInvertBoolValue()
-			default:
-				panic2(__func__, "[emitExpr][*astBinaryExpr] string : TBI T_STRING")
-			}
-		} else {
 			switch binaryExpr.Op {
 			case "&&":
 				labelid++
@@ -1127,12 +1100,16 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 				emitTrue()
 				fmt.Printf("  %s:\n", labelExit)
 			case "+":
-				emitExpr(binaryExpr.X, nil) // left
-				emitExpr(binaryExpr.Y, nil) // right
-				fmt.Printf("  popq %%rcx # right\n")
-				fmt.Printf("  popq %%rax # left\n")
-				fmt.Printf("  addq %%rcx, %%rax\n")
-				fmt.Printf("  pushq %%rax\n")
+				if kind(getTypeOfExpr(e.X)) == T_STRING {
+					emitCatStrings(e.X, e.Y)
+				} else {
+					emitExpr(binaryExpr.X, nil) // left
+					emitExpr(binaryExpr.Y, nil) // right
+					fmt.Printf("  popq %%rcx # right\n")
+					fmt.Printf("  popq %%rax # left\n")
+					fmt.Printf("  addq %%rcx, %%rax\n")
+					fmt.Printf("  pushq %%rax\n")
+				}
 			case "-":
 				emitExpr(binaryExpr.X, nil) // left
 				emitExpr(binaryExpr.Y, nil) // right
@@ -1165,17 +1142,9 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 				fmt.Printf("  divq %%rcx\n")
 				fmt.Printf("  pushq %%rax\n")
 			case "==":
-				var t = getTypeOfExpr(binaryExpr.X)
-				emitExpr(binaryExpr.X, nil) // left
-				ctx := &evalContext{_type: t}
-				emitExpr(binaryExpr.Y, ctx) // right
-				emitCompEq(t)
+				emitBinaryComparison(e.X, e.Y)
 			case "!=":
-				var t = getTypeOfExpr(binaryExpr.X)
-				emitExpr(binaryExpr.X, nil) // left
-				ctx := &evalContext{_type: t}
-				emitExpr(binaryExpr.Y, ctx) // right
-				emitCompEq(t)
+				emitBinaryComparison(e.X, e.Y)
 				emitInvertBoolValue()
 			case "<":
 				emitExpr(binaryExpr.X, nil) // left
@@ -1196,7 +1165,6 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 			default:
 				panic2(__func__, "# TBI: binary operation for "+binaryExpr.Op)
 			}
-		}
 	case *astCompositeLit:
 		// slice , array, map or struct
 		var k = kind(e2t(e.Type))
@@ -1356,6 +1324,24 @@ func emitListElementAddr(list astExpr, elmType *Type) {
 	fmt.Printf("  pushq %%rax # addr of element\n")
 }
 
+func emitCatStrings(left astExpr, right astExpr) {
+	args := []*Arg{
+		&Arg{
+			e:         left,
+			paramType: tString,
+		}, &Arg{
+			e:         right,
+			paramType: tString,
+		},
+	}
+	var resultList = []*astField{
+		&astField{
+			Type: tString.e,
+		},
+	}
+	emitCall("runtime.catstrings", args, resultList)
+}
+
 func emitCompStrings(left astExpr, right astExpr) {
 	args := []*Arg{
 		&Arg{
@@ -1375,6 +1361,18 @@ func emitCompStrings(left astExpr, right astExpr) {
 		},
 	}
 	emitCall("runtime.cmpstrings", args, resultList)
+}
+
+func emitBinaryComparison(left astExpr, right astExpr) {
+	if kind(getTypeOfExpr(left)) == T_STRING {
+		emitCompStrings(left, right)
+	} else {
+		var t = getTypeOfExpr(left)
+		emitExpr(left, nil) // left
+		ctx := &evalContext{_type: t}
+		emitExpr(right, ctx) // right
+		emitCompEq(t)
+	}
 }
 
 func emitCompEq(t *Type) {
