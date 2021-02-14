@@ -1021,26 +1021,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
 			switch e.Op.String() {
 			case "+":
-				args := []*Arg{
-					&Arg{
-						e:         e.X,
-						paramType: tString,
-						offset:    0,
-					},
-					&Arg{
-						e:         e.Y,
-						paramType: tString,
-						offset:    0,
-					},
-				}
-
-				var resultList = []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tString.e,
-					},
-				}
-				emitCall("runtime.catstrings", args, resultList)
+				emitCatStrings(e.X, e.Y)
 			case "==": // str1 == str2
 				emitCompStrings(e.X, e.Y)
 			case "!=":
@@ -1393,6 +1374,29 @@ func emitListElementAddr(list ast.Expr, elmType *Type) {
 	fmt.Printf("  imulq %%rdx, %%rcx\n")
 	fmt.Printf("  addq %%rcx, %%rax\n")
 	fmt.Printf("  pushq %%rax # addr of element\n")
+}
+
+func emitCatStrings(left ast.Expr, right ast.Expr) {
+	args := []*Arg{
+		&Arg{
+			e:         left,
+			paramType: tString,
+			offset:    0,
+		},
+		&Arg{
+			e:         right,
+			paramType: tString,
+			offset:    0,
+		},
+	}
+
+	var resultList = []*ast.Field{
+		&ast.Field{
+			Names: nil,
+			Type:  tString.e,
+		},
+	}
+	emitCall("runtime.catstrings", args, resultList)
 }
 
 func emitCompStrings(left ast.Expr, right ast.Expr) {
