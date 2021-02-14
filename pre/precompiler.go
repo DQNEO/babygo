@@ -1023,35 +1023,32 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		}
 	case *ast.BinaryExpr: // 1 value
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
-			args := []*Arg{
-				&Arg{
-					e:         e.X,
-					paramType: tString,
-					offset:    0,
-				},
-				&Arg{
-					e:         e.Y,
-					paramType: tString,
-					offset:    0,
-				},
-			}
-
 			switch e.Op.String() {
 			case "+":
+				args := []*Arg{
+					&Arg{
+						e:         e.X,
+						paramType: tString,
+						offset:    0,
+					},
+					&Arg{
+						e:         e.Y,
+						paramType: tString,
+						offset:    0,
+					},
+				}
+
 				var resultList = []*ast.Field{
 					&ast.Field{
 						Names: nil,
 						Type:  tString.e,
 					},
 				}
-
 				emitCall("runtime.catstrings", args, resultList)
 			case "==": // str1 == str2
-				emitArgs(args)
-				emitCompEq(getTypeOfExpr(e.X))
+				emitCompStrings(e.X, e.Y)
 			case "!=":
-				emitArgs(args)
-				emitCompEq(getTypeOfExpr(e.X))
+				emitCompStrings(e.X, e.Y)
 				emitInvertBoolValue()
 			default:
 				throw(e.Op.String())
@@ -1400,6 +1397,32 @@ func emitListElementAddr(list ast.Expr, elmType *Type) {
 	fmt.Printf("  imulq %%rdx, %%rcx\n")
 	fmt.Printf("  addq %%rcx, %%rax\n")
 	fmt.Printf("  pushq %%rax # addr of element\n")
+}
+
+func emitCompStrings(left ast.Expr, right ast.Expr) {
+	args := []*Arg{
+		&Arg{
+			e:         left,
+			paramType: tString,
+			offset:    0,
+		},
+		&Arg{
+			e:         right,
+			paramType: tString,
+			offset:    0,
+		},
+	}
+
+	totalParamsSize := emitArgs(args)
+	var resultList = []*ast.Field{
+		&ast.Field{
+			Names: nil,
+			Type:  tBool.e,
+		},
+	}
+	fmt.Printf("  callq runtime.cmpstrings\n")
+	emitFreeParametersArea(totalParamsSize)
+	emitReturnedValue(resultList)
 }
 
 func emitCompEq(t *Type) {
