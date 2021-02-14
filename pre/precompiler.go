@@ -3429,7 +3429,7 @@ func walk(pkg *PkgContainer) {
 		for i, field := range resultFields {
 			if len(field.Names) == 0 {
 				// unnamed retval
-				fnc.registerReturnVariable(".r"+strconv.Itoa(i), e2t(field.Type))
+				fnc.registerReturnVariable(".r" + strconv.Itoa(i), e2t(field.Type))
 			} else {
 				panic("TBI: named return variable is not supported")
 			}
