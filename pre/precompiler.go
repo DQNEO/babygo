@@ -612,12 +612,12 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 		case T_BOOL, T_INT, T_UINT8, T_UINTPTR, T_POINTER:
 			fmt.Printf("  popq %%rax # return 64bit\n")
 		case T_STRING, T_INTERFACE:
-			fmt.Printf("  popq %%rax # return string (head)\n")
-			fmt.Printf("  popq %%rdi # return string (tail)\n")
+			fmt.Printf("  popq %%rax # return (head)\n")
+			fmt.Printf("  popq %%rcx # return (tail)\n")
 		case T_SLICE:
-			fmt.Printf("  popq %%rax # return string (head)\n")
-			fmt.Printf("  popq %%rdi # return string (body)\n")
-			fmt.Printf("  popq %%rsi # return string (tail)\n")
+			fmt.Printf("  popq %%rax # return (head)\n")
+			fmt.Printf("  popq %%rcx # return (body)\n")
+			fmt.Printf("  popq %%rdx # return (tail)\n")
 		default:
 			panic("TBI:" + knd)
 		}
@@ -630,8 +630,8 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 		emitExpr(s.Results[1], nil) // @FIXME
 		emitExpr(s.Results[0], nil) // @FIXME
 		fmt.Printf("  popq %%rax # ptr\n")
-		fmt.Printf("  popq %%rdi # len\n")
-		fmt.Printf("  popq %%rsi # cap\n")
+		fmt.Printf("  popq %%rcx # len\n")
+		fmt.Printf("  popq %%rdx # cap\n")
 	} else {
 		panic("TBI")
 	}
@@ -648,17 +648,14 @@ func emitReturnedValue(resultList []*ast.Field) {
 		emitComment(2, "emit return value\n")
 		retval0 := resultList[0]
 		switch kind(e2t(retval0.Type)) {
-		case T_STRING:
-			fmt.Printf("  pushq %%rdi # str len\n")
-			fmt.Printf("  pushq %%rax # str ptr\n")
-		case T_INTERFACE:
-			fmt.Printf("  pushq %%rdi # ifc data\n")
-			fmt.Printf("  pushq %%rax # ifc dtype\n")
+		case T_STRING, T_INTERFACE:
+			fmt.Printf("  pushq %%rcx # tail\n")
+			fmt.Printf("  pushq %%rax # head\n")
 		case T_BOOL, T_UINT8, T_INT, T_UINTPTR, T_POINTER:
 			fmt.Printf("  pushq %%rax\n")
 		case T_SLICE:
-			fmt.Printf("  pushq %%rsi # slice cap\n")
-			fmt.Printf("  pushq %%rdi # slice len\n")
+			fmt.Printf("  pushq %%rdx # slice cap\n")
+			fmt.Printf("  pushq %%rcx # slice len\n")
 			fmt.Printf("  pushq %%rax # slice ptr\n")
 		default:
 			throw(kind(e2t(retval0.Type)))
