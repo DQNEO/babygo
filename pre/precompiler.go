@@ -598,8 +598,6 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 	node := mapReturnStmt[s]
 	funcType := node.fnc.funcType
 	if len(s.Results) == 0 {
-		fmt.Printf("  leave\n")
-		fmt.Printf("  ret\n")
 	} else if len(s.Results) == 1 {
 		//funcType := nil
 		targetType := e2t(funcType.Results.List[0].Type)
@@ -621,9 +619,6 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 		default:
 			panic("TBI:" + knd)
 		}
-
-		fmt.Printf("  leave\n")
-		fmt.Printf("  ret\n")
 	} else if len(s.Results) == 3 {
 		// Special treatment to return a slice by makeSlice()
 		for _, result := range s.Results {
@@ -638,6 +633,8 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 	} else {
 		panic("TBI")
 	}
+	fmt.Printf("  leave\n")
+	fmt.Printf("  ret\n")
 }
 
 func emitReturnedValue(resultList []*ast.Field) {
