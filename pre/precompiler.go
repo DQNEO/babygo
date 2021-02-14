@@ -594,10 +594,12 @@ func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 	emitReturnedValue(results)
 }
 
+// callee
 func emitReturnStmt(s *ast.ReturnStmt) {
 	node := mapReturnStmt[s]
 	funcType := node.fnc.funcType
 	if len(s.Results) == 0 {
+		// do nothing
 	} else if len(s.Results) == 1 {
 		//funcType := nil
 		targetType := e2t(funcType.Results.List[0].Type)
@@ -637,6 +639,7 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 	fmt.Printf("  ret\n")
 }
 
+// caller
 func emitReturnedValue(resultList []*ast.Field) {
 	switch len(resultList) {
 	case 0:
@@ -677,13 +680,14 @@ func emitReturnedValue(resultList []*ast.Field) {
 //
 // ABI of function call
 //
-// call f(i1 int, i2 int)
+// call f(i1 int, i2 int) (r1 int, r2 int)
 //   -- stack top
 //   i1
 //   i2
-//   --
+//   r1
+//   r2
 //
-// call f(i int, s string, slc []T)
+// call f(i int, s string, slc []T) int
 //   -- stack top
 //   i
 //   s.ptr
@@ -691,6 +695,7 @@ func emitReturnedValue(resultList []*ast.Field) {
 //   slc.ptr
 //   slc.len
 //   slc.cap
+//   r
 //   --
 func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 	var funcType *ast.FuncType
