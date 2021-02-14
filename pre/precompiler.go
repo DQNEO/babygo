@@ -597,30 +597,13 @@ func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
 	node := mapReturnStmt[s]
-	funcType := node.fnc.funcType
+	fnc := node.fnc
+	//funcType := node.fnc.funcType
 	if len(s.Results) == 0 {
 		// do nothing
 	} else if len(s.Results) == 1 {
-		//funcType := nil
-		targetType := e2t(funcType.Results.List[0].Type)
-		ctx := &evalContext{
-			_type: targetType,
-		}
-		emitExprIfc(s.Results[0], ctx)
-		var knd = kind(targetType)
-		switch knd {
-		case T_BOOL, T_INT, T_UINT8, T_UINTPTR, T_POINTER:
-			fmt.Printf("  popq %%rax # return 64bit\n")
-		case T_STRING, T_INTERFACE:
-			fmt.Printf("  popq %%rax # return (head)\n")
-			fmt.Printf("  popq %%rcx # return (tail)\n")
-		case T_SLICE:
-			fmt.Printf("  popq %%rax # return (head)\n")
-			fmt.Printf("  popq %%rcx # return (body)\n")
-			fmt.Printf("  popq %%rdx # return (tail)\n")
-		default:
-			panic("TBI:" + knd)
-		}
+		retVar := fnc.retvars[0]
+		emitAssignToVar(retVar, s.Results[0])
 	} else if len(s.Results) == 3 {
 		// Special treatment to return a slice by makeSlice()
 		for _, result := range s.Results {
@@ -1555,6 +1538,18 @@ func emitAssignWithOK(lhss []ast.Expr, rhs ast.Expr) {
 		emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
 		emitStore(getTypeOfExpr(lhsMain), false, false)
 	}
+}
+
+func emitAssignToVar(vr *Variable, rhs ast.Expr) {
+	emitComment(2, "Assignment: emitAddr(lhs)\n")
+	emitVariableAddr(vr)
+	emitComment(2, "Assignment: emitExpr(rhs)\n")
+	ctx := &evalContext{
+		_type: vr.typ,
+	}
+	emitExprIfc(rhs, ctx)
+	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
+	emitStore(vr.typ, true, false)
 }
 
 func emitAssign(lhs ast.Expr, rhs ast.Expr) {
