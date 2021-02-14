@@ -6,7 +6,7 @@ all: test
 
 .PHONY: test
 # test all
-test: test0 selfhost compare-test
+test: test0 selfhost test1 # compare-test
 
 $(tmp):
 	mkdir -p $(tmp)
