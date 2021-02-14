@@ -472,29 +472,6 @@ type Arg struct {
 	offset    int
 }
 
-func emitArgs(args []*Arg) int {
-	emitComment(2, "emitArgs len=%d\n", len(args))
-	var totalParamSize int
-	for _, arg := range args {
-		arg.offset = totalParamSize
-		totalParamSize = totalParamSize + getSizeOfType(arg.paramType)
-	}
-	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
-	for _, arg := range args {
-		paramType := arg.paramType
-		ctx := &evalContext{
-			_type: paramType,
-		}
-		emitExprIfc(arg.e, ctx)
-		emitPop(kind(paramType))
-		fmt.Printf("  leaq %d(%%rsp), %%rsi # place to save\n", arg.offset)
-		fmt.Printf("  pushq %%rsi # place to save\n")
-		emitRegiToMem(paramType)
-	}
-
-	return totalParamSize
-}
-
 func prepareArgs(funcType *astFuncType, receiver astExpr, eArgs []astExpr, expandElipsis bool) []*Arg {
 	if funcType == nil {
 		panic("no funcType")
@@ -576,10 +553,29 @@ func prepareArgs(funcType *astFuncType, receiver astExpr, eArgs []astExpr, expan
 	return args
 }
 
+// see "ABI of stack layout" in the emitFuncall comment
 func emitCall(symbol string, args []*Arg, results []*astField) {
-	totalParamsSize := emitArgs(args)
+	emitComment(2, "emitArgs len=%d\n", len(args))
+	var totalParamSize int
+	for _, arg := range args {
+		arg.offset = totalParamSize
+		totalParamSize = totalParamSize + getSizeOfType(arg.paramType)
+	}
+	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
+	for _, arg := range args {
+		paramType := arg.paramType
+		ctx := &evalContext{
+			_type: paramType,
+		}
+		emitExprIfc(arg.e, ctx)
+		emitPop(kind(paramType))
+		fmt.Printf("  leaq %d(%%rsp), %%rsi # place to save\n", arg.offset)
+		fmt.Printf("  pushq %%rsi # place to save\n")
+		emitRegiToMem(paramType)
+	}
+
 	fmt.Printf("  callq %s\n", symbol)
-	emitFreeParametersArea(totalParamsSize)
+	emitFreeParametersArea(totalParamSize)
 	emitReturnedValue(results)
 }
 
@@ -1373,16 +1369,12 @@ func emitCompStrings(left astExpr, right astExpr) {
 			offset:    0,
 		},
 	}
-
-	totalParamsSize := emitArgs(args)
 	var resultList = []*astField{
 		&astField{
 			Type:  tBool.e,
 		},
 	}
-	fmt.Printf("  callq runtime.cmpstrings\n")
-	emitFreeParametersArea(totalParamsSize)
-	emitReturnedValue(resultList)
+	emitCall("runtime.cmpstrings", args, resultList)
 }
 
 func emitCompEq(t *Type) {
