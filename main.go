@@ -1142,9 +1142,9 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 				fmt.Printf("  divq %%rcx\n")
 				fmt.Printf("  pushq %%rax\n")
 			case "==":
-				emitBinaryComparison(e.X, e.Y)
+				emitBinaryExprComparison(e.X, e.Y)
 			case "!=":
-				emitBinaryComparison(e.X, e.Y)
+				emitBinaryExprComparison(e.X, e.Y)
 				emitInvertBoolValue()
 			case "<":
 				emitExpr(binaryExpr.X, nil) // left
@@ -1363,30 +1363,14 @@ func emitCompStrings(left astExpr, right astExpr) {
 	emitCall("runtime.cmpstrings", args, resultList)
 }
 
-func emitBinaryComparison(left astExpr, right astExpr) {
+func emitBinaryExprComparison(left astExpr, right astExpr) {
 	if kind(getTypeOfExpr(left)) == T_STRING {
 		emitCompStrings(left, right)
-	} else {
+	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
 		var t = getTypeOfExpr(left)
 		emitExpr(left, nil) // left
 		ctx := &evalContext{_type: t}
-		emitExpr(right, ctx) // right
-		emitCompEq(t)
-	}
-}
-
-func emitCompEq(t *Type) {
-	switch kind(t) {
-	case T_STRING:
-		var resultList = []*astField{
-			&astField{
-				Type: tBool.e,
-			},
-		}
-		fmt.Printf("  callq runtime.cmpstrings\n")
-		emitFreeParametersArea(stringSize * 2)
-		emitReturnedValue(resultList)
-	case T_INTERFACE:
+		emitExprIfc(right, ctx) // right
 		var resultList = []*astField{
 			&astField{
 				Type: tBool.e,
@@ -1395,12 +1379,12 @@ func emitCompEq(t *Type) {
 		fmt.Printf("  callq runtime.cmpinterface\n")
 		emitFreeParametersArea(interfaceSize * 2)
 		emitReturnedValue(resultList)
-	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
+	} else {
+		var t = getTypeOfExpr(left)
+		emitExpr(left, nil) // left
+		ctx := &evalContext{_type: t}
+		emitExprIfc(right, ctx) // right
 		emitCompExpr("sete")
-	case T_SLICE:
-		emitCompExpr("sete") // @FIXME this is not correct
-	default:
-		panic2(__func__, "Unexpected kind="+kind(t))
 	}
 }
 
@@ -1767,9 +1751,41 @@ func emitStmt(stmt astStmt) {
 			}
 			for _, e := range cc.List {
 				assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string", __func__)
-				emitPushStackTop(condType, "switch expr")
-				emitExpr(e, nil)
-				emitCompEq(condType)
+				switch kind(condType) {
+				case T_STRING:
+					var resultList = []*astField{
+						&astField{
+							Type: tBool.e,
+						},
+					}
+					emitPushStackTop(condType, "switch expr")
+					emitExpr(e, nil)
+					fmt.Printf("  callq runtime.cmpstrings\n")
+					emitFreeParametersArea(stringSize * 2)
+					emitReturnedValue(resultList)
+				case T_INTERFACE:
+					var resultList = []*astField{
+						&astField{
+							Type: tBool.e,
+						},
+					}
+					emitPushStackTop(condType, "switch expr")
+					emitExpr(e, nil)
+					fmt.Printf("  callq runtime.cmpinterface\n")
+					emitFreeParametersArea(interfaceSize * 2)
+					emitReturnedValue(resultList)
+				case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
+					emitPushStackTop(condType, "switch expr")
+					emitExpr(e, nil)
+					emitCompExpr("sete")
+				case T_SLICE:
+					emitPushStackTop(condType, "switch expr")
+					emitExpr(e, nil)
+					emitCompExpr("sete") // @FIXME this is not correct
+				default:
+					panic2(__func__, "Unexpected kind="+kind(condType))
+				}
+
 				emitPopBool(" of switch-case comparison")
 				fmt.Printf("  cmpq $1, %%rax\n")
 				fmt.Printf("  je %s # jump if match\n", labelCase)
