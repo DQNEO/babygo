@@ -1018,38 +1018,6 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			throw(e.Op.String())
 		}
 	case *ast.BinaryExpr: // 1 value
-		if kind(getTypeOfExpr(e.X)) == T_STRING {
-			switch e.Op.String() {
-			case "+":
-				args := []*Arg{
-					&Arg{
-						e:         e.X,
-						paramType: tString,
-						offset:    0,
-					},
-					&Arg{
-						e:         e.Y,
-						paramType: tString,
-						offset:    0,
-					},
-				}
-
-				var resultList = []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  tString.e,
-					},
-				}
-				emitCall("runtime.catstrings", args, resultList)
-			case "==": // str1 == str2
-				emitCompStrings(e.X, e.Y)
-			case "!=":
-				emitCompStrings(e.X, e.Y)
-				emitInvertBoolValue()
-			default:
-				throw(e.Op.String())
-			}
-		} else {
 			switch e.Op.String() {
 			case "&&":
 				labelid++
@@ -1086,13 +1054,17 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				emitTrue()
 				fmt.Printf("  %s:\n", labelExit)
 			case "+":
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil) // right
-				fmt.Printf("  popq %%rcx # right\n")
-				fmt.Printf("  popq %%rax # left\n")
-				fmt.Printf("  addq %%rcx, %%rax\n")
-				fmt.Printf("  pushq %%rax\n")
+				if kind(getTypeOfExpr(e.X)) == T_STRING {
+					emitCatStrings(e.X, e.Y)
+				} else {
+					emitComment(2, "start %T\n", e)
+					emitExpr(e.X, nil) // left
+					emitExpr(e.Y, nil) // right
+					fmt.Printf("  popq %%rcx # right\n")
+					fmt.Printf("  popq %%rax # left\n")
+					fmt.Printf("  addq %%rcx, %%rax\n")
+					fmt.Printf("  pushq %%rax\n")
+				}
 			case "-":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
@@ -1129,19 +1101,9 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				fmt.Printf("  divq %%rcx\n")
 				fmt.Printf("  pushq %%rax\n")
 			case "==":
-				var t = getTypeOfExpr(e.X)
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				ctx := &evalContext{_type: t}
-				emitExprIfc(e.Y, ctx) // right
-				emitCompEq(t)
+				emitBinaryExprComparison(e.X, e.Y)
 			case "!=":
-				var t = getTypeOfExpr(e.X)
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				ctx := &evalContext{_type: t}
-				emitExprIfc(e.Y, ctx) // right
-				emitCompEq(t)
+				emitBinaryExprComparison(e.X, e.Y)
 				emitInvertBoolValue()
 			case "<":
 				emitComment(2, "start %T\n", e)
@@ -1166,7 +1128,6 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			default:
 				panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
 			}
-		}
 	case *ast.CompositeLit: // 1 value
 		// slice , array, map or struct
 		switch kind(e2t(e.Type)) {
@@ -1395,6 +1356,29 @@ func emitListElementAddr(list ast.Expr, elmType *Type) {
 	fmt.Printf("  pushq %%rax # addr of element\n")
 }
 
+func emitCatStrings(left ast.Expr, right ast.Expr) {
+	args := []*Arg{
+		&Arg{
+			e:         left,
+			paramType: tString,
+			offset:    0,
+		},
+		&Arg{
+			e:         right,
+			paramType: tString,
+			offset:    0,
+		},
+	}
+
+	var resultList = []*ast.Field{
+		&ast.Field{
+			Names: nil,
+			Type:  tString.e,
+		},
+	}
+	emitCall("runtime.catstrings", args, resultList)
+}
+
 func emitCompStrings(left ast.Expr, right ast.Expr) {
 	args := []*Arg{
 		&Arg{
@@ -1418,19 +1402,14 @@ func emitCompStrings(left ast.Expr, right ast.Expr) {
 	emitCall("runtime.cmpstrings", args, resultList)
 }
 
-func emitCompEq(t *Type) {
-	switch kind(t) {
-	case T_STRING:
-		var resultList = []*ast.Field{
-			&ast.Field{
-				Names: nil,
-				Type:  tBool.e,
-			},
-		}
-		fmt.Printf("  callq runtime.cmpstrings\n")
-		emitFreeParametersArea(stringSize * 2)
-		emitReturnedValue(resultList)
-	case T_INTERFACE:
+func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
+	if  kind(getTypeOfExpr(left)) == T_STRING {
+		emitCompStrings(left, right)
+	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
+		var t = getTypeOfExpr(left)
+		emitExpr(left, nil) // left
+		ctx := &evalContext{_type: t}
+		emitExprIfc(right, ctx) // right
 		var resultList = []*ast.Field{
 			&ast.Field{
 				Names: nil,
@@ -1440,12 +1419,12 @@ func emitCompEq(t *Type) {
 		fmt.Printf("  callq runtime.cmpinterface\n")
 		emitFreeParametersArea(interfaceSize * 2)
 		emitReturnedValue(resultList)
-	case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
+	} else {
+		var t = getTypeOfExpr(left)
+		emitExpr(left, nil) // left
+		ctx := &evalContext{_type: t}
+		emitExprIfc(right, ctx) // right
 		emitCompExpr("sete")
-	case T_SLICE:
-		emitCompExpr("sete") // @FIXME this is not correct
-	default:
-		throw(kind(t))
 	}
 }
 
@@ -1825,9 +1804,38 @@ func emitStmt(stmt ast.Stmt) {
 			}
 			for _, e := range cc.List {
 				assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string")
-				emitPushStackTop(condType, "switch expr")
-				emitExpr(e, nil)
-				emitCompEq(condType)
+				switch kind(condType) {
+				case T_STRING:
+					var resultList = []*ast.Field{
+						&ast.Field{
+							Names: nil,
+							Type:  tBool.e,
+						},
+					}
+					emitPushStackTop(condType, "switch expr")
+					emitExpr(e, nil)
+					fmt.Printf("  callq runtime.cmpstrings\n")
+					emitFreeParametersArea(stringSize * 2)
+					emitReturnedValue(resultList)
+				case T_INTERFACE:
+					var resultList = []*ast.Field{
+						&ast.Field{
+							Names: nil,
+							Type:  tBool.e,
+						},
+					}
+					emitPushStackTop(condType, "switch expr")
+					emitExpr(e, nil)
+					fmt.Printf("  callq runtime.cmpinterface\n")
+					emitFreeParametersArea(interfaceSize * 2)
+					emitReturnedValue(resultList)
+				case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
+					emitPushStackTop(condType, "switch expr")
+					emitExpr(e, nil)
+					emitCompExpr("sete")
+				default:
+					throw(kind(condType))
+				}
 
 				emitPopBool(" of switch-case comparison")
 				fmt.Printf("  cmpq $1, %%rax\n")
