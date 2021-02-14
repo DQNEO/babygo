@@ -1018,19 +1018,6 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			throw(e.Op.String())
 		}
 	case *ast.BinaryExpr: // 1 value
-		if kind(getTypeOfExpr(e.X)) == T_STRING {
-			switch e.Op.String() {
-			case "+":
-				emitCatStrings(e.X, e.Y)
-			case "==": // str1 == str2
-				emitCompStrings(e.X, e.Y)
-			case "!=":
-				emitCompStrings(e.X, e.Y)
-				emitInvertBoolValue()
-			default:
-				throw(e.Op.String())
-			}
-		} else {
 			switch e.Op.String() {
 			case "&&":
 				labelid++
@@ -1067,13 +1054,17 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				emitTrue()
 				fmt.Printf("  %s:\n", labelExit)
 			case "+":
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil) // right
-				fmt.Printf("  popq %%rcx # right\n")
-				fmt.Printf("  popq %%rax # left\n")
-				fmt.Printf("  addq %%rcx, %%rax\n")
-				fmt.Printf("  pushq %%rax\n")
+				if kind(getTypeOfExpr(e.X)) == T_STRING {
+					emitCatStrings(e.X, e.Y)
+				} else {
+					emitComment(2, "start %T\n", e)
+					emitExpr(e.X, nil) // left
+					emitExpr(e.Y, nil) // right
+					fmt.Printf("  popq %%rcx # right\n")
+					fmt.Printf("  popq %%rax # left\n")
+					fmt.Printf("  addq %%rcx, %%rax\n")
+					fmt.Printf("  pushq %%rax\n")
+				}
 			case "-":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
@@ -1110,20 +1101,29 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				fmt.Printf("  divq %%rcx\n")
 				fmt.Printf("  pushq %%rax\n")
 			case "==":
-				var t = getTypeOfExpr(e.X)
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				ctx := &evalContext{_type: t}
-				emitExprIfc(e.Y, ctx) // right
-				emitCompEq(t)
+				if  kind(getTypeOfExpr(e.X)) == T_STRING {
+					emitCompStrings(e.X, e.Y)
+				} else  {
+					var t = getTypeOfExpr(e.X)
+					emitComment(2, "start %T\n", e)
+					emitExpr(e.X, nil) // left
+					ctx := &evalContext{_type: t}
+					emitExprIfc(e.Y, ctx) // right
+					emitCompEq(t)
+				}
 			case "!=":
-				var t = getTypeOfExpr(e.X)
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				ctx := &evalContext{_type: t}
-				emitExprIfc(e.Y, ctx) // right
-				emitCompEq(t)
-				emitInvertBoolValue()
+				if  kind(getTypeOfExpr(e.X)) == T_STRING {
+					emitCompStrings(e.X, e.Y)
+					emitInvertBoolValue()
+				} else {
+					var t = getTypeOfExpr(e.X)
+					emitComment(2, "start %T\n", e)
+					emitExpr(e.X, nil) // left
+					ctx := &evalContext{_type: t}
+					emitExprIfc(e.Y, ctx) // right
+					emitCompEq(t)
+					emitInvertBoolValue()
+				}
 			case "<":
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
@@ -1147,7 +1147,6 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			default:
 				panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
 			}
-		}
 	case *ast.CompositeLit: // 1 value
 		// slice , array, map or struct
 		switch kind(e2t(e.Type)) {
