@@ -2004,6 +2004,13 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 			logf("  #       params %d %d \"%s\"\n", int(v.localOffset), getSizeOfType(v.typ), v.name)
 		}
 	}
+	if len(fnc.retvars) > 0 {
+		for i := 0; i < len(fnc.retvars); i++ {
+			v := fnc.retvars[i]
+			logf("  #       retvars %d %d \"%s\"\n", int(v.localOffset), getSizeOfType(v.typ), v.name)
+		}
+	}
+
 	var localarea int = int(fnc.localarea)
 	var symbol string
 	if fnc.method != nil {
@@ -2859,6 +2866,7 @@ type Func struct {
 	argsarea  localoffsetint
 	localvars []*Variable
 	params    []*Variable
+	retvars   []*Variable
 	funcType  *ast.FuncType
 	method    *Method
 }
@@ -2886,6 +2894,14 @@ func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 	size := getSizeOfType(t)
 	fnc.argsarea += localoffsetint(size)
 	fnc.params = append(fnc.params, vr)
+	return vr
+}
+
+func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
+	vr := newLocalVariable(name, fnc.argsarea, t)
+	size := getSizeOfType(t)
+	fnc.argsarea += localoffsetint(size)
+	fnc.retvars = append(fnc.retvars, vr)
 	return vr
 }
 
@@ -3390,6 +3406,7 @@ func walk(pkg *PkgContainer) {
 		logf("funcdef %s\n", funcDecl.Name.Name)
 
 		var paramFields []*ast.Field
+		var resultFields []*ast.Field
 
 		if funcDecl.Recv != nil { // Method
 			paramFields = append(paramFields, funcDecl.Recv.List[0])
@@ -3398,10 +3415,27 @@ func walk(pkg *PkgContainer) {
 			paramFields = append(paramFields, field)
 		}
 
+		if funcDecl.Type.Results != nil {
+			for _, field := range funcDecl.Type.Results.List {
+				resultFields = append(resultFields, field)
+			}
+		}
+
 		for _, field := range paramFields {
 			obj := field.Names[0].Obj
 			obj.Data = fnc.registerParamVariable(obj.Name, e2t(field.Type))
 		}
+
+		for i, field := range resultFields {
+			if len(field.Names) == 0 {
+				// unnamed retval
+				fnc.registerReturnVariable(".r"+strconv.Itoa(i), e2t(field.Type))
+			} else {
+				panic("TBI: named return variable is not supported")
+			}
+		}
+
+
 		if funcDecl.Body != nil {
 			fnc.stmts = funcDecl.Body.List
 			for _, stmt := range fnc.stmts {
