@@ -113,7 +113,7 @@ func emitPushStackTop(condType *Type, offset int, comment string) {
 		fmt.Printf("  pushq %%rcx # str.len\n")
 		fmt.Printf("  pushq %%rax # str.ptr\n")
 	case T_POINTER, T_UINTPTR, T_BOOL, T_INT, T_UINT8, T_UINT16:
-		fmt.Printf("  movq %d+0(%%rsp), %%rax # copy stack top value (%s) \n", offset, comment)
+		fmt.Printf("  movq %d(%%rsp), %%rax # copy stack top value (%s) \n", offset, comment)
 		fmt.Printf("  pushq %%rax\n")
 	default:
 		throw(kind(condType))
