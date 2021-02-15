@@ -592,7 +592,7 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 	fmt.Printf("  callq %s\n", symbol)
 	emitFreeParametersArea(totalParamSize)
 	fmt.Printf("#  totalReturnSize=%d\n", totalReturnSize)
-	emitFreeReturnVarsArea(totalReturnSize)
+	//emitFreeReturnVarsArea(totalReturnSize)
 	emitReturnedValue(results)
 }
 
@@ -606,12 +606,16 @@ func emitReturnStmt(s *astReturnStmt) {
 		emitAssignToVar(fnc.retvars[0], s.Results[0])
 	} else if len(s.Results) == 3 {
 		// Special treatment to return a slice
-		emitExpr(s.Results[2], nil) // @FIXME
-		emitExpr(s.Results[1], nil) // @FIXME
-		emitExpr(s.Results[0], nil) // @FIXME
-		fmt.Printf("  popq %%rax # ptr\n")
-		fmt.Printf("  popq %%rcx # len\n")
-		fmt.Printf("  popq %%rdx # cap\n")
+		emitAssignToVar(fnc.retvars[0], s.Results[0])
+		emitAssignToVar(fnc.retvars[1], s.Results[1])
+		emitAssignToVar(fnc.retvars[2], s.Results[2])
+
+		//emitExpr(s.Results[2], nil) // @FIXME
+		//emitExpr(s.Results[1], nil) // @FIXME
+		//emitExpr(s.Results[0], nil) // @FIXME
+		//fmt.Printf("  popq %%rax # ptr\n")
+		//fmt.Printf("  popq %%rcx # len\n")
+		//fmt.Printf("  popq %%rdx # cap\n")
 	} else {
 		panic2(__func__, "[*astReturnStmt] TBI\n")
 	}
@@ -629,14 +633,21 @@ func emitReturnedValue(resultList []*astField) {
 		var knd = kind(e2t(retval0.Type))
 		switch knd {
 		case T_STRING, T_INTERFACE:
-			fmt.Printf("  pushq %%rcx # tail\n")
-			fmt.Printf("  pushq %%rax # head\n")
-		case T_BOOL, T_UINT8, T_INT, T_UINTPTR, T_POINTER:
+			//fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 16)
+			//fmt.Printf("  pushq %%rcx # tail\n")
+			//fmt.Printf("  pushq %%rax # head\n")
+		case T_UINT8:
+			fmt.Printf("  movzbq (%%rsp), %%rax\n")
+			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
+			fmt.Printf("  pushq %%rax\n")
+		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 8)
 			fmt.Printf("  pushq %%rax\n")
 		case T_SLICE:
-			fmt.Printf("  pushq %%rdx # slice cap\n")
-			fmt.Printf("  pushq %%rcx # slice len\n")
-			fmt.Printf("  pushq %%rax # slice ptr\n")
+			//fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 24)
+			//fmt.Printf("  pushq %%rdx # slice cap\n")
+			//fmt.Printf("  pushq %%rcx # slice len\n")
+			//fmt.Printf("  pushq %%rax # slice ptr\n")
 		default:
 			panic2(__func__, "Unexpected kind="+knd)
 		}
