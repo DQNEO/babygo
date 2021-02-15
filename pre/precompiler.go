@@ -603,7 +603,6 @@ func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 func emitReturnStmt(s *ast.ReturnStmt) {
 	node := mapReturnStmt[s]
 	fnc := node.fnc
-	//funcType := node.fnc.funcType
 	if len(s.Results) == 0 {
 		// do nothing
 	} else if len(s.Results) == 1 {

@@ -591,10 +591,12 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 	emitReturnedValue(results)
 }
 
+// callee
 func emitReturnStmt(s *astReturnStmt) {
 	node := s.node
 	funcType := node.fnc.funcType
 	if len(s.Results) == 0 {
+		// do nothing
 	} else if len(s.Results) == 1 {
 		targetType := e2t(funcType.Results.List[0].Type)
 		ctx := &evalContext{
@@ -630,6 +632,7 @@ func emitReturnStmt(s *astReturnStmt) {
 	fmt.Printf("  ret\n")
 }
 
+// caller
 func emitReturnedValue(resultList []*astField) {
 	switch len(resultList) {
 	case 0:
@@ -658,6 +661,35 @@ func emitReturnedValue(resultList []*astField) {
 	}
 }
 
+// ABI of stack layout in function call
+//
+// string:
+//   str.ptr
+//   str.len
+// slice:
+//   slc.ptr
+//   slc.len
+//   slc.cap
+//
+// ABI of function call
+//
+// call f(i1 int, i2 int) (r1 int, r2 int)
+//   -- stack top
+//   i1
+//   i2
+//   r1
+//   r2
+//
+// call f(i int, s string, slc []T) int
+//   -- stack top
+//   i
+//   s.ptr
+//   s.len
+//   slc.ptr
+//   slc.len
+//   slc.cap
+//   r
+//   --
 func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 	var symbol string
 	var receiver astExpr
