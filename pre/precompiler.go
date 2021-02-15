@@ -2388,73 +2388,9 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		list := e.X
 		return getElementTypeOfListType(getTypeOfExpr(list))
 	case *ast.CallExpr: // funcall or conversion
-		switch fn := e.Fun.(type) {
-		case *ast.Ident:
-			if fn.Obj == nil {
-				throw(fn)
-			}
-			switch fn.Obj.Kind {
-			case ast.Typ: // conversion
-				return e2t(fn)
-			case ast.Fun:
-				switch fn.Obj {
-				case gLen, gCap:
-					return tInt
-				case gNew:
-					return e2t(&ast.StarExpr{
-						Star: 0,
-						X:    e.Args[0],
-					})
-				case gMake:
-					return e2t(e.Args[0])
-				case gAppend:
-					return e2t(e.Args[0])
-				}
-				switch decl := fn.Obj.Decl.(type) {
-				case *ast.FuncDecl:
-					assert(len(decl.Type.Results.List) == 1, "func is expected to return a single value")
-					return e2t(decl.Type.Results.List[0].Type)
-				default:
-					throw(fn.Obj)
-				}
-			}
-		case *ast.ParenExpr: // (X)(e) funcall or conversion
-			if isType(fn.X) {
-				return e2t(fn.X)
-			} else {
-				panic("TBI: what should we do ?")
-			}
-		case *ast.ArrayType: // conversion [n]T(e) or []T(e)
-			return e2t(fn)
-		case *ast.SelectorExpr: // (X).Sel()
-			if isUnsafePointer(fn) {
-				// unsafe.Pointer(x)
-				return tUintptr
-			}
-			xIdent, ok := fn.X.(*ast.Ident)
-			if !ok {
-				throw(fn)
-			}
-			if xIdent.Obj == nil {
-				throw(xIdent)
-			}
-
-			if xIdent.Obj.Kind == ast.Pkg {
-				// pkg.Sel()
-				funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
-				return e2t(funcdecl.Type.Results.List[0].Type)
-			} else {
-				// Assume method call
-				rcvType := getTypeOfExpr(fn.X)
-				method := lookupMethod(rcvType, fn.Sel)
-				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value")
-				return e2t(method.funcType.Results.List[0].Type)
-			}
-		case *ast.InterfaceType:
-			return tEface
-		default:
-			throw(e.Fun)
-		}
+		types := getCallResultTypes(e)
+		assert(len(types) == 1, "single value is expected")
+		return types[0]
 	case *ast.SliceExpr:
 		underlyingCollectionType := getTypeOfExpr(e.X)
 		if kind(underlyingCollectionType) == T_STRING {
@@ -2503,6 +2439,91 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	throw(expr)
 	return nil
 }
+
+func getCallResultTypes(e *ast.CallExpr) []*Type {
+	switch fn := e.Fun.(type) {
+	case *ast.Ident:
+		if fn.Obj == nil {
+			throw(fn)
+		}
+		switch fn.Obj.Kind {
+		case ast.Typ: // conversion
+			return []*Type{e2t(fn)}
+		case ast.Fun:
+			switch fn.Obj {
+			case gLen, gCap:
+				return []*Type{tInt}
+			case gNew:
+				return []*Type{e2t(&ast.StarExpr{
+					Star: 0,
+					X:    e.Args[0],
+				})}
+			case gMake:
+				return []*Type{e2t(e.Args[0])}
+			case gAppend:
+				return []*Type{e2t(e.Args[0])}
+			}
+			switch decl := fn.Obj.Decl.(type) {
+			case *ast.FuncDecl:
+				var r []*Type
+				for _ , e2 := range decl.Type.Results.List {
+					t := e2t(e2.Type)
+					r = append(r, t)
+				}
+				return r
+			default:
+				throw(fn.Obj)
+			}
+		}
+	case *ast.ParenExpr: // (X)(e) funcall or conversion
+		if isType(fn.X) {
+			return []*Type{e2t(fn.X)}
+		} else {
+			panic("TBI: what should we do ?")
+		}
+	case *ast.ArrayType: // conversion [n]T(e) or []T(e)
+		return []*Type{e2t(fn)}
+	case *ast.SelectorExpr: // (X).Sel()
+		if isUnsafePointer(fn) {
+			// unsafe.Pointer(x)
+			return []*Type{tUintptr}
+		}
+		xIdent, ok := fn.X.(*ast.Ident)
+		if !ok {
+			throw(fn)
+		}
+		if xIdent.Obj == nil {
+			throw(xIdent)
+		}
+
+		if xIdent.Obj.Kind == ast.Pkg {
+			// pkg.Sel()
+			funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+			var r []*Type
+			for _ , e2 := range funcdecl.Type.Results.List {
+				t := e2t(e2.Type)
+				r = append(r, t)
+			}
+			return r
+		} else {
+			// Assume method call
+			rcvType := getTypeOfExpr(fn.X)
+			method := lookupMethod(rcvType, fn.Sel)
+			var r []*Type
+			for _ , e2 := range method.funcType.Results.List {
+				t := e2t(e2.Type)
+				r = append(r, t)
+			}
+			return r
+		}
+	case *ast.InterfaceType:
+		return []*Type{tEface}
+	}
+
+	throw(e)
+	return nil
+}
+
 
 func e2t(typeExpr ast.Expr) *Type {
 	if typeExpr == nil {
