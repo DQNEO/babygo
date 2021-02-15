@@ -91,12 +91,6 @@ func emitPopSlice() {
 	fmt.Printf("  popq %%rdx # slice.cap\n")
 }
 
-func emitAllocReturnVarsArea(size int) {
-	if size == 0 {
-		return
-	}
-	fmt.Printf("  subq $%d, %%rsp # alloc return vars area\n", size)
-}
 
 func emitPushStackTop(condType *Type, offset int, comment string) {
 	switch kind(condType) {
@@ -111,6 +105,13 @@ func emitPushStackTop(condType *Type, offset int, comment string) {
 	default:
 		throw(kind(condType))
 	}
+}
+
+func emitAllocReturnVarsArea(size int) {
+	if size == 0 {
+		return
+	}
+	fmt.Printf("  subq $%d, %%rsp # alloc return vars area\n", size)
 }
 
 func emitFreeParametersArea(size int) {
