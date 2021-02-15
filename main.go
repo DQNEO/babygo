@@ -573,7 +573,7 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 	}
 	var totalReturnSize int
 	for _, r := range results {
-		totalReturnSize += getSizeOfType(e2t(r.Type))
+		totalReturnSize = totalReturnSize + getSizeOfType(e2t(r.Type))
 	}
 	emitAllocReturnVarsArea(totalReturnSize)
 	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
@@ -641,8 +641,9 @@ func emitReturnedValue(resultList []*astField) {
 			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 			fmt.Printf("  pushq %%rax\n")
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 8)
-			fmt.Printf("  pushq %%rax\n")
+			//fmt.Printf("  movq (%%rsp), %%rax\n")
+			//fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 8)
+			//fmt.Printf("  pushq %%rax\n")
 		case T_SLICE:
 			//fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 24)
 			//fmt.Printf("  pushq %%rdx # slice cap\n")
