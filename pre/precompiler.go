@@ -595,7 +595,7 @@ func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 	fmt.Printf("  callq %s\n", symbol)
 	emitFreeParametersArea(totalParamSize)
 	fmt.Printf("#  totalReturnSize=%d\n", totalReturnSize)
-	//emitFreeReturnVarsArea(totalReturnSize)
+	emitFreeReturnVarsArea(totalReturnSize)
 	emitReturnedValue(results)
 }
 
