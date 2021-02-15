@@ -833,8 +833,8 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 			}
 			if xIdent.Obj.Kind == astPkg {
 				// pkg.Sel()
-				funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
-				funcType = funcdecl.Type
+				ff := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+				funcType = ff.decl.Type
 			} else {
 				receiver = selectorExpr.X
 				var receiverType = getTypeOfExpr(receiver)
@@ -2480,8 +2480,8 @@ func getCallResultTypes(e *astCallExpr) []*Type {
 				panic2(__func__, "xIdent.Obj should not be nil")
 			}
 			if xIdent.Obj.Kind == astPkg {
-				funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
-				return fieldList2Types(funcdecl.Type.Results)
+				ff := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+				return fieldList2Types(ff.decl.Type.Results)
 			} else {
 				var xType = getTypeOfExpr(fn.X)
 				var method = lookupMethod(xType, fn.Sel)
@@ -3585,22 +3585,30 @@ func lookupForeignVar(pkg string, identifier string) *astIdent {
 	return nil
 }
 
-func lookupForeignFunc(pkg string, identifier string) *astFuncDecl {
-	key := pkg + "." + identifier
-	logf("lookupForeignFunc... %s\n", key)
+type ForeignFunc struct {
+	symbol string
+	decl *astFuncDecl
+}
+
+func lookupForeignFunc(pkg string, identifier string) *ForeignFunc {
+	symbol := pkg + "." + identifier
+	logf("lookupForeignFunc... %s\n", symbol)
 	for _, entry := range ExportedQualifiedIdents {
 		logf("  looking into %s\n", entry.qi)
-		if entry.qi == key {
+		if entry.qi == symbol {
 			var fdecl *astFuncDecl
 			var ok bool
 			fdecl, ok = entry.any.(*astFuncDecl)
 			if !ok {
 				panic("not fdecl")
 			}
-			return fdecl
+			return &ForeignFunc{
+				symbol: symbol,
+				decl:   fdecl,
+			}
 		}
 	}
-	panic("function not found: " + key)
+	panic("function not found: " + symbol)
 	return nil
 }
 
