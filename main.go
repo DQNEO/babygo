@@ -569,8 +569,7 @@ func emitCall(symbol string, args []*Arg, resultList *astFieldList) {
 		totalParamSize = totalParamSize + getSizeOfType(arg.paramType)
 	}
 
-	totalReturnSize := getTotalFieldsSize(resultList)
-	emitAllocReturnVarsArea(totalReturnSize)
+	emitAllocReturnVarsArea(getTotalFieldsSize(resultList))
 	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for _, arg := range args {
 		paramType := arg.paramType
@@ -609,10 +608,9 @@ func emitCallFF(ff *ForeignFunc) {
 }
 
 func emitCallQ(symbol string, totalParamSize int, resultList *astFieldList) {
-	totalReturnSize := getTotalFieldsSize(resultList)
 	fmt.Printf("  callq %s\n", symbol)
 	emitFreeParametersArea(totalParamSize)
-	fmt.Printf("#  totalReturnSize=%d\n", totalReturnSize)
+	fmt.Printf("#  totalReturnSize=%d\n", getTotalFieldsSize(resultList))
 	emitFreeAndPushReturnedValue(resultList)
 }
 
