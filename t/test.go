@@ -12,15 +12,55 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-func returnMultiValues(a uint8, b uint8, c uint8) (uint8, uint8, uint8) {
+func returnMixed() (int, string, uint8, interface{}, int) {
+	return 123, "456", 'a', nil, 789
+}
+
+func returnStrings() (string, string, string) {
+	return "aaa", "bbb", "ccc"
+}
+
+func returnInts() (int, int, int) {
+	return 1000, 2000, 3000
+}
+
+func returnUint8s(a uint8, b uint8, c uint8) (uint8, uint8, uint8) {
 	return a, b, c
 }
 
-func testReturnMultiValues() {
+
+func testReturnMixed() {
+	var a int
+	var b string
+	var c uint8
+	var d interface{}
+	var e int
+	a, b, c, d, e = returnMixed()
+	fmt.Printf("abce=%d,%s,%s.%d\n", a,b,string([]uint8{c}), e)
+	geface = d
+}
+
+func testReturnStrings() {
+	var a string
+	var b string
+	var c string
+	a, b, c = returnStrings()
+	fmt.Printf("abc=%s,%s,%s\n", a,b,c)
+}
+
+func testReturnInts() {
+	var a int
+	var b int
+	var c int
+	a, b, c = returnInts()
+	fmt.Printf("abc=%d,%d,%d\n", a,b,c)
+}
+
+func testReturnUint8s() {
 	var a uint8
 	var b uint8
 	var c uint8
-	a, b, c = returnMultiValues('l', 'm', 'n')
+	a, b, c = returnUint8s('A', 'B', 'C')
 	fmt.Printf("abc=%s\n", string([]uint8{a,b,c}))
 	os.Exit(0)
 }
@@ -1907,7 +1947,10 @@ func testMisc() {
 }
 
 func main() {
-	testReturnMultiValues()
+	testReturnMixed()
+	testReturnStrings()
+	testReturnInts()
+	testReturnUint8s()
 	testPassBytes()
 	testSprinfMore()
 	testAnotherFile()

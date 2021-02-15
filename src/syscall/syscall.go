@@ -19,9 +19,9 @@ func Open(path string, mode int, perm int) (uintptr, int) {
 	buf := []byte(path)
 	buf = append(buf, 0) // add null terminator
 	p := &buf[0]
-	var ret uintptr
-	ret = Syscall(SYS_OPEN, uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(perm))
-	return ret, 0
+	var fd uintptr
+	fd = Syscall(SYS_OPEN, uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(perm))
+	return fd, 0
 }
 
 func Write(fd int, buf []byte) (uintptr, int) {
