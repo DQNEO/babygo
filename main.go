@@ -637,7 +637,7 @@ func emitReturnedValue(resultList []*astField) {
 			//fmt.Printf("  pushq %%rcx # tail\n")
 			//fmt.Printf("  pushq %%rax # head\n")
 		case T_UINT8:
-			fmt.Printf("  movzbq (%%rsp), %%rax\n")
+			fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
 			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 			fmt.Printf("  pushq %%rax\n")
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
