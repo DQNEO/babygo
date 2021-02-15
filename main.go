@@ -409,16 +409,10 @@ func emitCap(arg astExpr) {
 
 func emitCallMalloc(size int) {
 	// call malloc and return pointer
-	var resultList = []*astField{
-		&astField{
-			Type: tUintptr.e,
-		},
-	}
-	emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
+	ff := lookupForeignFunc("runtime", "malloc")
+	emitAllocReturnVarsAreaFF(ff)
 	fmt.Printf("  pushq $%d\n", size)
-	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
-	emitFreeParametersArea(intSize)
-	emitFreeAndPushReturnedValue(resultList)
+	emitCallFF(ff)
 }
 
 func emitStructLiteral(e *astCompositeLit) {
@@ -589,6 +583,40 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 		fmt.Printf("  leaq %d(%%rsp), %%rsi # place to save\n", arg.offset)
 		fmt.Printf("  pushq %%rsi # place to save\n")
 		emitRegiToMem(paramType)
+	}
+
+
+	emitCallQ(symbol, totalParamSize, results)
+}
+
+func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
+	emitAllocReturnVarsArea(getTotalFieldsSize(ff.decl.Type.Results))
+}
+
+func getTotalFieldsSize(flist  *astFieldList) int {
+	if flist == nil {
+		return 0
+	}
+	var r int
+	for _, fld := range flist.List {
+		r += getSizeOfType(e2t(fld.Type))
+	}
+	return r
+}
+
+func emitCallFF(ff *ForeignFunc) {
+	var totalParamSize int = getTotalFieldsSize(ff.decl.Type.Params)
+	if ff.decl.Type.Results == nil {
+		emitCallQ(ff.symbol, totalParamSize, nil)
+	} else {
+		emitCallQ(ff.symbol, totalParamSize, ff.decl.Type.Results.List)
+	}
+}
+
+func emitCallQ(symbol string, totalParamSize int, results []*astField) {
+	var totalReturnSize int
+	for _, r := range results {
+		totalReturnSize += getSizeOfType(e2t(r.Type))
 	}
 
 	fmt.Printf("  callq %s\n", symbol)
