@@ -1968,6 +1968,12 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 			logf("  #       params %d %d \"%s\"\n", int(v.localOffset), getSizeOfType(v.typ), v.name)
 		}
 	}
+	if len(fnc.retvars) > 0 {
+		for i := 0; i < len(fnc.retvars); i++ {
+			v := fnc.retvars[i]
+			logf("  #       retvars %d %d \"%s\" %s\n", int(v.localOffset), getSizeOfType(v.typ), v.name, string(kind(v.typ)))
+		}
+	}
 
 	var localarea = fnc.localarea
 	var symbol string
@@ -2721,6 +2727,7 @@ type Func struct {
 	argsarea  int
 	vars []*Variable
 	params    []*Variable
+	retvars   []*Variable
 	funcType  *astFuncType
 	rcvType   astExpr
 	name      string
@@ -2750,6 +2757,14 @@ func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.argsarea, t)
 	fnc.argsarea = fnc.argsarea + getSizeOfType(t)
 	fnc.params = append(fnc.params, vr)
+	return vr
+}
+
+func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
+	vr := newLocalVariable(name, fnc.argsarea, t)
+	size := getSizeOfType(t)
+	fnc.argsarea = fnc.argsarea + size
+	fnc.retvars = append(fnc.retvars, vr)
 	return vr
 }
 
@@ -3266,6 +3281,7 @@ func walk(pkg *PkgContainer) {
 		logf(" [sema] == astFuncDecl %s ==\n", funcDecl.Name.Name)
 		//var paramoffset = 16
 		var paramFields []*astField
+		var resultFields []*astField
 
 		if funcDecl.Recv != nil { // Method
 			paramFields = append(paramFields, funcDecl.Recv.List[0])
@@ -3274,9 +3290,24 @@ func walk(pkg *PkgContainer) {
 			paramFields = append(paramFields, field)
 		}
 
+		if funcDecl.Type.Results != nil {
+			for _, field := range funcDecl.Type.Results.List {
+				resultFields = append(resultFields, field)
+			}
+		}
+
 		for _, field := range paramFields {
 			obj := field.Name.Obj
 			obj.Variable = fnc.registerParamVariable(obj.Name, e2t(field.Type))
+		}
+
+		for i, field := range resultFields {
+			if field.Name == nil {
+				// unnamed retval
+				fnc.registerReturnVariable(".r" + strconv.Itoa(i), e2t(field.Type))
+			} else {
+				panic("TBI: named return variable is not supported")
+			}
 		}
 
 		if funcDecl.Body != nil {
