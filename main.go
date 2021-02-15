@@ -601,9 +601,6 @@ func emitReturnStmt(s *astReturnStmt) {
 	var i int
 	_len := len(s.Results)
 	for i=0;i<_len;i++ {
-		if _len > 1 {
-			assert(getSizeOfType(getTypeOfExpr(s.Results[i])) == 8, "TBI", __func__)
-		}
 		emitAssignToVar(fnc.retvars[i], s.Results[i])
 	}
 	fmt.Printf("  leave\n")
@@ -630,7 +627,7 @@ func emitFreeAndPushReturnedValue(resultList []*astField) {
 			panic2(__func__, "Unexpected kind="+knd)
 		}
 	default:
-		panic2(__func__, "multipul returned values is not supported ")
+		//panic("TBI")
 	}
 }
 
@@ -1591,12 +1588,48 @@ func emitStmt(stmt astStmt) {
 		case ":=":
 		default:
 		}
-		var lhs = s.Lhs[0]
-		var rhs = s.Rhs[0]
-		if len(s.Lhs) == 2 && isExprTypeAssertExpr(rhs) {
-			emitAssignWithOK(s.Lhs, rhs)
+		var rhs0 = s.Rhs[0]
+		if len(s.Lhs) == 2 && isExprTypeAssertExpr(rhs0) {
+			emitAssignWithOK(s.Lhs, rhs0)
 		} else {
-			emitAssign(lhs, rhs)
+			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
+				// 1 to 1 assignment
+				// x = e
+				lhs0 := s.Lhs[0]
+				var ident *astIdent
+				var isIdent bool
+				ident, isIdent = lhs0.(*astIdent)
+				if isIdent && ident.Name == "_" {
+					panic(" _ is not supported yet")
+				}
+				emitAssign(lhs0, rhs0)
+			} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
+				// multi-values expr
+				// a, b, c = f()
+				emitExpr(rhs0, nil)
+				//rhsTypes := getTypeOfExpr(rhs0)
+				//throw(rhs0.(*ast.CallExpr))
+				var _callExpr *astCallExpr
+				var ok bool
+				_callExpr,ok = rhs0.(*astCallExpr)
+				assert(ok, "should be a CallExpr", __func__)
+				rhsTypes := getCallResultTypes(_callExpr)
+				fmt.Printf("# rhsTypes=%d\n" , len(rhsTypes))
+				var lhs astExpr
+				for _, lhs = range s.Lhs {
+					if isBlankIdentifier(lhs) {
+						fmt.Printf("  popq %%rax\n")
+						continue
+					}
+
+					fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
+					fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
+					fmt.Printf("  pushq %%rax\n")
+					emitAddr(lhs)
+					emitStore(getTypeOfExpr(lhs), false, false)
+				}
+
+			}
 		}
 	case *astReturnStmt:
 		emitReturnStmt(s)
@@ -2405,10 +2438,6 @@ func getCallResultTypes(e *astCallExpr) []*Type {
 			}
 			switch dcl := decl.(type) {
 			case *astFuncDecl:
-				var resultList = dcl.Type.Results.List
-				if len(resultList) != 1 {
-					panic2(__func__, "[astCallExpr] len results.List is not 1")
-				}
 				return fieldList2Types(dcl.Type.Results)
 			default:
 				panic2(__func__, "[astCallExpr] unknown dtype")
