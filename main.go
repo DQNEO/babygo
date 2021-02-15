@@ -2005,13 +2005,13 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	if len(fnc.params) > 0 {
 		for i =0; i<len(fnc.params);  i++{
 			v := fnc.params[i]
-			logf("  #       params %d %d \"%s\" %s\n", int(v.localOffset), getSizeOfType(v.typ), v.name, string(kind(v.typ)))
+			logf("  #       params %d %d \"%s\" %s\n", (v.localOffset), getSizeOfType(v.typ), v.name, (kind(v.typ)))
 		}
 	}
 	if len(fnc.retvars) > 0 {
 		for i := 0; i < len(fnc.retvars); i++ {
 			v := fnc.retvars[i]
-			logf("  #       retvars %d %d \"%s\" %s\n", int(v.localOffset), getSizeOfType(v.typ), v.name, string(kind(v.typ)))
+			logf("  #       retvars %d %d \"%s\" %s\n", (v.localOffset), getSizeOfType(v.typ), v.name, (kind(v.typ)))
 		}
 	}
 
