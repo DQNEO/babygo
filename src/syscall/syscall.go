@@ -15,13 +15,13 @@ func Read(fd int, buf []byte) uintptr {
 	return ret
 }
 
-func Open(path string, mode int, perm int) uintptr {
+func Open(path string, mode int, perm int) (uintptr, string) {
 	buf := []byte(path)
 	buf = append(buf, 0) // add null terminator
 	p := &buf[0]
 	var ret uintptr
 	ret = Syscall(SYS_OPEN, uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(perm))
-	return ret
+	return ret, ""
 }
 
 func Write(fd int, buf []byte) uintptr {

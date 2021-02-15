@@ -12,6 +12,19 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func returnMultiValues(a uint8, b uint8, c uint8) (uint8, uint8, uint8) {
+	return a, b, c
+}
+
+func testReturnMultiValues() {
+	var a uint8
+	var b uint8
+	var c uint8
+	a, b, c = returnMultiValues('l', 'm', 'n')
+	fmt.Printf("abc=%s\n", string([]uint8{a,b,c}))
+	os.Exit(0)
+}
+
 func receiveBytes(a uint8, b uint8, c uint8) uint8 {
 	var r uint8 = c
 	return r
@@ -1894,6 +1907,7 @@ func testMisc() {
 }
 
 func main() {
+	testReturnMultiValues()
 	testPassBytes()
 	testSprinfMore()
 	testAnotherFile()

@@ -7,8 +7,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-
-	"github.com/DQNEO/babygo/lib/fmt"
+"fmt"
+	//"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -22,7 +22,7 @@ func assert(bol bool, msg string) {
 }
 
 func throw(x interface{}) {
-	panic(fmt.Sprintf("%T", x))
+	panic(fmt.Sprintf("%+v", x))
 }
 
 func parseImports(fset *token.FileSet, filename string) *ast.File {
@@ -604,9 +604,6 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 	var i int
 	_len := len(s.Results)
 	for i=0;i<_len;i++ {
-		if _len > 1 {
-			assert(getSizeOfType(getTypeOfExpr(s.Results[i])) == 8, "TBI")
-		}
 		emitAssignToVar(fnc.retvars[i], s.Results[i])
 	}
 	fmt.Printf("  leave\n")
@@ -633,7 +630,7 @@ func emitFreeAndPushReturnedValue(resultList []*ast.Field) {
 			throw(kind(e2t(retval0.Type)))
 		}
 	default:
-		panic("multipul returned values is not supported ")
+		//panic("TBI")
 	}
 }
 
@@ -1592,17 +1589,44 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.AssignStmt:
 		switch s.Tok.String() {
 		case "=", ":=":
-			lhs := s.Lhs[0]
-			rhs := s.Rhs[0]
-			_, isTypeAssertion := rhs.(*ast.TypeAssertExpr)
+			rhs0 := s.Rhs[0]
+			_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
 			if len(s.Lhs) == 2 && isTypeAssertion {
-				emitAssignWithOK(s.Lhs, rhs)
+				emitAssignWithOK(s.Lhs, rhs0)
 			} else {
-				ident, isIdent := lhs.(*ast.Ident)
-				if isIdent && ident.Name == "_" {
-					panic(" _ is not supported yet")
+				if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
+					// 1 to 1 assignment
+					// x = e
+					lhs0 := s.Lhs[0]
+					ident, isIdent := lhs0.(*ast.Ident)
+					if isIdent && ident.Name == "_" {
+						panic(" _ is not supported yet")
+					}
+					emitAssign(lhs0, rhs0)
+				} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
+					// multi-values expr
+					// a, b, c = f()
+					emitExpr(rhs0, nil)
+					//rhsTypes := getTypeOfExpr(rhs0)
+					//throw(rhs0.(*ast.CallExpr))
+					callExpr,ok := rhs0.(*ast.CallExpr)
+					assert(ok, "should be a CallExpr")
+					rhsTypes := getCallResultTypes(callExpr)
+					fmt.Printf("# rhsTypes=%d\n" , len(rhsTypes))
+					for _, lhs := range s.Lhs {
+						if isBlankIdentifier(lhs) {
+							fmt.Printf("  popq %%rax\n")
+							continue
+						}
+
+						fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
+						fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
+						fmt.Printf("  pushq %%rax\n")
+						emitAddr(lhs)
+						emitStore(getTypeOfExpr(lhs), false, false)
+					}
+
 				}
-				emitAssign(lhs, rhs)
 			}
 		default:
 			panic("TBI: assignment of " + s.Tok.String())
