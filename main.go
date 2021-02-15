@@ -92,6 +92,9 @@ func emitPopSlice() {
 }
 
 func emitAllocReturnVarsArea(size int) {
+	if size == 0 {
+		return
+	}
 	fmt.Printf("  subq $%d, %%rsp # alloc return vars area\n", size)
 }
 
@@ -111,6 +114,9 @@ func emitPushStackTop(condType *Type, offset int, comment string) {
 }
 
 func emitFreeParametersArea(size int) {
+	if size == 0 {
+		return
+	}
 	fmt.Printf("  addq $%d, %%rsp # free parameters area\n", size)
 }
 
@@ -586,7 +592,7 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 
 	fmt.Printf("  callq %s\n", symbol)
 	emitFreeParametersArea(totalParamSize)
-	fmt.Printf("#  totalReturnSize=%d\n", totalReturnSize)
+	//fmt.Printf("#  totalReturnSize=%d\n", totalReturnSize)
 	emitFreeAndPushReturnedValue(results)
 }
 
@@ -1603,30 +1609,38 @@ func emitStmt(stmt astStmt) {
 					panic(" _ is not supported yet")
 				}
 				emitAssign(lhs0, rhs0)
-			} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
+			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
 				// multi-values expr
 				// a, b, c = f()
 				emitExpr(rhs0, nil)
-				//rhsTypes := getTypeOfExpr(rhs0)
+				//returnTypes := getTypeOfExpr(rhs0)
 				//throw(rhs0.(*ast.CallExpr))
 				var _callExpr *astCallExpr
 				var ok bool
 				_callExpr,ok = rhs0.(*astCallExpr)
 				assert(ok, "should be a CallExpr", __func__)
-				rhsTypes := getCallResultTypes(_callExpr)
-				fmt.Printf("# rhsTypes=%d\n" , len(rhsTypes))
-				var lhs astExpr
-				for _, lhs = range s.Lhs {
-					if isBlankIdentifier(lhs) {
-						fmt.Printf("  popq %%rax\n")
-						continue
-					}
+				returnTypes := getCallResultTypes(_callExpr)
+				fmt.Printf("# returnTypes=%d\n" , len(returnTypes))
+				fmt.Printf("# len lhs=%d\n" , len(s.Lhs))
+				fmt.Printf("# returnTypes=%d\n" , len(returnTypes))
+				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes) ), __func__)
 
-					fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
-					fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
-					fmt.Printf("  pushq %%rax\n")
-					emitAddr(lhs)
-					emitStore(getTypeOfExpr(lhs), false, false)
+				length := len(returnTypes)
+				for i:=0; i<length;i++ {
+					lhs := s.Lhs[i]
+					rhsType := returnTypes[i]
+					if isBlankIdentifier(lhs) {
+						emitPop(kind(rhsType))
+					} else {
+						switch kind(rhsType) {
+						case  T_UINT8:
+							fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
+							fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
+							fmt.Printf("  pushq %%rax\n")
+						}
+						emitAddr(lhs)
+						emitStore(getTypeOfExpr(lhs), false, false)
+					}
 				}
 
 			}
@@ -3029,7 +3043,16 @@ func walkStmt(stmt astStmt) {
 			assert(obj.Kind == astVar, obj.Name+" should be ast.Var", __func__)
 			walkExpr(rhs)
 			// infer type
-			var typ = getTypeOfExpr(rhs)
+			var _callExpr *astCallExpr
+			var ok bool
+			_callExpr, ok = rhs.(*astCallExpr)
+			var typ *Type
+			if ok {
+				types := getCallResultTypes(_callExpr)
+				typ = types[0]
+			}else  {
+				typ = getTypeOfExpr(rhs)
+			}
 			if typ != nil && typ.e != nil {
 			} else {
 				panic("type inference is not supported: " + obj.Name)
