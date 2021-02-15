@@ -4,11 +4,11 @@ import (
 	"os"
 	"syscall"
 
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
-
-	"github.com/DQNEO/babygo/lib/fmt"
+	//"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -22,7 +22,7 @@ func assert(bol bool, msg string) {
 }
 
 func throw(x interface{}) {
-	panic(fmt.Sprintf("%T", x))
+	panic(fmt.Sprintf("%+v", x))
 }
 
 func parseImports(fset *token.FileSet, filename string) *ast.File {
@@ -121,10 +121,16 @@ func emitPushStackTop(condType *Type, offset int, comment string) {
 }
 
 func emitAllocReturnVarsArea(size int) {
+	if size == 0 {
+		return
+	}
 	fmt.Printf("  subq $%d, %%rsp # alloc return vars area\n", size)
 }
 
 func emitFreeParametersArea(size int) {
+	if size == 0 {
+		return
+	}
 	fmt.Printf("  addq $%d, %%rsp # free parameters area\n", size)
 }
 
@@ -409,17 +415,10 @@ func emitCap(arg ast.Expr) {
 
 func emitCallMalloc(size int) {
 	// call malloc and return pointer
-	var resultList = []*ast.Field{
-		&ast.Field{
-			Names: nil,
-			Type:  tUintptr.e,
-		},
-	}
-	emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
+	ff := lookupForeignFunc("runtime", "malloc")
+	emitAllocReturnVarsAreaFF(ff)
 	fmt.Printf("  pushq $%d\n", size)
-	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
-	emitFreeParametersArea(intSize)
-	emitFreeAndPushReturnedValue(resultList)
+	emitCallFF(ff)
 }
 
 func emitStructLiteral(e *ast.CompositeLit) {
@@ -561,7 +560,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 }
 
 // see "ABI of stack layout" in the emitFuncall comment
-func emitCall(symbol string, args []*Arg, results []*ast.Field) {
+func emitCall(symbol string, args []*Arg, resultList *ast.FieldList) {
 	emitComment(2, "emitArgs len=%d\n", len(args))
 
 	var totalParamSize int
@@ -569,11 +568,8 @@ func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 		arg.offset = totalParamSize
 		totalParamSize += getSizeOfType(arg.paramType)
 	}
-	var totalReturnSize int
-	for _, r := range results {
-		totalReturnSize += getSizeOfType(e2t(r.Type))
-	}
-	emitAllocReturnVarsArea(totalReturnSize)
+
+	emitAllocReturnVarsArea(getTotalFieldsSize(resultList))
 	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for _, arg := range args {
 		paramType := arg.paramType
@@ -586,11 +582,34 @@ func emitCall(symbol string, args []*Arg, results []*ast.Field) {
 		fmt.Printf("  pushq %%rsi # place to save\n")
 		emitRegiToMem(paramType)
 	}
+	emitCallQ(symbol, totalParamSize, resultList)
+}
 
+func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
+	emitAllocReturnVarsArea(getTotalFieldsSize(ff.decl.Type.Results))
+}
+
+func getTotalFieldsSize(flist  *ast.FieldList) int {
+	if flist == nil {
+		return 0
+	}
+	var r int
+	for _, fld := range flist.List {
+		r += getSizeOfType(e2t(fld.Type))
+	}
+	return r
+}
+
+func emitCallFF(ff *ForeignFunc) {
+	totalParamSize := getTotalFieldsSize(ff.decl.Type.Params)
+	emitCallQ(ff.symbol, totalParamSize, ff.decl.Type.Results)
+}
+
+func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 	fmt.Printf("  callq %s\n", symbol)
 	emitFreeParametersArea(totalParamSize)
-	fmt.Printf("#  totalReturnSize=%d\n", totalReturnSize)
-	emitFreeAndPushReturnedValue(results)
+	fmt.Printf("#  totalReturnSize=%d\n", getTotalFieldsSize(resultList))
+	emitFreeAndPushReturnedValue(resultList)
 }
 
 // callee
@@ -604,9 +623,6 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 	var i int
 	_len := len(s.Results)
 	for i=0;i<_len;i++ {
-		if _len > 1 {
-			assert(getSizeOfType(getTypeOfExpr(s.Results[i])) == 8, "TBI")
-		}
 		emitAssignToVar(fnc.retvars[i], s.Results[i])
 	}
 	fmt.Printf("  leave\n")
@@ -614,13 +630,16 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 }
 
 // caller
-func emitFreeAndPushReturnedValue(resultList []*ast.Field) {
-	switch len(resultList) {
+func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
+	if resultList == nil {
+		return
+	}
+	switch len(resultList.List) {
 	case 0:
 		// do nothing
 	case 1:
 		emitComment(2, "emit return value\n")
-		retval0 := resultList[0]
+		retval0 := resultList.List[0]
 		switch kind(e2t(retval0.Type)) {
 		case T_STRING, T_INTERFACE:
 		case T_UINT8:
@@ -633,7 +652,7 @@ func emitFreeAndPushReturnedValue(resultList []*ast.Field) {
 			throw(kind(e2t(retval0.Type)))
 		}
 	default:
-		panic("multipul returned values is not supported ")
+		//panic("TBI")
 	}
 }
 
@@ -718,12 +737,12 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 					},
 				}
 
-				var resultList = []*ast.Field{
+				var resultList = &ast.FieldList{List: []*ast.Field{
 					&ast.Field{
 						Names: nil,
 						Type:  generalSlice,
 					},
-				}
+				}}
 				emitCall("runtime.makeSlice", args, resultList)
 				return
 			default:
@@ -761,10 +780,13 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			default:
 				throw(elmSize)
 			}
-			var resultList = []*ast.Field{
-				&ast.Field{
-					Names: nil,
-					Type:  generalSlice,
+
+			var resultList = &ast.FieldList{
+				List: 	[]*ast.Field{
+					&ast.Field{
+						Names: nil,
+						Type:  generalSlice,
+					},
 				},
 			}
 			emitCall(symbol, args, resultList)
@@ -829,7 +851,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			// pkg.Sel()
 			symbol = fmt.Sprintf("%s.%s", xIdent.Name, fn.Sel.Name)
 			funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
-			funcType = funcdecl.Type
+			funcType = funcdecl.decl.Type
 		} else {
 			// Assume method call
 			rcvType := getTypeOfExpr(fn.X)
@@ -845,11 +867,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 	}
 
 	args := prepareArgs(funcType, receiver, eArgs, hasEllissis)
-	var resultList []*ast.Field
-	if funcType.Results != nil {
-		resultList = funcType.Results.List
-	}
-	emitCall(symbol, args, resultList)
+	emitCall(symbol, args, funcType.Results)
 }
 
 func emitNil(targetType *Type) {
@@ -1352,13 +1370,13 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 		},
 	}
 
-	var resultList = []*ast.Field{
+	fList := &ast.FieldList{List: []*ast.Field{
 		&ast.Field{
 			Names: nil,
 			Type:  tString.e,
 		},
-	}
-	emitCall("runtime.catstrings", args, resultList)
+	},}
+	emitCall("runtime.catstrings", args, fList)
 }
 
 func emitCompStrings(left ast.Expr, right ast.Expr) {
@@ -1375,13 +1393,16 @@ func emitCompStrings(left ast.Expr, right ast.Expr) {
 		},
 	}
 
-	var resultList = []*ast.Field{
-		&ast.Field{
-			Names: nil,
-			Type:  tBool.e,
+	rList := &ast.FieldList{
+		List:  []*ast.Field{
+			&ast.Field{
+				Names: nil,
+				Type:  tBool.e,
+			},
 		},
 	}
-	emitCall("runtime.cmpstrings", args, resultList)
+
+	emitCall("runtime.cmpstrings", args, rList)
 }
 
 func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
@@ -1389,21 +1410,16 @@ func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
 		emitCompStrings(left, right)
 	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
 		var t = getTypeOfExpr(left)
-		var resultList = []*ast.Field{
-			&ast.Field{
-				Names: nil,
-				Type:  tBool.e,
-			},
-		}
-		emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
+
+		ff := lookupForeignFunc("runtime", "cmpinterface")
+
+		emitAllocReturnVarsAreaFF(ff)
 
 		emitExpr(left, nil) // left
 		ctx := &evalContext{_type: t}
 		emitExprIfc(right, ctx) // right
 
-		fmt.Printf("  callq runtime.cmpinterface\n")
-		emitFreeParametersArea(interfaceSize * 2)
-		emitFreeAndPushReturnedValue(resultList)
+		emitCallFF(ff)
 	} else {
 		var t = getTypeOfExpr(left)
 		emitExpr(left, nil) // left
@@ -1486,8 +1502,8 @@ func emitRegiToMem(t *Type) {
 		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
 		fmt.Printf("  pushq %%rsi # dst lhs\n")
 		fmt.Printf("  pushq %%rax # src rhs\n")
-		fmt.Printf("  callq runtime.memcopy\n")
-		emitFreeParametersArea(ptrSize*2 + intSize)
+		ff := lookupForeignFunc("runtime", "memcopy")
+		emitCallFF(ff)
 	default:
 		panic("TBI:" + k)
 	}
@@ -1592,17 +1608,51 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.AssignStmt:
 		switch s.Tok.String() {
 		case "=", ":=":
-			lhs := s.Lhs[0]
-			rhs := s.Rhs[0]
-			_, isTypeAssertion := rhs.(*ast.TypeAssertExpr)
+			rhs0 := s.Rhs[0]
+			_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
 			if len(s.Lhs) == 2 && isTypeAssertion {
-				emitAssignWithOK(s.Lhs, rhs)
+				emitAssignWithOK(s.Lhs, rhs0)
 			} else {
-				ident, isIdent := lhs.(*ast.Ident)
-				if isIdent && ident.Name == "_" {
-					panic(" _ is not supported yet")
+				if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
+					// 1 to 1 assignment
+					// x = e
+					lhs0 := s.Lhs[0]
+					ident, isIdent := lhs0.(*ast.Ident)
+					if isIdent && ident.Name == "_" {
+						panic(" _ is not supported yet")
+					}
+					emitAssign(lhs0, rhs0)
+				} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
+					// multi-values expr
+					// a, b, c = f()
+					emitExpr(rhs0, nil) // @TODO interface conversion
+					callExpr,ok := rhs0.(*ast.CallExpr)
+					assert(ok, "should be a CallExpr")
+					returnTypes := getCallResultTypes(callExpr)
+					fmt.Printf("# len lhs=%d\n" , len(s.Lhs))
+					fmt.Printf("# returnTypes=%d\n" , len(returnTypes))
+					assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes) ))
+					length := len(returnTypes)
+					for i:=0; i<length;i++ {
+						lhs := s.Lhs[i]
+						rhsType := returnTypes[i]
+						if isBlankIdentifier(lhs) {
+							emitPop(kind(rhsType))
+						} else {
+							switch kind(rhsType) {
+							case T_UINT8:
+								// repush stack top
+								fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
+								fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
+								fmt.Printf("  pushq %%rax\n")
+							default:
+							}
+							emitAddr(lhs)
+							emitStore(getTypeOfExpr(lhs), false, false)
+						}
+					}
+
 				}
-				emitAssign(lhs, rhs)
 			}
 		default:
 			panic("TBI: assignment of " + s.Tok.String())
@@ -1803,31 +1853,22 @@ func emitStmt(stmt ast.Stmt) {
 				assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string")
 				switch kind(condType) {
 				case T_STRING:
-					var resultList = []*ast.Field{
-						&ast.Field{
-							Names: nil,
-							Type:  tBool.e,
-						},
-					}
-					emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
+					ff := lookupForeignFunc("runtime", "cmpstrings")
+					emitAllocReturnVarsAreaFF(ff)
+
 					emitPushStackTop(condType, intSize, "switch expr")
 					emitExpr(e, nil)
-					fmt.Printf("  callq runtime.cmpstrings\n")
-					emitFreeParametersArea(stringSize * 2)
-					emitFreeAndPushReturnedValue(resultList)
+
+					emitCallFF(ff)
 				case T_INTERFACE:
-					var resultList = []*ast.Field{
-						&ast.Field{
-							Names: nil,
-							Type:  tBool.e,
-						},
-					}
-					emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
+					ff := lookupForeignFunc("runtime", "cmpinterface")
+
+					emitAllocReturnVarsAreaFF(ff)
+
 					emitPushStackTop(condType, intSize, "switch expr")
 					emitExpr(e, nil)
-					fmt.Printf("  callq runtime.cmpinterface\n")
-					emitFreeParametersArea(interfaceSize * 2)
-					emitFreeAndPushReturnedValue(resultList)
+
+					emitCallFF(ff)
 				case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 					emitPushStackTop(condType, 0, "switch expr")
 					emitExpr(e, nil)
@@ -2502,8 +2543,8 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 
 		if xIdent.Obj.Kind == ast.Pkg {
 			// pkg.Sel()
-			funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
-			return fieldList2Types(funcdecl.Type.Results)
+			ff := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+			return fieldList2Types(ff.decl.Type.Results)
 		} else {
 			// Assume method call
 			rcvType := getTypeOfExpr(fn.X)
@@ -3081,7 +3122,16 @@ func walkStmt(stmt ast.Stmt) {
 			assert(obj.Kind == ast.Var, "should be ast.Var")
 			walkExpr(rhs)
 			// infer type
-			typ := getTypeOfExpr(rhs)
+			callExpr, ok := rhs.(*ast.CallExpr)
+
+			var typ *Type
+			if ok {
+				types := getCallResultTypes(callExpr)
+				typ = types[0]
+			} else {
+				typ = getTypeOfExpr(rhs)
+			}
+
 			obj.Data = currentFunc.registerLocalVariable(obj.Name, typ)
 
 		} else {
@@ -3587,6 +3637,7 @@ var gPanic = &ast.Object{
 	Type: nil,
 }
 
+
 func createUniverse() *ast.Scope {
 	universe := &ast.Scope{
 		Outer:   nil,
@@ -3671,13 +3722,22 @@ func lookupForeignVar(pkg string, identifier string) *ast.Ident {
 	return ident
 }
 
-func lookupForeignFunc(pkg string, identifier string) *ast.FuncDecl {
-	x, _ := ExportedQualifiedIdents[pkg+"."+identifier]
+type ForeignFunc struct {
+	symbol string
+	decl *ast.FuncDecl
+}
+
+func lookupForeignFunc(pkg string, identifier string) *ForeignFunc {
+	symbol := pkg+"."+identifier
+	x, _ := ExportedQualifiedIdents[symbol]
 	decl, ok := x.(*ast.FuncDecl)
 	if !ok {
 		panic("Function not found: " + pkg + "." + identifier)
 	}
-	return decl
+	return &ForeignFunc{
+		symbol: symbol,
+		decl:   decl,
+	}
 }
 
 // --- main ---
