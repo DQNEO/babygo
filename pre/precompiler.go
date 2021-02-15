@@ -412,8 +412,6 @@ func emitCap(arg ast.Expr) {
 }
 
 func emitCallMalloc(size int) {
-	emitAllocReturnVarsArea(ptrSize)
-	fmt.Printf("  pushq $%d\n", size)
 	// call malloc and return pointer
 	var resultList = []*ast.Field{
 		&ast.Field{
@@ -421,6 +419,8 @@ func emitCallMalloc(size int) {
 			Type:  tUintptr.e,
 		},
 	}
+	emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
+	fmt.Printf("  pushq $%d\n", size)
 	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
 	emitFreeParametersArea(intSize)
 	emitFreeReturnVarsArea(ptrSize)
@@ -1400,18 +1400,18 @@ func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
 		emitCompStrings(left, right)
 	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
 		var t = getTypeOfExpr(left)
-		emitAllocReturnVarsArea(intSize)
-
-		emitExpr(left, nil) // left
-		ctx := &evalContext{_type: t}
-		emitExprIfc(right, ctx) // right
-
 		var resultList = []*ast.Field{
 			&ast.Field{
 				Names: nil,
 				Type:  tBool.e,
 			},
 		}
+		emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
+
+		emitExpr(left, nil) // left
+		ctx := &evalContext{_type: t}
+		emitExprIfc(right, ctx) // right
+
 		fmt.Printf("  callq runtime.cmpinterface\n")
 		emitFreeParametersArea(interfaceSize * 2)
 		emitFreeReturnVarsArea(intSize)
@@ -1821,7 +1821,7 @@ func emitStmt(stmt ast.Stmt) {
 							Type:  tBool.e,
 						},
 					}
-					emitAllocReturnVarsArea(intSize)
+					emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
 					emitPushStackTop(condType, intSize, "switch expr")
 					emitExpr(e, nil)
 					fmt.Printf("  callq runtime.cmpstrings\n")
@@ -1835,7 +1835,7 @@ func emitStmt(stmt ast.Stmt) {
 							Type:  tBool.e,
 						},
 					}
-					emitAllocReturnVarsArea(intSize)
+					emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
 					emitPushStackTop(condType, intSize, "switch expr")
 					emitExpr(e, nil)
 					fmt.Printf("  callq runtime.cmpinterface\n")
