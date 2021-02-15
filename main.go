@@ -95,10 +95,6 @@ func emitAllocReturnVarsArea(size int) {
 	fmt.Printf("  subq $%d, %%rsp # alloc return vars area\n", size)
 }
 
-func emitFreeReturnVarsArea(size int) {
-	fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", size)
-}
-
 func emitPushStackTop(condType *Type, offset int, comment string) {
 	switch kind(condType) {
 	case T_STRING:
@@ -416,7 +412,7 @@ func emitCallMalloc(size int) {
 	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
 	emitFreeParametersArea(intSize)
 	//emitFreeReturnVarsArea(ptrSize)
-	//emitReturnedValue(resultList)
+	//emitFreeAndPushReturnedValue(resultList)
 }
 
 func emitStructLiteral(e *astCompositeLit) {
@@ -593,38 +589,31 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 	emitFreeParametersArea(totalParamSize)
 	fmt.Printf("#  totalReturnSize=%d\n", totalReturnSize)
 	//emitFreeReturnVarsArea(totalReturnSize)
-	emitReturnedValue(results)
+	emitFreeAndPushReturnedValue(results)
 }
 
 // callee
 func emitReturnStmt(s *astReturnStmt) {
 	node := s.node
 	fnc := node.fnc
-	if len(s.Results) == 0 {
-		// do nothing
-	} else if len(s.Results) == 1 {
-		emitAssignToVar(fnc.retvars[0], s.Results[0])
-	} else if len(s.Results) == 3 {
-		// Special treatment to return a slice
-		emitAssignToVar(fnc.retvars[0], s.Results[0])
-		emitAssignToVar(fnc.retvars[1], s.Results[1])
-		emitAssignToVar(fnc.retvars[2], s.Results[2])
+	if len(fnc.retvars) != len(s.Results) {
+		panic("length of return and func type do not match")
+	}
 
-		//emitExpr(s.Results[2], nil) // @FIXME
-		//emitExpr(s.Results[1], nil) // @FIXME
-		//emitExpr(s.Results[0], nil) // @FIXME
-		//fmt.Printf("  popq %%rax # ptr\n")
-		//fmt.Printf("  popq %%rcx # len\n")
-		//fmt.Printf("  popq %%rdx # cap\n")
-	} else {
-		panic2(__func__, "[*astReturnStmt] TBI\n")
+	var i int
+	_len := len(s.Results)
+	for i=0;i<_len;i++ {
+		if _len > 1 {
+			assert(getSizeOfType(getTypeOfExpr(s.Results[i])) == 8, "TBI", __func__)
+		}
+		emitAssignToVar(fnc.retvars[i], s.Results[i])
 	}
 	fmt.Printf("  leave\n")
 	fmt.Printf("  ret\n")
 }
 
 // caller
-func emitReturnedValue(resultList []*astField) {
+func emitFreeAndPushReturnedValue(resultList []*astField) {
 	switch len(resultList) {
 	case 0:
 		// do nothing
@@ -633,22 +622,12 @@ func emitReturnedValue(resultList []*astField) {
 		var knd = kind(e2t(retval0.Type))
 		switch knd {
 		case T_STRING, T_INTERFACE:
-			//fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 16)
-			//fmt.Printf("  pushq %%rcx # tail\n")
-			//fmt.Printf("  pushq %%rax # head\n")
 		case T_UINT8:
 			fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
 			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 			fmt.Printf("  pushq %%rax\n")
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
-			//fmt.Printf("  movq (%%rsp), %%rax\n")
-			//fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 8)
-			//fmt.Printf("  pushq %%rax\n")
 		case T_SLICE:
-			//fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 24)
-			//fmt.Printf("  pushq %%rdx # slice cap\n")
-			//fmt.Printf("  pushq %%rcx # slice len\n")
-			//fmt.Printf("  pushq %%rax # slice ptr\n")
 		default:
 			panic2(__func__, "Unexpected kind="+knd)
 		}
@@ -1418,7 +1397,7 @@ func emitBinaryExprComparison(left astExpr, right astExpr) {
 		fmt.Printf("  callq runtime.cmpinterface\n")
 		emitFreeParametersArea(interfaceSize * 2)
 		//emitFreeReturnVarsArea(intSize)
-		//emitReturnedValue(resultList)
+		//emitFreeAndPushReturnedValue(resultList)
 	} else {
 		var t = getTypeOfExpr(left)
 		emitExpr(left, nil) // left
@@ -1816,7 +1795,7 @@ func emitStmt(stmt astStmt) {
 					fmt.Printf("  callq runtime.cmpstrings\n")
 					emitFreeParametersArea(stringSize * 2)
 					//emitFreeReturnVarsArea(intSize)
-					//emitReturnedValue(resultList)
+					//emitFreeAndPushReturnedValue(resultList)
 				case T_INTERFACE:
 					var resultList = []*astField{
 						&astField{
@@ -1829,7 +1808,7 @@ func emitStmt(stmt astStmt) {
 					fmt.Printf("  callq runtime.cmpinterface\n")
 					emitFreeParametersArea(interfaceSize * 2)
 					//emitFreeReturnVarsArea(intSize)
-					//emitReturnedValue(resultList)
+					//emitFreeAndPushReturnedValue(resultList)
 				case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 					emitPushStackTop(condType, 0, "switch expr")
 					emitExpr(e, nil)
