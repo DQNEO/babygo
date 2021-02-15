@@ -40,7 +40,6 @@ func (s *scanner) Init(src []uint8) {
 	s.ch = ' '
 	s.nextOffset = 0
 	s.insertSemi = false
-	logf("src len = %s\n", strconv.Itoa(len(s.src)))
 	s.next()
 }
 

@@ -20,6 +20,7 @@ func readFile(filename string) []uint8 {
 	var n int
 	// @TODO check error
 	n, _ = syscall.Read(fd, buf)
+	logf("syscall.Read len=%s\n", strconv.Itoa(n))
 	var readbytes = buf[0:n]
 	return readbytes
 }
