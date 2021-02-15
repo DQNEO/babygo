@@ -620,9 +620,9 @@ func emitReturnStmt(s *astReturnStmt) {
 		emitExpr(s.Results[2], nil) // @FIXME
 		emitExpr(s.Results[1], nil) // @FIXME
 		emitExpr(s.Results[0], nil) // @FIXME
-		fmt.Printf("  popq %%rax # return 64bit\n")
-		fmt.Printf("  popq %%rdi # return 64bit\n")
-		fmt.Printf("  popq %%rsi # return 64bit\n")
+		fmt.Printf("  popq %%rax # ptr\n")
+		fmt.Printf("  popq %%rdi # len\n")
+		fmt.Printf("  popq %%rsi # cap\n")
 	} else {
 		panic2(__func__, "[*astReturnStmt] TBI\n")
 	}
