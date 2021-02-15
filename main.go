@@ -560,17 +560,16 @@ func prepareArgs(funcType *astFuncType, receiver astExpr, eArgs []astExpr, expan
 }
 
 // see "ABI of stack layout" in the emitFuncall comment
-func emitCall(symbol string, args []*Arg, results []*astField) {
+func emitCall(symbol string, args []*Arg, resultList *astFieldList) {
 	emitComment(2, "emitArgs len=%d\n", len(args))
+
 	var totalParamSize int
 	for _, arg := range args {
 		arg.offset = totalParamSize
 		totalParamSize = totalParamSize + getSizeOfType(arg.paramType)
 	}
-	var totalReturnSize int
-	for _, r := range results {
-		totalReturnSize = totalReturnSize + getSizeOfType(e2t(r.Type))
-	}
+
+	totalReturnSize := getTotalFieldsSize(resultList)
 	emitAllocReturnVarsArea(totalReturnSize)
 	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for _, arg := range args {
@@ -586,7 +585,7 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 	}
 
 
-	emitCallQ(symbol, totalParamSize, results)
+	emitCallQ(symbol, totalParamSize, resultList)
 }
 
 func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
@@ -605,24 +604,16 @@ func getTotalFieldsSize(flist  *astFieldList) int {
 }
 
 func emitCallFF(ff *ForeignFunc) {
-	var totalParamSize int = getTotalFieldsSize(ff.decl.Type.Params)
-	if ff.decl.Type.Results == nil {
-		emitCallQ(ff.symbol, totalParamSize, nil)
-	} else {
-		emitCallQ(ff.symbol, totalParamSize, ff.decl.Type.Results.List)
-	}
+	totalParamSize := getTotalFieldsSize(ff.decl.Type.Params)
+	emitCallQ(ff.symbol, totalParamSize, ff.decl.Type.Results)
 }
 
-func emitCallQ(symbol string, totalParamSize int, results []*astField) {
-	var totalReturnSize int
-	for _, r := range results {
-		totalReturnSize = totalReturnSize + getSizeOfType(e2t(r.Type))
-	}
-
+func emitCallQ(symbol string, totalParamSize int, resultList *astFieldList) {
+	totalReturnSize := getTotalFieldsSize(resultList)
 	fmt.Printf("  callq %s\n", symbol)
 	emitFreeParametersArea(totalParamSize)
-	//fmt.Printf("#  totalReturnSize=%d\n", totalReturnSize)
-	emitFreeAndPushReturnedValue(results)
+	fmt.Printf("#  totalReturnSize=%d\n", totalReturnSize)
+	emitFreeAndPushReturnedValue(resultList)
 }
 
 // callee
@@ -643,12 +634,15 @@ func emitReturnStmt(s *astReturnStmt) {
 }
 
 // caller
-func emitFreeAndPushReturnedValue(resultList []*astField) {
-	switch len(resultList) {
+func emitFreeAndPushReturnedValue(resultList *astFieldList) {
+	if resultList == nil {
+		return
+	}
+	switch len(resultList.List) {
 	case 0:
 		// do nothing
 	case 1:
-		var retval0 = resultList[0]
+		var retval0 = resultList.List[0]
 		var knd = kind(e2t(retval0.Type))
 		switch knd {
 		case T_STRING, T_INTERFACE:
@@ -746,11 +740,14 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 					},
 				}
 
-				var resultList = []*astField{
-					&astField{
-						Type: generalSlice,
+				var resultList = &astFieldList{
+					List: []*astField{
+						&astField{
+							Type: generalSlice,
+						},
 					},
 				}
+
 				emitCall("runtime.makeSlice", args, resultList)
 				return
 			default:
@@ -790,9 +787,11 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 			default:
 				panic2(__func__, "Unexpected elmSize")
 			}
-			var resultList = []*astField{
-				&astField{
-					Type: generalSlice,
+			resultList := &astFieldList{
+				List: []*astField{
+					&astField{
+						Type: generalSlice,
+					},
 				},
 			}
 			emitCall(symbol, args, resultList)
@@ -877,12 +876,8 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 		panic2(__func__, "TBI fun.dtype="+dtypeOf(fun))
 	}
 
-	var args = prepareArgs(funcType, receiver, eArgs, hasEllissis)
-	var resultList []*astField
-	if funcType.Results != nil {
-		resultList = funcType.Results.List
-	}
-	emitCall(symbol, args, resultList)
+	args := prepareArgs(funcType, receiver, eArgs, hasEllissis)
+	emitCall(symbol, args, funcType.Results)
 }
 
 func emitNil(targetType *Type) {
@@ -1381,11 +1376,14 @@ func emitCatStrings(left astExpr, right astExpr) {
 			paramType: tString,
 		},
 	}
-	var resultList = []*astField{
-		&astField{
-			Type: tString.e,
+	var resultList = &astFieldList{
+		List:[]*astField{
+			&astField{
+				Type: tString.e,
+			},
 		},
 	}
+
 	emitCall("runtime.catstrings", args, resultList)
 }
 
@@ -1402,9 +1400,11 @@ func emitCompStrings(left astExpr, right astExpr) {
 			offset:    0,
 		},
 	}
-	var resultList = []*astField{
-		&astField{
-			Type:  tBool.e,
+	var resultList = &astFieldList{
+		List: []*astField{
+			&astField{
+				Type: tBool.e,
+			},
 		},
 	}
 	emitCall("runtime.cmpstrings", args, resultList)
