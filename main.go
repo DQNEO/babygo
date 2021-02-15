@@ -599,7 +599,7 @@ func getTotalFieldsSize(flist  *astFieldList) int {
 	}
 	var r int
 	for _, fld := range flist.List {
-		r += getSizeOfType(e2t(fld.Type))
+		r = r + getSizeOfType(e2t(fld.Type))
 	}
 	return r
 }
@@ -616,7 +616,7 @@ func emitCallFF(ff *ForeignFunc) {
 func emitCallQ(symbol string, totalParamSize int, results []*astField) {
 	var totalReturnSize int
 	for _, r := range results {
-		totalReturnSize += getSizeOfType(e2t(r.Type))
+		totalReturnSize = totalReturnSize + getSizeOfType(e2t(r.Type))
 	}
 
 	fmt.Printf("  callq %s\n", symbol)
@@ -1855,27 +1855,12 @@ func emitStmt(stmt astStmt) {
 					emitExpr(e, nil)
 
 					emitCallFF(ff)
-					//fmt.Printf("  callq runtime.cmpstrings\n")
-					//emitFreeParametersArea(stringSize * 2)
-					//var resultList = []*astField{
-					//	&astField{
-					//		Type: tBool.e,
-					//	},
-					//}
-					//
-					//emitFreeAndPushReturnedValue(resultList)
 				case T_INTERFACE:
-					var resultList = []*astField{
-						&astField{
-							Type: tBool.e,
-						},
-					}
-					emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
+					ff := lookupForeignFunc("runtime", "cmpinterface")
+					emitAllocReturnVarsAreaFF(ff)
 					emitPushStackTop(condType, intSize, "switch expr")
 					emitExpr(e, nil)
-					fmt.Printf("  callq runtime.cmpinterface\n")
-					emitFreeParametersArea(interfaceSize * 2)
-					emitFreeAndPushReturnedValue(resultList)
+					emitCallFF(ff)
 				case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 					emitPushStackTop(condType, 0, "switch expr")
 					emitExpr(e, nil)
