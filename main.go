@@ -1415,18 +1415,12 @@ func emitBinaryExprComparison(left astExpr, right astExpr) {
 		emitCompStrings(left, right)
 	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
 		var t = getTypeOfExpr(left)
-		var resultList = []*astField{
-			&astField{
-				Type: tBool.e,
-			},
-		}
-		emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
+		ff := lookupForeignFunc("runtime", "cmpinterface")
+		emitAllocReturnVarsAreaFF(ff)
 		emitExpr(left, nil) // left
 		ctx := &evalContext{_type: t}
 		emitExprIfc(right, ctx) // right
-		fmt.Printf("  callq runtime.cmpinterface\n")
-		emitFreeParametersArea(interfaceSize * 2)
-		emitFreeAndPushReturnedValue(resultList)
+		emitCallFF(ff)
 	} else {
 		var t = getTypeOfExpr(left)
 		emitExpr(left, nil) // left
@@ -1509,8 +1503,8 @@ func emitRegiToMem(t *Type) {
 		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
 		fmt.Printf("  pushq %%rsi # dst lhs\n")
 		fmt.Printf("  pushq %%rax # src rhs\n")
-		fmt.Printf("  callq runtime.memcopy\n")
-		emitFreeParametersArea(ptrSize*2 + intSize)
+		ff := lookupForeignFunc("runtime", "memcopy")
+		emitCallFF(ff)
 	default:
 		panic2(__func__, "TBI:"+k)
 	}
