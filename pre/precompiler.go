@@ -589,7 +589,7 @@ func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
 	emitAllocReturnVarsArea(getTotalFieldsSize(ff.decl.Type.Results))
 }
 
-func getTotalFieldsSize(flist  *ast.FieldList) int {
+func getTotalFieldsSize(flist *ast.FieldList) int {
 	if flist == nil {
 		return 0
 	}
@@ -622,7 +622,7 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 
 	var i int
 	_len := len(s.Results)
-	for i=0;i<_len;i++ {
+	for i = 0; i < _len; i++ {
 		emitAssignToVar(fnc.retvars[i], s.Results[i])
 	}
 	fmt.Printf("  leave\n")
@@ -782,7 +782,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			}
 
 			var resultList = &ast.FieldList{
-				List: 	[]*ast.Field{
+				List: []*ast.Field{
 					&ast.Field{
 						Names: nil,
 						Type:  generalSlice,
@@ -1018,116 +1018,116 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			throw(e.Op.String())
 		}
 	case *ast.BinaryExpr: // 1 value
-			switch e.Op.String() {
-			case "&&":
-				labelid++
-				labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
-				labelExit := fmt.Sprintf(".L.%d.exit", labelid)
-				emitExpr(e.X, nil) // left
-				emitPopBool("left")
-				fmt.Printf("  cmpq $1, %%rax\n")
-				// exit with false if left is false
-				fmt.Printf("  jne %s\n", labelExitWithFalse)
+		switch e.Op.String() {
+		case "&&":
+			labelid++
+			labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
+			labelExit := fmt.Sprintf(".L.%d.exit", labelid)
+			emitExpr(e.X, nil) // left
+			emitPopBool("left")
+			fmt.Printf("  cmpq $1, %%rax\n")
+			// exit with false if left is false
+			fmt.Printf("  jne %s\n", labelExitWithFalse)
 
-				// if left is true, then eval right and exit
-				emitExpr(e.Y, nil) // right
-				fmt.Printf("  jmp %s\n", labelExit)
+			// if left is true, then eval right and exit
+			emitExpr(e.Y, nil) // right
+			fmt.Printf("  jmp %s\n", labelExit)
 
-				fmt.Printf("  %s:\n", labelExitWithFalse)
-				emitFalse()
-				fmt.Printf("  %s:\n", labelExit)
-			case "||":
-				labelid++
-				labelExitWithTrue := fmt.Sprintf(".L.%d.true", labelid)
-				labelExit := fmt.Sprintf(".L.%d.exit", labelid)
-				emitExpr(e.X, nil) // left
-				emitPopBool("left")
-				fmt.Printf("  cmpq $1, %%rax\n")
-				// exit with true if left is true
-				fmt.Printf("  je %s\n", labelExitWithTrue)
+			fmt.Printf("  %s:\n", labelExitWithFalse)
+			emitFalse()
+			fmt.Printf("  %s:\n", labelExit)
+		case "||":
+			labelid++
+			labelExitWithTrue := fmt.Sprintf(".L.%d.true", labelid)
+			labelExit := fmt.Sprintf(".L.%d.exit", labelid)
+			emitExpr(e.X, nil) // left
+			emitPopBool("left")
+			fmt.Printf("  cmpq $1, %%rax\n")
+			// exit with true if left is true
+			fmt.Printf("  je %s\n", labelExitWithTrue)
 
-				// if left is false, then eval right and exit
-				emitExpr(e.Y, nil) // right
-				fmt.Printf("  jmp %s\n", labelExit)
+			// if left is false, then eval right and exit
+			emitExpr(e.Y, nil) // right
+			fmt.Printf("  jmp %s\n", labelExit)
 
-				fmt.Printf("  %s:\n", labelExitWithTrue)
-				emitTrue()
-				fmt.Printf("  %s:\n", labelExit)
-			case "+":
-				if kind(getTypeOfExpr(e.X)) == T_STRING {
-					emitCatStrings(e.X, e.Y)
-				} else {
-					emitComment(2, "start %T\n", e)
-					emitExpr(e.X, nil) // left
-					emitExpr(e.Y, nil) // right
-					fmt.Printf("  popq %%rcx # right\n")
-					fmt.Printf("  popq %%rax # left\n")
-					fmt.Printf("  addq %%rcx, %%rax\n")
-					fmt.Printf("  pushq %%rax\n")
-				}
-			case "-":
+			fmt.Printf("  %s:\n", labelExitWithTrue)
+			emitTrue()
+			fmt.Printf("  %s:\n", labelExit)
+		case "+":
+			if kind(getTypeOfExpr(e.X)) == T_STRING {
+				emitCatStrings(e.X, e.Y)
+			} else {
 				emitComment(2, "start %T\n", e)
 				emitExpr(e.X, nil) // left
 				emitExpr(e.Y, nil) // right
 				fmt.Printf("  popq %%rcx # right\n")
 				fmt.Printf("  popq %%rax # left\n")
-				fmt.Printf("  subq %%rcx, %%rax\n")
+				fmt.Printf("  addq %%rcx, %%rax\n")
 				fmt.Printf("  pushq %%rax\n")
-			case "*":
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil) // right
-				fmt.Printf("  popq %%rcx # right\n")
-				fmt.Printf("  popq %%rax # left\n")
-				fmt.Printf("  imulq %%rcx, %%rax\n")
-				fmt.Printf("  pushq %%rax\n")
-			case "%":
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil) // right
-				fmt.Printf("  popq %%rcx # right\n")
-				fmt.Printf("  popq %%rax # left\n")
-				fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
-				fmt.Printf("  divq %%rcx\n")
-				fmt.Printf("  movq %%rdx, %%rax\n")
-				fmt.Printf("  pushq %%rax\n")
-			case "/":
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil) // right
-				fmt.Printf("  popq %%rcx # right\n")
-				fmt.Printf("  popq %%rax # left\n")
-				fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
-				fmt.Printf("  divq %%rcx\n")
-				fmt.Printf("  pushq %%rax\n")
-			case "==":
-				emitBinaryExprComparison(e.X, e.Y)
-			case "!=":
-				emitBinaryExprComparison(e.X, e.Y)
-				emitInvertBoolValue()
-			case "<":
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil) // right
-				emitCompExpr("setl")
-			case "<=":
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil) // right
-				emitCompExpr("setle")
-			case ">":
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil) // right
-				emitCompExpr("setg")
-			case ">=":
-				emitComment(2, "start %T\n", e)
-				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil) // right
-				emitCompExpr("setge")
-			default:
-				panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
 			}
+		case "-":
+			emitComment(2, "start %T\n", e)
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
+			fmt.Printf("  popq %%rcx # right\n")
+			fmt.Printf("  popq %%rax # left\n")
+			fmt.Printf("  subq %%rcx, %%rax\n")
+			fmt.Printf("  pushq %%rax\n")
+		case "*":
+			emitComment(2, "start %T\n", e)
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
+			fmt.Printf("  popq %%rcx # right\n")
+			fmt.Printf("  popq %%rax # left\n")
+			fmt.Printf("  imulq %%rcx, %%rax\n")
+			fmt.Printf("  pushq %%rax\n")
+		case "%":
+			emitComment(2, "start %T\n", e)
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
+			fmt.Printf("  popq %%rcx # right\n")
+			fmt.Printf("  popq %%rax # left\n")
+			fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
+			fmt.Printf("  divq %%rcx\n")
+			fmt.Printf("  movq %%rdx, %%rax\n")
+			fmt.Printf("  pushq %%rax\n")
+		case "/":
+			emitComment(2, "start %T\n", e)
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
+			fmt.Printf("  popq %%rcx # right\n")
+			fmt.Printf("  popq %%rax # left\n")
+			fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
+			fmt.Printf("  divq %%rcx\n")
+			fmt.Printf("  pushq %%rax\n")
+		case "==":
+			emitBinaryExprComparison(e.X, e.Y)
+		case "!=":
+			emitBinaryExprComparison(e.X, e.Y)
+			emitInvertBoolValue()
+		case "<":
+			emitComment(2, "start %T\n", e)
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
+			emitCompExpr("setl")
+		case "<=":
+			emitComment(2, "start %T\n", e)
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
+			emitCompExpr("setle")
+		case ">":
+			emitComment(2, "start %T\n", e)
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
+			emitCompExpr("setg")
+		case ">=":
+			emitComment(2, "start %T\n", e)
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
+			emitCompExpr("setge")
+		default:
+			panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
+		}
 	case *ast.CompositeLit: // 1 value
 		// slice , array, map or struct
 		switch kind(e2t(e.Type)) {
@@ -1375,7 +1375,7 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 			Names: nil,
 			Type:  tString.e,
 		},
-	},}
+	}}
 	emitCall("runtime.catstrings", args, fList)
 }
 
@@ -1394,7 +1394,7 @@ func emitCompStrings(left ast.Expr, right ast.Expr) {
 	}
 
 	rList := &ast.FieldList{
-		List:  []*ast.Field{
+		List: []*ast.Field{
 			&ast.Field{
 				Names: nil,
 				Type:  tBool.e,
@@ -1406,7 +1406,7 @@ func emitCompStrings(left ast.Expr, right ast.Expr) {
 }
 
 func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
-	if  kind(getTypeOfExpr(left)) == T_STRING {
+	if kind(getTypeOfExpr(left)) == T_STRING {
 		emitCompStrings(left, right)
 	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
 		var t = getTypeOfExpr(left)
@@ -1626,14 +1626,14 @@ func emitStmt(stmt ast.Stmt) {
 					// multi-values expr
 					// a, b, c = f()
 					emitExpr(rhs0, nil) // @TODO interface conversion
-					callExpr,ok := rhs0.(*ast.CallExpr)
+					callExpr, ok := rhs0.(*ast.CallExpr)
 					assert(ok, "should be a CallExpr")
 					returnTypes := getCallResultTypes(callExpr)
-					fmt.Printf("# len lhs=%d\n" , len(s.Lhs))
-					fmt.Printf("# returnTypes=%d\n" , len(returnTypes))
-					assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes) ))
+					fmt.Printf("# len lhs=%d\n", len(s.Lhs))
+					fmt.Printf("# returnTypes=%d\n", len(returnTypes))
+					assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)))
 					length := len(returnTypes)
-					for i:=0; i<length;i++ {
+					for i := 0; i < length; i++ {
 						lhs := s.Lhs[i]
 						rhsType := returnTypes[i]
 						if isBlankIdentifier(lhs) {
@@ -2023,7 +2023,7 @@ func getPackageSymbol(pkgPrefix string, subsymbol string) string {
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("# emitFuncDecl\n")
 	if len(fnc.params) > 0 {
-		for i:=0; i<len(fnc.params);  i++{
+		for i := 0; i < len(fnc.params); i++ {
 			v := fnc.params[i]
 			logf("  #       params %d %d \"%s\" %s\n", int(v.localOffset), getSizeOfType(v.typ), v.name, string(kind(v.typ)))
 		}
@@ -2046,7 +2046,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
 	if len(fnc.localvars) > 0 {
-		for i:=len(fnc.localvars) -1; i>=0; i--{
+		for i := len(fnc.localvars) - 1; i >= 0; i-- {
 			v := fnc.localvars[i]
 			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -int(v.localOffset), getSizeOfType(v.typ), v.name)
 		}
@@ -2483,7 +2483,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 
 func fieldList2Types(fldlist *ast.FieldList) []*Type {
 	var r []*Type
-	for _ , e2 := range fldlist.List {
+	for _, e2 := range fldlist.List {
 		t := e2t(e2.Type)
 		r = append(r, t)
 	}
@@ -2558,7 +2558,6 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 	throw(e)
 	return nil
 }
-
 
 func e2t(typeExpr ast.Expr) *Type {
 	if typeExpr == nil {
@@ -3477,12 +3476,11 @@ func walk(pkg *PkgContainer) {
 		for i, field := range resultFields {
 			if len(field.Names) == 0 {
 				// unnamed retval
-				fnc.registerReturnVariable(".r" + strconv.Itoa(i), e2t(field.Type))
+				fnc.registerReturnVariable(".r"+strconv.Itoa(i), e2t(field.Type))
 			} else {
 				panic("TBI: named return variable is not supported")
 			}
 		}
-
 
 		if funcDecl.Body != nil {
 			fnc.stmts = funcDecl.Body.List
@@ -3637,7 +3635,6 @@ var gPanic = &ast.Object{
 	Type: nil,
 }
 
-
 func createUniverse() *ast.Scope {
 	universe := &ast.Scope{
 		Outer:   nil,
@@ -3724,11 +3721,11 @@ func lookupForeignVar(pkg string, identifier string) *ast.Ident {
 
 type ForeignFunc struct {
 	symbol string
-	decl *ast.FuncDecl
+	decl   *ast.FuncDecl
 }
 
 func lookupForeignFunc(pkg string, identifier string) *ForeignFunc {
-	symbol := pkg+"."+identifier
+	symbol := pkg + "." + identifier
 	x, _ := ExportedQualifiedIdents[symbol]
 	decl, ok := x.(*ast.FuncDecl)
 	if !ok {

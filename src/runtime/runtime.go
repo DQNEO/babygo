@@ -303,7 +303,6 @@ func cmpinterface(a uintptr, b uintptr, c uintptr, d uintptr) bool {
 	return false
 }
 
-
 func Write(fd int, p []byte) int
 func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
 

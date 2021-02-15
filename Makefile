@@ -80,8 +80,8 @@ selfhost: $(tmp)/babygo $(tmp)/babygo2 $(tmp)/babygo-main.s
 	@echo "self host is ok"
 
 .PHONY: fmt
-fmt: *.go t/*.go pre/*.go
-	gofmt -w *.go t/*.go pre/*.go
+fmt:
+	gofmt -w t/*.go pre/*.go src/*/*.go lib/*/*.go
 
 .PHONY: clean
 clean:
