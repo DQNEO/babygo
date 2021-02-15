@@ -1639,8 +1639,7 @@ func emitStmt(stmt ast.Stmt) {
 					returnTypes := getCallResultTypes(callExpr)
 					fmt.Printf("# len lhs=%d\n" , len(s.Lhs))
 					fmt.Printf("# returnTypes=%d\n" , len(returnTypes))
-					assert(len(returnTypes) == len(s.Lhs),
-						fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes) ))
+					assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes) ))
 					length := len(returnTypes)
 					for i:=0; i<length;i++ {
 						lhs := s.Lhs[i]

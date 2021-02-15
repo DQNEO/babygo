@@ -1635,9 +1635,7 @@ func emitStmt(stmt astStmt) {
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
 				// multi-values expr
 				// a, b, c = f()
-				emitExpr(rhs0, nil)
-				//returnTypes := getTypeOfExpr(rhs0)
-				//throw(rhs0.(*ast.CallExpr))
+				emitExpr(rhs0, nil) // @TODO interface conversion
 				var _callExpr *astCallExpr
 				var ok bool
 				_callExpr,ok = rhs0.(*astCallExpr)
@@ -1647,7 +1645,6 @@ func emitStmt(stmt astStmt) {
 				fmt.Printf("# len lhs=%d\n" , len(s.Lhs))
 				fmt.Printf("# returnTypes=%d\n" , len(returnTypes))
 				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes) ), __func__)
-
 				length := len(returnTypes)
 				for i:=0; i<length;i++ {
 					lhs := s.Lhs[i]
@@ -1657,6 +1654,7 @@ func emitStmt(stmt astStmt) {
 					} else {
 						switch kind(rhsType) {
 						case  T_UINT8:
+							// repush stack top
 							fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
 							fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 							fmt.Printf("  pushq %%rax\n")
@@ -1851,17 +1849,21 @@ func emitStmt(stmt astStmt) {
 				assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string", __func__)
 				switch kind(condType) {
 				case T_STRING:
-					var resultList = []*astField{
-						&astField{
-							Type: tBool.e,
-						},
-					}
-					emitAllocReturnVarsArea(getSizeOfType(e2t(resultList[0].Type)))
+					ff := lookupForeignFunc("runtime", "cmpstrings")
+					emitAllocReturnVarsAreaFF(ff)
 					emitPushStackTop(condType, intSize, "switch expr")
 					emitExpr(e, nil)
-					fmt.Printf("  callq runtime.cmpstrings\n")
-					emitFreeParametersArea(stringSize * 2)
-					emitFreeAndPushReturnedValue(resultList)
+
+					emitCallFF(ff)
+					//fmt.Printf("  callq runtime.cmpstrings\n")
+					//emitFreeParametersArea(stringSize * 2)
+					//var resultList = []*astField{
+					//	&astField{
+					//		Type: tBool.e,
+					//	},
+					//}
+					//
+					//emitFreeAndPushReturnedValue(resultList)
 				case T_INTERFACE:
 					var resultList = []*astField{
 						&astField{
