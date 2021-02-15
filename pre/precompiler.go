@@ -2440,6 +2440,15 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	return nil
 }
 
+func fieldList2Types(fldlist *ast.FieldList) []*Type {
+	var r []*Type
+	for _ , e2 := range fldlist.List {
+		t := e2t(e2.Type)
+		r = append(r, t)
+	}
+	return r
+}
+
 func getCallResultTypes(e *ast.CallExpr) []*Type {
 	switch fn := e.Fun.(type) {
 	case *ast.Ident:
@@ -2465,12 +2474,7 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			}
 			switch decl := fn.Obj.Decl.(type) {
 			case *ast.FuncDecl:
-				var r []*Type
-				for _ , e2 := range decl.Type.Results.List {
-					t := e2t(e2.Type)
-					r = append(r, t)
-				}
-				return r
+				return fieldList2Types(decl.Type.Results)
 			default:
 				throw(fn.Obj)
 			}
@@ -2499,22 +2503,12 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 		if xIdent.Obj.Kind == ast.Pkg {
 			// pkg.Sel()
 			funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
-			var r []*Type
-			for _ , e2 := range funcdecl.Type.Results.List {
-				t := e2t(e2.Type)
-				r = append(r, t)
-			}
-			return r
+			return fieldList2Types(funcdecl.Type.Results)
 		} else {
 			// Assume method call
 			rcvType := getTypeOfExpr(fn.X)
 			method := lookupMethod(rcvType, fn.Sel)
-			var r []*Type
-			for _ , e2 := range method.funcType.Results.List {
-				t := e2t(e2.Type)
-				r = append(r, t)
-			}
-			return r
+			return fieldList2Types(method.funcType.Results)
 		}
 	case *ast.InterfaceType:
 		return []*Type{tEface}

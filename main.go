@@ -2306,80 +2306,9 @@ func getTypeOfExpr(expr astExpr) *Type {
 			panic2(__func__, "TBI: Op="+e.Op)
 		}
 	case *astCallExpr:
-		emitComment(2, "[%s] *astCallExpr\n", __func__)
-		var fun = e.Fun
-		switch fn := fun.(type) {
-		case *astIdent:
-			if fn.Obj == nil {
-				panic2(__func__, "[astCallExpr] nil Obj is not allowed")
-			}
-			switch fn.Obj.Kind {
-			case astTyp:
-				return e2t(fun)
-			case astFun:
-				switch fn.Obj {
-				case gLen, gCap:
-					return tInt
-				case gNew:
-					var starExpr = &astStarExpr{}
-					starExpr.X = e.Args[0]
-					return e2t(newExpr(starExpr))
-				case gMake:
-					return e2t(e.Args[0])
-				case gAppend:
-					return e2t(e.Args[0])
-				}
-				var decl = fn.Obj.Decl
-				if decl == nil {
-					panic2(__func__, "decl of function "+fn.Name+" is  nil")
-				}
-				switch dcl := decl.(type) {
-				case *astFuncDecl:
-					var resultList = dcl.Type.Results.List
-					if len(resultList) != 1 {
-						panic2(__func__, "[astCallExpr] len results.List is not 1")
-					}
-					return e2t(dcl.Type.Results.List[0].Type)
-				default:
-					panic2(__func__, "[astCallExpr] unknown dtype")
-				}
-				panic2(__func__, "[astCallExpr] Fun ident "+fn.Name)
-			}
-		case *astParenExpr: // (X)(e) funcall or conversion
-			if isType(fn.X) {
-				return e2t(fn.X)
-			} else {
-				panic("TBI: what should we do ?")
-			}
-		case *astArrayType:
-			return e2t(fun)
-		case *astSelectorExpr: // (X).Sel()
-			xIdent := expr2Ident(fn.X)
-			symbol := xIdent.Name + "." + fn.Sel.Name
-			switch symbol {
-			case "unsafe.Pointer":
-				// unsafe.Pointer(x)
-				return tUintptr
-			default:
-				xIdent := expr2Ident(fn.X)
-				if xIdent.Obj == nil {
-					panic2(__func__, "xIdent.Obj should not be nil")
-				}
-				if xIdent.Obj.Kind == astPkg {
-					funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
-					return e2t(funcdecl.Type.Results.List[0].Type)
-				} else {
-					var xType = getTypeOfExpr(fn.X)
-					var method = lookupMethod(xType, fn.Sel)
-					assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value", __func__)
-					return e2t(method.funcType.Results.List[0].Type)
-				}
-			}
-		case *astInterfaceType:
-			return tEface
-		default:
-			panic2(__func__, "[astCallExpr] dtype="+dtypeOf(e.Fun))
-		}
+		types := getCallResultTypes(e)
+		assert(len(types) == 1, "single value is expected", __func__)
+		return types[0]
 	case *astSliceExpr:
 		var underlyingCollectionType = getTypeOfExpr(e.X)
 		if kind(underlyingCollectionType) == T_STRING {
@@ -2435,6 +2364,93 @@ func getTypeOfExpr(expr astExpr) *Type {
 	panic2(__func__, "nil type is not allowed\n")
 	var r *Type
 	return r
+}
+
+func fieldList2Types(fldlist *astFieldList) []*Type {
+	var r []*Type
+	for _ , e2 := range fldlist.List {
+		t := e2t(e2.Type)
+		r = append(r, t)
+	}
+	return r
+}
+
+func getCallResultTypes(e *astCallExpr) []*Type {
+	emitComment(2, "[%s] *astCallExpr\n", __func__)
+	var fun = e.Fun
+	switch fn := fun.(type) {
+	case *astIdent:
+		if fn.Obj == nil {
+			panic2(__func__, "[astCallExpr] nil Obj is not allowed")
+		}
+		switch fn.Obj.Kind {
+		case astTyp:
+			return []*Type{e2t(fun)}
+		case astFun:
+			switch fn.Obj {
+			case gLen, gCap:
+				return []*Type{tInt}
+			case gNew:
+				var starExpr = &astStarExpr{}
+				starExpr.X = e.Args[0]
+				return []*Type{e2t(newExpr(starExpr))}
+			case gMake:
+				return []*Type{e2t(e.Args[0])}
+			case gAppend:
+				return []*Type{e2t(e.Args[0])}
+			}
+			var decl = fn.Obj.Decl
+			if decl == nil {
+				panic2(__func__, "decl of function "+fn.Name+" is  nil")
+			}
+			switch dcl := decl.(type) {
+			case *astFuncDecl:
+				var resultList = dcl.Type.Results.List
+				if len(resultList) != 1 {
+					panic2(__func__, "[astCallExpr] len results.List is not 1")
+				}
+				return fieldList2Types(dcl.Type.Results)
+			default:
+				panic2(__func__, "[astCallExpr] unknown dtype")
+			}
+			panic2(__func__, "[astCallExpr] Fun ident "+fn.Name)
+		}
+	case *astParenExpr: // (X)(e) funcall or conversion
+		if isType(fn.X) {
+			return []*Type{e2t(fn.X)}
+		} else {
+			panic("TBI: what should we do ?")
+		}
+	case *astArrayType:
+		return []*Type{e2t(fun)}
+	case *astSelectorExpr: // (X).Sel()
+		xIdent := expr2Ident(fn.X)
+		symbol := xIdent.Name + "." + fn.Sel.Name
+		switch symbol {
+		case "unsafe.Pointer":
+			// unsafe.Pointer(x)
+			return []*Type{tUintptr}
+		default:
+			xIdent := expr2Ident(fn.X)
+			if xIdent.Obj == nil {
+				panic2(__func__, "xIdent.Obj should not be nil")
+			}
+			if xIdent.Obj.Kind == astPkg {
+				funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+				return fieldList2Types(funcdecl.Type.Results)
+			} else {
+				var xType = getTypeOfExpr(fn.X)
+				var method = lookupMethod(xType, fn.Sel)
+				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value", __func__)
+				return fieldList2Types(method.funcType.Results)
+			}
+		}
+	case *astInterfaceType:
+		return []*Type{tEface}
+	default:
+		panic2(__func__, "[astCallExpr] dtype="+dtypeOf(e.Fun))
+	}
+	return nil
 }
 
 func e2t(typeExpr astExpr) *Type {
