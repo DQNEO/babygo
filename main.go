@@ -595,8 +595,6 @@ func emitReturnStmt(s *astReturnStmt) {
 	node := s.node
 	funcType := node.fnc.funcType
 	if len(s.Results) == 0 {
-		fmt.Printf("  leave\n")
-		fmt.Printf("  ret\n")
 	} else if len(s.Results) == 1 {
 		targetType := e2t(funcType.Results.List[0].Type)
 		ctx := &evalContext{
@@ -617,8 +615,6 @@ func emitReturnStmt(s *astReturnStmt) {
 		default:
 			panic2(__func__, "[*astReturnStmt] TBI:"+knd)
 		}
-		fmt.Printf("  leave\n")
-		fmt.Printf("  ret\n")
 	} else if len(s.Results) == 3 {
 		// Special treatment to return a slice
 		emitExpr(s.Results[2], nil) // @FIXME
@@ -630,6 +626,8 @@ func emitReturnStmt(s *astReturnStmt) {
 	} else {
 		panic2(__func__, "[*astReturnStmt] TBI\n")
 	}
+	fmt.Printf("  leave\n")
+	fmt.Printf("  ret\n")
 }
 
 func emitReturnedValue(resultList []*astField) {
