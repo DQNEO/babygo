@@ -411,8 +411,7 @@ func emitCallMalloc(size int) {
 	fmt.Printf("  pushq $%d\n", size)
 	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
 	emitFreeParametersArea(intSize)
-	//emitFreeReturnVarsArea(ptrSize)
-	//emitFreeAndPushReturnedValue(resultList)
+	emitFreeAndPushReturnedValue(resultList)
 }
 
 func emitStructLiteral(e *astCompositeLit) {
@@ -588,7 +587,6 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 	fmt.Printf("  callq %s\n", symbol)
 	emitFreeParametersArea(totalParamSize)
 	fmt.Printf("#  totalReturnSize=%d\n", totalReturnSize)
-	//emitFreeReturnVarsArea(totalReturnSize)
 	emitFreeAndPushReturnedValue(results)
 }
 
@@ -1396,8 +1394,7 @@ func emitBinaryExprComparison(left astExpr, right astExpr) {
 		emitExprIfc(right, ctx) // right
 		fmt.Printf("  callq runtime.cmpinterface\n")
 		emitFreeParametersArea(interfaceSize * 2)
-		//emitFreeReturnVarsArea(intSize)
-		//emitFreeAndPushReturnedValue(resultList)
+		emitFreeAndPushReturnedValue(resultList)
 	} else {
 		var t = getTypeOfExpr(left)
 		emitExpr(left, nil) // left
@@ -1794,8 +1791,7 @@ func emitStmt(stmt astStmt) {
 					emitExpr(e, nil)
 					fmt.Printf("  callq runtime.cmpstrings\n")
 					emitFreeParametersArea(stringSize * 2)
-					//emitFreeReturnVarsArea(intSize)
-					//emitFreeAndPushReturnedValue(resultList)
+					emitFreeAndPushReturnedValue(resultList)
 				case T_INTERFACE:
 					var resultList = []*astField{
 						&astField{
@@ -1807,8 +1803,7 @@ func emitStmt(stmt astStmt) {
 					emitExpr(e, nil)
 					fmt.Printf("  callq runtime.cmpinterface\n")
 					emitFreeParametersArea(interfaceSize * 2)
-					//emitFreeReturnVarsArea(intSize)
-					//emitFreeAndPushReturnedValue(resultList)
+					emitFreeAndPushReturnedValue(resultList)
 				case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 					emitPushStackTop(condType, 0, "switch expr")
 					emitExpr(e, nil)
