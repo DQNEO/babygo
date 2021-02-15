@@ -613,12 +613,16 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 		for _, result := range s.Results {
 			assert(getSizeOfType(getTypeOfExpr(result)) == 8, "TBI")
 		}
-		emitExpr(s.Results[2], nil) // @FIXME
-		emitExpr(s.Results[1], nil) // @FIXME
-		emitExpr(s.Results[0], nil) // @FIXME
-		fmt.Printf("  popq %%rax # ptr\n")
-		fmt.Printf("  popq %%rcx # len\n")
-		fmt.Printf("  popq %%rdx # cap\n")
+		emitAssignToVar(fnc.retvars[0], s.Results[0])
+		emitAssignToVar(fnc.retvars[1], s.Results[1])
+		emitAssignToVar(fnc.retvars[2], s.Results[2])
+
+		//emitExpr(s.Results[2], nil) // @FIXME
+		//emitExpr(s.Results[1], nil) // @FIXME
+		//emitExpr(s.Results[0], nil) // @FIXME
+		//fmt.Printf("  popq %%rax # ptr\n")
+		//fmt.Printf("  popq %%rcx # len\n")
+		//fmt.Printf("  popq %%rdx # cap\n")
 	} else {
 		panic("TBI")
 	}
@@ -647,10 +651,10 @@ func emitReturnedValue(resultList []*ast.Field) {
 			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 8)
 			fmt.Printf("  pushq %%rax\n")
 		case T_SLICE:
-			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 24)
-			fmt.Printf("  pushq %%rdx # slice cap\n")
-			fmt.Printf("  pushq %%rcx # slice len\n")
-			fmt.Printf("  pushq %%rax # slice ptr\n")
+			//fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 24)
+			//fmt.Printf("  pushq %%rdx # slice cap\n")
+			//fmt.Printf("  pushq %%rcx # slice len\n")
+			//fmt.Printf("  pushq %%rax # slice ptr\n")
 		default:
 			throw(kind(e2t(retval0.Type)))
 		}
