@@ -91,15 +91,23 @@ func emitPopSlice() {
 	fmt.Printf("  popq %%rdx # slice.cap\n")
 }
 
-func emitPushStackTop(condType *Type, comment string) {
+func emitAllocReturnVarsArea(size int) {
+	fmt.Printf("  subq $%d, %%rsp # alloc return vars area\n", size)
+}
+
+func emitFreeReturnVarsArea(size int) {
+	fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", size)
+}
+
+func emitPushStackTop(condType *Type, offset int, comment string) {
 	switch kind(condType) {
 	case T_STRING:
-		fmt.Printf("  movq 8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", comment)
-		fmt.Printf("  movq 0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", comment)
+		fmt.Printf("  movq %d+8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", offset, comment)
+		fmt.Printf("  movq %d+0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", offset, comment)
 		fmt.Printf("  pushq %%rcx # str.len\n")
 		fmt.Printf("  pushq %%rax # str.ptr\n")
 	case T_POINTER, T_UINTPTR, T_BOOL, T_INT, T_UINT8, T_UINT16:
-		fmt.Printf("  movq (%%rsp), %%rax # copy stack top value (%s) \n", comment)
+		fmt.Printf("  movq %d(%%rsp), %%rax # copy stack top value (%s) \n", offset, comment)
 		fmt.Printf("  pushq %%rax\n")
 	default:
 		throw(kind(condType))
@@ -397,6 +405,7 @@ func emitCap(arg astExpr) {
 }
 
 func emitCallMalloc(size int) {
+	emitAllocReturnVarsArea(ptrSize)
 	fmt.Printf("  pushq $%d\n", size)
 	// call malloc and return pointer
 	var resultList = []*astField{
@@ -406,6 +415,7 @@ func emitCallMalloc(size int) {
 	}
 	fmt.Printf("  callq runtime.malloc\n") // no need to invert args orders
 	emitFreeParametersArea(intSize)
+	emitFreeReturnVarsArea(ptrSize)
 	emitReturnedValue(resultList)
 }
 
@@ -423,7 +433,7 @@ func emitStructLiteral(e *astCompositeLit) {
 		var fieldType = e2t(field.Type)
 		var fieldOffset = getStructFieldOffset(field)
 		// push lhs address
-		emitPushStackTop(tUintptr, "address of struct heaad")
+		emitPushStackTop(tUintptr, 0, "address of struct heaad")
 		emitAddConst(fieldOffset, "address of struct field")
 		// push rhs value
 		ctx := &evalContext{
@@ -442,7 +452,7 @@ func emitArrayLiteral(arrayType *astArrayType, arrayLen int, elts []astExpr) {
 	emitCallMalloc(memSize) // push
 	for i, elm := range elts {
 		// emit lhs
-		emitPushStackTop(tUintptr, "malloced address")
+		emitPushStackTop(tUintptr, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index ("+strconv.Itoa(i)+")")
 		ctx := &evalContext{
 			_type: elmType,
@@ -561,6 +571,7 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 		arg.offset = totalParamSize
 		totalParamSize = totalParamSize + getSizeOfType(arg.paramType)
 	}
+	emitAllocReturnVarsArea(sliceSize)
 	fmt.Printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for _, arg := range args {
 		paramType := arg.paramType
@@ -576,6 +587,7 @@ func emitCall(symbol string, args []*Arg, results []*astField) {
 
 	fmt.Printf("  callq %s\n", symbol)
 	emitFreeParametersArea(totalParamSize)
+	emitFreeReturnVarsArea(sliceSize)
 	emitReturnedValue(results)
 }
 
@@ -1368,6 +1380,7 @@ func emitBinaryExprComparison(left astExpr, right astExpr) {
 		emitCompStrings(left, right)
 	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
 		var t = getTypeOfExpr(left)
+		emitAllocReturnVarsArea(intSize)
 		emitExpr(left, nil) // left
 		ctx := &evalContext{_type: t}
 		emitExprIfc(right, ctx) // right
@@ -1378,6 +1391,7 @@ func emitBinaryExprComparison(left astExpr, right astExpr) {
 		}
 		fmt.Printf("  callq runtime.cmpinterface\n")
 		emitFreeParametersArea(interfaceSize * 2)
+		emitFreeReturnVarsArea(intSize)
 		emitReturnedValue(resultList)
 	} else {
 		var t = getTypeOfExpr(left)
@@ -1758,10 +1772,12 @@ func emitStmt(stmt astStmt) {
 							Type: tBool.e,
 						},
 					}
-					emitPushStackTop(condType, "switch expr")
+					emitAllocReturnVarsArea(intSize)
+					emitPushStackTop(condType, intSize, "switch expr")
 					emitExpr(e, nil)
 					fmt.Printf("  callq runtime.cmpstrings\n")
 					emitFreeParametersArea(stringSize * 2)
+					emitFreeReturnVarsArea(intSize)
 					emitReturnedValue(resultList)
 				case T_INTERFACE:
 					var resultList = []*astField{
@@ -1769,13 +1785,15 @@ func emitStmt(stmt astStmt) {
 							Type: tBool.e,
 						},
 					}
-					emitPushStackTop(condType, "switch expr")
+					emitAllocReturnVarsArea(intSize)
+					emitPushStackTop(condType, intSize, "switch expr")
 					emitExpr(e, nil)
 					fmt.Printf("  callq runtime.cmpinterface\n")
 					emitFreeParametersArea(interfaceSize * 2)
+					emitFreeReturnVarsArea(intSize)
 					emitReturnedValue(resultList)
 				case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
-					emitPushStackTop(condType, "switch expr")
+					emitPushStackTop(condType, 0, "switch expr")
 					emitExpr(e, nil)
 					emitCompExpr("sete")
 				default:
