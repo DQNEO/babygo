@@ -607,8 +607,7 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 	if len(s.Results) == 0 {
 		// do nothing
 	} else if len(s.Results) == 1 {
-		retVar := fnc.retvars[0]
-		emitAssignToVar(retVar, s.Results[0])
+		emitAssignToVar(fnc.retvars[0], s.Results[0])
 	} else if len(s.Results) == 3 {
 		// Special treatment to return a slice by makeSlice()
 		for _, result := range s.Results {
