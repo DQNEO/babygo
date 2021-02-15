@@ -636,10 +636,11 @@ func emitReturnedValue(resultList []*ast.Field) {
 		retval0 := resultList[0]
 		switch kind(e2t(retval0.Type)) {
 		case T_STRING, T_INTERFACE:
-			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 16)
-			fmt.Printf("  pushq %%rcx # tail\n")
-			fmt.Printf("  pushq %%rax # head\n")
+			//fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 16)
+			//fmt.Printf("  pushq %%rcx # tail\n")
+			//fmt.Printf("  pushq %%rax # head\n")
 		case T_UINT8:
+			fmt.Printf("  movzbq (%%rsp), %%rax\n")
 			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 			fmt.Printf("  pushq %%rax\n")
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
