@@ -947,7 +947,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		// pkg.Var or strct.field
 		if isQI(e) {
 			// pkg.Var
-			ident := lookupForeignVar(selector2QI(e))
+			ident := lookupForeignIdent(selector2QI(e))
 			emitExpr(ident, ctx)
 		} else {
 			// strct.field
@@ -2462,7 +2462,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		// X.Sel
 		emitComment(2, "getTypeOfExpr(X.%s)\n", e.Sel.Name)
 		if isQI(e) {
-			ident := lookupForeignVar(selector2QI(e))
+			ident := lookupForeignIdent(selector2QI(e))
 			return getTypeOfExpr(ident)
 		} else {
 			structType := getStructTypeOfX(e)
@@ -2690,7 +2690,7 @@ func kind(t *Type) TypeKind {
 		if isUnsafePointer(e) {
 			return T_POINTER
 		}
-		ident := lookupForeignType(selector2QI(e))
+		ident := lookupForeignIdent(selector2QI(e))
 		return kind(e2t(ident))
 	default:
 		throw(t)
@@ -2831,7 +2831,7 @@ func getStructTypeSpec(typ *Type) *ast.TypeSpec {
 	case *ast.Ident:
 		typeName = t
 	case *ast.SelectorExpr:
-		typeName = lookupForeignType(selector2QI(t))
+		typeName = lookupForeignIdent(selector2QI(t))
 	default:
 		panic(typ.e)
 	}
@@ -3101,7 +3101,7 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 			panic(typ.Name + " has no methodSet (1)")
 		}
 	case *ast.SelectorExpr:
-		t := lookupForeignType(selector2QI(typ))
+		t := lookupForeignIdent(selector2QI(typ))
 		var ok bool
 		methodSet, ok = MethodSets[t.Obj]
 		if !ok {
@@ -3751,19 +3751,7 @@ func resolveImports(file *ast.File) {
 
 var ExportedQualifiedIdents map[QualifiedIdent]interface{} = map[QualifiedIdent]interface{}{}
 
-func lookupForeignType(qi QualifiedIdent) *ast.Ident {
-	x, found := ExportedQualifiedIdents[qi]
-	if !found {
-		panic(qi + " Not found in ExportedQualifiedIdents")
-	}
-	ident, ok := x.(*ast.Ident)
-	if !ok {
-		throw(ExportedQualifiedIdents)
-	}
-	return ident
-}
-
-func lookupForeignVar(qi QualifiedIdent) *ast.Ident {
+func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
 	x, found := ExportedQualifiedIdents[qi]
 	if !found {
 		panic(qi + " Not found in ExportedQualifiedIdents")
