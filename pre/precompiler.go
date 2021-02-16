@@ -2454,7 +2454,6 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		}
 		return e2t(ptrType.X)
 	case *ast.SelectorExpr:
-		// X.Sel
 		emitComment(2, "getTypeOfExpr(X.%s)\n", e.Sel.Name)
 		if isQI(e) {
 			ident := lookupForeignIdent(selector2QI(e))
@@ -2524,25 +2523,15 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 		}
 	case *ast.ArrayType: // conversion [n]T(e) or []T(e)
 		return []*Type{e2t(fn)}
-	case *ast.SelectorExpr: // (X).Sel()
+	case *ast.SelectorExpr:
 		if isUnsafePointer(fn) {
 			// unsafe.Pointer(x)
 			return []*Type{tUintptr}
 		}
-		xIdent, ok := fn.X.(*ast.Ident)
-		if !ok {
-			throw(fn)
-		}
-		if xIdent.Obj == nil {
-			throw(xIdent)
-		}
-
-		if isQI(fn) {
-			// pkg.Sel()
+		if isQI(fn) {  // pkg.Sel()
 			ff := lookupForeignFunc(selector2QI(fn))
 			return fieldList2Types(ff.decl.Type.Results)
-		} else {
-			// Assume method call
+		} else {  // obj.method()
 			rcvType := getTypeOfExpr(fn.X)
 			method := lookupMethod(rcvType, fn.Sel)
 			return fieldList2Types(method.funcType.Results)
