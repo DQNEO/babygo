@@ -1634,7 +1634,6 @@ func emitStmt(stmt ast.Stmt) {
 				_callExpr, ok = rhs0.(*ast.CallExpr)
 				assert(ok, "should be a CallExpr", __func__)
 				returnTypes := getCallResultTypes(_callExpr)
-				fmt.Printf("# returnTypes=%d\n", len(returnTypes))
 				fmt.Printf("# len lhs=%d\n", len(s.Lhs))
 				fmt.Printf("# returnTypes=%d\n", len(returnTypes))
 				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
@@ -3618,19 +3617,13 @@ type ForeignFunc struct {
 func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 	logf("lookupForeignFunc... \n")
 	for _, entry := range ExportedQualifiedIdents {
-		logf("  looking into 0000\n")
 		if entry.qi == qi {
-			fmt.Printf("# @@@ showing found qi\n")
-			fmt.Printf("# %s\n", string(qi))
-			logf("  looking into 1000\n")
 			var fdecl *ast.FuncDecl
 			var ok bool
 			fdecl, ok = entry.any.(*ast.FuncDecl)
-			logf("  looking into 5000\n")
 			if !ok {
 				panic("not fdecl")
 			}
-			logf("  found\n")
 			return &ForeignFunc{
 				symbol: string(qi),
 				decl:   fdecl,
