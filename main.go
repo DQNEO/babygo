@@ -2255,11 +2255,6 @@ const intSize int = 8
 const ptrSize int = 8
 const interfaceSize int = 16
 
-type Type struct {
-	//kind string
-	e astExpr
-}
-
 const T_STRING string = "T_STRING"
 const T_INTERFACE string = "T_INTERFACE"
 const T_SLICE string = "T_SLICE"
@@ -2808,35 +2803,6 @@ type stringLiteralsContainer struct {
 	sl  *sliteral
 }
 
-type Func struct {
-	localvars []*string
-	localarea int
-	argsarea  int
-	vars      []*Variable
-	params    []*Variable
-	retvars   []*Variable
-	funcType  *astFuncType
-	rcvType   astExpr
-	name      string
-	Body      *astBlockStmt
-	method    *Method
-}
-
-type Method struct {
-	pkgName      string
-	rcvNamedType *astIdent
-	isPtrMethod  bool
-	name         string
-	funcType     *astFuncType
-}
-
-type Variable struct {
-	name         string
-	isGlobal     bool
-	globalSymbol string
-	localOffset  int
-	typ          *Type
-}
 
 //type localoffsetint int //@TODO
 

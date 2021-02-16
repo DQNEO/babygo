@@ -11,6 +11,19 @@ type Signature struct {
 	Results *astFieldList
 }
 
+type Type struct {
+	//kind string
+	e astExpr
+}
+
+type Variable struct {
+	name         string
+	isGlobal     bool
+	globalSymbol string
+	localOffset  int
+	typ          *Type
+}
+
 type astObject struct {
 	Kind     string
 	Name     string
@@ -181,6 +194,29 @@ type astTypeSwitchStmt struct {
 	Body   *astBlockStmt
 	Node   *nodeTypeSwitchStmt
 }
+
+type Func struct {
+	localvars []*string
+	localarea int
+	argsarea  int
+	vars      []*Variable
+	params    []*Variable
+	retvars   []*Variable
+	funcType  *astFuncType
+	rcvType   astExpr
+	name      string
+	Body      *astBlockStmt
+	method    *Method
+}
+
+type Method struct {
+	pkgName      string
+	rcvNamedType *astIdent
+	isPtrMethod  bool
+	name         string
+	funcType     *astFuncType
+}
+
 
 type nodeReturnStmt struct {
 	Fnc *Func
