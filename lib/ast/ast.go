@@ -1,323 +1,323 @@
-package main
+package ast
 
-var astCon string = "Con"
-var astTyp string = "Typ"
-var astVar string = "Var"
-var astFun string = "Fun"
-var astPkg string = "Pkg"
+var Con string = "Con"
+var Typ string = "Typ"
+var Var string = "Var"
+var Fun string = "Fun"
+var Pkg string = "Pkg"
 
-type astSignature struct {
-	Params  *astFieldList
-	Results *astFieldList
+type Signature struct {
+	Params  *FieldList
+	Results *FieldList
 }
 
-type astType struct {
+type Type struct {
 	//kind string
-	E astExpr
+	E Expr
 }
 
-type astVariable struct {
+type Variable struct {
 	Name         string
 	IsGlobal     bool
 	GlobalSymbol string
 	LocalOffset  int
-	Typ          *astType
+	Typ          *Type
 }
 
-type astObject struct {
+type Object struct {
 	Kind     string
 	Name     string
-	Decl     interface{} // *astValueSpec|*astFuncDecl|*astTypeSpec|*astField|*astAssignStmt
-	Variable *astVariable
+	Decl     interface{} // *ValueSpec|*FuncDecl|*TypeSpec|*Field|*AssignStmt
+	Variable *Variable
 }
 
-type astExpr interface{}
+type Expr interface{}
 
-type astField struct {
-	Name   *astIdent
-	Type   astExpr
+type Field struct {
+	Name   *Ident
+	Type   Expr
 	Offset int
 }
 
-type astFieldList struct {
-	List []*astField
+type FieldList struct {
+	List []*Field
 }
 
-type astIdent struct {
+type Ident struct {
 	Name string
-	Obj  *astObject
+	Obj  *Object
 }
 
-type astEllipsis struct {
-	Elt astExpr
+type Ellipsis struct {
+	Elt Expr
 }
 
-type astBasicLit struct {
+type BasicLit struct {
 	Kind  string // token.INT, token.CHAR, or token.STRING
 	Value string
 }
 
-type astCompositeLit struct {
-	Type astExpr
-	Elts []astExpr
+type CompositeLit struct {
+	Type Expr
+	Elts []Expr
 }
 
-type astKeyValueExpr struct {
-	Key   astExpr
-	Value astExpr
+type KeyValueExpr struct {
+	Key   Expr
+	Value Expr
 }
 
-type astParenExpr struct {
-	X astExpr
+type ParenExpr struct {
+	X Expr
 }
 
-type astSelectorExpr struct {
-	X   astExpr
-	Sel *astIdent
+type SelectorExpr struct {
+	X   Expr
+	Sel *Ident
 }
 
-type astIndexExpr struct {
-	X     astExpr
-	Index astExpr
+type IndexExpr struct {
+	X     Expr
+	Index Expr
 }
 
-type astSliceExpr struct {
-	X      astExpr
-	Low    astExpr
-	High   astExpr
-	Max    astExpr
+type SliceExpr struct {
+	X      Expr
+	Low    Expr
+	High   Expr
+	Max    Expr
 	Slice3 bool
 }
 
-type astCallExpr struct {
-	Fun      astExpr   // function expression
-	Args     []astExpr // function arguments; or nil
+type CallExpr struct {
+	Fun      Expr   // function expression
+	Args     []Expr // function arguments; or nil
 	Ellipsis bool
 }
 
-type astStarExpr struct {
-	X astExpr
+type StarExpr struct {
+	X Expr
 }
 
-type astUnaryExpr struct {
-	X  astExpr
+type UnaryExpr struct {
+	X  Expr
 	Op string
 }
 
-type astBinaryExpr struct {
-	X  astExpr
-	Y  astExpr
+type BinaryExpr struct {
+	X  Expr
+	Y  Expr
 	Op string
 }
 
-type astTypeAssertExpr struct {
-	X    astExpr
-	Type astExpr // asserted type; nil means type switch X.(type)
+type TypeAssertExpr struct {
+	X    Expr
+	Type Expr // asserted type; nil means type switch X.(type)
 }
 
 // Type nodes
-type astArrayType struct {
-	Len astExpr
-	Elt astExpr
+type ArrayType struct {
+	Len Expr
+	Elt Expr
 }
 
-type astStructType struct {
-	Fields *astFieldList
+type StructType struct {
+	Fields *FieldList
 }
 
-type astInterfaceType struct {
+type InterfaceType struct {
 	Methods []string
 }
 
-type astFuncType struct {
-	Params  *astFieldList
-	Results *astFieldList
+type FuncType struct {
+	Params  *FieldList
+	Results *FieldList
 }
 
-type astStmt interface{}
+type Stmt interface{}
 
-type astDeclStmt struct {
-	Decl astDecl
+type DeclStmt struct {
+	Decl Decl
 }
 
-type astExprStmt struct {
-	X astExpr
+type ExprStmt struct {
+	X Expr
 }
 
-type astIncDecStmt struct {
-	X   astExpr
+type IncDecStmt struct {
+	X   Expr
 	Tok string
 }
 
-type astAssignStmt struct {
-	Lhs     []astExpr
+type AssignStmt struct {
+	Lhs     []Expr
 	Tok     string
-	Rhs     []astExpr
+	Rhs     []Expr
 	IsRange bool
 }
 
-type astReturnStmt struct {
-	Results []astExpr
+type ReturnStmt struct {
+	Results []Expr
 	Node    *nodeReturnStmt
 }
 
-type astBranchStmt struct {
+type BranchStmt struct {
 	Tok        string
 	Label      string
-	CurrentFor astStmt
+	CurrentFor Stmt
 }
 
-type astBlockStmt struct {
-	List []astStmt
+type BlockStmt struct {
+	List []Stmt
 }
 
-type astIfStmt struct {
-	Init astStmt
-	Cond astExpr
-	Body *astBlockStmt
-	Else astStmt
+type IfStmt struct {
+	Init Stmt
+	Cond Expr
+	Body *BlockStmt
+	Else Stmt
 }
 
-type astCaseClause struct {
-	List []astExpr
-	Body []astStmt
+type CaseClause struct {
+	List []Expr
+	Body []Stmt
 }
 
-type astSwitchStmt struct {
-	Tag  astExpr
-	Body *astBlockStmt
+type SwitchStmt struct {
+	Tag  Expr
+	Body *BlockStmt
 	// lableExit string
 }
 
-type astTypeSwitchStmt struct {
-	Assign astStmt
-	Body   *astBlockStmt
+type TypeSwitchStmt struct {
+	Assign Stmt
+	Body   *BlockStmt
 	Node   *nodeTypeSwitchStmt
 }
 
-type astFunc struct {
+type Func struct {
 	Localvars []*string
 	Localarea int
 	Argsarea  int
-	Vars      []*astVariable
-	Params    []*astVariable
-	Retvars   []*astVariable
-	FuncType  *astFuncType
-	RcvType   astExpr
+	Vars      []*Variable
+	Params    []*Variable
+	Retvars   []*Variable
+	FuncType  *FuncType
+	RcvType   Expr
 	Name      string
-	Body      *astBlockStmt
-	Method    *astMethod
+	Body      *BlockStmt
+	Method    *Method
 }
 
-type astMethod struct {
+type Method struct {
 	PkgName      string
-	RcvNamedType *astIdent
+	RcvNamedType *Ident
 	IsPtrMethod  bool
 	Name         string
-	FuncType     *astFuncType
+	FuncType     *FuncType
 }
 
 
 type nodeReturnStmt struct {
-	Fnc *astFunc
+	Fnc *Func
 }
 
 type nodeTypeSwitchStmt struct {
-	Subject         astExpr
-	SubjectVariable *astVariable
-	AssignIdent     *astIdent
+	Subject         Expr
+	SubjectVariable *Variable
+	AssignIdent     *Ident
 	Cases           []*TypeSwitchCaseClose
 }
 
 type TypeSwitchCaseClose struct {
-	Variable     *astVariable
-	VariableType *astType
-	Orig         *astCaseClause
+	Variable     *Variable
+	VariableType *Type
+	Orig         *CaseClause
 }
 
-type astForStmt struct {
-	Init      astStmt
-	Cond      astExpr
-	Post      astStmt
-	Body      *astBlockStmt
-	Outer     astStmt // outer loop
+type ForStmt struct {
+	Init      Stmt
+	Cond      Expr
+	Post      Stmt
+	Body      *BlockStmt
+	Outer     Stmt // outer loop
 	LabelPost string
 	LabelExit string
 }
 
-type astRangeStmt struct {
-	Key       astExpr
-	Value     astExpr
-	X         astExpr
-	Body      *astBlockStmt
-	Outer     astStmt // outer loop
+type RangeStmt struct {
+	Key       Expr
+	Value     Expr
+	X         Expr
+	Body      *BlockStmt
+	Outer     Stmt // outer loop
 	LabelPost string
 	LabelExit string
-	Lenvar    *astVariable
-	Indexvar  *astVariable
+	Lenvar    *Variable
+	Indexvar  *Variable
 	Tok       string
 }
 
-type astImportSpec struct {
+type ImportSpec struct {
 	Path string
 }
 
-type astValueSpec struct {
-	Name  *astIdent
-	Type  astExpr
-	Value astExpr
+type ValueSpec struct {
+	Name  *Ident
+	Type  Expr
+	Value Expr
 }
 
-type astTypeSpec struct {
-	Name *astIdent
-	Type astExpr
+type TypeSpec struct {
+	Name *Ident
+	Type Expr
 }
 
 // Pseudo interface for *ast.Decl
-// *astGenDecl | *astFuncDecl
-type astDecl interface {
+// *GenDecl | *FuncDecl
+type Decl interface {
 }
 
-type astSpec interface{}
+type Spec interface{}
 
-type astGenDecl struct {
-	Spec astSpec // *astValueSpec | *TypeSpec
+type GenDecl struct {
+	Spec Spec // *ValueSpec | *TypeSpec
 }
 
-type astFuncDecl struct {
-	Recv *astFieldList
-	Name *astIdent
-	Type *astFuncType
-	Body *astBlockStmt
+type FuncDecl struct {
+	Recv *FieldList
+	Name *Ident
+	Type *FuncType
+	Body *BlockStmt
 }
 
-type astFile struct {
+type File struct {
 	Name       string
-	Imports    []*astImportSpec
-	Decls      []astDecl
-	Unresolved []*astIdent
-	Scope      *astScope
+	Imports    []*ImportSpec
+	Decls      []Decl
+	Unresolved []*Ident
+	Scope      *Scope
 }
 
-type astScope struct {
-	Outer   *astScope
+type Scope struct {
+	Outer   *Scope
 	Objects []*objectEntry
 }
 
 type objectEntry struct {
 	Name string
-	Obj  *astObject
+	Obj  *Object
 }
 
-func astNewScope(outer *astScope) *astScope {
-	return &astScope{
+func NewScope(outer *Scope) *Scope {
+	return &Scope{
 		Outer: outer,
 	}
 }
 
-func (s *astScope) Insert(obj *astObject) {
+func (s *Scope) Insert(obj *Object) {
 	if s == nil {
-		panic2(__func__, "s sholud not be nil\n")
+		panic("s sholud not be nil\n")
 	}
 
 	s.Objects = append(s.Objects, &objectEntry{
@@ -326,7 +326,7 @@ func (s *astScope) Insert(obj *astObject) {
 	})
 }
 
-func (s *astScope) Lookup(name string) *astObject {
+func (s *Scope) Lookup(name string) *Object {
 	for _, oe := range s.Objects {
 		if oe.Name == name {
 			return oe.Obj
