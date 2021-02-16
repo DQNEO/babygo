@@ -950,10 +950,11 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		// pkg.Var or strct.field
 		ident, isIdent := e.X.(*ast.Ident)
 		if isIdent && ident.Obj.Kind == ast.Pkg {
+			// pkg.Var
 			ident := lookupForeignVar(ident.Name, e.Sel.Name)
 			emitExpr(ident, ctx)
 		} else {
-			emitComment(2, "emitExpr *ast.SelectorExpr X.%s\n", e.Sel.Name)
+			// strct.field
 			emitAddr(e)
 			emitLoadAndPush(getTypeOfExpr(e))
 		}
@@ -2693,12 +2694,7 @@ func kind(t *Type) TypeKind {
 		if isUnsafePointer(e) {
 			return T_POINTER
 		}
-		pkgName, isIdent := e.X.(*ast.Ident)
-		if !isIdent {
-			throw(e)
-		}
-		assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg")
-		ident := lookupForeignType(pkgName.Name, e.Sel.Name)
+		ident := lookupForeignType(selector2QI(e))
 		return kind(e2t(ident))
 	default:
 		throw(t)
@@ -2839,12 +2835,7 @@ func getStructTypeSpec(typ *Type) *ast.TypeSpec {
 	case *ast.Ident:
 		typeName = t
 	case *ast.SelectorExpr:
-		pkgName, isIdent := t.X.(*ast.Ident)
-		if !isIdent {
-			throw(t.X)
-		}
-		assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg")
-		typeName = lookupForeignType(pkgName.Name, t.Sel.Name)
+		typeName = lookupForeignType(selector2QI(t))
 	default:
 		panic(typ.e)
 	}
@@ -3048,6 +3039,15 @@ func newQualifiedIdent(pkg string, ident string) QualifiedIdent {
 	return QualifiedIdent(pkg + "." + ident)
 }
 
+func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
+	pkgName, isIdent := e.X.(*ast.Ident)
+	if !isIdent {
+		throw(e)
+	}
+	assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg")
+	return newQualifiedIdent(pkgName.Name, e.Sel.Name)
+}
+
 // https://golang.org/ref/spec#Method_sets
 var MethodSets = map[*ast.Object]map[string]*Method{} // map[TypeName][MethodName]*Func
 
@@ -3097,8 +3097,7 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 			panic(typ.Name + " has no methodSet (1)")
 		}
 	case *ast.SelectorExpr:
-		pkgName := typ.X.(*ast.Ident)
-		t := lookupForeignType(pkgName.Name ,typ.Sel.Name)
+		t := lookupForeignType(selector2QI(typ))
 		var ok bool
 		methodSet, ok = MethodSets[t.Obj]
 		if !ok {
@@ -3748,10 +3747,10 @@ func resolveImports(file *ast.File) {
 
 var ExportedQualifiedIdents map[string]interface{} = map[string]interface{}{}
 
-func lookupForeignType(pkg string, identifier string) *ast.Ident {
-	x, found := ExportedQualifiedIdents[pkg+"."+identifier]
+func lookupForeignType(qi QualifiedIdent) *ast.Ident {
+	x, found := ExportedQualifiedIdents[string(qi)]
 	if !found {
-		panic(pkg + "." + identifier + " Not found in ExportedQualifiedIdents")
+		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
 	ident, ok := x.(*ast.Ident)
 	if !ok {
