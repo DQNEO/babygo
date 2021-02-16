@@ -940,9 +940,8 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		emitAddr(e)
 		emitLoadAndPush(getTypeOfExpr(e))
 	case *ast.SelectorExpr: // 1 value X.Sel
-		// pkg.Var or strct.field
+		// pkg.Ident or strct.field
 		if isQI(e) {
-			// pkg.Var
 			ident := lookupForeignIdent(selector2QI(e))
 			emitExpr(ident, ctx)
 		} else {

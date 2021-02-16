@@ -946,12 +946,12 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 		emitAddr(e)
 		emitLoadAndPush(getTypeOfExpr(e))
 	case *astSelectorExpr:
-		x := e.X
-		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
+		// pkg.Ident or strct.field
+		if isQI(e) {
 			ident := lookupForeignIdent(selector2QI(e))
-			e := newExpr(ident)
-			emitExpr(e, ctx)
+			emitExpr(ident, ctx)
 		} else {
+			// strct.field
 			emitAddr(expr)
 			emitLoadAndPush(getTypeOfExpr(expr))
 		}
