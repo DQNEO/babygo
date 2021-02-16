@@ -196,25 +196,25 @@ type astTypeSwitchStmt struct {
 }
 
 type Func struct {
-	localvars []*string
-	localarea int
-	argsarea  int
-	vars      []*Variable
-	params    []*Variable
-	retvars   []*Variable
-	funcType  *astFuncType
-	rcvType   astExpr
-	name      string
+	Localvars []*string
+	Localarea int
+	Argsarea  int
+	Vars      []*Variable
+	Params    []*Variable
+	Retvars   []*Variable
+	FuncType  *astFuncType
+	RcvType   astExpr
+	Name      string
 	Body      *astBlockStmt
-	method    *Method
+	Method    *Method
 }
 
 type Method struct {
-	pkgName      string
-	rcvNamedType *astIdent
-	isPtrMethod  bool
-	name         string
-	funcType     *astFuncType
+	PkgName      string
+	RcvNamedType *astIdent
+	IsPtrMethod  bool
+	Name         string
+	FuncType     *astFuncType
 }
 
 

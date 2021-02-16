@@ -624,14 +624,14 @@ func emitCallQ(symbol string, totalParamSize int, resultList *astFieldList) {
 func emitReturnStmt(s *astReturnStmt) {
 	node := s.Node
 	fnc := node.Fnc
-	if len(fnc.retvars) != len(s.Results) {
+	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
 	}
 
 	var i int
 	_len := len(s.Results)
 	for i = 0; i < _len; i++ {
-		emitAssignToVar(fnc.retvars[i], s.Results[i])
+		emitAssignToVar(fnc.Retvars[i], s.Results[i])
 	}
 	fmt.Printf("  leave\n")
 	fmt.Printf("  ret\n")
@@ -859,7 +859,7 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 			receiver = fn.X
 			receiverType := getTypeOfExpr(receiver)
 			method := lookupMethod(receiverType, fn.Sel)
-			funcType = method.funcType
+			funcType = method.FuncType
 			symbol = getMethodSymbol(method)
 		}
 	case *astParenExpr:
@@ -2007,15 +2007,15 @@ func emitRevertStackTop(t *Type) {
 var labelid int
 
 func getMethodSymbol(method *Method) string {
-	var rcvTypeName = method.rcvNamedType
+	var rcvTypeName = method.RcvNamedType
 	var subsymbol string
-	if method.isPtrMethod {
-		subsymbol = "$" + rcvTypeName.Name + "." + method.name // pointer
+	if method.IsPtrMethod {
+		subsymbol = "$" + rcvTypeName.Name + "." + method.Name // pointer
 	} else {
-		subsymbol = rcvTypeName.Name + "." + method.name // value
+		subsymbol = rcvTypeName.Name + "." + method.Name // value
 	}
 
-	return getPackageSymbol(method.pkgName, subsymbol)
+	return getPackageSymbol(method.PkgName, subsymbol)
 }
 
 func getPackageSymbol(pkgName string, subsymbol string) string {
@@ -2025,32 +2025,32 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 func emitFuncDecl(pkgName string, fnc *Func) {
 	fmt.Printf("# emitFuncDecl\n")
 	var i int
-	if len(fnc.params) > 0 {
-		for i = 0; i < len(fnc.params); i++ {
-			v := fnc.params[i]
+	if len(fnc.Params) > 0 {
+		for i = 0; i < len(fnc.Params); i++ {
+			v := fnc.Params[i]
 			logf("  #       params %d %d \"%s\" %s\n", (v.localOffset), getSizeOfType(v.typ), v.name, (kind(v.typ)))
 		}
 	}
-	if len(fnc.retvars) > 0 {
-		for i := 0; i < len(fnc.retvars); i++ {
-			v := fnc.retvars[i]
+	if len(fnc.Retvars) > 0 {
+		for i := 0; i < len(fnc.Retvars); i++ {
+			v := fnc.Retvars[i]
 			logf("  #       retvars %d %d \"%s\" %s\n", (v.localOffset), getSizeOfType(v.typ), v.name, (kind(v.typ)))
 		}
 	}
 
-	var localarea = fnc.localarea
+	var localarea = fnc.Localarea
 	var symbol string
-	if fnc.method != nil {
-		symbol = getMethodSymbol(fnc.method)
+	if fnc.Method != nil {
+		symbol = getMethodSymbol(fnc.Method)
 	} else {
-		symbol = getPackageSymbol(pkgName, fnc.name)
+		symbol = getPackageSymbol(pkgName, fnc.Name)
 	}
-	fmt.Printf("%s: # args %d, locals %d\n", symbol, int(fnc.argsarea), int(fnc.localarea))
+	fmt.Printf("%s: # args %d, locals %d\n", symbol, int(fnc.Argsarea), int(fnc.Localarea))
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
-	if len(fnc.localvars) > 0 {
-		for i = len(fnc.vars) - 1; i >= 0; i-- {
-			v := fnc.vars[i]
+	if len(fnc.Localvars) > 0 {
+		for i = len(fnc.Vars) - 1; i >= 0; i-- {
+			v := fnc.Vars[i]
 			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -v.localOffset, getSizeOfType(v.typ), v.name)
 		}
 	}
@@ -2487,7 +2487,7 @@ func getCallResultTypes(e *astCallExpr) []*Type {
 		} else {  // obj.method()
 			var xType = getTypeOfExpr(fn.X)
 			var method = lookupMethod(xType, fn.Sel)
-			return fieldList2Types(method.funcType.Results)
+			return fieldList2Types(method.FuncType.Results)
 		}
 	case *astInterfaceType:
 		return []*Type{tEface}
@@ -2807,25 +2807,25 @@ type stringLiteralsContainer struct {
 //type localoffsetint int //@TODO
 
 func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
-	vr := newLocalVariable(name, fnc.argsarea, t)
-	fnc.argsarea = fnc.argsarea + getSizeOfType(t)
-	fnc.params = append(fnc.params, vr)
+	vr := newLocalVariable(name, fnc.Argsarea, t)
+	fnc.Argsarea = fnc.Argsarea + getSizeOfType(t)
+	fnc.Params = append(fnc.Params, vr)
 	return vr
 }
 
 func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
-	vr := newLocalVariable(name, fnc.argsarea, t)
+	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
-	fnc.argsarea = fnc.argsarea + size
-	fnc.retvars = append(fnc.retvars, vr)
+	fnc.Argsarea = fnc.Argsarea + size
+	fnc.Retvars = append(fnc.Retvars, vr)
 	return vr
 }
 
 func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	assert(t != nil && t.e != nil, "type of local var should not be nil", __func__)
-	fnc.localarea = fnc.localarea - getSizeOfType(t)
-	vr := newLocalVariable(name, currentFunc.localarea, t)
-	fnc.vars = append(fnc.vars, vr)
+	fnc.Localarea = fnc.Localarea - getSizeOfType(t)
+	vr := newLocalVariable(name, currentFunc.Localarea, t)
+	fnc.Vars = append(fnc.Vars, vr)
 	return vr
 }
 
@@ -2954,27 +2954,27 @@ func newMethod(pkgName string, funcDecl *astFuncDecl) *Method {
 
 	rcvNamedType := expr2Ident(rcvType)
 	var method = &Method{
-		pkgName:      pkgName,
-		rcvNamedType: rcvNamedType,
-		isPtrMethod:  isPtr,
-		name:         funcDecl.Name.Name,
-		funcType:     funcDecl.Type,
+		PkgName:      pkgName,
+		RcvNamedType: rcvNamedType,
+		IsPtrMethod:  isPtr,
+		Name:         funcDecl.Name.Name,
+		FuncType:     funcDecl.Type,
 	}
 	return method
 }
 
 func registerMethod(method *Method) {
-	var nt = findNamedType(method.rcvNamedType.Obj)
+	var nt = findNamedType(method.RcvNamedType.Obj)
 	if nt == nil {
 		nt = &namedTypeEntry{
-			obj:    method.rcvNamedType.Obj,
+			obj:    method.RcvNamedType.Obj,
 			methods: nil,
 		}
 		typesWithMethods = append(typesWithMethods, nt)
 	}
 
 	var me *methodEntry = &methodEntry{
-		name:   method.name,
+		name:   method.Name,
 		method: method,
 	}
 	nt.methods = append(nt.methods, me)
@@ -3232,7 +3232,7 @@ func walkExpr(expr astExpr) {
 				if ident.Name == "__func__" && ident.Obj.Kind == astVar {
 					basicLit = &astBasicLit{}
 					basicLit.Kind = "STRING"
-					basicLit.Value = "\"" + currentFunc.name + "\""
+					basicLit.Value = "\"" + currentFunc.Name + "\""
 					newArg = newExpr(basicLit)
 					e.Args[i] = newArg
 					arg = newArg
@@ -3378,10 +3378,10 @@ func walk(pkg *PkgContainer) {
 
 	for _, funcDecl := range funcDecls {
 		fnc := &Func{
-			name:      funcDecl.Name.Name,
-			funcType:  funcDecl.Type,
-			localarea: 0,
-			argsarea:  16,
+			Name:      funcDecl.Name.Name,
+			FuncType:  funcDecl.Type,
+			Localarea: 0,
+			Argsarea:  16,
 		}
 		currentFunc = fnc
 		logf(" [sema] == astFuncDecl %s ==\n", funcDecl.Name.Name)
@@ -3423,7 +3423,7 @@ func walk(pkg *PkgContainer) {
 			fnc.Body = funcDecl.Body
 
 			if funcDecl.Recv != nil { // Method
-				fnc.method = newMethod(pkg.name, funcDecl)
+				fnc.Method = newMethod(pkg.name, funcDecl)
 			}
 			pkg.funcs = append(pkg.funcs, fnc)
 		}
