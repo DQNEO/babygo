@@ -12,12 +12,20 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-type QualifiedIdent string
 
 func testDerivedString() {
 	var qi QualifiedIdent = "hello"
 	sqi := string(qi)
 	fmt.Printf("sqi=%s\n", sqi)
+}
+
+type QualifiedIdent string
+
+func testForeignType() {
+	mt := &mylib.Type{
+		Field: 216,
+	}
+	fmt.Printf("mt.field=%d\n", mt.Method())
 }
 
 func returnMixed() (int, string, uint8, interface{}, int) {
@@ -1954,6 +1962,7 @@ func testMisc() {
 
 func main() {
 	testDerivedString()
+	testForeignType()
 	testReturnMixed()
 	testReturnStrings()
 	testReturnInts()

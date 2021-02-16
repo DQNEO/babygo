@@ -2693,7 +2693,13 @@ func kind(t *Type) TypeKind {
 		if isUnsafePointer(e) {
 			return T_POINTER
 		}
-		throw(e)
+		pkgName, isIdent := e.X.(*ast.Ident)
+		if !isIdent {
+			throw(e)
+		}
+		assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg")
+		ident := lookupForeignType(pkgName.Name, e.Sel.Name)
+		return kind(e2t(ident))
 	default:
 		throw(t)
 	}
@@ -2823,19 +2829,32 @@ func getStructFields(structTypeSpec *ast.TypeSpec) []*ast.Field {
 	return structType.Fields.List
 }
 
-func getStructTypeSpec(namedStructType *Type) *ast.TypeSpec {
-	if kind(namedStructType) != T_STRUCT {
-		throw(namedStructType)
+func getStructTypeSpec(typ *Type) *ast.TypeSpec {
+	if kind(typ) != T_STRUCT {
+		throw(typ)
 	}
-	ident, ok := namedStructType.e.(*ast.Ident)
-	if !ok {
-		throw(namedStructType)
+	var typeName *ast.Ident
+
+	switch t := typ.e.(type) {
+	case *ast.Ident:
+		typeName = t
+	case *ast.SelectorExpr:
+		pkgName, isIdent := t.X.(*ast.Ident)
+		if !isIdent {
+			throw(t.X)
+		}
+		assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg")
+		typeName = lookupForeignType(pkgName.Name, t.Sel.Name)
+	default:
+		panic(typ.e)
 	}
-	typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec)
+
+	typeSpec, ok := typeName.Obj.Decl.(*ast.TypeSpec)
 	if !ok {
-		throw(ident.Obj.Decl)
+		throw(typeName.Obj.Decl)
 	}
 	return typeSpec
+
 }
 
 func lookupStructField(structTypeSpec *ast.TypeSpec, selName string) *ast.Field {
@@ -3023,8 +3042,14 @@ func newLocalVariable(name string, localoffset localoffsetint, t *Type) *Variabl
 	}
 }
 
+type QualifiedIdent string
+
+func newQualifiedIdent(pkg string, ident string) QualifiedIdent {
+	return QualifiedIdent(pkg + "." + ident)
+}
+
 // https://golang.org/ref/spec#Method_sets
-var typesWithMethods map[string]map[string]*Method = map[string]map[string]*Method{} // map[TypeName][MethodName]*Func
+var MethodSets = map[*ast.Object]map[string]*Method{} // map[TypeName][MethodName]*Func
 
 func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	rcvType := funcDecl.Recv.List[0].Type
@@ -3049,10 +3074,10 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 }
 
 func registerMethod(method *Method) {
-	methodSet, ok := typesWithMethods[method.rcvNamedType.Name]
+	methodSet, ok := MethodSets[method.rcvNamedType.Obj]
 	if !ok {
 		methodSet = map[string]*Method{}
-		typesWithMethods[method.rcvNamedType.Name] = methodSet
+		MethodSets[method.rcvNamedType.Obj] = methodSet
 	}
 	methodSet[method.name] = method
 }
@@ -3063,14 +3088,24 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	if ok {
 		rcvType = rcvPointerType.X
 	}
-	rcvTypeName, ok := rcvType.(*ast.Ident)
-	if !ok {
-		throw(rcvType)
+	var methodSet map[string]*Method
+	switch typ := rcvType.(type) {
+	case *ast.Ident:
+		var ok bool
+		methodSet, ok = MethodSets[typ.Obj]
+		if !ok {
+			panic(typ.Name + " has no methodSet (1)")
+		}
+	case *ast.SelectorExpr:
+		pkgName := typ.X.(*ast.Ident)
+		t := lookupForeignType(pkgName.Name ,typ.Sel.Name)
+		var ok bool
+		methodSet, ok = MethodSets[t.Obj]
+		if !ok {
+			panic(t.Name + " has no methodSet (2)")
+		}
 	}
-	methodSet, ok := typesWithMethods[rcvTypeName.Name]
-	if !ok {
-		panic(rcvTypeName.Name + " has no moethodeiverTypeName:")
-	}
+
 	method, ok := methodSet[methodName.Name]
 	if !ok {
 		panic("method not found")
@@ -3403,6 +3438,8 @@ func walk(pkg *PkgContainer) {
 		case T_STRUCT:
 			calcStructSizeAndSetFieldOffset(typeSpec)
 		}
+
+		ExportedQualifiedIdents[pkg.name+"."+typeSpec.Name.Name] = typeSpec.Name
 	}
 
 	// collect methods in advance
@@ -3710,6 +3747,18 @@ func resolveImports(file *ast.File) {
 }
 
 var ExportedQualifiedIdents map[string]interface{} = map[string]interface{}{}
+
+func lookupForeignType(pkg string, identifier string) *ast.Ident {
+	x, found := ExportedQualifiedIdents[pkg+"."+identifier]
+	if !found {
+		panic(pkg + "." + identifier + " Not found in ExportedQualifiedIdents")
+	}
+	ident, ok := x.(*ast.Ident)
+	if !ok {
+		throw(ExportedQualifiedIdents)
+	}
+	return ident
+}
 
 func lookupForeignVar(pkg string, identifier string) *ast.Ident {
 	x, found := ExportedQualifiedIdents[pkg+"."+identifier]
