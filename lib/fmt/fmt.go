@@ -31,6 +31,8 @@ func Sprintf(format string, a ...interface{}) string {
 					case int: // ("%s", 123)
 						strNumber := strconv.Itoa(_arg)
 						str = "%!s(int=" + strNumber + ")" // %!s(int=123)
+					default:
+						str = "unknown type"
 					}
 					for _, _c := range []uint8(str) {
 						r = append(r, _c)
@@ -41,6 +43,8 @@ func Sprintf(format string, a ...interface{}) string {
 						str = "%!d(string=" + _arg + ")" // %!d(string=xyz)
 					case int: // ("%d", 123)
 						str = strconv.Itoa(_arg)
+					default:
+						str = "unknown type"
 					}
 					for _, _c := range []uint8(str) {
 						r = append(r, _c)

@@ -295,7 +295,7 @@ func isType(expr ast.Expr) bool {
 
 // explicit conversion T(e)
 func emitConversion(toType *Type, arg0 ast.Expr) {
-	emitComment(2, "Conversion\n")
+	emitComment(2, "emitConversion\n")
 	switch to := toType.e.(type) {
 	case *ast.Ident:
 		ident := to
@@ -307,6 +307,10 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 				emitPopSlice()
 				fmt.Printf("  pushq %%rcx # str len\n")
 				fmt.Printf("  pushq %%rax # str ptr\n")
+			case T_STRING: // string(string)
+				emitExpr(arg0, nil)
+			default:
+				panic("Not supported")
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			emitExpr(arg0, nil)

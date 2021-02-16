@@ -296,6 +296,10 @@ func emitConversion(toType *Type, arg0 astExpr) {
 				emitPopSlice()
 				fmt.Printf("  pushq %%rcx # str len\n")
 				fmt.Printf("  pushq %%rax # str ptr\n")
+			case T_STRING: // string(string)
+				emitExpr(arg0, nil)
+			default:
+				panic("Not supported")
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			emitComment(2, "[emitConversion] to int \n")
