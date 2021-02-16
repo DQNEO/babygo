@@ -411,8 +411,10 @@ func emitCap(arg astExpr) {
 }
 
 func emitCallMalloc(size int) {
+	emitComment(2, "emitCallMalloc\n")
 	// call malloc and return pointer
-	ff := lookupForeignFunc("runtime", "malloc")
+	qi := newQI("runtime", "malloc")
+	ff := lookupForeignFunc(qi)
 	emitAllocReturnVarsAreaFF(ff)
 	fmt.Printf("  pushq $%d\n", size)
 	emitCallFF(ff)
@@ -420,7 +422,7 @@ func emitCallMalloc(size int) {
 
 func emitStructLiteral(e *astCompositeLit) {
 	// allocate heap area with zero value
-	fmt.Printf("  # Struct literal\n")
+	emitComment(2,"emitStructLiteral\n")
 	var structType = e2t(e.Type)
 	emitZeroValue(structType) // push address of the new storage
 	var kvExpr *astKeyValueExpr
@@ -590,7 +592,9 @@ func emitCall(symbol string, args []*Arg, resultList *astFieldList) {
 }
 
 func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
-	emitAllocReturnVarsArea(getTotalFieldsSize(ff.decl.Type.Results))
+	r := ff.decl.Type.Results
+	size := getTotalFieldsSize(r)
+	emitAllocReturnVarsArea(size)
 }
 
 func getTotalFieldsSize(flist *astFieldList) int {
@@ -860,7 +864,7 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 			}
 			if xIdent.Obj.Kind == astPkg {
 				// pkg.Sel()
-				ff := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+				ff := lookupForeignFunc(selector2QI(selectorExpr))
 				funcType = ff.decl.Type
 			} else {
 				receiver = selectorExpr.X
@@ -956,7 +960,7 @@ func emitExpr(expr astExpr, ctx *evalContext) bool {
 	case *astSelectorExpr:
 		x := e.X
 		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
-			ident := lookupForeignVar(expr2Ident(x).Name, e.Sel.Name)
+			ident := lookupForeignIdent(selector2QI(e))
 			e := newExpr(ident)
 			emitExpr(e, ctx)
 		} else {
@@ -1415,7 +1419,7 @@ func emitBinaryExprComparison(left astExpr, right astExpr) {
 		emitCompStrings(left, right)
 	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
 		var t = getTypeOfExpr(left)
-		ff := lookupForeignFunc("runtime", "cmpinterface")
+		ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)
 		emitExpr(left, nil) // left
 		ctx := &evalContext{_type: t}
@@ -1503,7 +1507,7 @@ func emitRegiToMem(t *Type) {
 		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
 		fmt.Printf("  pushq %%rsi # dst lhs\n")
 		fmt.Printf("  pushq %%rax # src rhs\n")
-		ff := lookupForeignFunc("runtime", "memcopy")
+		ff := lookupForeignFunc(newQI("runtime", "memcopy"))
 		emitCallFF(ff)
 	default:
 		panic2(__func__, "TBI:"+k)
@@ -1849,14 +1853,14 @@ func emitStmt(stmt astStmt) {
 				assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string", __func__)
 				switch kind(condType) {
 				case T_STRING:
-					ff := lookupForeignFunc("runtime", "cmpstrings")
+					ff := lookupForeignFunc(newQI("runtime", "cmpstrings"))
 					emitAllocReturnVarsAreaFF(ff)
 					emitPushStackTop(condType, intSize, "switch expr")
 					emitExpr(e, nil)
 
 					emitCallFF(ff)
 				case T_INTERFACE:
-					ff := lookupForeignFunc("runtime", "cmpinterface")
+					ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
 					emitAllocReturnVarsAreaFF(ff)
 					emitPushStackTop(condType, intSize, "switch expr")
 					emitExpr(e, nil)
@@ -2399,7 +2403,7 @@ func getTypeOfExpr(expr astExpr) *Type {
 	case *astSelectorExpr:
 		x := e.X
 		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
-			ident := lookupForeignVar(expr2Ident(x).Name, e.Sel.Name)
+			ident := lookupForeignIdent(selector2QI(e))
 			return getTypeOfExpr(newExpr(ident))
 		} else {
 			var structType = getStructTypeOfX(e)
@@ -2489,7 +2493,7 @@ func getCallResultTypes(e *astCallExpr) []*Type {
 				panic2(__func__, "xIdent.Obj should not be nil")
 			}
 			if xIdent.Obj.Kind == astPkg {
-				ff := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+				ff := lookupForeignFunc(selector2QI(fn))
 				return fieldList2Types(ff.decl.Type.Results)
 			} else {
 				var xType = getTypeOfExpr(fn.X)
@@ -2636,9 +2640,9 @@ func kind(t *Type) string {
 		full := expr2Ident(e.X).Name + "." + e.Sel.Name
 		if full == "unsafe.Pointer" {
 			return T_POINTER
-		} else {
-			panic2(__func__, "Unkown type")
 		}
+		ident := lookupForeignIdent(selector2QI(e))
+		return kind(e2t(ident))
 	default:
 		panic2(__func__, "Unkown dtype:"+dtypeOf(t.e))
 	}
@@ -2754,14 +2758,21 @@ func getStructFields(structTypeSpec *astTypeSpec) []*astField {
 	return structType.Fields.List
 }
 
-func getStructTypeSpec(namedStructType *Type) *astTypeSpec {
-	if kind(namedStructType) != T_STRUCT {
+func getStructTypeSpec(typ *Type) *astTypeSpec {
+	if kind(typ) != T_STRUCT {
 		panic2(__func__, "not T_STRUCT")
 	}
-	ident := expr2Ident(namedStructType.e)
+	var typeName *astIdent
+	switch t := typ.e.(type) {
+	case *astIdent:
+		typeName = t
+	case *astSelectorExpr:
+		typeName = lookupForeignIdent(selector2QI(t))
+	}
+
 	var typeSpec *astTypeSpec
 	var ok bool
-	typeSpec, ok = ident.Obj.Decl.(*astTypeSpec)
+	typeSpec, ok = typeName.Obj.Decl.(*astTypeSpec)
 	if !ok {
 		panic2(__func__, "not *astTypeSpec")
 	}
@@ -2929,22 +2940,50 @@ type methodEntry struct {
 }
 
 type namedTypeEntry struct {
-	name    string
+	//name    string
+	obj *astObject
 	methods []*methodEntry
 }
 
 var typesWithMethods []*namedTypeEntry
 
-func findNamedType(typeName string) *namedTypeEntry {
-	var typ *namedTypeEntry
-	for _, typ := range typesWithMethods {
-		if typ.name == typeName {
-			return typ
+func findNamedType(obj *astObject) *namedTypeEntry {
+	for _, t := range typesWithMethods {
+		if t.obj == obj {
+			return t
 		}
 	}
-	typ = nil
-	return typ
+	return nil
 }
+
+type QualifiedIdent string
+
+func newQI(pkg string, ident string) QualifiedIdent {
+	return QualifiedIdent(pkg + "." + ident)
+}
+
+func isQI(e *astSelectorExpr) bool {
+	var ident *astIdent
+	var isIdent bool
+	ident, isIdent = e.X.(*astIdent)
+	if !isIdent {
+		return false
+	}
+	return ident.Obj.Kind == astPkg
+}
+
+func selector2QI(e *astSelectorExpr) QualifiedIdent {
+	var pkgName *astIdent
+	var isIdent bool
+	pkgName, isIdent = e.X.(*astIdent)
+	if !isIdent {
+		panic(e)
+	}
+	assert(pkgName.Obj.Kind == astPkg, "should be ast.Pkg", __func__)
+	return newQI(pkgName.Name, e.Sel.Name)
+}
+
+
 
 func newMethod(pkgName string, funcDecl *astFuncDecl) *Method {
 	var rcvType = funcDecl.Recv.List[0].Type
@@ -2966,10 +3005,10 @@ func newMethod(pkgName string, funcDecl *astFuncDecl) *Method {
 }
 
 func registerMethod(method *Method) {
-	var nt = findNamedType(method.rcvNamedType.Name)
+	var nt = findNamedType(method.rcvNamedType.Obj)
 	if nt == nil {
 		nt = &namedTypeEntry{
-			name:    method.rcvNamedType.Name,
+			obj:    method.rcvNamedType.Obj,
 			methods: nil,
 		}
 		typesWithMethods = append(typesWithMethods, nt)
@@ -2988,11 +3027,22 @@ func lookupMethod(rcvT *Type, methodName *astIdent) *Method {
 		rcvType = expr2StarExpr(rcvType).X
 	}
 
-	var rcvTypeName = expr2Ident(rcvType)
-	var nt = findNamedType(rcvTypeName.Name)
-	if nt == nil {
-		panic(rcvTypeName.Name + " has no moethodeiverTypeName:")
+	var nt *namedTypeEntry
+	switch typ := rcvType.(type) {
+	case *astIdent:
+		 nt = findNamedType(typ.Obj)
+		if nt == nil {
+			panic(typ.Name + " has no moethodeiverTypeName:")
+		}
+	case *astSelectorExpr:
+		qi := selector2QI(typ)
+		t := lookupForeignIdent(qi)
+		nt = findNamedType(t.Obj)
+		if nt == nil {
+			panic(string(qi) + " has no moethodeiverTypeName:")
+		}
 	}
+
 
 	for _, me := range nt.methods {
 		if me.name == methodName.Name {
@@ -3284,7 +3334,7 @@ func walkExpr(expr astExpr) {
 var ExportedQualifiedIdents []*exportEntry
 
 type exportEntry struct {
-	qi  string
+	qi  QualifiedIdent
 	any interface{} // *astFuncDecl|*astIdent(variable)
 }
 
@@ -3321,12 +3371,17 @@ func walk(pkg *PkgContainer) {
 		case T_STRUCT:
 			calcStructSizeAndSetFieldOffset(typeSpec)
 		}
+		exportEntry := &exportEntry{
+			qi:  newQI(pkg.name , typeSpec.Name.Name),
+			any: typeSpec.Name,
+		}
+		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
 	}
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		exportEntry := &exportEntry{
-			qi:  pkg.name + "." + funcDecl.Name.Name,
+			qi:  newQI(pkg.name , funcDecl.Name.Name),
 			any: funcDecl,
 		}
 		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
@@ -3353,7 +3408,7 @@ func walk(pkg *PkgContainer) {
 		nameIdent.Obj.Variable = newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(valSpec.Type))
 		pkg.vars = append(pkg.vars, valSpec)
 		exportEntry := &exportEntry{
-			qi:  pkg.name + "." + nameIdent.Name,
+			qi:  newQI(pkg.name, nameIdent.Name),
 			any: nameIdent,
 		}
 		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
@@ -3576,9 +3631,9 @@ func resolveImports(file *astFile) {
 	}
 }
 
-func lookupForeignVar(pkg string, identifier string) *astIdent {
-	key := pkg + "." + identifier
-	logf("lookupForeignVar... %s\n", key)
+func lookupForeignIdent(qi QualifiedIdent) *astIdent {
+	key := qi
+	logf("lookupForeignIdent... %s\n", key)
 	for _, entry := range ExportedQualifiedIdents {
 		logf("  looking into %s\n", entry.qi)
 		if entry.qi == key {
@@ -3591,7 +3646,7 @@ func lookupForeignVar(pkg string, identifier string) *astIdent {
 			return ident
 		}
 	}
-	return nil
+	panic("QI not found: " + string(qi))
 }
 
 type ForeignFunc struct {
@@ -3599,25 +3654,30 @@ type ForeignFunc struct {
 	decl   *astFuncDecl
 }
 
-func lookupForeignFunc(pkg string, identifier string) *ForeignFunc {
-	symbol := pkg + "." + identifier
-	logf("lookupForeignFunc... %s\n", symbol)
+func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
+	logf("lookupForeignFunc... \n")
 	for _, entry := range ExportedQualifiedIdents {
-		logf("  looking into %s\n", entry.qi)
-		if entry.qi == symbol {
+		logf("  looking into 0000\n")
+		if entry.qi == qi {
+			fmt.Printf("# @@@ showing found qi\n")
+			fmt.Printf("# %s\n", string(qi))
+			logf("  looking into 1000\n")
 			var fdecl *astFuncDecl
 			var ok bool
 			fdecl, ok = entry.any.(*astFuncDecl)
+			logf("  looking into 5000\n")
 			if !ok {
 				panic("not fdecl")
 			}
+			logf("  found\n")
 			return &ForeignFunc{
-				symbol: symbol,
+				symbol: string(qi),
 				decl:   fdecl,
 			}
 		}
+		logf("  not match\n")
 	}
-	panic("function not found: " + symbol)
+	panic("function not found: " + qi)
 	return nil
 }
 
