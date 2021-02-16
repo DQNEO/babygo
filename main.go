@@ -2274,11 +2274,13 @@ const T_STRUCT string = "T_STRUCT"
 const T_POINTER string = "T_POINTER"
 
 func isUnsafePointer(selector *astSelectorExpr) bool {
-	if !isQI(selector) {
+	var ident *astIdent
+	var isIdent bool
+	ident, isIdent = selector.X.(*astIdent)
+	if !isIdent {
 		return false
 	}
-	xIdent := selector.X.(*astIdent)
-	if xIdent.Name == "unsafe" && selector.Sel.Name == "Pointer" {
+	if ident.Name == "unsafe" && selector.Sel.Name == "Pointer" {
 		return true
 	}
 	return false
@@ -2401,13 +2403,12 @@ func getTypeOfExpr(expr astExpr) *Type {
 			return getTypeOfExpr(binaryExpr.X)
 		}
 	case *astSelectorExpr:
-		x := e.X
-		if isExprIdent(x) && expr2Ident(x).Obj.Kind == astPkg {
+		if isQI(e) {
 			ident := lookupForeignIdent(selector2QI(e))
-			return getTypeOfExpr(newExpr(ident))
+			return getTypeOfExpr(ident)
 		} else {
-			var structType = getStructTypeOfX(e)
-			var field = lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
+			structType := getStructTypeOfX(e)
+			field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 			return e2t(field.Type)
 		}
 	case *astCompositeLit:
@@ -2480,27 +2481,18 @@ func getCallResultTypes(e *astCallExpr) []*Type {
 		}
 	case *astArrayType:
 		return []*Type{e2t(fun)}
-	case *astSelectorExpr: // (X).Sel()
-		xIdent := expr2Ident(fn.X)
-		symbol := xIdent.Name + "." + fn.Sel.Name
-		switch symbol {
-		case "unsafe.Pointer":
+	case *astSelectorExpr:
+		if isUnsafePointer(fn) {
 			// unsafe.Pointer(x)
 			return []*Type{tUintptr}
-		default:
-			xIdent := expr2Ident(fn.X)
-			if xIdent.Obj == nil {
-				panic2(__func__, "xIdent.Obj should not be nil")
-			}
-			if xIdent.Obj.Kind == astPkg {
-				ff := lookupForeignFunc(selector2QI(fn))
-				return fieldList2Types(ff.decl.Type.Results)
-			} else {
-				var xType = getTypeOfExpr(fn.X)
-				var method = lookupMethod(xType, fn.Sel)
-				assert(len(method.funcType.Results.List) == 1, "func is expected to return a single value", __func__)
-				return fieldList2Types(method.funcType.Results)
-			}
+		}
+		if isQI(fn) {  // pkg.Sel()
+			ff := lookupForeignFunc(selector2QI(fn))
+			return fieldList2Types(ff.decl.Type.Results)
+		} else {  // obj.method()
+			var xType = getTypeOfExpr(fn.X)
+			var method = lookupMethod(xType, fn.Sel)
+			return fieldList2Types(method.funcType.Results)
 		}
 	case *astInterfaceType:
 		return []*Type{tEface}
@@ -2637,8 +2629,7 @@ func kind(t *Type) string {
 	case *astParenExpr:
 		panic(dtypeOf(e))
 	case *astSelectorExpr:
-		full := expr2Ident(e.X).Name + "." + e.Sel.Name
-		if full == "unsafe.Pointer" {
+		if isUnsafePointer(e) {
 			return T_POINTER
 		}
 		ident := lookupForeignIdent(selector2QI(e))
@@ -2768,6 +2759,8 @@ func getStructTypeSpec(typ *Type) *astTypeSpec {
 		typeName = t
 	case *astSelectorExpr:
 		typeName = lookupForeignIdent(selector2QI(t))
+	default:
+		panic(typ.e)
 	}
 
 	var typeSpec *astTypeSpec
