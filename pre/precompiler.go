@@ -419,7 +419,7 @@ func emitCap(arg ast.Expr) {
 
 func emitCallMalloc(size int) {
 	// call malloc and return pointer
-	ff := lookupForeignFunc("runtime", "malloc")
+	ff := lookupForeignFunc(newQI("runtime", "malloc"))
 	emitAllocReturnVarsAreaFF(ff)
 	fmt.Printf("  pushq $%d\n", size)
 	emitCallFF(ff)
@@ -847,14 +847,11 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			return
 		}
 
-		xIdent := fn.X.(*ast.Ident)
-		if xIdent.Obj == nil {
-			throw(xIdent)
-		}
-		if xIdent.Obj.Kind == ast.Pkg {
+		if isQI(fn) {
 			// pkg.Sel()
-			symbol = fmt.Sprintf("%s.%s", xIdent.Name, fn.Sel.Name)
-			funcdecl := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+			qi := selector2QI(fn)
+			symbol = string(qi)
+			funcdecl := lookupForeignFunc(qi)
 			funcType = funcdecl.decl.Type
 		} else {
 			// Assume method call
@@ -948,10 +945,9 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		emitLoadAndPush(getTypeOfExpr(e))
 	case *ast.SelectorExpr: // 1 value X.Sel
 		// pkg.Var or strct.field
-		ident, isIdent := e.X.(*ast.Ident)
-		if isIdent && ident.Obj.Kind == ast.Pkg {
+		if isQI(e) {
 			// pkg.Var
-			ident := lookupForeignVar(ident.Name, e.Sel.Name)
+			ident := lookupForeignVar(selector2QI(e))
 			emitExpr(ident, ctx)
 		} else {
 			// strct.field
@@ -1416,7 +1412,7 @@ func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
 	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
 		var t = getTypeOfExpr(left)
 
-		ff := lookupForeignFunc("runtime", "cmpinterface")
+		ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
 
 		emitAllocReturnVarsAreaFF(ff)
 
@@ -1507,7 +1503,7 @@ func emitRegiToMem(t *Type) {
 		fmt.Printf("  pushq $%d # size\n", getSizeOfType(t))
 		fmt.Printf("  pushq %%rsi # dst lhs\n")
 		fmt.Printf("  pushq %%rax # src rhs\n")
-		ff := lookupForeignFunc("runtime", "memcopy")
+		ff := lookupForeignFunc(newQI("runtime", "memcopy"))
 		emitCallFF(ff)
 	default:
 		panic("TBI:" + k)
@@ -1858,7 +1854,7 @@ func emitStmt(stmt ast.Stmt) {
 				assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string")
 				switch kind(condType) {
 				case T_STRING:
-					ff := lookupForeignFunc("runtime", "cmpstrings")
+					ff := lookupForeignFunc(newQI("runtime", "cmpstrings"))
 					emitAllocReturnVarsAreaFF(ff)
 
 					emitPushStackTop(condType, intSize, "switch expr")
@@ -1866,7 +1862,7 @@ func emitStmt(stmt ast.Stmt) {
 
 					emitCallFF(ff)
 				case T_INTERFACE:
-					ff := lookupForeignFunc("runtime", "cmpinterface")
+					ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
 
 					emitAllocReturnVarsAreaFF(ff)
 
@@ -2339,15 +2335,16 @@ var tEface *Type = &Type{
 var generalSlice ast.Expr = &ast.Ident{}
 
 func isUnsafePointer(selector *ast.SelectorExpr) bool {
-	xIdent, isIdent := selector.X.(*ast.Ident)
-	if !isIdent {
+	if !isQI(selector) {
 		return false
 	}
-	if xIdent.Obj.Kind == ast.Pkg && xIdent.Name == "unsafe" && selector.Sel.Name == "Pointer" {
+	xIdent := selector.X.(*ast.Ident)
+	if xIdent.Name == "unsafe" && selector.Sel.Name == "Pointer" {
 		return true
 	}
 	return false
 }
+
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -2464,9 +2461,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	case *ast.SelectorExpr:
 		// X.Sel
 		emitComment(2, "getTypeOfExpr(X.%s)\n", e.Sel.Name)
-		ident, isIdent := e.X.(*ast.Ident)
-		if isIdent && ident.Obj.Kind == ast.Pkg {
-			ident := lookupForeignVar(ident.Name, e.Sel.Name)
+		if isQI(e) {
+			ident := lookupForeignVar(selector2QI(e))
 			return getTypeOfExpr(ident)
 		} else {
 			structType := getStructTypeOfX(e)
@@ -2546,9 +2542,9 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			throw(xIdent)
 		}
 
-		if xIdent.Obj.Kind == ast.Pkg {
+		if isQI(fn) {
 			// pkg.Sel()
-			ff := lookupForeignFunc(xIdent.Name, fn.Sel.Name)
+			ff := lookupForeignFunc(selector2QI(fn))
 			return fieldList2Types(ff.decl.Type.Results)
 		} else {
 			// Assume method call
@@ -3035,8 +3031,16 @@ func newLocalVariable(name string, localoffset localoffsetint, t *Type) *Variabl
 
 type QualifiedIdent string
 
-func newQualifiedIdent(pkg string, ident string) QualifiedIdent {
+func newQI(pkg string, ident string) QualifiedIdent {
 	return QualifiedIdent(pkg + "." + ident)
+}
+
+func isQI(e *ast.SelectorExpr) bool {
+	ident, isIdent := e.X.(*ast.Ident)
+	if !isIdent {
+		return false
+	}
+	return ident.Obj.Kind == ast.Pkg
 }
 
 func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
@@ -3045,7 +3049,7 @@ func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
 		throw(e)
 	}
 	assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg")
-	return newQualifiedIdent(pkgName.Name, e.Sel.Name)
+	return newQI(pkgName.Name, e.Sel.Name)
 }
 
 // https://golang.org/ref/spec#Method_sets
@@ -3438,14 +3442,14 @@ func walk(pkg *PkgContainer) {
 			calcStructSizeAndSetFieldOffset(typeSpec)
 		}
 
-		ExportedQualifiedIdents[pkg.name+"."+typeSpec.Name.Name] = typeSpec.Name
+		ExportedQualifiedIdents[newQI(pkg.name,typeSpec.Name.Name)] = typeSpec.Name
 	}
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
-		key := pkg.name + "." + funcDecl.Name.Name
-		logf("ExportedQualifiedIdents added: %s\n", key)
-		ExportedQualifiedIdents[key] = funcDecl
+		qi := newQI(pkg.name , funcDecl.Name.Name)
+		logf("ExportedQualifiedIdents added: %s\n", string(qi))
+		ExportedQualifiedIdents[qi] = funcDecl
 		if funcDecl.Body != nil {
 			if funcDecl.Recv != nil { // is Method
 				method := newMethod(pkg.name, funcDecl)
@@ -3475,7 +3479,7 @@ func walk(pkg *PkgContainer) {
 		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		nameIdent.Obj.Data = variable
 		pkg.vars = append(pkg.vars, varSpec)
-		ExportedQualifiedIdents[pkg.name+"."+nameIdent.Obj.Name] = nameIdent
+		ExportedQualifiedIdents[newQI(pkg.name, nameIdent.Obj.Name)] = nameIdent
 		for _, v := range varSpec.Values {
 			// mainly to collect string literals
 			walkExpr(v)
@@ -3745,10 +3749,10 @@ func resolveImports(file *ast.File) {
 	}
 }
 
-var ExportedQualifiedIdents map[string]interface{} = map[string]interface{}{}
+var ExportedQualifiedIdents map[QualifiedIdent]interface{} = map[QualifiedIdent]interface{}{}
 
 func lookupForeignType(qi QualifiedIdent) *ast.Ident {
-	x, found := ExportedQualifiedIdents[string(qi)]
+	x, found := ExportedQualifiedIdents[qi]
 	if !found {
 		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
@@ -3759,10 +3763,10 @@ func lookupForeignType(qi QualifiedIdent) *ast.Ident {
 	return ident
 }
 
-func lookupForeignVar(pkg string, identifier string) *ast.Ident {
-	x, found := ExportedQualifiedIdents[pkg+"."+identifier]
+func lookupForeignVar(qi QualifiedIdent) *ast.Ident {
+	x, found := ExportedQualifiedIdents[qi]
 	if !found {
-		panic(pkg + "." + identifier + " Not found in ExportedQualifiedIdents")
+		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
 	ident, ok := x.(*ast.Ident)
 	if !ok {
@@ -3776,15 +3780,14 @@ type ForeignFunc struct {
 	decl   *ast.FuncDecl
 }
 
-func lookupForeignFunc(pkg string, identifier string) *ForeignFunc {
-	symbol := pkg + "." + identifier
-	x, _ := ExportedQualifiedIdents[symbol]
+func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
+	x, _ := ExportedQualifiedIdents[qi]
 	decl, ok := x.(*ast.FuncDecl)
 	if !ok {
-		panic("Function not found: " + pkg + "." + identifier)
+		panic("Function not found: " + qi)
 	}
 	return &ForeignFunc{
-		symbol: symbol,
+		symbol: string(qi),
 		decl:   decl,
 	}
 }
