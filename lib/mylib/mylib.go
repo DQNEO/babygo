@@ -4,6 +4,14 @@ import "unsafe"
 import "syscall"
 import "github.com/DQNEO/babygo/lib/mylib2"
 
+type Type struct {
+	Field int
+}
+
+func (mt *Type) Method() int {
+	return mt.Field
+}
+
 func InArray(x string, list []string) bool {
 	for _, v := range list {
 		if v == x {
