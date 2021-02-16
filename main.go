@@ -849,7 +849,6 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 			emitExpr(eArgs[0], nil)
 			return
 		}
-		selectorExpr := fn
 		if isQI(fn) {
 			// pkg.Sel()
 			qi := selector2QI(fn)
@@ -857,9 +856,9 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 			ff := lookupForeignFunc(qi)
 			funcType = ff.decl.Type
 		} else {
-			receiver = selectorExpr.X
+			receiver = fn.X
 			receiverType := getTypeOfExpr(receiver)
-			method := lookupMethod(receiverType, selectorExpr.Sel)
+			method := lookupMethod(receiverType, fn.Sel)
 			funcType = method.funcType
 			symbol = getMethodSymbol(method)
 		}
