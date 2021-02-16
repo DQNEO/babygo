@@ -427,7 +427,7 @@ func emitCallMalloc(size int) {
 
 func emitStructLiteral(e *ast.CompositeLit) {
 	// allocate heap area with zero value
-	fmt.Printf("  # Struct literal\n")
+	emitComment(2, "emitStructLiteral\n")
 	structType := e2t(e.Type)
 	emitZeroValue(structType) // push address of the new storage
 	for i, elm := range e.Elts {
