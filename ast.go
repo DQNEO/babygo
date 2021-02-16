@@ -6,9 +6,9 @@ var astVar string = "Var"
 var astFun string = "Fun"
 var astPkg string = "Pkg"
 
-type signature struct {
-	params  *astFieldList
-	results *astFieldList
+type Signature struct {
+	Params  *astFieldList
+	Results *astFieldList
 }
 
 type astObject struct {
@@ -113,7 +113,7 @@ type astStructType struct {
 }
 
 type astInterfaceType struct {
-	methods []string
+	Methods []string
 }
 
 type astFuncType struct {
@@ -140,18 +140,18 @@ type astAssignStmt struct {
 	Lhs     []astExpr
 	Tok     string
 	Rhs     []astExpr
-	isRange bool
+	IsRange bool
 }
 
 type astReturnStmt struct {
 	Results []astExpr
-	node    *nodeReturnStmt
+	Node    *nodeReturnStmt
 }
 
 type astBranchStmt struct {
 	Tok        string
 	Label      string
-	currentFor astStmt
+	CurrentFor astStmt
 }
 
 type astBlockStmt struct {
@@ -179,24 +179,24 @@ type astSwitchStmt struct {
 type astTypeSwitchStmt struct {
 	Assign astStmt
 	Body   *astBlockStmt
-	node   *nodeTypeSwitchStmt
+	Node   *nodeTypeSwitchStmt
 }
 
 type nodeReturnStmt struct {
-	fnc *Func
+	Fnc *Func
 }
 
 type nodeTypeSwitchStmt struct {
-	subject         astExpr
-	subjectVariable *Variable
-	assignIdent     *astIdent
-	cases           []*TypeSwitchCaseClose
+	Subject         astExpr
+	SubjectVariable *Variable
+	AssignIdent     *astIdent
+	Cases           []*TypeSwitchCaseClose
 }
 
 type TypeSwitchCaseClose struct {
-	variable     *Variable
-	variableType *Type
-	orig         *astCaseClause
+	Variable     *Variable
+	VariableType *Type
+	Orig         *astCaseClause
 }
 
 type astForStmt struct {
@@ -205,8 +205,8 @@ type astForStmt struct {
 	Post      astStmt
 	Body      *astBlockStmt
 	Outer     astStmt // outer loop
-	labelPost string
-	labelExit string
+	LabelPost string
+	LabelExit string
 }
 
 type astRangeStmt struct {
@@ -215,10 +215,10 @@ type astRangeStmt struct {
 	X         astExpr
 	Body      *astBlockStmt
 	Outer     astStmt // outer loop
-	labelPost string
-	labelExit string
-	lenvar    *Variable
-	indexvar  *Variable
+	LabelPost string
+	LabelExit string
+	Lenvar    *Variable
+	Indexvar  *Variable
 	Tok       string
 }
 
@@ -260,7 +260,7 @@ type astFile struct {
 	Imports    []*astImportSpec
 	Decls      []astDecl
 	Unresolved []*astIdent
-	scope      *astScope
+	Scope      *astScope
 }
 
 type astScope struct {
@@ -269,8 +269,8 @@ type astScope struct {
 }
 
 type objectEntry struct {
-	name string
-	obj  *astObject
+	Name string
+	Obj  *astObject
 }
 
 func astNewScope(outer *astScope) *astScope {
@@ -285,15 +285,15 @@ func (s *astScope) Insert(obj *astObject) {
 	}
 
 	s.Objects = append(s.Objects, &objectEntry{
-		name: obj.Name,
-		obj:  obj,
+		Name: obj.Name,
+		Obj:  obj,
 	})
 }
 
 func (s *astScope) Lookup(name string) *astObject {
 	for _, oe := range s.Objects {
-		if oe.name == name {
-			return oe.obj
+		if oe.Name == name {
+			return oe.Obj
 		}
 	}
 

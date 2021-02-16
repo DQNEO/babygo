@@ -257,7 +257,7 @@ func (p *parser) tryIdentOrType() astExpr {
 		// @TODO parser method sets
 		p.expect("}", __func__)
 		return newExpr(&astInterfaceType{
-			methods: nil,
+			Methods: nil,
 		})
 	case "(":
 		p.next()
@@ -385,15 +385,15 @@ func (p *parser) parseResult(scope *astScope) *astFieldList {
 	}
 }
 
-func (p *parser) parseSignature(scope *astScope) *signature {
+func (p *parser) parseSignature(scope *astScope) *Signature {
 	logf(" [%s] begin\n", __func__)
 	var params *astFieldList
 	var results *astFieldList
 	params = p.parseParameters(scope, true)
 	results = p.parseResult(scope)
-	return &signature{
-		params:  params,
-		results: results,
+	return &Signature{
+		Params:  params,
+		Results: results,
 	}
 }
 
@@ -813,7 +813,7 @@ func (p *parser) parseForStmt() astStmt {
 			var isAssign bool
 			var assign *astAssignStmt
 			assign, isAssign = s2.(*astAssignStmt)
-			isRange = isAssign && assign.isRange
+			isRange = isAssign && assign.IsRange
 			logf(" [%s] isRange=true\n", __func__)
 		}
 		if !isRange && p.tok.tok == ";" {
@@ -1015,7 +1015,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) astStmt {
 		as.Lhs = x
 		as.Rhs = make([]astExpr, 1, 1)
 		as.Rhs[0] = y
-		as.isRange = isRange
+		as.IsRange = isRange
 		s := newStmt(as)
 		if as.Tok == ":=" {
 			lhss := x
@@ -1235,12 +1235,12 @@ func (p *parser) parseFuncDecl() astDecl {
 	}
 	var ident = p.parseIdent() // func name
 	var sig = p.parseSignature(scope)
-	var params = sig.params
-	var results = sig.results
+	var params = sig.Params
+	var results = sig.Results
 	if results == nil {
 		logf(" [parserFuncDecl] %s sig.results is nil\n", ident.Name)
 	} else {
-		logf(" [parserFuncDecl] %s sig.results.List = %s\n", ident.Name, strconv.Itoa(len(sig.results.List)))
+		logf(" [parserFuncDecl] %s sig.results.List = %s\n", ident.Name, strconv.Itoa(len(sig.Results.List)))
 	}
 	var body *astBlockStmt
 	if p.tok.tok == "{" {
@@ -1328,7 +1328,7 @@ func (p *parser) parseFile(importsOnly bool) *astFile {
 	// dump p.pkgScope
 	logf("[DEBUG] Dump objects in the package scope\n")
 	for _, oe := range p.pkgScope.Objects {
-		logf("    object %s\n", oe.name)
+		logf("    object %s\n", oe.Name)
 	}
 
 	var unresolved []*astIdent
@@ -1349,7 +1349,7 @@ func (p *parser) parseFile(importsOnly bool) *astFile {
 
 	var f = &astFile{}
 	f.Name = packageName
-	f.scope = p.pkgScope
+	f.Scope = p.pkgScope
 	f.Decls = decls
 	f.Unresolved = unresolved
 	f.Imports = p.imports

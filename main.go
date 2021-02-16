@@ -622,8 +622,8 @@ func emitCallQ(symbol string, totalParamSize int, resultList *astFieldList) {
 
 // callee
 func emitReturnStmt(s *astReturnStmt) {
-	node := s.node
-	fnc := node.fnc
+	node := s.Node
+	fnc := node.Fnc
 	if len(fnc.retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
 	}
@@ -1690,8 +1690,8 @@ func emitStmt(stmt astStmt) {
 		var labelExit = ".L.for.exit." + strconv.Itoa(labelid)
 		//forStmt, ok := mapForNodeToFor[s]
 		//assert(ok, "map value should exist")
-		s.labelPost = labelPost
-		s.labelExit = labelExit
+		s.LabelPost = labelPost
+		s.LabelExit = labelExit
 
 		if s.Init != nil {
 			emitStmt(s.Init)
@@ -1717,20 +1717,20 @@ func emitStmt(stmt astStmt) {
 		var labelPost = ".L.range.post." + strconv.Itoa(labelid)
 		var labelExit = ".L.range.exit." + strconv.Itoa(labelid)
 
-		s.labelPost = labelPost
-		s.labelExit = labelExit
+		s.LabelPost = labelPost
+		s.LabelExit = labelExit
 		// initialization: store len(rangeexpr)
 		emitComment(2, "ForRange Initialization\n")
 
 		emitComment(2, "  assign length to lenvar\n")
 		// lenvar = len(s.X)
-		emitVariableAddr(s.lenvar)
+		emitVariableAddr(s.Lenvar)
 		emitLen(s.X)
 		emitStore(tInt, true, false)
 
 		emitComment(2, "  assign 0 to indexvar\n")
 		// indexvar = 0
-		emitVariableAddr(s.indexvar)
+		emitVariableAddr(s.Indexvar)
 		emitZeroValue(tInt)
 		emitStore(tInt, true, false)
 
@@ -1752,9 +1752,9 @@ func emitStmt(stmt astStmt) {
 		emitComment(2, "ForRange Condition\n")
 		fmt.Printf("  %s:\n", labelCond)
 
-		emitVariableAddr(s.indexvar)
+		emitVariableAddr(s.Indexvar)
 		emitLoadAndPush(tInt)
-		emitVariableAddr(s.lenvar)
+		emitVariableAddr(s.Lenvar)
 		emitLoadAndPush(tInt)
 		emitCompExpr("setl")
 		emitPopBool(" indexvar < lenvar")
@@ -1765,7 +1765,7 @@ func emitStmt(stmt astStmt) {
 		var elemType = getTypeOfExpr(s.Value)
 		emitAddr(s.Value) // lhs
 
-		emitVariableAddr(s.indexvar)
+		emitVariableAddr(s.Indexvar)
 		emitLoadAndPush(tInt) // index value
 		emitListElementAddr(s.X, elemType)
 
@@ -1779,8 +1779,8 @@ func emitStmt(stmt astStmt) {
 		// Post statement: Increment indexvar and go next
 		emitComment(2, "ForRange Post statement\n")
 		fmt.Printf("  %s:\n", labelPost) // used for "continue"
-		emitVariableAddr(s.indexvar)     // lhs
-		emitVariableAddr(s.indexvar)     // rhs
+		emitVariableAddr(s.Indexvar)     // lhs
+		emitVariableAddr(s.Indexvar)     // rhs
 		emitLoadAndPush(tInt)
 		emitAddConst(1, "indexvar value ++")
 		emitStore(tInt, true, false)
@@ -1789,7 +1789,7 @@ func emitStmt(stmt astStmt) {
 			keyIdent := expr2Ident(s.Key)
 			if keyIdent.Name != "_" {
 				emitAddr(s.Key)              // lhs
-				emitVariableAddr(s.indexvar) // rhs
+				emitVariableAddr(s.Indexvar) // rhs
 				emitLoadAndPush(tInt)
 				emitStore(tInt, true, false)
 			}
@@ -1888,14 +1888,14 @@ func emitStmt(stmt astStmt) {
 		}
 		fmt.Printf("%s:\n", labelEnd)
 	case *astTypeSwitchStmt:
-		typeSwitch := s.node
+		typeSwitch := s.Node
 		//		assert(ok, "should exist")
 		labelid++
 		labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
 		// subjectVariable = subject
-		emitVariableAddr(typeSwitch.subjectVariable)
-		emitExpr(typeSwitch.subject, nil)
+		emitVariableAddr(typeSwitch.SubjectVariable)
+		emitExpr(typeSwitch.Subject, nil)
 		emitStore(tEface, true, false)
 
 		cases := s.Body.List
@@ -1913,7 +1913,7 @@ func emitStmt(stmt astStmt) {
 				continue
 			}
 			for _, e := range cc.List {
-				emitVariableAddr(typeSwitch.subjectVariable)
+				emitVariableAddr(typeSwitch.SubjectVariable)
 				emitPopAddress("type switch subject")
 				fmt.Printf("  movq (%%rax), %%rax # dtype\n")
 				fmt.Printf("  pushq %%rax # dtype\n")
@@ -1937,25 +1937,25 @@ func emitStmt(stmt astStmt) {
 			fmt.Printf("  jmp %s\n", labelEnd)
 		}
 
-		for i, typeSwitchCaseClose := range typeSwitch.cases {
-			if typeSwitchCaseClose.variable != nil {
-				typeSwitch.assignIdent.Obj.Variable = typeSwitchCaseClose.variable
+		for i, typeSwitchCaseClose := range typeSwitch.Cases {
+			if typeSwitchCaseClose.Variable != nil {
+				typeSwitch.AssignIdent.Obj.Variable = typeSwitchCaseClose.Variable
 			}
 			fmt.Printf("%s:\n", labels[i])
 
-			for _, _s := range typeSwitchCaseClose.orig.Body {
-				if typeSwitchCaseClose.variable != nil {
+			for _, _s := range typeSwitchCaseClose.Orig.Body {
+				if typeSwitchCaseClose.Variable != nil {
 					// do assignment
-					expr := newExpr(typeSwitch.assignIdent)
+					expr := newExpr(typeSwitch.AssignIdent)
 					emitAddr(expr)
-					emitVariableAddr(typeSwitch.subjectVariable)
+					emitVariableAddr(typeSwitch.SubjectVariable)
 					emitLoadAndPush(tEface)
 					fmt.Printf("  popq %%rax # ifc.dtype\n")
 					fmt.Printf("  popq %%rcx # ifc.data\n")
 					fmt.Printf("  push %%rcx # ifc.data\n")
-					emitLoadAndPush(typeSwitchCaseClose.variableType)
+					emitLoadAndPush(typeSwitchCaseClose.VariableType)
 
-					emitStore(typeSwitchCaseClose.variableType, true, false)
+					emitStore(typeSwitchCaseClose.VariableType, true, false)
 				}
 
 				emitStmt(_s)
@@ -1965,15 +1965,15 @@ func emitStmt(stmt astStmt) {
 		fmt.Printf("%s:\n", labelEnd)
 
 	case *astBranchStmt:
-		var containerFor = s.currentFor
+		var containerFor = s.CurrentFor
 		var labelToGo string
 		switch s.Tok {
 		case "continue":
 			switch s := containerFor.(type) {
 			case *astForStmt:
-				labelToGo = s.labelPost
+				labelToGo = s.LabelPost
 			case *astRangeStmt:
-				labelToGo = s.labelPost
+				labelToGo = s.LabelPost
 			default:
 				panic2(__func__, "unexpected container dtype="+dtypeOf(containerFor))
 			}
@@ -1981,9 +1981,9 @@ func emitStmt(stmt astStmt) {
 		case "break":
 			switch s := containerFor.(type) {
 			case *astForStmt:
-				labelToGo = s.labelExit
+				labelToGo = s.LabelExit
 			case *astRangeStmt:
-				labelToGo = s.labelExit
+				labelToGo = s.LabelExit
 			default:
 				panic2(__func__, "unexpected container dtype="+dtypeOf(containerFor))
 			}
@@ -3118,8 +3118,8 @@ func walkStmt(stmt astStmt) {
 	case *astExprStmt:
 		walkExpr(s.X)
 	case *astReturnStmt:
-		s.node = &nodeReturnStmt{
-			fnc: currentFunc,
+		s.Node = &nodeReturnStmt{
+			Fnc: currentFunc,
 		}
 		for _, rt := range s.Results {
 			walkExpr(rt)
@@ -3172,8 +3172,8 @@ func walkStmt(stmt astStmt) {
 			valueIdent := expr2Ident(s.Value)
 			valueIdent.Obj.Variable = currentFunc.registerLocalVariable(valueIdent.Name, elmType)
 		}
-		s.lenvar = lenvar
-		s.indexvar = indexvar
+		s.Lenvar = lenvar
+		s.Indexvar = indexvar
 		currentFor = s.Outer
 	case *astIncDecStmt:
 		walkExpr(s.X)
@@ -3182,7 +3182,7 @@ func walkStmt(stmt astStmt) {
 			walkStmt(_s)
 		}
 	case *astBranchStmt:
-		s.currentFor = currentFor
+		s.CurrentFor = currentFor
 	case *astSwitchStmt:
 		if s.Tag != nil {
 			walkExpr(s.Tag)
@@ -3190,42 +3190,42 @@ func walkStmt(stmt astStmt) {
 		walkStmt(blockStmt2Stmt(s.Body))
 	case *astTypeSwitchStmt:
 		typeSwitch := &nodeTypeSwitchStmt{}
-		s.node = typeSwitch
+		s.Node = typeSwitch
 		var assignIdent *astIdent
 		switch s2 := s.Assign.(type) {
 		case *astExprStmt:
 			typeAssertExpr := expr2TypeAssertExpr(s2.X)
 			//assert(ok, "should be *ast.TypeAssertExpr")
-			typeSwitch.subject = typeAssertExpr.X
+			typeSwitch.Subject = typeAssertExpr.X
 			walkExpr(typeAssertExpr.X)
 		case *astAssignStmt:
 			lhs := s2.Lhs[0]
 			//var ok bool
 			assignIdent = expr2Ident(lhs)
 			//assert(ok, "lhs should be ident")
-			typeSwitch.assignIdent = assignIdent
+			typeSwitch.AssignIdent = assignIdent
 			// ident will be a new local variable in each case clause
 			typeAssertExpr := expr2TypeAssertExpr(s2.Rhs[0])
 			//assert(ok, "should be *ast.TypeAssertExpr")
-			typeSwitch.subject = typeAssertExpr.X
+			typeSwitch.Subject = typeAssertExpr.X
 			walkExpr(typeAssertExpr.X)
 		default:
 			throw(dtypeOf(s.Assign))
 		}
 
-		typeSwitch.subjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
+		typeSwitch.SubjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
 		for _, _case := range s.Body.List {
 			cc := stmt2CaseClause(_case)
 			tscc := &TypeSwitchCaseClose{
-				orig: cc,
+				Orig: cc,
 			}
-			typeSwitch.cases = append(typeSwitch.cases, tscc)
+			typeSwitch.Cases = append(typeSwitch.Cases, tscc)
 			if assignIdent != nil && len(cc.List) > 0 {
 				// inject a variable of that type
 				varType := e2t(cc.List[0])
 				vr := currentFunc.registerLocalVariable(assignIdent.Name, varType)
-				tscc.variable = vr
-				tscc.variableType = varType
+				tscc.Variable = vr
+				tscc.VariableType = varType
 				assignIdent.Obj.Variable = vr
 			}
 
@@ -3565,8 +3565,8 @@ func createUniverse() *astScope {
 	universe.Insert(gUint8)
 
 	universe.Objects = append(universe.Objects, &objectEntry{
-		name: "byte",
-		obj:  gUint8,
+		Name: "byte",
+		Obj:  gUint8,
 	})
 
 	universe.Insert(gUint16)
@@ -4001,7 +4001,7 @@ func main() {
 			af := parseFile(file, false)
 			_pkg.name = af.Name
 			_pkg.astFiles = append(_pkg.astFiles, af)
-			for _, oe := range af.scope.Objects {
+			for _, oe := range af.Scope.Objects {
 				pkgScope.Objects = append(pkgScope.Objects, oe)
 			}
 		}
