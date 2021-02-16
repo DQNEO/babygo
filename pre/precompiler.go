@@ -2609,6 +2609,9 @@ func serializeType(t *Type) string {
 		panic("TBD: Ellipsis")
 	case *ast.InterfaceType:
 		return "interface"
+	case *ast.SelectorExpr:
+		qi := selector2QI(e)
+		return string(qi)
 	default:
 		throw(t)
 	}
