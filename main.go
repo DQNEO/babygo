@@ -858,8 +858,8 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 			funcType = ff.decl.Type
 		} else {
 			receiver = selectorExpr.X
-			var receiverType = getTypeOfExpr(receiver)
-			var method = lookupMethod(receiverType, selectorExpr.Sel)
+			receiverType := getTypeOfExpr(receiver)
+			method := lookupMethod(receiverType, selectorExpr.Sel)
 			funcType = method.funcType
 			symbol = getMethodSymbol(method)
 		}
