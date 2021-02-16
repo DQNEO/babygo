@@ -2806,14 +2806,14 @@ type stringLiteralsContainer struct {
 
 //type localoffsetint int //@TODO
 
-func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
+func registerParamVariable(fnc *Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	fnc.Argsarea = fnc.Argsarea + getSizeOfType(t)
 	fnc.Params = append(fnc.Params, vr)
 	return vr
 }
 
-func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
+func registerReturnVariable(fnc *Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
 	fnc.Argsarea = fnc.Argsarea + size
@@ -2821,7 +2821,7 @@ func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
 	return vr
 }
 
-func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
+func registerLocalVariable(fnc *Func, name string, t *Type) *Variable {
 	assert(t != nil && t.e != nil, "type of local var should not be nil", __func__)
 	fnc.Localarea = fnc.Localarea - getSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
@@ -3047,7 +3047,7 @@ func walkStmt(stmt astStmt) {
 			valSpec.Name.Name, dtypeOf(typ))
 
 		t := e2t(typ)
-		valSpec.Name.Obj.Variable = currentFunc.registerLocalVariable(valSpec.Name.Name, t)
+		valSpec.Name.Obj.Variable = registerLocalVariable(currentFunc, valSpec.Name.Name, t)
 		logf(" var %s offset = %d\n", valSpec.Name.Obj.Name,
 			valSpec.Name.Obj.Variable.localOffset)
 		if valSpec.Value != nil {
@@ -3077,7 +3077,7 @@ func walkStmt(stmt astStmt) {
 				panic("type inference is not supported: " + obj.Name)
 			}
 			logf("infered type of %s is %s, rhs=%s\n", obj.Name, dtypeOf(typ.e), dtypeOf(rhs))
-			obj.Variable = currentFunc.registerLocalVariable(obj.Name, typ)
+			obj.Variable = registerLocalVariable(currentFunc, obj.Name, typ)
 		} else {
 			walkExpr(rhs)
 		}
@@ -3121,8 +3121,8 @@ func walkStmt(stmt astStmt) {
 		currentFor = stmt
 		var _s = blockStmt2Stmt(s.Body)
 		walkStmt(_s)
-		var lenvar = currentFunc.registerLocalVariable(".range.len", tInt)
-		var indexvar = currentFunc.registerLocalVariable(".range.index", tInt)
+		var lenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
+		var indexvar = registerLocalVariable(currentFunc,".range.index", tInt)
 
 		if s.Tok == ":=" {
 			listType := getTypeOfExpr(s.X)
@@ -3131,12 +3131,12 @@ func walkStmt(stmt astStmt) {
 			//@TODO map key can be any type
 			//keyType := getKeyTypeOfListType(listType)
 			var keyType *Type = tInt
-			keyIdent.Obj.Variable = currentFunc.registerLocalVariable(keyIdent.Name, keyType)
+			keyIdent.Obj.Variable = registerLocalVariable(currentFunc, keyIdent.Name, keyType)
 
 			// determine type of Value
 			elmType := getElementTypeOfListType(listType)
 			valueIdent := expr2Ident(s.Value)
-			valueIdent.Obj.Variable = currentFunc.registerLocalVariable(valueIdent.Name, elmType)
+			valueIdent.Obj.Variable = registerLocalVariable(currentFunc, valueIdent.Name, elmType)
 		}
 		s.Lenvar = lenvar
 		s.Indexvar = indexvar
@@ -3179,7 +3179,7 @@ func walkStmt(stmt astStmt) {
 			throw(dtypeOf(s.Assign))
 		}
 
-		typeSwitch.SubjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
+		typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", tEface)
 		for _, _case := range s.Body.List {
 			cc := stmt2CaseClause(_case)
 			tscc := &TypeSwitchCaseClose{
@@ -3189,7 +3189,7 @@ func walkStmt(stmt astStmt) {
 			if assignIdent != nil && len(cc.List) > 0 {
 				// inject a variable of that type
 				varType := e2t(cc.List[0])
-				vr := currentFunc.registerLocalVariable(assignIdent.Name, varType)
+				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
 				tscc.Variable = vr
 				tscc.VariableType = varType
 				assignIdent.Obj.Variable = vr
@@ -3404,13 +3404,13 @@ func walk(pkg *PkgContainer) {
 
 		for _, field := range paramFields {
 			obj := field.Name.Obj
-			obj.Variable = fnc.registerParamVariable(obj.Name, e2t(field.Type))
+			obj.Variable = registerParamVariable(fnc, obj.Name, e2t(field.Type))
 		}
 
 		for i, field := range resultFields {
 			if field.Name == nil {
 				// unnamed retval
-				fnc.registerReturnVariable(".r"+strconv.Itoa(i), e2t(field.Type))
+				registerReturnVariable(fnc, ".r"+strconv.Itoa(i), e2t(field.Type))
 			} else {
 				panic("TBI: named return variable is not supported")
 			}
