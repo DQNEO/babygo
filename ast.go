@@ -6,29 +6,29 @@ var astVar string = "Var"
 var astFun string = "Fun"
 var astPkg string = "Pkg"
 
-type Signature struct {
+type astSignature struct {
 	Params  *astFieldList
 	Results *astFieldList
 }
 
-type Type struct {
+type astType struct {
 	//kind string
-	e astExpr
+	E astExpr
 }
 
-type Variable struct {
-	name         string
-	isGlobal     bool
-	globalSymbol string
-	localOffset  int
-	typ          *Type
+type astVariable struct {
+	Name         string
+	IsGlobal     bool
+	GlobalSymbol string
+	LocalOffset  int
+	Typ          *astType
 }
 
 type astObject struct {
 	Kind     string
 	Name     string
 	Decl     interface{} // *astValueSpec|*astFuncDecl|*astTypeSpec|*astField|*astAssignStmt
-	Variable *Variable
+	Variable *astVariable
 }
 
 type astExpr interface{}
@@ -195,21 +195,21 @@ type astTypeSwitchStmt struct {
 	Node   *nodeTypeSwitchStmt
 }
 
-type Func struct {
+type astFunc struct {
 	Localvars []*string
 	Localarea int
 	Argsarea  int
-	Vars      []*Variable
-	Params    []*Variable
-	Retvars   []*Variable
+	Vars      []*astVariable
+	Params    []*astVariable
+	Retvars   []*astVariable
 	FuncType  *astFuncType
 	RcvType   astExpr
 	Name      string
 	Body      *astBlockStmt
-	Method    *Method
+	Method    *astMethod
 }
 
-type Method struct {
+type astMethod struct {
 	PkgName      string
 	RcvNamedType *astIdent
 	IsPtrMethod  bool
@@ -219,19 +219,19 @@ type Method struct {
 
 
 type nodeReturnStmt struct {
-	Fnc *Func
+	Fnc *astFunc
 }
 
 type nodeTypeSwitchStmt struct {
 	Subject         astExpr
-	SubjectVariable *Variable
+	SubjectVariable *astVariable
 	AssignIdent     *astIdent
 	Cases           []*TypeSwitchCaseClose
 }
 
 type TypeSwitchCaseClose struct {
-	Variable     *Variable
-	VariableType *Type
+	Variable     *astVariable
+	VariableType *astType
 	Orig         *astCaseClause
 }
 
@@ -253,8 +253,8 @@ type astRangeStmt struct {
 	Outer     astStmt // outer loop
 	LabelPost string
 	LabelExit string
-	Lenvar    *Variable
-	Indexvar  *Variable
+	Lenvar    *astVariable
+	Indexvar  *astVariable
 	Tok       string
 }
 

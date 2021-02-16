@@ -385,13 +385,13 @@ func (p *parser) parseResult(scope *astScope) *astFieldList {
 	}
 }
 
-func (p *parser) parseSignature(scope *astScope) *Signature {
+func (p *parser) parseSignature(scope *astScope) *astSignature {
 	logf(" [%s] begin\n", __func__)
 	var params *astFieldList
 	var results *astFieldList
 	params = p.parseParameters(scope, true)
 	results = p.parseResult(scope)
-	return &Signature{
+	return &astSignature{
 		Params:  params,
 		Results: results,
 	}
