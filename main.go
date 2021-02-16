@@ -1,7 +1,6 @@
 package main
 
 import (
-	"go/ast"
 	"os"
 	"syscall"
 
@@ -2940,6 +2939,7 @@ func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
 	if !isIdent {
 		panic(e)
 	}
+	assert(pkgName.Obj != nil, "Obj should not be nil: " + pkgName.Name + "." + e.Sel.Name,  __func__)
 	assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg", __func__)
 	return newQI(pkgName.Name, e.Sel.Name)
 }
@@ -3086,7 +3086,7 @@ func walkStmt(stmt ast.Stmt) {
 	case *ast.ExprStmt:
 		walkExpr(s.X)
 	case *ast.ReturnStmt:
-		s.Node = &nodeReturnStmt{
+		s.Node = &ast.NodeReturnStmt{
 			Fnc: currentFunc,
 		}
 		for _, rt := range s.Results {
@@ -3157,7 +3157,7 @@ func walkStmt(stmt ast.Stmt) {
 		}
 		walkStmt(blockStmt2Stmt(s.Body))
 	case *ast.TypeSwitchStmt:
-		typeSwitch := &nodeTypeSwitchStmt{}
+		typeSwitch := &ast.NodeTypeSwitchStmt{}
 		s.Node = typeSwitch
 		var assignIdent *ast.Ident
 		switch s2 := s.Assign.(type) {
@@ -3184,7 +3184,7 @@ func walkStmt(stmt ast.Stmt) {
 		typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", tEface)
 		for _, _case := range s.Body.List {
 			cc := stmt2CaseClause(_case)
-			tscc := &TypeSwitchCaseClose{
+			tscc := &ast.TypeSwitchCaseClose{
 				Orig: cc,
 			}
 			typeSwitch.Cases = append(typeSwitch.Cases, tscc)
@@ -3330,6 +3330,7 @@ func walk(pkg *PkgContainer) {
 	for _, typeSpec := range typeSpecs {
 		switch kind(e2t(typeSpec.Type)) {
 		case T_STRUCT:
+			logf("calcStructSizeAndSetFieldOffset of %s\n", typeSpec.Name.Name)
 			calcStructSizeAndSetFieldOffset(typeSpec)
 		}
 		exportEntry := &exportEntry{
@@ -3527,12 +3528,12 @@ var tBool *ast.Type
 var generalSlice ast.Expr
 
 func createUniverse() *ast.Scope {
-	var universe = new(astScope)
+	var universe = new(ast.Scope)
 
 	universe.Insert(gInt)
 	universe.Insert(gUint8)
 
-	universe.Objects = append(universe.Objects, &objectEntry{
+	universe.Objects = append(universe.Objects, &ast.ObjectEntry{
 		Name: "byte",
 		Obj:  gUint8,
 	})
@@ -3686,7 +3687,7 @@ func isStdLib(pth string) bool {
 func getImportPathsFromFile(file string) []string {
 	astFile0 := parseImports(file)
 	var importPaths []string
-	for _, importSpec := range ast.File0.Imports {
+	for _, importSpec := range astFile0.Imports {
 		rawValue := importSpec.Path
 		logf("import %s\n", rawValue)
 		pth := rawValue[1 : len(rawValue)-1]

@@ -4,7 +4,6 @@ import (
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
-	"go/ast"
 	"syscall"
 )
 

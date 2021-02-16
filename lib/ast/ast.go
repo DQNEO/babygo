@@ -158,7 +158,7 @@ type AssignStmt struct {
 
 type ReturnStmt struct {
 	Results []Expr
-	Node    *nodeReturnStmt
+	Node    *NodeReturnStmt
 }
 
 type BranchStmt struct {
@@ -192,7 +192,7 @@ type SwitchStmt struct {
 type TypeSwitchStmt struct {
 	Assign Stmt
 	Body   *BlockStmt
-	Node   *nodeTypeSwitchStmt
+	Node   *NodeTypeSwitchStmt
 }
 
 type Func struct {
@@ -218,11 +218,11 @@ type Method struct {
 }
 
 
-type nodeReturnStmt struct {
+type NodeReturnStmt struct {
 	Fnc *Func
 }
 
-type nodeTypeSwitchStmt struct {
+type NodeTypeSwitchStmt struct {
 	Subject         Expr
 	SubjectVariable *Variable
 	AssignIdent     *Ident
@@ -301,10 +301,10 @@ type File struct {
 
 type Scope struct {
 	Outer   *Scope
-	Objects []*objectEntry
+	Objects []*ObjectEntry
 }
 
-type objectEntry struct {
+type ObjectEntry struct {
 	Name string
 	Obj  *Object
 }
@@ -320,7 +320,7 @@ func (s *Scope) Insert(obj *Object) {
 		panic("s sholud not be nil\n")
 	}
 
-	s.Objects = append(s.Objects, &objectEntry{
+	s.Objects = append(s.Objects, &ObjectEntry{
 		Name: obj.Name,
 		Obj:  obj,
 	})
