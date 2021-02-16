@@ -842,7 +842,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		funcType = fndecl.Type
 	case *ast.SelectorExpr:
 		if isUnsafePointer(fn) {
-			// This is actually not a call
 			emitExpr(eArgs[0], nil)
 			return
 		}

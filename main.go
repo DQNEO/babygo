@@ -845,34 +845,23 @@ func emitFuncall(fun astExpr, eArgs []astExpr, hasEllissis bool) {
 		}
 		funcType = fndecl.Type
 	case *astSelectorExpr:
-		var selectorExpr = fn
-		if !isExprIdent(selectorExpr.X) {
-			panic2(__func__, "TBI selectorExpr.X="+dtypeOf(selectorExpr.X))
-		}
-		xIdent := expr2Ident(selectorExpr.X)
-		symbol = xIdent.Name + "." + selectorExpr.Sel.Name
-		switch symbol {
-		case "unsafe.Pointer":
+		if isUnsafePointer(fn) {
 			emitExpr(eArgs[0], nil)
 			return
-		default:
-			// Assume method call
-			fn := selectorExpr
-			xIdent := expr2Ident(fn.X)
-			if xIdent.Obj == nil {
-				throw("xIdent.Obj  should not be nil:" + xIdent.Name)
-			}
-			if xIdent.Obj.Kind == astPkg {
-				// pkg.Sel()
-				ff := lookupForeignFunc(selector2QI(selectorExpr))
-				funcType = ff.decl.Type
-			} else {
-				receiver = selectorExpr.X
-				var receiverType = getTypeOfExpr(receiver)
-				var method = lookupMethod(receiverType, selectorExpr.Sel)
-				funcType = method.funcType
-				symbol = getMethodSymbol(method)
-			}
+		}
+		selectorExpr := fn
+		if isQI(fn) {
+			// pkg.Sel()
+			qi := selector2QI(fn)
+			symbol = string(qi)
+			ff := lookupForeignFunc(qi)
+			funcType = ff.decl.Type
+		} else {
+			receiver = selectorExpr.X
+			var receiverType = getTypeOfExpr(receiver)
+			var method = lookupMethod(receiverType, selectorExpr.Sel)
+			funcType = method.funcType
+			symbol = getMethodSymbol(method)
 		}
 	case *astParenExpr:
 		panic2(__func__, "[astParenExpr] TBI ")
@@ -2285,6 +2274,18 @@ const T_ARRAY string = "T_ARRAY"
 const T_STRUCT string = "T_STRUCT"
 const T_POINTER string = "T_POINTER"
 
+func isUnsafePointer(selector *astSelectorExpr) bool {
+	if !isQI(selector) {
+		return false
+	}
+	xIdent := selector.X.(*astIdent)
+	if xIdent.Name == "unsafe" && selector.Sel.Name == "Pointer" {
+		return true
+	}
+	return false
+}
+
+
 func getTypeOfExpr(expr astExpr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
 	switch e := expr.(type) {
@@ -3632,11 +3633,10 @@ func resolveImports(file *astFile) {
 }
 
 func lookupForeignIdent(qi QualifiedIdent) *astIdent {
-	key := qi
-	logf("lookupForeignIdent... %s\n", key)
+	logf("lookupForeignIdent... %s\n", qi)
 	for _, entry := range ExportedQualifiedIdents {
 		logf("  looking into %s\n", entry.qi)
-		if entry.qi == key {
+		if entry.qi == qi {
 			var ident *astIdent
 			var ok bool
 			ident, ok = entry.any.(*astIdent)
