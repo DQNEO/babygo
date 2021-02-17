@@ -6,7 +6,7 @@ all: test
 
 .PHONY: test
 # test all
-test: test0 selfhost test1 compare-test
+test: test0 test1 testcross selfhost  compare-test
 
 $(tmp):
 	mkdir -p $(tmp)
@@ -70,6 +70,14 @@ $(tmp)/test1: $(tmp)/babygo-test.s runtime.s
 .PHONY: test1
 test1: $(tmp)/test1 t/expected.txt
 	./test.sh $(tmp)/test1
+
+$(tmp)/testcross: $(tmp)/cross-test.s runtime.s
+	as -o $(tmp)/testcross.o $(tmp)/cross-test.s runtime.s
+	ld -e _rt0_amd64_linux -o $(tmp)/testcross $(tmp)/testcross.o
+
+.PHONY: testcross
+testcross: $(tmp)/testcross t/expected.txt
+	./test.sh $(tmp)/testcross
 
 # test self hosting by comparing 2gen.s and 3gen.s
 .PHONY: selfhost
