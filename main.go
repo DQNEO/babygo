@@ -269,6 +269,17 @@ func isType(expr ast.Expr) bool {
 		emitComment(2, "[isType][DEBUG] e.Obj = %s,%s\n",
 			e.Obj.Name, e.Obj.Kind)
 		return e.Obj.Kind == ast.Typ
+	case *ast.SelectorExpr:
+		if isQI(e) {
+			qi := selector2QI(e)
+			if string(qi) == "unsafe.Pointer" {
+				return true
+			}
+			ident := lookupForeignIdent(qi)
+			if ident.Obj.Kind == ast.Typ {
+				return true
+			}
+		}
 	case *ast.ParenExpr:
 		return isType(e.X)
 	case *ast.StarExpr:
@@ -317,6 +328,14 @@ func emitConversion(toType *ast.Type, arg0 ast.Expr) {
 			} else {
 				panic2(__func__, "[*ast.Ident] TBI : "+tt.Obj.Name)
 			}
+		}
+	case *ast.SelectorExpr:
+		// pkg.Type(arg0)
+		qi := selector2QI(tt)
+		if string(qi) == "unsafe.Pointer" {
+			emitExpr(arg0, nil)
+		} else {
+			panic("TBI")
 		}
 	case *ast.ArrayType: // Conversion to slice
 		var arrayType = expr2ArrayType(to)
@@ -846,10 +865,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		}
 		funcType = fndecl.Type
 	case *ast.SelectorExpr:
-		if isUnsafePointer(fn) {
-			emitExpr(eArgs[0], nil)
-			return
-		}
 		if isQI(fn) {
 			// pkg.Sel()
 			qi := selector2QI(fn)
