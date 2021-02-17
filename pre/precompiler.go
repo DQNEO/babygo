@@ -283,9 +283,6 @@ func isType(expr ast.Expr) bool {
 		}
 		return e.Obj.Kind == ast.Typ
 	case *ast.SelectorExpr:
-		if isUnsafePointer(e) {
-			return true
-		}
 		if isQI(e) {
 			qi := selector2QI(e)
 			ident := lookupForeignIdent(qi)
@@ -2344,14 +2341,6 @@ var tEface *Type = &Type{
 
 var generalSlice ast.Expr = &ast.Ident{}
 
-func isUnsafePointer(selector *ast.SelectorExpr) bool {
-	if !isQI(selector) {
-		return false
-	}
-	qi := selector2QI(selector)
-	return qi == "unsafe.Pointer"
-}
-
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -2536,9 +2525,8 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 	case *ast.ArrayType: // conversion [n]T(e) or []T(e)
 		return []*Type{e2t(fn)}
 	case *ast.SelectorExpr:
-		if isUnsafePointer(fn) {
-			// unsafe.Pointer(x)
-			return []*Type{tUintptr}
+		if isType(fn) {
+			return []*Type{e2t(fn)}
 		}
 		if isQI(fn) {  // pkg.Sel()
 			ff := lookupForeignFunc(selector2QI(fn))
@@ -2687,9 +2675,6 @@ func kind(t *Type) TypeKind {
 	case *ast.InterfaceType:
 		return T_INTERFACE
 	case *ast.SelectorExpr:
-		if isUnsafePointer(e) {
-			return T_POINTER
-		}
 		ident := lookupForeignIdent(selector2QI(e))
 		return kind(e2t(ident))
 	default:
@@ -3979,6 +3964,9 @@ func main() {
 		files: inputFiles,
 	}
 	packagesToBuild = append(packagesToBuild, mainPkg)
+
+	ExportedQualifiedIdents[newQI("unsafe","Pointer")] = &ast.Ident{Obj: gUintptr}
+
 	for _, _pkg := range packagesToBuild {
 		logf("Building package : %s\n", _pkg.path)
 		if len(_pkg.files) == 0 {

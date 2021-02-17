@@ -270,9 +270,6 @@ func isType(expr ast.Expr) bool {
 			e.Obj.Name, e.Obj.Kind)
 		return e.Obj.Kind == ast.Typ
 	case *ast.SelectorExpr:
-		if isUnsafePointer(e) {
-			return true
-		}
 		if isQI(e) {
 			qi := selector2QI(e)
 			ident := lookupForeignIdent(qi)
@@ -2283,15 +2280,6 @@ const T_ARRAY string = "T_ARRAY"
 const T_STRUCT string = "T_STRUCT"
 const T_POINTER string = "T_POINTER"
 
-func isUnsafePointer(selector *ast.SelectorExpr) bool {
-	if !isQI(selector) {
-		return false
-	}
-	qi := selector2QI(selector)
-	return qi == "unsafe.Pointer"
-}
-
-
 func getTypeOfExpr(expr ast.Expr) *ast.Type {
 	//emitComment(0, "[%s] start\n", __func__)
 	switch e := expr.(type) {
@@ -2487,9 +2475,8 @@ func getCallResultTypes(e *ast.CallExpr) []*ast.Type {
 	case *ast.ArrayType:
 		return []*ast.Type{e2t(fun)}
 	case *ast.SelectorExpr:
-		if isUnsafePointer(fn) {
-			// unsafe.Pointer(x)
-			return []*ast.Type{tUintptr}
+		if isType(fn) {
+			return []*ast.Type{e2t(fn)}
 		}
 		if isQI(fn) {  // pkg.Sel()
 			ff := lookupForeignFunc(selector2QI(fn))
@@ -2595,7 +2582,7 @@ func kind(t *ast.Type) string {
 	switch e := t.E.(type) {
 	case *ast.Ident:
 		var ident = e
-		switch ident.Name {
+		switch ident.Obj.Name {
 		case "uintptr":
 			return T_UINTPTR
 		case "int":
@@ -2638,9 +2625,6 @@ func kind(t *ast.Type) string {
 	case *ast.ParenExpr:
 		panic(dtypeOf(e))
 	case *ast.SelectorExpr:
-		if isUnsafePointer(e) {
-			return T_POINTER
-		}
 		ident := lookupForeignIdent(selector2QI(e))
 		return kind(e2t(ident))
 	default:
@@ -3940,6 +3924,11 @@ func main() {
 		files: inputFiles,
 	}
 	packagesToBuild = append(packagesToBuild, mainPkg)
+
+	ExportedQualifiedIdents = append(ExportedQualifiedIdents, &exportEntry{
+		qi:  newQI("unsafe", "Pointer"),
+		any: &ast.Ident{Obj: gUintptr},
+	})
 	//[]string{"runtime.go"}
 	for _, _pkg := range packagesToBuild {
 		if len(_pkg.files) == 0 {
