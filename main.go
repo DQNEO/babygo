@@ -3891,7 +3891,7 @@ func main() {
 	emitDynamicTypes(typeMap)
 }
 
-func collectAllPackages(inputFiles []string) []string {
+func collectDirectDependents(inputFiles []string) []string {
 	var importPaths []string
 
 	for _, inputFile := range inputFiles {
@@ -3904,31 +3904,30 @@ func collectAllPackages(inputFiles []string) []string {
 			}
 		}
 	}
+	return importPaths
+}
 
-	var stdPackagesUsed []string
-	var extPackagesUsed []string
+func collectAllPackages(inputFiles []string) []string {
 	var tree []*depEntry
-	tree = collectDependency(tree, importPaths)
+	directChildren := collectDirectDependents(inputFiles)
+	tree = collectDependency(tree, directChildren)
 	sortedPaths := sortDepTree(tree)
+
+	paths := []string{"unsafe", "runtime"}
 	for _, pth := range sortedPaths {
 		if pth == "unsafe" {
 			continue
 		}
 		if isStdLib(pth) {
-			stdPackagesUsed = append(stdPackagesUsed, pth)
-		} else {
-			extPackagesUsed = append(extPackagesUsed, pth)
+			paths = append(paths, pth)
 		}
 	}
-	var paths []string = []string{"unsafe", "runtime"}
-	for _, _path := range stdPackagesUsed {
-		paths = append(paths, _path)
-	}
 
-	for _, _path := range extPackagesUsed {
-		paths = append(paths, _path)
+	for _, pth := range sortedPaths {
+		if !isStdLib(pth) {
+			paths = append(paths, pth)
+		}
 	}
-
 	return paths
 }
 

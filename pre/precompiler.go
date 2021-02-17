@@ -3932,27 +3932,27 @@ func main() {
 }
 
 func collectAllPackages(inputFiles []string) []string {
-	importPaths := collectDirectDependents(inputFiles)
 	var tree DependencyTree = map[string]map[string]bool{}
-	tree.collectDependency(importPaths)
-	sortedPackages := tree.sortTopologically()
+	directChildren := collectDirectDependents(inputFiles)
+	tree.collectDependency(directChildren)
+	sortedPaths := tree.sortTopologically()
 
 	// sort packages by this order
 	// 1: pseudo
 	// 2: stdlib
 	// 3: external
-	pkgs := []string{"unsafe", "runtime"}
-	for _, _path := range sortedPackages {
+	paths := []string{"unsafe", "runtime"}
+	for _, _path := range sortedPaths {
 		if isStdLib(_path) {
-			pkgs = append(pkgs, _path)
+			paths = append(paths, _path)
 		}
 	}
-	for _, _path := range sortedPackages {
+	for _, _path := range sortedPaths {
 		if !isStdLib(_path) {
-			pkgs = append(pkgs, _path)
+			paths = append(paths, _path)
 		}
 	}
-	return pkgs
+	return paths
 }
 
 func collectDirectDependents(inputFiles []string) map[string]bool {
