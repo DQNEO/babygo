@@ -3433,14 +3433,16 @@ func walk(pkg *PkgContainer) {
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
-		qi := newQI(pkg.name , funcDecl.Name.Name)
-		logf("ExportedQualifiedIdents added: %s\n", string(qi))
-		ExportedQualifiedIdents[qi] = funcDecl
-		if funcDecl.Body != nil {
-			if funcDecl.Recv != nil { // is Method
+		if funcDecl.Recv == nil {
+			qi := newQI(pkg.name , funcDecl.Name.Name)
+			logf("ExportedQualifiedIdents added: %s\n", string(qi))
+			ExportedQualifiedIdents[qi] = funcDecl.Name
+		} else { // is method
+			if funcDecl.Body != nil {
 				method := newMethod(pkg.name, funcDecl)
 				registerMethod(method)
 			}
+
 		}
 	}
 
@@ -3735,16 +3737,12 @@ func resolveImports(file *ast.File) {
 	}
 }
 
-var ExportedQualifiedIdents map[QualifiedIdent]interface{} = map[QualifiedIdent]interface{}{}
+var ExportedQualifiedIdents = map[QualifiedIdent]*ast.Ident{}
 
 func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
-	x, found := ExportedQualifiedIdents[qi]
+	ident, found := ExportedQualifiedIdents[qi]
 	if !found {
 		panic(qi + " Not found in ExportedQualifiedIdents")
-	}
-	ident, ok := x.(*ast.Ident)
-	if !ok {
-		throw(ExportedQualifiedIdents)
 	}
 	return ident
 }
@@ -3755,8 +3753,11 @@ type ForeignFunc struct {
 }
 
 func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
-	x, _ := ExportedQualifiedIdents[qi]
-	decl, ok := x.(*ast.FuncDecl)
+	ident := lookupForeignIdent(qi)
+	if ident.Obj.Kind != ast.Fun {
+		panic("Not ast.Fun: " + qi)
+	}
+	decl, ok := ident.Obj.Decl.(*ast.FuncDecl)
 	if !ok {
 		panic("Function not found: " + qi)
 	}

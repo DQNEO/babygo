@@ -3294,7 +3294,7 @@ var ExportedQualifiedIdents []*exportEntry
 
 type exportEntry struct {
 	qi  QualifiedIdent
-	any interface{} // *ast.FuncDecl|*ast.Ident(variable)
+	any *ast.Ident
 }
 
 func walk(pkg *PkgContainer) {
@@ -3341,13 +3341,23 @@ func walk(pkg *PkgContainer) {
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
-		exportEntry := &exportEntry{
-			qi:  newQI(pkg.name , funcDecl.Name.Name),
-			any: funcDecl,
-		}
-		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
-		if funcDecl.Body != nil {
-			if funcDecl.Recv != nil { // is Method
+		if funcDecl.Recv == nil { // non-method function
+			if funcDecl.Name.Obj == nil {
+				panic("funcDecl.Name.Obj is nil:" + funcDecl.Name.Name)
+			}
+			var fdcl *ast.FuncDecl
+			var ok bool
+			fdcl , ok = funcDecl.Name.Obj.Decl.(*ast.FuncDecl)
+			if !ok || funcDecl != fdcl {
+				panic("Bad func decl reference:" +  funcDecl.Name.Name)
+			}
+			exportEntry := &exportEntry{
+				qi:  newQI(pkg.name , funcDecl.Name.Name),
+				any: funcDecl.Name,
+			}
+			ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
+		} else { // method
+			if funcDecl.Body != nil {
 				var method = newMethod(pkg.name, funcDecl)
 				registerMethod(method)
 			}
@@ -3597,13 +3607,7 @@ func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
 	for _, entry := range ExportedQualifiedIdents {
 		logf("  looking into %s\n", entry.qi)
 		if entry.qi == qi {
-			var ident *ast.Ident
-			var ok bool
-			ident, ok = entry.any.(*ast.Ident)
-			if !ok {
-				panic("not ident")
-			}
-			return ident
+			return entry.any
 		}
 	}
 	panic("QI not found: " + string(qi))
@@ -3616,23 +3620,18 @@ type ForeignFunc struct {
 
 func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 	logf("lookupForeignFunc... \n")
-	for _, entry := range ExportedQualifiedIdents {
-		if entry.qi == qi {
-			var fdecl *ast.FuncDecl
-			var ok bool
-			fdecl, ok = entry.any.(*ast.FuncDecl)
-			if !ok {
-				panic("not fdecl")
-			}
-			return &ForeignFunc{
-				symbol: string(qi),
-				decl:   fdecl,
-			}
-		}
-		logf("  not match\n")
+	ident := lookupForeignIdent(qi)
+	decl := ident.Obj.Decl
+	var fdecl *ast.FuncDecl
+	var ok bool
+	fdecl, ok = decl.(*ast.FuncDecl)
+	if !ok {
+		panic("not fdecl")
 	}
-	panic("function not found: " + qi)
-	return nil
+	return &ForeignFunc{
+		symbol: string(qi),
+		decl:   fdecl,
+	}
 }
 
 var pkg *PkgContainer
