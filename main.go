@@ -3852,7 +3852,6 @@ func main() {
 		}),
 	}
 
-	var universe = createUniverse()
 	var arg string
 	var inputFiles []string
 	for _, arg = range os.Args[1:] {
@@ -3894,35 +3893,23 @@ func main() {
 			extPackagesUsed = append(extPackagesUsed, pth)
 		}
 	}
-	pkgUnsafe := &PkgContainer{
-		path: "unsafe",
-	}
-
-	pkgRuntime := &PkgContainer{
-		path: "runtime",
-	}
-	var packagesToBuild = []*PkgContainer{pkgUnsafe, pkgRuntime}
-	fmt.Printf("# === sorted stdPackagesUsed ===\n")
+	var paths []string = []string{"unsafe", "runtime"}
 	for _, _path := range stdPackagesUsed {
-		fmt.Printf("#  %s\n", _path)
-		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			path: _path,
-		})
+		paths = append(paths, _path)
 	}
 
-	fmt.Printf("# === sorted extPackagesUsed ===\n")
 	for _, _path := range extPackagesUsed {
-		fmt.Printf("#  %s\n", _path)
-		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			path: _path,
-		})
+		paths = append(paths, _path)
 	}
 
-	//[]string{"runtime.go"}
-	for _, _pkg := range packagesToBuild {
-		logf("collecting package files: %s\n", _pkg.path)
-		pkgDir := getPackageDir(_pkg.path)
-		_pkg.files = collectSourceFiles(pkgDir)
+	var packagesToBuild []*PkgContainer
+	for _, _path := range paths {
+		files := collectSourceFiles(getPackageDir(_path))
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			name:  _path,
+			files: files,
+		})
+
 	}
 
 	packagesToBuild = append(packagesToBuild, &PkgContainer{
@@ -3930,6 +3917,7 @@ func main() {
 		files: inputFiles,
 	})
 
+	var universe = createUniverse()
 	// Build a package
 	for _, _pkg := range packagesToBuild {
 		buildPackage(_pkg, universe)
