@@ -229,7 +229,7 @@ func (p *parser) parseTypeName() ast.Expr {
 		// ident is a package name
 		p.next() // consume "."
 		eIdent := newExpr(ident)
-		//p.resolve(eIdent)
+		p.resolve(eIdent)
 		sel := p.parseIdent()
 		selectorExpr := &ast.SelectorExpr{
 			X:   eIdent,
