@@ -838,11 +838,11 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			fn.Name = "makeSlice"
 		}
 		// general function call
-		symbol = getPackageSymbol(pkg.name, fn.Name)
+		symbol = getPackageSymbol(currentPkg.name, fn.Name)
 		emitComment(2, "[%s][*ast.Ident][default] start\n", __func__)
-		if pkg.name == "os" && fn.Name == "runtime_args" {
+		if currentPkg.name == "os" && fn.Name == "runtime_args" {
 			symbol = "runtime.runtime_args"
-		} else if pkg.name == "os" && fn.Name == "runtime_getenv" {
+		} else if currentPkg.name == "os" && fn.Name == "runtime_getenv" {
 			symbol = "runtime.runtime_getenv"
 		}
 
@@ -2830,7 +2830,7 @@ func registerLocalVariable(fnc *ast.Func, name string, t *ast.Type) *ast.Variabl
 var currentFunc *ast.Func
 
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
-	for _, container := range pkg.stringLiterals {
+	for _, container := range currentPkg.stringLiterals {
 		if container.lit == lit {
 			return container.sl
 		}
@@ -2844,7 +2844,7 @@ func getStringLiteral(lit *ast.BasicLit) *sliteral {
 func registerStringLiteral(lit *ast.BasicLit) {
 	logf(" [registerStringLiteral] begin\n")
 
-	if pkg.name == "" {
+	if currentPkg.name == "" {
 		panic2(__func__, "no pkgName")
 	}
 
@@ -2856,8 +2856,8 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		}
 	}
 
-	label := fmt.Sprintf(".%s.S%d", pkg.name, pkg.stringIndex)
-	pkg.stringIndex++
+	label := fmt.Sprintf(".%s.S%d", currentPkg.name, currentPkg.stringIndex)
+	currentPkg.stringIndex++
 
 	sl := &sliteral{
 		label:  label,
@@ -2868,7 +2868,7 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	cont := &stringLiteralsContainer{}
 	cont.sl = sl
 	cont.lit = lit
-	pkg.stringLiterals = append(pkg.stringLiterals, cont)
+	currentPkg.stringLiterals = append(currentPkg.stringLiterals, cont)
 }
 
 func newGlobalVariable(pkgName string, name string, t *ast.Type) *ast.Variable {
@@ -3614,7 +3614,7 @@ func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 	}
 }
 
-var pkg *PkgContainer
+var currentPkg *PkgContainer
 
 type PkgContainer struct {
 	path           string
@@ -3890,6 +3890,7 @@ func main() {
 
 	var universe = createUniverse()
 	for _, _pkg := range packagesToBuild {
+		currentPkg = _pkg
 		buildPackage(_pkg, universe)
 	}
 
@@ -4006,10 +4007,9 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 			_pkg.Decls = append(_pkg.Decls, dcl)
 		}
 	}
-	pkg = _pkg
-	logf("Walking package: %s\n", pkg.name)
-	walk(pkg)
-	generateCode(pkg)
+	logf("Walking package: %s\n", _pkg.name)
+	walk(_pkg)
+	generateCode(_pkg)
 }
 
 type depEntry struct {
