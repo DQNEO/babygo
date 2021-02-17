@@ -3853,6 +3853,9 @@ func getPackageDir(importPath string) string {
 
 func collectDependency(tree map[string]map[string]bool, paths map[string]bool) {
 	for pkgPath, _ := range paths {
+		if pkgPath == "unsafe" || pkgPath == "runtime" {
+			continue
+		}
 		logf("collectDependency in %s\n", pkgPath)
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
@@ -3860,6 +3863,9 @@ func collectDependency(tree map[string]map[string]bool, paths map[string]bool) {
 		for _, fname := range fnames {
 			importPathsOfFile := getImportPathsFromFile(packageDir + "/" + fname)
 			for _path, _ := range importPathsOfFile {
+				if _path == "unsafe" || _path == "runtime"  {
+					continue
+				}
 				logf("  found %s\n", _path)
 				children[_path] = true
 			}
@@ -3891,7 +3897,6 @@ func main() {
 	logf("Build start\n")
 	srcPath = os.Getenv("GOPATH") + "/src"
 
-	var universe = createUniverse()
 	var arg string
 	var inputFiles []string
 	for _, arg = range os.Args[1:] {
@@ -3905,8 +3910,58 @@ func main() {
 		}
 	}
 
-	//var mainFile = arg
-	var importPaths = map[string]bool{}
+	pkgs := collectAllPackages(inputFiles)
+	var packagesToBuild  []*PkgContainer
+	for _, _path := range pkgs {
+		files := collectSourceFiles(getPackageDir(_path))
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			path:  _path,
+			files: files,
+		})
+	}
+
+	packagesToBuild = append(packagesToBuild, &PkgContainer{
+		name:  "main",
+		files: inputFiles,
+	})
+
+	var universe = createUniverse()
+	for _, _pkg := range packagesToBuild {
+		buildPackage(_pkg, universe)
+	}
+
+	emitDynamicTypes(typeMap)
+}
+
+func collectAllPackages(inputFiles []string) []string {
+	importPaths := collectDirectDependents(inputFiles)
+	var tree = map[string]map[string]bool{}
+	collectDependency(tree, importPaths)
+	sortedPackages := sortTopologically(tree)
+
+	var stdPkgs []string
+	var extPkgs []string
+	for _, _path := range sortedPackages {
+		if isStdLib(_path) {
+			stdPkgs = append(stdPkgs, _path)
+		} else {
+			extPkgs = append(extPkgs, _path)
+		}
+	}
+
+	var pkgs []string = []string{"unsafe", "runtime"}
+	for _, _path := range stdPkgs {
+		pkgs = append(pkgs, _path)
+	}
+	for _, _path := range extPkgs {
+		pkgs = append(pkgs, _path)
+	}
+	return pkgs
+}
+
+func collectDirectDependents(inputFiles []string) map[string]bool {
+	importPaths := map[string]bool{}
+
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")
@@ -3915,63 +3970,7 @@ func main() {
 			importPaths[k] = true
 		}
 	}
-
-	var stdPackagesUsed []string
-	var extPackagesUsed []string
-	var tree = map[string]map[string]bool{}
-
-	collectDependency(tree, importPaths)
-	sortedPackages := sortTopologically(tree)
-	for _, path := range sortedPackages {
-		if path == "unsafe" {
-			continue
-		}
-		if isStdLib(path) {
-			stdPackagesUsed = append(stdPackagesUsed, path)
-		} else {
-			extPackagesUsed = append(extPackagesUsed, path)
-		}
-	}
-	mainPkg := &PkgContainer{
-		name:  "main",
-		files: inputFiles,
-	}
-	pkgUnsafe := &PkgContainer{
-		path: "unsafe",
-	}
-	pkgRuntime := &PkgContainer{
-		path: "runtime",
-	}
-	var packagesToBuild = []*PkgContainer{pkgUnsafe, pkgRuntime}
-	fmt.Printf("# === sorted stdPackagesUsed ===\n")
-	for _, _path := range stdPackagesUsed {
-		fmt.Printf("#  %s\n", _path)
-		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			path: _path,
-		})
-	}
-	fmt.Printf("# === sorted extPackagesUsed ===\n")
-	for _, _path := range extPackagesUsed {
-		fmt.Printf("#  %s\n", _path)
-		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			path: _path,
-		})
-	}
-
-	for _, _pkg := range packagesToBuild {
-		logf("collecting package files: %s\n", _pkg.path)
-		pkgDir := getPackageDir(_pkg.path)
-		_pkg.files = collectSourceFiles(pkgDir)
-	}
-
-	packagesToBuild = append(packagesToBuild, mainPkg)
-
-	// Build a package
-	for _, _pkg := range packagesToBuild {
-		buildPackage(_pkg, universe)
-	}
-
-	emitDynamicTypes(typeMap)
+	return importPaths
 }
 
 func collectSourceFiles(pkgDir string) []string {
