@@ -3041,7 +3041,8 @@ func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
 }
 
 // https://golang.org/ref/spec#Method_sets
-var MethodSets = map[*ast.Object]map[string]*Method{} // map[TypeName][MethodName]*Func
+// @TODO map key should be a QI ?
+var MethodSets = map[*ast.Object]map[string]*Method{}
 
 func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	rcvType := funcDecl.Recv.List[0].Type
