@@ -3933,6 +3933,7 @@ func main() {
 
 	//[]string{"runtime.go"}
 	for _, _pkg := range packagesToBuild {
+		logf("collecting package files: %s\n", _pkg.path)
 		if len(_pkg.files) == 0 {
 			pkgDir := getPackageDir(_pkg.path)
 			fnames := findFilesInDir(pkgDir)
@@ -3943,6 +3944,10 @@ func main() {
 			}
 			_pkg.files = files
 		}
+	}
+
+	for _, _pkg := range packagesToBuild {
+		logf("Building package : %s\n", _pkg.path)
 		pkgScope := ast.NewScope(universe)
 		for _, file := range _pkg.files {
 			logf("Parsing file: %s\n", file)
