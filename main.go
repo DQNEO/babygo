@@ -3889,7 +3889,6 @@ func main() {
 	})
 
 	var universe = createUniverse()
-	// Build a package
 	for _, _pkg := range packagesToBuild {
 		buildPackage(_pkg, universe)
 	}
@@ -3919,6 +3918,10 @@ func collectAllPackages(inputFiles []string) []string {
 	tree = collectDependency(tree, directChildren)
 	sortedPaths := sortDepTree(tree)
 
+	// sort packages by this order
+	// 1: pseudo
+	// 2: stdlib
+	// 3: external
 	paths := []string{"unsafe", "runtime"}
 	for _, pth := range sortedPaths {
 		if isStdLib(pth) {
