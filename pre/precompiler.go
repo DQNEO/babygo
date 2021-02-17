@@ -2589,7 +2589,8 @@ func serializeType(t *Type) string {
 				if !ok {
 					throw(decl)
 				}
-				return "main." + typeSpec.Name.Name
+				pkgName := typeSpec.Name.Obj.Data.(string)
+				return pkgName + "." + typeSpec.Name.Name
 			}
 		}
 	case *ast.StructType:
@@ -3424,11 +3425,11 @@ func walk(pkg *PkgContainer) {
 	}
 
 	for _, typeSpec := range typeSpecs {
+		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
 		switch kind(e2t(typeSpec.Type)) {
 		case T_STRUCT:
 			calcStructSizeAndSetFieldOffset(typeSpec)
 		}
-
 		ExportedQualifiedIdents[newQI(pkg.name,typeSpec.Name.Name)] = typeSpec.Name
 	}
 
