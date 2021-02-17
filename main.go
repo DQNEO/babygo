@@ -3946,53 +3946,15 @@ func main() {
 		}
 	}
 
+	// Build a package
 	for _, _pkg := range packagesToBuild {
-		logf("Building package : %s\n", _pkg.path)
-		pkgScope := ast.NewScope(universe)
-		for _, file := range _pkg.files {
-			logf("Parsing file: %s\n", file)
-			af := parseFile(file, false)
-			_pkg.name = af.Name
-			_pkg.astFiles = append(_pkg.astFiles, af)
-			for _, oe := range af.Scope.Objects {
-				pkgScope.Objects = append(pkgScope.Objects, oe)
-			}
-		}
-		for _, af := range _pkg.astFiles {
-			resolveImports(af)
-			logf("[%s] start\n", __func__)
-			// inject predeclared identifers
-			var unresolved []*ast.Ident
-			logf(" [SEMA] resolving af.Unresolved (n=%d)\n", len(af.Unresolved))
-			for _, ident := range af.Unresolved {
-				logf(" [SEMA] resolving ident %s ... \n", ident.Name)
-				var obj *ast.Object = pkgScope.Lookup(ident.Name)
-				if obj != nil {
-					logf(" matched\n")
-					ident.Obj = obj
-				} else {
-					obj = universe.Lookup(ident.Name)
-					if obj != nil {
-						logf(" matched\n")
-						ident.Obj = obj
-					} else {
-						// we should allow unresolved for now.
-						// e.g foo in X{foo:bar,}
-						logf("Unresolved (maybe struct field name in composite literal): " + ident.Name)
-						unresolved = append(unresolved, ident)
-					}
-				}
-			}
-			for _, dcl := range af.Decls {
-				_pkg.Decls = append(_pkg.Decls, dcl)
-			}
-		}
-		pkg = _pkg
-		logf("Walking package: %s\n", pkg.name)
-		walk(pkg)
-		generateCode(pkg)
+		buildPackage(_pkg, universe)
 	}
 
+	emitDynamicTypes(typeMap)
+}
+
+func emitDynamicTypes(typeMap []*typeEntry) {
 	// emitting dynamic types
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
@@ -4008,7 +3970,53 @@ func main() {
 		fmt.Printf("  .string \"%s\"\n", name)
 	}
 	fmt.Printf("\n")
+}
 
+func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
+	logf("Building package : %s\n", _pkg.path)
+	pkgScope := ast.NewScope(universe)
+	for _, file := range _pkg.files {
+		logf("Parsing file: %s\n", file)
+		af := parseFile(file, false)
+		_pkg.name = af.Name
+		_pkg.astFiles = append(_pkg.astFiles, af)
+		for _, oe := range af.Scope.Objects {
+			pkgScope.Objects = append(pkgScope.Objects, oe)
+		}
+	}
+	for _, af := range _pkg.astFiles {
+		resolveImports(af)
+		logf("[%s] start\n", __func__)
+		// inject predeclared identifers
+		var unresolved []*ast.Ident
+		logf(" [SEMA] resolving af.Unresolved (n=%d)\n", len(af.Unresolved))
+		for _, ident := range af.Unresolved {
+			logf(" [SEMA] resolving ident %s ... \n", ident.Name)
+			var obj *ast.Object = pkgScope.Lookup(ident.Name)
+			if obj != nil {
+				logf(" matched\n")
+				ident.Obj = obj
+			} else {
+				obj = universe.Lookup(ident.Name)
+				if obj != nil {
+					logf(" matched\n")
+					ident.Obj = obj
+				} else {
+					// we should allow unresolved for now.
+					// e.g foo in X{foo:bar,}
+					logf("Unresolved (maybe struct field name in composite literal): " + ident.Name)
+					unresolved = append(unresolved, ident)
+				}
+			}
+		}
+		for _, dcl := range af.Decls {
+			_pkg.Decls = append(_pkg.Decls, dcl)
+		}
+	}
+	pkg = _pkg
+	logf("Walking package: %s\n", pkg.name)
+	walk(pkg)
+	generateCode(pkg)
 }
 
 type depEntry struct {

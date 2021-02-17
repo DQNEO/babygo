@@ -3986,50 +3986,59 @@ func main() {
 		}
 	}
 
+	// Build a package
 	for _, _pkg := range packagesToBuild {
-		logf("Building package : %s\n", _pkg.path)
-		fset := &token.FileSet{}
-		pkgScope := ast.NewScope(universe)
-		for _, file := range _pkg.files {
-			logf("Parsing file: %s\n", file)
-			astFile := parseFile(fset, file)
-			_pkg.name = astFile.Name.Name
-			_pkg.astFiles = append(_pkg.astFiles, astFile)
-			for _, obj := range astFile.Scope.Objects {
-				pkgScope.Objects[obj.Name] = obj
-			}
-		}
-		for _, astFile := range _pkg.astFiles {
-			resolveImports(astFile)
-			var unresolved []*ast.Ident
-			for _, ident := range astFile.Unresolved {
-				if obj := pkgScope.Lookup(ident.Name); obj != nil {
-					ident.Obj = obj
-				} else {
-					logf("# unresolved: %s\n", ident.Name)
-					if obj := universe.Lookup(ident.Name); obj != nil {
-						ident.Obj = obj
-					} else {
-						unresolved = append(unresolved, ident)
-					}
-				}
-			}
-			for _, dcl := range astFile.Decls {
-				_pkg.Decls = append(_pkg.Decls, dcl)
-			}
-		}
-		pkg = _pkg
-		logf("Walking package: %s\n", pkg.name)
-		walk(pkg)
-		generateCode(pkg)
+		buildPackage(_pkg, universe)
 	}
 
-	// emitting dynamic types
+	emitDynamicTypes(typeMap)
+}
+
+func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
+	logf("Building package : %s\n", _pkg.path)
+	fset := &token.FileSet{}
+	pkgScope := ast.NewScope(universe)
+	for _, file := range _pkg.files {
+		logf("Parsing file: %s\n", file)
+		astFile := parseFile(fset, file)
+		_pkg.name = astFile.Name.Name
+		_pkg.astFiles = append(_pkg.astFiles, astFile)
+		for _, obj := range astFile.Scope.Objects {
+			pkgScope.Objects[obj.Name] = obj
+		}
+	}
+	for _, astFile := range _pkg.astFiles {
+		resolveImports(astFile)
+		var unresolved []*ast.Ident
+		for _, ident := range astFile.Unresolved {
+			if obj := pkgScope.Lookup(ident.Name); obj != nil {
+				ident.Obj = obj
+			} else {
+				logf("# unresolved: %s\n", ident.Name)
+				if obj := universe.Lookup(ident.Name); obj != nil {
+					ident.Obj = obj
+				} else {
+					unresolved = append(unresolved, ident)
+				}
+			}
+		}
+		for _, dcl := range astFile.Decls {
+			_pkg.Decls = append(_pkg.Decls, dcl)
+		}
+	}
+	pkg = _pkg
+	logf("Walking package: %s\n", pkg.name)
+	walk(pkg)
+	generateCode(pkg)
+}
+
+func emitDynamicTypes(typeMap map[string]int) {
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
 
 	sliceTypeMap := make([]string, len(typeMap)+1)
 
+	// sort map in order to assure the deterministic results
 	for name, id := range typeMap {
 		sliceTypeMap[id] = name
 	}
