@@ -3840,7 +3840,7 @@ func (tree DependencyTree) sortTopologically() []string {
 
 func getPackageDir(importPath string) string {
 	if isStdLib(importPath) {
-		return srcPath + "/github.com/DQNEO/babygo/src/" + importPath
+		return prjSrcPath + importPath
 	} else {
 		return srcPath + "/" + importPath
 	}
@@ -3871,6 +3871,7 @@ func (tree DependencyTree) collectDependency(paths map[string]bool) {
 }
 
 var srcPath string
+var prjSrcPath string
 
 func main() {
 	if len(os.Args) == 1 {
@@ -3891,6 +3892,7 @@ func main() {
 
 	logf("Build start\n")
 	srcPath = os.Getenv("GOPATH") + "/src"
+	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src/"
 
 	var arg string
 	var inputFiles []string
