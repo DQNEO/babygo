@@ -283,11 +283,11 @@ func isType(expr ast.Expr) bool {
 		}
 		return e.Obj.Kind == ast.Typ
 	case *ast.SelectorExpr:
+		if isUnsafePointer(e) {
+			return true
+		}
 		if isQI(e) {
 			qi := selector2QI(e)
-			if string(qi) == "unsafe.Pointer" {
-				return true
-			}
 			ident := lookupForeignIdent(qi)
 			if ident.Obj.Kind == ast.Typ {
 				return true
