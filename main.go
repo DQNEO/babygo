@@ -2544,7 +2544,8 @@ func serializeType(t *ast.Type) string {
 				if !ok {
 					panic("unexpected dtype")
 				}
-				return "main." + typeSpec.Name.Name
+				pkgName := typeSpec.Name.Obj.PkgName
+				return pkgName + "." + typeSpec.Name.Name
 			}
 		}
 	case *ast.StructType:
@@ -2564,6 +2565,9 @@ func serializeType(t *ast.Type) string {
 		panic("TBD: Ellipsis")
 	case *ast.InterfaceType:
 		return "interface"
+	case *ast.SelectorExpr:
+		qi := selector2QI(e)
+		return string(qi)
 	default:
 		throw(dtypeOf(t.E))
 	}
@@ -3327,6 +3331,7 @@ func walk(pkg *PkgContainer) {
 	}
 
 	for _, typeSpec := range typeSpecs {
+		typeSpec.Name.Obj.PkgName = pkg.name // package to which the type belongs to
 		switch kind(e2t(typeSpec.Type)) {
 		case T_STRUCT:
 			logf("calcStructSizeAndSetFieldOffset of %s\n", typeSpec.Name.Name)

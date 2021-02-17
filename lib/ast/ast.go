@@ -29,6 +29,7 @@ type Object struct {
 	Name     string
 	Decl     interface{} // *ValueSpec|*FuncDecl|*TypeSpec|*Field|*AssignStmt
 	Variable *Variable
+	PkgName string
 }
 
 type Expr interface{}
