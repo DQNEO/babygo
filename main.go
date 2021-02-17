@@ -3865,7 +3865,34 @@ func main() {
 		}
 	}
 
-	var importPaths []string = []string{"os"}
+	paths := collectAllPackages(inputFiles)
+	var packagesToBuild []*PkgContainer
+
+	for _, _path := range paths {
+		files := collectSourceFiles(getPackageDir(_path))
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			name:  _path,
+			files: files,
+		})
+
+	}
+
+	packagesToBuild = append(packagesToBuild, &PkgContainer{
+		name:  "main",
+		files: inputFiles,
+	})
+
+	var universe = createUniverse()
+	// Build a package
+	for _, _pkg := range packagesToBuild {
+		buildPackage(_pkg, universe)
+	}
+
+	emitDynamicTypes(typeMap)
+}
+
+func collectAllPackages(inputFiles []string) []string {
+	var importPaths []string
 
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
@@ -3902,28 +3929,7 @@ func main() {
 		paths = append(paths, _path)
 	}
 
-	var packagesToBuild []*PkgContainer
-	for _, _path := range paths {
-		files := collectSourceFiles(getPackageDir(_path))
-		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			name:  _path,
-			files: files,
-		})
-
-	}
-
-	packagesToBuild = append(packagesToBuild, &PkgContainer{
-		name:  "main",
-		files: inputFiles,
-	})
-
-	var universe = createUniverse()
-	// Build a package
-	for _, _pkg := range packagesToBuild {
-		buildPackage(_pkg, universe)
-	}
-
-	emitDynamicTypes(typeMap)
+	return paths
 }
 
 func collectSourceFiles(pkgDir string) []string {
