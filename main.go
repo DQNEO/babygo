@@ -3679,7 +3679,7 @@ func isInTree(tree []*depEntry, pth string) bool {
 
 func getPackageDir(importPath string) string {
 	if isStdLib(importPath) {
-		return srcPath + "/github.com/DQNEO/babygo/src/" + importPath
+		return prjSrcPath + "/" + importPath
 	} else {
 		return srcPath + "/" + importPath
 	}
@@ -3781,8 +3781,12 @@ func sortDepTree(tree []*depEntry) []string {
 }
 
 var srcPath string
+var prjSrcPath string
 
 func main() {
+	srcPath = os.Getenv("GOPATH") + "/src"
+	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src/"
+
 	if len(os.Args) == 1 {
 		showHelp()
 		return
@@ -3800,7 +3804,6 @@ func main() {
 	}
 
 	logf("Build start\n")
-	srcPath = os.Getenv("GOPATH") + "/src"
 
 	eNil = newExpr(identNil)
 	eZeroInt = newExpr(&ast.BasicLit{
