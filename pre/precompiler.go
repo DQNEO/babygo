@@ -3858,7 +3858,7 @@ func (tree DependencyTree) collectDependency(paths map[string]bool) {
 		for _, fname := range fnames {
 			importPathsOfFile := getImportPathsFromFile(packageDir + "/" + fname)
 			for _path, _ := range importPathsOfFile {
-				if _path == "unsafe" || _path == "runtime"  {
+				if _path == "unsafe" || _path == "runtime" {
 					continue
 				}
 				logf("  found %s\n", _path)
@@ -3909,7 +3909,7 @@ func main() {
 	}
 
 	paths := collectAllPackages(inputFiles)
-	var packagesToBuild  []*PkgContainer
+	var packagesToBuild []*PkgContainer
 	for _, _path := range paths {
 		files := collectSourceFiles(getPackageDir(_path))
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
