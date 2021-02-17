@@ -2333,11 +2333,8 @@ func isUnsafePointer(selector *ast.SelectorExpr) bool {
 	if !isQI(selector) {
 		return false
 	}
-	xIdent := selector.X.(*ast.Ident)
-	if xIdent.Name == "unsafe" && selector.Sel.Name == "Pointer" {
-		return true
-	}
-	return false
+	qi := selector2QI(selector)
+	return qi == "unsafe.Pointer"
 }
 
 func getTypeOfExpr(expr ast.Expr) *Type {
@@ -2589,7 +2586,8 @@ func serializeType(t *Type) string {
 				if !ok {
 					throw(decl)
 				}
-				return "main." + typeSpec.Name.Name
+				pkgName := typeSpec.Name.Obj.Data.(string)
+				return pkgName + "." + typeSpec.Name.Name
 			}
 		}
 	case *ast.StructType:
@@ -2609,6 +2607,9 @@ func serializeType(t *Type) string {
 		panic("TBD: Ellipsis")
 	case *ast.InterfaceType:
 		return "interface"
+	case *ast.SelectorExpr:
+		qi := selector2QI(e)
+		return string(qi)
 	default:
 		throw(t)
 	}
@@ -3037,7 +3038,8 @@ func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
 }
 
 // https://golang.org/ref/spec#Method_sets
-var MethodSets = map[*ast.Object]map[string]*Method{} // map[TypeName][MethodName]*Func
+// @TODO map key should be a QI ?
+var MethodSets = map[*ast.Object]map[string]*Method{}
 
 func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	rcvType := funcDecl.Recv.List[0].Type
@@ -3421,11 +3423,11 @@ func walk(pkg *PkgContainer) {
 	}
 
 	for _, typeSpec := range typeSpecs {
+		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
 		switch kind(e2t(typeSpec.Type)) {
 		case T_STRUCT:
 			calcStructSizeAndSetFieldOffset(typeSpec)
 		}
-
 		ExportedQualifiedIdents[newQI(pkg.name,typeSpec.Name.Name)] = typeSpec.Name
 	}
 
