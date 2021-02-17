@@ -3819,9 +3819,11 @@ func getKeys(tree map[string]map[string]bool) []string {
 	return keys
 }
 
+type DependencyTree map[string]map[string]bool
+
 // Do topological sort
 // In the result list, the independent (lowest level) packages come first.
-func sortTopologically(tree map[string]map[string]bool) []string {
+func (tree DependencyTree) sortTopologically() []string {
 	logf("sortTopologically start\n")
 	var sorted []string
 	for len(tree) > 0 {
@@ -3851,7 +3853,7 @@ func getPackageDir(importPath string) string {
 	}
 }
 
-func collectDependency(tree map[string]map[string]bool, paths map[string]bool) {
+func (tree DependencyTree) collectDependency(paths map[string]bool) {
 	for pkgPath, _ := range paths {
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
@@ -3871,7 +3873,7 @@ func collectDependency(tree map[string]map[string]bool, paths map[string]bool) {
 			}
 		}
 		tree[pkgPath] = children
-		collectDependency(tree, children)
+		tree.collectDependency(children)
 	}
 }
 
@@ -3935,26 +3937,24 @@ func main() {
 
 func collectAllPackages(inputFiles []string) []string {
 	importPaths := collectDirectDependents(inputFiles)
-	var tree = map[string]map[string]bool{}
-	collectDependency(tree, importPaths)
-	sortedPackages := sortTopologically(tree)
+	var tree DependencyTree = map[string]map[string]bool{}
+	tree.collectDependency(importPaths)
+	sortedPackages := tree.sortTopologically()
 
-	var stdPkgs []string
-	var extPkgs []string
+	// sort packages by this order
+	// 1: pseudo
+	// 2: stdlib
+	// 3: external
+	pkgs := []string{"unsafe", "runtime"}
 	for _, _path := range sortedPackages {
 		if isStdLib(_path) {
-			stdPkgs = append(stdPkgs, _path)
-		} else {
-			extPkgs = append(extPkgs, _path)
+			pkgs = append(pkgs, _path)
 		}
 	}
-
-	var pkgs []string = []string{"unsafe", "runtime"}
-	for _, _path := range stdPkgs {
-		pkgs = append(pkgs, _path)
-	}
-	for _, _path := range extPkgs {
-		pkgs = append(pkgs, _path)
+	for _, _path := range sortedPackages {
+		if !isStdLib(_path) {
+			pkgs = append(pkgs, _path)
+		}
 	}
 	return pkgs
 }
