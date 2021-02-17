@@ -3894,11 +3894,6 @@ func main() {
 			extPackagesUsed = append(extPackagesUsed, pth)
 		}
 	}
-	mainPkg := &PkgContainer{
-		name:  "main",
-		files: inputFiles,
-	}
-
 	pkgUnsafe := &PkgContainer{
 		path: "unsafe",
 	}
@@ -3930,7 +3925,10 @@ func main() {
 		_pkg.files = collectSourceFiles(pkgDir)
 	}
 
-	packagesToBuild = append(packagesToBuild, mainPkg)
+	packagesToBuild = append(packagesToBuild, &PkgContainer{
+		name:  "main",
+		files: inputFiles,
+	})
 
 	// Build a package
 	for _, _pkg := range packagesToBuild {
