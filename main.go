@@ -2269,16 +2269,11 @@ const T_STRUCT string = "T_STRUCT"
 const T_POINTER string = "T_POINTER"
 
 func isUnsafePointer(selector *ast.SelectorExpr) bool {
-	var ident *ast.Ident
-	var isIdent bool
-	ident, isIdent = selector.X.(*ast.Ident)
-	if !isIdent {
+	if !isQI(selector) {
 		return false
 	}
-	if ident.Name == "unsafe" && selector.Sel.Name == "Pointer" {
-		return true
-	}
-	return false
+	qi := selector2QI(selector)
+	return qi == "unsafe.Pointer"
 }
 
 

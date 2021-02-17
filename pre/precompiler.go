@@ -2333,11 +2333,8 @@ func isUnsafePointer(selector *ast.SelectorExpr) bool {
 	if !isQI(selector) {
 		return false
 	}
-	xIdent := selector.X.(*ast.Ident)
-	if xIdent.Name == "unsafe" && selector.Sel.Name == "Pointer" {
-		return true
-	}
-	return false
+	qi := selector2QI(selector)
+	return qi == "unsafe.Pointer"
 }
 
 func getTypeOfExpr(expr ast.Expr) *Type {
