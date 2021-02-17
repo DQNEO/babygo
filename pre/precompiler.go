@@ -3921,18 +3921,6 @@ func main() {
 	var tree = map[string]map[string]bool{}
 
 	collectDependency(tree, importPaths)
-
-	//keys := getKeys(tree)
-	//fmt.Printf("# Unsorted Keys:\n")
-	//for _, k := range keys {
-	//	fmt.Printf("#   %s\n", k)
-	//}
-	//sort.Strings(keys)
-	//fmt.Printf("# Sorted Keys:\n")
-	//for _, k := range keys {
-	//	fmt.Printf("#   %s\n", k)
-	//}
-
 	sortedPackages := sortTopologically(tree)
 	for _, path := range sortedPackages {
 		if path == "unsafe" {
@@ -3943,6 +3931,10 @@ func main() {
 		} else {
 			extPackagesUsed = append(extPackagesUsed, path)
 		}
+	}
+	mainPkg := &PkgContainer{
+		name:  "main",
+		files: inputFiles,
 	}
 	pkgUnsafe := &PkgContainer{
 		path: "unsafe",
@@ -3965,26 +3957,14 @@ func main() {
 			path: _path,
 		})
 	}
-	mainPkg := &PkgContainer{
-		name:  "main",
-		files: inputFiles,
-	}
-	packagesToBuild = append(packagesToBuild, mainPkg)
 
 	for _, _pkg := range packagesToBuild {
 		logf("collecting package files: %s\n", _pkg.path)
-		if len(_pkg.files) == 0 {
-			pkgDir := getPackageDir(_pkg.path)
-			fnames := findFilesInDir(pkgDir)
-			var files []string
-			for _, fname := range fnames {
-				logf("fname: %s\n", fname)
-				srcFile := pkgDir + "/" + fname
-				files = append(files, srcFile)
-			}
-			_pkg.files = files
-		}
+		pkgDir := getPackageDir(_pkg.path)
+		_pkg.files = collectSourceFiles(pkgDir)
 	}
+
+	packagesToBuild = append(packagesToBuild, mainPkg)
 
 	// Build a package
 	for _, _pkg := range packagesToBuild {
@@ -3992,6 +3972,17 @@ func main() {
 	}
 
 	emitDynamicTypes(typeMap)
+}
+
+func collectSourceFiles(pkgDir string) []string {
+	fnames := findFilesInDir(pkgDir)
+	var files []string
+	for _, fname := range fnames {
+		logf("fname: %s\n", fname)
+		srcFile := pkgDir + "/" + fname
+		files = append(files, srcFile)
+	}
+	return files
 }
 
 func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {

@@ -3883,14 +3883,6 @@ func main() {
 	var extPackagesUsed []string
 	var tree []*depEntry
 	tree = collectDependency(tree, importPaths)
-	logf("====TREE====\n")
-	for _, _pkg := range tree {
-		logf("pkg: %s\n", _pkg.path)
-		for _, child := range _pkg.children {
-			logf("  %s\n", child)
-		}
-	}
-
 	sortedPaths := sortDepTree(tree)
 	for _, pth := range sortedPaths {
 		if pth == "unsafe" {
@@ -3902,6 +3894,11 @@ func main() {
 			extPackagesUsed = append(extPackagesUsed, pth)
 		}
 	}
+	mainPkg := &PkgContainer{
+		name:  "main",
+		files: inputFiles,
+	}
+
 	pkgUnsafe := &PkgContainer{
 		path: "unsafe",
 	}
@@ -3925,26 +3922,15 @@ func main() {
 			path: _path,
 		})
 	}
-	mainPkg := &PkgContainer{
-		name:  "main",
-		files: inputFiles,
-	}
-	packagesToBuild = append(packagesToBuild, mainPkg)
 
 	//[]string{"runtime.go"}
 	for _, _pkg := range packagesToBuild {
 		logf("collecting package files: %s\n", _pkg.path)
-		if len(_pkg.files) == 0 {
-			pkgDir := getPackageDir(_pkg.path)
-			fnames := findFilesInDir(pkgDir)
-			var files []string
-			for _, fname := range fnames {
-				srcFile := pkgDir + "/" + fname
-				files = append(files, srcFile)
-			}
-			_pkg.files = files
-		}
+		pkgDir := getPackageDir(_pkg.path)
+		_pkg.files = collectSourceFiles(pkgDir)
 	}
+
+	packagesToBuild = append(packagesToBuild, mainPkg)
 
 	// Build a package
 	for _, _pkg := range packagesToBuild {
@@ -3952,6 +3938,16 @@ func main() {
 	}
 
 	emitDynamicTypes(typeMap)
+}
+
+func collectSourceFiles(pkgDir string) []string {
+	fnames := findFilesInDir(pkgDir)
+	var files []string
+	for _, fname := range fnames {
+		srcFile := pkgDir + "/" + fname
+		files = append(files, srcFile)
+	}
+	return files
 }
 
 func emitDynamicTypes(typeMap []*typeEntry) {
