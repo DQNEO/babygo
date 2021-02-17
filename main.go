@@ -3893,17 +3893,23 @@ func main() {
 
 	sortedPaths := sortDepTree(tree)
 	for _, pth := range sortedPaths {
+		if pth == "unsafe" {
+			continue
+		}
 		if isStdLib(pth) {
 			stdPackagesUsed = append(stdPackagesUsed, pth)
 		} else {
 			extPackagesUsed = append(extPackagesUsed, pth)
 		}
 	}
+	pkgUnsafe := &PkgContainer{
+		path: "unsafe",
+	}
 
 	pkgRuntime := &PkgContainer{
 		path: "runtime",
 	}
-	var packagesToBuild = []*PkgContainer{pkgRuntime}
+	var packagesToBuild = []*PkgContainer{pkgUnsafe, pkgRuntime}
 	fmt.Printf("# === sorted stdPackagesUsed ===\n")
 	for _, _path := range stdPackagesUsed {
 		fmt.Printf("#  %s\n", _path)
@@ -3925,10 +3931,6 @@ func main() {
 	}
 	packagesToBuild = append(packagesToBuild, mainPkg)
 
-	ExportedQualifiedIdents = append(ExportedQualifiedIdents, &exportEntry{
-		qi:  newQI("unsafe", "Pointer"),
-		any: &ast.Ident{Obj: gUintptr},
-	})
 	//[]string{"runtime.go"}
 	for _, _pkg := range packagesToBuild {
 		if len(_pkg.files) == 0 {

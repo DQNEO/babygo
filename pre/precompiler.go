@@ -3935,16 +3935,22 @@ func main() {
 
 	sortedPackages := sortTopologically(tree)
 	for _, path := range sortedPackages {
+		if path == "unsafe" {
+			continue
+		}
 		if isStdLib(path) {
 			stdPackagesUsed = append(stdPackagesUsed, path)
 		} else {
 			extPackagesUsed = append(extPackagesUsed, path)
 		}
 	}
+	pkgUnsafe := &PkgContainer{
+		path: "unsafe",
+	}
 	pkgRuntime := &PkgContainer{
 		path: "runtime",
 	}
-	var packagesToBuild = []*PkgContainer{pkgRuntime}
+	var packagesToBuild = []*PkgContainer{pkgUnsafe, pkgRuntime}
 	fmt.Printf("# === sorted stdPackagesUsed ===\n")
 	for _, _path := range stdPackagesUsed {
 		fmt.Printf("#  %s\n", _path)
@@ -3964,9 +3970,6 @@ func main() {
 		files: inputFiles,
 	}
 	packagesToBuild = append(packagesToBuild, mainPkg)
-
-	ExportedQualifiedIdents[newQI("unsafe","Pointer")] = &ast.Ident{Obj: gUintptr}
-
 	for _, _pkg := range packagesToBuild {
 		logf("Building package : %s\n", _pkg.path)
 		if len(_pkg.files) == 0 {
