@@ -838,11 +838,11 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			fn.Name = "makeSlice"
 		}
 		// general function call
-		symbol = getPackageSymbol(pkg.name, fn.Name)
+		symbol = getPackageSymbol(currentPkg.name, fn.Name)
 		emitComment(2, "[%s][*ast.Ident][default] start\n", __func__)
-		if pkg.name == "os" && fn.Name == "runtime_args" {
+		if currentPkg.name == "os" && fn.Name == "runtime_args" {
 			symbol = "runtime.runtime_args"
-		} else if pkg.name == "os" && fn.Name == "runtime_getenv" {
+		} else if currentPkg.name == "os" && fn.Name == "runtime_getenv" {
 			symbol = "runtime.runtime_getenv"
 		}
 
@@ -2830,7 +2830,7 @@ func registerLocalVariable(fnc *ast.Func, name string, t *ast.Type) *ast.Variabl
 var currentFunc *ast.Func
 
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
-	for _, container := range pkg.stringLiterals {
+	for _, container := range currentPkg.stringLiterals {
 		if container.lit == lit {
 			return container.sl
 		}
@@ -2844,7 +2844,7 @@ func getStringLiteral(lit *ast.BasicLit) *sliteral {
 func registerStringLiteral(lit *ast.BasicLit) {
 	logf(" [registerStringLiteral] begin\n")
 
-	if pkg.name == "" {
+	if currentPkg.name == "" {
 		panic2(__func__, "no pkgName")
 	}
 
@@ -2856,8 +2856,8 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		}
 	}
 
-	label := fmt.Sprintf(".%s.S%d", pkg.name, pkg.stringIndex)
-	pkg.stringIndex++
+	label := fmt.Sprintf(".%s.S%d", currentPkg.name, currentPkg.stringIndex)
+	currentPkg.stringIndex++
 
 	sl := &sliteral{
 		label:  label,
@@ -2868,7 +2868,7 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	cont := &stringLiteralsContainer{}
 	cont.sl = sl
 	cont.lit = lit
-	pkg.stringLiterals = append(pkg.stringLiterals, cont)
+	currentPkg.stringLiterals = append(currentPkg.stringLiterals, cont)
 }
 
 func newGlobalVariable(pkgName string, name string, t *ast.Type) *ast.Variable {
@@ -3614,7 +3614,7 @@ func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 	}
 }
 
-var pkg *PkgContainer
+var currentPkg *PkgContainer
 
 type PkgContainer struct {
 	path           string
@@ -3679,7 +3679,7 @@ func isInTree(tree []*depEntry, pth string) bool {
 
 func getPackageDir(importPath string) string {
 	if isStdLib(importPath) {
-		return srcPath + "/github.com/DQNEO/babygo/src/" + importPath
+		return prjSrcPath + "/" + importPath
 	} else {
 		return srcPath + "/" + importPath
 	}
@@ -3691,6 +3691,9 @@ func collectDependency(tree []*depEntry, paths []string) []*depEntry {
 		if isInTree(tree, pkgPath) {
 			continue
 		}
+		if pkgPath == "unsafe" || pkgPath == "runtime" {
+			continue
+		}
 		logf("   in pkgPath=%s\n", pkgPath)
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
@@ -3698,6 +3701,9 @@ func collectDependency(tree []*depEntry, paths []string) []*depEntry {
 		for _, fname := range fnames {
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
 			for _, p := range _paths {
+				if p == "unsafe" || p == "runtime" {
+					continue
+				}
 				children = append(children, p)
 			}
 		}
@@ -3775,8 +3781,12 @@ func sortDepTree(tree []*depEntry) []string {
 }
 
 var srcPath string
+var prjSrcPath string
 
 func main() {
+	srcPath = os.Getenv("GOPATH") + "/src"
+	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src/"
+
 	if len(os.Args) == 1 {
 		showHelp()
 		return
@@ -3794,7 +3804,6 @@ func main() {
 	}
 
 	logf("Build start\n")
-	srcPath = os.Getenv("GOPATH") + "/src"
 
 	eNil = newExpr(identNil)
 	eZeroInt = newExpr(&ast.BasicLit{
@@ -3852,7 +3861,6 @@ func main() {
 		}),
 	}
 
-	var universe = createUniverse()
 	var arg string
 	var inputFiles []string
 	for _, arg = range os.Args[1:] {
@@ -3866,7 +3874,34 @@ func main() {
 		}
 	}
 
-	var importPaths []string = []string{"os"}
+	paths := collectAllPackages(inputFiles)
+	var packagesToBuild []*PkgContainer
+
+	for _, _path := range paths {
+		files := collectSourceFiles(getPackageDir(_path))
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			name:  _path,
+			files: files,
+		})
+
+	}
+
+	packagesToBuild = append(packagesToBuild, &PkgContainer{
+		name:  "main",
+		files: inputFiles,
+	})
+
+	var universe = createUniverse()
+	for _, _pkg := range packagesToBuild {
+		currentPkg = _pkg
+		buildPackage(_pkg, universe)
+	}
+
+	emitDynamicTypes(typeMap)
+}
+
+func collectDirectDependents(inputFiles []string) []string {
+	var importPaths []string
 
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
@@ -3878,116 +3913,45 @@ func main() {
 			}
 		}
 	}
+	return importPaths
+}
 
-	var stdPackagesUsed []string
-	var extPackagesUsed []string
+func collectAllPackages(inputFiles []string) []string {
 	var tree []*depEntry
-	tree = collectDependency(tree, importPaths)
-	logf("====TREE====\n")
-	for _, _pkg := range tree {
-		logf("pkg: %s\n", _pkg.path)
-		for _, child := range _pkg.children {
-			logf("  %s\n", child)
-		}
-	}
-
+	directChildren := collectDirectDependents(inputFiles)
+	tree = collectDependency(tree, directChildren)
 	sortedPaths := sortDepTree(tree)
+
+	// sort packages by this order
+	// 1: pseudo
+	// 2: stdlib
+	// 3: external
+	paths := []string{"unsafe", "runtime"}
 	for _, pth := range sortedPaths {
-		if pth == "unsafe" {
-			continue
-		}
 		if isStdLib(pth) {
-			stdPackagesUsed = append(stdPackagesUsed, pth)
-		} else {
-			extPackagesUsed = append(extPackagesUsed, pth)
+			paths = append(paths, pth)
 		}
 	}
-	pkgUnsafe := &PkgContainer{
-		path: "unsafe",
-	}
 
-	pkgRuntime := &PkgContainer{
-		path: "runtime",
-	}
-	var packagesToBuild = []*PkgContainer{pkgUnsafe, pkgRuntime}
-	fmt.Printf("# === sorted stdPackagesUsed ===\n")
-	for _, _path := range stdPackagesUsed {
-		fmt.Printf("#  %s\n", _path)
-		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			path: _path,
-		})
-	}
-
-	fmt.Printf("# === sorted extPackagesUsed ===\n")
-	for _, _path := range extPackagesUsed {
-		fmt.Printf("#  %s\n", _path)
-		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			path: _path,
-		})
-	}
-	mainPkg := &PkgContainer{
-		name:  "main",
-		files: inputFiles,
-	}
-	packagesToBuild = append(packagesToBuild, mainPkg)
-
-	//[]string{"runtime.go"}
-	for _, _pkg := range packagesToBuild {
-		if len(_pkg.files) == 0 {
-			pkgDir := getPackageDir(_pkg.path)
-			fnames := findFilesInDir(pkgDir)
-			var files []string
-			for _, fname := range fnames {
-				srcFile := pkgDir + "/" + fname
-				files = append(files, srcFile)
-			}
-			_pkg.files = files
+	for _, pth := range sortedPaths {
+		if !isStdLib(pth) {
+			paths = append(paths, pth)
 		}
-		pkgScope := ast.NewScope(universe)
-		for _, file := range _pkg.files {
-			logf("Parsing file: %s\n", file)
-			af := parseFile(file, false)
-			_pkg.name = af.Name
-			_pkg.astFiles = append(_pkg.astFiles, af)
-			for _, oe := range af.Scope.Objects {
-				pkgScope.Objects = append(pkgScope.Objects, oe)
-			}
-		}
-		for _, af := range _pkg.astFiles {
-			resolveImports(af)
-			logf("[%s] start\n", __func__)
-			// inject predeclared identifers
-			var unresolved []*ast.Ident
-			logf(" [SEMA] resolving af.Unresolved (n=%d)\n", len(af.Unresolved))
-			for _, ident := range af.Unresolved {
-				logf(" [SEMA] resolving ident %s ... \n", ident.Name)
-				var obj *ast.Object = pkgScope.Lookup(ident.Name)
-				if obj != nil {
-					logf(" matched\n")
-					ident.Obj = obj
-				} else {
-					obj = universe.Lookup(ident.Name)
-					if obj != nil {
-						logf(" matched\n")
-						ident.Obj = obj
-					} else {
-						// we should allow unresolved for now.
-						// e.g foo in X{foo:bar,}
-						logf("Unresolved (maybe struct field name in composite literal): " + ident.Name)
-						unresolved = append(unresolved, ident)
-					}
-				}
-			}
-			for _, dcl := range af.Decls {
-				_pkg.Decls = append(_pkg.Decls, dcl)
-			}
-		}
-		pkg = _pkg
-		logf("Walking package: %s\n", pkg.name)
-		walk(pkg)
-		generateCode(pkg)
 	}
+	return paths
+}
 
+func collectSourceFiles(pkgDir string) []string {
+	fnames := findFilesInDir(pkgDir)
+	var files []string
+	for _, fname := range fnames {
+		srcFile := pkgDir + "/" + fname
+		files = append(files, srcFile)
+	}
+	return files
+}
+
+func emitDynamicTypes(typeMap []*typeEntry) {
 	// emitting dynamic types
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
@@ -4003,7 +3967,52 @@ func main() {
 		fmt.Printf("  .string \"%s\"\n", name)
 	}
 	fmt.Printf("\n")
+}
 
+func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
+	logf("Building package : %s\n", _pkg.path)
+	pkgScope := ast.NewScope(universe)
+	for _, file := range _pkg.files {
+		logf("Parsing file: %s\n", file)
+		af := parseFile(file, false)
+		_pkg.name = af.Name
+		_pkg.astFiles = append(_pkg.astFiles, af)
+		for _, oe := range af.Scope.Objects {
+			pkgScope.Objects = append(pkgScope.Objects, oe)
+		}
+	}
+	for _, af := range _pkg.astFiles {
+		resolveImports(af)
+		logf("[%s] start\n", __func__)
+		// inject predeclared identifers
+		var unresolved []*ast.Ident
+		logf(" [SEMA] resolving af.Unresolved (n=%d)\n", len(af.Unresolved))
+		for _, ident := range af.Unresolved {
+			logf(" [SEMA] resolving ident %s ... \n", ident.Name)
+			var obj *ast.Object = pkgScope.Lookup(ident.Name)
+			if obj != nil {
+				logf(" matched\n")
+				ident.Obj = obj
+			} else {
+				obj = universe.Lookup(ident.Name)
+				if obj != nil {
+					logf(" matched\n")
+					ident.Obj = obj
+				} else {
+					// we should allow unresolved for now.
+					// e.g foo in X{foo:bar,}
+					logf("Unresolved (maybe struct field name in composite literal): " + ident.Name)
+					unresolved = append(unresolved, ident)
+				}
+			}
+		}
+		for _, dcl := range af.Decls {
+			_pkg.Decls = append(_pkg.Decls, dcl)
+		}
+	}
+	logf("Walking package: %s\n", _pkg.name)
+	walk(_pkg)
+	generateCode(_pkg)
 }
 
 type depEntry struct {
