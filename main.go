@@ -3691,6 +3691,9 @@ func collectDependency(tree []*depEntry, paths []string) []*depEntry {
 		if isInTree(tree, pkgPath) {
 			continue
 		}
+		if pkgPath == "unsafe" || pkgPath == "runtime" {
+			continue
+		}
 		logf("   in pkgPath=%s\n", pkgPath)
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
@@ -3698,6 +3701,9 @@ func collectDependency(tree []*depEntry, paths []string) []*depEntry {
 		for _, fname := range fnames {
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
 			for _, p := range _paths {
+				if p == "unsafe" || p == "runtime" {
+					continue
+				}
 				children = append(children, p)
 			}
 		}
@@ -3915,9 +3921,6 @@ func collectAllPackages(inputFiles []string) []string {
 
 	paths := []string{"unsafe", "runtime"}
 	for _, pth := range sortedPaths {
-		if pth == "unsafe" {
-			continue
-		}
 		if isStdLib(pth) {
 			paths = append(paths, pth)
 		}
