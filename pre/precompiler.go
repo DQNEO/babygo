@@ -3696,23 +3696,6 @@ func createUniverse() *ast.Scope {
 	universe.Insert(gCap)
 	universe.Insert(gPanic)
 
-	universe.Insert(&ast.Object{
-		Kind: ast.Fun,
-		Name: "print",
-		Decl: nil,
-		Data: nil,
-		Type: nil,
-	})
-
-	// inject os identifier @TODO this should come from imports
-	universe.Insert(&ast.Object{
-		Kind: ast.Pkg,
-		Name: "os",
-		Decl: nil,
-		Data: nil,
-		Type: nil,
-	})
-
 	return universe
 }
 

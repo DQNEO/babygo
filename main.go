@@ -3561,25 +3561,6 @@ func createUniverse() *ast.Scope {
 	universe.Insert(gCap)
 	universe.Insert(gPanic)
 
-	logf(" [%s] scope insertion of predefined identifiers complete\n", __func__)
-
-	// @FIXME package names should not be be in universe
-
-	universe.Insert(&ast.Object{
-		Kind: "Pkg",
-		Name: "os",
-	})
-
-	universe.Insert(&ast.Object{
-		Kind: "Pkg",
-		Name: "syscall",
-	})
-
-	universe.Insert(&ast.Object{
-		Kind: "Pkg",
-		Name: "unsafe",
-	})
-	logf(" [%s] scope insertion complete\n", __func__)
 	return universe
 }
 
