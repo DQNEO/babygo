@@ -3673,28 +3673,21 @@ func createUniverse() *ast.Scope {
 		Objects: make(map[string]*ast.Object),
 	}
 
-	// predeclared types
-	universe.Insert(gString)
-	universe.Insert(gUintptr)
-	universe.Insert(gBool)
-	universe.Insert(gInt)
-	universe.Insert(gUint8)
-	universe.Objects["byte"] = gUint8 // byte is alias of uint8
-	universe.Insert(gUint16)
+	objects := []*ast.Object{
+		gNil,
+		// constants
+		gTrue, gFalse,
+		// types
+		gString, gUintptr, gBool, gInt, gUint8, gUint16,
+		// funcs
+		gNew, gMake, gAppend, gLen, gCap, gPanic,
+	}
+	for _, obj := range objects {
+		universe.Insert(obj)
+	}
 
-	// predeclared constants
-	universe.Insert(gTrue)
-	universe.Insert(gFalse)
-
-	universe.Insert(gNil)
-
-	// predeclared funcs
-	universe.Insert(gNew)
-	universe.Insert(gMake)
-	universe.Insert(gAppend)
-	universe.Insert(gLen)
-	universe.Insert(gCap)
-	universe.Insert(gPanic)
+	// setting aliases
+	universe.Objects["byte"] = gUint8
 
 	return universe
 }
