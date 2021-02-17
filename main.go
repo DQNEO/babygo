@@ -4071,16 +4071,6 @@ func expr2Ident(e ast.Expr) *ast.Ident {
 	return r
 }
 
-func expr2BinaryExpr(e ast.Expr) *ast.BinaryExpr {
-	var r *ast.BinaryExpr
-	var ok bool
-	r, ok = e.(*ast.BinaryExpr)
-	if !ok {
-		panic("Not *ast.BinaryExpr")
-	}
-	return r
-}
-
 func expr2UnaryExpr(e ast.Expr) *ast.UnaryExpr {
 	var r *ast.UnaryExpr
 	var ok bool
