@@ -12,7 +12,6 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-
 func testDerivedString() {
 	var qi QualifiedIdent = "hello"
 	sqi := string(qi)

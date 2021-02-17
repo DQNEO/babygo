@@ -29,7 +29,7 @@ type Object struct {
 	Name     string
 	Decl     interface{} // *ValueSpec|*FuncDecl|*TypeSpec|*Field|*AssignStmt
 	Variable *Variable
-	PkgName string
+	PkgName  string
 }
 
 type Expr interface{}
@@ -217,7 +217,6 @@ type Method struct {
 	Name         string
 	FuncType     *FuncType
 }
-
 
 type NodeReturnStmt struct {
 	Fnc *Func

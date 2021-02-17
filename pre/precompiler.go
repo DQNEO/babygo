@@ -2528,10 +2528,10 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 		if isType(fn) {
 			return []*Type{e2t(fn)}
 		}
-		if isQI(fn) {  // pkg.Sel()
+		if isQI(fn) { // pkg.Sel()
 			ff := lookupForeignFunc(selector2QI(fn))
 			return fieldList2Types(ff.decl.Type.Results)
-		} else {  // obj.method()
+		} else { // obj.method()
 			rcvType := getTypeOfExpr(fn.X)
 			method := lookupMethod(rcvType, fn.Sel)
 			return fieldList2Types(method.funcType.Results)
@@ -3428,13 +3428,13 @@ func walk(pkg *PkgContainer) {
 		case T_STRUCT:
 			calcStructSizeAndSetFieldOffset(typeSpec)
 		}
-		ExportedQualifiedIdents[newQI(pkg.name,typeSpec.Name.Name)] = typeSpec.Name
+		ExportedQualifiedIdents[newQI(pkg.name, typeSpec.Name.Name)] = typeSpec.Name
 	}
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil {
-			qi := newQI(pkg.name , funcDecl.Name.Name)
+			qi := newQI(pkg.name, funcDecl.Name.Name)
 			logf("ExportedQualifiedIdents added: %s\n", string(qi))
 			ExportedQualifiedIdents[qi] = funcDecl.Name
 		} else { // is method
