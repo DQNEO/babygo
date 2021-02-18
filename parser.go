@@ -130,7 +130,7 @@ func (p *parser) tryVarType(ellipsisOK bool) ast.Expr {
 			panic2(__func__, "Syntax error")
 		}
 
-		return newExpr(&ast.Ellipsis{
+		return (&ast.Ellipsis{
 			Elt: typ,
 		})
 	}
@@ -165,7 +165,7 @@ func (p *parser) parseType() ast.Expr {
 func (p *parser) parsePointerType() ast.Expr {
 	p.expect("*", __func__)
 	var base = p.parseType()
-	return newExpr(&ast.StarExpr{
+	return (&ast.StarExpr{
 		X: base,
 	})
 }
@@ -179,7 +179,7 @@ func (p *parser) parseArrayType() ast.Expr {
 	p.expect("]", __func__)
 	var elt = p.parseType()
 
-	return newExpr(&ast.ArrayType{
+	return (&ast.ArrayType{
 		Elt: elt,
 		Len: ln,
 	})
@@ -215,7 +215,7 @@ func (p *parser) parseStructType() ast.Expr {
 	}
 	p.expect("}", __func__)
 
-	return newExpr(&ast.StructType{
+	return (&ast.StructType{
 		Fields: &ast.FieldList{
 			List: list,
 		},
@@ -228,17 +228,17 @@ func (p *parser) parseTypeName() ast.Expr {
 	if p.tok.tok == "." {
 		// ident is a package name
 		p.next() // consume "."
-		eIdent := newExpr(ident)
+		eIdent := (ident)
 		p.resolve(eIdent)
 		sel := p.parseIdent()
 		selectorExpr := &ast.SelectorExpr{
 			X:   eIdent,
 			Sel: sel,
 		}
-		return newExpr(selectorExpr)
+		return (selectorExpr)
 	}
 	logf(" [%s] end\n", __func__)
-	return newExpr(ident)
+	return (ident)
 }
 
 func (p *parser) tryIdentOrType() ast.Expr {
@@ -257,14 +257,14 @@ func (p *parser) tryIdentOrType() ast.Expr {
 		p.expect("{", __func__)
 		// @TODO parser method sets
 		p.expect("}", __func__)
-		return newExpr(&ast.InterfaceType{
+		return (&ast.InterfaceType{
 			Methods: nil,
 		})
 	case "(":
 		p.next()
 		var _typ = p.parseType()
 		p.expect(")", __func__)
-		return newExpr(&ast.ParenExpr{
+		return (&ast.ParenExpr{
 			X: _typ,
 		})
 	case "type":
@@ -465,7 +465,7 @@ func (p *parser) parseOperand() ast.Expr {
 	switch p.tok.tok {
 	case "IDENT":
 		var ident = p.parseIdent()
-		var eIdent = newExpr(ident)
+		var eIdent = (ident)
 		p.tryResolve(eIdent, true)
 		logf("   end %s\n", __func__)
 		return eIdent
@@ -476,14 +476,14 @@ func (p *parser) parseOperand() ast.Expr {
 		}
 		p.next()
 		logf("   end %s\n", __func__)
-		return newExpr(basicLit)
+		return (basicLit)
 	case "(":
 		p.next() // consume "("
 		parserExprLev++
 		var x = p.parseRhsOrType()
 		parserExprLev--
 		p.expect(")", __func__)
-		return newExpr(&ast.ParenExpr{
+		return (&ast.ParenExpr{
 			X: x,
 		})
 	}
@@ -527,7 +527,7 @@ func (p *parser) parseCallExpr(fn ast.Expr) ast.Expr {
 	}
 
 	p.expect(")", __func__)
-	return newExpr(&ast.CallExpr{
+	return (&ast.CallExpr{
 		Fun:      fn,
 		Args:     list,
 		Ellipsis: ellipsis,
@@ -562,13 +562,13 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
 					Sel: secondIdent,
 				}
 				if p.tok.tok == "(" {
-					var fn = newExpr(sel)
+					var fn = (sel)
 					// string = x.ident.Name + "." + secondIdent
 					x = p.parseCallExpr(fn)
 					logf(" [parsePrimaryExpr] 741 p.tok.tok=%s\n", p.tok.tok)
 				} else {
 					logf("   end parsePrimaryExpr()\n")
-					x = newExpr(sel)
+					x = (sel)
 				}
 			case "(": // type assertion
 				x = p.parseTypeAssertion(x)
@@ -600,7 +600,7 @@ func (p *parser) parseTypeAssertion(x ast.Expr) ast.Expr {
 	p.expect("(", __func__)
 	typ := p.parseType()
 	p.expect(")", __func__)
-	return newExpr(&ast.TypeAssertExpr{
+	return (&ast.TypeAssertExpr{
 		X:    x,
 		Type: typ,
 	})
@@ -617,7 +617,7 @@ func (p *parser) parseElement() ast.Expr {
 			Key:   x,
 			Value: v,
 		}
-		x = newExpr(kvExpr)
+		x = (kvExpr)
 	}
 	return x
 }
@@ -646,7 +646,7 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 	p.expect("}", __func__)
 
 	logf("   end %s\n", __func__)
-	return newExpr(&ast.CompositeLit{
+	return (&ast.CompositeLit{
 		Type: typ,
 		Elts: elts,
 	})
@@ -694,13 +694,13 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 		if ncolons == 2 {
 			sliceExpr.Max = index[2]
 		}
-		return newExpr(sliceExpr)
+		return (sliceExpr)
 	}
 
 	var indexExpr = &ast.IndexExpr{}
 	indexExpr.X = x
 	indexExpr.Index = index[0]
-	return newExpr(indexExpr)
+	return (indexExpr)
 }
 
 func (p *parser) parseUnaryExpr() ast.Expr {
@@ -712,7 +712,7 @@ func (p *parser) parseUnaryExpr() ast.Expr {
 		p.next()
 		var x = p.parseUnaryExpr()
 		logf(" [DEBUG] unary op = %s\n", tok)
-		r = newExpr(&ast.UnaryExpr{
+		r = (&ast.UnaryExpr{
 			X:  x,
 			Op: tok,
 		})
@@ -720,7 +720,7 @@ func (p *parser) parseUnaryExpr() ast.Expr {
 	case "*":
 		p.next() // consume "*"
 		var x = p.parseUnaryExpr()
-		r = newExpr(&ast.StarExpr{
+		r = (&ast.StarExpr{
 			X: x,
 		})
 		return r
@@ -769,7 +769,7 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 		binaryExpr.X = x
 		binaryExpr.Y = y
 		binaryExpr.Op = op
-		var r = newExpr(binaryExpr)
+		var r = (binaryExpr)
 		x = r
 	}
 	logf("   end parseBinaryExpr()\n")
@@ -1006,7 +1006,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 			rangeUnary = &ast.UnaryExpr{}
 			rangeUnary.Op = "range"
 			rangeUnary.X = rangeX
-			y = newExpr(rangeUnary)
+			y = (rangeUnary)
 			isRange = true
 		} else {
 			y = p.parseExpr() // rhs

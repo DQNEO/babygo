@@ -540,12 +540,12 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		// collect args as a slice
 		var sliceType = &ast.ArrayType{}
 		sliceType.Elt = variadicElmType
-		var eSliceType = newExpr(sliceType)
+		var eSliceType = sliceType
 		var sliceLiteral = &ast.CompositeLit{}
 		sliceLiteral.Type = eSliceType
 		sliceLiteral.Elts = variadicArgs
 		var _arg = &Arg{
-			e:         newExpr(sliceLiteral),
+			e:         sliceLiteral,
 			paramType: e2t(eSliceType),
 		}
 		args = append(args, _arg)
@@ -744,7 +744,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				//assert(ok, "should be *ast.ArrayType")
 				var elmSize = getSizeOfType(e2t(arrayType.Elt))
 				var numlit = newNumberLiteral(elmSize)
-				var eNumLit = newExpr(numlit)
+				var eNumLit = numlit
 
 				var args []*Arg = []*Arg{
 					// elmSize
@@ -1950,7 +1950,7 @@ func emitStmt(stmt ast.Stmt) {
 			for _, _s := range typeSwitchCaseClose.Orig.Body {
 				if typeSwitchCaseClose.Variable != nil {
 					// do assignment
-					expr := newExpr(typeSwitch.AssignIdent)
+					expr := typeSwitch.AssignIdent
 					emitAddr(expr)
 					emitVariableAddr(typeSwitch.SubjectVariable)
 					emitLoadAndPush(tEface)
@@ -2074,7 +2074,7 @@ func emitGlobalVariableComplex(name *ast.Ident, t *ast.Type, val ast.Expr) {
 	switch typeKind {
 	case T_POINTER:
 		fmt.Printf("# init global %s:\n", name.Name)
-		lhs := newExpr(name)
+		lhs := name
 		emitAssign(lhs, val)
 	}
 }
@@ -2179,7 +2179,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *ast.Type, val ast
 			panic2(__func__, "global slice is not supported")
 		}
 		bl := expr2BasicLit(arrayType.Len)
-		var length = evalInt(newExpr(bl))
+		var length = evalInt(bl)
 		emitComment(0, "[emitGlobalVariable] array length uint8=%d\n", length)
 		var zeroValue string
 		var knd string = kind(e2t(arrayType.Elt))
@@ -2341,7 +2341,7 @@ func getTypeOfExpr(expr ast.Expr) *ast.Type {
 			var starExpr = &ast.StarExpr{}
 			var t = getTypeOfExpr(e.X)
 			starExpr.X = t.E
-			return e2t(newExpr(starExpr))
+			return e2t(starExpr)
 		case "range":
 			listType := getTypeOfExpr(e.X)
 			elmType := getElementTypeOfListType(listType)
@@ -2367,7 +2367,7 @@ func getTypeOfExpr(expr ast.Expr) *ast.Type {
 		var t = &ast.ArrayType{}
 		t.Len = nil
 		t.Elt = elementTyp
-		return e2t(newExpr(t))
+		return e2t(t)
 	case *ast.StarExpr:
 		var t = getTypeOfExpr(e.X)
 		var ptrType = expr2StarExpr(t.E)
@@ -2436,7 +2436,7 @@ func getCallResultTypes(e *ast.CallExpr) []*ast.Type {
 			case gNew:
 				var starExpr = &ast.StarExpr{}
 				starExpr.X = e.Args[0]
-				return []*ast.Type{e2t(newExpr(starExpr))}
+				return []*ast.Type{e2t(starExpr)}
 			case gMake:
 				return []*ast.Type{e2t(e.Args[0])}
 			case gAppend:
@@ -3195,7 +3195,7 @@ func walkExpr(expr ast.Expr) {
 					basicLit = &ast.BasicLit{}
 					basicLit.Kind = "STRING"
 					basicLit.Value = "\"" + currentFunc.Name + "\""
-					newArg = newExpr(basicLit)
+					newArg = basicLit
 					e.Args[i] = newArg
 					arg = newArg
 				}
@@ -3768,60 +3768,60 @@ func main() {
 
 	logf("Build start\n")
 
-	eNil = newExpr(identNil)
-	eZeroInt = newExpr(&ast.BasicLit{
+	eNil = identNil
+	eZeroInt = &ast.BasicLit{
 		Value: "0",
 		Kind:  "INT",
-	})
-	generalSlice = newExpr(&ast.Ident{})
+	}
+	generalSlice = &ast.Ident{}
 	tInt = &ast.Type{
-		E: newExpr(&ast.Ident{
+		E: &ast.Ident{
 			Name: "int",
 			Obj:  gInt,
-		}),
+		},
 	}
 	tInt32 = &ast.Type{
-		E: newExpr(&ast.Ident{
+		E: &ast.Ident{
 			Name: "int32",
 			Obj:  gInt32,
-		}),
+		},
 	}
 	tUint8 = &ast.Type{
-		E: newExpr(&ast.Ident{
+		E: &ast.Ident{
 			Name: "uint8",
 			Obj:  gUint8,
-		}),
+		},
 	}
 
 	tUint16 = &ast.Type{
-		E: newExpr(&ast.Ident{
+		E: &ast.Ident{
 			Name: "uint16",
 			Obj:  gUint16,
-		}),
+		},
 	}
 	tUintptr = &ast.Type{
-		E: newExpr(&ast.Ident{
+		E: &ast.Ident{
 			Name: "uintptr",
 			Obj:  gUintptr,
-		}),
+		},
 	}
 
 	tString = &ast.Type{
-		E: newExpr(&ast.Ident{
+		E: &ast.Ident{
 			Name: "string",
 			Obj:  gString,
-		}),
+		},
 	}
 
 	tEface = &ast.Type{
-		E: newExpr(&ast.InterfaceType{}),
+		E: &ast.InterfaceType{},
 	}
 
 	tBool = &ast.Type{
-		E: newExpr(&ast.Ident{
+		E: &ast.Ident{
 			Name: "bool",
 			Obj:  gBool,
-		}),
+		},
 	}
 
 	var arg string
@@ -4027,10 +4027,6 @@ func stmt2CaseClause(s ast.Stmt) *ast.CaseClause {
 		panic("Not *ast.CaseClause")
 	}
 	return r
-}
-
-func newExpr(expr interface{}) ast.Expr {
-	return expr
 }
 
 func expr2Ident(e ast.Expr) *ast.Ident {
