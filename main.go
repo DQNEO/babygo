@@ -956,13 +956,13 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				panic("Unexpected ident kind:" + e.Obj.Kind)
 			}
 		}
-	case *ast.IndexExpr:
+	case *ast.IndexExpr: // 1 or 2 values
 		emitAddr(e)
 		emitLoadAndPush(getTypeOfExpr(e))
-	case *ast.StarExpr:
+	case *ast.StarExpr: // 1 value
 		emitAddr(e)
 		emitLoadAndPush(getTypeOfExpr(e))
-	case *ast.SelectorExpr:
+	case *ast.SelectorExpr: // 1 value X.Sel
 		// pkg.Ident or strct.field
 		if isQI(e) {
 			ident := lookupForeignIdent(selector2QI(e))
@@ -1020,81 +1020,6 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		default:
 			panic2(__func__, "[*ast.BasicLit] TBI : "+basicLit.Kind)
 		}
-	case *ast.SliceExpr:
-		var list = e.X
-		var listType = getTypeOfExpr(list)
-
-		// For convenience, any of the indices may be omitted.
-		// A missing low index defaults to zero;
-		var low ast.Expr
-		if e.Low != nil {
-			low = e.Low
-		} else {
-			low = eZeroInt
-		}
-
-		// a missing high index defaults to the length of the sliced operand:
-		// @TODO
-
-		switch kind(listType) {
-		case T_SLICE, T_ARRAY:
-			if e.Max == nil {
-				// new cap = cap(operand) - low
-				emitCap(e.X)
-				emitExpr(low, nil)
-				fmt.Printf("  popq %%rcx # low\n")
-				fmt.Printf("  popq %%rax # orig_cap\n")
-				fmt.Printf("  subq %%rcx, %%rax # orig_cap - low\n")
-				fmt.Printf("  pushq %%rax # new cap\n")
-
-				// new len = high - low
-				if e.High != nil {
-					emitExpr(e.High, nil)
-				} else {
-					// high = len(orig)
-					emitLen(e.X)
-				}
-				emitExpr(low, nil)
-				fmt.Printf("  popq %%rcx # low\n")
-				fmt.Printf("  popq %%rax # high\n")
-				fmt.Printf("  subq %%rcx, %%rax # high - low\n")
-				fmt.Printf("  pushq %%rax # new len\n")
-			} else {
-				// new cap = max - low
-				emitExpr(e.Max, nil)
-				emitExpr(low, nil)
-				fmt.Printf("  popq %%rcx # low\n")
-				fmt.Printf("  popq %%rax # max\n")
-				fmt.Printf("  subq %%rcx, %%rax # new cap = max - low\n")
-				fmt.Printf("  pushq %%rax # new cap\n")
-				// new len = high - low
-				emitExpr(e.High, nil)
-				emitExpr(low, nil)
-				fmt.Printf("  popq %%rcx # low\n")
-				fmt.Printf("  popq %%rax # high\n")
-				fmt.Printf("  subq %%rcx, %%rax # new len = high - low\n")
-				fmt.Printf("  pushq %%rax # new len\n")
-			}
-		case T_STRING:
-			// new len = high - low
-			if e.High != nil {
-				emitExpr(e.High, nil)
-			} else {
-				emitLen(e.X)
-			}
-			emitExpr(low, nil)
-			fmt.Printf("  popq %%rcx # low\n")
-			fmt.Printf("  popq %%rax # high\n")
-			fmt.Printf("  subq %%rcx, %%rax # high - low\n")
-			fmt.Printf("  pushq %%rax # len\n")
-			// no cap
-		default:
-			unexpectedKind(kind(listType))
-		}
-
-		emitExpr(low, nil)
-		var elmType = getElementTypeOfListType(listType)
-		emitListElementAddr(list, elmType)
 	case *ast.UnaryExpr:
 		emitComment(2, "[DEBUG] unary op = %s\n", e.Op)
 		switch e.Op {
@@ -1237,6 +1162,81 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		default:
 			unexpectedKind(kind(e2t(e.Type)))
 		}
+	case *ast.SliceExpr:
+		var list = e.X
+		var listType = getTypeOfExpr(list)
+
+		// For convenience, any of the indices may be omitted.
+		// A missing low index defaults to zero;
+		var low ast.Expr
+		if e.Low != nil {
+			low = e.Low
+		} else {
+			low = eZeroInt
+		}
+
+		// a missing high index defaults to the length of the sliced operand:
+		// @TODO
+
+		switch kind(listType) {
+		case T_SLICE, T_ARRAY:
+			if e.Max == nil {
+				// new cap = cap(operand) - low
+				emitCap(e.X)
+				emitExpr(low, nil)
+				fmt.Printf("  popq %%rcx # low\n")
+				fmt.Printf("  popq %%rax # orig_cap\n")
+				fmt.Printf("  subq %%rcx, %%rax # orig_cap - low\n")
+				fmt.Printf("  pushq %%rax # new cap\n")
+
+				// new len = high - low
+				if e.High != nil {
+					emitExpr(e.High, nil)
+				} else {
+					// high = len(orig)
+					emitLen(e.X)
+				}
+				emitExpr(low, nil)
+				fmt.Printf("  popq %%rcx # low\n")
+				fmt.Printf("  popq %%rax # high\n")
+				fmt.Printf("  subq %%rcx, %%rax # high - low\n")
+				fmt.Printf("  pushq %%rax # new len\n")
+			} else {
+				// new cap = max - low
+				emitExpr(e.Max, nil)
+				emitExpr(low, nil)
+				fmt.Printf("  popq %%rcx # low\n")
+				fmt.Printf("  popq %%rax # max\n")
+				fmt.Printf("  subq %%rcx, %%rax # new cap = max - low\n")
+				fmt.Printf("  pushq %%rax # new cap\n")
+				// new len = high - low
+				emitExpr(e.High, nil)
+				emitExpr(low, nil)
+				fmt.Printf("  popq %%rcx # low\n")
+				fmt.Printf("  popq %%rax # high\n")
+				fmt.Printf("  subq %%rcx, %%rax # new len = high - low\n")
+				fmt.Printf("  pushq %%rax # new len\n")
+			}
+		case T_STRING:
+			// new len = high - low
+			if e.High != nil {
+				emitExpr(e.High, nil)
+			} else {
+				emitLen(e.X)
+			}
+			emitExpr(low, nil)
+			fmt.Printf("  popq %%rcx # low\n")
+			fmt.Printf("  popq %%rax # high\n")
+			fmt.Printf("  subq %%rcx, %%rax # high - low\n")
+			fmt.Printf("  pushq %%rax # len\n")
+			// no cap
+		default:
+			unexpectedKind(kind(listType))
+		}
+
+		emitExpr(low, nil)
+		var elmType = getElementTypeOfListType(listType)
+		emitListElementAddr(list, elmType)
 	case *ast.TypeAssertExpr:
 		emitExpr(e.X, nil)
 		fmt.Printf("  popq  %%rax # ifc.dtype\n")
