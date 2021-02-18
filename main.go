@@ -2706,30 +2706,6 @@ func getSizeOfType(t *ast.Type) int {
 	return 0
 }
 
-func getPushSizeOfType(t *ast.Type) int {
-	if t == nil {
-		panic("arg.paramType should not be nil")
-	}
-	switch kind(t) {
-	case T_SLICE:
-		return sliceSize
-	case T_STRING:
-		return stringSize
-	case T_INTERFACE:
-		return interfaceSize
-	case T_UINT8, T_UINT16, T_INT, T_BOOL:
-		return intSize
-	case T_UINTPTR, T_POINTER:
-		return ptrSize
-	case T_ARRAY, T_STRUCT:
-		return ptrSize
-	default:
-		throw(kind(t))
-	}
-	throw(kind(t))
-	return 0
-}
-
 func getStructFieldOffset(field *ast.Field) int {
 	var offset = field.Offset
 	return offset
