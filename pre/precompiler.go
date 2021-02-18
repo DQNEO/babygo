@@ -1915,8 +1915,8 @@ func emitStmt(stmt ast.Stmt) {
 		labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
 		// subjectVariable = subject
-		emitVariableAddr(typeSwitch.subjectVariable)
-		emitExpr(typeSwitch.subject, nil)
+		emitVariableAddr(typeSwitch.SubjectVariable)
+		emitExpr(typeSwitch.Subject, nil)
 		emitStore(tEface, true, false)
 
 		cases := s.Body.List
@@ -1934,7 +1934,7 @@ func emitStmt(stmt ast.Stmt) {
 				continue
 			}
 			for _, e := range cc.List {
-				emitVariableAddr(typeSwitch.subjectVariable)
+				emitVariableAddr(typeSwitch.SubjectVariable)
 				emitPopAddress("type switch subject")
 				fmt.Printf("  movq (%%rax), %%rax # dtype\n")
 				fmt.Printf("  pushq %%rax # dtype\n")
@@ -1958,26 +1958,26 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  jmp %s\n", labelEnd)
 		}
 
-		for i, typeSwitchCaseClose := range typeSwitch.cases {
+		for i, typeSwitchCaseClose := range typeSwitch.Cases {
 			// Injecting variable and type to the subject
-			if typeSwitchCaseClose.variable != nil {
-				setVariable(typeSwitch.assignIdent.Obj, typeSwitchCaseClose.variable)
+			if typeSwitchCaseClose.Variable != nil {
+				setVariable(typeSwitch.AssignIdent.Obj, typeSwitchCaseClose.Variable)
 			}
 			fmt.Printf("%s:\n", labels[i])
 
-			for _, _s := range typeSwitchCaseClose.orig.Body {
-				if typeSwitchCaseClose.variable != nil {
+			for _, _s := range typeSwitchCaseClose.Orig.Body {
+				if typeSwitchCaseClose.Variable != nil {
 					// do assignment
-					emitAddr(typeSwitch.assignIdent)
+					emitAddr(typeSwitch.AssignIdent)
 
-					emitVariableAddr(typeSwitch.subjectVariable)
+					emitVariableAddr(typeSwitch.SubjectVariable)
 					emitLoadAndPush(tEface)
 					fmt.Printf("  popq %%rax # ifc.dtype\n")
 					fmt.Printf("  popq %%rcx # ifc.data\n")
 					fmt.Printf("  push %%rcx # ifc.data\n")
-					emitLoadAndPush(typeSwitchCaseClose.variableType)
+					emitLoadAndPush(typeSwitchCaseClose.VariableType)
 
-					emitStore(typeSwitchCaseClose.variableType, true, false)
+					emitStore(typeSwitchCaseClose.VariableType, true, false)
 				}
 
 				emitStmt(_s)
@@ -2867,16 +2867,16 @@ type ForStmt struct {
 }
 
 type TypeSwitchStmt struct {
-	subject         ast.Expr
-	subjectVariable *Variable
-	assignIdent     *ast.Ident
-	cases           []*TypeSwitchCaseClose
+	Subject         ast.Expr
+	SubjectVariable *Variable
+	AssignIdent     *ast.Ident
+	Cases           []*TypeSwitchCaseClose
 }
 
 type TypeSwitchCaseClose struct {
-	variable     *Variable
-	variableType *Type
-	orig         *ast.CaseClause
+	Variable     *Variable
+	VariableType *Type
+	Orig         *ast.CaseClause
 }
 
 type nodeReturnStmt struct {
@@ -3244,36 +3244,36 @@ func walkStmt(stmt ast.Stmt) {
 		case *ast.ExprStmt:
 			typeAssertExpr, ok := assign.X.(*ast.TypeAssertExpr)
 			assert(ok, "should be *ast.TypeAssertExpr")
-			typeSwitch.subject = typeAssertExpr.X
+			typeSwitch.Subject = typeAssertExpr.X
 			walkExpr(typeAssertExpr.X)
 		case *ast.AssignStmt:
 			lhs := assign.Lhs[0]
 			var ok bool
 			assignIdent, ok = lhs.(*ast.Ident)
 			assert(ok, "lhs should be ident")
-			typeSwitch.assignIdent = assignIdent
+			typeSwitch.AssignIdent = assignIdent
 			// ident will be a new local variable in each case clause
 			typeAssertExpr, ok := assign.Rhs[0].(*ast.TypeAssertExpr)
 			assert(ok, "should be *ast.TypeAssertExpr")
-			typeSwitch.subject = typeAssertExpr.X
+			typeSwitch.Subject = typeAssertExpr.X
 			walkExpr(typeAssertExpr.X)
 		default:
 			throw(s.Assign)
 		}
 
-		typeSwitch.subjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
+		typeSwitch.SubjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
 		for _, _case := range s.Body.List {
 			cc := _case.(*ast.CaseClause)
 			tscc := &TypeSwitchCaseClose{
-				orig: cc,
+				Orig: cc,
 			}
-			typeSwitch.cases = append(typeSwitch.cases, tscc)
+			typeSwitch.Cases = append(typeSwitch.Cases, tscc)
 			if assignIdent != nil && len(cc.List) > 0 {
 				// inject a variable of that type
 				varType := e2t(cc.List[0])
 				vr := currentFunc.registerLocalVariable(assignIdent.Name, varType)
-				tscc.variable = vr
-				tscc.variableType = varType
+				tscc.Variable = vr
+				tscc.VariableType = varType
 				setVariable(assignIdent.Obj, vr)
 			}
 
