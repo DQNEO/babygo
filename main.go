@@ -197,12 +197,6 @@ func emitListHeadAddr(list ast.Expr) {
 	}
 }
 
-func obj2var(obj *ast.Object) *ast.Variable {
-	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
-	assert(obj.Variable != nil, "should not be nil", __func__)
-	return obj.Variable
-}
-
 func emitAddr(expr ast.Expr) {
 	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
@@ -1956,7 +1950,7 @@ func emitStmt(stmt ast.Stmt) {
 
 		for i, typeSwitchCaseClose := range typeSwitch.Cases {
 			if typeSwitchCaseClose.Variable != nil {
-				typeSwitch.AssignIdent.Obj.Variable = typeSwitchCaseClose.Variable
+				setVariable(typeSwitch.AssignIdent.Obj, typeSwitchCaseClose.Variable)
 			}
 			fmt.Printf("%s:\n", labels[i])
 
@@ -3051,7 +3045,7 @@ func walkStmt(stmt ast.Stmt) {
 			valSpec.Name.Name, dtypeOf(typ))
 
 		t := e2t(typ)
-		valSpec.Name.Obj.Variable = registerLocalVariable(currentFunc, valSpec.Name.Name, t)
+		setVariable(valSpec.Name.Obj, registerLocalVariable(currentFunc, valSpec.Name.Name, t))
 		logf(" var %s offset = %d\n", valSpec.Name.Obj.Name,
 			valSpec.Name.Obj.Variable.LocalOffset)
 		if valSpec.Value != nil {
@@ -3081,7 +3075,7 @@ func walkStmt(stmt ast.Stmt) {
 				panic("type inference is not supported: " + obj.Name)
 			}
 			logf("infered type of %s is %s, rhs=%s\n", obj.Name, dtypeOf(typ.E), dtypeOf(rhs))
-			obj.Variable = registerLocalVariable(currentFunc, obj.Name, typ)
+			setVariable(obj , registerLocalVariable(currentFunc, obj.Name, typ))
 		} else {
 			walkExpr(rhs)
 		}
@@ -3135,12 +3129,12 @@ func walkStmt(stmt ast.Stmt) {
 			//@TODO map key can be any type
 			//keyType := getKeyTypeOfListType(listType)
 			var keyType *ast.Type = tInt
-			keyIdent.Obj.Variable = registerLocalVariable(currentFunc, keyIdent.Name, keyType)
+			setVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, keyType))
 
 			// determine type of Value
 			elmType := getElementTypeOfListType(listType)
 			valueIdent := expr2Ident(s.Value)
-			valueIdent.Obj.Variable = registerLocalVariable(currentFunc, valueIdent.Name, elmType)
+			setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 		}
 		s.Lenvar = lenvar
 		s.Indexvar = indexvar
@@ -3196,7 +3190,7 @@ func walkStmt(stmt ast.Stmt) {
 				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
 				tscc.Variable = vr
 				tscc.VariableType = varType
-				assignIdent.Obj.Variable = vr
+				setVariable(assignIdent.Obj, vr)
 			}
 
 			for _, s_ := range cc.Body {
@@ -3380,7 +3374,7 @@ func walk(pkg *PkgContainer) {
 			var t = getTypeOfExpr(val)
 			valSpec.Type = t.E
 		}
-		nameIdent.Obj.Variable = newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(valSpec.Type))
+		setVariable(nameIdent.Obj,  newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(valSpec.Type)))
 		pkg.vars = append(pkg.vars, valSpec)
 		exportEntry := &exportEntry{
 			qi:  newQI(pkg.name, nameIdent.Name),
@@ -3420,7 +3414,7 @@ func walk(pkg *PkgContainer) {
 
 		for _, field := range paramFields {
 			obj := field.Name.Obj
-			obj.Variable = registerParamVariable(fnc, obj.Name, e2t(field.Type))
+			setVariable(obj, registerParamVariable(fnc, obj.Name, e2t(field.Type)))
 		}
 
 		for i, field := range resultFields {
@@ -4197,4 +4191,14 @@ func isExprIdent(e ast.Expr) bool {
 
 func dtypeOf(x interface{}) string {
 	return fmt.Sprintf("%T", x)
+}
+
+func obj2var(obj *ast.Object) *ast.Variable {
+	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
+	assert(obj.Variable != nil, "should not be nil", __func__)
+	return obj.Variable
+}
+
+func setVariable(obj *ast.Object, vr *ast.Variable) {
+	obj.Variable = vr
 }

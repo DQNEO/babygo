@@ -211,15 +211,6 @@ func emitListHeadAddr(list ast.Expr) {
 	}
 }
 
-func obj2var(obj *ast.Object) *Variable {
-	assert(obj.Kind == ast.Var, "should be ast.Var")
-	vr, ok := obj.Data.(*Variable)
-	if !ok {
-		throw(obj.Data)
-	}
-	return vr
-}
-
 func emitAddr(expr ast.Expr) {
 	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
@@ -1970,7 +1961,7 @@ func emitStmt(stmt ast.Stmt) {
 		for i, typeSwitchCaseClose := range typeSwitch.cases {
 			// Injecting variable and type to the subject
 			if typeSwitchCaseClose.variable != nil {
-				typeSwitch.assignIdent.Obj.Data = typeSwitchCaseClose.variable
+				setVariable(typeSwitch.assignIdent.Obj, typeSwitchCaseClose.variable)
 			}
 			fmt.Printf("%s:\n", labels[i])
 
@@ -3134,7 +3125,7 @@ func walkStmt(stmt ast.Stmt) {
 				}
 
 				t := e2t(varSpec.Type)
-				obj.Data = currentFunc.registerLocalVariable(obj.Name, t)
+				setVariable(obj, currentFunc.registerLocalVariable(obj.Name, t))
 				for _, v := range ds.Values {
 					walkExpr(v)
 				}
@@ -3164,8 +3155,7 @@ func walkStmt(stmt ast.Stmt) {
 				typ = getTypeOfExpr(rhs)
 			}
 
-			obj.Data = currentFunc.registerLocalVariable(obj.Name, typ)
-
+			setVariable(obj, currentFunc.registerLocalVariable(obj.Name, typ))
 		} else {
 			walkExpr(rhs)
 		}
@@ -3221,12 +3211,12 @@ func walkStmt(stmt ast.Stmt) {
 			//@TODO map key can be any type
 			//keyType := getKeyTypeOfListType(listType)
 			keyType := tInt
-			keyIdent.Obj.Data = currentFunc.registerLocalVariable(keyIdent.Name, keyType)
+			setVariable(keyIdent.Obj, currentFunc.registerLocalVariable(keyIdent.Name, keyType))
 
 			// determine type of Value
 			elmType := getElementTypeOfListType(listType)
 			valueIdent := s.Value.(*ast.Ident)
-			valueIdent.Obj.Data = currentFunc.registerLocalVariable(valueIdent.Name, elmType)
+			setVariable(valueIdent.Obj, currentFunc.registerLocalVariable(valueIdent.Name, elmType))
 		}
 		mapRangeStmt[s] = &RangeStmtMisc{
 			lenvar:   lenvar,
@@ -3284,7 +3274,7 @@ func walkStmt(stmt ast.Stmt) {
 				vr := currentFunc.registerLocalVariable(assignIdent.Name, varType)
 				tscc.variable = vr
 				tscc.variableType = varType
-				assignIdent.Obj.Data = vr
+				setVariable(assignIdent.Obj, vr)
 			}
 
 			for _, stmt := range cc.Body {
@@ -3470,7 +3460,7 @@ func walk(pkg *PkgContainer) {
 			varSpec.Type = t.e
 		}
 		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
-		nameIdent.Obj.Data = variable
+		setVariable(nameIdent.Obj, variable)
 		pkg.vars = append(pkg.vars, varSpec)
 		ExportedQualifiedIdents[newQI(pkg.name, nameIdent.Obj.Name)] = nameIdent
 		for _, v := range varSpec.Values {
@@ -3507,7 +3497,7 @@ func walk(pkg *PkgContainer) {
 
 		for _, field := range paramFields {
 			obj := field.Names[0].Obj
-			obj.Data = fnc.registerParamVariable(obj.Name, e2t(field.Type))
+			setVariable(obj, fnc.registerParamVariable(obj.Name, e2t(field.Type)))
 		}
 
 		for i, field := range resultFields {
@@ -4046,4 +4036,17 @@ func emitDynamicTypes(typeMap map[string]int) {
 		fmt.Printf("  .string \"%s\"\n", name)
 	}
 	fmt.Printf("\n")
+}
+
+func obj2var(obj *ast.Object) *Variable {
+	assert(obj.Kind == ast.Var, "should be ast.Var")
+	vr, ok := obj.Data.(*Variable)
+	if !ok {
+		throw(obj.Data)
+	}
+	return vr
+}
+
+func setVariable(obj *ast.Object, vr *Variable) {
+	obj.Data = vr
 }
