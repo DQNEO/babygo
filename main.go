@@ -1586,7 +1586,7 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.ExprStmt:
 		emitExpr(s.X, nil)
 	case *ast.DeclStmt:
-		var decl ast.Decl = s.Decl
+		decl := s.Decl
 		var genDecl *ast.GenDecl
 		var isGenDecl bool
 		genDecl, isGenDecl = decl.(*ast.GenDecl)

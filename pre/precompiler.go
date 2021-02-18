@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"syscall"
-	"fmt"
 
 	"go/ast"
 	"go/parser"
@@ -1580,8 +1580,7 @@ func emitStmt(stmt ast.Stmt) {
 	emitComment(2, "== Statement %T ==\n", stmt)
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
-		expr := s.X
-		emitExpr(expr, nil)
+		emitExpr(s.X, nil)
 	case *ast.DeclStmt:
 		decl := s.Decl
 		switch dcl := decl.(type) {
