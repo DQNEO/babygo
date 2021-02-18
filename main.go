@@ -20,6 +20,10 @@ func assert(bol bool, msg string, caller string) {
 	}
 }
 
+func unexpectedKind(knd string) {
+	panic("Unexpected Kind: " + string(knd))
+}
+
 func throw(s string) {
 	panic(s)
 }
@@ -103,7 +107,7 @@ func emitPushStackTop(condType *ast.Type, offset int, comment string) {
 		fmt.Printf("  movq %d(%%rsp), %%rax # copy stack top value (%s) \n", offset, comment)
 		fmt.Printf("  pushq %%rax\n")
 	default:
-		throw(kind(condType))
+		unexpectedKind(kind(condType))
 	}
 }
 
@@ -163,7 +167,7 @@ func emitLoadAndPush(t *ast.Type) {
 		// pure proxy
 		fmt.Printf("  pushq %%rax\n")
 	default:
-		panic2(__func__, "TBI:kind="+kind(t))
+		unexpectedKind(kind(t))
 	}
 }
 
@@ -193,7 +197,7 @@ func emitListHeadAddr(list ast.Expr) {
 		emitPopString()
 		fmt.Printf("  pushq %%rax # string.ptr\n")
 	default:
-		panic2(__func__, "kind="+kind(getTypeOfExpr(list)))
+		unexpectedKind(kind(t))
 	}
 }
 
@@ -234,7 +238,7 @@ func emitAddr(expr ast.Expr) {
 			structType = e2t(ptrType.X)
 			emitExpr(e.X, nil)
 		default:
-			panic2(__func__, "TBI:"+kind(typeOfX))
+			unexpectedKind(kind(typeOfX))
 		}
 		var field = lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		var offset = getStructFieldOffset(field)
@@ -246,7 +250,7 @@ func emitAddr(expr ast.Expr) {
 			// result of evaluation of a struct literal is its address
 			emitExpr(expr, nil)
 		default:
-			panic2(__func__, "TBI "+knd)
+			unexpectedKind(knd)
 		}
 	default:
 		panic2(__func__, "TBI "+dtypeOf(expr))
@@ -307,7 +311,7 @@ func emitConversion(toType *ast.Type, arg0 ast.Expr) {
 			case T_STRING: // string(string)
 				emitExpr(arg0, nil)
 			default:
-				panic("Not supported")
+				unexpectedKind(kind(getTypeOfExpr(arg0)))
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			emitComment(2, "[emitConversion] to int \n")
@@ -384,7 +388,7 @@ func emitZeroValue(t *ast.Type) {
 		emitComment(2, "zero value of a struct. size=%d (allocating on heap)\n", structSize)
 		emitCallMalloc(structSize)
 	default:
-		panic2(__func__, "TBI:"+kind(t))
+		unexpectedKind(kind(t))
 	}
 }
 
@@ -404,7 +408,7 @@ func emitLen(arg ast.Expr) {
 		emitPopString()
 		fmt.Printf("  pushq %%rcx # len\n")
 	default:
-		throw(kind(getTypeOfExpr(arg)))
+		unexpectedKind(kind(getTypeOfExpr(arg)))
 	}
 	emitComment(2, "[%s] end\n", __func__)
 }
@@ -422,7 +426,7 @@ func emitCap(arg ast.Expr) {
 	case T_STRING:
 		panic("cap() cannot accept string type")
 	default:
-		throw(kind(getTypeOfExpr(arg)))
+		unexpectedKind(kind(getTypeOfExpr(arg)))
 	}
 }
 
@@ -663,7 +667,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 		// do nothing
 	case 1:
 		var retval0 = resultList.List[0]
-		var knd = kind(e2t(retval0.Type))
+		knd := kind(e2t(retval0.Type))
 		switch knd {
 		case T_STRING, T_INTERFACE:
 		case T_UINT8:
@@ -673,7 +677,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 		case T_SLICE:
 		default:
-			panic2(__func__, "Unexpected kind="+knd)
+			unexpectedKind(knd)
 		}
 	default:
 		//panic("TBI")
@@ -892,7 +896,7 @@ func emitNil(targetType *ast.Type) {
 	case T_SLICE, T_POINTER, T_INTERFACE:
 		emitZeroValue(targetType)
 	default:
-		panic2(__func__, "Unexpected kind="+kind(targetType))
+		unexpectedKind(kind(targetType))
 	}
 }
 
@@ -1084,7 +1088,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			fmt.Printf("  pushq %%rax # len\n")
 			// no cap
 		default:
-			panic2(__func__, "Unknown kind="+kind(listType))
+			unexpectedKind(kind(listType))
 		}
 
 		emitExpr(low, nil)
@@ -1213,8 +1217,8 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		}
 	case *ast.CompositeLit:
 		// slice , array, map or struct
-		var k = kind(e2t(e.Type))
-		switch k {
+
+		switch kind(e2t(e.Type)) {
 		case T_STRUCT:
 			emitStructLiteral(e)
 		case T_ARRAY:
@@ -1230,7 +1234,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			fmt.Printf("  pushq $%d # slice.len\n", length)
 			fmt.Printf("  pushq %%rax # slice.ptr\n")
 		default:
-			panic2(__func__, "Unexpected kind="+k)
+			unexpectedKind(kind(e2t(e.Type)))
 		}
 	case *ast.TypeAssertExpr:
 		emitExpr(e.X, nil)
@@ -1461,7 +1465,7 @@ func emitPop(knd string) {
 	case T_STRUCT, T_ARRAY:
 		emitPopPrimitive(knd)
 	default:
-		panic("TBI:" + knd)
+		unexpectedKind(knd)
 	}
 }
 
@@ -1510,7 +1514,7 @@ func emitRegiToMem(t *ast.Type) {
 		ff := lookupForeignFunc(newQI("runtime", "memcopy"))
 		emitCallFF(ff)
 	default:
-		panic2(__func__, "TBI:"+k)
+		unexpectedKind(k)
 	}
 }
 
@@ -1869,7 +1873,7 @@ func emitStmt(stmt ast.Stmt) {
 					emitExpr(e, nil)
 					emitCompExpr("sete")
 				default:
-					panic2(__func__, "Unexpected kind="+kind(condType))
+					unexpectedKind(kind(condType))
 				}
 
 				emitPopBool(" of switch-case comparison")
@@ -2193,8 +2197,8 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *ast.Type, val ast
 		var length = evalInt(newExpr(bl))
 		emitComment(0, "[emitGlobalVariable] array length uint8=%d\n", length)
 		var zeroValue string
-		var kind string = kind(e2t(arrayType.Elt))
-		switch kind {
+		var knd string = kind(e2t(arrayType.Elt))
+		switch knd {
 		case T_INT:
 			zeroValue = "  .quad 0 # int zero value\n"
 		case T_UINT8:
@@ -2206,7 +2210,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *ast.Type, val ast
 			zeroValue = "  .quad 0 # eface zero value (dtype)\n"
 			zeroValue = zeroValue + "  .quad 0 # eface zero value (data)\n"
 		default:
-			panic2(__func__, "Unexpected kind:"+kind)
+			unexpectedKind(knd)
 		}
 
 		var i int
@@ -2214,7 +2218,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *ast.Type, val ast
 			fmt.Printf(zeroValue)
 		}
 	default:
-		panic2(__func__, "TBI:kind="+typeKind)
+		unexpectedKind(typeKind)
 	}
 }
 
@@ -2649,7 +2653,7 @@ func getStructTypeOfX(e *ast.SelectorExpr) *ast.Type {
 		ptrType := expr2StarExpr(typeOfX.E)
 		structType = e2t(ptrType.X)
 	default:
-		panic2(__func__, "TBI")
+		unexpectedKind(kind(typeOfX) )
 	}
 	return structType
 }
@@ -2668,14 +2672,13 @@ func getElementTypeOfListType(t *ast.Type) *ast.Type {
 	case T_STRING:
 		return tUint8
 	default:
-		panic2(__func__, "TBI kind="+kind(t))
+		unexpectedKind(kind(t))
 	}
 	var r *ast.Type
 	return r
 }
 
 func getSizeOfType(t *ast.Type) int {
-	var knd = kind(t)
 	switch kind(t) {
 	case T_SLICE:
 		return sliceSize
@@ -2698,7 +2701,7 @@ func getSizeOfType(t *ast.Type) int {
 	case T_INTERFACE:
 		return interfaceSize
 	default:
-		panic2(__func__, "TBI:"+knd)
+		unexpectedKind(kind(t))
 	}
 	return 0
 }

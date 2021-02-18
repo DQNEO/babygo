@@ -412,7 +412,7 @@ func emitLen(arg ast.Expr) {
 		emitPopString()
 		fmt.Printf("  pushq %%rcx # len\n")
 	default:
-		throw(kind(getTypeOfExpr(arg)))
+		unexpectedKind(kind(getTypeOfExpr(arg)))
 	}
 }
 
@@ -660,7 +660,8 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 	case 1:
 		emitComment(2, "emit return value\n")
 		retval0 := resultList.List[0]
-		switch kind(e2t(retval0.Type)) {
+		knd := kind(e2t(retval0.Type))
+		switch knd {
 		case T_STRING, T_INTERFACE:
 		case T_UINT8:
 			fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
@@ -669,7 +670,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 		case T_SLICE:
 		default:
-			unexpectedKind(kind(e2t(retval0.Type)))
+			unexpectedKind(knd)
 		}
 	default:
 		//panic("TBI")
