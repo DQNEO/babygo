@@ -182,12 +182,12 @@ func emitLoadAndPush(t *Type) {
 }
 
 func emitVariableAddr(variable *Variable) {
-	emitComment(2, "emit Addr of variable \"%s\" \n", variable.name)
+	emitComment(2, "emit Addr of variable \"%s\" \n", variable.Name)
 
-	if variable.isGlobal {
-		fmt.Printf("  leaq %s(%%rip), %%rax # global variable \"%s\"\n", variable.globalSymbol, variable.name)
+	if variable.IsGlobal {
+		fmt.Printf("  leaq %s(%%rip), %%rax # global variable \"%s\"\n", variable.GlobalSymbol, variable.Name)
 	} else {
-		fmt.Printf("  leaq %d(%%rbp), %%rax # local variable \"%s\"\n", int(variable.localOffset), variable.name)
+		fmt.Printf("  leaq %d(%%rbp), %%rax # local variable \"%s\"\n", int(variable.LocalOffset), variable.Name)
 	}
 
 	fmt.Printf("  pushq %%rax # variable address\n")
@@ -1558,11 +1558,11 @@ func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 	emitVariableAddr(vr)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	ctx := &evalContext{
-		_type: vr.typ,
+		_type: vr.Typ,
 	}
 	emitExprIfc(rhs, ctx)
 	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
-	emitStore(vr.typ, true, false)
+	emitStore(vr.Typ, true, false)
 }
 
 func emitAssign(lhs ast.Expr, rhs ast.Expr) {
@@ -2034,13 +2034,13 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	if len(fnc.params) > 0 {
 		for i := 0; i < len(fnc.params); i++ {
 			v := fnc.params[i]
-			logf("  #       params %d %d \"%s\" %s\n", int(v.localOffset), getSizeOfType(v.typ), v.name, string(kind(v.typ)))
+			logf("  #       params %d %d \"%s\" %s\n", int(v.LocalOffset), getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
 		}
 	}
 	if len(fnc.retvars) > 0 {
 		for i := 0; i < len(fnc.retvars); i++ {
 			v := fnc.retvars[i]
-			logf("  #       retvars %d %d \"%s\" %s\n", int(v.localOffset), getSizeOfType(v.typ), v.name, string(kind(v.typ)))
+			logf("  #       retvars %d %d \"%s\" %s\n", int(v.LocalOffset), getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
 		}
 	}
 
@@ -2057,7 +2057,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	if len(fnc.localvars) > 0 {
 		for i := len(fnc.localvars) - 1; i >= 0; i-- {
 			v := fnc.localvars[i]
-			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -int(v.localOffset), getSizeOfType(v.typ), v.name)
+			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -int(v.LocalOffset), getSizeOfType(v.Typ), v.Name)
 		}
 	}
 	logf("  #  0(%%rbp) previous rbp\n")
@@ -2356,7 +2356,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			//
 			variable, isVariable := e.Obj.Data.(*Variable)
 			if isVariable {
-				return variable.typ
+				return variable.Typ
 			}
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
@@ -2914,11 +2914,11 @@ type Method struct {
 }
 
 type Variable struct {
-	name         string
-	isGlobal     bool
-	globalSymbol string
-	localOffset  localoffsetint
-	typ          *Type
+	Name         string
+	IsGlobal     bool
+	GlobalSymbol string
+	LocalOffset  localoffsetint
+	Typ          *Type
 }
 
 type localoffsetint int
@@ -2997,21 +2997,21 @@ func registerStringLiteral(lit *ast.BasicLit) {
 
 func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
 	return &Variable{
-		name:         name,
-		isGlobal:     true,
-		globalSymbol: pkgName + "." + name,
-		localOffset:  0,
-		typ:          t,
+		Name:         name,
+		IsGlobal:     true,
+		GlobalSymbol: pkgName + "." + name,
+		LocalOffset:  0,
+		Typ:          t,
 	}
 }
 
 func newLocalVariable(name string, localoffset localoffsetint, t *Type) *Variable {
 	return &Variable{
-		name:         name,
-		isGlobal:     false,
-		globalSymbol: "",
-		localOffset:  localoffset,
-		typ:          t,
+		Name:         name,
+		IsGlobal:     false,
+		GlobalSymbol: "",
+		LocalOffset:  localoffset,
+		Typ:          t,
 	}
 }
 
