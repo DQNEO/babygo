@@ -22,6 +22,10 @@ func assert(bol bool, msg string) {
 	}
 }
 
+func unexpectedKind(knd TypeKind) {
+	panic("Unexpected Kind: " + string(knd))
+}
+
 func throw(x interface{}) {
 	panic(fmt.Sprintf("%+v", x))
 }
@@ -117,7 +121,7 @@ func emitPushStackTop(condType *Type, offset int, comment string) {
 		fmt.Printf("  movq %d(%%rsp), %%rax # copy stack top value (%s) \n", offset, comment)
 		fmt.Printf("  pushq %%rax\n")
 	default:
-		throw(kind(condType))
+		unexpectedKind(kind(condType))
 	}
 }
 
@@ -177,7 +181,7 @@ func emitLoadAndPush(t *Type) {
 		// pure proxy
 		fmt.Printf("  pushq %%rax\n")
 	default:
-		panic(kind(t))
+		unexpectedKind(kind(t))
 	}
 }
 
@@ -207,7 +211,7 @@ func emitListHeadAddr(list ast.Expr) {
 		emitPopString()
 		fmt.Printf("  pushq %%rax # string.ptr\n")
 	default:
-		panic(kind(t))
+		unexpectedKind(kind(t))
 	}
 }
 
@@ -250,7 +254,7 @@ func emitAddr(expr ast.Expr) {
 			structType = e2t(ptrType.X)
 			emitExpr(e.X, nil)
 		default:
-			throw("TBI")
+			unexpectedKind(kind(typeOfX))
 		}
 		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
 		offset := getStructFieldOffset(field)
@@ -262,7 +266,7 @@ func emitAddr(expr ast.Expr) {
 			// result of evaluation of a struct literal is its address
 			emitExpr(expr, nil)
 		default:
-			panic(string(knd))
+			unexpectedKind(knd)
 		}
 	default:
 		throw(expr)
@@ -314,7 +318,7 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 			case T_STRING: // string(string)
 				emitExpr(arg0, nil)
 			default:
-				panic("Not supported")
+				unexpectedKind(kind(getTypeOfExpr(arg0)))
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			emitExpr(arg0, nil)
@@ -389,7 +393,7 @@ func emitZeroValue(t *Type) {
 		emitComment(2, "zero value of a struct. size=%d (allocating on heap)\n", structSize)
 		emitCallMalloc(structSize)
 	default:
-		throw(t)
+		unexpectedKind(kind(t))
 	}
 }
 
@@ -425,7 +429,7 @@ func emitCap(arg ast.Expr) {
 	case T_STRING:
 		panic("cap() cannot accept string type")
 	default:
-		throw(kind(getTypeOfExpr(arg)))
+		unexpectedKind(kind(getTypeOfExpr(arg)))
 	}
 }
 
@@ -665,7 +669,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
 		case T_SLICE:
 		default:
-			throw(kind(e2t(retval0.Type)))
+			unexpectedKind(kind(e2t(retval0.Type)))
 		}
 	default:
 		//panic("TBI")
@@ -829,7 +833,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			case T_INT:
 				symbol = "runtime.printint"
 			default:
-				panic("TBI")
+				unexpectedKind(kind(getTypeOfExpr(eArgs[0])))
 			}
 			emitCall(symbol, _args, nil)
 			return
@@ -883,7 +887,7 @@ func emitNil(targetType *Type) {
 	case T_SLICE, T_POINTER, T_INTERFACE:
 		emitZeroValue(targetType)
 	default:
-		throw(kind(targetType))
+		unexpectedKind(kind(targetType))
 	}
 }
 
@@ -1152,7 +1156,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			fmt.Printf("  pushq $%d # slice.len\n", length)
 			fmt.Printf("  pushq %%rax # slice.ptr\n")
 		default:
-			panic(string(kind(e2t(e.Type))))
+			unexpectedKind(kind(e2t(e.Type)))
 		}
 	case *ast.SliceExpr: // 1 value list[low:high]
 		list := e.X
@@ -1224,7 +1228,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			fmt.Printf("  pushq %%rax # len\n")
 			// no cap
 		default:
-			throw(list)
+			unexpectedKind(kind(listType))
 		}
 
 		emitExpr(low, nil) // index number
@@ -1460,7 +1464,7 @@ func emitPop(knd TypeKind) {
 	case T_STRUCT, T_ARRAY:
 		emitPopPrimitive(string(knd))
 	default:
-		panic("TBI:" + knd)
+		unexpectedKind(knd)
 	}
 }
 
@@ -1509,7 +1513,7 @@ func emitRegiToMem(t *Type) {
 		ff := lookupForeignFunc(newQI("runtime", "memcopy"))
 		emitCallFF(ff)
 	default:
-		panic("TBI:" + k)
+		unexpectedKind(k)
 	}
 }
 func isBlankIdentifier(e ast.Expr) bool {
@@ -1878,7 +1882,7 @@ func emitStmt(stmt ast.Stmt) {
 					emitExpr(e, nil)
 					emitCompExpr("sete")
 				default:
-					throw(kind(condType))
+					unexpectedKind(kind(condType))
 				}
 
 				emitPopBool(" of switch-case comparison")
@@ -2180,13 +2184,13 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			zeroValue = fmt.Sprintf("  .quad 0 # eface zero value (dtype)\n")
 			zeroValue += fmt.Sprintf("  .quad 0 # eface zero value (data)\n")
 		default:
-			throw(arrayType.Elt)
+			unexpectedKind(kind(e2t(arrayType.Elt)))
 		}
 		for i := 0; i < length; i++ {
 			fmt.Printf(zeroValue)
 		}
 	default:
-		throw(typeKind)
+		unexpectedKind(typeKind)
 	}
 }
 
@@ -2696,7 +2700,7 @@ func getStructTypeOfX(e *ast.SelectorExpr) *Type {
 		assert(ok, "should be *ast.StarExpr")
 		structType = e2t(ptrType.X)
 	default:
-		throw("TBI")
+		unexpectedKind(kind(typeOfX) )
 	}
 	return structType
 }
@@ -2715,7 +2719,7 @@ func getElementTypeOfListType(t *Type) *Type {
 	case T_STRING:
 		return tUint8
 	default:
-		throw(t)
+		unexpectedKind(kind(t))
 	}
 	return nil
 }
@@ -2745,7 +2749,7 @@ func getSizeOfType(t *Type) int {
 	case T_INTERFACE:
 		return interfaceSize
 	default:
-		throw(t.e)
+		unexpectedKind(kind(t))
 	}
 	return varSize
 }
@@ -2768,7 +2772,7 @@ func getPushSizeOfType(t *Type) int {
 	case T_ARRAY, T_STRUCT:
 		return ptrSize
 	default:
-		throw(t)
+		unexpectedKind(kind(t))
 	}
 	throw(t)
 	return 0
