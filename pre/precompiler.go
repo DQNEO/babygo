@@ -2233,6 +2233,31 @@ func generateCode(pkg *PkgContainer) {
 	fmt.Printf("\n")
 }
 
+func emitDynamicTypes(typeMap map[string]int) {
+	fmt.Printf("# ------- Dynamic Types ------\n")
+	fmt.Printf(".data\n")
+
+	sliceTypeMap := make([]string, len(typeMap)+1)
+
+	// sort map in order to assure the deterministic results
+	for name, id := range typeMap {
+		sliceTypeMap[id] = name
+	}
+	for id, name := range sliceTypeMap {
+		if name == "" {
+			continue
+		}
+		symbol := typeIdToSymbol(id)
+		fmt.Printf("%s: # %s\n", symbol, name)
+		fmt.Printf("  .quad %d\n", id)
+		fmt.Printf("  .quad .S.dtype.%d\n", id)
+		fmt.Printf("  .quad %d\n", len(name))
+		fmt.Printf(".S.dtype.%d:\n", id)
+		fmt.Printf("  .string \"%s\"\n", name)
+	}
+	fmt.Printf("\n")
+}
+
 // --- type ---
 const sliceSize int = 24
 const stringSize int = 16
@@ -3346,6 +3371,36 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
+var ExportedQualifiedIdents = map[QualifiedIdent]*ast.Ident{}
+
+func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
+	ident, found := ExportedQualifiedIdents[qi]
+	if !found {
+		panic(qi + " Not found in ExportedQualifiedIdents")
+	}
+	return ident
+}
+
+type ForeignFunc struct {
+	symbol string
+	decl   *ast.FuncDecl
+}
+
+func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
+	ident := lookupForeignIdent(qi)
+	if ident.Obj.Kind != ast.Fun {
+		panic("Not ast.Fun: " + qi)
+	}
+	decl, ok := ident.Obj.Decl.(*ast.FuncDecl)
+	if !ok {
+		panic("Function not found: " + qi)
+	}
+	return &ForeignFunc{
+		symbol: string(qi),
+		decl:   decl,
+	}
+}
+
 // Purpose of walk:
 // Global:
 // - collect methods
@@ -3659,6 +3714,21 @@ func createUniverse() *ast.Scope {
 	return universe
 }
 
+// --- builder ---
+var currentPkg *PkgContainer
+
+type PkgContainer struct {
+	path           string
+	name           string
+	files          []string
+	astFiles       []*ast.File
+	vars           []*ast.ValueSpec
+	funcs          []*Func
+	stringLiterals []*stringLiteralsContainer
+	stringIndex    int
+	Decls          []ast.Decl
+}
+
 func resolveImports(file *ast.File) {
 	var mapImports = map[string]bool{}
 	for _, imprt := range file.Imports {
@@ -3678,57 +3748,6 @@ func resolveImports(file *ast.File) {
 			logf("# resolved: %s\n", ident.Name)
 		}
 	}
-}
-
-var ExportedQualifiedIdents = map[QualifiedIdent]*ast.Ident{}
-
-func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
-	ident, found := ExportedQualifiedIdents[qi]
-	if !found {
-		panic(qi + " Not found in ExportedQualifiedIdents")
-	}
-	return ident
-}
-
-type ForeignFunc struct {
-	symbol string
-	decl   *ast.FuncDecl
-}
-
-func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
-	ident := lookupForeignIdent(qi)
-	if ident.Obj.Kind != ast.Fun {
-		panic("Not ast.Fun: " + qi)
-	}
-	decl, ok := ident.Obj.Decl.(*ast.FuncDecl)
-	if !ok {
-		panic("Function not found: " + qi)
-	}
-	return &ForeignFunc{
-		symbol: string(qi),
-		decl:   decl,
-	}
-}
-
-// --- main ---
-var currentPkg *PkgContainer
-
-type PkgContainer struct {
-	path           string
-	name           string
-	files          []string
-	astFiles       []*ast.File
-	vars           []*ast.ValueSpec
-	funcs          []*Func
-	stringLiterals []*stringLiteralsContainer
-	stringIndex    int
-	Decls          []ast.Decl
-}
-
-func showHelp() {
-	fmt.Printf("Usage:\n")
-	fmt.Printf("    pre version:  show version\n")
-	fmt.Printf("    pre [-DF] [-DG] filename\n")
 }
 
 // "some/dir" => []string{"a.go", "b.go"}
@@ -3840,65 +3859,6 @@ func (tree DependencyTree) collectDependency(paths map[string]bool) {
 var srcPath string
 var prjSrcPath string
 
-func main() {
-	srcPath = os.Getenv("GOPATH") + "/src"
-	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src"
-
-	if len(os.Args) == 1 {
-		showHelp()
-		return
-	}
-
-	if os.Args[1] == "version" {
-		fmt.Printf("babygo version 0.1.0  linux/amd64\n")
-		return
-	} else if os.Args[1] == "help" {
-		showHelp()
-		return
-	} else if os.Args[1] == "panic" {
-		panicVersion := strconv.Itoa(mylib.Sum(1, 1))
-		panic("I am panic version " + panicVersion)
-	}
-
-	logf("Build start\n")
-
-	var arg string
-	var inputFiles []string
-	for _, arg = range os.Args[1:] {
-		switch arg {
-		case "-DF":
-			debugFrontEnd = true
-		case "-DG":
-			debugCodeGen = true
-		default:
-			inputFiles = append(inputFiles, arg)
-		}
-	}
-
-	paths := collectAllPackages(inputFiles)
-	var packagesToBuild []*PkgContainer
-	for _, _path := range paths {
-		files := collectSourceFiles(getPackageDir(_path))
-		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			path:  _path,
-			files: files,
-		})
-	}
-
-	packagesToBuild = append(packagesToBuild, &PkgContainer{
-		name:  "main",
-		files: inputFiles,
-	})
-
-	var universe = createUniverse()
-	for _, _pkg := range packagesToBuild {
-		currentPkg = _pkg
-		buildPackage(_pkg, universe)
-	}
-
-	emitDynamicTypes(typeMap)
-}
-
 func collectAllPackages(inputFiles []string) []string {
 	var tree DependencyTree = map[string]map[string]bool{}
 	directChildren := collectDirectDependents(inputFiles)
@@ -3985,31 +3945,73 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 	generateCode(_pkg)
 }
 
-func emitDynamicTypes(typeMap map[string]int) {
-	fmt.Printf("# ------- Dynamic Types ------\n")
-	fmt.Printf(".data\n")
-
-	sliceTypeMap := make([]string, len(typeMap)+1)
-
-	// sort map in order to assure the deterministic results
-	for name, id := range typeMap {
-		sliceTypeMap[id] = name
-	}
-	for id, name := range sliceTypeMap {
-		if name == "" {
-			continue
-		}
-		symbol := typeIdToSymbol(id)
-		fmt.Printf("%s: # %s\n", symbol, name)
-		fmt.Printf("  .quad %d\n", id)
-		fmt.Printf("  .quad .S.dtype.%d\n", id)
-		fmt.Printf("  .quad %d\n", len(name))
-		fmt.Printf(".S.dtype.%d:\n", id)
-		fmt.Printf("  .string \"%s\"\n", name)
-	}
-	fmt.Printf("\n")
+// --- main ---
+func showHelp() {
+	fmt.Printf("Usage:\n")
+	fmt.Printf("    pre version:  show version\n")
+	fmt.Printf("    pre [-DF] [-DG] filename\n")
 }
 
+func main() {
+	srcPath = os.Getenv("GOPATH") + "/src"
+	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src"
+
+	if len(os.Args) == 1 {
+		showHelp()
+		return
+	}
+
+	if os.Args[1] == "version" {
+		fmt.Printf("babygo version 0.1.0  linux/amd64\n")
+		return
+	} else if os.Args[1] == "help" {
+		showHelp()
+		return
+	} else if os.Args[1] == "panic" {
+		panicVersion := strconv.Itoa(mylib.Sum(1, 1))
+		panic("I am panic version " + panicVersion)
+	}
+
+	logf("Build start\n")
+
+	var arg string
+	var inputFiles []string
+	for _, arg = range os.Args[1:] {
+		switch arg {
+		case "-DF":
+			debugFrontEnd = true
+		case "-DG":
+			debugCodeGen = true
+		default:
+			inputFiles = append(inputFiles, arg)
+		}
+	}
+
+	paths := collectAllPackages(inputFiles)
+	var packagesToBuild []*PkgContainer
+	for _, _path := range paths {
+		files := collectSourceFiles(getPackageDir(_path))
+		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			path:  _path,
+			files: files,
+		})
+	}
+
+	packagesToBuild = append(packagesToBuild, &PkgContainer{
+		name:  "main",
+		files: inputFiles,
+	})
+
+	var universe = createUniverse()
+	for _, _pkg := range packagesToBuild {
+		currentPkg = _pkg
+		buildPackage(_pkg, universe)
+	}
+
+	emitDynamicTypes(typeMap)
+}
+
+// --- util ---
 func obj2var(obj *ast.Object) *Variable {
 	assert(obj.Kind == ast.Var, "should be ast.Var")
 	vr, ok := obj.Data.(*Variable)
