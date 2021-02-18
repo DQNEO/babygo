@@ -1579,6 +1579,10 @@ func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 func emitStmt(stmt ast.Stmt) {
 	emitComment(2, "== Statement %T ==\n", stmt)
 	switch s := stmt.(type) {
+	case *ast.BlockStmt:
+		for _, s := range s.List {
+			emitStmt(s)
+		}
 	case *ast.ExprStmt:
 		emitExpr(s.X, nil)
 	case *ast.DeclStmt:
@@ -1688,10 +1692,6 @@ func emitStmt(stmt ast.Stmt) {
 		}
 		fmt.Printf("  %s:\n", labelEndif)
 		emitComment(2, "end if\n")
-	case *ast.BlockStmt:
-		for _, stmt := range s.List {
-			emitStmt(stmt)
-		}
 	case *ast.ForStmt:
 		labelid++
 		labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)

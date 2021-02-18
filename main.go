@@ -1580,8 +1580,8 @@ func emitStmt(stmt ast.Stmt) {
 	emitComment(2, "== Statement %s ==\n", dtypeOf(stmt))
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
-		for _, stmt2 := range s.List {
-			emitStmt(stmt2)
+		for _, s := range s.List {
+			emitStmt(s)
 		}
 	case *ast.ExprStmt:
 		emitExpr(s.X, nil)
