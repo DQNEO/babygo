@@ -930,12 +930,11 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		case gFalse: // false constant
 			emitFalse()
 		case gNil:
+			assert(ctx._type != nil, "context of nil is not passed")
 			emitNil(ctx._type)
 			isNilObj = true
 		default:
-			if e.Obj == nil {
-				panic(fmt.Sprintf("ident %s is unresolved", e.Name))
-			}
+			assert(e.Obj != nil, "should not be nil")
 			switch e.Obj.Kind {
 			case ast.Var:
 				emitAddr(e)

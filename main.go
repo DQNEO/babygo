@@ -921,38 +921,39 @@ type evalContext struct {
 	_type     *ast.Type
 }
 
+// targetType is the type of someone who receives the expr value.
+// There are various forms:
+//   Assignment:       x = expr
+//   Function call:    x(expr)
+//   Return:           return expr
+//   CompositeLiteral: T{key:expr}
+// targetType is used when:
+//   - the expr is nil
+//   - the target type is interface and expr is not.
 func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 	var isNilObject bool
 	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(expr))
 	switch e := expr.(type) {
 	case *ast.Ident:
-		ident := e
-		if ident.Obj == nil {
-			panic2(__func__, "ident unresolved:"+ident.Name)
-		}
 		switch e.Obj {
 		case gTrue:
 			emitTrue()
 		case gFalse:
 			emitFalse()
 		case gNil:
-			if ctx._type == nil {
-				panic2(__func__, "context of nil is not passed")
-			}
+			assert(ctx._type != nil, "context of nil is not passed", __func__)
 			emitNil(ctx._type)
 			isNilObject = true
 		default:
-			switch ident.Obj.Kind {
+			assert(e.Obj != nil, "should not be nil", __func__)
+			switch e.Obj.Kind {
 			case ast.Var:
 				emitAddr(expr)
-				var t = getTypeOfExpr(expr)
-				emitLoadAndPush(t)
+				emitLoadAndPush(getTypeOfExpr(expr))
 			case ast.Con:
-				emitNamedConst(ident, ctx)
-			case ast.Typ:
-				panic2(__func__, "[*ast.Ident] Kind Typ should not come here")
+				emitNamedConst(e, ctx)
 			default:
-				panic2(__func__, "[*ast.Ident] unknown Kind="+ident.Obj.Kind+" Name="+ident.Obj.Name)
+				panic("Unexpected ident kind:" + e.Obj.Kind)
 			}
 		}
 	case *ast.IndexExpr:
