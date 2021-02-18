@@ -1708,7 +1708,7 @@ func emitStmt(stmt ast.Stmt) {
 			fmt.Printf("  cmpq $1, %%rax\n")
 			fmt.Printf("  jne %s # jmp if false\n", labelExit)
 		}
-		emitStmt(blockStmt2Stmt(s.Body))
+		emitStmt(s.Body)
 		fmt.Printf("  %s:\n", labelPost) // used for "continue"
 		if s.Post != nil {
 			emitStmt(s.Post)
@@ -1778,7 +1778,7 @@ func emitStmt(stmt ast.Stmt) {
 
 		// Body
 		emitComment(2, "ForRange Body\n")
-		emitStmt(blockStmt2Stmt(s.Body))
+		emitStmt(s.Body)
 
 		// Post statement: Increment indexvar and go next
 		emitComment(2, "ForRange Post statement\n")
@@ -2000,10 +2000,6 @@ func emitStmt(stmt ast.Stmt) {
 	}
 }
 
-func blockStmt2Stmt(block *ast.BlockStmt) ast.Stmt {
-	return newStmt(block)
-}
-
 func emitRevertStackTop(t *ast.Type) {
 	fmt.Printf("  addq $%d, %%rsp # revert stack top\n", getSizeOfType(t))
 }
@@ -2066,7 +2062,7 @@ func emitFuncDecl(pkgName string, fnc *ast.Func) {
 	}
 
 	if fnc.Body != nil {
-		emitStmt(blockStmt2Stmt(fnc.Body))
+		emitStmt(fnc.Body)
 	}
 
 	fmt.Printf("  leave\n")
@@ -3085,7 +3081,7 @@ func walkStmt(stmt ast.Stmt) {
 		walkExpr(s.X)
 		s.Outer = currentFor
 		currentFor = stmt
-		var _s = blockStmt2Stmt(s.Body)
+		var _s = s.Body
 		walkStmt(_s)
 		var lenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
 		var indexvar = registerLocalVariable(currentFunc,".range.index", tInt)
@@ -3119,7 +3115,7 @@ func walkStmt(stmt ast.Stmt) {
 		if s.Tag != nil {
 			walkExpr(s.Tag)
 		}
-		walkStmt(blockStmt2Stmt(s.Body))
+		walkStmt(s.Body)
 	case *ast.TypeSwitchStmt:
 		typeSwitch := &ast.NodeTypeSwitchStmt{}
 		s.Node = typeSwitch
