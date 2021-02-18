@@ -1576,6 +1576,7 @@ func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 	emitStore(getTypeOfExpr(lhs), true, false)
 }
 
+
 func emitStmt(stmt ast.Stmt) {
 	emitComment(2, "== Statement %s ==\n", dtypeOf(stmt))
 	switch s := stmt.(type) {
@@ -1586,40 +1587,27 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.ExprStmt:
 		emitExpr(s.X, nil)
 	case *ast.DeclStmt:
-		decl := s.Decl
-		var genDecl *ast.GenDecl
-		var isGenDecl bool
-		genDecl, isGenDecl = decl.(*ast.GenDecl)
-		if !isGenDecl {
-			panic2(__func__, "[*ast.DeclStmt] internal error")
+		genDecl := s.Decl.(*ast.GenDecl)
+		declSpec := genDecl.Spec
+		switch spec := declSpec.(type) {
+		case *ast.ValueSpec:
+			valSpec := spec
+			t := e2t(valSpec.Type)
+			lhs := valSpec.Name
+			if valSpec.Value == nil {
+				emitComment(2, "lhs addresss\n")
+				emitAddr(lhs)
+				emitComment(2, "emitZeroValue for %s\n", dtypeOf(t.E))
+				emitZeroValue(t)
+				emitComment(2, "Assignment: zero value\n")
+				emitStore(t, true, false)
+			} else {
+				rhs := valSpec.Value
+				emitAssign(lhs, rhs)
+			}
+		default:
+			panic(declSpec)
 		}
-
-		var valSpec *ast.ValueSpec
-		var ok bool
-		valSpec, ok = genDecl.Spec.(*ast.ValueSpec)
-		assert(ok, "should be ok", __func__)
-		var t = e2t(valSpec.Type)
-		var ident = valSpec.Name
-		var lhs = newExpr(ident)
-		var rhs ast.Expr
-		if valSpec.Value == nil {
-			emitComment(2, "lhs addresss\n")
-			emitAddr(lhs)
-			emitComment(2, "emitZeroValue for %s\n", dtypeOf(t.E))
-			emitZeroValue(t)
-			emitComment(2, "Assignment: zero value\n")
-			emitStore(t, true, false)
-		} else {
-			rhs = valSpec.Value
-			emitAssign(lhs, rhs)
-		}
-
-		//var valueSpec *ast.ValueSpec = genDecl.Specs[0]
-		//var obj *ast.Object = valueSpec.Name.Obj
-		//var typ ast.Expr = valueSpec.Type
-		//mylib.Printf("[emitStmt] TBI declSpec:%s\n", valueSpec.Name.Name)
-		//os.Exit(1)
-
 	case *ast.AssignStmt:
 		switch s.Tok {
 		case "=":

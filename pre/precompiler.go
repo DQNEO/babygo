@@ -1586,36 +1586,29 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.ExprStmt:
 		emitExpr(s.X, nil)
 	case *ast.DeclStmt:
-		decl := s.Decl
-		switch dcl := decl.(type) {
-		case *ast.GenDecl:
-			declSpec := dcl.Specs[0]
-			switch ds := declSpec.(type) {
-			case *ast.ValueSpec:
-				var valSpec = ds
-				var t = e2t(valSpec.Type)
-				lhs := valSpec.Names[0]
-				var rhs ast.Expr
-				if len(valSpec.Values) == 0 {
-					emitAddr(lhs)
-					emitComment(2, "emitZeroValue\n")
-					emitZeroValue(t)
-					emitComment(2, "Assignment: zero value\n")
-					emitStore(t, true, false)
-				} else if len(valSpec.Values) == 1 {
-					// assignment
-					rhs = valSpec.Values[0]
-					emitAssign(lhs, rhs)
-				} else {
-					panic("TBI")
-				}
-			default:
-				throw(declSpec)
+		genDecl := s.Decl.(*ast.GenDecl)
+		declSpec := genDecl.Specs[0]
+		switch spec := declSpec.(type) {
+		case *ast.ValueSpec:
+			valSpec := spec
+			t := e2t(valSpec.Type)
+			lhs := valSpec.Names[0]
+			if len(valSpec.Values) == 0 {
+				emitAddr(lhs)
+				emitComment(2, "emitZeroValue\n")
+				emitZeroValue(t)
+				emitComment(2, "Assignment: zero value\n")
+				emitStore(t, true, false)
+			} else if len(valSpec.Values) == 1 {
+				// assignment
+				rhs := valSpec.Values[0]
+				emitAssign(lhs, rhs)
+			} else {
+				panic("TBI")
 			}
 		default:
-			return
+			throw(declSpec)
 		}
-		return // do nothing
 	case *ast.AssignStmt:
 		switch s.Tok.String() {
 		case "=", ":=":
