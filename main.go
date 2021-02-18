@@ -197,6 +197,12 @@ func emitListHeadAddr(list ast.Expr) {
 	}
 }
 
+func obj2var(obj *ast.Object) *ast.Variable {
+	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
+	assert(obj.Variable != nil, "should not be nil", __func__)
+	return obj.Variable
+}
+
 func emitAddr(expr ast.Expr) {
 	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
@@ -205,12 +211,11 @@ func emitAddr(expr ast.Expr) {
 			panic(" \"_\" has no address")
 		}
 		if e.Obj == nil {
-			throw("e.Obj is nil: " + e.Name)
+			panic("ident.Obj is nil: " + e.Name)
 		}
 		if e.Obj.Kind == ast.Var {
-			assert(e.Obj.Variable != nil,
-				"ERROR: Obj.Variable is not set for ident : "+e.Obj.Name, __func__)
-			emitVariableAddr(e.Obj.Variable)
+			vr := obj2var(e.Obj)
+			emitVariableAddr(vr)
 		} else {
 			panic2(__func__, "Unexpected Kind "+e.Obj.Kind)
 		}
