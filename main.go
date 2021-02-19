@@ -20,7 +20,7 @@ func assert(bol bool, msg string, caller string) {
 	}
 }
 
-func unexpectedKind(knd string) {
+func unexpectedKind(knd TypeKind) {
 	panic("Unexpected Kind: " + string(knd))
 }
 
@@ -135,7 +135,7 @@ func emitAddConst(addValue int, comment string) {
 // "Load" means copy data from memory to registers
 func emitLoadAndPush(t *ast.Type) {
 	assert(t != nil, "type should not be nil", __func__)
-	emitPopAddress(kind(t))
+	emitPopAddress(string(kind(t)))
 	switch kind(t) {
 	case T_SLICE:
 		fmt.Printf("  movq %d(%%rax), %%rdx\n", 16)
@@ -382,7 +382,7 @@ func emitZeroValue(t *ast.Type) {
 		fmt.Printf("  pushq $0 # interface data\n")
 		fmt.Printf("  pushq $0 # interface dtype\n")
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
-		fmt.Printf("  pushq $0 # %s zero value\n", kind(t))
+		fmt.Printf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
 		var structSize = getSizeOfType(t)
 		emitComment(2, "zero value of a struct. size=%d (allocating on heap)\n", structSize)
@@ -1449,7 +1449,7 @@ func emitCompExpr(inst string) {
 	fmt.Printf("  pushq %%rax\n")
 }
 
-func emitPop(knd string) {
+func emitPop(knd TypeKind) {
 	switch knd {
 	case T_SLICE:
 		emitPopSlice()
@@ -1458,13 +1458,13 @@ func emitPop(knd string) {
 	case T_INTERFACE:
 		emitPopInterFace()
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		emitPopPrimitive(knd)
+		emitPopPrimitive(string(knd))
 	case T_UINT16:
-		emitPopPrimitive(knd)
+		emitPopPrimitive(string(knd))
 	case T_UINT8:
-		emitPopPrimitive(knd)
+		emitPopPrimitive(string(knd))
 	case T_STRUCT, T_ARRAY:
-		emitPopPrimitive(knd)
+		emitPopPrimitive(string(knd))
 	default:
 		unexpectedKind(knd)
 	}
@@ -2081,7 +2081,7 @@ func emitGlobalVariableComplex(name *ast.Ident, t *ast.Type, val ast.Expr) {
 
 func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *ast.Type, val ast.Expr) {
 	typeKind := kind(t)
-	fmt.Printf("%s.%s: # T %s\n", pkg.name, name.Name, typeKind)
+	fmt.Printf("%s.%s: # T %s\n", pkg.name, name.Name, string(typeKind))
 	switch typeKind {
 	case T_STRING:
 		if val == nil {
@@ -2182,7 +2182,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *ast.Type, val ast
 		var length = evalInt(bl)
 		emitComment(0, "[emitGlobalVariable] array length uint8=%d\n", length)
 		var zeroValue string
-		var knd string = kind(e2t(arrayType.Elt))
+		knd := kind(e2t(arrayType.Elt))
 		switch knd {
 		case T_INT:
 			zeroValue = "  .quad 0 # int zero value\n"
@@ -2273,18 +2273,20 @@ const intSize int = 8
 const ptrSize int = 8
 const interfaceSize int = 16
 
-const T_STRING string = "T_STRING"
-const T_INTERFACE string = "T_INTERFACE"
-const T_SLICE string = "T_SLICE"
-const T_BOOL string = "T_BOOL"
-const T_INT string = "T_INT"
-const T_INT32 string = "T_INT32"
-const T_UINT8 string = "T_UINT8"
-const T_UINT16 string = "T_UINT16"
-const T_UINTPTR string = "T_UINTPTR"
-const T_ARRAY string = "T_ARRAY"
-const T_STRUCT string = "T_STRUCT"
-const T_POINTER string = "T_POINTER"
+type TypeKind string
+
+const T_STRING TypeKind = "T_STRING"
+const T_INTERFACE TypeKind = "T_INTERFACE"
+const T_SLICE TypeKind = "T_SLICE"
+const T_BOOL TypeKind = "T_BOOL"
+const T_INT TypeKind = "T_INT"
+const T_INT32 TypeKind = "T_INT32"
+const T_UINT8 TypeKind = "T_UINT8"
+const T_UINT16 TypeKind = "T_UINT16"
+const T_UINTPTR TypeKind = "T_UINTPTR"
+const T_ARRAY TypeKind = "T_ARRAY"
+const T_STRUCT TypeKind = "T_STRUCT"
+const T_POINTER TypeKind = "T_POINTER"
 
 func getTypeOfExpr(expr ast.Expr) *ast.Type {
 	//emitComment(0, "[%s] start\n", __func__)
@@ -2577,7 +2579,7 @@ func serializeType(t *ast.Type) string {
 	return ""
 }
 
-func kind(t *ast.Type) string {
+func kind(t *ast.Type) TypeKind {
 	if t == nil {
 		panic2(__func__, "nil type is not expected\n")
 	}
