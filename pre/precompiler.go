@@ -68,7 +68,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 	for i = 0; i < indent; i++ {
 		spaces = append(spaces, ' ')
 	}
-	var format2 = string(spaces) + "# " + format
+	format2 := string(spaces) + "# " + format
 	fmt.Printf(format2, a...)
 }
 
@@ -198,7 +198,7 @@ func emitVariableAddr(variable *Variable) {
 }
 
 func emitListHeadAddr(list ast.Expr) {
-	var t = getTypeOfExpr(list)
+	t := getTypeOfExpr(list)
 	switch kind(t) {
 	case T_ARRAY:
 		emitAddr(list) // array head
@@ -233,7 +233,6 @@ func emitAddr(expr ast.Expr) {
 		}
 	case *ast.IndexExpr:
 		emitExpr(e.Index, nil) // index number
-
 		list := e.X
 		elmType := getTypeOfExpr(e)
 		emitListElementAddr(list, elmType)
@@ -249,8 +248,7 @@ func emitAddr(expr ast.Expr) {
 			emitAddr(e.X)
 		case T_POINTER:
 			// ptr.field
-			ptrType, ok := typeOfX.e.(*ast.StarExpr)
-			assert(ok, "should be *ast.StarExpr")
+			ptrType := typeOfX.e.(*ast.StarExpr)
 			structType = e2t(ptrType.X)
 			emitExpr(e.X, nil)
 		default:
