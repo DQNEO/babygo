@@ -842,11 +842,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			symbol = "runtime.runtime_getenv"
 		}
 
-		obj := fn.Obj //.Kind == FN
-		fndecl, ok := obj.Decl.(*ast.FuncDecl)
-		if !ok {
-			throw(fn.Obj)
-		}
+		fndecl := fn.Obj.Decl.(*ast.FuncDecl)
 		funcType = fndecl.Type
 	case *ast.SelectorExpr:
 		if isQI(fn) {
@@ -883,11 +879,9 @@ func emitNil(targetType *Type) {
 	}
 }
 
-func emitNamedConst(e *ast.Ident, ctx *evalContext) {
-	valSpec, ok := e.Obj.Decl.(*ast.ValueSpec)
-	assert(ok, "should be *ast.ValueSpec")
-	lit, ok := valSpec.Values[0].(*ast.BasicLit)
-	assert(ok, "should be *ast.BasicLit")
+func emitNamedConst(ident *ast.Ident, ctx *evalContext) {
+	valSpec := ident.Obj.Decl.(*ast.ValueSpec)
+	lit := valSpec.Values[0].(*ast.BasicLit)
 	emitExpr(lit, ctx)
 }
 

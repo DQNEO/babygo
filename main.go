@@ -842,20 +842,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			symbol = "runtime.runtime_getenv"
 		}
 
-		var obj = fn.Obj
-		if obj.Decl == nil {
-			panic2(__func__, "[*ast.CallExpr] decl is nil")
-		}
-
-		var fndecl *ast.FuncDecl // = decl.funcDecl
-		var isFuncDecl bool
-		fndecl, isFuncDecl = obj.Decl.(*ast.FuncDecl)
-		if !isFuncDecl || fndecl == nil {
-			panic2(__func__, "[*ast.CallExpr] fndecl is nil")
-		}
-		if fndecl.Type == nil {
-			panic2(__func__, "[*ast.CallExpr] fndecl.Type is nil")
-		}
+		fndecl := fn.Obj.Decl.(*ast.FuncDecl)
 		funcType = fndecl.Type
 	case *ast.SelectorExpr:
 		if isQI(fn) {
@@ -894,14 +881,9 @@ func emitNil(targetType *ast.Type) {
 }
 
 func emitNamedConst(ident *ast.Ident, ctx *evalContext) {
-	var valSpec *ast.ValueSpec
-	var ok bool
-	valSpec, ok = ident.Obj.Decl.(*ast.ValueSpec)
-	assert(ok, "valSpec should not be nil", __func__)
-	assert(valSpec != nil, "valSpec should not be nil", __func__)
-	assert(valSpec.Value != nil, "valSpec should not be nil", __func__)
-	assert(isExprBasicLit(valSpec.Value), "const value should be a literal", __func__)
-	emitExprIfc(valSpec.Value, ctx)
+	valSpec := ident.Obj.Decl.(*ast.ValueSpec)
+	lit := valSpec.Value.(*ast.BasicLit)
+	emitExprIfc(lit, ctx)
 }
 
 type okContext struct {
