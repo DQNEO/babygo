@@ -1614,55 +1614,56 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.AssignStmt:
 		switch s.Tok {
 		case "=", ":=":
-		default:
-		}
-		var rhs0 = s.Rhs[0]
-		if len(s.Lhs) == 2 && isExprTypeAssertExpr(rhs0) {
-			emitAssignWithOK(s.Lhs, rhs0)
-		} else {
-			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
-				// 1 to 1 assignment
-				// x = e
-				lhs0 := s.Lhs[0]
-				var ident *ast.Ident
-				var isIdent bool
-				ident, isIdent = lhs0.(*ast.Ident)
-				if isIdent && ident.Name == "_" {
-					panic(" _ is not supported yet")
-				}
-				emitAssign(lhs0, rhs0)
-			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
-				// multi-values expr
-				// a, b, c = f()
-				emitExpr(rhs0, nil) // @TODO interface conversion
-				var _callExpr *ast.CallExpr
-				var ok bool
-				_callExpr, ok = rhs0.(*ast.CallExpr)
-				assert(ok, "should be a CallExpr", __func__)
-				returnTypes := getCallResultTypes(_callExpr)
-				fmt.Printf("# len lhs=%d\n", len(s.Lhs))
-				fmt.Printf("# returnTypes=%d\n", len(returnTypes))
-				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
-				length := len(returnTypes)
-				for i := 0; i < length; i++ {
-					lhs := s.Lhs[i]
-					rhsType := returnTypes[i]
-					if isBlankIdentifier(lhs) {
-						emitPop(kind(rhsType))
-					} else {
-						switch kind(rhsType) {
-						case T_UINT8:
-							// repush stack top
-							fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
-							fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
-							fmt.Printf("  pushq %%rax\n")
-						}
-						emitAddr(lhs)
-						emitStore(getTypeOfExpr(lhs), false, false)
+			var rhs0 = s.Rhs[0]
+			if len(s.Lhs) == 2 && isExprTypeAssertExpr(rhs0) {
+				emitAssignWithOK(s.Lhs, rhs0)
+			} else {
+				if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
+					// 1 to 1 assignment
+					// x = e
+					lhs0 := s.Lhs[0]
+					var ident *ast.Ident
+					var isIdent bool
+					ident, isIdent = lhs0.(*ast.Ident)
+					if isIdent && ident.Name == "_" {
+						panic(" _ is not supported yet")
 					}
-				}
+					emitAssign(lhs0, rhs0)
+				} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
+					// multi-values expr
+					// a, b, c = f()
+					emitExpr(rhs0, nil) // @TODO interface conversion
+					var _callExpr *ast.CallExpr
+					var ok bool
+					_callExpr, ok = rhs0.(*ast.CallExpr)
+					assert(ok, "should be a CallExpr", __func__)
+					returnTypes := getCallResultTypes(_callExpr)
+					fmt.Printf("# len lhs=%d\n", len(s.Lhs))
+					fmt.Printf("# returnTypes=%d\n", len(returnTypes))
+					assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
+					length := len(returnTypes)
+					for i := 0; i < length; i++ {
+						lhs := s.Lhs[i]
+						rhsType := returnTypes[i]
+						if isBlankIdentifier(lhs) {
+							emitPop(kind(rhsType))
+						} else {
+							switch kind(rhsType) {
+							case T_UINT8:
+								// repush stack top
+								fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
+								fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
+								fmt.Printf("  pushq %%rax\n")
+							}
+							emitAddr(lhs)
+							emitStore(getTypeOfExpr(lhs), false, false)
+						}
+					}
 
+				}
 			}
+		default:
+			panic("TBI: assignment of " + s.Tok)
 		}
 	case *ast.ReturnStmt:
 		emitReturnStmt(s)

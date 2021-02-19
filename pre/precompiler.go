@@ -33,7 +33,7 @@ func throw(x interface{}) {
 func parseImports(fset *token.FileSet, filename string) *ast.File {
 	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
 	if err != nil {
-		panic(filename+ ":" + err.Error())
+		panic(filename + ":" + err.Error())
 	}
 	return f
 }
@@ -2712,7 +2712,7 @@ func getStructTypeOfX(e *ast.SelectorExpr) *Type {
 		assert(ok, "should be *ast.StarExpr")
 		structType = e2t(ptrType.X)
 	default:
-		unexpectedKind(kind(typeOfX) )
+		unexpectedKind(kind(typeOfX))
 	}
 	return structType
 }
