@@ -33,7 +33,7 @@ func throw(x interface{}) {
 func parseImports(fset *token.FileSet, filename string) *ast.File {
 	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
 	if err != nil {
-		panic(err)
+		panic(filename+ ":" + err.Error())
 	}
 	return f
 }
@@ -3757,7 +3757,7 @@ func findFilesInDir(dir string) []string {
 	dirents := mylib.GetDirents(dir)
 	var r []string
 	for _, dirent := range dirents {
-		if dirent == "." || dirent == ".." {
+		if dirent == "." || dirent == ".." || !strings.HasSuffix(dirent, ".go") {
 			continue
 		}
 		r = append(r, dirent)
