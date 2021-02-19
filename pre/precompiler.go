@@ -2762,8 +2762,7 @@ func getSizeOfType(t *Type) int {
 	case T_INTERFACE:
 		return SizeOfInterface
 	case T_ARRAY:
-		arrayType, ok := t.e.(*ast.ArrayType)
-		assert(ok, "expect *ast.ArrayType")
+		arrayType := t.e.(*ast.ArrayType)
 		elmSize := getSizeOfType(e2t(arrayType.Elt))
 		return elmSize * evalInt(arrayType.Len)
 	case T_STRUCT:

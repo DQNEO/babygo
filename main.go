@@ -2704,8 +2704,8 @@ func getSizeOfType(t *ast.Type) int {
 	case T_INTERFACE:
 		return SizeOfInterface
 	case T_ARRAY:
-		arrayType := expr2ArrayType(t.E)
-		var elemSize = getSizeOfType(e2t(arrayType.Elt))
+		arrayType := t.E.(*ast.ArrayType)
+		elemSize := getSizeOfType(e2t(arrayType.Elt))
 		return elemSize * evalInt(arrayType.Len)
 	case T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
