@@ -248,7 +248,7 @@ func emitAddr(expr ast.Expr) {
 			emitAddr(e.X)
 		case T_POINTER:
 			// ptr.field
-			ptrType := typeOfX.e.(*ast.StarExpr)
+			ptrType := typeOfX.E.(*ast.StarExpr)
 			structType = e2t(ptrType.X)
 			emitExpr(e.X, nil)
 		default:
@@ -302,7 +302,7 @@ func isType(expr ast.Expr) bool {
 // explicit conversion T(e)
 func emitConversion(toType *Type, arg0 ast.Expr) {
 	emitComment(2, "emitConversion\n")
-	switch to := toType.e.(type) {
+	switch to := toType.E.(type) {
 	case *ast.Ident:
 		ident := to
 		switch ident.Obj {
@@ -398,7 +398,7 @@ func emitZeroValue(t *Type) {
 func emitLen(arg ast.Expr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
-		arrayType, ok := getTypeOfExpr(arg).e.(*ast.ArrayType)
+		arrayType, ok := getTypeOfExpr(arg).E.(*ast.ArrayType)
 		assert(ok, "should be *ast.ArrayType")
 		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
@@ -417,7 +417,7 @@ func emitLen(arg ast.Expr) {
 func emitCap(arg ast.Expr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
-		arrayType, ok := getTypeOfExpr(arg).e.(*ast.ArrayType)
+		arrayType, ok := getTypeOfExpr(arg).E.(*ast.ArrayType)
 		assert(ok, "should be *ast.ArrayType")
 		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
@@ -733,7 +733,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			switch kind(typeArg) {
 			case T_SLICE:
 				// make([]T, ...)
-				arrayType, ok := typeArg.e.(*ast.ArrayType)
+				arrayType, ok := typeArg.E.(*ast.ArrayType)
 				assert(ok, "should be *ast.ArrayType")
 				var elmSize = getSizeOfType(e2t(arrayType.Elt))
 				var numlit = newNumberLiteral(elmSize)
@@ -1379,7 +1379,7 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 	fList := &ast.FieldList{List: []*ast.Field{
 		&ast.Field{
 			Names: nil,
-			Type:  tString.e,
+			Type:  tString.E,
 		},
 	}}
 	emitCall("runtime.catstrings", args, fList)
@@ -1403,7 +1403,7 @@ func emitCompStrings(left ast.Expr, right ast.Expr) {
 		List: []*ast.Field{
 			&ast.Field{
 				Names: nil,
-				Type:  tBool.e,
+				Type:  tBool.E,
 			},
 		},
 	}
@@ -2156,7 +2156,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		if val != nil {
 			panic("Unsupported global value")
 		}
-		arrayType, ok := t.e.(*ast.ArrayType)
+		arrayType, ok := t.E.(*ast.ArrayType)
 		assert(ok, "should be *ast.ArrayType")
 		assert(arrayType.Len != nil, "slice type is not expected")
 		length := evalInt(arrayType.Len)
@@ -2257,7 +2257,7 @@ func emitDynamicTypes(typeMap map[string]int) {
 
 // --- type ---
 type Type struct {
-	e ast.Expr // original expr
+	E ast.Expr // original expr
 }
 
 type TypeKind string
@@ -2276,7 +2276,7 @@ const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
 
 var tBool *Type = &Type{
-	e: &ast.Ident{
+	E: &ast.Ident{
 		NamePos: 0,
 		Name:    "bool",
 		Obj:     gBool,
@@ -2284,7 +2284,7 @@ var tBool *Type = &Type{
 }
 
 var tInt *Type = &Type{
-	e: &ast.Ident{
+	E: &ast.Ident{
 		NamePos: 0,
 		Name:    "int",
 		Obj:     gInt,
@@ -2293,7 +2293,7 @@ var tInt *Type = &Type{
 
 // Rune
 var tInt32 *Type = &Type{
-	e: &ast.Ident{
+	E: &ast.Ident{
 		NamePos: 0,
 		Name:    "int",
 		Obj:     gInt32,
@@ -2301,7 +2301,7 @@ var tInt32 *Type = &Type{
 }
 
 var tUintptr *Type = &Type{
-	e: &ast.Ident{
+	E: &ast.Ident{
 		NamePos: 0,
 		Name:    "uintptr",
 		Obj:     gUintptr,
@@ -2309,7 +2309,7 @@ var tUintptr *Type = &Type{
 }
 
 var tUint8 *Type = &Type{
-	e: &ast.Ident{
+	E: &ast.Ident{
 		NamePos: 0,
 		Name:    "uint8",
 		Obj:     gUint8,
@@ -2317,7 +2317,7 @@ var tUint8 *Type = &Type{
 }
 
 var tByte *Type = &Type{
-	e: &ast.Ident{
+	E: &ast.Ident{
 		NamePos: 0,
 		Name:    "byte",
 		Obj:     gUint8,
@@ -2325,7 +2325,7 @@ var tByte *Type = &Type{
 }
 
 var tSliceOfString *Type = &Type{
-	e: &ast.ArrayType{
+	E: &ast.ArrayType{
 		Len: nil,
 		Elt: &ast.Ident{
 			NamePos: 0,
@@ -2336,7 +2336,7 @@ var tSliceOfString *Type = &Type{
 }
 
 var tString *Type = &Type{
-	e: &ast.Ident{
+	E: &ast.Ident{
 		NamePos: 0,
 		Name:    "string",
 		Obj:     gString,
@@ -2344,7 +2344,7 @@ var tString *Type = &Type{
 }
 
 var tEface *Type = &Type{
-	e: &ast.InterfaceType{},
+	E: &ast.InterfaceType{},
 }
 
 var generalSlice ast.Expr = &ast.Ident{}
@@ -2415,7 +2415,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case "&":
 			var starExpr = &ast.StarExpr{}
 			var t = getTypeOfExpr(e.X)
-			starExpr.X = t.e
+			starExpr.X = t.E
 			return e2t(starExpr)
 		case "range":
 			listType := getTypeOfExpr(e.X)
@@ -2446,7 +2446,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		}
 
 		var elementTyp ast.Expr
-		switch colType := underlyingCollectionType.e.(type) {
+		switch colType := underlyingCollectionType.E.(type) {
 		case *ast.ArrayType:
 			elementTyp = colType.Elt
 		}
@@ -2457,7 +2457,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		return e2t(r)
 	case *ast.StarExpr:
 		t := getTypeOfExpr(e.X)
-		ptrType, ok := t.e.(*ast.StarExpr)
+		ptrType, ok := t.E.(*ast.StarExpr)
 		if !ok {
 			throw(t)
 		}
@@ -2557,7 +2557,7 @@ func e2t(typeExpr ast.Expr) *Type {
 		panic("nil is not allowed")
 	}
 	return &Type{
-		e: typeExpr,
+		E: typeExpr,
 	}
 }
 
@@ -2565,11 +2565,11 @@ func serializeType(t *Type) string {
 	if t == nil {
 		panic("nil type is not expected")
 	}
-	if t.e == generalSlice {
+	if t.E == generalSlice {
 		panic("TBD: generalSlice")
 	}
 
-	switch e := t.e.(type) {
+	switch e := t.E.(type) {
 	case *ast.Ident:
 		if e.Obj == nil {
 			panic("Unresolved identifier:" + e.Name)
@@ -2631,11 +2631,11 @@ func kind(t *Type) TypeKind {
 	if t == nil {
 		panic("nil type is not expected")
 	}
-	if t.e == generalSlice {
+	if t.E == generalSlice {
 		return T_SLICE
 	}
 
-	switch e := t.e.(type) {
+	switch e := t.E.(type) {
 	case *ast.Ident:
 		if e.Obj == nil {
 			panic("Unresolved identifier:" + e.Name)
@@ -2704,7 +2704,7 @@ func getStructTypeOfX(e *ast.SelectorExpr) *Type {
 		structType = typeOfX
 	case T_POINTER:
 		// ptr.field => e.X . e.Sel
-		ptrType, ok := typeOfX.e.(*ast.StarExpr)
+		ptrType, ok := typeOfX.E.(*ast.StarExpr)
 		assert(ok, "should be *ast.StarExpr")
 		structType = e2t(ptrType.X)
 	default:
@@ -2716,13 +2716,13 @@ func getStructTypeOfX(e *ast.SelectorExpr) *Type {
 func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
-		switch tt := t.e.(type) {
+		switch tt := t.E.(type) {
 		case *ast.ArrayType:
 			return e2t(tt.Elt)
 		case *ast.Ellipsis:
 			return e2t(tt.Elt)
 		default:
-			throw(t.e)
+			throw(t.E)
 		}
 	case T_STRING:
 		return tUint8
@@ -2759,7 +2759,7 @@ func getSizeOfType(t *Type) int {
 	case T_INTERFACE:
 		return SizeOfInterface
 	case T_ARRAY:
-		arrayType := t.e.(*ast.ArrayType)
+		arrayType := t.E.(*ast.ArrayType)
 		elmSize := getSizeOfType(e2t(arrayType.Elt))
 		return elmSize * evalInt(arrayType.Len)
 	case T_STRUCT:
@@ -2804,13 +2804,13 @@ func getStructTypeSpec(typ *Type) *ast.TypeSpec {
 	}
 	var typeName *ast.Ident
 
-	switch t := typ.e.(type) {
+	switch t := typ.E.(type) {
 	case *ast.Ident:
 		typeName = t
 	case *ast.SelectorExpr:
 		typeName = lookupForeignIdent(selector2QI(t))
 	default:
-		panic(typ.e)
+		panic(typ.E)
 	}
 
 	typeSpec, ok := typeName.Obj.Decl.(*ast.TypeSpec)
@@ -2931,7 +2931,7 @@ func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
 }
 
 func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
-	assert(t != nil && t.e != nil, "type of local var should not be nil")
+	assert(t != nil && t.E != nil, "type of local var should not be nil")
 	fnc.localarea -= localoffsetint(getSizeOfType(t))
 	vr := newLocalVariable(name, currentFunc.localarea, t)
 	fnc.localvars = append(fnc.localvars, vr)
@@ -3065,7 +3065,7 @@ func registerMethod(method *Method) {
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
-	rcvType := rcvT.e
+	rcvType := rcvT.E
 	rcvPointerType, ok := rcvType.(*ast.StarExpr)
 	if ok {
 		rcvType = rcvPointerType.X
@@ -3114,8 +3114,8 @@ func walkStmt(stmt ast.Stmt) {
 						val := ds.Values[0]
 						logf("nfering type of variable %s\n", obj.Name)
 						typ := getTypeOfExpr(val)
-						if typ != nil && typ.e != nil {
-							varSpec.Type = typ.e
+						if typ != nil && typ.E != nil {
+							varSpec.Type = typ.E
 						}
 					}
 				}
@@ -3483,7 +3483,7 @@ func walk(pkg *PkgContainer) {
 			if t == nil {
 				panic("variable type is not determined : " + nameIdent.Name)
 			}
-			varSpec.Type = t.e
+			varSpec.Type = t.E
 		}
 		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		setVariable(nameIdent.Obj, variable)
