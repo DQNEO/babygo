@@ -27,7 +27,7 @@ func unexpectedKind(knd TypeKind) {
 }
 
 func throw(x interface{}) {
-	panic(fmt.Sprintf("%+v", x))
+	panic(fmt.Sprintf("%#v", x))
 }
 
 func parseImports(fset *token.FileSet, filename string) *ast.File {
