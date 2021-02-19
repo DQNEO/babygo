@@ -1526,6 +1526,7 @@ func isBlankIdentifier(e ast.Expr) bool {
 	return ident.Name == "_"
 }
 
+// support assignment of ok syntax. Blank ident is considered.
 func emitAssignWithOK(lhss []ast.Expr, rhs ast.Expr) {
 	lhsMain := lhss[0]
 	lhsOK := lhss[1]
@@ -3137,39 +3138,32 @@ func walkStmt(stmt ast.Stmt) {
 	case *ast.AssignStmt:
 		if s.Tok.String() == ":=" {
 			// short var decl
-			lhs0 := s.Lhs[0]
 			rhs0 := s.Rhs[0]
-			ident, ok := lhs0.(*ast.Ident)
-			assert(ok, "should be ident")
-			obj := ident.Obj
-			assert(obj.Kind == ast.Var, "should be ast.Var")
 			walkExpr(rhs0)
-
 			// infer type
-			callExpr, ok := rhs0.(*ast.CallExpr)
-
-			var typ *Type
-			if ok {
-				types := getCallResultTypes(callExpr)
-				typ = types[0]
-			} else {
-				typ = getTypeOfExpr(rhs0)
-				switch rhs0.(type) {
-				case *ast.TypeAssertExpr:
-					if len(s.Lhs) == 2 { // lhs0, lhs1 := x.(T)
-						// declare lhs1 as an ok variable
-						okObj := s.Lhs[1].(*ast.Ident).Obj
-						//throw(okObj)
-						setVariable(okObj, currentFunc.registerLocalVariable(okObj.Name, tBool))
-					}
+			var typ0 *Type
+			switch rhs := rhs0.(type) {
+			case *ast.CallExpr:
+				types := getCallResultTypes(rhs)
+				typ0 = types[0]
+			case *ast.TypeAssertExpr:
+				typ0 = getTypeOfExpr(rhs0)
+				if len(s.Lhs) == 2 { // lhs0, lhs1 := x.(T)
+					// declare lhs1 as an ok variable
+					okObj := s.Lhs[1].(*ast.Ident).Obj
+					//throw(okObj)
+					setVariable(okObj, currentFunc.registerLocalVariable(okObj.Name, tBool))
 				}
+			default:
+				typ0 = getTypeOfExpr(rhs0)
 			}
 
-			if typ != nil && typ.E != nil {
+			if typ0 != nil && typ0.E != nil {
 			} else {
-				panic("type inference is not supported: " + obj.Name)
+				panic("type inference is not supported")
 			}
-			setVariable(obj, currentFunc.registerLocalVariable(obj.Name, typ))
+			obj0 := s.Lhs[0].(*ast.Ident).Obj
+			setVariable(obj0, currentFunc.registerLocalVariable(obj0.Name, typ0))
 		} else {
 			walkExpr(s.Rhs[0])
 		}

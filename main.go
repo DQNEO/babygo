@@ -1529,6 +1529,7 @@ func isBlankIdentifier(e ast.Expr) bool {
 	return expr2Ident(e).Name == "_"
 }
 
+// support assignment of ok syntax. Blank ident is considered.
 func emitAssignWithOK(lhss []ast.Expr, rhs ast.Expr) {
 	lhsMain := lhss[0]
 	lhsOK := lhss[1]
@@ -3045,38 +3046,32 @@ func walkStmt(stmt ast.Stmt) {
 	case *ast.AssignStmt:
 		if s.Tok == ":=" {
 			// short var decl
-			lhs0 := s.Lhs[0]
 			rhs0 := s.Rhs[0]
-			assert(isExprIdent(lhs0), "should be ident", __func__)
-			obj := expr2Ident(lhs0).Obj
-			assert(obj.Kind == ast.Var, obj.Name+" should be ast.Var", __func__)
 			walkExpr(rhs0)
 			// infer type
-			var _callExpr *ast.CallExpr
-			var ok bool
-			_callExpr, ok = rhs0.(*ast.CallExpr)
-			var typ *ast.Type
-			if ok {
-				types := getCallResultTypes(_callExpr)
-				typ = types[0]
-			} else {
-				typ = getTypeOfExpr(rhs0)
-				switch rhs0.(type) {
-				case *ast.TypeAssertExpr:
-					if len(s.Lhs) == 2 { // lhs0, lhs1 := x.(T)
-						// declare lhs1 as an ok variable
-						okObj := s.Lhs[1].(*ast.Ident).Obj
-						//throw(okObj)
-						setVariable(okObj, registerLocalVariable(currentFunc, okObj.Name, tBool))
-					}
+			var typ0 *ast.Type
+			switch rhs := rhs0.(type) {
+			case *ast.CallExpr:
+				types := getCallResultTypes(rhs)
+				typ0 = types[0]
+			case *ast.TypeAssertExpr:
+				typ0 = getTypeOfExpr(rhs0)
+				if len(s.Lhs) == 2 { // lhs0, lhs1 := x.(T)
+					// declare lhs1 as an ok variable
+					okObj := s.Lhs[1].(*ast.Ident).Obj
+					//throw(okObj)
+					setVariable(okObj, registerLocalVariable(currentFunc, okObj.Name, tBool))
 				}
+			default:
+				typ0 = getTypeOfExpr(rhs0)
 			}
 
-			if typ != nil && typ.E != nil {
+			if typ0 != nil && typ0.E != nil {
 			} else {
-				panic("type inference is not supported: " + obj.Name)
+				panic("type inference is not supported")
 			}
-			setVariable(obj , registerLocalVariable(currentFunc, obj.Name, typ))
+			obj0 := s.Lhs[0].(*ast.Ident).Obj
+			setVariable(obj0 , registerLocalVariable(currentFunc, obj0.Name, typ0))
 		} else {
 			walkExpr(s.Rhs[0])
 		}
