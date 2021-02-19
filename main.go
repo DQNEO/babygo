@@ -3972,14 +3972,12 @@ func main() {
 
 	paths := collectAllPackages(inputFiles)
 	var packagesToBuild []*PkgContainer
-
 	for _, _path := range paths {
 		files := collectSourceFiles(getPackageDir(_path))
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			name:  _path,
+			path:  _path,
 			files: files,
 		})
-
 	}
 
 	packagesToBuild = append(packagesToBuild, &PkgContainer{
