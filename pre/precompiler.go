@@ -3322,75 +3322,107 @@ func walkStmt(stmt ast.Stmt) {
 	}
 }
 
+func walkIdent(e *ast.Ident) {
+	// what to do ?
+}
+func walkSelectorExpr(e *ast.SelectorExpr) {
+	walkExpr(e.X)
+}
+func walkCallExpr(e *ast.CallExpr) {
+	walkExpr(e.Fun)
+	// Replace __func__ ident by a string literal
+	for i, arg := range e.Args {
+		ident, ok := arg.(*ast.Ident)
+		if ok {
+			if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
+				basicLit := &ast.BasicLit{
+					ValuePos: 0,
+					Kind:     token.STRING,
+					Value:    "\"" + currentFunc.name + "\"",
+				}
+				arg = basicLit
+				e.Args[i] = arg
+			}
+		}
+		walkExpr(arg)
+	}
+}
+func walkParenExpr(e *ast.ParenExpr) {
+	walkExpr(e.X)
+}
+func walkBasicLit(e *ast.BasicLit) {
+	switch e.Kind.String() {
+	case "INT":
+	case "CHAR":
+	case "STRING":
+		registerStringLiteral(e)
+	default:
+		panic("Unexpected literal kind:" + e.Kind.String())
+	}
+}
+func walkCompositeLit(e *ast.CompositeLit) {
+	for _, v := range e.Elts {
+		walkExpr(v)
+	}
+}
+func walkUnaryExpr(e *ast.UnaryExpr) {
+	walkExpr(e.X)
+}
+func walkBinaryExpr(e *ast.BinaryExpr) {
+	walkExpr(e.X) // left
+	walkExpr(e.Y) // right
+}
+func walkIndexExpr(e *ast.IndexExpr) {
+	walkExpr(e.Index)
+	walkExpr(e.X)
+}
+func walkSliceExpr(e *ast.SliceExpr) {
+	if e.Low != nil {
+		walkExpr(e.Low)
+	}
+	if e.High != nil {
+		walkExpr(e.High)
+	}
+	if e.Max != nil {
+		walkExpr(e.Max)
+	}
+	walkExpr(e.X)
+}
+func walkArrayType(e *ast.ArrayType) {
+	// first argument of builtin func like make()
+	// do nothing
+}
+func walkStarExpr(e *ast.StarExpr) {
+	walkExpr(e.X)
+}
+func walkKeyValueExpr(e *ast.KeyValueExpr) {
+	walkExpr(e.Key)
+	walkExpr(e.Value)
+}
+func walkInterfaceType(e *ast.InterfaceType) {
+	// interface{}(e)  conversion. Nothing to do.
+}
+func walkTypeAssertExpr(e *ast.TypeAssertExpr) {
+	walkExpr(e.X)
+}
+
 func walkExpr(expr ast.Expr) {
 	switch e := expr.(type) {
-	case *ast.Ident:
-		// what to do ?
-	case *ast.SelectorExpr:
-		walkExpr(e.X)
-	case *ast.CallExpr:
-		walkExpr(e.Fun)
-		// Replace __func__ ident by a string literal
-		for i, arg := range e.Args {
-			ident, ok := arg.(*ast.Ident)
-			if ok {
-				if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
-					basicLit := &ast.BasicLit{
-						ValuePos: 0,
-						Kind:     token.STRING,
-						Value:    "\"" + currentFunc.name + "\"",
-					}
-					arg = basicLit
-					e.Args[i] = arg
-				}
-			}
-			walkExpr(arg)
-		}
-	case *ast.ParenExpr:
-		walkExpr(e.X)
-	case *ast.BasicLit:
-		switch e.Kind.String() {
-		case "INT":
-		case "CHAR":
-		case "STRING":
-			registerStringLiteral(e)
-		default:
-			panic("Unexpected literal kind:" + e.Kind.String())
-		}
-	case *ast.CompositeLit:
-		for _, v := range e.Elts {
-			walkExpr(v)
-		}
-	case *ast.UnaryExpr:
-		walkExpr(e.X)
-	case *ast.BinaryExpr:
-		walkExpr(e.X) // left
-		walkExpr(e.Y) // right
-	case *ast.IndexExpr:
-		walkExpr(e.Index)
-		walkExpr(e.X)
-	case *ast.SliceExpr:
-		if e.Low != nil {
-			walkExpr(e.Low)
-		}
-		if e.High != nil {
-			walkExpr(e.High)
-		}
-		if e.Max != nil {
-			walkExpr(e.Max)
-		}
-		walkExpr(e.X)
-	case *ast.ArrayType: // first argument of builtin func like make()
-		// do nothing
-	case *ast.StarExpr:
-		walkExpr(e.X)
-	case *ast.KeyValueExpr:
-		walkExpr(e.Key)
-		walkExpr(e.Value)
-	case *ast.InterfaceType:
-		// interface{}(e)  conversion. Nothing to do.
-	case *ast.TypeAssertExpr:
-		walkExpr(e.X)
+	case *ast.Ident: walkIdent(e)
+	case *ast.SelectorExpr: walkSelectorExpr(e)
+	case *ast.CallExpr: walkCallExpr(e)
+	case *ast.ParenExpr: walkParenExpr(e)
+	case *ast.BasicLit: walkBasicLit(e)
+	case *ast.CompositeLit: walkCompositeLit(e)
+	case *ast.UnaryExpr: walkUnaryExpr(e)
+	case *ast.BinaryExpr: walkBinaryExpr(e)
+	case *ast.IndexExpr: walkIndexExpr(e)
+	case *ast.SliceExpr: walkSliceExpr(e)
+	case *ast.ArrayType: walkArrayType(e)
+	case *ast.StarExpr: walkStarExpr(e)
+	case *ast.KeyValueExpr: walkKeyValueExpr(e)
+	case *ast.InterfaceType: walkInterfaceType(e)
+	case *ast.TypeAssertExpr: walkTypeAssertExpr(e)
 	default:
 		throw(expr)
 	}
