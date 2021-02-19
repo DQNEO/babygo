@@ -3566,27 +3566,25 @@ var generalSlice ast.Expr
 func createUniverse() *ast.Scope {
 	var universe = new(ast.Scope)
 
-	universe.Insert(gInt)
-	universe.Insert(gUint8)
+	objects := []*ast.Object{
+		gNil,
+		// constants
+		gTrue, gFalse,
+		// types
+		gString, gUintptr, gBool, gInt, gUint8, gUint16,
+		// funcs
+		gNew, gMake, gAppend, gLen, gCap, gPanic,
+	}
+	for _, obj := range objects {
+		universe.Insert(obj)
+	}
 
+
+	// setting aliases
 	universe.Objects = append(universe.Objects, &ast.ObjectEntry{
 		Name: "byte",
 		Obj:  gUint8,
 	})
-
-	universe.Insert(gUint16)
-	universe.Insert(gUintptr)
-	universe.Insert(gString)
-	universe.Insert(gBool)
-	universe.Insert(gNil)
-	universe.Insert(gTrue)
-	universe.Insert(gFalse)
-	universe.Insert(gNew)
-	universe.Insert(gMake)
-	universe.Insert(gAppend)
-	universe.Insert(gLen)
-	universe.Insert(gCap)
-	universe.Insert(gPanic)
 
 	return universe
 }
