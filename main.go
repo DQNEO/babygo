@@ -38,8 +38,8 @@ func logf(format string, a ...interface{}) {
 	if !debugFrontEnd {
 		return
 	}
-	var f = "# " + format
-	var s = fmt.Sprintf(f, a...)
+	f := "# " + format
+	s := fmt.Sprintf(f, a...)
 	syscall.Write(1, []uint8(s))
 }
 
@@ -2038,7 +2038,6 @@ func emitFuncDecl(pkgName string, fnc *ast.Func) {
 		}
 	}
 
-	var localarea = fnc.Localarea
 	var symbol string
 	if fnc.Method != nil {
 		symbol = getMethodSymbol(fnc.Method)
@@ -2057,8 +2056,8 @@ func emitFuncDecl(pkgName string, fnc *ast.Func) {
 	logf("  #  0(%%rbp) previous rbp\n")
 	logf("  #  8(%%rbp) return address\n")
 
-	if localarea != 0 {
-		fmt.Printf("  subq $%d, %%rsp # local area\n", -localarea)
+	if fnc.Localarea != 0 {
+		fmt.Printf("  subq $%d, %%rsp # local area\n", -fnc.Localarea)
 	}
 
 	if fnc.Body != nil {
