@@ -1847,14 +1847,14 @@ func emitStmt(stmt ast.Stmt) {
 				case T_STRING:
 					ff := lookupForeignFunc(newQI("runtime", "cmpstrings"))
 					emitAllocReturnVarsAreaFF(ff)
-					emitPushStackTop(condType, intSize, "switch expr")
+					emitPushStackTop(condType, SizeOfInt, "switch expr")
 					emitExpr(e, nil)
 
 					emitCallFF(ff)
 				case T_INTERFACE:
 					ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
 					emitAllocReturnVarsAreaFF(ff)
-					emitPushStackTop(condType, intSize, "switch expr")
+					emitPushStackTop(condType, SizeOfInt, "switch expr")
 					emitExpr(e, nil)
 					emitCallFF(ff)
 				case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
@@ -2267,12 +2267,6 @@ func emitDynamicTypes(typeMap []*typeEntry) {
 }
 
 // --- type ---
-const sliceSize int = 24
-const stringSize int = 16
-const intSize int = 8
-const ptrSize int = 8
-const interfaceSize int = 16
-
 type TypeKind string
 
 const T_STRING TypeKind = "T_STRING"
@@ -2683,10 +2677,16 @@ func getElementTypeOfListType(t *ast.Type) *ast.Type {
 	return r
 }
 
+const SizeOfSlice int = 24
+const SizeOfString int = 16
+const SizeOfInt int = 8
+const SizeOfPtr int = 8
+const SizeOfInterface int = 16
+
 func getSizeOfType(t *ast.Type) int {
 	switch kind(t) {
 	case T_SLICE:
-		return sliceSize
+		return SizeOfSlice
 	case T_STRING:
 		return 16
 	case T_ARRAY:
@@ -2704,7 +2704,7 @@ func getSizeOfType(t *ast.Type) int {
 	case T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
 	case T_INTERFACE:
-		return interfaceSize
+		return SizeOfInterface
 	default:
 		unexpectedKind(kind(t))
 	}
