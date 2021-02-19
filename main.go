@@ -2680,6 +2680,8 @@ func getElementTypeOfListType(t *ast.Type) *ast.Type {
 const SizeOfSlice int = 24
 const SizeOfString int = 16
 const SizeOfInt int = 8
+const SizeOfUint8 int = 1
+const SizeOfUint16 int = 2
 const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
@@ -2688,23 +2690,25 @@ func getSizeOfType(t *ast.Type) int {
 	case T_SLICE:
 		return SizeOfSlice
 	case T_STRING:
-		return 16
+		return SizeOfString
+	case T_INT:
+		return SizeOfInt
+	case T_UINTPTR, T_POINTER:
+		return SizeOfPtr
+	case T_UINT8:
+		return SizeOfUint8
+	case T_UINT16:
+		return SizeOfUint16
+	case T_BOOL:
+		return SizeOfInt
+	case T_INTERFACE:
+		return SizeOfInterface
 	case T_ARRAY:
 		arrayType := expr2ArrayType(t.E)
 		var elemSize = getSizeOfType(e2t(arrayType.Elt))
 		return elemSize * evalInt(arrayType.Len)
-	case T_INT, T_UINTPTR, T_POINTER:
-		return 8
-	case T_UINT8:
-		return 1
-	case T_UINT16:
-		return 2
-	case T_BOOL:
-		return 8
 	case T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
-	case T_INTERFACE:
-		return SizeOfInterface
 	default:
 		unexpectedKind(kind(t))
 	}

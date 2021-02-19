@@ -2738,24 +2738,29 @@ func getElementTypeOfListType(t *Type) *Type {
 const SizeOfSlice int = 24
 const SizeOfString int = 16
 const SizeOfInt int = 8
+const SizeOfUint8 int = 1
+const SizeOfUint16 int = 2
 const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
 func getSizeOfType(t *Type) int {
-	var varSize int
 	switch kind(t) {
 	case T_SLICE:
 		return SizeOfSlice
 	case T_STRING:
-		return gString.Data.(int)
-	case T_INT, T_UINTPTR, T_POINTER:
-		return gInt.Data.(int)
+		return SizeOfString
+	case T_INT:
+		return SizeOfInt
+	case T_UINTPTR, T_POINTER:
+		return SizeOfPtr
 	case T_UINT8:
-		return gUint8.Data.(int)
+		return SizeOfUint8
 	case T_UINT16:
-		return gUint16.Data.(int)
+		return SizeOfUint16
 	case T_BOOL:
-		return gInt.Data.(int)
+		return SizeOfInt
+	case T_INTERFACE:
+		return SizeOfInterface
 	case T_ARRAY:
 		arrayType, ok := t.e.(*ast.ArrayType)
 		assert(ok, "expect *ast.ArrayType")
@@ -2763,12 +2768,10 @@ func getSizeOfType(t *Type) int {
 		return elmSize * evalInt(arrayType.Len)
 	case T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
-	case T_INTERFACE:
-		return SizeOfInterface
 	default:
 		unexpectedKind(kind(t))
 	}
-	return varSize
+	return 0
 }
 
 func getStructFieldOffset(field *ast.Field) int {
@@ -3588,9 +3591,6 @@ var gFalse = &ast.Object{
 var gString = &ast.Object{
 	Kind: ast.Typ,
 	Name: "string",
-	Decl: nil,
-	Data: 16,
-	Type: nil,
 }
 
 var gUintptr = &ast.Object{
@@ -3612,33 +3612,21 @@ var gBool = &ast.Object{
 var gInt = &ast.Object{
 	Kind: ast.Typ,
 	Name: "int",
-	Decl: nil,
-	Data: 8,
-	Type: nil,
 }
 
 var gInt32 = &ast.Object{
 	Kind: ast.Typ,
-	Name: "int",
-	Decl: nil,
-	Data: 0,
-	Type: nil,
+	Name: "int32",
 }
 
 var gUint8 = &ast.Object{
 	Kind: ast.Typ,
 	Name: "uint8",
-	Decl: nil,
-	Data: 1,
-	Type: nil,
 }
 
 var gUint16 = &ast.Object{
 	Kind: ast.Typ,
 	Name: "uint16",
-	Decl: nil,
-	Data: 2,
-	Type: nil,
 }
 
 var gNew = &ast.Object{
