@@ -240,8 +240,8 @@ func emitAddr(expr ast.Expr) {
 		default:
 			unexpectedKind(kind(typeOfX))
 		}
-		var field = lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
-		var offset = getStructFieldOffset(field)
+		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
+		offset := getStructFieldOffset(field)
 		emitAddConst(offset, "struct head address + struct.field offset")
 	case *ast.CompositeLit:
 		var knd = kind(getTypeOfExpr(expr))
@@ -297,10 +297,9 @@ func isType(expr ast.Expr) bool {
 // explicit conversion T(e)
 func emitConversion(toType *ast.Type, arg0 ast.Expr) {
 	emitComment(2, "[emitConversion]\n")
-	var to = toType.E
-	switch tt := to.(type) {
+	switch to := toType.E.(type) {
 	case *ast.Ident:
-		switch tt.Obj {
+		switch to.Obj {
 		case gString: // string(e)
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
@@ -317,28 +316,22 @@ func emitConversion(toType *ast.Type, arg0 ast.Expr) {
 			emitComment(2, "[emitConversion] to int \n")
 			emitExpr(arg0, nil)
 		default:
-			if tt.Obj.Kind == ast.Typ {
-				var isTypeSpec bool
-				_, isTypeSpec = tt.Obj.Decl.(*ast.TypeSpec)
-				if !isTypeSpec {
-					panic2(__func__, "Something is wrong")
-				}
-				//e2t(tt.Obj.Decl.typeSpec.Type))
+			if to.Obj.Kind == ast.Typ {
 				emitExpr(arg0, nil)
 			} else {
-				panic2(__func__, "[*ast.Ident] TBI : "+tt.Obj.Name)
+				panic2(__func__, "[*ast.Ident] TBI : "+to.Obj.Name)
 			}
 		}
 	case *ast.SelectorExpr:
 		// pkg.Type(arg0)
-		qi := selector2QI(tt)
+		qi := selector2QI(to)
 		if string(qi) == "unsafe.Pointer" {
 			emitExpr(arg0, nil)
 		} else {
 			panic("TBI")
 		}
 	case *ast.ArrayType: // Conversion to slice
-		var arrayType = expr2ArrayType(to)
+		arrayType := to
 		if arrayType.Len != nil {
 			panic2(__func__, "internal error")
 		}
@@ -352,7 +345,7 @@ func emitConversion(toType *ast.Type, arg0 ast.Expr) {
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
 	case *ast.ParenExpr:
-		emitConversion(e2t(tt.X), arg0)
+		emitConversion(e2t(to.X), arg0)
 	case *ast.StarExpr: // (*T)(e)
 		emitComment(2, "[emitConversion] to pointer \n")
 		emitExpr(arg0, nil)
@@ -365,7 +358,7 @@ func emitConversion(toType *ast.Type, arg0 ast.Expr) {
 			emitConvertToInterface(getTypeOfExpr(arg0))
 		}
 	default:
-		panic2(__func__, "TBI :"+dtypeOf(to))
+		panic2(__func__, "TBI :"+dtypeOf(toType.E))
 	}
 }
 

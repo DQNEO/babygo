@@ -304,8 +304,7 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 	emitComment(2, "emitConversion\n")
 	switch to := toType.E.(type) {
 	case *ast.Ident:
-		ident := to
-		switch ident.Obj {
+		switch to.Obj {
 		case gString: // string(e)
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
@@ -321,16 +320,10 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			emitExpr(arg0, nil)
 		default:
-			if ident.Obj.Kind == ast.Typ {
-				// define type.  e.g. MyType(10)
-				//typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec)
-				//if !ok {
-				//	throw(ident.Obj.Decl)
-				//}
-				// What should we do if MyType is an interface ?
+			if to.Obj.Kind == ast.Typ {
 				emitExpr(arg0, nil)
 			} else {
-				throw(ident.Obj)
+				throw(to.Obj)
 			}
 		}
 	case *ast.SelectorExpr:
