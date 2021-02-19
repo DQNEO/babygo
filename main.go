@@ -1614,8 +1614,9 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.AssignStmt:
 		switch s.Tok {
 		case "=", ":=":
-			var rhs0 = s.Rhs[0]
-			if len(s.Lhs) == 2 && isExprTypeAssertExpr(rhs0) {
+			rhs0 := s.Rhs[0]
+			_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
+			if len(s.Lhs) == 2 && isTypeAssertion {
 				emitAssignWithOK(s.Lhs, rhs0)
 			} else {
 				if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
