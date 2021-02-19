@@ -509,9 +509,7 @@ func testGetInterface() {
 }
 
 func takeInterface(ifc interface{}) {
-	var s int
-	var ok bool
-	s, ok = ifc.(int)
+	s, ok := ifc.(int)
 	if ok {
 		writeln(s)
 	}

@@ -1,7 +1,7 @@
 package main
 
 import (
-	//"fmt"
+	"fmt"
 	"os"
 	"syscall"
 
@@ -9,7 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 
-	"github.com/DQNEO/babygo/lib/fmt"
+	//"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -1256,7 +1256,8 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		fmt.Printf("  jne %s # jmp if false\n", labelElse)
 
 		// if matched
-		if ctx.okContext != nil {
+		if ctx != nil && ctx.okContext != nil {
+			// ok context
 			emitComment(2, " double value context\n")
 			if ctx.okContext.needMain {
 				emitExpr(e.X, nil)
@@ -1267,6 +1268,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				fmt.Printf("  pushq $1 # ok = true\n")
 			}
 		} else {
+			// default context is single value context
 			emitComment(2, " single value context\n")
 			emitExpr(e.X, nil)
 			fmt.Printf("  popq %%rax # garbage\n")
@@ -1278,7 +1280,8 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 
 		// if not matched
 		fmt.Printf("  %s:\n", labelElse)
-		if ctx.okContext != nil {
+		if ctx != nil && ctx.okContext != nil {
+			// ok context
 			emitComment(2, " double value context\n")
 			if ctx.okContext.needMain {
 				emitZeroValue(typ)
@@ -1287,6 +1290,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				fmt.Printf("  pushq $0 # ok = false\n")
 			}
 		} else {
+			// default context is single value context
 			emitComment(2, " single value context\n")
 			emitZeroValue(typ)
 		}
@@ -3131,29 +3135,43 @@ func walkStmt(stmt ast.Stmt) {
 		}
 
 	case *ast.AssignStmt:
-		lhs := s.Lhs[0]
-		rhs := s.Rhs[0]
 		if s.Tok.String() == ":=" {
 			// short var decl
-			ident, ok := lhs.(*ast.Ident)
+			lhs0 := s.Lhs[0]
+			rhs0 := s.Rhs[0]
+			ident, ok := lhs0.(*ast.Ident)
 			assert(ok, "should be ident")
 			obj := ident.Obj
 			assert(obj.Kind == ast.Var, "should be ast.Var")
-			walkExpr(rhs)
+			walkExpr(rhs0)
+
 			// infer type
-			callExpr, ok := rhs.(*ast.CallExpr)
+			callExpr, ok := rhs0.(*ast.CallExpr)
 
 			var typ *Type
 			if ok {
 				types := getCallResultTypes(callExpr)
 				typ = types[0]
 			} else {
-				typ = getTypeOfExpr(rhs)
+				typ = getTypeOfExpr(rhs0)
+				switch rhs0.(type) {
+				case *ast.TypeAssertExpr:
+					if len(s.Lhs) == 2 { // lhs0, lhs1 := x.(T)
+						// declare lhs1 as an ok variable
+						okObj := s.Lhs[1].(*ast.Ident).Obj
+						//throw(okObj)
+						setVariable(okObj, currentFunc.registerLocalVariable(okObj.Name, tBool))
+					}
+				}
 			}
 
+			if typ != nil && typ.E != nil {
+			} else {
+				panic("type inference is not supported: " + obj.Name)
+			}
 			setVariable(obj, currentFunc.registerLocalVariable(obj.Name, typ))
 		} else {
-			walkExpr(rhs)
+			walkExpr(s.Rhs[0])
 		}
 	case *ast.ReturnStmt:
 		mapReturnStmt[s] = &nodeReturnStmt{

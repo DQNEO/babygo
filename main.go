@@ -1259,7 +1259,8 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		fmt.Printf("  jne %s # jmp if false\n", labelElse)
 
 		// if matched
-		if ctx.okContext != nil {
+		if ctx != nil && ctx.okContext != nil {
+			// ok context
 			emitComment(2, " double value context\n")
 			if ctx.okContext.needMain {
 				emitExpr(expr2TypeAssertExpr(expr).X, nil)
@@ -1270,6 +1271,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				fmt.Printf("  pushq $1 # ok = true\n")
 			}
 		} else {
+			// default context is single value context
 			emitComment(2, " single value context\n")
 			emitExpr(expr2TypeAssertExpr(expr).X, nil)
 			fmt.Printf("  popq %%rax # garbage\n")
@@ -1281,7 +1283,8 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 
 		// if not matched
 		fmt.Printf("  %s:\n", labelElse)
-		if ctx.okContext != nil {
+		if ctx != nil && ctx.okContext != nil {
+			// ok context
 			emitComment(2, " double value context\n")
 			if ctx.okContext.needMain {
 				emitZeroValue(typ)
@@ -1290,6 +1293,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 				fmt.Printf("  pushq $0 # ok = false\n")
 			}
 		} else {
+			// default context is single value context
 			emitComment(2, " single value context\n")
 			emitZeroValue(typ)
 		}
@@ -1609,8 +1613,7 @@ func emitStmt(stmt ast.Stmt) {
 		}
 	case *ast.AssignStmt:
 		switch s.Tok {
-		case "=":
-		case ":=":
+		case "=", ":=":
 		default:
 		}
 		var rhs0 = s.Rhs[0]
@@ -3038,32 +3041,42 @@ func walkStmt(stmt ast.Stmt) {
 			walkExpr(valSpec.Value)
 		}
 	case *ast.AssignStmt:
-		var lhs = s.Lhs[0]
-		var rhs = s.Rhs[0]
 		if s.Tok == ":=" {
-			assert(isExprIdent(lhs), "should be ident", __func__)
-			var obj = expr2Ident(lhs).Obj
+			// short var decl
+			lhs0 := s.Lhs[0]
+			rhs0 := s.Rhs[0]
+			assert(isExprIdent(lhs0), "should be ident", __func__)
+			obj := expr2Ident(lhs0).Obj
 			assert(obj.Kind == ast.Var, obj.Name+" should be ast.Var", __func__)
-			walkExpr(rhs)
+			walkExpr(rhs0)
 			// infer type
 			var _callExpr *ast.CallExpr
 			var ok bool
-			_callExpr, ok = rhs.(*ast.CallExpr)
+			_callExpr, ok = rhs0.(*ast.CallExpr)
 			var typ *ast.Type
 			if ok {
 				types := getCallResultTypes(_callExpr)
 				typ = types[0]
 			} else {
-				typ = getTypeOfExpr(rhs)
+				typ = getTypeOfExpr(rhs0)
+				switch rhs0.(type) {
+				case *ast.TypeAssertExpr:
+					if len(s.Lhs) == 2 { // lhs0, lhs1 := x.(T)
+						// declare lhs1 as an ok variable
+						okObj := s.Lhs[1].(*ast.Ident).Obj
+						//throw(okObj)
+						setVariable(okObj, registerLocalVariable(currentFunc, okObj.Name, tBool))
+					}
+				}
 			}
+
 			if typ != nil && typ.E != nil {
 			} else {
 				panic("type inference is not supported: " + obj.Name)
 			}
-			logf("infered type of %s is %s, rhs=%s\n", obj.Name, dtypeOf(typ.E), dtypeOf(rhs))
 			setVariable(obj , registerLocalVariable(currentFunc, obj.Name, typ))
 		} else {
-			walkExpr(rhs)
+			walkExpr(s.Rhs[0])
 		}
 	case *ast.ExprStmt:
 		walkExpr(s.X)
