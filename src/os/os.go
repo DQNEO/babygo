@@ -18,3 +18,6 @@ func Getenv(key string) string {
 func Exit(status int) {
 	syscall.Syscall(uintptr(SYS_EXIT), uintptr(status), 0, 0)
 }
+
+func runtime_args() []string
+func runtime_getenv(key string) string
