@@ -1039,20 +1039,19 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			panic2(__func__, "TBI:astUnaryExpr:"+e.Op)
 		}
 	case *ast.BinaryExpr:
-		binaryExpr := e
-		switch binaryExpr.Op {
+		switch e.Op {
 		case "&&":
 			labelid++
 			var labelExitWithFalse = fmt.Sprintf(".L.%d.false", labelid)
 			var labelExit = fmt.Sprintf(".L.%d.exit", labelid)
-			emitExpr(binaryExpr.X, nil) // left
+			emitExpr(e.X, nil) // left
 			emitPopBool("left")
 			fmt.Printf("  cmpq $1, %%rax\n")
 			// exit with false if left is false
 			fmt.Printf("  jne %s\n", labelExitWithFalse)
 
 			// if left is true, then eval right and exit
-			emitExpr(binaryExpr.Y, nil) // right
+			emitExpr(e.Y, nil) // right
 			fmt.Printf("  jmp %s\n", labelExit)
 
 			fmt.Printf("  %s:\n", labelExitWithFalse)
@@ -1062,14 +1061,14 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			labelid++
 			var labelExitWithTrue = fmt.Sprintf(".L.%d.true", labelid)
 			var labelExit = fmt.Sprintf(".L.%d.exit", labelid)
-			emitExpr(binaryExpr.X, nil) // left
+			emitExpr(e.X, nil) // left
 			emitPopBool("left")
 			fmt.Printf("  cmpq $1, %%rax\n")
 			// exit with true if left is true
 			fmt.Printf("  je %s\n", labelExitWithTrue)
 
 			// if left is false, then eval right and exit
-			emitExpr(binaryExpr.Y, nil) // right
+			emitExpr(e.Y, nil) // right
 			fmt.Printf("  jmp %s\n", labelExit)
 
 			fmt.Printf("  %s:\n", labelExitWithTrue)
@@ -1079,30 +1078,30 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			if kind(getTypeOfExpr(e.X)) == T_STRING {
 				emitCatStrings(e.X, e.Y)
 			} else {
-				emitExpr(binaryExpr.X, nil) // left
-				emitExpr(binaryExpr.Y, nil) // right
+				emitExpr(e.X, nil) // left
+				emitExpr(e.Y, nil) // right
 				fmt.Printf("  popq %%rcx # right\n")
 				fmt.Printf("  popq %%rax # left\n")
 				fmt.Printf("  addq %%rcx, %%rax\n")
 				fmt.Printf("  pushq %%rax\n")
 			}
 		case "-":
-			emitExpr(binaryExpr.X, nil) // left
-			emitExpr(binaryExpr.Y, nil) // right
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
 			fmt.Printf("  popq %%rcx # right\n")
 			fmt.Printf("  popq %%rax # left\n")
 			fmt.Printf("  subq %%rcx, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
 		case "*":
-			emitExpr(binaryExpr.X, nil) // left
-			emitExpr(binaryExpr.Y, nil) // right
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
 			fmt.Printf("  popq %%rcx # right\n")
 			fmt.Printf("  popq %%rax # left\n")
 			fmt.Printf("  imulq %%rcx, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
 		case "%":
-			emitExpr(binaryExpr.X, nil) // left
-			emitExpr(binaryExpr.Y, nil) // right
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
 			fmt.Printf("  popq %%rcx # right\n")
 			fmt.Printf("  popq %%rax # left\n")
 			fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
@@ -1110,8 +1109,8 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			fmt.Printf("  movq %%rdx, %%rax\n")
 			fmt.Printf("  pushq %%rax\n")
 		case "/":
-			emitExpr(binaryExpr.X, nil) // left
-			emitExpr(binaryExpr.Y, nil) // right
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
 			fmt.Printf("  popq %%rcx # right\n")
 			fmt.Printf("  popq %%rax # left\n")
 			fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
@@ -1123,23 +1122,23 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 			emitBinaryExprComparison(e.X, e.Y)
 			emitInvertBoolValue()
 		case "<":
-			emitExpr(binaryExpr.X, nil) // left
-			emitExpr(binaryExpr.Y, nil) // right
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
 			emitCompExpr("setl")
 		case "<=":
-			emitExpr(binaryExpr.X, nil) // left
-			emitExpr(binaryExpr.Y, nil) // right
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
 			emitCompExpr("setle")
 		case ">":
-			emitExpr(binaryExpr.X, nil) // left
-			emitExpr(binaryExpr.Y, nil) // right
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
 			emitCompExpr("setg")
 		case ">=":
-			emitExpr(binaryExpr.X, nil) // left
-			emitExpr(binaryExpr.Y, nil) // right
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
 			emitCompExpr("setge")
 		default:
-			panic2(__func__, "# TBI: binary operation for "+binaryExpr.Op)
+			panic2(__func__, "# TBI: binary operation for "+e.Op)
 		}
 	case *ast.CompositeLit:
 		// slice , array, map or struct
