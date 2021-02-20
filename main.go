@@ -1578,426 +1578,445 @@ func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 	emitStore(getTypeOfExpr(lhs), true, false)
 }
 
+func emitBlockStmt(s *ast.BlockStmt) {
+	for _, s := range s.List {
+		emitStmt(s)
+	}
+}
+func emitExprStmt(s *ast.ExprStmt) {
+	emitExpr(s.X, nil)
+}
+func emitDeclStmt(s *ast.DeclStmt) {
+	genDecl := s.Decl.(*ast.GenDecl)
+	declSpec := genDecl.Spec
+	switch spec := declSpec.(type) {
+	case *ast.ValueSpec:
+		valSpec := spec
+		t := e2t(valSpec.Type)
+		lhs := valSpec.Name
+		if valSpec.Value == nil {
+			emitComment(2, "lhs addresss\n")
+			emitAddr(lhs)
+			emitComment(2, "emitZeroValue for %s\n", dtypeOf(t.E))
+			emitZeroValue(t)
+			emitComment(2, "Assignment: zero value\n")
+			emitStore(t, true, false)
+		} else {
+			rhs := valSpec.Value
+			emitAssign(lhs, rhs)
+		}
+	default:
+		panic(declSpec)
+	}
+}
+func emitAssignStmt(s *ast.AssignStmt) {
+	switch s.Tok {
+	case "=", ":=":
+		rhs0 := s.Rhs[0]
+		_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
+		if len(s.Lhs) == 2 && isTypeAssertion {
+			emitAssignWithOK(s.Lhs, rhs0)
+		} else {
+			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
+				// 1 to 1 assignment
+				// x = e
+				lhs0 := s.Lhs[0]
+				var ident *ast.Ident
+				var isIdent bool
+				ident, isIdent = lhs0.(*ast.Ident)
+				if isIdent && ident.Name == "_" {
+					panic(" _ is not supported yet")
+				}
+				emitAssign(lhs0, rhs0)
+			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
+				// multi-values expr
+				// a, b, c = f()
+				emitExpr(rhs0, nil) // @TODO interface conversion
+				var _callExpr *ast.CallExpr
+				var ok bool
+				_callExpr, ok = rhs0.(*ast.CallExpr)
+				assert(ok, "should be a CallExpr", __func__)
+				returnTypes := getCallResultTypes(_callExpr)
+				fmt.Printf("# len lhs=%d\n", len(s.Lhs))
+				fmt.Printf("# returnTypes=%d\n", len(returnTypes))
+				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
+				length := len(returnTypes)
+				for i := 0; i < length; i++ {
+					lhs := s.Lhs[i]
+					rhsType := returnTypes[i]
+					if isBlankIdentifier(lhs) {
+						emitPop(kind(rhsType))
+					} else {
+						switch kind(rhsType) {
+						case T_UINT8:
+							// repush stack top
+							fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
+							fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
+							fmt.Printf("  pushq %%rax\n")
+						}
+						emitAddr(lhs)
+						emitStore(getTypeOfExpr(lhs), false, false)
+					}
+				}
+
+			}
+		}
+	default:
+		panic("TBI: assignment of " + s.Tok)
+	}
+}
+func emitIfStmt(s *ast.IfStmt) {
+	emitComment(2, "if\n")
+
+	labelid++
+	var labelEndif = ".L.endif." + strconv.Itoa(labelid)
+	var labelElse = ".L.else." + strconv.Itoa(labelid)
+
+	emitExpr(s.Cond, nil)
+	emitPopBool("if condition")
+	fmt.Printf("  cmpq $1, %%rax\n")
+	bodyStmt := newStmt(s.Body)
+	if s.Else != nil {
+		fmt.Printf("  jne %s # jmp if false\n", labelElse)
+		emitStmt(bodyStmt) // then
+		fmt.Printf("  jmp %s\n", labelEndif)
+		fmt.Printf("  %s:\n", labelElse)
+		emitStmt(s.Else) // then
+	} else {
+		fmt.Printf("  jne %s # jmp if false\n", labelEndif)
+		emitStmt(bodyStmt) // then
+	}
+	fmt.Printf("  %s:\n", labelEndif)
+	emitComment(2, "end if\n")
+}
+func emitForStmt(s *ast.ForStmt) {
+	labelid++
+	var labelCond = ".L.for.cond." + strconv.Itoa(labelid)
+	var labelPost = ".L.for.post." + strconv.Itoa(labelid)
+	var labelExit = ".L.for.exit." + strconv.Itoa(labelid)
+	//forStmt, ok := mapForNodeToFor[s]
+	//assert(ok, "map value should exist")
+	s.LabelPost = labelPost
+	s.LabelExit = labelExit
+
+	if s.Init != nil {
+		emitStmt(s.Init)
+	}
+
+	fmt.Printf("  %s:\n", labelCond)
+	if s.Cond != nil {
+		emitExpr(s.Cond, nil)
+		emitPopBool("for condition")
+		fmt.Printf("  cmpq $1, %%rax\n")
+		fmt.Printf("  jne %s # jmp if false\n", labelExit)
+	}
+	emitStmt(s.Body)
+	fmt.Printf("  %s:\n", labelPost) // used for "continue"
+	if s.Post != nil {
+		emitStmt(s.Post)
+	}
+	fmt.Printf("  jmp %s\n", labelCond)
+	fmt.Printf("  %s:\n", labelExit)
+}
+func emitRangeStmt(s *ast.RangeStmt) {
+	labelid++
+	var labelCond = ".L.range.cond." + strconv.Itoa(labelid)
+	var labelPost = ".L.range.post." + strconv.Itoa(labelid)
+	var labelExit = ".L.range.exit." + strconv.Itoa(labelid)
+
+	s.LabelPost = labelPost
+	s.LabelExit = labelExit
+	// initialization: store len(rangeexpr)
+	emitComment(2, "ForRange Initialization\n")
+
+	emitComment(2, "  assign length to lenvar\n")
+	// lenvar = len(s.X)
+	emitVariableAddr(s.Lenvar)
+	emitLen(s.X)
+	emitStore(tInt, true, false)
+
+	emitComment(2, "  assign 0 to indexvar\n")
+	// indexvar = 0
+	emitVariableAddr(s.Indexvar)
+	emitZeroValue(tInt)
+	emitStore(tInt, true, false)
+
+	// init key variable with 0
+	if s.Key != nil {
+		keyIdent := expr2Ident(s.Key)
+		if keyIdent.Name != "_" {
+			emitAddr(s.Key) // lhs
+			emitZeroValue(tInt)
+			emitStore(tInt, true, false)
+		}
+	}
+
+	// Condition
+	// if (indexvar < lenvar) then
+	//   execute body
+	// else
+	//   exit
+	emitComment(2, "ForRange Condition\n")
+	fmt.Printf("  %s:\n", labelCond)
+
+	emitVariableAddr(s.Indexvar)
+	emitLoadAndPush(tInt)
+	emitVariableAddr(s.Lenvar)
+	emitLoadAndPush(tInt)
+	emitCompExpr("setl")
+	emitPopBool(" indexvar < lenvar")
+	fmt.Printf("  cmpq $1, %%rax\n")
+	fmt.Printf("  jne %s # jmp if false\n", labelExit)
+
+	emitComment(2, "assign list[indexvar] value variables\n")
+	var elemType = getTypeOfExpr(s.Value)
+	emitAddr(s.Value) // lhs
+
+	emitVariableAddr(s.Indexvar)
+	emitLoadAndPush(tInt) // index value
+	emitListElementAddr(s.X, elemType)
+
+	emitLoadAndPush(elemType)
+	emitStore(elemType, true, false)
+
+	// Body
+	emitComment(2, "ForRange Body\n")
+	emitStmt(s.Body)
+
+	// Post statement: Increment indexvar and go next
+	emitComment(2, "ForRange Post statement\n")
+	fmt.Printf("  %s:\n", labelPost) // used for "continue"
+	emitVariableAddr(s.Indexvar)     // lhs
+	emitVariableAddr(s.Indexvar)     // rhs
+	emitLoadAndPush(tInt)
+	emitAddConst(1, "indexvar value ++")
+	emitStore(tInt, true, false)
+
+	if s.Key != nil {
+		keyIdent := expr2Ident(s.Key)
+		if keyIdent.Name != "_" {
+			emitAddr(s.Key)              // lhs
+			emitVariableAddr(s.Indexvar) // rhs
+			emitLoadAndPush(tInt)
+			emitStore(tInt, true, false)
+		}
+	}
+
+	fmt.Printf("  jmp %s\n", labelCond)
+
+	fmt.Printf("  %s:\n", labelExit)
+}
+func emitIncDecStmt(s *ast.IncDecStmt) {
+	var addValue int
+	switch s.Tok {
+	case "++":
+		addValue = 1
+	case "--":
+		addValue = -1
+	default:
+		panic2(__func__, "Unexpected Tok="+s.Tok)
+	}
+	emitAddr(s.X)
+	emitExpr(s.X, nil)
+	emitAddConst(addValue, "rhs ++ or --")
+	emitStore(getTypeOfExpr(s.X), true, false)
+}
+func emitSwitchStmt(s *ast.SwitchStmt) {
+	labelid++
+	var labelEnd = fmt.Sprintf(".L.switch.%d.exit", labelid)
+	if s.Tag == nil {
+		panic2(__func__, "Omitted tag is not supported yet")
+	}
+	emitExpr(s.Tag, nil)
+	var condType = getTypeOfExpr(s.Tag)
+	var cases = s.Body.List
+	emitComment(2, "[DEBUG] cases len=%d\n", len(cases))
+	var labels = make([]string, len(cases), len(cases))
+	var defaultLabel string
+	emitComment(2, "Start comparison with cases\n")
+	for i, c := range cases {
+		emitComment(2, "CASES idx=%d\n", i)
+		assert(isStmtCaseClause(c), "should be *ast.CaseClause", __func__)
+		cc := stmt2CaseClause(c)
+		labelid++
+		var labelCase = ".L.case." + strconv.Itoa(labelid)
+		labels[i] = labelCase
+		if len(cc.List) == 0 { // @TODO implement slice nil comparison
+			defaultLabel = labelCase
+			continue
+		}
+		for _, e := range cc.List {
+			assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string", __func__)
+			switch kind(condType) {
+			case T_STRING:
+				ff := lookupForeignFunc(newQI("runtime", "cmpstrings"))
+				emitAllocReturnVarsAreaFF(ff)
+				emitPushStackTop(condType, SizeOfInt, "switch expr")
+				emitExpr(e, nil)
+
+				emitCallFF(ff)
+			case T_INTERFACE:
+				ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
+				emitAllocReturnVarsAreaFF(ff)
+				emitPushStackTop(condType, SizeOfInt, "switch expr")
+				emitExpr(e, nil)
+				emitCallFF(ff)
+			case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
+				emitPushStackTop(condType, 0, "switch expr")
+				emitExpr(e, nil)
+				emitCompExpr("sete")
+			default:
+				unexpectedKind(kind(condType))
+			}
+
+			emitPopBool(" of switch-case comparison")
+			fmt.Printf("  cmpq $1, %%rax\n")
+			fmt.Printf("  je %s # jump if match\n", labelCase)
+		}
+	}
+	emitComment(2, "End comparison with cases\n")
+
+	// if no case matches, then jump to
+	if defaultLabel != "" {
+		// default
+		fmt.Printf("  jmp %s\n", defaultLabel)
+	} else {
+		// exit
+		fmt.Printf("  jmp %s\n", labelEnd)
+	}
+
+	emitRevertStackTop(condType)
+	for i, c := range cases {
+		cc := stmt2CaseClause(c)
+		fmt.Printf("%s:\n", labels[i])
+		for _, _s := range cc.Body {
+			emitStmt(_s)
+		}
+		fmt.Printf("  jmp %s\n", labelEnd)
+	}
+	fmt.Printf("%s:\n", labelEnd)
+}
+func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
+	typeSwitch := s.Node
+	//		assert(ok, "should exist")
+	labelid++
+	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
+
+	// subjectVariable = subject
+	emitVariableAddr(typeSwitch.SubjectVariable)
+	emitExpr(typeSwitch.Subject, nil)
+	emitStore(tEface, true, false)
+
+	cases := s.Body.List
+	var labels = make([]string, len(cases), len(cases))
+	var defaultLabel string
+	emitComment(2, "Start comparison with cases\n")
+	for i, c := range cases {
+		cc := stmt2CaseClause(c)
+		//assert(ok, "should be *ast.CaseClause")
+		labelid++
+		labelCase := ".L.case." + strconv.Itoa(labelid)
+		labels[i] = labelCase
+		if len(cc.List) == 0 { // @TODO implement slice nil comparison
+			defaultLabel = labelCase
+			continue
+		}
+		for _, e := range cc.List {
+			emitVariableAddr(typeSwitch.SubjectVariable)
+			emitPopAddress("type switch subject")
+			fmt.Printf("  movq (%%rax), %%rax # dtype\n")
+			fmt.Printf("  pushq %%rax # dtype\n")
+
+			emitDtypeSymbol(e2t(e))
+			emitCompExpr("sete") // this pushes 1 or 0 in the end
+			emitPopBool(" of switch-case comparison")
+
+			fmt.Printf("  cmpq $1, %%rax\n")
+			fmt.Printf("  je %s # jump if match\n", labelCase)
+		}
+	}
+	emitComment(2, "End comparison with cases\n")
+
+	// if no case matches, then jump to
+	if defaultLabel != "" {
+		// default
+		fmt.Printf("  jmp %s\n", defaultLabel)
+	} else {
+		// exit
+		fmt.Printf("  jmp %s\n", labelEnd)
+	}
+
+	for i, typeSwitchCaseClose := range typeSwitch.Cases {
+		if typeSwitchCaseClose.Variable != nil {
+			setVariable(typeSwitch.AssignIdent.Obj, typeSwitchCaseClose.Variable)
+		}
+		fmt.Printf("%s:\n", labels[i])
+
+		for _, _s := range typeSwitchCaseClose.Orig.Body {
+			if typeSwitchCaseClose.Variable != nil {
+				// do assignment
+				expr := typeSwitch.AssignIdent
+				emitAddr(expr)
+				emitVariableAddr(typeSwitch.SubjectVariable)
+				emitLoadAndPush(tEface)
+				fmt.Printf("  popq %%rax # ifc.dtype\n")
+				fmt.Printf("  popq %%rcx # ifc.data\n")
+				fmt.Printf("  push %%rcx # ifc.data\n")
+				emitLoadAndPush(typeSwitchCaseClose.VariableType)
+
+				emitStore(typeSwitchCaseClose.VariableType, true, false)
+			}
+
+			emitStmt(_s)
+		}
+		fmt.Printf("  jmp %s\n", labelEnd)
+	}
+	fmt.Printf("%s:\n", labelEnd)
+}
+func emitBranchStmt(s *ast.BranchStmt) {
+	var containerFor = s.CurrentFor
+	var labelToGo string
+	switch s.Tok {
+	case "continue":
+		switch s := containerFor.(type) {
+		case *ast.ForStmt:
+			labelToGo = s.LabelPost
+		case *ast.RangeStmt:
+			labelToGo = s.LabelPost
+		default:
+			panic2(__func__, "unexpected container dtype="+dtypeOf(containerFor))
+		}
+		fmt.Printf("jmp %s # continue\n", labelToGo)
+	case "break":
+		switch s := containerFor.(type) {
+		case *ast.ForStmt:
+			labelToGo = s.LabelExit
+		case *ast.RangeStmt:
+			labelToGo = s.LabelExit
+		default:
+			panic2(__func__, "unexpected container dtype="+dtypeOf(containerFor))
+		}
+		fmt.Printf("jmp %s # break\n", labelToGo)
+	default:
+		panic2(__func__, "unexpected tok="+s.Tok)
+	}
+}
 
 func emitStmt(stmt ast.Stmt) {
 	emitComment(2, "== Statement %s ==\n", dtypeOf(stmt))
 	switch s := stmt.(type) {
-	case *ast.BlockStmt:
-		for _, s := range s.List {
-			emitStmt(s)
-		}
-	case *ast.ExprStmt:
-		emitExpr(s.X, nil)
-	case *ast.DeclStmt:
-		genDecl := s.Decl.(*ast.GenDecl)
-		declSpec := genDecl.Spec
-		switch spec := declSpec.(type) {
-		case *ast.ValueSpec:
-			valSpec := spec
-			t := e2t(valSpec.Type)
-			lhs := valSpec.Name
-			if valSpec.Value == nil {
-				emitComment(2, "lhs addresss\n")
-				emitAddr(lhs)
-				emitComment(2, "emitZeroValue for %s\n", dtypeOf(t.E))
-				emitZeroValue(t)
-				emitComment(2, "Assignment: zero value\n")
-				emitStore(t, true, false)
-			} else {
-				rhs := valSpec.Value
-				emitAssign(lhs, rhs)
-			}
-		default:
-			panic(declSpec)
-		}
-	case *ast.AssignStmt:
-		switch s.Tok {
-		case "=", ":=":
-			rhs0 := s.Rhs[0]
-			_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
-			if len(s.Lhs) == 2 && isTypeAssertion {
-				emitAssignWithOK(s.Lhs, rhs0)
-			} else {
-				if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
-					// 1 to 1 assignment
-					// x = e
-					lhs0 := s.Lhs[0]
-					var ident *ast.Ident
-					var isIdent bool
-					ident, isIdent = lhs0.(*ast.Ident)
-					if isIdent && ident.Name == "_" {
-						panic(" _ is not supported yet")
-					}
-					emitAssign(lhs0, rhs0)
-				} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
-					// multi-values expr
-					// a, b, c = f()
-					emitExpr(rhs0, nil) // @TODO interface conversion
-					var _callExpr *ast.CallExpr
-					var ok bool
-					_callExpr, ok = rhs0.(*ast.CallExpr)
-					assert(ok, "should be a CallExpr", __func__)
-					returnTypes := getCallResultTypes(_callExpr)
-					fmt.Printf("# len lhs=%d\n", len(s.Lhs))
-					fmt.Printf("# returnTypes=%d\n", len(returnTypes))
-					assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
-					length := len(returnTypes)
-					for i := 0; i < length; i++ {
-						lhs := s.Lhs[i]
-						rhsType := returnTypes[i]
-						if isBlankIdentifier(lhs) {
-							emitPop(kind(rhsType))
-						} else {
-							switch kind(rhsType) {
-							case T_UINT8:
-								// repush stack top
-								fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
-								fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
-								fmt.Printf("  pushq %%rax\n")
-							}
-							emitAddr(lhs)
-							emitStore(getTypeOfExpr(lhs), false, false)
-						}
-					}
-
-				}
-			}
-		default:
-			panic("TBI: assignment of " + s.Tok)
-		}
-	case *ast.ReturnStmt:
-		emitReturnStmt(s)
-	case *ast.IfStmt:
-		emitComment(2, "if\n")
-
-		labelid++
-		var labelEndif = ".L.endif." + strconv.Itoa(labelid)
-		var labelElse = ".L.else." + strconv.Itoa(labelid)
-
-		emitExpr(s.Cond, nil)
-		emitPopBool("if condition")
-		fmt.Printf("  cmpq $1, %%rax\n")
-		bodyStmt := newStmt(s.Body)
-		if s.Else != nil {
-			fmt.Printf("  jne %s # jmp if false\n", labelElse)
-			emitStmt(bodyStmt) // then
-			fmt.Printf("  jmp %s\n", labelEndif)
-			fmt.Printf("  %s:\n", labelElse)
-			emitStmt(s.Else) // then
-		} else {
-			fmt.Printf("  jne %s # jmp if false\n", labelEndif)
-			emitStmt(bodyStmt) // then
-		}
-		fmt.Printf("  %s:\n", labelEndif)
-		emitComment(2, "end if\n")
-	case *ast.ForStmt:
-		labelid++
-		var labelCond = ".L.for.cond." + strconv.Itoa(labelid)
-		var labelPost = ".L.for.post." + strconv.Itoa(labelid)
-		var labelExit = ".L.for.exit." + strconv.Itoa(labelid)
-		//forStmt, ok := mapForNodeToFor[s]
-		//assert(ok, "map value should exist")
-		s.LabelPost = labelPost
-		s.LabelExit = labelExit
-
-		if s.Init != nil {
-			emitStmt(s.Init)
-		}
-
-		fmt.Printf("  %s:\n", labelCond)
-		if s.Cond != nil {
-			emitExpr(s.Cond, nil)
-			emitPopBool("for condition")
-			fmt.Printf("  cmpq $1, %%rax\n")
-			fmt.Printf("  jne %s # jmp if false\n", labelExit)
-		}
-		emitStmt(s.Body)
-		fmt.Printf("  %s:\n", labelPost) // used for "continue"
-		if s.Post != nil {
-			emitStmt(s.Post)
-		}
-		fmt.Printf("  jmp %s\n", labelCond)
-		fmt.Printf("  %s:\n", labelExit)
-	case *ast.RangeStmt: // only for array and slice
-		labelid++
-		var labelCond = ".L.range.cond." + strconv.Itoa(labelid)
-		var labelPost = ".L.range.post." + strconv.Itoa(labelid)
-		var labelExit = ".L.range.exit." + strconv.Itoa(labelid)
-
-		s.LabelPost = labelPost
-		s.LabelExit = labelExit
-		// initialization: store len(rangeexpr)
-		emitComment(2, "ForRange Initialization\n")
-
-		emitComment(2, "  assign length to lenvar\n")
-		// lenvar = len(s.X)
-		emitVariableAddr(s.Lenvar)
-		emitLen(s.X)
-		emitStore(tInt, true, false)
-
-		emitComment(2, "  assign 0 to indexvar\n")
-		// indexvar = 0
-		emitVariableAddr(s.Indexvar)
-		emitZeroValue(tInt)
-		emitStore(tInt, true, false)
-
-		// init key variable with 0
-		if s.Key != nil {
-			keyIdent := expr2Ident(s.Key)
-			if keyIdent.Name != "_" {
-				emitAddr(s.Key) // lhs
-				emitZeroValue(tInt)
-				emitStore(tInt, true, false)
-			}
-		}
-
-		// Condition
-		// if (indexvar < lenvar) then
-		//   execute body
-		// else
-		//   exit
-		emitComment(2, "ForRange Condition\n")
-		fmt.Printf("  %s:\n", labelCond)
-
-		emitVariableAddr(s.Indexvar)
-		emitLoadAndPush(tInt)
-		emitVariableAddr(s.Lenvar)
-		emitLoadAndPush(tInt)
-		emitCompExpr("setl")
-		emitPopBool(" indexvar < lenvar")
-		fmt.Printf("  cmpq $1, %%rax\n")
-		fmt.Printf("  jne %s # jmp if false\n", labelExit)
-
-		emitComment(2, "assign list[indexvar] value variables\n")
-		var elemType = getTypeOfExpr(s.Value)
-		emitAddr(s.Value) // lhs
-
-		emitVariableAddr(s.Indexvar)
-		emitLoadAndPush(tInt) // index value
-		emitListElementAddr(s.X, elemType)
-
-		emitLoadAndPush(elemType)
-		emitStore(elemType, true, false)
-
-		// Body
-		emitComment(2, "ForRange Body\n")
-		emitStmt(s.Body)
-
-		// Post statement: Increment indexvar and go next
-		emitComment(2, "ForRange Post statement\n")
-		fmt.Printf("  %s:\n", labelPost) // used for "continue"
-		emitVariableAddr(s.Indexvar)     // lhs
-		emitVariableAddr(s.Indexvar)     // rhs
-		emitLoadAndPush(tInt)
-		emitAddConst(1, "indexvar value ++")
-		emitStore(tInt, true, false)
-
-		if s.Key != nil {
-			keyIdent := expr2Ident(s.Key)
-			if keyIdent.Name != "_" {
-				emitAddr(s.Key)              // lhs
-				emitVariableAddr(s.Indexvar) // rhs
-				emitLoadAndPush(tInt)
-				emitStore(tInt, true, false)
-			}
-		}
-
-		fmt.Printf("  jmp %s\n", labelCond)
-
-		fmt.Printf("  %s:\n", labelExit)
-
-	case *ast.IncDecStmt:
-		var addValue int
-		switch s.Tok {
-		case "++":
-			addValue = 1
-		case "--":
-			addValue = -1
-		default:
-			panic2(__func__, "Unexpected Tok="+s.Tok)
-		}
-		emitAddr(s.X)
-		emitExpr(s.X, nil)
-		emitAddConst(addValue, "rhs ++ or --")
-		emitStore(getTypeOfExpr(s.X), true, false)
-	case *ast.SwitchStmt:
-		labelid++
-		var labelEnd = fmt.Sprintf(".L.switch.%d.exit", labelid)
-		if s.Tag == nil {
-			panic2(__func__, "Omitted tag is not supported yet")
-		}
-		emitExpr(s.Tag, nil)
-		var condType = getTypeOfExpr(s.Tag)
-		var cases = s.Body.List
-		emitComment(2, "[DEBUG] cases len=%d\n", len(cases))
-		var labels = make([]string, len(cases), len(cases))
-		var defaultLabel string
-		emitComment(2, "Start comparison with cases\n")
-		for i, c := range cases {
-			emitComment(2, "CASES idx=%d\n", i)
-			assert(isStmtCaseClause(c), "should be *ast.CaseClause", __func__)
-			cc := stmt2CaseClause(c)
-			labelid++
-			var labelCase = ".L.case." + strconv.Itoa(labelid)
-			labels[i] = labelCase
-			if len(cc.List) == 0 { // @TODO implement slice nil comparison
-				defaultLabel = labelCase
-				continue
-			}
-			for _, e := range cc.List {
-				assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string", __func__)
-				switch kind(condType) {
-				case T_STRING:
-					ff := lookupForeignFunc(newQI("runtime", "cmpstrings"))
-					emitAllocReturnVarsAreaFF(ff)
-					emitPushStackTop(condType, SizeOfInt, "switch expr")
-					emitExpr(e, nil)
-
-					emitCallFF(ff)
-				case T_INTERFACE:
-					ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
-					emitAllocReturnVarsAreaFF(ff)
-					emitPushStackTop(condType, SizeOfInt, "switch expr")
-					emitExpr(e, nil)
-					emitCallFF(ff)
-				case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
-					emitPushStackTop(condType, 0, "switch expr")
-					emitExpr(e, nil)
-					emitCompExpr("sete")
-				default:
-					unexpectedKind(kind(condType))
-				}
-
-				emitPopBool(" of switch-case comparison")
-				fmt.Printf("  cmpq $1, %%rax\n")
-				fmt.Printf("  je %s # jump if match\n", labelCase)
-			}
-		}
-		emitComment(2, "End comparison with cases\n")
-
-		// if no case matches, then jump to
-		if defaultLabel != "" {
-			// default
-			fmt.Printf("  jmp %s\n", defaultLabel)
-		} else {
-			// exit
-			fmt.Printf("  jmp %s\n", labelEnd)
-		}
-
-		emitRevertStackTop(condType)
-		for i, c := range cases {
-			cc := stmt2CaseClause(c)
-			fmt.Printf("%s:\n", labels[i])
-			for _, _s := range cc.Body {
-				emitStmt(_s)
-			}
-			fmt.Printf("  jmp %s\n", labelEnd)
-		}
-		fmt.Printf("%s:\n", labelEnd)
-	case *ast.TypeSwitchStmt:
-		typeSwitch := s.Node
-		//		assert(ok, "should exist")
-		labelid++
-		labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
-
-		// subjectVariable = subject
-		emitVariableAddr(typeSwitch.SubjectVariable)
-		emitExpr(typeSwitch.Subject, nil)
-		emitStore(tEface, true, false)
-
-		cases := s.Body.List
-		var labels = make([]string, len(cases), len(cases))
-		var defaultLabel string
-		emitComment(2, "Start comparison with cases\n")
-		for i, c := range cases {
-			cc := stmt2CaseClause(c)
-			//assert(ok, "should be *ast.CaseClause")
-			labelid++
-			labelCase := ".L.case." + strconv.Itoa(labelid)
-			labels[i] = labelCase
-			if len(cc.List) == 0 { // @TODO implement slice nil comparison
-				defaultLabel = labelCase
-				continue
-			}
-			for _, e := range cc.List {
-				emitVariableAddr(typeSwitch.SubjectVariable)
-				emitPopAddress("type switch subject")
-				fmt.Printf("  movq (%%rax), %%rax # dtype\n")
-				fmt.Printf("  pushq %%rax # dtype\n")
-
-				emitDtypeSymbol(e2t(e))
-				emitCompExpr("sete") // this pushes 1 or 0 in the end
-				emitPopBool(" of switch-case comparison")
-
-				fmt.Printf("  cmpq $1, %%rax\n")
-				fmt.Printf("  je %s # jump if match\n", labelCase)
-			}
-		}
-		emitComment(2, "End comparison with cases\n")
-
-		// if no case matches, then jump to
-		if defaultLabel != "" {
-			// default
-			fmt.Printf("  jmp %s\n", defaultLabel)
-		} else {
-			// exit
-			fmt.Printf("  jmp %s\n", labelEnd)
-		}
-
-		for i, typeSwitchCaseClose := range typeSwitch.Cases {
-			if typeSwitchCaseClose.Variable != nil {
-				setVariable(typeSwitch.AssignIdent.Obj, typeSwitchCaseClose.Variable)
-			}
-			fmt.Printf("%s:\n", labels[i])
-
-			for _, _s := range typeSwitchCaseClose.Orig.Body {
-				if typeSwitchCaseClose.Variable != nil {
-					// do assignment
-					expr := typeSwitch.AssignIdent
-					emitAddr(expr)
-					emitVariableAddr(typeSwitch.SubjectVariable)
-					emitLoadAndPush(tEface)
-					fmt.Printf("  popq %%rax # ifc.dtype\n")
-					fmt.Printf("  popq %%rcx # ifc.data\n")
-					fmt.Printf("  push %%rcx # ifc.data\n")
-					emitLoadAndPush(typeSwitchCaseClose.VariableType)
-
-					emitStore(typeSwitchCaseClose.VariableType, true, false)
-				}
-
-				emitStmt(_s)
-			}
-			fmt.Printf("  jmp %s\n", labelEnd)
-		}
-		fmt.Printf("%s:\n", labelEnd)
-
-	case *ast.BranchStmt:
-		var containerFor = s.CurrentFor
-		var labelToGo string
-		switch s.Tok {
-		case "continue":
-			switch s := containerFor.(type) {
-			case *ast.ForStmt:
-				labelToGo = s.LabelPost
-			case *ast.RangeStmt:
-				labelToGo = s.LabelPost
-			default:
-				panic2(__func__, "unexpected container dtype="+dtypeOf(containerFor))
-			}
-			fmt.Printf("jmp %s # continue\n", labelToGo)
-		case "break":
-			switch s := containerFor.(type) {
-			case *ast.ForStmt:
-				labelToGo = s.LabelExit
-			case *ast.RangeStmt:
-				labelToGo = s.LabelExit
-			default:
-				panic2(__func__, "unexpected container dtype="+dtypeOf(containerFor))
-			}
-			fmt.Printf("jmp %s # break\n", labelToGo)
-		default:
-			panic2(__func__, "unexpected tok="+s.Tok)
-		}
+	case *ast.BlockStmt: emitBlockStmt(s)
+	case *ast.ExprStmt: emitExprStmt(s)
+	case *ast.DeclStmt: emitDeclStmt(s)
+	case *ast.AssignStmt: emitAssignStmt(s)
+	case *ast.ReturnStmt: emitReturnStmt(s)
+	case *ast.IfStmt: emitIfStmt(s)
+	case *ast.ForStmt: emitForStmt(s)
+	case *ast.RangeStmt: emitRangeStmt(s) // only for array and slice
+	case *ast.IncDecStmt: emitIncDecStmt(s)
+	case *ast.SwitchStmt: emitSwitchStmt(s)
+	case *ast.TypeSwitchStmt: emitTypeSwitchStmt(s)
+	case *ast.BranchStmt: emitBranchStmt(s)
 	default:
 		panic2(__func__, "TBI:"+dtypeOf(stmt))
 	}
