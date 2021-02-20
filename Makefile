@@ -89,7 +89,7 @@ selfhost: $(tmp)/babygo $(tmp)/babygo2 $(tmp)/babygo-main.s
 
 .PHONY: fmt
 fmt:
-	gofmt -w t/*.go pre/*.go src/*/*.go lib/*/*.go
+	gofmt -w *.go t/*.go pre/*.go src/*/*.go lib/*/*.go
 
 .PHONY: clean
 clean:
