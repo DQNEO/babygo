@@ -2389,6 +2389,8 @@ var tEface *Type = &Type{
 
 var generalSlice ast.Expr = &ast.Ident{}
 
+
+// types of an expr in single value context
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
