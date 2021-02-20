@@ -1297,18 +1297,30 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) { // 1 or 2 val
 func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
-	case *ast.Ident: return emitIdent(e, ctx) // 1 value
-	case *ast.IndexExpr: emitIndexExpr(e, ctx) // 1 or 2 values
-	case *ast.StarExpr: emitStarExpr(e, ctx) // 1 value
-	case *ast.SelectorExpr: emitSelectorExpr(e, ctx) // 1 value X.Sel
-	case *ast.CallExpr: emitCallExpr(e, ctx) // multi values Fun(Args)
-	case *ast.ParenExpr: emitParenExpr(e, ctx) // multi values (e)
-	case *ast.BasicLit: emitBasicLit(e, ctx) // 1 value
-	case *ast.UnaryExpr: emitUnaryExpr(e, ctx) // 1 value
-	case *ast.BinaryExpr: emitBinaryExpr(e, ctx) // 1 value
-	case *ast.CompositeLit: emitCompositeLit(e, ctx) // 1 value
-	case *ast.SliceExpr: emitSliceExpr(e, ctx) // 1 value list[low:high]
-	case *ast.TypeAssertExpr: emitTypeAssertExpr(e, ctx) // 1 or 2 values
+	case *ast.Ident:
+		return emitIdent(e, ctx) // 1 value
+	case *ast.IndexExpr:
+		emitIndexExpr(e, ctx) // 1 or 2 values
+	case *ast.StarExpr:
+		emitStarExpr(e, ctx) // 1 value
+	case *ast.SelectorExpr:
+		emitSelectorExpr(e, ctx) // 1 value X.Sel
+	case *ast.CallExpr:
+		emitCallExpr(e, ctx) // multi values Fun(Args)
+	case *ast.ParenExpr:
+		emitParenExpr(e, ctx) // multi values (e)
+	case *ast.BasicLit:
+		emitBasicLit(e, ctx) // 1 value
+	case *ast.UnaryExpr:
+		emitUnaryExpr(e, ctx) // 1 value
+	case *ast.BinaryExpr:
+		emitBinaryExpr(e, ctx) // 1 value
+	case *ast.CompositeLit:
+		emitCompositeLit(e, ctx) // 1 value
+	case *ast.SliceExpr:
+		emitSliceExpr(e, ctx) // 1 value list[low:high]
+	case *ast.TypeAssertExpr:
+		emitTypeAssertExpr(e, ctx) // 1 or 2 values
 	default:
 		throw(expr)
 	}
@@ -1730,7 +1742,7 @@ func emitForStmt(s *ast.ForStmt) {
 	fmt.Printf("  jmp %s\n", labelCond)
 	fmt.Printf("  %s:\n", labelExit)
 }
-func emitRangeStmt(s *ast.RangeStmt) {  // only for array and slice
+func emitRangeStmt(s *ast.RangeStmt) { // only for array and slice
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -2019,18 +2031,30 @@ func emitBranchStmt(s *ast.BranchStmt) {
 func emitStmt(stmt ast.Stmt) {
 	emitComment(2, "== Statement %T ==\n", stmt)
 	switch s := stmt.(type) {
-	case *ast.BlockStmt: emitBlockStmt(s)
-	case *ast.ExprStmt: emitExprStmt(s)
-	case *ast.DeclStmt: emitDeclStmt(s)
-	case *ast.AssignStmt: emitAssignStmt(s)
-	case *ast.ReturnStmt: emitReturnStmt(s)
-	case *ast.IfStmt: emitIfStmt(s)
-	case *ast.ForStmt: emitForStmt(s)
-	case *ast.RangeStmt: emitRangeStmt(s) // only for array and slice
-	case *ast.IncDecStmt: emitIncDecStmt(s)
-	case *ast.SwitchStmt: emitSwitchStmt(s)
-	case *ast.TypeSwitchStmt: emitTypeSwitchStmt(s)
-	case *ast.BranchStmt: emitBranchStmt(s)
+	case *ast.BlockStmt:
+		emitBlockStmt(s)
+	case *ast.ExprStmt:
+		emitExprStmt(s)
+	case *ast.DeclStmt:
+		emitDeclStmt(s)
+	case *ast.AssignStmt:
+		emitAssignStmt(s)
+	case *ast.ReturnStmt:
+		emitReturnStmt(s)
+	case *ast.IfStmt:
+		emitIfStmt(s)
+	case *ast.ForStmt:
+		emitForStmt(s)
+	case *ast.RangeStmt:
+		emitRangeStmt(s) // only for array and slice
+	case *ast.IncDecStmt:
+		emitIncDecStmt(s)
+	case *ast.SwitchStmt:
+		emitSwitchStmt(s)
+	case *ast.TypeSwitchStmt:
+		emitTypeSwitchStmt(s)
+	case *ast.BranchStmt:
+		emitBranchStmt(s)
 	default:
 		throw(stmt)
 	}
@@ -2388,7 +2412,6 @@ var tEface *Type = &Type{
 }
 
 var generalSlice ast.Expr = &ast.Ident{}
-
 
 // types of an expr in single value context
 func getTypeOfExpr(expr ast.Expr) *Type {
@@ -3136,7 +3159,6 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	return method
 }
 
-
 func walkExprStmt(s *ast.ExprStmt) {
 	expr := s.X
 	walkExpr(expr)
@@ -3354,19 +3376,32 @@ func walkBranchStmt(s *ast.BranchStmt) {
 
 func walkStmt(stmt ast.Stmt) {
 	switch s := stmt.(type) {
-	case *ast.ExprStmt: walkExprStmt(s)
-	case *ast.DeclStmt: walkDeclStmt(s)
-	case *ast.AssignStmt: walkAssignStmt(s)
-	case *ast.ReturnStmt: walkReturnStmt(s)
-	case *ast.IfStmt: walkIfStmt(s)
-	case *ast.BlockStmt: walkBlockStmt(s)
-	case *ast.ForStmt: walkForStmt(s)
-	case *ast.RangeStmt: walkRangeStmt(s)
-	case *ast.IncDecStmt: walkIncDecStmt(s)
-	case *ast.SwitchStmt: walkSwitchStmt(s)
-	case *ast.TypeSwitchStmt: walkTypeSwitchStmt(s)
-	case *ast.CaseClause: walkCaseClause(s)
-	case *ast.BranchStmt: walkBranchStmt(s)
+	case *ast.ExprStmt:
+		walkExprStmt(s)
+	case *ast.DeclStmt:
+		walkDeclStmt(s)
+	case *ast.AssignStmt:
+		walkAssignStmt(s)
+	case *ast.ReturnStmt:
+		walkReturnStmt(s)
+	case *ast.IfStmt:
+		walkIfStmt(s)
+	case *ast.BlockStmt:
+		walkBlockStmt(s)
+	case *ast.ForStmt:
+		walkForStmt(s)
+	case *ast.RangeStmt:
+		walkRangeStmt(s)
+	case *ast.IncDecStmt:
+		walkIncDecStmt(s)
+	case *ast.SwitchStmt:
+		walkSwitchStmt(s)
+	case *ast.TypeSwitchStmt:
+		walkTypeSwitchStmt(s)
+	case *ast.CaseClause:
+		walkCaseClause(s)
+	case *ast.BranchStmt:
+		walkBranchStmt(s)
 	default:
 		throw(stmt)
 	}
@@ -3458,21 +3493,36 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr) {
 
 func walkExpr(expr ast.Expr) {
 	switch e := expr.(type) {
-	case *ast.Ident: walkIdent(e)
-	case *ast.SelectorExpr: walkSelectorExpr(e)
-	case *ast.CallExpr: walkCallExpr(e)
-	case *ast.ParenExpr: walkParenExpr(e)
-	case *ast.BasicLit: walkBasicLit(e)
-	case *ast.CompositeLit: walkCompositeLit(e)
-	case *ast.UnaryExpr: walkUnaryExpr(e)
-	case *ast.BinaryExpr: walkBinaryExpr(e)
-	case *ast.IndexExpr: walkIndexExpr(e)
-	case *ast.SliceExpr: walkSliceExpr(e)
-	case *ast.ArrayType: walkArrayType(e)
-	case *ast.StarExpr: walkStarExpr(e)
-	case *ast.KeyValueExpr: walkKeyValueExpr(e)
-	case *ast.InterfaceType: walkInterfaceType(e)
-	case *ast.TypeAssertExpr: walkTypeAssertExpr(e)
+	case *ast.Ident:
+		walkIdent(e)
+	case *ast.SelectorExpr:
+		walkSelectorExpr(e)
+	case *ast.CallExpr:
+		walkCallExpr(e)
+	case *ast.ParenExpr:
+		walkParenExpr(e)
+	case *ast.BasicLit:
+		walkBasicLit(e)
+	case *ast.CompositeLit:
+		walkCompositeLit(e)
+	case *ast.UnaryExpr:
+		walkUnaryExpr(e)
+	case *ast.BinaryExpr:
+		walkBinaryExpr(e)
+	case *ast.IndexExpr:
+		walkIndexExpr(e)
+	case *ast.SliceExpr:
+		walkSliceExpr(e)
+	case *ast.ArrayType:
+		walkArrayType(e)
+	case *ast.StarExpr:
+		walkStarExpr(e)
+	case *ast.KeyValueExpr:
+		walkKeyValueExpr(e)
+	case *ast.InterfaceType:
+		walkInterfaceType(e)
+	case *ast.TypeAssertExpr:
+		walkTypeAssertExpr(e)
 	default:
 		throw(expr)
 	}
