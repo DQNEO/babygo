@@ -1219,7 +1219,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 		emitExpr(low, nil) // index number
 		elmType := getElementTypeOfListType(listType)
 		emitListElementAddr(list, elmType)
-	case *ast.TypeAssertExpr:
+	case *ast.TypeAssertExpr: // 1 or 2 values
 		emitExpr(e.X, nil)
 		fmt.Printf("  popq  %%rax # ifc.dtype\n")
 		fmt.Printf("  popq  %%rcx # ifc.data\n")
