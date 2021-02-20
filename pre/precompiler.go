@@ -3450,7 +3450,7 @@ func walkKeyValueExpr(e *ast.KeyValueExpr) {
 	walkExpr(e.Value)
 }
 func walkInterfaceType(e *ast.InterfaceType) {
-	// interface{}(e)  conversion. Nothing to do.
+	// (interface{})(e)  conversion. Nothing to do.
 }
 func walkTypeAssertExpr(e *ast.TypeAssertExpr) {
 	walkExpr(e.X)

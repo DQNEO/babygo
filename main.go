@@ -3020,206 +3020,232 @@ func lookupMethod(rcvT *ast.Type, methodName *ast.Ident) *ast.Method {
 	return nil
 }
 
+func walkDeclStmt(s *ast.DeclStmt) {
+	logf(" [%s] *ast.DeclStmt\n", __func__)
+	var declStmt = s
+	if declStmt.Decl == nil {
+	panic2(__func__, "ERROR\n")
+	}
+	var dcl = declStmt.Decl
+	var genDecl *ast.GenDecl
+	var ok bool
+	genDecl, ok = dcl.(*ast.GenDecl)
+	if !ok {
+	panic2(__func__, "[dcl.dtype] internal error")
+	}
+	var valSpec *ast.ValueSpec
+	valSpec, ok = genDecl.Spec.(*ast.ValueSpec)
+	if valSpec.Type == nil {
+	if valSpec.Value == nil {
+	panic2(__func__, "type inference requires a value")
+	}
+	var _typ = getTypeOfExpr(valSpec.Value)
+	if _typ != nil && _typ.E != nil {
+	valSpec.Type = _typ.E
+	} else {
+	panic2(__func__, "type inference failed")
+	}
+	}
+	var typ = valSpec.Type // Type can be nil
+	logf(" [walkStmt] valSpec Name=%s, Type=%s\n",
+	valSpec.Name.Name, dtypeOf(typ))
+
+	t := e2t(typ)
+	setVariable(valSpec.Name.Obj, registerLocalVariable(currentFunc, valSpec.Name.Name, t))
+	logf(" var %s offset = %d\n", valSpec.Name.Obj.Name,
+	valSpec.Name.Obj.Variable.LocalOffset)
+	if valSpec.Value != nil {
+	walkExpr(valSpec.Value)
+	}
+}
+func walkAssignStmt(s *ast.AssignStmt) {
+	if s.Tok == ":=" {
+		// short var decl
+		rhs0 := s.Rhs[0]
+		walkExpr(rhs0)
+		// infer type
+		var typ0 *ast.Type
+		switch rhs := rhs0.(type) {
+		case *ast.CallExpr:
+			types := getCallResultTypes(rhs)
+			typ0 = types[0]
+		case *ast.TypeAssertExpr:
+			typ0 = getTypeOfExpr(rhs0)
+			if len(s.Lhs) == 2 { // lhs0, lhs1 := x.(T)
+				// declare lhs1 as an ok variable
+				okObj := s.Lhs[1].(*ast.Ident).Obj
+				//throw(okObj)
+				setVariable(okObj, registerLocalVariable(currentFunc, okObj.Name, tBool))
+			}
+		default:
+			typ0 = getTypeOfExpr(rhs0)
+		}
+
+		if typ0 != nil && typ0.E != nil {
+		} else {
+			panic("type inference is not supported")
+		}
+		obj0 := s.Lhs[0].(*ast.Ident).Obj
+		setVariable(obj0 , registerLocalVariable(currentFunc, obj0.Name, typ0))
+	} else {
+		walkExpr(s.Rhs[0])
+	}
+}
+func walkExprStmt(s *ast.ExprStmt) {
+	walkExpr(s.X)
+}
+func walkReturnStmt(s *ast.ReturnStmt) {
+	s.Node = &ast.NodeReturnStmt{
+		Fnc: currentFunc,
+	}
+	for _, rt := range s.Results {
+		walkExpr(rt)
+	}
+}
+func walkIfStmt(s *ast.IfStmt) {
+	if s.Init != nil {
+		walkStmt(s.Init)
+	}
+	walkExpr(s.Cond)
+	for _, s := range s.Body.List {
+		walkStmt(s)
+	}
+	if s.Else != nil {
+		walkStmt(s.Else)
+	}
+}
+func walkForStmt(s *ast.ForStmt) {
+	s.Outer = currentFor
+	currentFor = s
+	if s.Init != nil {
+		walkStmt(s.Init)
+	}
+	if s.Cond != nil {
+		walkExpr(s.Cond)
+	}
+	if s.Post != nil {
+		walkStmt(s.Post)
+	}
+	walkStmt(newStmt(s.Body))
+	currentFor = s.Outer
+}
+func walkRangeStmt(s *ast.RangeStmt) {
+	walkExpr(s.X)
+	s.Outer = currentFor
+	currentFor = s
+	var _s = s.Body
+	walkStmt(_s)
+	var lenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
+	var indexvar = registerLocalVariable(currentFunc,".range.index", tInt)
+
+	if s.Tok == ":=" {
+		listType := getTypeOfExpr(s.X)
+
+		keyIdent := expr2Ident(s.Key)
+		//@TODO map key can be any type
+		//keyType := getKeyTypeOfListType(listType)
+		var keyType *ast.Type = tInt
+		setVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, keyType))
+
+		// determine type of Value
+		elmType := getElementTypeOfListType(listType)
+		valueIdent := expr2Ident(s.Value)
+		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
+	}
+	s.Lenvar = lenvar
+	s.Indexvar = indexvar
+	currentFor = s.Outer
+}
+func walkIncDecStmt(s *ast.IncDecStmt) {
+	walkExpr(s.X)
+}
+func walkBlockStmt(s *ast.BlockStmt) {
+	for _, _s := range s.List {
+		walkStmt(_s)
+	}
+}
+func walkBranchStmt(s *ast.BranchStmt) {
+	s.CurrentFor = currentFor
+}
+func walkSwitchStmt(s *ast.SwitchStmt) {
+	if s.Tag != nil {
+		walkExpr(s.Tag)
+	}
+	walkStmt(s.Body)
+}
+func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
+	typeSwitch := &ast.NodeTypeSwitchStmt{}
+	s.Node = typeSwitch
+	var assignIdent *ast.Ident
+	switch s2 := s.Assign.(type) {
+	case *ast.ExprStmt:
+		typeAssertExpr := expr2TypeAssertExpr(s2.X)
+		//assert(ok, "should be *ast.TypeAssertExpr")
+		typeSwitch.Subject = typeAssertExpr.X
+		walkExpr(typeAssertExpr.X)
+	case *ast.AssignStmt:
+		lhs := s2.Lhs[0]
+		//var ok bool
+		assignIdent = expr2Ident(lhs)
+		//assert(ok, "lhs should be ident")
+		typeSwitch.AssignIdent = assignIdent
+		// ident will be a new local variable in each case clause
+		typeAssertExpr := expr2TypeAssertExpr(s2.Rhs[0])
+		//assert(ok, "should be *ast.TypeAssertExpr")
+		typeSwitch.Subject = typeAssertExpr.X
+		walkExpr(typeAssertExpr.X)
+	default:
+		throw(dtypeOf(s.Assign))
+	}
+
+	typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", tEface)
+	for _, _case := range s.Body.List {
+		cc := stmt2CaseClause(_case)
+		tscc := &ast.TypeSwitchCaseClose{
+			Orig: cc,
+		}
+		typeSwitch.Cases = append(typeSwitch.Cases, tscc)
+		if assignIdent != nil && len(cc.List) > 0 {
+			// inject a variable of that type
+			varType := e2t(cc.List[0])
+			vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
+			tscc.Variable = vr
+			tscc.VariableType = varType
+			setVariable(assignIdent.Obj, vr)
+		}
+
+		for _, s_ := range cc.Body {
+			walkStmt(s_)
+		}
+		if assignIdent != nil {
+			assignIdent.Obj.Variable = nil
+		}
+	}
+}
+func walkCaseClause(s *ast.CaseClause) {
+	for _, e_ := range s.List {
+		walkExpr(e_)
+	}
+	for _, s_ := range s.Body {
+		walkStmt(s_)
+	}
+}
 func walkStmt(stmt ast.Stmt) {
 	logf(" [%s] begin dtype=%s\n", __func__, dtypeOf(stmt))
 	switch s := stmt.(type) {
-	case *ast.DeclStmt:
-		logf(" [%s] *ast.DeclStmt\n", __func__)
-		var declStmt = s
-		if declStmt.Decl == nil {
-			panic2(__func__, "ERROR\n")
-		}
-		var dcl = declStmt.Decl
-		var genDecl *ast.GenDecl
-		var ok bool
-		genDecl, ok = dcl.(*ast.GenDecl)
-		if !ok {
-			panic2(__func__, "[dcl.dtype] internal error")
-		}
-		var valSpec *ast.ValueSpec
-		valSpec, ok = genDecl.Spec.(*ast.ValueSpec)
-		if valSpec.Type == nil {
-			if valSpec.Value == nil {
-				panic2(__func__, "type inference requires a value")
-			}
-			var _typ = getTypeOfExpr(valSpec.Value)
-			if _typ != nil && _typ.E != nil {
-				valSpec.Type = _typ.E
-			} else {
-				panic2(__func__, "type inference failed")
-			}
-		}
-		var typ = valSpec.Type // Type can be nil
-		logf(" [walkStmt] valSpec Name=%s, Type=%s\n",
-			valSpec.Name.Name, dtypeOf(typ))
-
-		t := e2t(typ)
-		setVariable(valSpec.Name.Obj, registerLocalVariable(currentFunc, valSpec.Name.Name, t))
-		logf(" var %s offset = %d\n", valSpec.Name.Obj.Name,
-			valSpec.Name.Obj.Variable.LocalOffset)
-		if valSpec.Value != nil {
-			walkExpr(valSpec.Value)
-		}
-	case *ast.AssignStmt:
-		if s.Tok == ":=" {
-			// short var decl
-			rhs0 := s.Rhs[0]
-			walkExpr(rhs0)
-			// infer type
-			var typ0 *ast.Type
-			switch rhs := rhs0.(type) {
-			case *ast.CallExpr:
-				types := getCallResultTypes(rhs)
-				typ0 = types[0]
-			case *ast.TypeAssertExpr:
-				typ0 = getTypeOfExpr(rhs0)
-				if len(s.Lhs) == 2 { // lhs0, lhs1 := x.(T)
-					// declare lhs1 as an ok variable
-					okObj := s.Lhs[1].(*ast.Ident).Obj
-					//throw(okObj)
-					setVariable(okObj, registerLocalVariable(currentFunc, okObj.Name, tBool))
-				}
-			default:
-				typ0 = getTypeOfExpr(rhs0)
-			}
-
-			if typ0 != nil && typ0.E != nil {
-			} else {
-				panic("type inference is not supported")
-			}
-			obj0 := s.Lhs[0].(*ast.Ident).Obj
-			setVariable(obj0 , registerLocalVariable(currentFunc, obj0.Name, typ0))
-		} else {
-			walkExpr(s.Rhs[0])
-		}
-	case *ast.ExprStmt:
-		walkExpr(s.X)
-	case *ast.ReturnStmt:
-		s.Node = &ast.NodeReturnStmt{
-			Fnc: currentFunc,
-		}
-		for _, rt := range s.Results {
-			walkExpr(rt)
-		}
-	case *ast.IfStmt:
-		if s.Init != nil {
-			walkStmt(s.Init)
-		}
-		walkExpr(s.Cond)
-		for _, s := range s.Body.List {
-			walkStmt(s)
-		}
-		if s.Else != nil {
-			walkStmt(s.Else)
-		}
-	case *ast.ForStmt:
-		s.Outer = currentFor
-		currentFor = stmt
-		if s.Init != nil {
-			walkStmt(s.Init)
-		}
-		if s.Cond != nil {
-			walkExpr(s.Cond)
-		}
-		if s.Post != nil {
-			walkStmt(s.Post)
-		}
-		walkStmt(newStmt(s.Body))
-		currentFor = s.Outer
-	case *ast.RangeStmt:
-		walkExpr(s.X)
-		s.Outer = currentFor
-		currentFor = stmt
-		var _s = s.Body
-		walkStmt(_s)
-		var lenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
-		var indexvar = registerLocalVariable(currentFunc,".range.index", tInt)
-
-		if s.Tok == ":=" {
-			listType := getTypeOfExpr(s.X)
-
-			keyIdent := expr2Ident(s.Key)
-			//@TODO map key can be any type
-			//keyType := getKeyTypeOfListType(listType)
-			var keyType *ast.Type = tInt
-			setVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, keyType))
-
-			// determine type of Value
-			elmType := getElementTypeOfListType(listType)
-			valueIdent := expr2Ident(s.Value)
-			setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
-		}
-		s.Lenvar = lenvar
-		s.Indexvar = indexvar
-		currentFor = s.Outer
-	case *ast.IncDecStmt:
-		walkExpr(s.X)
-	case *ast.BlockStmt:
-		for _, _s := range s.List {
-			walkStmt(_s)
-		}
-	case *ast.BranchStmt:
-		s.CurrentFor = currentFor
-	case *ast.SwitchStmt:
-		if s.Tag != nil {
-			walkExpr(s.Tag)
-		}
-		walkStmt(s.Body)
-	case *ast.TypeSwitchStmt:
-		typeSwitch := &ast.NodeTypeSwitchStmt{}
-		s.Node = typeSwitch
-		var assignIdent *ast.Ident
-		switch s2 := s.Assign.(type) {
-		case *ast.ExprStmt:
-			typeAssertExpr := expr2TypeAssertExpr(s2.X)
-			//assert(ok, "should be *ast.TypeAssertExpr")
-			typeSwitch.Subject = typeAssertExpr.X
-			walkExpr(typeAssertExpr.X)
-		case *ast.AssignStmt:
-			lhs := s2.Lhs[0]
-			//var ok bool
-			assignIdent = expr2Ident(lhs)
-			//assert(ok, "lhs should be ident")
-			typeSwitch.AssignIdent = assignIdent
-			// ident will be a new local variable in each case clause
-			typeAssertExpr := expr2TypeAssertExpr(s2.Rhs[0])
-			//assert(ok, "should be *ast.TypeAssertExpr")
-			typeSwitch.Subject = typeAssertExpr.X
-			walkExpr(typeAssertExpr.X)
-		default:
-			throw(dtypeOf(s.Assign))
-		}
-
-		typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", tEface)
-		for _, _case := range s.Body.List {
-			cc := stmt2CaseClause(_case)
-			tscc := &ast.TypeSwitchCaseClose{
-				Orig: cc,
-			}
-			typeSwitch.Cases = append(typeSwitch.Cases, tscc)
-			if assignIdent != nil && len(cc.List) > 0 {
-				// inject a variable of that type
-				varType := e2t(cc.List[0])
-				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
-				tscc.Variable = vr
-				tscc.VariableType = varType
-				setVariable(assignIdent.Obj, vr)
-			}
-
-			for _, s_ := range cc.Body {
-				walkStmt(s_)
-			}
-			if assignIdent != nil {
-				assignIdent.Obj.Variable = nil
-			}
-		}
-	case *ast.CaseClause:
-		for _, e_ := range s.List {
-			walkExpr(e_)
-		}
-		for _, s_ := range s.Body {
-			walkStmt(s_)
-		}
+	case *ast.DeclStmt: walkDeclStmt(s)
+	case *ast.AssignStmt: walkAssignStmt(s)
+	case *ast.ExprStmt: walkExprStmt(s)
+	case *ast.ReturnStmt: walkReturnStmt(s)
+	case *ast.IfStmt: walkIfStmt(s)
+	case *ast.ForStmt: walkForStmt(s)
+	case *ast.RangeStmt: walkRangeStmt(s)
+	case *ast.IncDecStmt: walkIncDecStmt(s)
+	case *ast.BlockStmt: walkBlockStmt(s)
+	case *ast.BranchStmt: walkBranchStmt(s)
+	case *ast.SwitchStmt: walkSwitchStmt(s)
+	case *ast.TypeSwitchStmt: walkTypeSwitchStmt(s)
+	case *ast.CaseClause: walkCaseClause(s)
 	default:
 		panic2(__func__, "TBI: s="+dtypeOf(stmt))
 	}
@@ -3227,75 +3253,105 @@ func walkStmt(stmt ast.Stmt) {
 
 var currentFor ast.Stmt
 
+func walkIdent(e *ast.Ident) {
+}
+func walkCallExpr(e *ast.CallExpr) {
+	walkExpr(e.Fun)
+	// Replace __func__ ident by a string literal
+	var basicLit *ast.BasicLit
+	var newArg ast.Expr
+	for i, arg := range e.Args {
+		if isExprIdent(arg) {
+			ident := expr2Ident(arg)
+			if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
+				basicLit = &ast.BasicLit{}
+				basicLit.Kind = "STRING"
+				basicLit.Value = "\"" + currentFunc.Name + "\""
+				newArg = basicLit
+				e.Args[i] = newArg
+				arg = newArg
+			}
+		}
+		walkExpr(arg)
+	}
+}
+func walkBasicLit(e *ast.BasicLit) {
+	basicLit := e
+	switch basicLit.Kind {
+	case "STRING":
+		registerStringLiteral(basicLit)
+	}
+}
+func walkCompositeLit(e *ast.CompositeLit) {
+	for _, v := range e.Elts {
+		walkExpr(v)
+	}
+}
+func walkUnaryExpr(e *ast.UnaryExpr) {
+	walkExpr(e.X)
+}
+func walkBinaryExpr(e *ast.BinaryExpr) {
+	binaryExpr := e
+	walkExpr(binaryExpr.X)
+	walkExpr(binaryExpr.Y)
+}
+func walkIndexExpr(e *ast.IndexExpr) {
+	walkExpr(e.Index)
+	walkExpr(e.X)
+}
+func walkSliceExpr(e *ast.SliceExpr) {
+	if e.Low != nil {
+		walkExpr(e.Low)
+	}
+	if e.High != nil {
+		walkExpr(e.High)
+	}
+	if e.Max != nil {
+		walkExpr(e.Max)
+	}
+	walkExpr(e.X)
+}
+func walkStarExpr(e *ast.StarExpr) {
+	walkExpr(e.X)
+}
+func walkSelectorExpr(e *ast.SelectorExpr) {
+	walkExpr(e.X)
+}
+// []T(e)
+func walkArrayType(e *ast.ArrayType) {
+	// do nothing ?
+}
+func walkParenExpr(e *ast.ParenExpr) {
+	walkExpr(e.X)
+}
+func walkKeyValueExpr(e *ast.KeyValueExpr) {
+	walkExpr(e.Key)
+	walkExpr(e.Value)
+}
+func walkInterfaceType(e *ast.InterfaceType) {
+	// interface{}(e)  conversion. Nothing to do.
+}
+func walkTypeAssertExpr(e *ast.TypeAssertExpr) {
+	walkExpr(e.X)
+}
 func walkExpr(expr ast.Expr) {
 	logf(" [walkExpr] dtype=%s\n", dtypeOf(expr))
 	switch e := expr.(type) {
-	case *ast.Ident:
-		// what to do ?
-	case *ast.CallExpr:
-		walkExpr(e.Fun)
-		// Replace __func__ ident by a string literal
-		var basicLit *ast.BasicLit
-		var newArg ast.Expr
-		for i, arg := range e.Args {
-			if isExprIdent(arg) {
-				ident := expr2Ident(arg)
-				if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
-					basicLit = &ast.BasicLit{}
-					basicLit.Kind = "STRING"
-					basicLit.Value = "\"" + currentFunc.Name + "\""
-					newArg = basicLit
-					e.Args[i] = newArg
-					arg = newArg
-				}
-			}
-			walkExpr(arg)
-		}
-	case *ast.BasicLit:
-		basicLit := e
-		switch basicLit.Kind {
-		case "STRING":
-			registerStringLiteral(basicLit)
-		}
-	case *ast.CompositeLit:
-		for _, v := range e.Elts {
-			walkExpr(v)
-		}
-	case *ast.UnaryExpr:
-		walkExpr(e.X)
-	case *ast.BinaryExpr:
-		binaryExpr := e
-		walkExpr(binaryExpr.X)
-		walkExpr(binaryExpr.Y)
-	case *ast.IndexExpr:
-		walkExpr(e.Index)
-		walkExpr(e.X)
-	case *ast.SliceExpr:
-		if e.Low != nil {
-			walkExpr(e.Low)
-		}
-		if e.High != nil {
-			walkExpr(e.High)
-		}
-		if e.Max != nil {
-			walkExpr(e.Max)
-		}
-		walkExpr(e.X)
-	case *ast.StarExpr:
-		walkExpr(e.X)
-	case *ast.SelectorExpr:
-		walkExpr(e.X)
-	case *ast.ArrayType: // []T(e)
-		// do nothing ?
-	case *ast.ParenExpr:
-		walkExpr(e.X)
-	case *ast.KeyValueExpr:
-		walkExpr(e.Key)
-		walkExpr(e.Value)
-	case *ast.InterfaceType:
-		// interface{}(e)  conversion. Nothing to do.
-	case *ast.TypeAssertExpr:
-		walkExpr(e.X)
+	case *ast.Ident: walkIdent(e)
+	case *ast.CallExpr: walkCallExpr(e)
+	case *ast.BasicLit: walkBasicLit(e)
+	case *ast.CompositeLit: walkCompositeLit(e)
+	case *ast.UnaryExpr: walkUnaryExpr(e)
+	case *ast.BinaryExpr: walkBinaryExpr(e)
+	case *ast.IndexExpr: walkIndexExpr(e)
+	case *ast.SliceExpr: walkSliceExpr(e)
+	case *ast.StarExpr: walkStarExpr(e)
+	case *ast.SelectorExpr: walkSelectorExpr(e)
+	case *ast.ArrayType: walkArrayType(e) // []T(e)
+	case *ast.ParenExpr: walkParenExpr(e)
+	case *ast.KeyValueExpr: walkKeyValueExpr(e)
+	case *ast.InterfaceType: walkInterfaceType(e)
+	case *ast.TypeAssertExpr: walkTypeAssertExpr(e)
 	default:
 		panic2(__func__, "TBI:"+dtypeOf(expr))
 	}
