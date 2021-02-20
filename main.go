@@ -24,8 +24,8 @@ func unexpectedKind(knd TypeKind) {
 	panic("Unexpected Kind: " + string(knd))
 }
 
-func throw(s string) {
-	panic(s)
+func throw(x interface{}) {
+	panic(x)
 }
 
 func panic2(caller string, x string) {
@@ -3231,23 +3231,22 @@ func walkCaseClause(s *ast.CaseClause) {
 	}
 }
 func walkStmt(stmt ast.Stmt) {
-	logf(" [%s] begin dtype=%s\n", __func__, dtypeOf(stmt))
 	switch s := stmt.(type) {
+	case *ast.ExprStmt: walkExprStmt(s)
 	case *ast.DeclStmt: walkDeclStmt(s)
 	case *ast.AssignStmt: walkAssignStmt(s)
-	case *ast.ExprStmt: walkExprStmt(s)
 	case *ast.ReturnStmt: walkReturnStmt(s)
 	case *ast.IfStmt: walkIfStmt(s)
+	case *ast.BlockStmt: walkBlockStmt(s)
 	case *ast.ForStmt: walkForStmt(s)
 	case *ast.RangeStmt: walkRangeStmt(s)
 	case *ast.IncDecStmt: walkIncDecStmt(s)
-	case *ast.BlockStmt: walkBlockStmt(s)
-	case *ast.BranchStmt: walkBranchStmt(s)
 	case *ast.SwitchStmt: walkSwitchStmt(s)
 	case *ast.TypeSwitchStmt: walkTypeSwitchStmt(s)
 	case *ast.CaseClause: walkCaseClause(s)
+	case *ast.BranchStmt: walkBranchStmt(s)
 	default:
-		panic2(__func__, "TBI: s="+dtypeOf(stmt))
+		throw(stmt)
 	}
 }
 
