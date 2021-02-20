@@ -3044,41 +3044,29 @@ func walkExprStmt(s *ast.ExprStmt) {
 	walkExpr(s.X)
 }
 func walkDeclStmt(s *ast.DeclStmt) {
-	logf(" [%s] *ast.DeclStmt\n", __func__)
-	var declStmt = s
-	if declStmt.Decl == nil {
-		panic2(__func__, "ERROR\n")
-	}
-	var dcl = declStmt.Decl
-	var genDecl *ast.GenDecl
-	var ok bool
-	genDecl, ok = dcl.(*ast.GenDecl)
-	if !ok {
-		panic2(__func__, "[dcl.dtype] internal error")
-	}
-	var valSpec *ast.ValueSpec
-	valSpec, ok = genDecl.Spec.(*ast.ValueSpec)
-	if valSpec.Type == nil {
-		if valSpec.Value == nil {
-			panic2(__func__, "type inference requires a value")
+	genDecl  := s.Decl.(*ast.GenDecl)
+	declSpec := genDecl.Spec
+	switch spec := declSpec.(type) {
+	case *ast.ValueSpec:
+		if spec.Type == nil { // var x = e
+			if spec.Value == nil {
+				panic("invalid syntax")
+			}
+			// infer type from rhs
+			val := spec.Value
+			logf("inferring type of variable %s\n", spec.Name.Name)
+			typ := getTypeOfExpr(val)
+			if typ == nil || typ.E == nil {
+				panic("rhs should have a type")
+			}
+			spec.Type = typ.E
 		}
-		var _typ = getTypeOfExpr(valSpec.Value)
-		if _typ != nil && _typ.E != nil {
-			valSpec.Type = _typ.E
-		} else {
-			panic2(__func__, "type inference failed")
+		t := e2t(spec.Type)
+		obj := spec.Name.Obj
+		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
+		if spec.Value != nil {
+			walkExpr(spec.Value)
 		}
-	}
-	var typ = valSpec.Type // Type can be nil
-	logf(" [walkStmt] valSpec Name=%s, Type=%s\n",
-		valSpec.Name.Name, dtypeOf(typ))
-
-	t := e2t(typ)
-	setVariable(valSpec.Name.Obj, registerLocalVariable(currentFunc, valSpec.Name.Name, t))
-	logf(" var %s offset = %d\n", valSpec.Name.Obj.Name,
-		valSpec.Name.Obj.Variable.LocalOffset)
-	if valSpec.Value != nil {
-		walkExpr(valSpec.Value)
 	}
 }
 func walkAssignStmt(s *ast.AssignStmt) {

@@ -3163,34 +3163,29 @@ func walkExprStmt(s *ast.ExprStmt) {
 	walkExpr(s.X)
 }
 func walkDeclStmt(s *ast.DeclStmt) {
-	decl := s.Decl
-	switch dcl := decl.(type) {
-	case *ast.GenDecl:
-		declSpec := dcl.Specs[0]
-		switch ds := declSpec.(type) {
-		case *ast.ValueSpec:
-			varSpec := ds
-			obj := varSpec.Names[0].Obj
-			if varSpec.Type == nil { // var x = e
-				if len(ds.Values) > 0 {
-					// infer type from rhs
-					val := ds.Values[0]
-					logf("nfering type of variable %s\n", obj.Name)
-					typ := getTypeOfExpr(val)
-					if typ != nil && typ.E != nil {
-						varSpec.Type = typ.E
-					}
-				}
+	genDecl := s.Decl.(*ast.GenDecl)
+	declSpec := genDecl.Specs[0]
+	switch spec := declSpec.(type) {
+	case *ast.ValueSpec:
+		if spec.Type == nil { // var x = e
+			if len(spec.Values) == 0 {
+				panic("invalid syntax")
 			}
-
-			t := e2t(varSpec.Type)
-			setVariable(obj, currentFunc.registerLocalVariable(obj.Name, t))
-			for _, v := range ds.Values {
-				walkExpr(v)
+			// infer type from rhs
+			val := spec.Values[0]
+			logf("inferring type of variable %s\n", spec.Names[0].Name)
+			typ := getTypeOfExpr(val)
+			if typ == nil || typ.E == nil {
+				panic("rhs should have a type")
 			}
+			spec.Type = typ.E
 		}
-	default:
-		throw(decl)
+		t := e2t(spec.Type)
+		obj := spec.Names[0].Obj
+		setVariable(obj, currentFunc.registerLocalVariable(obj.Name, t))
+		for _, v := range spec.Values {
+			walkExpr(v)
+		}
 	}
 }
 func walkAssignStmt(s *ast.AssignStmt) {
