@@ -3160,8 +3160,7 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 }
 
 func walkExprStmt(s *ast.ExprStmt) {
-	expr := s.X
-	walkExpr(expr)
+	walkExpr(s.X)
 }
 func walkDeclStmt(s *ast.DeclStmt) {
 	decl := s.Decl

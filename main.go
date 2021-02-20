@@ -3040,6 +3040,9 @@ func lookupMethod(rcvT *ast.Type, methodName *ast.Ident) *ast.Method {
 	return nil
 }
 
+func walkExprStmt(s *ast.ExprStmt) {
+	walkExpr(s.X)
+}
 func walkDeclStmt(s *ast.DeclStmt) {
 	logf(" [%s] *ast.DeclStmt\n", __func__)
 	var declStmt = s
@@ -3110,9 +3113,6 @@ func walkAssignStmt(s *ast.AssignStmt) {
 	} else {
 		walkExpr(s.Rhs[0])
 	}
-}
-func walkExprStmt(s *ast.ExprStmt) {
-	walkExpr(s.X)
 }
 func walkReturnStmt(s *ast.ReturnStmt) {
 	s.Node = &ast.NodeReturnStmt{
