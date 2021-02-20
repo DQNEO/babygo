@@ -435,7 +435,7 @@ func emitCallMalloc(size int) {
 
 func emitStructLiteral(e *ast.CompositeLit) {
 	// allocate heap area with zero value
-	emitComment(2,"emitStructLiteral\n")
+	emitComment(2, "emitStructLiteral\n")
 	var structType = e2t(e.Type)
 	emitZeroValue(structType) // push address of the new storage
 	var kvExpr *ast.KeyValueExpr
@@ -1286,18 +1286,30 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(expr))
 	switch e := expr.(type) {
-	case *ast.Ident: return emitIdent(e, ctx)
-	case *ast.IndexExpr: emitIndexExpr(e, ctx)
-	case *ast.StarExpr: emitStarExpr(e, ctx)
-	case *ast.SelectorExpr: emitSelectorExpr(e, ctx)
-	case *ast.CallExpr: emitCallExpr(e, ctx)
-	case *ast.ParenExpr: emitParenExpr(e, ctx)
-	case *ast.BasicLit: emitBasicLit(e, ctx)
-	case *ast.UnaryExpr: emitUnaryExpr(e, ctx)
-	case *ast.BinaryExpr: emitBinaryExpr(e, ctx)
-	case *ast.CompositeLit: emitCompositeLit(e, ctx)
-	case *ast.SliceExpr: emitSliceExpr(e, ctx)
-	case *ast.TypeAssertExpr: emitTypeAssertExpr(e, ctx)
+	case *ast.Ident:
+		return emitIdent(e, ctx)
+	case *ast.IndexExpr:
+		emitIndexExpr(e, ctx)
+	case *ast.StarExpr:
+		emitStarExpr(e, ctx)
+	case *ast.SelectorExpr:
+		emitSelectorExpr(e, ctx)
+	case *ast.CallExpr:
+		emitCallExpr(e, ctx)
+	case *ast.ParenExpr:
+		emitParenExpr(e, ctx)
+	case *ast.BasicLit:
+		emitBasicLit(e, ctx)
+	case *ast.UnaryExpr:
+		emitUnaryExpr(e, ctx)
+	case *ast.BinaryExpr:
+		emitBinaryExpr(e, ctx)
+	case *ast.CompositeLit:
+		emitCompositeLit(e, ctx)
+	case *ast.SliceExpr:
+		emitSliceExpr(e, ctx)
+	case *ast.TypeAssertExpr:
+		emitTypeAssertExpr(e, ctx)
 	default:
 		panic(expr)
 	}
@@ -2005,18 +2017,30 @@ func emitBranchStmt(s *ast.BranchStmt) {
 func emitStmt(stmt ast.Stmt) {
 	emitComment(2, "== Statement %s ==\n", dtypeOf(stmt))
 	switch s := stmt.(type) {
-	case *ast.BlockStmt: emitBlockStmt(s)
-	case *ast.ExprStmt: emitExprStmt(s)
-	case *ast.DeclStmt: emitDeclStmt(s)
-	case *ast.AssignStmt: emitAssignStmt(s)
-	case *ast.ReturnStmt: emitReturnStmt(s)
-	case *ast.IfStmt: emitIfStmt(s)
-	case *ast.ForStmt: emitForStmt(s)
-	case *ast.RangeStmt: emitRangeStmt(s) // only for array and slice
-	case *ast.IncDecStmt: emitIncDecStmt(s)
-	case *ast.SwitchStmt: emitSwitchStmt(s)
-	case *ast.TypeSwitchStmt: emitTypeSwitchStmt(s)
-	case *ast.BranchStmt: emitBranchStmt(s)
+	case *ast.BlockStmt:
+		emitBlockStmt(s)
+	case *ast.ExprStmt:
+		emitExprStmt(s)
+	case *ast.DeclStmt:
+		emitDeclStmt(s)
+	case *ast.AssignStmt:
+		emitAssignStmt(s)
+	case *ast.ReturnStmt:
+		emitReturnStmt(s)
+	case *ast.IfStmt:
+		emitIfStmt(s)
+	case *ast.ForStmt:
+		emitForStmt(s)
+	case *ast.RangeStmt:
+		emitRangeStmt(s) // only for array and slice
+	case *ast.IncDecStmt:
+		emitIncDecStmt(s)
+	case *ast.SwitchStmt:
+		emitSwitchStmt(s)
+	case *ast.TypeSwitchStmt:
+		emitTypeSwitchStmt(s)
+	case *ast.BranchStmt:
+		emitBranchStmt(s)
 	default:
 		panic2(__func__, "TBI:"+dtypeOf(stmt))
 	}
@@ -2501,10 +2525,10 @@ func getCallResultTypes(e *ast.CallExpr) []*ast.Type {
 		if isType(fn) {
 			return []*ast.Type{e2t(fn)}
 		}
-		if isQI(fn) {  // pkg.Sel()
+		if isQI(fn) { // pkg.Sel()
 			ff := lookupForeignFunc(selector2QI(fn))
 			return fieldList2Types(ff.decl.Type.Results)
-		} else {  // obj.method()
+		} else { // obj.method()
 			var xType = getTypeOfExpr(fn.X)
 			var method = lookupMethod(xType, fn.Sel)
 			return fieldList2Types(method.FuncType.Results)
@@ -2673,7 +2697,7 @@ func getStructTypeOfX(e *ast.SelectorExpr) *ast.Type {
 		ptrType := expr2StarExpr(typeOfX.E)
 		structType = e2t(ptrType.X)
 	default:
-		unexpectedKind(kind(typeOfX) )
+		unexpectedKind(kind(typeOfX))
 	}
 	return structType
 }
@@ -2809,7 +2833,6 @@ type stringLiteralsContainer struct {
 	sl  *sliteral
 }
 
-
 //type localoffsetint int //@TODO
 
 func registerParamVariable(fnc *ast.Func, name string, t *ast.Type) *ast.Variable {
@@ -2906,7 +2929,7 @@ type methodEntry struct {
 
 type namedTypeEntry struct {
 	//name    string
-	obj *ast.Object
+	obj     *ast.Object
 	methods []*methodEntry
 }
 
@@ -2944,12 +2967,10 @@ func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
 	if !isIdent {
 		panic(e)
 	}
-	assert(pkgName.Obj != nil, "Obj should not be nil: " + pkgName.Name + "." + e.Sel.Name,  __func__)
+	assert(pkgName.Obj != nil, "Obj should not be nil: "+pkgName.Name+"."+e.Sel.Name, __func__)
 	assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg", __func__)
 	return newQI(pkgName.Name, e.Sel.Name)
 }
-
-
 
 func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ast.Method {
 	var rcvType = funcDecl.Recv.List[0].Type
@@ -2974,7 +2995,7 @@ func registerMethod(method *ast.Method) {
 	var nt = findNamedType(method.RcvNamedType.Obj)
 	if nt == nil {
 		nt = &namedTypeEntry{
-			obj:    method.RcvNamedType.Obj,
+			obj:     method.RcvNamedType.Obj,
 			methods: nil,
 		}
 		typesWithMethods = append(typesWithMethods, nt)
@@ -2996,7 +3017,7 @@ func lookupMethod(rcvT *ast.Type, methodName *ast.Ident) *ast.Method {
 	var nt *namedTypeEntry
 	switch typ := rcvType.(type) {
 	case *ast.Ident:
-		 nt = findNamedType(typ.Obj)
+		nt = findNamedType(typ.Obj)
 		if nt == nil {
 			panic(typ.Name + " has no moethodeiverTypeName:")
 		}
@@ -3008,7 +3029,6 @@ func lookupMethod(rcvT *ast.Type, methodName *ast.Ident) *ast.Method {
 			panic(string(qi) + " has no moethodeiverTypeName:")
 		}
 	}
-
 
 	for _, me := range nt.methods {
 		if me.name == methodName.Name {
@@ -3024,38 +3044,38 @@ func walkDeclStmt(s *ast.DeclStmt) {
 	logf(" [%s] *ast.DeclStmt\n", __func__)
 	var declStmt = s
 	if declStmt.Decl == nil {
-	panic2(__func__, "ERROR\n")
+		panic2(__func__, "ERROR\n")
 	}
 	var dcl = declStmt.Decl
 	var genDecl *ast.GenDecl
 	var ok bool
 	genDecl, ok = dcl.(*ast.GenDecl)
 	if !ok {
-	panic2(__func__, "[dcl.dtype] internal error")
+		panic2(__func__, "[dcl.dtype] internal error")
 	}
 	var valSpec *ast.ValueSpec
 	valSpec, ok = genDecl.Spec.(*ast.ValueSpec)
 	if valSpec.Type == nil {
-	if valSpec.Value == nil {
-	panic2(__func__, "type inference requires a value")
-	}
-	var _typ = getTypeOfExpr(valSpec.Value)
-	if _typ != nil && _typ.E != nil {
-	valSpec.Type = _typ.E
-	} else {
-	panic2(__func__, "type inference failed")
-	}
+		if valSpec.Value == nil {
+			panic2(__func__, "type inference requires a value")
+		}
+		var _typ = getTypeOfExpr(valSpec.Value)
+		if _typ != nil && _typ.E != nil {
+			valSpec.Type = _typ.E
+		} else {
+			panic2(__func__, "type inference failed")
+		}
 	}
 	var typ = valSpec.Type // Type can be nil
 	logf(" [walkStmt] valSpec Name=%s, Type=%s\n",
-	valSpec.Name.Name, dtypeOf(typ))
+		valSpec.Name.Name, dtypeOf(typ))
 
 	t := e2t(typ)
 	setVariable(valSpec.Name.Obj, registerLocalVariable(currentFunc, valSpec.Name.Name, t))
 	logf(" var %s offset = %d\n", valSpec.Name.Obj.Name,
-	valSpec.Name.Obj.Variable.LocalOffset)
+		valSpec.Name.Obj.Variable.LocalOffset)
 	if valSpec.Value != nil {
-	walkExpr(valSpec.Value)
+		walkExpr(valSpec.Value)
 	}
 }
 func walkAssignStmt(s *ast.AssignStmt) {
@@ -3086,7 +3106,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 			panic("type inference is not supported")
 		}
 		obj0 := s.Lhs[0].(*ast.Ident).Obj
-		setVariable(obj0 , registerLocalVariable(currentFunc, obj0.Name, typ0))
+		setVariable(obj0, registerLocalVariable(currentFunc, obj0.Name, typ0))
 	} else {
 		walkExpr(s.Rhs[0])
 	}
@@ -3136,7 +3156,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 	var _s = s.Body
 	walkStmt(_s)
 	var lenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
-	var indexvar = registerLocalVariable(currentFunc,".range.index", tInt)
+	var indexvar = registerLocalVariable(currentFunc, ".range.index", tInt)
 
 	if s.Tok == ":=" {
 		listType := getTypeOfExpr(s.X)
@@ -3232,19 +3252,32 @@ func walkCaseClause(s *ast.CaseClause) {
 }
 func walkStmt(stmt ast.Stmt) {
 	switch s := stmt.(type) {
-	case *ast.ExprStmt: walkExprStmt(s)
-	case *ast.DeclStmt: walkDeclStmt(s)
-	case *ast.AssignStmt: walkAssignStmt(s)
-	case *ast.ReturnStmt: walkReturnStmt(s)
-	case *ast.IfStmt: walkIfStmt(s)
-	case *ast.BlockStmt: walkBlockStmt(s)
-	case *ast.ForStmt: walkForStmt(s)
-	case *ast.RangeStmt: walkRangeStmt(s)
-	case *ast.IncDecStmt: walkIncDecStmt(s)
-	case *ast.SwitchStmt: walkSwitchStmt(s)
-	case *ast.TypeSwitchStmt: walkTypeSwitchStmt(s)
-	case *ast.CaseClause: walkCaseClause(s)
-	case *ast.BranchStmt: walkBranchStmt(s)
+	case *ast.ExprStmt:
+		walkExprStmt(s)
+	case *ast.DeclStmt:
+		walkDeclStmt(s)
+	case *ast.AssignStmt:
+		walkAssignStmt(s)
+	case *ast.ReturnStmt:
+		walkReturnStmt(s)
+	case *ast.IfStmt:
+		walkIfStmt(s)
+	case *ast.BlockStmt:
+		walkBlockStmt(s)
+	case *ast.ForStmt:
+		walkForStmt(s)
+	case *ast.RangeStmt:
+		walkRangeStmt(s)
+	case *ast.IncDecStmt:
+		walkIncDecStmt(s)
+	case *ast.SwitchStmt:
+		walkSwitchStmt(s)
+	case *ast.TypeSwitchStmt:
+		walkTypeSwitchStmt(s)
+	case *ast.CaseClause:
+		walkCaseClause(s)
+	case *ast.BranchStmt:
+		walkBranchStmt(s)
 	default:
 		throw(stmt)
 	}
@@ -3316,6 +3349,7 @@ func walkStarExpr(e *ast.StarExpr) {
 func walkSelectorExpr(e *ast.SelectorExpr) {
 	walkExpr(e.X)
 }
+
 // []T(e)
 func walkArrayType(e *ast.ArrayType) {
 	// do nothing ?
@@ -3336,21 +3370,36 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr) {
 func walkExpr(expr ast.Expr) {
 	logf(" [walkExpr] dtype=%s\n", dtypeOf(expr))
 	switch e := expr.(type) {
-	case *ast.Ident: walkIdent(e)
-	case *ast.CallExpr: walkCallExpr(e)
-	case *ast.BasicLit: walkBasicLit(e)
-	case *ast.CompositeLit: walkCompositeLit(e)
-	case *ast.UnaryExpr: walkUnaryExpr(e)
-	case *ast.BinaryExpr: walkBinaryExpr(e)
-	case *ast.IndexExpr: walkIndexExpr(e)
-	case *ast.SliceExpr: walkSliceExpr(e)
-	case *ast.StarExpr: walkStarExpr(e)
-	case *ast.SelectorExpr: walkSelectorExpr(e)
-	case *ast.ArrayType: walkArrayType(e) // []T(e)
-	case *ast.ParenExpr: walkParenExpr(e)
-	case *ast.KeyValueExpr: walkKeyValueExpr(e)
-	case *ast.InterfaceType: walkInterfaceType(e)
-	case *ast.TypeAssertExpr: walkTypeAssertExpr(e)
+	case *ast.Ident:
+		walkIdent(e)
+	case *ast.CallExpr:
+		walkCallExpr(e)
+	case *ast.BasicLit:
+		walkBasicLit(e)
+	case *ast.CompositeLit:
+		walkCompositeLit(e)
+	case *ast.UnaryExpr:
+		walkUnaryExpr(e)
+	case *ast.BinaryExpr:
+		walkBinaryExpr(e)
+	case *ast.IndexExpr:
+		walkIndexExpr(e)
+	case *ast.SliceExpr:
+		walkSliceExpr(e)
+	case *ast.StarExpr:
+		walkStarExpr(e)
+	case *ast.SelectorExpr:
+		walkSelectorExpr(e)
+	case *ast.ArrayType:
+		walkArrayType(e) // []T(e)
+	case *ast.ParenExpr:
+		walkParenExpr(e)
+	case *ast.KeyValueExpr:
+		walkKeyValueExpr(e)
+	case *ast.InterfaceType:
+		walkInterfaceType(e)
+	case *ast.TypeAssertExpr:
+		walkTypeAssertExpr(e)
 	default:
 		panic2(__func__, "TBI:"+dtypeOf(expr))
 	}
@@ -3441,7 +3490,7 @@ func walk(pkg *PkgContainer) {
 			calcStructSizeAndSetFieldOffset(typeSpec)
 		}
 		exportEntry := &exportEntry{
-			qi:  newQI(pkg.name , typeSpec.Name.Name),
+			qi:  newQI(pkg.name, typeSpec.Name.Name),
 			any: typeSpec.Name,
 		}
 		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
@@ -3455,12 +3504,12 @@ func walk(pkg *PkgContainer) {
 			}
 			var fdcl *ast.FuncDecl
 			var ok bool
-			fdcl , ok = funcDecl.Name.Obj.Decl.(*ast.FuncDecl)
+			fdcl, ok = funcDecl.Name.Obj.Decl.(*ast.FuncDecl)
 			if !ok || funcDecl != fdcl {
-				panic("Bad func decl reference:" +  funcDecl.Name.Name)
+				panic("Bad func decl reference:" + funcDecl.Name.Name)
 			}
 			exportEntry := &exportEntry{
-				qi:  newQI(pkg.name , funcDecl.Name.Name),
+				qi:  newQI(pkg.name, funcDecl.Name.Name),
 				any: funcDecl.Name,
 			}
 			ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
@@ -3484,7 +3533,7 @@ func walk(pkg *PkgContainer) {
 			var t = getTypeOfExpr(val)
 			valSpec.Type = t.E
 		}
-		setVariable(nameIdent.Obj,  newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(valSpec.Type)))
+		setVariable(nameIdent.Obj, newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(valSpec.Type)))
 		pkg.vars = append(pkg.vars, valSpec)
 		exportEntry := &exportEntry{
 			qi:  newQI(pkg.name, nameIdent.Name),
@@ -3659,7 +3708,6 @@ func createUniverse() *ast.Scope {
 	for _, obj := range objects {
 		universe.Insert(obj)
 	}
-
 
 	// setting aliases
 	universe.Objects = append(universe.Objects, &ast.ObjectEntry{

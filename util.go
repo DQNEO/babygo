@@ -174,4 +174,3 @@ func isExprIdent(e ast.Expr) bool {
 func dtypeOf(x interface{}) string {
 	return fmt.Sprintf("%T", x)
 }
-
