@@ -896,6 +896,384 @@ type evalContext struct {
 	_type     *ast.Type
 }
 
+func emitIdent(e *ast.Ident, ctx *evalContext) bool {
+	switch e.Obj {
+	case gTrue:
+		emitTrue()
+	case gFalse:
+		emitFalse()
+	case gNil:
+		assert(ctx._type != nil, "context of nil is not passed", __func__)
+		emitNil(ctx._type)
+		return true
+	default:
+		assert(e.Obj != nil, "should not be nil", __func__)
+		switch e.Obj.Kind {
+		case ast.Var:
+			emitAddr(e)
+			emitLoadAndPush(getTypeOfExpr(e))
+		case ast.Con:
+			emitNamedConst(e, ctx)
+		default:
+			panic("Unexpected ident kind:" + e.Obj.Kind)
+		}
+	}
+	return false
+}
+func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
+	emitAddr(e)
+	emitLoadAndPush(getTypeOfExpr(e))
+}
+func emitStarExpr(e *ast.StarExpr, ctx *evalContext) {
+	emitAddr(e)
+	emitLoadAndPush(getTypeOfExpr(e))
+}
+func emitSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
+	// pkg.Ident or strct.field
+	if isQI(e) {
+		ident := lookupForeignIdent(selector2QI(e))
+		emitExpr(ident, ctx)
+	} else {
+		// strct.field
+		emitAddr(e)
+		emitLoadAndPush(getTypeOfExpr(e))
+	}
+}
+func emitCallExpr(e *ast.CallExpr, ctx *evalContext) {
+	var fun = e.Fun
+	emitComment(2, "[%s][*ast.CallExpr]\n", __func__)
+	if isType(fun) {
+		emitConversion(e2t(fun), e.Args[0])
+	} else {
+		emitFuncall(fun, e.Args, e.Ellipsis)
+	}
+}
+func emitParenExpr(e *ast.ParenExpr, ctx *evalContext) {
+	emitExpr(e.X, ctx)
+}
+func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
+	//		emitComment(0, "basicLit.Kind = %s \n", expr.basicLit.Kind)
+	basicLit := e
+	switch basicLit.Kind {
+	case "INT":
+		var ival = strconv.Atoi(basicLit.Value)
+		fmt.Printf("  pushq $%d # number literal\n", ival)
+	case "STRING":
+		var sl = getStringLiteral(basicLit)
+		if sl.strlen == 0 {
+			// zero value
+			emitZeroValue(tString)
+		} else {
+			fmt.Printf("  pushq $%d # str len\n", sl.strlen)
+			fmt.Printf("  leaq %s, %%rax # str ptr\n", sl.label)
+			fmt.Printf("  pushq %%rax # str ptr\n")
+		}
+	case "CHAR":
+		var val = basicLit.Value
+		var char = val[1]
+		if val[1] == '\\' {
+			switch val[2] {
+			case '\'':
+				char = '\''
+			case 'n':
+				char = '\n'
+			case '\\':
+				char = '\\'
+			case 't':
+				char = '\t'
+			case 'r':
+				char = '\r'
+			}
+		}
+		fmt.Printf("  pushq $%d # convert char literal to int\n", int(char))
+	default:
+		panic2(__func__, "[*ast.BasicLit] TBI : "+basicLit.Kind)
+	}
+}
+func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
+	emitComment(2, "[DEBUG] unary op = %s\n", e.Op)
+	switch e.Op {
+	case "+":
+		emitExpr(e.X, nil)
+	case "-":
+		emitExpr(e.X, nil)
+		fmt.Printf("  popq %%rax # e.X\n")
+		fmt.Printf("  imulq $-1, %%rax\n")
+		fmt.Printf("  pushq %%rax\n")
+	case "&":
+		emitAddr(e.X)
+	case "!":
+		emitExpr(e.X, nil)
+		emitInvertBoolValue()
+	default:
+		panic2(__func__, "TBI:astUnaryExpr:"+e.Op)
+	}
+}
+func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
+	switch e.Op {
+	case "&&":
+		labelid++
+		var labelExitWithFalse = fmt.Sprintf(".L.%d.false", labelid)
+		var labelExit = fmt.Sprintf(".L.%d.exit", labelid)
+		emitExpr(e.X, nil) // left
+		emitPopBool("left")
+		fmt.Printf("  cmpq $1, %%rax\n")
+		// exit with false if left is false
+		fmt.Printf("  jne %s\n", labelExitWithFalse)
+
+		// if left is true, then eval right and exit
+		emitExpr(e.Y, nil) // right
+		fmt.Printf("  jmp %s\n", labelExit)
+
+		fmt.Printf("  %s:\n", labelExitWithFalse)
+		emitFalse()
+		fmt.Printf("  %s:\n", labelExit)
+	case "||":
+		labelid++
+		var labelExitWithTrue = fmt.Sprintf(".L.%d.true", labelid)
+		var labelExit = fmt.Sprintf(".L.%d.exit", labelid)
+		emitExpr(e.X, nil) // left
+		emitPopBool("left")
+		fmt.Printf("  cmpq $1, %%rax\n")
+		// exit with true if left is true
+		fmt.Printf("  je %s\n", labelExitWithTrue)
+
+		// if left is false, then eval right and exit
+		emitExpr(e.Y, nil) // right
+		fmt.Printf("  jmp %s\n", labelExit)
+
+		fmt.Printf("  %s:\n", labelExitWithTrue)
+		emitTrue()
+		fmt.Printf("  %s:\n", labelExit)
+	case "+":
+		if kind(getTypeOfExpr(e.X)) == T_STRING {
+			emitCatStrings(e.X, e.Y)
+		} else {
+			emitExpr(e.X, nil) // left
+			emitExpr(e.Y, nil) // right
+			fmt.Printf("  popq %%rcx # right\n")
+			fmt.Printf("  popq %%rax # left\n")
+			fmt.Printf("  addq %%rcx, %%rax\n")
+			fmt.Printf("  pushq %%rax\n")
+		}
+	case "-":
+		emitExpr(e.X, nil) // left
+		emitExpr(e.Y, nil) // right
+		fmt.Printf("  popq %%rcx # right\n")
+		fmt.Printf("  popq %%rax # left\n")
+		fmt.Printf("  subq %%rcx, %%rax\n")
+		fmt.Printf("  pushq %%rax\n")
+	case "*":
+		emitExpr(e.X, nil) // left
+		emitExpr(e.Y, nil) // right
+		fmt.Printf("  popq %%rcx # right\n")
+		fmt.Printf("  popq %%rax # left\n")
+		fmt.Printf("  imulq %%rcx, %%rax\n")
+		fmt.Printf("  pushq %%rax\n")
+	case "%":
+		emitExpr(e.X, nil) // left
+		emitExpr(e.Y, nil) // right
+		fmt.Printf("  popq %%rcx # right\n")
+		fmt.Printf("  popq %%rax # left\n")
+		fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
+		fmt.Printf("  divq %%rcx\n")
+		fmt.Printf("  movq %%rdx, %%rax\n")
+		fmt.Printf("  pushq %%rax\n")
+	case "/":
+		emitExpr(e.X, nil) // left
+		emitExpr(e.Y, nil) // right
+		fmt.Printf("  popq %%rcx # right\n")
+		fmt.Printf("  popq %%rax # left\n")
+		fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
+		fmt.Printf("  divq %%rcx\n")
+		fmt.Printf("  pushq %%rax\n")
+	case "==":
+		emitBinaryExprComparison(e.X, e.Y)
+	case "!=":
+		emitBinaryExprComparison(e.X, e.Y)
+		emitInvertBoolValue()
+	case "<":
+		emitExpr(e.X, nil) // left
+		emitExpr(e.Y, nil) // right
+		emitCompExpr("setl")
+	case "<=":
+		emitExpr(e.X, nil) // left
+		emitExpr(e.Y, nil) // right
+		emitCompExpr("setle")
+	case ">":
+		emitExpr(e.X, nil) // left
+		emitExpr(e.Y, nil) // right
+		emitCompExpr("setg")
+	case ">=":
+		emitExpr(e.X, nil) // left
+		emitExpr(e.Y, nil) // right
+		emitCompExpr("setge")
+	default:
+		panic2(__func__, "# TBI: binary operation for "+e.Op)
+	}
+}
+func emitCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
+	// slice , array, map or struct
+	switch kind(e2t(e.Type)) {
+	case T_STRUCT:
+		emitStructLiteral(e)
+	case T_ARRAY:
+		arrayType := expr2ArrayType(e.Type)
+		var arrayLen = evalInt(arrayType.Len)
+		emitArrayLiteral(arrayType, arrayLen, e.Elts)
+	case T_SLICE:
+		arrayType := expr2ArrayType(e.Type)
+		var length = len(e.Elts)
+		emitArrayLiteral(arrayType, length, e.Elts)
+		emitPopAddress("malloc")
+		fmt.Printf("  pushq $%d # slice.cap\n", length)
+		fmt.Printf("  pushq $%d # slice.len\n", length)
+		fmt.Printf("  pushq %%rax # slice.ptr\n")
+	default:
+		unexpectedKind(kind(e2t(e.Type)))
+	}
+}
+func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
+	var list = e.X
+	var listType = getTypeOfExpr(list)
+
+	// For convenience, any of the indices may be omitted.
+	// A missing low index defaults to zero;
+	var low ast.Expr
+	if e.Low != nil {
+		low = e.Low
+	} else {
+		low = eZeroInt
+	}
+
+	// a missing high index defaults to the length of the sliced operand:
+	// @TODO
+
+	switch kind(listType) {
+	case T_SLICE, T_ARRAY:
+		if e.Max == nil {
+			// new cap = cap(operand) - low
+			emitCap(e.X)
+			emitExpr(low, nil)
+			fmt.Printf("  popq %%rcx # low\n")
+			fmt.Printf("  popq %%rax # orig_cap\n")
+			fmt.Printf("  subq %%rcx, %%rax # orig_cap - low\n")
+			fmt.Printf("  pushq %%rax # new cap\n")
+
+			// new len = high - low
+			if e.High != nil {
+				emitExpr(e.High, nil)
+			} else {
+				// high = len(orig)
+				emitLen(e.X)
+			}
+			emitExpr(low, nil)
+			fmt.Printf("  popq %%rcx # low\n")
+			fmt.Printf("  popq %%rax # high\n")
+			fmt.Printf("  subq %%rcx, %%rax # high - low\n")
+			fmt.Printf("  pushq %%rax # new len\n")
+		} else {
+			// new cap = max - low
+			emitExpr(e.Max, nil)
+			emitExpr(low, nil)
+			fmt.Printf("  popq %%rcx # low\n")
+			fmt.Printf("  popq %%rax # max\n")
+			fmt.Printf("  subq %%rcx, %%rax # new cap = max - low\n")
+			fmt.Printf("  pushq %%rax # new cap\n")
+			// new len = high - low
+			emitExpr(e.High, nil)
+			emitExpr(low, nil)
+			fmt.Printf("  popq %%rcx # low\n")
+			fmt.Printf("  popq %%rax # high\n")
+			fmt.Printf("  subq %%rcx, %%rax # new len = high - low\n")
+			fmt.Printf("  pushq %%rax # new len\n")
+		}
+	case T_STRING:
+		// new len = high - low
+		if e.High != nil {
+			emitExpr(e.High, nil)
+		} else {
+			emitLen(e.X)
+		}
+		emitExpr(low, nil)
+		fmt.Printf("  popq %%rcx # low\n")
+		fmt.Printf("  popq %%rax # high\n")
+		fmt.Printf("  subq %%rcx, %%rax # high - low\n")
+		fmt.Printf("  pushq %%rax # len\n")
+		// no cap
+	default:
+		unexpectedKind(kind(listType))
+	}
+
+	emitExpr(low, nil)
+	var elmType = getElementTypeOfListType(listType)
+	emitListElementAddr(list, elmType)
+}
+func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
+	emitExpr(e.X, nil)
+	fmt.Printf("  popq  %%rax # ifc.dtype\n")
+	fmt.Printf("  popq  %%rcx # ifc.data\n")
+	fmt.Printf("  pushq %%rax # ifc.data\n")
+	typ := e2t(e.Type)
+	sType := serializeType(typ)
+	_id := getTypeId(sType)
+	typeSymbol := typeIdToSymbol(_id)
+	// check if type matches
+	fmt.Printf("  leaq %s(%%rip), %%rax # ifc.dtype\n", typeSymbol)
+	fmt.Printf("  pushq %%rax           # ifc.dtype\n")
+
+	emitCompExpr("sete") // this pushes 1 or 0 in the end
+	emitPopBool("type assertion ok value")
+	fmt.Printf("  cmpq $1, %%rax\n")
+
+	labelid++
+	labelTypeAssertionEnd := fmt.Sprintf(".L.end_type_assertion.%d", labelid)
+	labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
+	fmt.Printf("  jne %s # jmp if false\n", labelElse)
+
+	// if matched
+	if ctx != nil && ctx.okContext != nil {
+		// ok context
+		emitComment(2, " double value context\n")
+		if ctx.okContext.needMain {
+			emitExpr(expr2TypeAssertExpr(e).X, nil)
+			fmt.Printf("  popq %%rax # garbage\n")
+			emitLoadAndPush(e2t(expr2TypeAssertExpr(e).Type)) // load dynamic data
+		}
+		if ctx.okContext.needOk {
+			fmt.Printf("  pushq $1 # ok = true\n")
+		}
+	} else {
+		// default context is single value context
+		emitComment(2, " single value context\n")
+		emitExpr(expr2TypeAssertExpr(e).X, nil)
+		fmt.Printf("  popq %%rax # garbage\n")
+		emitLoadAndPush(e2t(expr2TypeAssertExpr(e).Type)) // load dynamic data
+	}
+
+	// exit
+	fmt.Printf("  jmp %s\n", labelTypeAssertionEnd)
+
+	// if not matched
+	fmt.Printf("  %s:\n", labelElse)
+	if ctx != nil && ctx.okContext != nil {
+		// ok context
+		emitComment(2, " double value context\n")
+		if ctx.okContext.needMain {
+			emitZeroValue(typ)
+		}
+		if ctx.okContext.needOk {
+			fmt.Printf("  pushq $0 # ok = false\n")
+		}
+	} else {
+		// default context is single value context
+		emitComment(2, " single value context\n")
+		emitZeroValue(typ)
+	}
+
+	fmt.Printf("  %s:\n", labelTypeAssertionEnd)
+}
+
 // targetType is the type of someone who receives the expr value.
 // There are various forms:
 //   Assignment:       x = expr
@@ -906,379 +1284,24 @@ type evalContext struct {
 //   - the expr is nil
 //   - the target type is interface and expr is not.
 func emitExpr(expr ast.Expr, ctx *evalContext) bool {
-	var isNilObject bool
 	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(expr))
 	switch e := expr.(type) {
-	case *ast.Ident:
-		switch e.Obj {
-		case gTrue:
-			emitTrue()
-		case gFalse:
-			emitFalse()
-		case gNil:
-			assert(ctx._type != nil, "context of nil is not passed", __func__)
-			emitNil(ctx._type)
-			isNilObject = true
-		default:
-			assert(e.Obj != nil, "should not be nil", __func__)
-			switch e.Obj.Kind {
-			case ast.Var:
-				emitAddr(expr)
-				emitLoadAndPush(getTypeOfExpr(expr))
-			case ast.Con:
-				emitNamedConst(e, ctx)
-			default:
-				panic("Unexpected ident kind:" + e.Obj.Kind)
-			}
-		}
-	case *ast.IndexExpr: // 1 or 2 values
-		emitAddr(e)
-		emitLoadAndPush(getTypeOfExpr(e))
-	case *ast.StarExpr: // 1 value
-		emitAddr(e)
-		emitLoadAndPush(getTypeOfExpr(e))
-	case *ast.SelectorExpr: // 1 value X.Sel
-		// pkg.Ident or strct.field
-		if isQI(e) {
-			ident := lookupForeignIdent(selector2QI(e))
-			emitExpr(ident, ctx)
-		} else {
-			// strct.field
-			emitAddr(expr)
-			emitLoadAndPush(getTypeOfExpr(expr))
-		}
-	case *ast.CallExpr:
-		var fun = e.Fun
-		emitComment(2, "[%s][*ast.CallExpr]\n", __func__)
-		if isType(fun) {
-			emitConversion(e2t(fun), e.Args[0])
-		} else {
-			emitFuncall(fun, e.Args, e.Ellipsis)
-		}
-	case *ast.ParenExpr:
-		emitExpr(e.X, ctx)
-	case *ast.BasicLit:
-		//		emitComment(0, "basicLit.Kind = %s \n", expr.basicLit.Kind)
-		basicLit := e
-		switch basicLit.Kind {
-		case "INT":
-			var ival = strconv.Atoi(basicLit.Value)
-			fmt.Printf("  pushq $%d # number literal\n", ival)
-		case "STRING":
-			var sl = getStringLiteral(basicLit)
-			if sl.strlen == 0 {
-				// zero value
-				emitZeroValue(tString)
-			} else {
-				fmt.Printf("  pushq $%d # str len\n", sl.strlen)
-				fmt.Printf("  leaq %s, %%rax # str ptr\n", sl.label)
-				fmt.Printf("  pushq %%rax # str ptr\n")
-			}
-		case "CHAR":
-			var val = basicLit.Value
-			var char = val[1]
-			if val[1] == '\\' {
-				switch val[2] {
-				case '\'':
-					char = '\''
-				case 'n':
-					char = '\n'
-				case '\\':
-					char = '\\'
-				case 't':
-					char = '\t'
-				case 'r':
-					char = '\r'
-				}
-			}
-			fmt.Printf("  pushq $%d # convert char literal to int\n", int(char))
-		default:
-			panic2(__func__, "[*ast.BasicLit] TBI : "+basicLit.Kind)
-		}
-	case *ast.UnaryExpr:
-		emitComment(2, "[DEBUG] unary op = %s\n", e.Op)
-		switch e.Op {
-		case "+":
-			emitExpr(e.X, nil)
-		case "-":
-			emitExpr(e.X, nil)
-			fmt.Printf("  popq %%rax # e.X\n")
-			fmt.Printf("  imulq $-1, %%rax\n")
-			fmt.Printf("  pushq %%rax\n")
-		case "&":
-			emitAddr(e.X)
-		case "!":
-			emitExpr(e.X, nil)
-			emitInvertBoolValue()
-		default:
-			panic2(__func__, "TBI:astUnaryExpr:"+e.Op)
-		}
-	case *ast.BinaryExpr:
-		switch e.Op {
-		case "&&":
-			labelid++
-			var labelExitWithFalse = fmt.Sprintf(".L.%d.false", labelid)
-			var labelExit = fmt.Sprintf(".L.%d.exit", labelid)
-			emitExpr(e.X, nil) // left
-			emitPopBool("left")
-			fmt.Printf("  cmpq $1, %%rax\n")
-			// exit with false if left is false
-			fmt.Printf("  jne %s\n", labelExitWithFalse)
-
-			// if left is true, then eval right and exit
-			emitExpr(e.Y, nil) // right
-			fmt.Printf("  jmp %s\n", labelExit)
-
-			fmt.Printf("  %s:\n", labelExitWithFalse)
-			emitFalse()
-			fmt.Printf("  %s:\n", labelExit)
-		case "||":
-			labelid++
-			var labelExitWithTrue = fmt.Sprintf(".L.%d.true", labelid)
-			var labelExit = fmt.Sprintf(".L.%d.exit", labelid)
-			emitExpr(e.X, nil) // left
-			emitPopBool("left")
-			fmt.Printf("  cmpq $1, %%rax\n")
-			// exit with true if left is true
-			fmt.Printf("  je %s\n", labelExitWithTrue)
-
-			// if left is false, then eval right and exit
-			emitExpr(e.Y, nil) // right
-			fmt.Printf("  jmp %s\n", labelExit)
-
-			fmt.Printf("  %s:\n", labelExitWithTrue)
-			emitTrue()
-			fmt.Printf("  %s:\n", labelExit)
-		case "+":
-			if kind(getTypeOfExpr(e.X)) == T_STRING {
-				emitCatStrings(e.X, e.Y)
-			} else {
-				emitExpr(e.X, nil) // left
-				emitExpr(e.Y, nil) // right
-				fmt.Printf("  popq %%rcx # right\n")
-				fmt.Printf("  popq %%rax # left\n")
-				fmt.Printf("  addq %%rcx, %%rax\n")
-				fmt.Printf("  pushq %%rax\n")
-			}
-		case "-":
-			emitExpr(e.X, nil) // left
-			emitExpr(e.Y, nil) // right
-			fmt.Printf("  popq %%rcx # right\n")
-			fmt.Printf("  popq %%rax # left\n")
-			fmt.Printf("  subq %%rcx, %%rax\n")
-			fmt.Printf("  pushq %%rax\n")
-		case "*":
-			emitExpr(e.X, nil) // left
-			emitExpr(e.Y, nil) // right
-			fmt.Printf("  popq %%rcx # right\n")
-			fmt.Printf("  popq %%rax # left\n")
-			fmt.Printf("  imulq %%rcx, %%rax\n")
-			fmt.Printf("  pushq %%rax\n")
-		case "%":
-			emitExpr(e.X, nil) // left
-			emitExpr(e.Y, nil) // right
-			fmt.Printf("  popq %%rcx # right\n")
-			fmt.Printf("  popq %%rax # left\n")
-			fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
-			fmt.Printf("  divq %%rcx\n")
-			fmt.Printf("  movq %%rdx, %%rax\n")
-			fmt.Printf("  pushq %%rax\n")
-		case "/":
-			emitExpr(e.X, nil) // left
-			emitExpr(e.Y, nil) // right
-			fmt.Printf("  popq %%rcx # right\n")
-			fmt.Printf("  popq %%rax # left\n")
-			fmt.Printf("  movq $0, %%rdx # init %%rdx\n")
-			fmt.Printf("  divq %%rcx\n")
-			fmt.Printf("  pushq %%rax\n")
-		case "==":
-			emitBinaryExprComparison(e.X, e.Y)
-		case "!=":
-			emitBinaryExprComparison(e.X, e.Y)
-			emitInvertBoolValue()
-		case "<":
-			emitExpr(e.X, nil) // left
-			emitExpr(e.Y, nil) // right
-			emitCompExpr("setl")
-		case "<=":
-			emitExpr(e.X, nil) // left
-			emitExpr(e.Y, nil) // right
-			emitCompExpr("setle")
-		case ">":
-			emitExpr(e.X, nil) // left
-			emitExpr(e.Y, nil) // right
-			emitCompExpr("setg")
-		case ">=":
-			emitExpr(e.X, nil) // left
-			emitExpr(e.Y, nil) // right
-			emitCompExpr("setge")
-		default:
-			panic2(__func__, "# TBI: binary operation for "+e.Op)
-		}
-	case *ast.CompositeLit:
-		// slice , array, map or struct
-
-		switch kind(e2t(e.Type)) {
-		case T_STRUCT:
-			emitStructLiteral(e)
-		case T_ARRAY:
-			arrayType := expr2ArrayType(e.Type)
-			var arrayLen = evalInt(arrayType.Len)
-			emitArrayLiteral(arrayType, arrayLen, e.Elts)
-		case T_SLICE:
-			arrayType := expr2ArrayType(e.Type)
-			var length = len(e.Elts)
-			emitArrayLiteral(arrayType, length, e.Elts)
-			emitPopAddress("malloc")
-			fmt.Printf("  pushq $%d # slice.cap\n", length)
-			fmt.Printf("  pushq $%d # slice.len\n", length)
-			fmt.Printf("  pushq %%rax # slice.ptr\n")
-		default:
-			unexpectedKind(kind(e2t(e.Type)))
-		}
-	case *ast.SliceExpr:
-		var list = e.X
-		var listType = getTypeOfExpr(list)
-
-		// For convenience, any of the indices may be omitted.
-		// A missing low index defaults to zero;
-		var low ast.Expr
-		if e.Low != nil {
-			low = e.Low
-		} else {
-			low = eZeroInt
-		}
-
-		// a missing high index defaults to the length of the sliced operand:
-		// @TODO
-
-		switch kind(listType) {
-		case T_SLICE, T_ARRAY:
-			if e.Max == nil {
-				// new cap = cap(operand) - low
-				emitCap(e.X)
-				emitExpr(low, nil)
-				fmt.Printf("  popq %%rcx # low\n")
-				fmt.Printf("  popq %%rax # orig_cap\n")
-				fmt.Printf("  subq %%rcx, %%rax # orig_cap - low\n")
-				fmt.Printf("  pushq %%rax # new cap\n")
-
-				// new len = high - low
-				if e.High != nil {
-					emitExpr(e.High, nil)
-				} else {
-					// high = len(orig)
-					emitLen(e.X)
-				}
-				emitExpr(low, nil)
-				fmt.Printf("  popq %%rcx # low\n")
-				fmt.Printf("  popq %%rax # high\n")
-				fmt.Printf("  subq %%rcx, %%rax # high - low\n")
-				fmt.Printf("  pushq %%rax # new len\n")
-			} else {
-				// new cap = max - low
-				emitExpr(e.Max, nil)
-				emitExpr(low, nil)
-				fmt.Printf("  popq %%rcx # low\n")
-				fmt.Printf("  popq %%rax # max\n")
-				fmt.Printf("  subq %%rcx, %%rax # new cap = max - low\n")
-				fmt.Printf("  pushq %%rax # new cap\n")
-				// new len = high - low
-				emitExpr(e.High, nil)
-				emitExpr(low, nil)
-				fmt.Printf("  popq %%rcx # low\n")
-				fmt.Printf("  popq %%rax # high\n")
-				fmt.Printf("  subq %%rcx, %%rax # new len = high - low\n")
-				fmt.Printf("  pushq %%rax # new len\n")
-			}
-		case T_STRING:
-			// new len = high - low
-			if e.High != nil {
-				emitExpr(e.High, nil)
-			} else {
-				emitLen(e.X)
-			}
-			emitExpr(low, nil)
-			fmt.Printf("  popq %%rcx # low\n")
-			fmt.Printf("  popq %%rax # high\n")
-			fmt.Printf("  subq %%rcx, %%rax # high - low\n")
-			fmt.Printf("  pushq %%rax # len\n")
-			// no cap
-		default:
-			unexpectedKind(kind(listType))
-		}
-
-		emitExpr(low, nil)
-		var elmType = getElementTypeOfListType(listType)
-		emitListElementAddr(list, elmType)
-	case *ast.TypeAssertExpr:
-		emitExpr(e.X, nil)
-		fmt.Printf("  popq  %%rax # ifc.dtype\n")
-		fmt.Printf("  popq  %%rcx # ifc.data\n")
-		fmt.Printf("  pushq %%rax # ifc.data\n")
-		typ := e2t(e.Type)
-		sType := serializeType(typ)
-		_id := getTypeId(sType)
-		typeSymbol := typeIdToSymbol(_id)
-		// check if type matches
-		fmt.Printf("  leaq %s(%%rip), %%rax # ifc.dtype\n", typeSymbol)
-		fmt.Printf("  pushq %%rax           # ifc.dtype\n")
-
-		emitCompExpr("sete") // this pushes 1 or 0 in the end
-		emitPopBool("type assertion ok value")
-		fmt.Printf("  cmpq $1, %%rax\n")
-
-		labelid++
-		labelTypeAssertionEnd := fmt.Sprintf(".L.end_type_assertion.%d", labelid)
-		labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
-		fmt.Printf("  jne %s # jmp if false\n", labelElse)
-
-		// if matched
-		if ctx != nil && ctx.okContext != nil {
-			// ok context
-			emitComment(2, " double value context\n")
-			if ctx.okContext.needMain {
-				emitExpr(expr2TypeAssertExpr(expr).X, nil)
-				fmt.Printf("  popq %%rax # garbage\n")
-				emitLoadAndPush(e2t(expr2TypeAssertExpr(expr).Type)) // load dynamic data
-			}
-			if ctx.okContext.needOk {
-				fmt.Printf("  pushq $1 # ok = true\n")
-			}
-		} else {
-			// default context is single value context
-			emitComment(2, " single value context\n")
-			emitExpr(expr2TypeAssertExpr(expr).X, nil)
-			fmt.Printf("  popq %%rax # garbage\n")
-			emitLoadAndPush(e2t(expr2TypeAssertExpr(expr).Type)) // load dynamic data
-		}
-
-		// exit
-		fmt.Printf("  jmp %s\n", labelTypeAssertionEnd)
-
-		// if not matched
-		fmt.Printf("  %s:\n", labelElse)
-		if ctx != nil && ctx.okContext != nil {
-			// ok context
-			emitComment(2, " double value context\n")
-			if ctx.okContext.needMain {
-				emitZeroValue(typ)
-			}
-			if ctx.okContext.needOk {
-				fmt.Printf("  pushq $0 # ok = false\n")
-			}
-		} else {
-			// default context is single value context
-			emitComment(2, " single value context\n")
-			emitZeroValue(typ)
-		}
-
-		fmt.Printf("  %s:\n", labelTypeAssertionEnd)
+	case *ast.Ident: return emitIdent(e, ctx)
+	case *ast.IndexExpr: emitIndexExpr(e, ctx)
+	case *ast.StarExpr: emitStarExpr(e, ctx)
+	case *ast.SelectorExpr: emitSelectorExpr(e, ctx)
+	case *ast.CallExpr: emitCallExpr(e, ctx)
+	case *ast.ParenExpr: emitParenExpr(e, ctx)
+	case *ast.BasicLit: emitBasicLit(e, ctx)
+	case *ast.UnaryExpr: emitUnaryExpr(e, ctx)
+	case *ast.BinaryExpr: emitBinaryExpr(e, ctx)
+	case *ast.CompositeLit: emitCompositeLit(e, ctx)
+	case *ast.SliceExpr: emitSliceExpr(e, ctx)
+	case *ast.TypeAssertExpr: emitTypeAssertExpr(e, ctx)
 	default:
-		panic2(__func__, "[emitExpr] `TBI:"+dtypeOf(expr))
+		panic(expr)
 	}
-
-	return isNilObject
+	return false
 }
 
 // convert stack top value to interface
