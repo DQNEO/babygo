@@ -3099,8 +3099,8 @@ func registerMethod(method *Method) {
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	rcvType := rcvT.E
-	rcvPointerType, ok := rcvType.(*ast.StarExpr)
-	if ok {
+	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
+	if isPtr {
 		rcvType = rcvPointerType.X
 	}
 	var methodSet map[string]*Method

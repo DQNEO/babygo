@@ -2985,11 +2985,11 @@ func registerMethod(method *ast.Method) {
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *ast.Method {
-	var rcvType = rcvT.E
-	if isExprStarExpr(rcvType) {
-		rcvType = expr2StarExpr(rcvType).X
+	rcvType := rcvT.E
+	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
+	if isPtr {
+		rcvType = rcvPointerType.X
 	}
-
 	var nt *namedTypeEntry
 	switch typ := rcvType.(type) {
 	case *ast.Ident:
