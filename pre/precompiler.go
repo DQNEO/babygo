@@ -441,10 +441,8 @@ func emitStructLiteral(e *ast.CompositeLit) {
 	structType := e2t(e.Type)
 	emitZeroValue(structType) // push address of the new storage
 	for i, elm := range e.Elts {
-		kvExpr, ok := elm.(*ast.KeyValueExpr)
-		assert(ok, "expect *ast.KeyValueExpr")
-		fieldName, ok := kvExpr.Key.(*ast.Ident)
-		assert(ok, "expect *ast.Ident")
+		kvExpr := elm.(*ast.KeyValueExpr)
+		fieldName := kvExpr.Key.(*ast.Ident)
 		emitComment(2, "- [%d] : key=%s, value=%T\n", i, fieldName.Name, kvExpr.Value)
 		field := lookupStructField(getUnderlyingStructType(structType), fieldName.Name)
 		fieldType := e2t(field.Type)
