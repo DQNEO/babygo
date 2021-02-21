@@ -133,22 +133,6 @@ func expr2KeyValueExpr(e ast.Expr) *ast.KeyValueExpr {
 	return r
 }
 
-func expr2StructType(e ast.Expr) *ast.StructType {
-	var r *ast.StructType
-	var ok bool
-	r, ok = e.(*ast.StructType)
-	if !ok {
-		panic("Not *ast.StructType")
-	}
-	return r
-}
-
-func isExprBasicLit(e ast.Expr) bool {
-	var ok bool
-	_, ok = e.(*ast.BasicLit)
-	return ok
-}
-
 func isExprStarExpr(e ast.Expr) bool {
 	var ok bool
 	_, ok = e.(*ast.StarExpr)
