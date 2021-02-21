@@ -191,7 +191,7 @@ func emitVariableAddr(variable *Variable) {
 	if variable.IsGlobal {
 		fmt.Printf("  leaq %s(%%rip), %%rax # global variable \"%s\"\n", variable.GlobalSymbol, variable.Name)
 	} else {
-		fmt.Printf("  leaq %d(%%rbp), %%rax # local variable \"%s\"\n", int(variable.LocalOffset), variable.Name)
+		fmt.Printf("  leaq %d(%%rbp), %%rax # local variable \"%s\"\n", variable.LocalOffset, variable.Name)
 	}
 
 	fmt.Printf("  pushq %%rax # variable address\n")
@@ -2086,13 +2086,13 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	if len(fnc.params) > 0 {
 		for i := 0; i < len(fnc.params); i++ {
 			v := fnc.params[i]
-			logf("  #       params %d %d \"%s\" %s\n", int(v.LocalOffset), getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
+			logf("  #       params %d %d \"%s\" %s\n", v.LocalOffset, getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
 		}
 	}
 	if len(fnc.retvars) > 0 {
 		for i := 0; i < len(fnc.retvars); i++ {
 			v := fnc.retvars[i]
-			logf("  #       retvars %d %d \"%s\" %s\n", int(v.LocalOffset), getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
+			logf("  #       retvars %d %d \"%s\" %s\n", v.LocalOffset, getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
 		}
 	}
 
@@ -2102,20 +2102,20 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	} else {
 		symbol = getPackageSymbol(pkgPrefix, fnc.name)
 	}
-	fmt.Printf("%s: # args %d, locals %d\n", symbol, int(fnc.argsarea), int(fnc.localarea))
+	fmt.Printf("%s: # args %d, locals %d\n", symbol, fnc.argsarea, fnc.localarea)
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
 	if len(fnc.localvars) > 0 {
 		for i := len(fnc.localvars) - 1; i >= 0; i-- {
 			v := fnc.localvars[i]
-			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -int(v.LocalOffset), getSizeOfType(v.Typ), v.Name)
+			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -v.LocalOffset, getSizeOfType(v.Typ), v.Name)
 		}
 	}
 	logf("  #  0(%%rbp) previous rbp\n")
 	logf("  #  8(%%rbp) return address\n")
 
 	if int(fnc.localarea) != 0 {
-		fmt.Printf("  subq $%d, %%rsp # local area\n", int(-int(fnc.localarea)))
+		fmt.Printf("  subq $%d, %%rsp # local area\n", -fnc.localarea)
 
 	}
 	for _, stmt := range fnc.stmts {
@@ -2951,8 +2951,8 @@ type RangeStmtMisc struct {
 type Func struct {
 	name      string
 	stmts     []ast.Stmt
-	localarea localoffsetint
-	argsarea  localoffsetint
+	localarea int
+	argsarea  int
 	localvars []*Variable
 	params    []*Variable
 	retvars   []*Variable
@@ -2972,16 +2972,14 @@ type Variable struct {
 	Name         string
 	IsGlobal     bool
 	GlobalSymbol string
-	LocalOffset  localoffsetint
+	LocalOffset  int
 	Typ          *Type
 }
-
-type localoffsetint int
 
 func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.argsarea, t)
 	size := getSizeOfType(t)
-	fnc.argsarea += localoffsetint(size)
+	fnc.argsarea += size
 	fnc.params = append(fnc.params, vr)
 	return vr
 }
@@ -2989,14 +2987,14 @@ func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.argsarea, t)
 	size := getSizeOfType(t)
-	fnc.argsarea += localoffsetint(size)
+	fnc.argsarea += size
 	fnc.retvars = append(fnc.retvars, vr)
 	return vr
 }
 
 func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	assert(t != nil && t.E != nil, "type of local var should not be nil")
-	fnc.localarea -= localoffsetint(getSizeOfType(t))
+	fnc.localarea -= getSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.localarea, t)
 	fnc.localvars = append(fnc.localvars, vr)
 	return vr
@@ -3060,7 +3058,7 @@ func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
 	}
 }
 
-func newLocalVariable(name string, localoffset localoffsetint, t *Type) *Variable {
+func newLocalVariable(name string, localoffset int, t *Type) *Variable {
 	return &Variable{
 		Name:         name,
 		IsGlobal:     false,
