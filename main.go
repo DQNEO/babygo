@@ -2645,10 +2645,7 @@ func kind(t *ast.Type) TypeKind {
 			return T_BOOL
 		default:
 			// named type
-			var decl = e.Obj.Decl
-			var typeSpec *ast.TypeSpec
-			var ok bool
-			typeSpec, ok = decl.(*ast.TypeSpec)
+			typeSpec, ok := e.Obj.Decl.(*ast.TypeSpec)
 			if !ok {
 				panic2(__func__, "unsupported decl :")
 			}
@@ -2674,10 +2671,9 @@ func kind(t *ast.Type) TypeKind {
 		ident := lookupForeignIdent(selector2QI(e))
 		return kind(e2t(ident))
 	default:
-		panic2(__func__, "Unkown dtype:"+dtypeOf(t.E))
+		panic(t)
 	}
-	panic2(__func__, "error")
-	return ""
+	panic("should not reach here")
 }
 
 func isInterface(t *ast.Type) bool {

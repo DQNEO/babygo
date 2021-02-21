@@ -2719,10 +2719,9 @@ func kind(t *Type) TypeKind {
 			return T_BOOL
 		default:
 			// named type
-			decl := e.Obj.Decl
-			typeSpec, ok := decl.(*ast.TypeSpec)
+			typeSpec, ok := e.Obj.Decl.(*ast.TypeSpec)
 			if !ok {
-				throw(decl)
+				throw(e.Obj.Decl)
 			}
 			return kind(e2t(typeSpec.Type))
 		}
@@ -2744,9 +2743,9 @@ func kind(t *Type) TypeKind {
 		ident := lookupForeignIdent(selector2QI(e))
 		return kind(e2t(ident))
 	default:
-		throw(t)
+		panic(t)
 	}
-	return ""
+	panic("should not reach here")
 }
 
 func isInterface(t *Type) bool {
