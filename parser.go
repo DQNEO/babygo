@@ -1193,7 +1193,13 @@ func (p *parser) parserTypeSpec() *ast.TypeSpec {
 	var spec = &ast.TypeSpec{}
 	spec.Name = ident
 	declare(spec, p.topScope, ast.Typ, ident)
+	if p.tok.tok == "=" {
+		// type alias
+		p.next()
+		spec.Assign = true
+	}
 	var typ = p.parseType()
+
 	p.expectSemi(__func__)
 	spec.Type = typ
 	return spec

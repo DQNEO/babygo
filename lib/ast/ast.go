@@ -270,6 +270,7 @@ type ValueSpec struct {
 
 type TypeSpec struct {
 	Name *Ident
+	Assign bool // isAlias
 	Type Expr
 }
 
