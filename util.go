@@ -5,6 +5,8 @@ import (
 	"github.com/DQNEO/babygo/lib/fmt"
 )
 
+type Type = ast.Type
+
 func newStmt(x interface{}) ast.Stmt {
 	return x
 }

@@ -96,7 +96,7 @@ func emitPopSlice() {
 	fmt.Printf("  popq %%rdx # slice.cap\n")
 }
 
-func emitPushStackTop(condType *ast.Type, offset int, comment string) {
+func emitPushStackTop(condType *Type, offset int, comment string) {
 	switch kind(condType) {
 	case T_STRING:
 		fmt.Printf("  movq %d+8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", offset, comment)
@@ -133,7 +133,7 @@ func emitAddConst(addValue int, comment string) {
 }
 
 // "Load" means copy data from memory to registers
-func emitLoadAndPush(t *ast.Type) {
+func emitLoadAndPush(t *Type) {
 	assert(t != nil, "type should not be nil", __func__)
 	emitPopAddress(string(kind(t)))
 	switch kind(t) {
@@ -298,7 +298,7 @@ func isType(expr ast.Expr) bool {
 }
 
 // explicit conversion T(e)
-func emitConversion(toType *ast.Type, arg0 ast.Expr) {
+func emitConversion(toType *Type, arg0 ast.Expr) {
 	emitComment(2, "[emitConversion]\n")
 	switch to := toType.E.(type) {
 	case *ast.Ident:
@@ -365,7 +365,7 @@ func emitConversion(toType *ast.Type, arg0 ast.Expr) {
 	}
 }
 
-func emitZeroValue(t *ast.Type) {
+func emitZeroValue(t *Type) {
 	switch kind(t) {
 	case T_SLICE:
 		fmt.Printf("  pushq $0 # slice cap\n")
@@ -495,7 +495,7 @@ func emitFalse() {
 
 type Arg struct {
 	e         ast.Expr
-	paramType *ast.Type // expected type
+	paramType *Type // expected type
 	offset    int
 }
 
@@ -871,7 +871,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 	emitCall(symbol, args, funcType.Results)
 }
 
-func emitNil(targetType *ast.Type) {
+func emitNil(targetType *Type) {
 	if targetType == nil {
 		panic2(__func__, "Type is required to emit nil")
 	}
@@ -896,7 +896,7 @@ type okContext struct {
 
 type evalContext struct {
 	okContext *okContext
-	_type     *ast.Type
+	_type     *Type
 }
 
 func emitIdent(e *ast.Ident, ctx *evalContext) bool {
@@ -1320,7 +1320,7 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 }
 
 // convert stack top value to interface
-func emitConvertToInterface(fromType *ast.Type) {
+func emitConvertToInterface(fromType *Type) {
 	emitComment(2, "ConversionToInterface\n")
 	memSize := getSizeOfType(fromType)
 	// copy data to heap
@@ -1366,7 +1366,7 @@ func getTypeId(serialized string) int {
 	return r
 }
 
-func emitDtypeSymbol(t *ast.Type) {
+func emitDtypeSymbol(t *Type) {
 	str := serializeType(t)
 	typeId := getTypeId(str)
 	typeSymbol := typeIdToSymbol(typeId)
@@ -1381,7 +1381,7 @@ func newNumberLiteral(x int) *ast.BasicLit {
 	return r
 }
 
-func emitListElementAddr(list ast.Expr, elmType *ast.Type) {
+func emitListElementAddr(list ast.Expr, elmType *Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
 	fmt.Printf("  popq %%rcx # index id\n")
@@ -1485,7 +1485,7 @@ func emitPop(knd TypeKind) {
 	}
 }
 
-func emitStore(t *ast.Type, rhsTop bool, pushLhs bool) {
+func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	knd := kind(t)
 	emitComment(2, "emitStore(%s)\n", knd)
 	if rhsTop {
@@ -1503,7 +1503,7 @@ func emitStore(t *ast.Type, rhsTop bool, pushLhs bool) {
 	emitRegiToMem(t)
 }
 
-func emitRegiToMem(t *ast.Type) {
+func emitRegiToMem(t *Type) {
 	fmt.Printf("  popq %%rsi # place to save\n")
 	k := kind(t)
 	switch k {
@@ -2048,7 +2048,7 @@ func emitStmt(stmt ast.Stmt) {
 	}
 }
 
-func emitRevertStackTop(t *ast.Type) {
+func emitRevertStackTop(t *Type) {
 	fmt.Printf("  addq $%d, %%rsp # revert stack top\n", getSizeOfType(t))
 }
 
@@ -2116,7 +2116,7 @@ func emitFuncDecl(pkgName string, fnc *ast.Func) {
 	fmt.Printf("  ret\n")
 }
 
-func emitGlobalVariableComplex(name *ast.Ident, t *ast.Type, val ast.Expr) {
+func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
 	typeKind := kind(t)
 	switch typeKind {
 	case T_POINTER:
@@ -2126,7 +2126,7 @@ func emitGlobalVariableComplex(name *ast.Ident, t *ast.Type, val ast.Expr) {
 	}
 }
 
-func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *ast.Type, val ast.Expr) {
+func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Expr) {
 	typeKind := kind(t)
 	fmt.Printf("%s.%s: # T %s\n", pkg.name, name.Name, string(typeKind))
 	switch typeKind {
@@ -2265,7 +2265,7 @@ func generateCode(pkg *PkgContainer) {
 	}
 
 	for _, spec := range pkg.vars {
-		var t *ast.Type
+		var t *Type
 		if spec.Type != nil {
 			t = e2t(spec.Type)
 		}
@@ -2280,7 +2280,7 @@ func generateCode(pkg *PkgContainer) {
 			continue
 		}
 		val := spec.Value
-		var t *ast.Type
+		var t *Type
 		if spec.Type != nil {
 			t = e2t(spec.Type)
 		}
@@ -2329,7 +2329,7 @@ const T_ARRAY TypeKind = "T_ARRAY"
 const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
 
-func getTypeOfExpr(expr ast.Expr) *ast.Type {
+func getTypeOfExpr(expr ast.Expr) *Type {
 	//emitComment(0, "[%s] start\n", __func__)
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -2349,11 +2349,11 @@ func getTypeOfExpr(expr ast.Expr) *ast.Type {
 			}
 			switch decl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
-				var t = &ast.Type{}
+				var t = &Type{}
 				t.E = decl.Type
 				return t
 			case *ast.Field:
-				var t = &ast.Type{}
+				var t = &Type{}
 				t.E = decl.Type
 				return t
 			case *ast.AssignStmt: // lhs := rhs
@@ -2471,12 +2471,12 @@ func getTypeOfExpr(expr ast.Expr) *ast.Type {
 	}
 
 	panic2(__func__, "nil type is not allowed\n")
-	var r *ast.Type
+	var r *Type
 	return r
 }
 
-func fieldList2Types(fldlist *ast.FieldList) []*ast.Type {
-	var r []*ast.Type
+func fieldList2Types(fldlist *ast.FieldList) []*Type {
+	var r []*Type
 	for _, e2 := range fldlist.List {
 		t := e2t(e2.Type)
 		r = append(r, t)
@@ -2484,7 +2484,7 @@ func fieldList2Types(fldlist *ast.FieldList) []*ast.Type {
 	return r
 }
 
-func getCallResultTypes(e *ast.CallExpr) []*ast.Type {
+func getCallResultTypes(e *ast.CallExpr) []*Type {
 	emitComment(2, "[%s] *ast.CallExpr\n", __func__)
 	var fun = e.Fun
 	switch fn := fun.(type) {
@@ -2494,19 +2494,19 @@ func getCallResultTypes(e *ast.CallExpr) []*ast.Type {
 		}
 		switch fn.Obj.Kind {
 		case ast.Typ:
-			return []*ast.Type{e2t(fun)}
+			return []*Type{e2t(fun)}
 		case ast.Fun:
 			switch fn.Obj {
 			case gLen, gCap:
-				return []*ast.Type{tInt}
+				return []*Type{tInt}
 			case gNew:
 				var starExpr = &ast.StarExpr{}
 				starExpr.X = e.Args[0]
-				return []*ast.Type{e2t(starExpr)}
+				return []*Type{e2t(starExpr)}
 			case gMake:
-				return []*ast.Type{e2t(e.Args[0])}
+				return []*Type{e2t(e.Args[0])}
 			case gAppend:
-				return []*ast.Type{e2t(e.Args[0])}
+				return []*Type{e2t(e.Args[0])}
 			}
 			var decl = fn.Obj.Decl
 			if decl == nil {
@@ -2522,15 +2522,15 @@ func getCallResultTypes(e *ast.CallExpr) []*ast.Type {
 		}
 	case *ast.ParenExpr: // (X)(e) funcall or conversion
 		if isType(fn.X) {
-			return []*ast.Type{e2t(fn.X)}
+			return []*Type{e2t(fn.X)}
 		} else {
 			panic("TBI: what should we do ?")
 		}
 	case *ast.ArrayType:
-		return []*ast.Type{e2t(fun)}
+		return []*Type{e2t(fun)}
 	case *ast.SelectorExpr:
 		if isType(fn) {
-			return []*ast.Type{e2t(fn)}
+			return []*Type{e2t(fn)}
 		}
 		if isQI(fn) { // pkg.Sel()
 			ff := lookupForeignFunc(selector2QI(fn))
@@ -2541,23 +2541,23 @@ func getCallResultTypes(e *ast.CallExpr) []*ast.Type {
 			return fieldList2Types(method.FuncType.Results)
 		}
 	case *ast.InterfaceType:
-		return []*ast.Type{tEface}
+		return []*Type{tEface}
 	default:
 		panic2(__func__, "[astCallExpr] dtype="+dtypeOf(e.Fun))
 	}
 	return nil
 }
 
-func e2t(typeExpr ast.Expr) *ast.Type {
+func e2t(typeExpr ast.Expr) *Type {
 	if typeExpr == nil {
 		panic2(__func__, "nil is not allowed")
 	}
-	var r = &ast.Type{}
+	var r = &Type{}
 	r.E = typeExpr
 	return r
 }
 
-func serializeType(t *ast.Type) string {
+func serializeType(t *Type) string {
 	if t == nil {
 		panic("nil type is not expected")
 	}
@@ -2625,12 +2625,12 @@ func serializeType(t *ast.Type) string {
 	return ""
 }
 
-func getUnderlyingStructType(t *ast.Type) *ast.StructType {
+func getUnderlyingStructType(t *Type) *ast.StructType {
 	ut := getUnderlyingType(t)
 	return ut.E.(*ast.StructType)
 }
 
-func getUnderlyingType(t *ast.Type) *ast.Type {
+func getUnderlyingType(t *Type) *Type {
 	if t == nil {
 		panic("nil type is not expected")
 	}
@@ -2660,7 +2660,7 @@ func getUnderlyingType(t *ast.Type) *ast.Type {
 	panic("should not reach here")
 }
 
-func kind(t *ast.Type) TypeKind {
+func kind(t *Type) TypeKind {
 	if t == nil {
 		panic2(__func__, "nil type is not expected\n")
 	}
@@ -2708,13 +2708,13 @@ func kind(t *ast.Type) TypeKind {
 	panic("should not reach here")
 }
 
-func isInterface(t *ast.Type) bool {
+func isInterface(t *Type) bool {
 	return kind(t) == T_INTERFACE
 }
 
-func getStructTypeOfX(e *ast.SelectorExpr) *ast.Type {
+func getStructTypeOfX(e *ast.SelectorExpr) *Type {
 	var typeOfX = getTypeOfExpr(e.X)
-	var structType *ast.Type
+	var structType *Type
 	switch kind(typeOfX) {
 	case T_STRUCT:
 		// strct.field => e.X . e.Sel
@@ -2729,7 +2729,7 @@ func getStructTypeOfX(e *ast.SelectorExpr) *ast.Type {
 	return structType
 }
 
-func getElementTypeOfListType(t *ast.Type) *ast.Type {
+func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
 		switch e := t.E.(type) {
@@ -2745,7 +2745,7 @@ func getElementTypeOfListType(t *ast.Type) *ast.Type {
 	default:
 		unexpectedKind(kind(t))
 	}
-	var r *ast.Type
+	var r *Type
 	return r
 }
 
@@ -2757,7 +2757,7 @@ const SizeOfUint16 int = 2
 const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
-func getSizeOfType(t *ast.Type) int {
+func getSizeOfType(t *Type) int {
 	ut := getUnderlyingType(t)
 	switch kind(ut) {
 	case T_SLICE:
@@ -2831,14 +2831,14 @@ type stringLiteralsContainer struct {
 
 //type localoffsetint int //@TODO
 
-func registerParamVariable(fnc *ast.Func, name string, t *ast.Type) *ast.Variable {
+func registerParamVariable(fnc *ast.Func, name string, t *Type) *ast.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	fnc.Argsarea = fnc.Argsarea + getSizeOfType(t)
 	fnc.Params = append(fnc.Params, vr)
 	return vr
 }
 
-func registerReturnVariable(fnc *ast.Func, name string, t *ast.Type) *ast.Variable {
+func registerReturnVariable(fnc *ast.Func, name string, t *Type) *ast.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
 	fnc.Argsarea = fnc.Argsarea + size
@@ -2846,7 +2846,7 @@ func registerReturnVariable(fnc *ast.Func, name string, t *ast.Type) *ast.Variab
 	return vr
 }
 
-func registerLocalVariable(fnc *ast.Func, name string, t *ast.Type) *ast.Variable {
+func registerLocalVariable(fnc *ast.Func, name string, t *Type) *ast.Variable {
 	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
 	fnc.Localarea = fnc.Localarea - getSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
@@ -2898,7 +2898,7 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	currentPkg.stringLiterals = append(currentPkg.stringLiterals, cont)
 }
 
-func newGlobalVariable(pkgName string, name string, t *ast.Type) *ast.Variable {
+func newGlobalVariable(pkgName string, name string, t *Type) *ast.Variable {
 	vr := &ast.Variable{
 		Name:         name,
 		IsGlobal:     true,
@@ -2908,7 +2908,7 @@ func newGlobalVariable(pkgName string, name string, t *ast.Type) *ast.Variable {
 	return vr
 }
 
-func newLocalVariable(name string, localoffset int, t *ast.Type) *ast.Variable {
+func newLocalVariable(name string, localoffset int, t *Type) *ast.Variable {
 	vr := &ast.Variable{
 		Name:        name,
 		IsGlobal:    false,
@@ -3004,7 +3004,7 @@ func registerMethod(method *ast.Method) {
 	nt.methods = append(nt.methods, me)
 }
 
-func lookupMethod(rcvT *ast.Type, methodName *ast.Ident) *ast.Method {
+func lookupMethod(rcvT *Type, methodName *ast.Ident) *ast.Method {
 	var rcvType = rcvT.E
 	if isExprStarExpr(rcvType) {
 		rcvType = expr2StarExpr(rcvType).X
@@ -3071,7 +3071,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 		rhs0 := s.Rhs[0]
 		walkExpr(rhs0)
 		// infer type
-		var typ0 *ast.Type
+		var typ0 *Type
 		switch rhs := rhs0.(type) {
 		case *ast.CallExpr:
 			types := getCallResultTypes(rhs)
@@ -3148,7 +3148,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		keyIdent := expr2Ident(s.Key)
 		//@TODO map key can be any type
 		//keyType := getKeyTypeOfListType(listType)
-		var keyType *ast.Type = tInt
+		var keyType *Type = tInt
 		setVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, keyType))
 
 		// determine type of Value
@@ -3668,14 +3668,14 @@ var gPanic = &ast.Object{
 	Name: "panic",
 }
 
-var tInt *ast.Type
-var tInt32 *ast.Type // Rune
-var tUint8 *ast.Type
-var tUint16 *ast.Type
-var tUintptr *ast.Type
-var tString *ast.Type
-var tEface *ast.Type
-var tBool *ast.Type
+var tInt *Type
+var tInt32 *Type // Rune
+var tUint8 *Type
+var tUint16 *Type
+var tUintptr *Type
+var tString *Type
+var tEface *Type
+var tBool *Type
 var generalSlice ast.Expr
 
 func isPredeclaredType(obj *ast.Object) bool {
@@ -4032,50 +4032,50 @@ func main() {
 		Kind:  "INT",
 	}
 	generalSlice = &ast.Ident{}
-	tInt = &ast.Type{
+	tInt = &Type{
 		E: &ast.Ident{
 			Name: "int",
 			Obj:  gInt,
 		},
 	}
-	tInt32 = &ast.Type{
+	tInt32 = &Type{
 		E: &ast.Ident{
 			Name: "int32",
 			Obj:  gInt32,
 		},
 	}
-	tUint8 = &ast.Type{
+	tUint8 = &Type{
 		E: &ast.Ident{
 			Name: "uint8",
 			Obj:  gUint8,
 		},
 	}
 
-	tUint16 = &ast.Type{
+	tUint16 = &Type{
 		E: &ast.Ident{
 			Name: "uint16",
 			Obj:  gUint16,
 		},
 	}
-	tUintptr = &ast.Type{
+	tUintptr = &Type{
 		E: &ast.Ident{
 			Name: "uintptr",
 			Obj:  gUintptr,
 		},
 	}
 
-	tString = &ast.Type{
+	tString = &Type{
 		E: &ast.Ident{
 			Name: "string",
 			Obj:  gString,
 		},
 	}
 
-	tEface = &ast.Type{
+	tEface = &Type{
 		E: &ast.InterfaceType{},
 	}
 
-	tBool = &ast.Type{
+	tBool = &Type{
 		E: &ast.Ident{
 			Name: "bool",
 			Obj:  gBool,
