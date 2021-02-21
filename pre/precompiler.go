@@ -1404,14 +1404,13 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 			offset:    0,
 		},
 	}
-
-	fList := &ast.FieldList{List: []*ast.Field{
+	resultList := &ast.FieldList{
+		List: []*ast.Field{
 		&ast.Field{
-			Names: nil,
 			Type:  tString.E,
 		},
 	}}
-	emitCall("runtime.catstrings", args, fList)
+	emitCall("runtime.catstrings", args, resultList)
 }
 
 func emitCompStrings(left ast.Expr, right ast.Expr) {

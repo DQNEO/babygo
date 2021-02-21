@@ -1398,14 +1398,13 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 			paramType: tString,
 		},
 	}
-	var resultList = &ast.FieldList{
+	resultList := &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
 				Type: tString.E,
 			},
 		},
 	}
-
 	emitCall("runtime.catstrings", args, resultList)
 }
 
