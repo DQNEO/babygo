@@ -1407,10 +1407,10 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 	}
 	resultList := &ast.FieldList{
 		List: []*ast.Field{
-		&ast.Field{
-			Type:  tString.E,
-		},
-	}}
+			&ast.Field{
+				Type: tString.E,
+			},
+		}}
 	emitCall("runtime.catstrings", args, resultList)
 }
 
@@ -2710,13 +2710,13 @@ func getUnderlyingType(t *Type) *Type {
 	}
 
 	switch e := t.E.(type) {
-	case *ast.StructType,*ast.ArrayType,*ast.StarExpr,*ast.Ellipsis,*ast.InterfaceType:
+	case *ast.StructType, *ast.ArrayType, *ast.StarExpr, *ast.Ellipsis, *ast.InterfaceType:
 		// type literal
 		return t
 	case *ast.Ident:
 		// predeclared identifier
 		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ")
-		if isPredeclaredType(e.Obj){
+		if isPredeclaredType(e.Obj) {
 			return t
 		}
 		// defined type or alias

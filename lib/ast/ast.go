@@ -269,9 +269,9 @@ type ValueSpec struct {
 }
 
 type TypeSpec struct {
-	Name *Ident
+	Name   *Ident
 	Assign bool // isAlias
-	Type Expr
+	Type   Expr
 }
 
 // Pseudo interface for *ast.Decl

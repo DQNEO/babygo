@@ -2638,12 +2638,12 @@ func getUnderlyingType(t *Type) *Type {
 	}
 
 	switch e := t.E.(type) {
-	case *ast.StructType,*ast.ArrayType,*ast.StarExpr,*ast.Ellipsis,*ast.InterfaceType:
+	case *ast.StructType, *ast.ArrayType, *ast.StarExpr, *ast.Ellipsis, *ast.InterfaceType:
 		// type literal
 		return t
 	case *ast.Ident:
 		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
-		if isPredeclaredType(e.Obj){
+		if isPredeclaredType(e.Obj) {
 			return t
 		}
 		// defined type or alias
@@ -3020,7 +3020,7 @@ func walkExprStmt(s *ast.ExprStmt) {
 	walkExpr(s.X)
 }
 func walkDeclStmt(s *ast.DeclStmt) {
-	genDecl  := s.Decl.(*ast.GenDecl)
+	genDecl := s.Decl.(*ast.GenDecl)
 	declSpec := genDecl.Spec
 	switch spec := declSpec.(type) {
 	case *ast.ValueSpec:
