@@ -254,7 +254,8 @@ func emitAddr(expr ast.Expr) {
 		default:
 			unexpectedKind(kind(typeOfX))
 		}
-		field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
+
+		field := lookupStructField(getUnderlyingStructType(structType), e.Sel.Name)
 		offset := getStructFieldOffset(field)
 		emitAddConst(offset, "struct head address + struct.field offset")
 	case *ast.CompositeLit:
@@ -443,7 +444,7 @@ func emitStructLiteral(e *ast.CompositeLit) {
 		fieldName, ok := kvExpr.Key.(*ast.Ident)
 		assert(ok, "expect *ast.Ident")
 		emitComment(2, "- [%d] : key=%s, value=%T\n", i, fieldName.Name, kvExpr.Value)
-		field := lookupStructField(getStructTypeSpec(structType), fieldName.Name)
+		field := lookupStructField(getUnderlyingStructType(structType), fieldName.Name)
 		fieldType := e2t(field.Type)
 		fieldOffset := getStructFieldOffset(field)
 		// push lhs address
@@ -2527,13 +2528,20 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		}
 		return e2t(ptrType.X)
 	case *ast.SelectorExpr:
-		emitComment(2, "getTypeOfExpr(X.%s)\n", e.Sel.Name)
-		if isQI(e) {
+		if isQI(e) { // pkg.SomeType
 			ident := lookupForeignIdent(selector2QI(e))
 			return getTypeOfExpr(ident)
-		} else {
-			structType := getStructTypeOfX(e)
-			field := lookupStructField(getStructTypeSpec(structType), e.Sel.Name)
+		} else { // strct.field
+			ut := getUnderlyingType(getTypeOfExpr(e.X))
+			var structTypeLiteral *ast.StructType
+			switch typ := ut.E.(type) {
+			case *ast.StructType:
+				structTypeLiteral = typ
+			case *ast.StarExpr:
+				structType := e2t(typ.X)
+				structTypeLiteral = getUnderlyingStructType(structType)
+			}
+			field := lookupStructField(structTypeLiteral, e.Sel.Name)
 			return e2t(field.Type)
 		}
 	case *ast.CompositeLit:
@@ -2691,6 +2699,11 @@ func serializeType(t *Type) string {
 	return ""
 }
 
+func getUnderlyingStructType(t *Type) *ast.StructType {
+	ut := getUnderlyingType(t)
+	return ut.E.(*ast.StructType)
+}
+
 func getUnderlyingType(t *Type) *Type {
 	if t == nil {
 		panic("nil type is not expected")
@@ -2709,7 +2722,7 @@ func getUnderlyingType(t *Type) *Type {
 		if isPredeclaredType(e.Obj){
 			return t
 		}
-		// defined type
+		// defined type or alias
 		typeSpec := e.Obj.Decl.(*ast.TypeSpec)
 		// get RHS in its type definition recursively
 		return getUnderlyingType(e2t(typeSpec.Type))
@@ -2767,32 +2780,12 @@ func kind(t *Type) TypeKind {
 		return T_SLICE // @TODO is this right ?
 	case *ast.InterfaceType:
 		return T_INTERFACE
-	default:
-		panic(t)
 	}
 	panic("should not reach here")
 }
 
 func isInterface(t *Type) bool {
 	return kind(t) == T_INTERFACE
-}
-
-func getStructTypeOfX(e *ast.SelectorExpr) *Type {
-	typeOfX := getTypeOfExpr(e.X)
-	var structType *Type
-	switch kind(typeOfX) {
-	case T_STRUCT:
-		// strct.field => e.X . e.Sel
-		structType = typeOfX
-	case T_POINTER:
-		// ptr.field => e.X . e.Sel
-		ptrType, ok := typeOfX.E.(*ast.StarExpr)
-		assert(ok, "should be *ast.StarExpr")
-		structType = e2t(ptrType.X)
-	default:
-		unexpectedKind(kind(typeOfX))
-	}
-	return structType
 }
 
 func getElementTypeOfListType(t *Type) *Type {
@@ -2846,7 +2839,7 @@ func getSizeOfType(t *Type) int {
 		elmSize := getSizeOfType(e2t(arrayType.Elt))
 		return elmSize * evalInt(arrayType.Len)
 	case T_STRUCT:
-		return calcStructSizeAndSetFieldOffset(getStructTypeSpec(t))
+		return calcStructSizeAndSetFieldOffset(ut.E.(*ast.StructType))
 	default:
 		unexpectedKind(kind(t))
 	}
@@ -2872,51 +2865,18 @@ func setStructFieldOffset(field *ast.Field, offset int) {
 	field.Doc = commentGroup
 }
 
-func getStructFields(structTypeSpec *ast.TypeSpec) []*ast.Field {
-	structType, ok := structTypeSpec.Type.(*ast.StructType)
-	if !ok {
-		throw(structTypeSpec.Type)
-	}
-
-	return structType.Fields.List
-}
-
-func getStructTypeSpec(typ *Type) *ast.TypeSpec {
-	if kind(typ) != T_STRUCT {
-		throw(typ)
-	}
-	var typeName *ast.Ident
-
-	switch t := typ.E.(type) {
-	case *ast.Ident:
-		typeName = t
-	case *ast.SelectorExpr:
-		typeName = lookupForeignIdent(selector2QI(t))
-	default:
-		panic(typ.E)
-	}
-
-	typeSpec, ok := typeName.Obj.Decl.(*ast.TypeSpec)
-	if !ok {
-		throw(typeName.Obj.Decl)
-	}
-	return typeSpec
-
-}
-
-func lookupStructField(structTypeSpec *ast.TypeSpec, selName string) *ast.Field {
-	for _, field := range getStructFields(structTypeSpec) {
+func lookupStructField(structType *ast.StructType, selName string) *ast.Field {
+	for _, field := range structType.Fields.List {
 		if field.Names[0].Name == selName {
 			return field
 		}
 	}
 	panic("Unexpected flow: struct field not found:" + selName)
-	return nil
 }
 
-func calcStructSizeAndSetFieldOffset(structTypeSpec *ast.TypeSpec) int {
+func calcStructSizeAndSetFieldOffset(structType *ast.StructType) int {
 	var offset int = 0
-	for _, field := range getStructFields(structTypeSpec) {
+	for _, field := range structType.Fields.List {
 		setStructFieldOffset(field, offset)
 		size := getSizeOfType(e2t(field.Type))
 		offset += size
@@ -3613,9 +3573,11 @@ func walk(pkg *PkgContainer) {
 
 	for _, typeSpec := range typeSpecs {
 		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
-		switch kind(e2t(typeSpec.Type)) {
+		t := e2t(typeSpec.Type)
+		switch kind(t) {
 		case T_STRUCT:
-			calcStructSizeAndSetFieldOffset(typeSpec)
+			structType := getUnderlyingType(t)
+			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
 		ExportedQualifiedIdents[newQI(pkg.name, typeSpec.Name.Name)] = typeSpec.Name
 	}
