@@ -171,7 +171,7 @@ func emitLoadAndPush(t *Type) {
 	}
 }
 
-func emitVariableAddr(variable *ast.Variable) {
+func emitVariableAddr(variable *Variable) {
 	emitComment(2, "emit Addr of variable \"%s\" \n", variable.Name)
 
 	if variable.IsGlobal {
@@ -1568,7 +1568,7 @@ func emitAssignWithOK(lhss []ast.Expr, rhs ast.Expr) {
 	}
 }
 
-func emitAssignToVar(vr *ast.Variable, rhs ast.Expr) {
+func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitVariableAddr(vr)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
@@ -2813,14 +2813,14 @@ type stringLiteralsContainer struct {
 
 //type localoffsetint int //@TODO
 
-func registerParamVariable(fnc *ast.Func, name string, t *Type) *ast.Variable {
+func registerParamVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	fnc.Argsarea = fnc.Argsarea + getSizeOfType(t)
 	fnc.Params = append(fnc.Params, vr)
 	return vr
 }
 
-func registerReturnVariable(fnc *ast.Func, name string, t *Type) *ast.Variable {
+func registerReturnVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
 	fnc.Argsarea = fnc.Argsarea + size
@@ -2828,7 +2828,7 @@ func registerReturnVariable(fnc *ast.Func, name string, t *Type) *ast.Variable {
 	return vr
 }
 
-func registerLocalVariable(fnc *ast.Func, name string, t *Type) *ast.Variable {
+func registerLocalVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
 	fnc.Localarea = fnc.Localarea - getSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
@@ -2880,8 +2880,8 @@ func registerStringLiteral(lit *ast.BasicLit) {
 	currentPkg.stringLiterals = append(currentPkg.stringLiterals, cont)
 }
 
-func newGlobalVariable(pkgName string, name string, t *Type) *ast.Variable {
-	vr := &ast.Variable{
+func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
+	vr := &Variable{
 		Name:         name,
 		IsGlobal:     true,
 		GlobalSymbol: pkgName + "." + name,
@@ -2890,8 +2890,8 @@ func newGlobalVariable(pkgName string, name string, t *Type) *ast.Variable {
 	return vr
 }
 
-func newLocalVariable(name string, localoffset int, t *Type) *ast.Variable {
-	vr := &ast.Variable{
+func newLocalVariable(name string, localoffset int, t *Type) *Variable {
+	vr := &Variable{
 		Name:        name,
 		IsGlobal:    false,
 		LocalOffset: localoffset,
@@ -4099,12 +4099,12 @@ func main() {
 	emitDynamicTypes(typeMap)
 }
 
-func obj2var(obj *ast.Object) *ast.Variable {
+func obj2var(obj *ast.Object) *Variable {
 	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
 	assert(obj.Variable != nil, "should not be nil", __func__)
 	return obj.Variable
 }
 
-func setVariable(obj *ast.Object, vr *ast.Variable) {
+func setVariable(obj *ast.Object, vr *Variable) {
 	obj.Variable = vr
 }

@@ -6,6 +6,7 @@ import (
 )
 
 type Type = ast.Type
+type Variable = ast.Variable
 
 func newStmt(x interface{}) ast.Stmt {
 	return x
