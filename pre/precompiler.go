@@ -2701,36 +2701,30 @@ func kind(t *Type) TypeKind {
 
 	switch e := t.E.(type) {
 	case *ast.Ident:
-		if e.Obj == nil {
-			panic("Unresolved identifier:" + e.Name)
-		}
-		if e.Obj.Kind == ast.Var {
-			throw(e.Obj)
-		} else if e.Obj.Kind == ast.Typ {
-			switch e.Obj {
-			case gUintptr:
-				return T_UINTPTR
-			case gInt:
-				return T_INT
-			case gInt32:
-				return T_INT32
-			case gString:
-				return T_STRING
-			case gUint8:
-				return T_UINT8
-			case gUint16:
-				return T_UINT16
-			case gBool:
-				return T_BOOL
-			default:
-				// named type
-				decl := e.Obj.Decl
-				typeSpec, ok := decl.(*ast.TypeSpec)
-				if !ok {
-					throw(decl)
-				}
-				return kind(e2t(typeSpec.Type))
+		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ")
+		switch e.Obj {
+		case gUintptr:
+			return T_UINTPTR
+		case gInt:
+			return T_INT
+		case gInt32:
+			return T_INT32
+		case gString:
+			return T_STRING
+		case gUint8:
+			return T_UINT8
+		case gUint16:
+			return T_UINT16
+		case gBool:
+			return T_BOOL
+		default:
+			// named type
+			decl := e.Obj.Decl
+			typeSpec, ok := decl.(*ast.TypeSpec)
+			if !ok {
+				throw(decl)
 			}
+			return kind(e2t(typeSpec.Type))
 		}
 	case *ast.StructType:
 		return T_STRUCT

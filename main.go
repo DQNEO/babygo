@@ -2627,8 +2627,8 @@ func kind(t *ast.Type) TypeKind {
 
 	switch e := t.E.(type) {
 	case *ast.Ident:
-		var ident = e
-		switch ident.Obj.Name {
+		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
+		switch e.Obj.Name {
 		case "uintptr":
 			return T_UINTPTR
 		case "int":
@@ -2645,7 +2645,7 @@ func kind(t *ast.Type) TypeKind {
 			return T_BOOL
 		default:
 			// named type
-			var decl = ident.Obj.Decl
+			var decl = e.Obj.Decl
 			var typeSpec *ast.TypeSpec
 			var ok bool
 			typeSpec, ok = decl.(*ast.TypeSpec)
