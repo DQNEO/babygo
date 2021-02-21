@@ -2711,23 +2711,6 @@ func isInterface(t *Type) bool {
 	return kind(t) == T_INTERFACE
 }
 
-func getStructTypeOfX(e *ast.SelectorExpr) *Type {
-	var typeOfX = getTypeOfExpr(e.X)
-	var structType *Type
-	switch kind(typeOfX) {
-	case T_STRUCT:
-		// strct.field => e.X . e.Sel
-		structType = typeOfX
-	case T_POINTER:
-		// ptr.field => e.X . e.Sel
-		ptrType := expr2StarExpr(typeOfX.E)
-		structType = e2t(ptrType.X)
-	default:
-		unexpectedKind(kind(typeOfX))
-	}
-	return structType
-}
-
 func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
