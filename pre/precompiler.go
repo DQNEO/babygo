@@ -3073,16 +3073,11 @@ var MethodSets = map[*ast.Object]map[string]*Method{}
 
 func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	rcvType := funcDecl.Recv.List[0].Type
-	rcvPointerType, ok := rcvType.(*ast.StarExpr)
-	var isPtr bool
-	if ok {
-		isPtr = true
+	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
+	if isPtr {
 		rcvType = rcvPointerType.X
 	}
-	rcvNamedType, ok := rcvType.(*ast.Ident)
-	if !ok {
-		throw(rcvType)
-	}
+	rcvNamedType := rcvType.(*ast.Ident)
 	method := &Method{
 		pkgName:      pkgName,
 		rcvNamedType: rcvNamedType,

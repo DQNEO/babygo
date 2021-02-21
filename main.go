@@ -2968,14 +2968,12 @@ func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
 }
 
 func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ast.Method {
-	var rcvType = funcDecl.Recv.List[0].Type
-	var isPtr bool
-	if isExprStarExpr(rcvType) {
-		isPtr = true
-		rcvType = expr2StarExpr(rcvType).X
+	rcvType := funcDecl.Recv.List[0].Type
+	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
+	if isPtr {
+		rcvType = rcvPointerType.X
 	}
-
-	rcvNamedType := expr2Ident(rcvType)
+	rcvNamedType := rcvType.(*ast.Ident)
 	var method = &ast.Method{
 		PkgName:      pkgName,
 		RcvNamedType: rcvNamedType,
