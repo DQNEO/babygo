@@ -238,26 +238,28 @@ func emitAddr(expr ast.Expr) {
 		emitListElementAddr(list, elmType)
 	case *ast.StarExpr:
 		emitExpr(e.X, nil)
-	case *ast.SelectorExpr: // (X).Sel
-		typeOfX := getTypeOfExpr(e.X)
-		var structType *Type
-		switch kind(typeOfX) {
-		case T_STRUCT:
-			// strct.field
-			structType = typeOfX
-			emitAddr(e.X)
-		case T_POINTER:
-			// ptr.field
-			ptrType := typeOfX.E.(*ast.StarExpr)
-			structType = e2t(ptrType.X)
-			emitExpr(e.X, nil)
-		default:
-			unexpectedKind(kind(typeOfX))
-		}
+	case *ast.SelectorExpr:
+		if isQI(e) { // pkg.SomeType
+			ident := lookupForeignIdent(selector2QI(e))
+			emitAddr(ident)
+		} else { // (e).field
+			typeOfX := getUnderlyingType(getTypeOfExpr(e.X))
+			var structTypeLiteral *ast.StructType
+			switch typ := typeOfX.E.(type) {
+			case *ast.StructType: // strct.field
+				structTypeLiteral = typ
+				emitAddr(e.X)
+			case *ast.StarExpr: // ptr.field
+				structTypeLiteral = getUnderlyingStructType(e2t(typ.X))
+				emitExpr(e.X, nil)
+			default:
+				unexpectedKind(kind(typeOfX))
+			}
 
-		field := lookupStructField(getUnderlyingStructType(structType), e.Sel.Name)
-		offset := getStructFieldOffset(field)
-		emitAddConst(offset, "struct head address + struct.field offset")
+			field := lookupStructField(structTypeLiteral, e.Sel.Name)
+			offset := getStructFieldOffset(field)
+			emitAddConst(offset, "struct head address + struct.field offset")
+		}
 	case *ast.CompositeLit:
 		knd := kind(getTypeOfExpr(e))
 		switch knd {
@@ -2522,22 +2524,19 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		return e2t(r)
 	case *ast.StarExpr:
 		t := getTypeOfExpr(e.X)
-		ptrType, ok := t.E.(*ast.StarExpr)
-		if !ok {
-			throw(t)
-		}
+		ptrType := t.E.(*ast.StarExpr)
 		return e2t(ptrType.X)
 	case *ast.SelectorExpr:
 		if isQI(e) { // pkg.SomeType
 			ident := lookupForeignIdent(selector2QI(e))
 			return getTypeOfExpr(ident)
-		} else { // strct.field
+		} else { // (e).field
 			ut := getUnderlyingType(getTypeOfExpr(e.X))
 			var structTypeLiteral *ast.StructType
 			switch typ := ut.E.(type) {
-			case *ast.StructType:
+			case *ast.StructType: // strct.field
 				structTypeLiteral = typ
-			case *ast.StarExpr:
+			case *ast.StarExpr: // ptr.field
 				structType := e2t(typ.X)
 				structTypeLiteral = getUnderlyingStructType(structType)
 			}
