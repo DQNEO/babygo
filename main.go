@@ -2628,20 +2628,20 @@ func kind(t *ast.Type) TypeKind {
 	switch e := t.E.(type) {
 	case *ast.Ident:
 		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
-		switch e.Obj.Name {
-		case "uintptr":
+		switch e.Obj {
+		case gUintptr:
 			return T_UINTPTR
-		case "int":
+		case gInt:
 			return T_INT
-		case "int32":
+		case gInt32:
 			return T_INT32
-		case "string":
+		case gString:
 			return T_STRING
-		case "uint8", "byte":
+		case gUint8:
 			return T_UINT8
-		case "uint16":
+		case gUint16:
 			return T_UINT16
-		case "bool":
+		case gBool:
 			return T_BOOL
 		default:
 			// named type
