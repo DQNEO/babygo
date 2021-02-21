@@ -123,37 +123,23 @@ func expr2StarExpr(e ast.Expr) *ast.StarExpr {
 	return r
 }
 
-func expr2KeyValueExpr(e ast.Expr) *ast.KeyValueExpr {
-	var r *ast.KeyValueExpr
-	var ok bool
-	r, ok = e.(*ast.KeyValueExpr)
-	if !ok {
-		panic("Not *ast.KeyValueExpr")
-	}
-	return r
-}
-
 func isExprStarExpr(e ast.Expr) bool {
-	var ok bool
-	_, ok = e.(*ast.StarExpr)
+	_, ok := e.(*ast.StarExpr)
 	return ok
 }
 
 func isExprEllipsis(e ast.Expr) bool {
-	var ok bool
-	_, ok = e.(*ast.Ellipsis)
+	_, ok := e.(*ast.Ellipsis)
 	return ok
 }
 
 func isExprTypeAssertExpr(e ast.Expr) bool {
-	var ok bool
-	_, ok = e.(*ast.TypeAssertExpr)
+	_, ok := e.(*ast.TypeAssertExpr)
 	return ok
 }
 
 func isExprIdent(e ast.Expr) bool {
-	var ok bool
-	_, ok = e.(*ast.Ident)
+	_, ok := e.(*ast.Ident)
 	return ok
 }
 
