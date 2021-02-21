@@ -2617,15 +2617,46 @@ func serializeType(t *ast.Type) string {
 	return ""
 }
 
+func getUnderlyingType(t *ast.Type) *ast.Type {
+	if t == nil {
+		panic("nil type is not expected")
+	}
+	if t.E == generalSlice {
+		return t
+	}
+
+	switch e := t.E.(type) {
+	case *ast.StructType,*ast.ArrayType,*ast.StarExpr,*ast.Ellipsis,*ast.InterfaceType:
+		// type literal
+		return t
+	case *ast.Ident:
+		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
+		if isPredeclaredType(e.Obj){
+			return t
+		}
+		// defined type or alias
+		typeSpec := e.Obj.Decl.(*ast.TypeSpec)
+		// get RHS in its type definition recursively
+		return getUnderlyingType(e2t(typeSpec.Type))
+	case *ast.SelectorExpr:
+		ident := lookupForeignIdent(selector2QI(e))
+		return getUnderlyingType(e2t(ident))
+	case *ast.ParenExpr:
+		return getUnderlyingType(e2t(e.X))
+	}
+	panic("should not reach here")
+}
+
 func kind(t *ast.Type) TypeKind {
 	if t == nil {
 		panic2(__func__, "nil type is not expected\n")
 	}
-	if t.E == generalSlice {
+	ut := getUnderlyingType(t)
+	if ut.E == generalSlice {
 		return T_SLICE
 	}
 
-	switch e := t.E.(type) {
+	switch e := ut.E.(type) {
 	case *ast.Ident:
 		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
 		switch e.Obj {
@@ -2644,12 +2675,7 @@ func kind(t *ast.Type) TypeKind {
 		case gBool:
 			return T_BOOL
 		default:
-			// named type
-			typeSpec, ok := e.Obj.Decl.(*ast.TypeSpec)
-			if !ok {
-				panic2(__func__, "unsupported decl :")
-			}
-			return kind(e2t(typeSpec.Type))
+			panic("Unexpected type")
 		}
 	case *ast.StructType:
 		return T_STRUCT
@@ -2665,13 +2691,6 @@ func kind(t *ast.Type) TypeKind {
 		return T_SLICE // @TODO is this right ?
 	case *ast.InterfaceType:
 		return T_INTERFACE
-	case *ast.ParenExpr:
-		panic(dtypeOf(e))
-	case *ast.SelectorExpr:
-		ident := lookupForeignIdent(selector2QI(e))
-		return kind(e2t(ident))
-	default:
-		panic(t)
 	}
 	panic("should not reach here")
 }
@@ -2726,7 +2745,8 @@ const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
 func getSizeOfType(t *ast.Type) int {
-	switch kind(t) {
+	ut := getUnderlyingType(t)
+	switch kind(ut) {
 	case T_SLICE:
 		return SizeOfSlice
 	case T_STRING:
@@ -2744,7 +2764,7 @@ func getSizeOfType(t *ast.Type) int {
 	case T_INTERFACE:
 		return SizeOfInterface
 	case T_ARRAY:
-		arrayType := t.E.(*ast.ArrayType)
+		arrayType := ut.E.(*ast.ArrayType)
 		elemSize := getSizeOfType(e2t(arrayType.Elt))
 		return elemSize * evalInt(arrayType.Len)
 	case T_STRUCT:
@@ -3675,6 +3695,14 @@ var tString *ast.Type
 var tEface *ast.Type
 var tBool *ast.Type
 var generalSlice ast.Expr
+
+func isPredeclaredType(obj *ast.Object) bool {
+	switch obj {
+	case gUintptr, gInt, gInt32, gString, gUint8, gUint16, gBool:
+		return true
+	}
+	return false
+}
 
 func createUniverse() *ast.Scope {
 	var universe = new(ast.Scope)
