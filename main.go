@@ -220,7 +220,7 @@ func emitAddr(expr ast.Expr) {
 	case *ast.IndexExpr:
 		emitExpr(e.Index, nil) // index number
 		list := e.X
-		elmType := getTypeOfExpr(expr)
+		elmType := getTypeOfExpr(e)
 		emitListElementAddr(list, elmType)
 	case *ast.StarExpr:
 		emitExpr(e.X, nil)
@@ -247,11 +247,11 @@ func emitAddr(expr ast.Expr) {
 			emitAddConst(offset, "struct head address + struct.field offset")
 		}
 	case *ast.CompositeLit:
-		var knd = kind(getTypeOfExpr(expr))
+		knd := kind(getTypeOfExpr(e))
 		switch knd {
 		case T_STRUCT:
 			// result of evaluation of a struct literal is its address
-			emitExpr(expr, nil)
+			emitExpr(e, nil)
 		default:
 			unexpectedKind(knd)
 		}
