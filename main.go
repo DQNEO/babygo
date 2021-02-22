@@ -854,19 +854,22 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 		case ast.Con:
 			emitNamedConst(e, ctx)
 		default:
-			panic("Unexpected ident kind:" + e.Obj.Kind)
+			panic("Unexpected ident kind:")
 		}
 	}
 	return false
 }
+// 1 or 2 values
 func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
 	emitAddr(e)
 	emitLoadAndPush(getTypeOfExpr(e))
 }
+// 1 value
 func emitStarExpr(e *ast.StarExpr, ctx *evalContext) {
 	emitAddr(e)
 	emitLoadAndPush(getTypeOfExpr(e))
 }
+// 1 value X.Sel
 func emitSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 	// pkg.Ident or strct.field
 	if isQI(e) {
@@ -878,37 +881,25 @@ func emitSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 		emitLoadAndPush(getTypeOfExpr(e))
 	}
 }
+// multi values Fun(Args)
 func emitCallExpr(e *ast.CallExpr, ctx *evalContext) {
 	var fun = e.Fun
-	emitComment(2, "[%s][*ast.CallExpr]\n", __func__)
+	// check if it's a conversion
 	if isType(fun) {
 		emitConversion(e2t(fun), e.Args[0])
 	} else {
 		emitFuncall(fun, e.Args, e.Ellipsis)
 	}
 }
+// multi values (e)
 func emitParenExpr(e *ast.ParenExpr, ctx *evalContext) {
 	emitExpr(e.X, ctx)
 }
+// 1 value
 func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
-	//		emitComment(0, "basicLit.Kind = %s \n", expr.basicLit.Kind)
-	basicLit := e
-	switch basicLit.Kind {
-	case "INT":
-		var ival = strconv.Atoi(basicLit.Value)
-		fmt.Printf("  pushq $%d # number literal\n", ival)
-	case "STRING":
-		var sl = getStringLiteral(basicLit)
-		if sl.strlen == 0 {
-			// zero value
-			emitZeroValue(tString)
-		} else {
-			fmt.Printf("  pushq $%d # str len\n", sl.strlen)
-			fmt.Printf("  leaq %s, %%rax # str ptr\n", sl.label)
-			fmt.Printf("  pushq %%rax # str ptr\n")
-		}
+	switch e.Kind {
 	case "CHAR":
-		var val = basicLit.Value
+		var val = e.Value
 		var char = val[1]
 		if val[1] == '\\' {
 			switch val[2] {
@@ -925,12 +916,24 @@ func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
 			}
 		}
 		fmt.Printf("  pushq $%d # convert char literal to int\n", int(char))
+	case "INT":
+		ival := strconv.Atoi(e.Value)
+		fmt.Printf("  pushq $%d # number literal\n", ival)
+	case "STRING":
+		sl := getStringLiteral(e)
+		if sl.strlen == 0 {
+			// zero value
+			emitZeroValue(tString)
+		} else {
+			fmt.Printf("  pushq $%d # str len\n", sl.strlen)
+			fmt.Printf("  leaq %s, %%rax # str ptr\n", sl.label)
+			fmt.Printf("  pushq %%rax # str ptr\n")
+		}
 	default:
-		panic("[*ast.BasicLit] TBI : " + basicLit.Kind)
+		panic("[*ast.BasicLit] TBI : " + e.Kind)
 	}
 }
 func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
-	emitComment(2, "[DEBUG] unary op = %s\n", e.Op)
 	switch e.Op {
 	case "+":
 		emitExpr(e.X, nil)
@@ -945,15 +948,16 @@ func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
 		emitExpr(e.X, nil)
 		emitInvertBoolValue()
 	default:
-		panic("TBI:astUnaryExpr:" + e.Op)
+		throw(e.Op)
 	}
 }
+// 1 value
 func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 	switch e.Op {
 	case "&&":
 		labelid++
-		var labelExitWithFalse = fmt.Sprintf(".L.%d.false", labelid)
-		var labelExit = fmt.Sprintf(".L.%d.exit", labelid)
+		labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
+		labelExit := fmt.Sprintf(".L.%d.exit", labelid)
 		emitExpr(e.X, nil) // left
 		emitPopBool("left")
 		fmt.Printf("  cmpq $1, %%rax\n")
@@ -969,8 +973,8 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		fmt.Printf("  %s:\n", labelExit)
 	case "||":
 		labelid++
-		var labelExitWithTrue = fmt.Sprintf(".L.%d.true", labelid)
-		var labelExit = fmt.Sprintf(".L.%d.exit", labelid)
+		labelExitWithTrue := fmt.Sprintf(".L.%d.true", labelid)
+		labelExit := fmt.Sprintf(".L.%d.exit", labelid)
 		emitExpr(e.X, nil) // left
 		emitPopBool("left")
 		fmt.Printf("  cmpq $1, %%rax\n")
@@ -1051,18 +1055,20 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		panic("# TBI: binary operation for " + e.Op)
 	}
 }
+// 1 value
 func emitCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
 	// slice , array, map or struct
-	switch kind(e2t(e.Type)) {
+	ut := getUnderlyingType(getTypeOfExpr(e))
+	switch kind(ut) {
 	case T_STRUCT:
 		emitStructLiteral(e)
 	case T_ARRAY:
-		arrayType := expr2ArrayType(e.Type)
-		var arrayLen = evalInt(arrayType.Len)
+		arrayType := ut.E.(*ast.ArrayType)
+		arrayLen := evalInt(arrayType.Len)
 		emitArrayLiteral(arrayType, arrayLen, e.Elts)
 	case T_SLICE:
-		arrayType := expr2ArrayType(e.Type)
-		var length = len(e.Elts)
+		arrayType := ut.E.(*ast.ArrayType)
+		length := len(e.Elts)
 		emitArrayLiteral(arrayType, length, e.Elts)
 		emitPopAddress("malloc")
 		fmt.Printf("  pushq $%d # slice.cap\n", length)
@@ -1072,9 +1078,10 @@ func emitCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
 		unexpectedKind(kind(e2t(e.Type)))
 	}
 }
+// 1 value list[low:high]
 func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
-	var list = e.X
-	var listType = getTypeOfExpr(list)
+	list := e.X
+	listType := getTypeOfExpr(list)
 
 	// For convenience, any of the indices may be omitted.
 	// A missing low index defaults to zero;
@@ -1084,9 +1091,6 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 	} else {
 		low = eZeroInt
 	}
-
-	// a missing high index defaults to the length of the sliced operand:
-	// @TODO
 
 	switch kind(listType) {
 	case T_SLICE, T_ARRAY:
@@ -1132,6 +1136,7 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 		if e.High != nil {
 			emitExpr(e.High, nil)
 		} else {
+			// high = len(orig)
 			emitLen(e.X)
 		}
 		emitExpr(low, nil)
@@ -1144,8 +1149,8 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 		unexpectedKind(kind(listType))
 	}
 
-	emitExpr(low, nil)
-	var elmType = getElementTypeOfListType(listType)
+	emitExpr(low, nil) // index number
+	elmType := getElementTypeOfListType(listType)
 	emitListElementAddr(list, elmType)
 }
 func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
