@@ -17,22 +17,22 @@ t/expected.txt: t/test.go lib/*/*
 $(tmp)/pre: $(tmp) pre/precompiler.go lib/*/*
 	go build -o $(tmp)/pre pre/precompiler.go
 
-$(tmp)/cross: *.go src/*/* runtime.s $(tmp)/pre
+$(tmp)/cross: *.go src/*/* $(tmp)/pre
 	$(tmp)/pre  *.go > $(tmp)/pre-main.s
 	cp $(tmp)/pre-main.s ./.shared/ # for debug
-	as -o $(tmp)/cross.o $(tmp)/pre-main.s runtime.s
+	as -o $(tmp)/cross.o $(tmp)/pre-main.s src/runtime/runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/cross $(tmp)/cross.o
 
 $(tmp)/babygo: $(tmp)  *.go lib/*/*
 	go build -o $(tmp)/babygo  *.go
 
-$(tmp)/babygo2: $(tmp)/babygo src/*/* runtime.s
+$(tmp)/babygo2: $(tmp)/babygo src/*/*
 	$(tmp)/babygo *.go > $(tmp)/babygo-main.s
 	cp $(tmp)/babygo-main.s ./.shared/ # for debug
-	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s runtime.s
+	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s src/runtime/runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/babygo2 $(tmp)/babygo2.o
 
-$(tmp)/pre-test.s: t/test.go src/*/* runtime.s $(tmp)/pre
+$(tmp)/pre-test.s: t/test.go src/*/* $(tmp)/pre
 	$(tmp)/pre t/test.go t/another.go > $(tmp)/pre-test.s
 	cp $(tmp)/pre-test.s ./.shared/
 
@@ -40,7 +40,7 @@ $(tmp)/cross-test.s: t/test.go $(tmp)/cross
 	$(tmp)/cross t/test.go t/another.go > $(tmp)/cross-test.s
 	cp $(tmp)/cross-test.s ./.shared/
 
-$(tmp)/babygo-test.s: t/test.go src/*/* runtime.s $(tmp)/babygo
+$(tmp)/babygo-test.s: t/test.go src/*/* $(tmp)/babygo
 	$(tmp)/babygo t/test.go t/another.go > $(tmp)/babygo-test.s
 	cp $(tmp)/babygo-test.s ./.shared/
 
@@ -55,24 +55,24 @@ compare-test: $(tmp)/pre-test.s $(tmp)/babygo-test.s $(tmp)/babygo2-test.s $(tmp
 	diff -u $(tmp)/pre-test.s $(tmp)/babygo2-test.s
 	diff -u $(tmp)/pre-test.s $(tmp)/cross-test.s
 
-$(tmp)/test0: $(tmp)/pre-test.s runtime.s
-	as -o $(tmp)/test0.o $(tmp)/pre-test.s runtime.s
+$(tmp)/test0: $(tmp)/pre-test.s src/*/*
+	as -o $(tmp)/test0.o $(tmp)/pre-test.s src/runtime/runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test0 $(tmp)/test0.o
 
 .PHONY: test0
 test0: $(tmp)/test0 t/expected.txt
 	./test.sh $(tmp)/test0
 
-$(tmp)/test1: $(tmp)/babygo-test.s runtime.s
-	as -o $(tmp)/test1.o $(tmp)/babygo-test.s runtime.s
+$(tmp)/test1: $(tmp)/babygo-test.s src/*/*
+	as -o $(tmp)/test1.o $(tmp)/babygo-test.s src/runtime/runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/test1 $(tmp)/test1.o
 
 .PHONY: test1
 test1: $(tmp)/test1 t/expected.txt
 	./test.sh $(tmp)/test1
 
-$(tmp)/testcross: $(tmp)/cross-test.s runtime.s
-	as -o $(tmp)/testcross.o $(tmp)/cross-test.s runtime.s
+$(tmp)/testcross: $(tmp)/cross-test.s src/*/*
+	as -o $(tmp)/testcross.o $(tmp)/cross-test.s src/runtime/runtime.s
 	ld -e _rt0_amd64_linux -o $(tmp)/testcross $(tmp)/testcross.o
 
 .PHONY: testcross
