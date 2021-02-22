@@ -16,10 +16,6 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-func throw(x interface{}) {
-	panic(fmt.Sprintf("%#v", x))
-}
-
 var __func__ = "__func__"
 
 func assert(bol bool, msg string, caller string) {
@@ -368,8 +364,7 @@ func emitZeroValue(t *Type) {
 func emitLen(arg ast.Expr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
-		arrayType, ok := getTypeOfExpr(arg).E.(*ast.ArrayType)
-		assert(ok, "should be *ast.ArrayType", __func__)
+		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
 		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
 		emitExpr(arg, nil)
@@ -387,8 +382,7 @@ func emitLen(arg ast.Expr) {
 func emitCap(arg ast.Expr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
-		arrayType, ok := getTypeOfExpr(arg).E.(*ast.ArrayType)
-		assert(ok, "should be *ast.ArrayType", __func__)
+		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
 		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
 		emitExpr(arg, nil)
@@ -4129,3 +4123,6 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 	return f
 }
 
+func throw(x interface{}) {
+	panic(fmt.Sprintf("%#v", x))
+}

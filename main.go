@@ -12,19 +12,11 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-func throw(x interface{}) {
-	panic(x)
-}
-
-func panic2(caller string, x string) {
-	panic(caller + ": " + x)
-}
-
 var __func__ = "__func__"
 
 func assert(bol bool, msg string, caller string) {
 	if !bol {
-		panic2(caller, msg)
+		panic(caller + ": " + msg)
 	}
 }
 
@@ -357,7 +349,7 @@ func emitZeroValue(t *Type) {
 	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
 		fmt.Printf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
-		var structSize = getSizeOfType(t)
+		structSize := getSizeOfType(t)
 		emitComment(2, "zero value of a struct. size=%d (allocating on heap)\n", structSize)
 		emitCallMalloc(structSize)
 	default:
@@ -366,11 +358,9 @@ func emitZeroValue(t *Type) {
 }
 
 func emitLen(arg ast.Expr) {
-	emitComment(2, "[%s] begin\n", __func__)
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
-		var typ = getTypeOfExpr(arg)
-		var arrayType = expr2ArrayType(typ.E)
+		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
 		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
 		emitExpr(arg, nil)
@@ -383,14 +373,12 @@ func emitLen(arg ast.Expr) {
 	default:
 		unexpectedKind(kind(getTypeOfExpr(arg)))
 	}
-	emitComment(2, "[%s] end\n", __func__)
 }
 
 func emitCap(arg ast.Expr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
-		var typ = getTypeOfExpr(arg)
-		var arrayType = expr2ArrayType(typ.E)
+		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
 		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
 		emitExpr(arg, nil)
@@ -404,10 +392,8 @@ func emitCap(arg ast.Expr) {
 }
 
 func emitCallMalloc(size int) {
-	emitComment(2, "emitCallMalloc\n")
 	// call malloc and return pointer
-	qi := newQI("runtime", "malloc")
-	ff := lookupForeignFunc(qi)
+	ff := lookupForeignFunc(newQI("runtime", "malloc"))
 	emitAllocReturnVarsAreaFF(ff)
 	fmt.Printf("  pushq $%d\n", size)
 	emitCallFF(ff)
@@ -416,7 +402,7 @@ func emitCallMalloc(size int) {
 func emitStructLiteral(e *ast.CompositeLit) {
 	// allocate heap area with zero value
 	emitComment(2, "emitStructLiteral\n")
-	var structType = e2t(e.Type)
+	structType := e2t(e.Type)
 	emitZeroValue(structType) // push address of the new storage
 	for i, elm := range e.Elts {
 		kvExpr := elm.(*ast.KeyValueExpr)
@@ -4084,4 +4070,12 @@ func obj2var(obj *ast.Object) *Variable {
 
 func setVariable(obj *ast.Object, vr *Variable) {
 	obj.Variable = vr
+}
+
+func throw(x interface{}) {
+	panic(x)
+}
+
+func panic2(caller string, x string) {
+	panic(caller + ": " + x)
 }
