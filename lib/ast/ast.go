@@ -149,7 +149,7 @@ type ExprStmt struct {
 
 type IncDecStmt struct {
 	X   Expr
-	Tok string
+	Tok token.Token
 }
 
 type AssignStmt struct {
@@ -187,6 +187,7 @@ type CaseClause struct {
 }
 
 type SwitchStmt struct {
+	Init Expr
 	Tag  Expr
 	Body *BlockStmt
 	// lableExit string

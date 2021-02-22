@@ -992,7 +992,7 @@ func (p *parser) parseLhsList() []ast.Expr {
 func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 	logf(" begin %s\n", __func__)
 	var x = p.parseLhsList()
-	var stok = p.tok.tok
+	stok := p.tok.tok
 	var isRange = false
 	var y ast.Expr
 	var rangeX ast.Expr
@@ -1039,7 +1039,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 	case "++", "--":
 		var sInc = &ast.IncDecStmt{}
 		sInc.X = x[0]
-		sInc.Tok = stok
+		sInc.Tok = token.Token(stok)
 		p.next() // consume "++" or "--"
 		return newStmt(sInc)
 	}

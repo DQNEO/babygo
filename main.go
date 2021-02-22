@@ -1706,10 +1706,10 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	meta.LabelExit = labelExit
 	// initialization: store len(rangeexpr)
 	emitComment(2, "ForRange Initialization\n")
-
+	rangeMeta := s
 	emitComment(2, "  assign length to lenvar\n")
 	// lenvar = len(s.X)
-	emitVariableAddr(s.Lenvar)
+	emitVariableAddr(rangeMeta.Lenvar)
 	emitLen(s.X)
 	emitStore(tInt, true, false)
 
@@ -1787,13 +1787,13 @@ func emitRangeStmt(s *ast.RangeStmt) {
 }
 func emitIncDecStmt(s *ast.IncDecStmt) {
 	var addValue int
-	switch s.Tok {
+	switch s.Tok.String() {
 	case "++":
 		addValue = 1
 	case "--":
 		addValue = -1
 	default:
-		panic("Unexpected Tok=" + s.Tok)
+		panic("Unexpected Tok=" + s.Tok.String())
 	}
 	emitAddr(s.X)
 	emitExpr(s.X, nil)
@@ -1802,7 +1802,10 @@ func emitIncDecStmt(s *ast.IncDecStmt) {
 }
 func emitSwitchStmt(s *ast.SwitchStmt) {
 	labelid++
-	var labelEnd = fmt.Sprintf(".L.switch.%d.exit", labelid)
+	labelEnd := fmt.Sprintf(".L.switch.%d.exit", labelid)
+	if s.Init != nil {
+		panic("TBI")
+	}
 	if s.Tag == nil {
 		panic("Omitted tag is not supported yet")
 	}
@@ -2730,8 +2733,8 @@ func getSizeOfType(t *Type) int {
 		return SizeOfInterface
 	case T_ARRAY:
 		arrayType := ut.E.(*ast.ArrayType)
-		elemSize := getSizeOfType(e2t(arrayType.Elt))
-		return elemSize * evalInt(arrayType.Len)
+		elmSize := getSizeOfType(e2t(arrayType.Elt))
+		return elmSize * evalInt(arrayType.Len)
 	case T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(ut.E.(*ast.StructType))
 	default:
@@ -2817,20 +2820,15 @@ func getStringLiteral(lit *ast.BasicLit) *sliteral {
 	}
 
 	panic("string literal not found:" + lit.Value)
-	var r *sliteral
-	return r
 }
 
 func registerStringLiteral(lit *ast.BasicLit) {
-	logf(" [registerStringLiteral] begin\n")
-
 	if currentPkg.name == "" {
 		panic("no pkgName")
 	}
 
 	var strlen int
-	var vl = []uint8(lit.Value)
-	for _, c := range vl {
+	for _, c := range []uint8(lit.Value) {
 		if c != '\\' {
 			strlen++
 		}
@@ -2844,31 +2842,29 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		strlen: strlen - 2,
 		value:  lit.Value,
 	}
-	logf(" [registerStringLiteral] label=%s, strlen=%d %s\n", sl.label, sl.strlen, sl.value)
-	cont := &stringLiteralsContainer{}
-	cont.sl = sl
-	cont.lit = lit
+	cont := &stringLiteralsContainer{
+		sl : sl,
+		lit : lit,
+	}
 	currentPkg.stringLiterals = append(currentPkg.stringLiterals, cont)
 }
 
 func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
-	vr := &Variable{
+	return &Variable{
 		Name:         name,
 		IsGlobal:     true,
 		GlobalSymbol: pkgName + "." + name,
 		Typ:          t,
 	}
-	return vr
 }
 
 func newLocalVariable(name string, localoffset int, t *Type) *Variable {
-	vr := &Variable{
+	return &Variable{
 		Name:        name,
 		IsGlobal:    false,
 		LocalOffset: localoffset,
 		Typ:         t,
 	}
-	return vr
 }
 
 type methodEntry struct {

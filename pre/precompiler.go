@@ -1657,7 +1657,6 @@ func emitIfStmt(s *ast.IfStmt) {
 func emitForStmt(s *ast.ForStmt) {
 	meta := mapForNodeToFor[s]
 	labelid++
-
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
 	labelExit := fmt.Sprintf(".L.for.exit.%d", labelid)
@@ -1702,16 +1701,16 @@ func emitRangeStmt(s *ast.RangeStmt) {
 
 	emitComment(2, "  assign length to lenvar\n")
 	// lenvar = len(s.X)
-	rngMisc, ok := mapRangeStmt[s]
+	rangeMeta, ok := mapRangeStmt[s]
 	assert(ok, "lenVar should exist", __func__)
 	// lenvar = len(s.X)
-	emitVariableAddr(rngMisc.lenvar)
+	emitVariableAddr(rangeMeta.Lenvar)
 	emitLen(s.X)
 	emitStore(tInt, true, false)
 
 	emitComment(2, "  assign 0 to indexvar\n")
 	// indexvar = 0
-	emitVariableAddr(rngMisc.indexvar)
+	emitVariableAddr(rangeMeta.Indexvar)
 	emitZeroValue(tInt)
 	emitStore(tInt, true, false)
 
@@ -1733,9 +1732,9 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	emitComment(2, "ForRange Condition\n")
 	fmt.Printf("  %s:\n", labelCond)
 
-	emitVariableAddr(rngMisc.indexvar)
+	emitVariableAddr(rangeMeta.Indexvar)
 	emitLoadAndPush(tInt)
-	emitVariableAddr(rngMisc.lenvar)
+	emitVariableAddr(rangeMeta.Lenvar)
 	emitLoadAndPush(tInt)
 	emitCompExpr("setl")
 	emitPopBool(" indexvar < lenvar")
@@ -1746,7 +1745,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	elemType := getTypeOfExpr(s.Value)
 	emitAddr(s.Value) // lhs
 
-	emitVariableAddr(rngMisc.indexvar)
+	emitVariableAddr(rangeMeta.Indexvar)
 	emitLoadAndPush(tInt) // index value
 	emitListElementAddr(s.X, elemType)
 
@@ -1759,9 +1758,9 @@ func emitRangeStmt(s *ast.RangeStmt) {
 
 	// Post statement: Increment indexvar and go next
 	emitComment(2, "ForRange Post statement\n")
-	fmt.Printf("  %s:\n", labelPost)   // used for "continue"
-	emitVariableAddr(rngMisc.indexvar) // lhs
-	emitVariableAddr(rngMisc.indexvar) // rhs
+	fmt.Printf("  %s:\n", labelPost)     // used for "continue"
+	emitVariableAddr(rangeMeta.Indexvar) // lhs
+	emitVariableAddr(rangeMeta.Indexvar) // rhs
 	emitLoadAndPush(tInt)
 	emitAddConst(1, "indexvar value ++")
 	emitStore(tInt, true, false)
@@ -1770,8 +1769,8 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	if s.Key != nil {
 		keyIdent := s.Key.(*ast.Ident)
 		if keyIdent.Name != "_" {
-			emitAddr(s.Key)                    // lhs
-			emitVariableAddr(rngMisc.indexvar) // rhs
+			emitAddr(s.Key)                      // lhs
+			emitVariableAddr(rangeMeta.Indexvar) // rhs
 			emitLoadAndPush(tInt)
 			emitStore(tInt, true, false)
 		}
@@ -1789,9 +1788,8 @@ func emitIncDecStmt(s *ast.IncDecStmt) {
 	case "--":
 		addValue = -1
 	default:
-		throw(s.Tok.String())
+		panic("Unexpected Tok=" + s.Tok.String())
 	}
-
 	emitAddr(s.X)
 	emitExpr(s.X, nil)
 	emitAddConst(addValue, "rhs ++ or --")
@@ -1800,12 +1798,11 @@ func emitIncDecStmt(s *ast.IncDecStmt) {
 func emitSwitchStmt(s *ast.SwitchStmt) {
 	labelid++
 	labelEnd := fmt.Sprintf(".L.switch.%d.exit", labelid)
-
 	if s.Init != nil {
 		panic("TBI")
 	}
 	if s.Tag == nil {
-		panic("TBI")
+		panic("Omitted tag is not supported yet")
 	}
 	emitExpr(s.Tag, nil)
 	condType := getTypeOfExpr(s.Tag)
@@ -2863,8 +2860,8 @@ type nodeReturnStmt struct {
 }
 
 type RangeStmtMisc struct {
-	lenvar   *Variable
-	indexvar *Variable
+	Lenvar   *Variable
+	Indexvar *Variable
 }
 
 type Func struct {
@@ -2937,8 +2934,7 @@ func getStringLiteral(lit *ast.BasicLit) *sliteral {
 		}
 	}
 
-	panic(lit.Value)
-	return nil
+	panic("string literal not found:" + lit.Value)
 }
 
 func registerStringLiteral(lit *ast.BasicLit) {
@@ -2961,9 +2957,10 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		strlen: strlen - 2,
 		value:  lit.Value,
 	}
-	var cont *stringLiteralsContainer = new(stringLiteralsContainer)
-	cont.sl = sl
-	cont.lit = lit
+	cont :=  &stringLiteralsContainer{
+		sl : sl,
+		lit: lit,
+	}
 	currentPkg.stringLiterals = append(currentPkg.stringLiterals, cont)
 }
 
@@ -3196,8 +3193,8 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
 	mapRangeStmt[s] = &RangeStmtMisc{
-		lenvar:   lenvar,
-		indexvar: indexvar,
+		Lenvar:   lenvar,
+		Indexvar: indexvar,
 	}
 	currentFor = forStmt.Outer
 }
