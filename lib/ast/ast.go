@@ -265,7 +265,7 @@ type ImportSpec struct {
 type ValueSpec struct {
 	Name  *Ident
 	Type  Expr
-	Value Expr
+	Values []Expr
 }
 
 type TypeSpec struct {

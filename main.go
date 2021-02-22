@@ -820,7 +820,7 @@ func emitNil(targetType *Type) {
 
 func emitNamedConst(ident *ast.Ident, ctx *evalContext) {
 	valSpec := ident.Obj.Decl.(*ast.ValueSpec)
-	lit := valSpec.Value.(*ast.BasicLit)
+	lit := valSpec.Values[0].(*ast.BasicLit)
 	emitExprIfc(lit, ctx)
 }
 
@@ -1549,7 +1549,7 @@ func emitDeclStmt(s *ast.DeclStmt) {
 		valSpec := spec
 		t := e2t(valSpec.Type)
 		lhs := valSpec.Name
-		if valSpec.Value == nil {
+		if len(valSpec.Values) == 0 {
 			emitComment(2, "lhs addresss\n")
 			emitAddr(lhs)
 			emitComment(2, "emitZeroValue for %s\n", dtypeOf(t.E))
@@ -1557,7 +1557,7 @@ func emitDeclStmt(s *ast.DeclStmt) {
 			emitComment(2, "Assignment: zero value\n")
 			emitStore(t, true, false)
 		} else {
-			rhs := valSpec.Value
+			rhs := valSpec.Values[0]
 			emitAssign(lhs, rhs)
 		}
 	default:
@@ -2220,21 +2220,27 @@ func generateCode(pkg *PkgContainer) {
 	}
 
 	for _, spec := range pkg.vars {
+		var val ast.Expr
+		if len(spec.Values) > 0 {
+			val = spec.Values[0]
+		}
 		var t *Type
 		if spec.Type != nil {
 			t = e2t(spec.Type)
 		}
-		emitGlobalVariable(pkg, spec.Name, t, spec.Value)
+
+		emitGlobalVariable(pkg, spec.Name, t, val)
+
 	}
 
 	fmt.Printf("\n")
 	fmt.Printf(".text\n")
 	fmt.Printf("%s.__initGlobals:\n", pkg.name)
 	for _, spec := range pkg.vars {
-		if spec.Value == nil {
+		if len(spec.Values) == 0 {
 			continue
 		}
-		val := spec.Value
+		val := spec.Values[0]
 		var t *Type
 		if spec.Type != nil {
 			t = e2t(spec.Type)
@@ -2982,11 +2988,11 @@ func walkDeclStmt(s *ast.DeclStmt) {
 	switch spec := declSpec.(type) {
 	case *ast.ValueSpec:
 		if spec.Type == nil { // var x = e
-			if spec.Value == nil {
+			if len(spec.Values) == 0 {
 				panic("invalid syntax")
 			}
 			// infer type from rhs
-			val := spec.Value
+			val := spec.Values[0]
 			logf("inferring type of variable %s\n", spec.Name.Name)
 			typ := getTypeOfExpr(val)
 			if typ == nil || typ.E == nil {
@@ -2997,8 +3003,8 @@ func walkDeclStmt(s *ast.DeclStmt) {
 		t := e2t(spec.Type)
 		obj := spec.Name.Obj
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
-		if spec.Value != nil {
-			walkExpr(spec.Value)
+		if len(spec.Values) > 0 {
+			walkExpr(spec.Values[0])
 		}
 	}
 }
@@ -3444,14 +3450,14 @@ func walk(pkg *PkgContainer) {
 	}
 
 	for _, constSpec := range constSpecs {
-		walkExpr(constSpec.Value)
+		walkExpr(constSpec.Values[0])
 	}
 
 	for _, valSpec := range varSpecs {
 		var nameIdent = valSpec.Name
 		assert(nameIdent.Obj.Kind == ast.Var, "should be Var", __func__)
 		if valSpec.Type == nil {
-			var val = valSpec.Value
+			var val = valSpec.Values[0]
 			var t = getTypeOfExpr(val)
 			valSpec.Type = t.E
 		}
@@ -3462,8 +3468,8 @@ func walk(pkg *PkgContainer) {
 			any: nameIdent,
 		}
 		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
-		if valSpec.Value != nil {
-			walkExpr(valSpec.Value)
+		if len(valSpec.Values) > 0 {
+			walkExpr(valSpec.Values[0])
 		}
 	}
 

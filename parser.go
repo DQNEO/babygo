@@ -1173,7 +1173,9 @@ func (p *parser) parseDecl(keyword string) *ast.GenDecl {
 		var valSpec = &ast.ValueSpec{}
 		valSpec.Name = ident
 		valSpec.Type = typ
-		valSpec.Value = value
+		if value != nil {
+			valSpec.Values = append(valSpec.Values, value)
+		}
 		declare(valSpec, p.topScope, ast.Var, ident)
 		r = &ast.GenDecl{}
 		r.Spec = valSpec
@@ -1220,7 +1222,9 @@ func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
 	var spec = &ast.ValueSpec{}
 	spec.Name = ident
 	spec.Type = typ
-	spec.Value = value
+	if value != nil {
+		spec.Values = append(spec.Values, value)
+	}
 	var kind = ast.Con
 	if keyword == "var" {
 		kind = ast.Var
