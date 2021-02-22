@@ -560,6 +560,7 @@ func emitCall(symbol string, args []*Arg, resultList *ast.FieldList) {
 		fmt.Printf("  pushq %%rsi # place to save\n")
 		emitRegiToMem(paramType)
 	}
+
 	emitCallQ(symbol, totalParamSize, resultList)
 }
 
@@ -593,7 +594,7 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
 	node := mapReturnStmt[s]
-	fnc := node.fnc
+	fnc := node.Fnc
 	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
 	}
@@ -616,7 +617,6 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 	case 0:
 		// do nothing
 	case 1:
-		emitComment(2, "emit return value\n")
 		retval0 := resultList.List[0]
 		knd := kind(e2t(retval0.Type))
 		switch knd {
@@ -673,14 +673,10 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		// check if it's a builtin func
 		switch fn.Obj {
 		case gLen:
-			assert(len(eArgs) == 1, "builtin len should take only 1 args", __func__)
-			var arg ast.Expr = eArgs[0]
-			emitLen(arg)
+			emitLen(eArgs[0])
 			return
 		case gCap:
-			assert(len(eArgs) == 1, "builtin len should take only 1 args", __func__)
-			var arg ast.Expr = eArgs[0]
-			emitCap(arg)
+			emitCap(eArgs[0])
 			return
 		case gNew:
 			typeArg := e2t(eArgs[0])
@@ -689,16 +685,14 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			emitCallMalloc(size)
 			return
 		case gMake:
-			var typeArg = e2t(eArgs[0])
+			typeArg := e2t(eArgs[0])
 			switch kind(typeArg) {
 			case T_SLICE:
 				// make([]T, ...)
-				arrayType, ok := typeArg.E.(*ast.ArrayType)
-				assert(ok, "should be *ast.ArrayType", __func__)
-				var elmSize = getSizeOfType(e2t(arrayType.Elt))
-				var numlit = newNumberLiteral(elmSize)
-
-				var args []*Arg = []*Arg{
+				arrayType := getUnderlyingType(typeArg).E.(*ast.ArrayType)
+				elmSize := getSizeOfType(e2t(arrayType.Elt))
+				numlit := newNumberLiteral(elmSize)
+				args := []*Arg{
 					// elmSize
 					&Arg{
 						e:         numlit,
@@ -716,12 +710,14 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 					},
 				}
 
-				var resultList = &ast.FieldList{List: []*ast.Field{
-					&ast.Field{
-						Names: nil,
-						Type:  generalSlice,
+				resultList := &ast.FieldList{
+					List: []*ast.Field{
+						&ast.Field{
+							Names: nil,
+							Type:  generalSlice,
+						},
 					},
-				}}
+				}
 				emitCall("runtime.makeSlice", args, resultList)
 				return
 			default:
@@ -2882,7 +2878,7 @@ type TypeSwitchCaseClose struct {
 }
 
 type nodeReturnStmt struct {
-	fnc *Func
+	Fnc *Func
 }
 
 type RangeStmtMisc struct {
@@ -3157,7 +3153,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 }
 func walkReturnStmt(s *ast.ReturnStmt) {
 	mapReturnStmt[s] = &nodeReturnStmt{
-		fnc: currentFunc,
+		Fnc: currentFunc,
 	}
 	for _, r := range s.Results {
 		walkExpr(r)

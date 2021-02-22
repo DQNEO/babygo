@@ -613,7 +613,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 	case 0:
 		// do nothing
 	case 1:
-		var retval0 = resultList.List[0]
+		retval0 := resultList.List[0]
 		knd := kind(e2t(retval0.Type))
 		switch knd {
 		case T_STRING, T_INTERFACE:
@@ -661,42 +661,37 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 //   r
 //   --
 func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
+	var funcType *ast.FuncType
 	var symbol string
 	var receiver ast.Expr
-	var funcType *ast.FuncType
 	switch fn := fun.(type) {
 	case *ast.Ident:
-		emitComment(2, "[%s][*ast.Ident]\n", __func__)
-		var fnIdent = fn
-		switch fnIdent.Obj {
+		// check if it's a builtin func
+		switch fn.Obj {
 		case gLen:
-			var arg = eArgs[0]
-			emitLen(arg)
+			emitLen(eArgs[0])
 			return
 		case gCap:
-			var arg = eArgs[0]
-			emitCap(arg)
+			emitCap(eArgs[0])
 			return
 		case gNew:
-			var typeArg = e2t(eArgs[0])
-			var size = getSizeOfType(typeArg)
+			typeArg := e2t(eArgs[0])
+			// size to malloc
+			size := getSizeOfType(typeArg)
 			emitCallMalloc(size)
 			return
 		case gMake:
-			var typeArg = e2t(eArgs[0])
+			typeArg := e2t(eArgs[0])
 			switch kind(typeArg) {
 			case T_SLICE:
 				// make([]T, ...)
-				var arrayType = expr2ArrayType(typeArg.E)
-				//assert(ok, "should be *ast.ArrayType")
-				var elmSize = getSizeOfType(e2t(arrayType.Elt))
-				var numlit = newNumberLiteral(elmSize)
-				var eNumLit = numlit
-
-				var args []*Arg = []*Arg{
+				arrayType := getUnderlyingType(typeArg).E.(*ast.ArrayType)
+				elmSize := getSizeOfType(e2t(arrayType.Elt))
+				numlit := newNumberLiteral(elmSize)
+				args := []*Arg{
 					// elmSize
 					&Arg{
-						e:         eNumLit,
+						e: numlit,
 						paramType: tInt,
 					},
 					// len
@@ -711,7 +706,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 					},
 				}
 
-				var resultList = &ast.FieldList{
+				resultList := &ast.FieldList{
 					List: []*ast.Field{
 						&ast.Field{
 							Type: generalSlice,
@@ -722,7 +717,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				emitCall("runtime.makeSlice", args, resultList)
 				return
 			default:
-				panic("TBI")
+				throw(typeArg)
 			}
 
 			return
