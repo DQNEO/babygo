@@ -297,13 +297,12 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 				unexpectedKind(kind(getTypeOfExpr(arg0)))
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
-			emitComment(2, "[emitConversion] to int \n")
 			emitExpr(arg0, nil)
 		default:
 			if to.Obj.Kind == ast.Typ {
 				emitExpr(arg0, nil)
 			} else {
-				panic("[*ast.Ident] TBI : "+to.Obj.Name)
+				throw(to.Obj)
 			}
 		}
 	case *ast.SelectorExpr:
@@ -317,21 +316,18 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 	case *ast.ArrayType: // Conversion to slice
 		arrayType := to
 		if arrayType.Len != nil {
-			panic("internal error")
+			throw(to)
 		}
-		if (kind(getTypeOfExpr(arg0))) != T_STRING {
-			panic("source type should be string")
-		}
+		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice", __func__)
 		emitComment(2, "Conversion of string => slice \n")
 		emitExpr(arg0, nil)
 		emitPopString()
 		fmt.Printf("  pushq %%rcx # cap\n")
 		fmt.Printf("  pushq %%rcx # len\n")
 		fmt.Printf("  pushq %%rax # ptr\n")
-	case *ast.ParenExpr:
+	case *ast.ParenExpr: // (T)(arg0)
 		emitConversion(e2t(to.X), arg0)
-	case *ast.StarExpr: // (*T)(e)
-		emitComment(2, "[emitConversion] to pointer \n")
+	case *ast.StarExpr: // (*T)(arg0)
 		emitExpr(arg0, nil)
 	case *ast.InterfaceType:
 		emitExpr(arg0, nil)
@@ -342,7 +338,7 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 			emitConvertToInterface(getTypeOfExpr(arg0))
 		}
 	default:
-		panic("TBI :"+dtypeOf(toType.E))
+		throw(to)
 	}
 }
 

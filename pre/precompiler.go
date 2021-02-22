@@ -303,7 +303,7 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		case gString: // string(e)
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
-				emitExpr(arg0, nil)
+				emitExpr(arg0, nil) // slice
 				emitPopSlice()
 				fmt.Printf("  pushq %%rcx # str len\n")
 				fmt.Printf("  pushq %%rax # str ptr\n")
@@ -335,7 +335,7 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 			throw(to)
 		}
 		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice", __func__)
-		emitComment(2, "Conversion to slice\n")
+		emitComment(2, "Conversion of string => slice \n")
 		emitExpr(arg0, nil)
 		emitPopString()
 		fmt.Printf("  pushq %%rcx # cap\n")
@@ -344,7 +344,6 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 	case *ast.ParenExpr: // (T)(arg0)
 		emitConversion(e2t(to.X), arg0)
 	case *ast.StarExpr: // (*T)(arg0)
-		// go through
 		emitExpr(arg0, nil)
 	case *ast.InterfaceType:
 		emitExpr(arg0, nil)
@@ -357,7 +356,6 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 	default:
 		throw(to)
 	}
-	return
 }
 
 func emitZeroValue(t *Type) {
