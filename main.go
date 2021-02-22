@@ -1153,6 +1153,7 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 	elmType := getElementTypeOfListType(listType)
 	emitListElementAddr(list, elmType)
 }
+// 1 or 2 values
 func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	emitExpr(e.X, nil)
 	fmt.Printf("  popq  %%rax # ifc.dtype\n")
@@ -1160,8 +1161,8 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	fmt.Printf("  pushq %%rax # ifc.data\n")
 	typ := e2t(e.Type)
 	sType := serializeType(typ)
-	_id := getTypeId(sType)
-	typeSymbol := typeIdToSymbol(_id)
+	tid := getTypeId(sType)
+	typeSymbol := typeIdToSymbol(tid)
 	// check if type matches
 	fmt.Printf("  leaq %s(%%rip), %%rax # ifc.dtype\n", typeSymbol)
 	fmt.Printf("  pushq %%rax           # ifc.dtype\n")
@@ -1180,9 +1181,9 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 		// ok context
 		emitComment(2, " double value context\n")
 		if ctx.okContext.needMain {
-			emitExpr(expr2TypeAssertExpr(e).X, nil)
+			emitExpr(e.X, nil)
 			fmt.Printf("  popq %%rax # garbage\n")
-			emitLoadAndPush(e2t(expr2TypeAssertExpr(e).Type)) // load dynamic data
+			emitLoadAndPush(e2t(e.Type)) // load dynamic data
 		}
 		if ctx.okContext.needOk {
 			fmt.Printf("  pushq $1 # ok = true\n")
@@ -1190,9 +1191,9 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	} else {
 		// default context is single value context
 		emitComment(2, " single value context\n")
-		emitExpr(expr2TypeAssertExpr(e).X, nil)
+		emitExpr(e.X, nil)
 		fmt.Printf("  popq %%rax # garbage\n")
-		emitLoadAndPush(e2t(expr2TypeAssertExpr(e).Type)) // load dynamic data
+		emitLoadAndPush(e2t(e.Type)) // load dynamic data
 	}
 
 	// exit
@@ -1228,34 +1229,34 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 //   - the expr is nil
 //   - the target type is interface and expr is not.
 func emitExpr(expr ast.Expr, ctx *evalContext) bool {
-	emitComment(2, "[emitExpr] dtype=%s\n", dtypeOf(expr))
+	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
-		return emitIdent(e, ctx)
+		return emitIdent(e, ctx) // 1 value
 	case *ast.IndexExpr:
-		emitIndexExpr(e, ctx)
+		emitIndexExpr(e, ctx) // 1 or 2 values
 	case *ast.StarExpr:
-		emitStarExpr(e, ctx)
+		emitStarExpr(e, ctx) // 1 value
 	case *ast.SelectorExpr:
-		emitSelectorExpr(e, ctx)
+		emitSelectorExpr(e, ctx) // 1 value X.Sel
 	case *ast.CallExpr:
-		emitCallExpr(e, ctx)
+		emitCallExpr(e, ctx) // multi values Fun(Args)
 	case *ast.ParenExpr:
-		emitParenExpr(e, ctx)
+		emitParenExpr(e, ctx) // multi values (e)
 	case *ast.BasicLit:
-		emitBasicLit(e, ctx)
+		emitBasicLit(e, ctx) // 1 value
 	case *ast.UnaryExpr:
-		emitUnaryExpr(e, ctx)
+		emitUnaryExpr(e, ctx) // 1 value
 	case *ast.BinaryExpr:
-		emitBinaryExpr(e, ctx)
+		emitBinaryExpr(e, ctx) // 1 value
 	case *ast.CompositeLit:
-		emitCompositeLit(e, ctx)
+		emitCompositeLit(e, ctx) // 1 value
 	case *ast.SliceExpr:
-		emitSliceExpr(e, ctx)
+		emitSliceExpr(e, ctx) // 1 value list[low:high]
 	case *ast.TypeAssertExpr:
-		emitTypeAssertExpr(e, ctx)
+		emitTypeAssertExpr(e, ctx) // 1 or 2 values
 	default:
-		panic(expr)
+		throw(expr)
 	}
 	return false
 }
@@ -1316,10 +1317,11 @@ func emitDtypeSymbol(t *Type) {
 }
 
 func newNumberLiteral(x int) *ast.BasicLit {
-	var r = &ast.BasicLit{}
-	r.Kind = "INT"
-	r.Value = strconv.Itoa(x)
-	return r
+	e := &ast.BasicLit{
+		Kind:  "INT",
+		Value: strconv.Itoa(x),
+	}
+	return e
 }
 
 func emitListElementAddr(list ast.Expr, elmType *Type) {
@@ -1337,7 +1339,8 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 		&Arg{
 			e:         left,
 			paramType: tString,
-		}, &Arg{
+		},
+		&Arg{
 			e:         right,
 			paramType: tString,
 		},
@@ -1365,7 +1368,7 @@ func emitCompStrings(left ast.Expr, right ast.Expr) {
 			offset:    0,
 		},
 	}
-	var resultList = &ast.FieldList{
+	resultList := &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
 				Type: tBool.E,
@@ -1476,10 +1479,11 @@ func emitRegiToMem(t *Type) {
 }
 
 func isBlankIdentifier(e ast.Expr) bool {
-	if !isExprIdent(e) {
+	ident, isIdent := e.(*ast.Ident)
+	if !isIdent {
 		return false
 	}
-	return expr2Ident(e).Name == "_"
+	return ident.Name == "_"
 }
 
 // support assignment of ok syntax. Blank ident is considered.
@@ -1523,7 +1527,7 @@ func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 }
 
 func emitAssign(lhs ast.Expr, rhs ast.Expr) {
-	emitComment(2, "Assignment: emitAddr(lhs:%s)\n", dtypeOf(lhs))
+	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	ctx := &evalContext{

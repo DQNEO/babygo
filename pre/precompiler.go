@@ -1158,16 +1158,16 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 	elmType := getElementTypeOfListType(listType)
 	emitListElementAddr(list, elmType)
 }
-func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) { // 1 or 2 values
+// 1 or 2 values
+func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	emitExpr(e.X, nil)
 	fmt.Printf("  popq  %%rax # ifc.dtype\n")
 	fmt.Printf("  popq  %%rcx # ifc.data\n")
 	fmt.Printf("  pushq %%rax # ifc.data\n")
-
 	typ := e2t(e.Type)
 	sType := serializeType(typ)
-	typeId := getTypeId(sType)
-	typeSymbol := typeIdToSymbol(typeId)
+	tid := getTypeId(sType)
+	typeSymbol := typeIdToSymbol(tid)
 	// check if type matches
 	fmt.Printf("  leaq %s(%%rip), %%rax # ifc.dtype\n", typeSymbol)
 	fmt.Printf("  pushq %%rax           # ifc.dtype\n")
@@ -1263,7 +1263,6 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 	default:
 		throw(expr)
 	}
-
 	return false
 }
 
@@ -1313,9 +1312,8 @@ func emitDtypeSymbol(t *Type) {
 
 func newNumberLiteral(x int) *ast.BasicLit {
 	e := &ast.BasicLit{
-		ValuePos: 0,
-		Kind:     token.INT,
-		Value:    fmt.Sprintf("%d", x),
+		Kind:  token.INT,
+		Value: strconv.Itoa(x),
 	}
 	return e
 }
@@ -1335,12 +1333,10 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 		&Arg{
 			e:         left,
 			paramType: tString,
-			offset:    0,
 		},
 		&Arg{
 			e:         right,
 			paramType: tString,
-			offset:    0,
 		},
 	}
 	resultList := &ast.FieldList{
@@ -1348,7 +1344,8 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 			&ast.Field{
 				Type: tString.E,
 			},
-		}}
+		},
+	}
 	emitCall("runtime.catstrings", args, resultList)
 }
 
@@ -1365,17 +1362,14 @@ func emitCompStrings(left ast.Expr, right ast.Expr) {
 			offset:    0,
 		},
 	}
-
-	rList := &ast.FieldList{
+	resultList := &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Names: nil,
-				Type:  tBool.E,
+				Type: tBool.E,
 			},
 		},
 	}
-
-	emitCall("runtime.cmpstrings", args, rList)
+	emitCall("runtime.cmpstrings", args, resultList)
 }
 
 func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
@@ -1383,15 +1377,11 @@ func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
 		emitCompStrings(left, right)
 	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
 		var t = getTypeOfExpr(left)
-
 		ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
-
 		emitAllocReturnVarsAreaFF(ff)
-
 		emitExpr(left, nil) // left
 		ctx := &evalContext{_type: t}
 		emitExprIfc(right, ctx) // right
-
 		emitCallFF(ff)
 	} else {
 		var t = getTypeOfExpr(left)
@@ -1435,7 +1425,7 @@ func emitPop(knd TypeKind) {
 
 func emitStore(t *Type, rhsTop bool, pushLhs bool) {
 	knd := kind(t)
-	emitComment(2, "emitStore\n")
+	emitComment(2, "emitStore(%s)\n", knd)
 	if rhsTop {
 		emitPop(knd) // rhs
 		fmt.Printf("  popq %%rsi # lhs addr\n")
@@ -1502,9 +1492,8 @@ func emitAssignWithOK(lhss []ast.Expr, rhs ast.Expr) {
 			needMain: needMain,
 			needOk:   needOK,
 		},
-		_type: nil,
 	}
-	emitExprIfc(rhs, ctx)
+	emitExprIfc(rhs, ctx) // {push data}, {push bool}
 	if needOK {
 		emitComment(2, "Assignment: ok variable\n")
 		emitAddr(lhsOK)
@@ -1538,7 +1527,6 @@ func emitAssign(lhs ast.Expr, rhs ast.Expr) {
 		_type: getTypeOfExpr(lhs),
 	}
 	emitExprIfc(rhs, ctx)
-	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
 	emitStore(getTypeOfExpr(lhs), true, false)
 }
 
