@@ -1961,10 +1961,10 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 func emitBranchStmt(s *ast.BranchStmt) {
 	containerFor, ok := mapBranchToFor[s]
 	assert(ok, "map value should exist", __func__)
-	switch s.Tok {
-	case token.CONTINUE:
+	switch s.Tok.String() {
+	case "continue":
 		fmt.Printf("jmp %s # continue\n", containerFor.labelPost)
-	case token.BREAK:
+	case "break":
 		fmt.Printf("jmp %s # break\n", containerFor.labelExit)
 	default:
 		throw(s.Tok)

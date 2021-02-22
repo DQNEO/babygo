@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
+	"github.com/DQNEO/babygo/lib/token"
 	"os"
 	"syscall"
 
@@ -890,7 +891,7 @@ func emitCallExpr(e *ast.CallExpr, ctx *evalContext) {
 	if isType(fun) {
 		emitConversion(e2t(fun), e.Args[0])
 	} else {
-		emitFuncall(fun, e.Args, e.Ellipsis)
+		emitFuncall(fun, e.Args, e.Ellipsis != token.NoPos)
 	}
 }
 // multi values (e)
@@ -1320,7 +1321,7 @@ func emitDtypeSymbol(t *Type) {
 
 func newNumberLiteral(x int) *ast.BasicLit {
 	e := &ast.BasicLit{
-		Kind:  "INT",
+		Kind:  token.INT,
 		Value: strconv.Itoa(x),
 	}
 	return e
@@ -1623,14 +1624,14 @@ func emitAssignStmt(s *ast.AssignStmt) {
 	case "+=":
 		binaryExpr := &ast.BinaryExpr{
 			X:     s.Lhs[0],
-			Op:    "+",
+			Op:    token.ADD,
 			Y:     s.Rhs[0],
 		}
 		emitAssign(s.Lhs[0], binaryExpr)
 	case "-=":
 		binaryExpr := &ast.BinaryExpr{
 			X:     s.Lhs[0],
-			Op:    "-",
+			Op:    token.SUB,
 			Y:     s.Rhs[0],
 		}
 		emitAssign(s.Lhs[0], binaryExpr)
@@ -1951,7 +1952,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 func emitBranchStmt(s *ast.BranchStmt) {
 	var containerFor = s.CurrentFor
 	var labelToGo string
-	switch s.Tok {
+	switch s.Tok.String() {
 	case "continue":
 		switch s := containerFor.(type) {
 		case *ast.ForStmt:

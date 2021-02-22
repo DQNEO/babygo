@@ -507,7 +507,7 @@ func (p *parser) parseCallExpr(fn ast.Expr) ast.Expr {
 	p.expect("(", __func__)
 	logf(" [parsePrimaryExpr] p.tok.tok=%s\n", p.tok.tok)
 	var list []ast.Expr
-	var ellipsis bool
+	var ellipsis token.Pos
 	for p.tok.tok != ")" {
 		var arg = p.parseExpr()
 		list = append(list, arg)
@@ -524,7 +524,7 @@ func (p *parser) parseCallExpr(fn ast.Expr) ast.Expr {
 
 	if p.tok.tok == "..." {
 		p.next()
-		ellipsis = true
+		ellipsis = 1 // this means true
 	}
 
 	p.expect(")", __func__)
@@ -1106,7 +1106,7 @@ func (p *parser) parseBranchStmt(tok string) ast.Stmt {
 	p.expectSemi(__func__)
 
 	var branchStmt = &ast.BranchStmt{}
-	branchStmt.Tok = tok
+	branchStmt.Tok = token.Token(tok)
 	return newStmt(branchStmt)
 }
 

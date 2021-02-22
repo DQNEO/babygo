@@ -95,7 +95,7 @@ type SliceExpr struct {
 type CallExpr struct {
 	Fun      Expr   // function expression
 	Args     []Expr // function arguments; or nil
-	Ellipsis bool
+	Ellipsis token.Pos
 }
 
 type StarExpr struct {
@@ -165,7 +165,7 @@ type ReturnStmt struct {
 }
 
 type BranchStmt struct {
-	Tok        string
+	Tok        token.Token
 	Label      string
 	CurrentFor Stmt
 }
