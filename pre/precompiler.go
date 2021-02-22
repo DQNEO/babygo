@@ -2910,15 +2910,6 @@ func registerLocalVariable(fnc *Func, name string, t *Type) *Variable {
 }
 
 var currentFor *MetaForStmt
-
-var mapMetaForStmt map[*ast.ForStmt]*MetaForStmt = map[*ast.ForStmt]*MetaForStmt{}
-var mapMetaRangeStmt map[*ast.RangeStmt]*MetaForStmt = map[*ast.RangeStmt]*MetaForStmt{}
-
-var mapMetaBranchStmt map[*ast.BranchStmt]*MetaForStmt = map[*ast.BranchStmt]*MetaForStmt{}
-
-var mapMetaTypeSwitchStmt = map[*ast.TypeSwitchStmt]*MetaTypeSwitchStmt{}
-var mapMetaReturnStmt = map[*ast.ReturnStmt]*MetaReturnStmt{}
-
 var currentFunc *Func
 
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
@@ -4087,3 +4078,11 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
+
+var mapMetaForStmt = map[*ast.ForStmt]*MetaForStmt{}
+var mapMetaRangeStmt = map[*ast.RangeStmt]*MetaForStmt{}
+
+var mapMetaBranchStmt = map[*ast.BranchStmt]*MetaForStmt{}
+
+var mapMetaTypeSwitchStmt = map[*ast.TypeSwitchStmt]*MetaTypeSwitchStmt{}
+var mapMetaReturnStmt = map[*ast.ReturnStmt]*MetaReturnStmt{}
