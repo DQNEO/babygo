@@ -29,7 +29,7 @@ func throw(x interface{}) {
 }
 
 func panic2(caller string, x string) {
-	panic("[" + caller + "] " + x)
+	panic(caller + ": " + x)
 }
 
 var debugFrontEnd bool

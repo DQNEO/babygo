@@ -16,9 +16,11 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-func assert(bol bool, msg string) {
+var __func__ = "__func__"
+
+func assert(bol bool, msg string, caller string) {
 	if !bol {
-		panic(msg)
+		panic(caller + ": " + msg)
 	}
 }
 
@@ -148,7 +150,7 @@ func emitAddConst(addValue int, comment string) {
 
 // "Load" means copy data from memory to registers
 func emitLoadAndPush(t *Type) {
-	assert(t != nil, "type should not be nil")
+	assert(t != nil, "type should not be nil", __func__)
 	emitPopAddress(string(kind(t)))
 	switch kind(t) {
 	case T_SLICE:
@@ -342,7 +344,7 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		if arrayType.Len != nil {
 			throw(to)
 		}
-		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice")
+		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice", __func__)
 		emitComment(2, "Conversion to slice\n")
 		emitExpr(arg0, nil)
 		emitPopString()
@@ -395,7 +397,7 @@ func emitLen(arg ast.Expr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
 		arrayType, ok := getTypeOfExpr(arg).E.(*ast.ArrayType)
-		assert(ok, "should be *ast.ArrayType")
+		assert(ok, "should be *ast.ArrayType", __func__)
 		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
 		emitExpr(arg, nil)
@@ -414,7 +416,7 @@ func emitCap(arg ast.Expr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
 		arrayType, ok := getTypeOfExpr(arg).E.(*ast.ArrayType)
-		assert(ok, "should be *ast.ArrayType")
+		assert(ok, "should be *ast.ArrayType", __func__)
 		emitExpr(arrayType.Len, nil)
 	case T_SLICE:
 		emitExpr(arg, nil)
@@ -548,7 +550,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		// Add nil as a variadic arg
 		param := params[argIndex+1]
 		elp, ok := param.Type.(*ast.Ellipsis)
-		assert(ok, "compile error")
+		assert(ok, "compile error", __func__)
 		args = append(args, &Arg{
 			e:         eNil,
 			paramType: e2t(elp),
@@ -707,12 +709,12 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		// check if it's a builtin func
 		switch fn.Obj {
 		case gLen:
-			assert(len(eArgs) == 1, "builtin len should take only 1 args")
+			assert(len(eArgs) == 1, "builtin len should take only 1 args", __func__)
 			var arg ast.Expr = eArgs[0]
 			emitLen(arg)
 			return
 		case gCap:
-			assert(len(eArgs) == 1, "builtin len should take only 1 args")
+			assert(len(eArgs) == 1, "builtin len should take only 1 args", __func__)
 			var arg ast.Expr = eArgs[0]
 			emitCap(arg)
 			return
@@ -728,7 +730,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			case T_SLICE:
 				// make([]T, ...)
 				arrayType, ok := typeArg.E.(*ast.ArrayType)
-				assert(ok, "should be *ast.ArrayType")
+				assert(ok, "should be *ast.ArrayType", __func__)
 				var elmSize = getSizeOfType(e2t(arrayType.Elt))
 				var numlit = newNumberLiteral(elmSize)
 
@@ -903,11 +905,11 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool { // 1 value
 	case gFalse: // false constant
 		emitFalse()
 	case gNil:
-		assert(ctx._type != nil, "context of nil is not passed")
+		assert(ctx._type != nil, "context of nil is not passed", __func__)
 		emitNil(ctx._type)
 		return true
 	default:
-		assert(e.Obj != nil, "should not be nil")
+		assert(e.Obj != nil, "should not be nil", __func__)
 		switch e.Obj.Kind {
 		case ast.Var:
 			emitAddr(e)
@@ -1127,12 +1129,12 @@ func emitCompositeLit(e *ast.CompositeLit, ctx *evalContext) { // 1 value
 		emitStructLiteral(e)
 	case T_ARRAY:
 		arrayType, ok := e.Type.(*ast.ArrayType)
-		assert(ok, "expect *ast.ArrayType")
+		assert(ok, "expect *ast.ArrayType", __func__)
 		arrayLen := evalInt(arrayType.Len)
 		emitArrayLiteral(arrayType, arrayLen, e.Elts)
 	case T_SLICE:
 		arrayType, ok := e.Type.(*ast.ArrayType)
-		assert(ok, "expect *ast.ArrayType")
+		assert(ok, "expect *ast.ArrayType", __func__)
 		length := len(e.Elts)
 		emitArrayLiteral(arrayType, length, e.Elts)
 		emitPopAddress("malloc")
@@ -1659,11 +1661,11 @@ func emitAssignStmt(s *ast.AssignStmt) {
 				// a, b, c = f()
 				emitExpr(rhs0, nil) // @TODO interface conversion
 				callExpr, ok := rhs0.(*ast.CallExpr)
-				assert(ok, "should be a CallExpr")
+				assert(ok, "should be a CallExpr", __func__)
 				returnTypes := getCallResultTypes(callExpr)
 				fmt.Printf("# len lhs=%d\n", len(s.Lhs))
 				fmt.Printf("# returnTypes=%d\n", len(returnTypes))
-				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)))
+				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
 				length := len(returnTypes)
 				for i := 0; i < length; i++ {
 					lhs := s.Lhs[i]
@@ -1719,7 +1721,7 @@ func emitForStmt(s *ast.ForStmt) {
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
 	labelExit := fmt.Sprintf(".L.for.exit.%d", labelid)
 	forStmt, ok := mapForNodeToFor[s]
-	assert(ok, "map value should exist")
+	assert(ok, "map value should exist", __func__)
 	forStmt.labelPost = labelPost
 	forStmt.labelExit = labelExit
 
@@ -1749,7 +1751,7 @@ func emitRangeStmt(s *ast.RangeStmt) { // only for array and slice
 	labelExit := fmt.Sprintf(".L.range.exit.%d", labelid)
 
 	forStmt, ok := mapRangeNodeToFor[s]
-	assert(ok, "map value should exist")
+	assert(ok, "map value should exist", __func__)
 	forStmt.labelPost = labelPost
 	forStmt.labelExit = labelExit
 	// initialization: store len(rangeexpr)
@@ -1758,7 +1760,7 @@ func emitRangeStmt(s *ast.RangeStmt) { // only for array and slice
 	emitComment(2, "  assign length to lenvar\n")
 	// lenvar = len(s.X)
 	rngMisc, ok := mapRangeStmt[s]
-	assert(ok, "lenVar should exist")
+	assert(ok, "lenVar should exist", __func__)
 	// lenvar = len(s.X)
 	emitVariableAddr(rngMisc.lenvar)
 	emitLen(s.X)
@@ -1773,7 +1775,7 @@ func emitRangeStmt(s *ast.RangeStmt) { // only for array and slice
 	// init key variable with 0
 	if s.Key != nil {
 		keyIdent, ok := s.Key.(*ast.Ident)
-		assert(ok, "key expr should be an ident")
+		assert(ok, "key expr should be an ident", __func__)
 		if keyIdent.Name != "_" {
 			emitAddr(s.Key) // lhs
 			emitZeroValue(tInt)
@@ -1825,7 +1827,7 @@ func emitRangeStmt(s *ast.RangeStmt) { // only for array and slice
 	// incr key variable
 	if s.Key != nil {
 		keyIdent, ok := s.Key.(*ast.Ident)
-		assert(ok, "key expr should be an ident")
+		assert(ok, "key expr should be an ident", __func__)
 		if keyIdent.Name != "_" {
 			emitAddr(s.Key)                    // lhs
 			emitVariableAddr(rngMisc.indexvar) // rhs
@@ -1872,7 +1874,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	emitComment(2, "Start comparison with cases\n")
 	for i, c := range cases {
 		cc, ok := c.(*ast.CaseClause)
-		assert(ok, "should be *ast.CaseClause")
+		assert(ok, "should be *ast.CaseClause", __func__)
 		labelid++
 		labelCase := fmt.Sprintf(".L.case.%d", labelid)
 		labels[i] = labelCase
@@ -1881,7 +1883,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 			continue
 		}
 		for _, e := range cc.List {
-			assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string")
+			assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string", __func__)
 			switch kind(condType) {
 			case T_STRING:
 				ff := lookupForeignFunc(newQI("runtime", "cmpstrings"))
@@ -1927,7 +1929,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	emitRevertStackTop(condType)
 	for i, c := range cases {
 		cc, ok := c.(*ast.CaseClause)
-		assert(ok, "should be *ast.CaseClause")
+		assert(ok, "should be *ast.CaseClause", __func__)
 		fmt.Printf("%s:\n", labels[i])
 		for _, _s := range cc.Body {
 			emitStmt(_s)
@@ -1938,7 +1940,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	typeSwitch, ok := mapTypeSwitchStmtMeta[s]
-	assert(ok, "should exist")
+	assert(ok, "should exist", __func__)
 	labelid++
 	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
@@ -1953,7 +1955,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	emitComment(2, "Start comparison with cases\n")
 	for i, c := range cases {
 		cc, ok := c.(*ast.CaseClause)
-		assert(ok, "should be *ast.CaseClause")
+		assert(ok, "should be *ast.CaseClause", __func__)
 		labelid++
 		labelCase := ".L.case." + strconv.Itoa(labelid)
 		labels[i] = labelCase
@@ -2017,7 +2019,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 }
 func emitBranchStmt(s *ast.BranchStmt) {
 	containerFor, ok := mapBranchToFor[s]
-	assert(ok, "map value should exist")
+	assert(ok, "map value should exist", __func__)
 	switch s.Tok {
 	case token.CONTINUE:
 		fmt.Printf("jmp %s # continue\n", containerFor.labelPost)
@@ -2221,8 +2223,8 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			panic("Unsupported global value")
 		}
 		arrayType, ok := t.E.(*ast.ArrayType)
-		assert(ok, "should be *ast.ArrayType")
-		assert(arrayType.Len != nil, "slice type is not expected")
+		assert(ok, "should be *ast.ArrayType", __func__)
+		assert(arrayType.Len != nil, "slice type is not expected", __func__)
 		length := evalInt(arrayType.Len)
 		var zeroValue string
 		switch kind(e2t(arrayType.Elt)) {
@@ -2417,7 +2419,7 @@ var generalSlice ast.Expr = &ast.Ident{}
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
-		assert(e.Obj != nil, "Obj is nil in ident '"+e.Name+"'")
+		assert(e.Obj != nil, "Obj is nil in ident '"+e.Name+"'", __func__)
 		switch e.Obj.Kind {
 		case ast.Var:
 			// injected type is the 1st priority
@@ -2501,7 +2503,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		return getElementTypeOfListType(getTypeOfExpr(list))
 	case *ast.CallExpr: // funcall or conversion
 		types := getCallResultTypes(e)
-		assert(len(types) == 1, "single value is expected")
+		assert(len(types) == 1, "single value is expected", __func__)
 		return types[0]
 	case *ast.SliceExpr:
 		underlyingCollectionType := getTypeOfExpr(e.X)
@@ -2715,7 +2717,7 @@ func getUnderlyingType(t *Type) *Type {
 		return t
 	case *ast.Ident:
 		// predeclared identifier
-		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ")
+		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
 		if isPredeclaredType(e.Obj) {
 			return t
 		}
@@ -2744,7 +2746,7 @@ func kind(t *Type) TypeKind {
 
 	switch e := ut.E.(type) {
 	case *ast.Ident:
-		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ")
+		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
 		switch e.Obj {
 		case gUintptr:
 			return T_UINTPTR
@@ -2969,7 +2971,7 @@ func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
 }
 
 func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
-	assert(t != nil && t.E != nil, "type of local var should not be nil")
+	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
 	fnc.localarea -= getSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.localarea, t)
 	fnc.localvars = append(fnc.localvars, vr)
@@ -3063,7 +3065,7 @@ func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
 	if !isIdent {
 		throw(e)
 	}
-	assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg")
+	assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg", __func__)
 	return newQI(pkgName.Name, e.Sel.Name)
 }
 
@@ -3280,18 +3282,18 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	switch assign := s.Assign.(type) {
 	case *ast.ExprStmt:
 		typeAssertExpr, ok := assign.X.(*ast.TypeAssertExpr)
-		assert(ok, "should be *ast.TypeAssertExpr")
+		assert(ok, "should be *ast.TypeAssertExpr", __func__)
 		typeSwitch.Subject = typeAssertExpr.X
 		walkExpr(typeAssertExpr.X)
 	case *ast.AssignStmt:
 		lhs := assign.Lhs[0]
 		var ok bool
 		assignIdent, ok = lhs.(*ast.Ident)
-		assert(ok, "lhs should be ident")
+		assert(ok, "lhs should be ident", __func__)
 		typeSwitch.AssignIdent = assignIdent
 		// ident will be a new local variable in each case clause
 		typeAssertExpr, ok := assign.Rhs[0].(*ast.TypeAssertExpr)
-		assert(ok, "should be *ast.TypeAssertExpr")
+		assert(ok, "should be *ast.TypeAssertExpr", __func__)
 		typeSwitch.Subject = typeAssertExpr.X
 		walkExpr(typeAssertExpr.X)
 	default:
@@ -3332,7 +3334,7 @@ func walkCaseClause(s *ast.CaseClause) {
 	}
 }
 func walkBranchStmt(s *ast.BranchStmt) {
-	assert(currentFor != nil, "break or continue should be in for body")
+	assert(currentFor != nil, "break or continue should be in for body", __func__)
 	mapBranchToFor[s] = currentFor
 }
 
@@ -3597,7 +3599,7 @@ func walk(pkg *PkgContainer) {
 
 	for _, varSpec := range varSpecs {
 		nameIdent := varSpec.Names[0]
-		assert(nameIdent.Obj.Kind == ast.Var, "should be Var")
+		assert(nameIdent.Obj.Kind == ast.Var, "should be Var", __func__)
 		if varSpec.Type == nil {
 			// Infer type
 			val := varSpec.Values[0]
@@ -4127,7 +4129,7 @@ func main() {
 
 // --- util ---
 func obj2var(obj *ast.Object) *Variable {
-	assert(obj.Kind == ast.Var, "should be ast.Var")
+	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
 	vr, ok := obj.Data.(*Variable)
 	if !ok {
 		throw(obj.Data)
