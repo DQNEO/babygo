@@ -540,7 +540,7 @@ func emitCall(symbol string, args []*Arg, resultList *ast.FieldList) {
 	var totalParamSize int
 	for _, arg := range args {
 		arg.offset = totalParamSize
-		totalParamSize = totalParamSize + getSizeOfType(arg.paramType)
+		totalParamSize += getSizeOfType(arg.paramType)
 	}
 
 	emitAllocReturnVarsArea(getTotalFieldsSize(resultList))
@@ -570,7 +570,7 @@ func getTotalFieldsSize(flist *ast.FieldList) int {
 	}
 	var r int
 	for _, fld := range flist.List {
-		r = r + getSizeOfType(e2t(fld.Type))
+		r += getSizeOfType(e2t(fld.Type))
 	}
 	return r
 }
@@ -2755,7 +2755,7 @@ func calcStructSizeAndSetFieldOffset(structType *ast.StructType) int {
 	for _, field := range fields {
 		setStructFieldOffset(field, offset)
 		var size = getSizeOfType(e2t(field.Type))
-		offset = offset + size
+		offset += size
 	}
 	return offset
 }
@@ -2776,7 +2776,8 @@ type stringLiteralsContainer struct {
 
 func registerParamVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
-	fnc.Argsarea = fnc.Argsarea + getSizeOfType(t)
+	size := getSizeOfType(t)
+	fnc.Argsarea += size
 	fnc.Params = append(fnc.Params, vr)
 	return vr
 }
@@ -2784,14 +2785,14 @@ func registerParamVariable(fnc *ast.Func, name string, t *Type) *Variable {
 func registerReturnVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
-	fnc.Argsarea = fnc.Argsarea + size
+	fnc.Argsarea += size
 	fnc.Retvars = append(fnc.Retvars, vr)
 	return vr
 }
 
 func registerLocalVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
-	fnc.Localarea = fnc.Localarea - getSizeOfType(t)
+	fnc.Localarea -= getSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
 	fnc.Vars = append(fnc.Vars, vr)
 	return vr
