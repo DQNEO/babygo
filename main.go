@@ -1637,40 +1637,39 @@ func emitAssignStmt(s *ast.AssignStmt) {
 		}
 		emitAssign(s.Lhs[0], binaryExpr)
 	default:
-		panic("TBI: assignment of " + s.Tok)
+		panic("TBI: assignment of " + s.Tok.String())
 	}
 }
 func emitIfStmt(s *ast.IfStmt) {
 	emitComment(2, "if\n")
 
 	labelid++
-	var labelEndif = ".L.endif." + strconv.Itoa(labelid)
-	var labelElse = ".L.else." + strconv.Itoa(labelid)
+	labelEndif := fmt.Sprintf(".L.endif.%d", labelid)
+	labelElse := fmt.Sprintf(".L.else.%d", labelid)
 
 	emitExpr(s.Cond, nil)
 	emitPopBool("if condition")
 	fmt.Printf("  cmpq $1, %%rax\n")
-	bodyStmt := newStmt(s.Body)
 	if s.Else != nil {
 		fmt.Printf("  jne %s # jmp if false\n", labelElse)
-		emitStmt(bodyStmt) // then
+		emitStmt(s.Body) // then
 		fmt.Printf("  jmp %s\n", labelEndif)
 		fmt.Printf("  %s:\n", labelElse)
 		emitStmt(s.Else) // then
 	} else {
 		fmt.Printf("  jne %s # jmp if false\n", labelEndif)
-		emitStmt(bodyStmt) // then
+		emitStmt(s.Body) // then
 	}
 	fmt.Printf("  %s:\n", labelEndif)
 	emitComment(2, "end if\n")
 }
 func emitForStmt(s *ast.ForStmt) {
 	labelid++
-	var labelCond = ".L.for.cond." + strconv.Itoa(labelid)
-	var labelPost = ".L.for.post." + strconv.Itoa(labelid)
-	var labelExit = ".L.for.exit." + strconv.Itoa(labelid)
-	//forStmt, ok := mapForNodeToFor[s]
-	//assert(ok, "map value should exist")
+	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
+	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
+	labelExit := fmt.Sprintf(".L.for.exit.%d", labelid)
+
+
 	s.LabelPost = labelPost
 	s.LabelExit = labelExit
 
@@ -1693,11 +1692,13 @@ func emitForStmt(s *ast.ForStmt) {
 	fmt.Printf("  jmp %s\n", labelCond)
 	fmt.Printf("  %s:\n", labelExit)
 }
+
+// only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
 	labelid++
-	var labelCond = ".L.range.cond." + strconv.Itoa(labelid)
-	var labelPost = ".L.range.post." + strconv.Itoa(labelid)
-	var labelExit = ".L.range.exit." + strconv.Itoa(labelid)
+	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
+	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
+	labelExit := fmt.Sprintf(".L.range.exit.%d", labelid)
 
 	s.LabelPost = labelPost
 	s.LabelExit = labelExit
@@ -1718,7 +1719,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 
 	// init key variable with 0
 	if s.Key != nil {
-		keyIdent := expr2Ident(s.Key)
+		keyIdent := s.Key.(*ast.Ident)
 		if keyIdent.Name != "_" {
 			emitAddr(s.Key) // lhs
 			emitZeroValue(tInt)
@@ -1744,7 +1745,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	fmt.Printf("  jne %s # jmp if false\n", labelExit)
 
 	emitComment(2, "assign list[indexvar] value variables\n")
-	var elemType = getTypeOfExpr(s.Value)
+	elemType := getTypeOfExpr(s.Value)
 	emitAddr(s.Value) // lhs
 
 	emitVariableAddr(s.Indexvar)
@@ -1767,8 +1768,9 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	emitAddConst(1, "indexvar value ++")
 	emitStore(tInt, true, false)
 
+	// incr key variable
 	if s.Key != nil {
-		keyIdent := expr2Ident(s.Key)
+		keyIdent := s.Key.(*ast.Ident)
 		if keyIdent.Name != "_" {
 			emitAddr(s.Key)              // lhs
 			emitVariableAddr(s.Indexvar) // rhs

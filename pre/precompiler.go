@@ -1657,11 +1657,13 @@ func emitIfStmt(s *ast.IfStmt) {
 }
 func emitForStmt(s *ast.ForStmt) {
 	labelid++
+	forStmt := mapForNodeToFor[s]
+
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
 	labelExit := fmt.Sprintf(".L.for.exit.%d", labelid)
-	forStmt, ok := mapForNodeToFor[s]
-	assert(ok, "map value should exist", __func__)
+
+
 	forStmt.labelPost = labelPost
 	forStmt.labelExit = labelExit
 
@@ -1684,7 +1686,9 @@ func emitForStmt(s *ast.ForStmt) {
 	fmt.Printf("  jmp %s\n", labelCond)
 	fmt.Printf("  %s:\n", labelExit)
 }
-func emitRangeStmt(s *ast.RangeStmt) { // only for array and slice
+
+// only for array and slice for now
+func emitRangeStmt(s *ast.RangeStmt) {
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -1714,8 +1718,7 @@ func emitRangeStmt(s *ast.RangeStmt) { // only for array and slice
 
 	// init key variable with 0
 	if s.Key != nil {
-		keyIdent, ok := s.Key.(*ast.Ident)
-		assert(ok, "key expr should be an ident", __func__)
+		keyIdent := s.Key.(*ast.Ident)
 		if keyIdent.Name != "_" {
 			emitAddr(s.Key) // lhs
 			emitZeroValue(tInt)
@@ -1766,8 +1769,7 @@ func emitRangeStmt(s *ast.RangeStmt) { // only for array and slice
 
 	// incr key variable
 	if s.Key != nil {
-		keyIdent, ok := s.Key.(*ast.Ident)
-		assert(ok, "key expr should be an ident", __func__)
+		keyIdent := s.Key.(*ast.Ident)
 		if keyIdent.Name != "_" {
 			emitAddr(s.Key)                    // lhs
 			emitVariableAddr(rngMisc.indexvar) // rhs
