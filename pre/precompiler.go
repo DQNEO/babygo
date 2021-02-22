@@ -2409,7 +2409,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case "CHAR":
 			return tInt32
 		default:
-			throw(e.Kind.String())
+			panic(e.Kind.String())
 		}
 	case *ast.UnaryExpr:
 		switch e.Op.String() {
@@ -2429,7 +2429,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			elmType := getElementTypeOfListType(listType)
 			return elmType
 		default:
-			throw(e.Op.String())
+			panic(e.Op.String())
 		}
 	case *ast.BinaryExpr:
 		switch e.Op.String() {

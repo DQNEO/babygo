@@ -715,7 +715,7 @@ func (p *parser) parseUnaryExpr() ast.Expr {
 		logf(" [DEBUG] unary op = %s\n", tok)
 		r = (&ast.UnaryExpr{
 			X:  x,
-			Op: tok,
+			Op: token.Token(tok),
 		})
 		return r
 	case "*":
@@ -769,7 +769,7 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 		var binaryExpr = &ast.BinaryExpr{}
 		binaryExpr.X = x
 		binaryExpr.Y = y
-		binaryExpr.Op = op
+		binaryExpr.Op = token.Token(op)
 		var r = (binaryExpr)
 		x = r
 	}
@@ -861,7 +861,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		rangeStmt.Value = value
 		rangeStmt.X = rangeX
 		rangeStmt.Body = body
-		rangeStmt.Tok = as.Tok
+		rangeStmt.Tok = token.Token(as.Tok)
 		p.closeScope()
 		logf(" end %s\n", __func__)
 		return newStmt(rangeStmt)
@@ -1013,7 +1013,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 			y = p.parseExpr() // rhs
 		}
 		var as = &ast.AssignStmt{}
-		as.Tok = assignToken
+		as.Tok = token.Token(assignToken)
 		as.Lhs = x
 		as.Rhs = make([]ast.Expr, 1, 1)
 		as.Rhs[0] = y

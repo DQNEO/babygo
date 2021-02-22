@@ -104,13 +104,13 @@ type StarExpr struct {
 
 type UnaryExpr struct {
 	X  Expr
-	Op string
+	Op token.Token
 }
 
 type BinaryExpr struct {
 	X  Expr
 	Y  Expr
-	Op string
+	Op token.Token
 }
 
 type TypeAssertExpr struct {
@@ -154,7 +154,7 @@ type IncDecStmt struct {
 
 type AssignStmt struct {
 	Lhs     []Expr
-	Tok     string
+	Tok     token.Token
 	Rhs     []Expr
 	IsRange bool
 }
@@ -257,7 +257,7 @@ type RangeStmt struct {
 	LabelExit string
 	Lenvar    *Variable
 	Indexvar  *Variable
-	Tok       string
+	Tok       token.Token
 }
 
 type ImportSpec struct {

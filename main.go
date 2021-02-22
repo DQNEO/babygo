@@ -932,11 +932,11 @@ func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
 			fmt.Printf("  pushq %%rax # str ptr\n")
 		}
 	default:
-		panic("[*ast.BasicLit] TBI : " + e.Kind)
+		panic("Unexpected literal kind:" + e.Kind.String())
 	}
 }
 func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
-	switch e.Op {
+	switch e.Op.String() {
 	case "+":
 		emitExpr(e.X, nil)
 	case "-":
@@ -955,7 +955,7 @@ func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
 }
 // 1 value
 func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
-	switch e.Op {
+	switch e.Op.String() {
 	case "&&":
 		labelid++
 		labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
@@ -1571,7 +1571,7 @@ func emitDeclStmt(s *ast.DeclStmt) {
 	}
 }
 func emitAssignStmt(s *ast.AssignStmt) {
-	switch s.Tok {
+	switch s.Tok.String() {
 	case "=", ":=":
 		rhs0 := s.Rhs[0]
 		_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
@@ -2343,8 +2343,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			panic("2:Obj=" + e.Obj.Name + e.Obj.Kind)
 		}
 	case *ast.BasicLit:
-		basicLit := expr2BasicLit(expr)
-		switch basicLit.Kind {
+		switch e.Kind.String() {
 		case "STRING":
 			return tString
 		case "INT":
@@ -2352,13 +2351,13 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case "CHAR":
 			return tInt32
 		default:
-			panic("TBI:" + basicLit.Kind)
+			panic(e.Kind.String())
 		}
 	case *ast.IndexExpr:
 		var list = e.X
 		return getElementTypeOfListType(getTypeOfExpr(list))
 	case *ast.UnaryExpr:
-		switch e.Op {
+		switch e.Op.String() {
 		case "+":
 			return getTypeOfExpr(e.X)
 		case "-":
@@ -2375,7 +2374,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			elmType := getElementTypeOfListType(listType)
 			return elmType
 		default:
-			panic("TBI: Op=" + e.Op)
+			panic(e.Op.String())
 		}
 	case *ast.CallExpr:
 		types := getCallResultTypes(e)
@@ -2401,12 +2400,11 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		ptrType := t.E.(*ast.StarExpr)
 		return e2t(ptrType.X)
 	case *ast.BinaryExpr:
-		binaryExpr := e
-		switch binaryExpr.Op {
+		switch e.Op.String() {
 		case "==", "!=", "<", ">", "<=", ">=":
 			return tBool
 		default:
-			return getTypeOfExpr(binaryExpr.X)
+			return getTypeOfExpr(e.X)
 		}
 	case *ast.SelectorExpr:
 		if isQI(e) { // pkg.SomeType
@@ -3015,7 +3013,7 @@ func walkDeclStmt(s *ast.DeclStmt) {
 	}
 }
 func walkAssignStmt(s *ast.AssignStmt) {
-	if s.Tok == ":=" {
+	if s.Tok.String() == ":=" {
 		// short var decl
 		rhs0 := s.Rhs[0]
 		walkExpr(rhs0)
@@ -3091,7 +3089,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 	var lenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
 	var indexvar = registerLocalVariable(currentFunc, ".range.index", tInt)
 
-	if s.Tok == ":=" {
+	if s.Tok.String() == ":=" {
 		listType := getTypeOfExpr(s.X)
 
 		keyIdent := expr2Ident(s.Key)
@@ -3241,10 +3239,13 @@ func walkCallExpr(e *ast.CallExpr) {
 	}
 }
 func walkBasicLit(e *ast.BasicLit) {
-	basicLit := e
-	switch basicLit.Kind {
+	switch e.Kind.String() {
+	case "INT":
+	case "CHAR":
 	case "STRING":
-		registerStringLiteral(basicLit)
+		registerStringLiteral(e)
+	default:
+		panic("Unexpected literal kind:" + e.Kind.String())
 	}
 }
 func walkCompositeLit(e *ast.CompositeLit) {
