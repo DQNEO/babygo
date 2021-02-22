@@ -20,22 +20,6 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
 
-func parseImports(fset *token.FileSet, filename string) *ast.File {
-	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
-	if err != nil {
-		panic(filename + ":" + err.Error())
-	}
-	return f
-}
-
-func parseFile(fset *token.FileSet, filename string) *ast.File {
-	f, err := parser.ParseFile(fset, filename, nil, 0)
-	if err != nil {
-		panic(err)
-	}
-	return f
-}
-
 var __func__ = "__func__"
 
 func assert(bol bool, msg string, caller string) {
@@ -4128,3 +4112,20 @@ func obj2var(obj *ast.Object) *Variable {
 func setVariable(obj *ast.Object, vr *Variable) {
 	obj.Data = vr
 }
+
+func parseImports(fset *token.FileSet, filename string) *ast.File {
+	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
+	if err != nil {
+		panic(filename + ":" + err.Error())
+	}
+	return f
+}
+
+func parseFile(fset *token.FileSet, filename string) *ast.File {
+	f, err := parser.ParseFile(fset, filename, nil, 0)
+	if err != nil {
+		panic(err)
+	}
+	return f
+}
+
