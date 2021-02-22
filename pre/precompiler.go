@@ -2205,13 +2205,13 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		case T_INT:
 			zeroValue = "  .quad 0 # int zero value\n"
 		case T_UINT8:
-			zeroValue = fmt.Sprintf("  .byte 0 # uint8 zero value\n")
+			zeroValue = "  .byte 0 # uint8 zero value\n"
 		case T_STRING:
-			zeroValue = fmt.Sprintf("  .quad 0 # string zero value (ptr)\n")
-			zeroValue += fmt.Sprintf("  .quad 0 # string zero value (len)\n")
+			zeroValue = "  .quad 0 # string zero value (ptr)\n"
+			zeroValue += "  .quad 0 # string zero value (len)\n"
 		case T_INTERFACE:
-			zeroValue = fmt.Sprintf("  .quad 0 # eface zero value (dtype)\n")
-			zeroValue += fmt.Sprintf("  .quad 0 # eface zero value (data)\n")
+			zeroValue = "  .quad 0 # eface zero value (dtype)\n"
+			zeroValue += "  .quad 0 # eface zero value (data)\n"
 		default:
 			unexpectedKind(kind(e2t(arrayType.Elt)))
 		}

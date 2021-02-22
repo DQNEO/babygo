@@ -2197,10 +2197,10 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			zeroValue = "  .byte 0 # uint8 zero value\n"
 		case T_STRING:
 			zeroValue = "  .quad 0 # string zero value (ptr)\n"
-			zeroValue = zeroValue + "  .quad 0 # string zero value (len)\n"
+			zeroValue += "  .quad 0 # string zero value (len)\n"
 		case T_INTERFACE:
 			zeroValue = "  .quad 0 # eface zero value (dtype)\n"
-			zeroValue = zeroValue + "  .quad 0 # eface zero value (data)\n"
+			zeroValue += "  .quad 0 # eface zero value (data)\n"
 		default:
 			unexpectedKind(knd)
 		}
