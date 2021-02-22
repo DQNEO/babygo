@@ -259,15 +259,6 @@ func isType(expr ast.Expr) bool {
 	case *ast.ArrayType:
 		return true
 	case *ast.Ident:
-		if e == nil {
-			panic("ident should not be nil")
-		}
-		if e.Obj == nil {
-			panic(" unresolved ident:"+e.Name)
-		}
-		emitComment(2, "[isType][DEBUG] e.Name = %s\n", e.Name)
-		emitComment(2, "[isType][DEBUG] e.Obj = %s,%s\n",
-			e.Obj.Name, e.Obj.Kind)
 		return e.Obj.Kind == ast.Typ
 	case *ast.SelectorExpr:
 		if isQI(e) {
@@ -283,12 +274,8 @@ func isType(expr ast.Expr) bool {
 		return isType(e.X)
 	case *ast.InterfaceType:
 		return true
-	default:
-		emitComment(2, "[isType][%s] is not considered a type\n", dtypeOf(expr))
 	}
-
 	return false
-
 }
 
 // explicit conversion T(e)

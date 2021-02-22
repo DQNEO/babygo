@@ -275,9 +275,6 @@ func isType(expr ast.Expr) bool {
 	case *ast.ArrayType:
 		return true
 	case *ast.Ident:
-		if e.Obj == nil {
-			panic("unresolved ident: " + e.String())
-		}
 		return e.Obj.Kind == ast.Typ
 	case *ast.SelectorExpr:
 		if isQI(e) {
@@ -287,20 +284,19 @@ func isType(expr ast.Expr) bool {
 				return true
 			}
 		}
-	case *ast.ParenExpr: // We assume (T)(e) is conversion
+	case *ast.ParenExpr:
 		return isType(e.X)
 	case *ast.StarExpr:
 		return isType(e.X)
 	case *ast.InterfaceType:
 		return true
 	}
-	emitComment(0, "[isType][%T] is not considered a type\n", expr)
 	return false
 }
 
 // explicit conversion T(e)
 func emitConversion(toType *Type, arg0 ast.Expr) {
-	emitComment(2, "emitConversion\n")
+	emitComment(2, "[emitConversion]\n")
 	switch to := toType.E.(type) {
 	case *ast.Ident:
 		switch to.Obj {
