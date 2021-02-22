@@ -1054,7 +1054,7 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		emitExpr(e.Y, nil) // right
 		emitCompExpr("setge")
 	default:
-		panic("# TBI: binary operation for " + e.Op)
+		panic(e.Op.String())
 	}
 }
 // 1 value
@@ -1558,16 +1558,19 @@ func emitDeclStmt(s *ast.DeclStmt) {
 		if len(valSpec.Values) == 0 {
 			emitComment(2, "lhs addresss\n")
 			emitAddr(lhs)
-			emitComment(2, "emitZeroValue for %s\n", dtypeOf(t.E))
+			emitComment(2, "emitZeroValue\n")
 			emitZeroValue(t)
 			emitComment(2, "Assignment: zero value\n")
 			emitStore(t, true, false)
-		} else {
+		} else if len(valSpec.Values) == 1 {
+			// assignment
 			rhs := valSpec.Values[0]
 			emitAssign(lhs, rhs)
+		} else {
+			panic("TBI")
 		}
 	default:
-		panic(declSpec)
+		throw(declSpec)
 	}
 }
 func emitAssignStmt(s *ast.AssignStmt) {
@@ -1582,9 +1585,7 @@ func emitAssignStmt(s *ast.AssignStmt) {
 				// 1 to 1 assignment
 				// x = e
 				lhs0 := s.Lhs[0]
-				var ident *ast.Ident
-				var isIdent bool
-				ident, isIdent = lhs0.(*ast.Ident)
+				ident, isIdent := lhs0.(*ast.Ident)
 				if isIdent && ident.Name == "_" {
 					panic(" _ is not supported yet")
 				}
@@ -1593,11 +1594,8 @@ func emitAssignStmt(s *ast.AssignStmt) {
 				// multi-values expr
 				// a, b, c = f()
 				emitExpr(rhs0, nil) // @TODO interface conversion
-				var _callExpr *ast.CallExpr
-				var ok bool
-				_callExpr, ok = rhs0.(*ast.CallExpr)
-				assert(ok, "should be a CallExpr", __func__)
-				returnTypes := getCallResultTypes(_callExpr)
+				callExpr := rhs0.(*ast.CallExpr)
+				returnTypes := getCallResultTypes(callExpr)
 				fmt.Printf("# len lhs=%d\n", len(s.Lhs))
 				fmt.Printf("# returnTypes=%d\n", len(returnTypes))
 				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)

@@ -1059,7 +1059,7 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		emitExpr(e.Y, nil) // right
 		emitCompExpr("setge")
 	default:
-		panic(fmt.Sprintf("TBI: binary operation for '%s'", e.Op.String()))
+		panic(e.Op.String())
 	}
 }
 // 1 value
@@ -1549,6 +1549,7 @@ func emitDeclStmt(s *ast.DeclStmt) {
 		t := e2t(valSpec.Type)
 		lhs := valSpec.Names[0]
 		if len(valSpec.Values) == 0 {
+			emitComment(2, "lhs addresss\n")
 			emitAddr(lhs)
 			emitComment(2, "emitZeroValue\n")
 			emitZeroValue(t)
@@ -1586,8 +1587,7 @@ func emitAssignStmt(s *ast.AssignStmt) {
 				// multi-values expr
 				// a, b, c = f()
 				emitExpr(rhs0, nil) // @TODO interface conversion
-				callExpr, ok := rhs0.(*ast.CallExpr)
-				assert(ok, "should be a CallExpr", __func__)
+				callExpr := rhs0.(*ast.CallExpr)
 				returnTypes := getCallResultTypes(callExpr)
 				fmt.Printf("# len lhs=%d\n", len(s.Lhs))
 				fmt.Printf("# returnTypes=%d\n", len(returnTypes))
@@ -1605,7 +1605,6 @@ func emitAssignStmt(s *ast.AssignStmt) {
 							fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
 							fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 							fmt.Printf("  pushq %%rax\n")
-						default:
 						}
 						emitAddr(lhs)
 						emitStore(getTypeOfExpr(lhs), false, false)
