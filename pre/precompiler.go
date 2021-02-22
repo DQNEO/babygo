@@ -713,7 +713,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				resultList := &ast.FieldList{
 					List: []*ast.Field{
 						&ast.Field{
-							Names: nil,
 							Type:  generalSlice,
 						},
 					},
@@ -724,12 +723,11 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				throw(typeArg)
 			}
 		case gAppend:
-			var sliceArg ast.Expr = eArgs[0]
-			var elemArg ast.Expr = eArgs[1]
-			var elmType *Type = getElementTypeOfListType(getTypeOfExpr(sliceArg))
-			var elmSize int = getSizeOfType(elmType)
-
-			var args []*Arg = []*Arg{
+			sliceArg := eArgs[0]
+			elemArg := eArgs[1]
+			elmType := getElementTypeOfListType(getTypeOfExpr(sliceArg))
+			elmSize := getSizeOfType(elmType)
+			args := []*Arg{
 				// slice
 				&Arg{
 					e:         sliceArg,
@@ -755,11 +753,9 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			default:
 				throw(elmSize)
 			}
-
-			var resultList = &ast.FieldList{
+			resultList := &ast.FieldList{
 				List: []*ast.Field{
 					&ast.Field{
-						Names: nil,
 						Type:  generalSlice,
 					},
 				},
@@ -772,24 +768,6 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				e:         eArgs[0],
 				paramType: tEface,
 			}}
-			emitCall(symbol, _args, nil)
-			return
-		}
-
-		if fn.Name == "print" {
-			// builtin print
-			_args := []*Arg{&Arg{
-				e: eArgs[0],
-			}}
-			var symbol string
-			switch kind(getTypeOfExpr(eArgs[0])) {
-			case T_STRING:
-				symbol = "runtime.printstring"
-			case T_INT:
-				symbol = "runtime.printint"
-			default:
-				unexpectedKind(kind(getTypeOfExpr(eArgs[0])))
-			}
 			emitCall(symbol, _args, nil)
 			return
 		}
@@ -812,16 +790,18 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			// pkg.Sel()
 			qi := selector2QI(fn)
 			symbol = string(qi)
-			funcdecl := lookupForeignFunc(qi)
-			funcType = funcdecl.decl.Type
+			ff := lookupForeignFunc(qi)
+			funcType = ff.decl.Type
 		} else {
-			// Assume method call
+			// method call
 			receiver = fn.X
 			receiverType := getTypeOfExpr(receiver)
 			method := lookupMethod(receiverType, fn.Sel)
 			funcType = method.FuncType
 			symbol = getMethodSymbol(method)
 		}
+	case *ast.ParenExpr:
+		panic("[astParenExpr] TBI ")
 	default:
 		throw(fun)
 	}
@@ -845,7 +825,7 @@ func emitNil(targetType *Type) {
 func emitNamedConst(ident *ast.Ident, ctx *evalContext) {
 	valSpec := ident.Obj.Decl.(*ast.ValueSpec)
 	lit := valSpec.Values[0].(*ast.BasicLit)
-	emitExpr(lit, ctx)
+	emitExprIfc(lit, ctx)
 }
 
 type okContext struct {
@@ -858,7 +838,8 @@ type evalContext struct {
 	_type     *Type
 }
 
-func emitIdent(e *ast.Ident, ctx *evalContext) bool { // 1 value
+// 1 value
+func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 	switch e.Obj {
 	case gTrue: // true constant
 		emitTrue()
