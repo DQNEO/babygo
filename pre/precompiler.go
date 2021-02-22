@@ -485,7 +485,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 				variadicArgs = make([]ast.Expr, 0, 20)
 			}
 		}
-		if variadicArgs != nil && !expandElipsis {
+		if variadicElmType != nil && !expandElipsis {
 			variadicArgs = append(variadicArgs, eArg)
 			continue
 		}
@@ -498,9 +498,11 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		args = append(args, arg)
 	}
 
-	if variadicArgs != nil && !expandElipsis {
+	if variadicElmType != nil && !expandElipsis {
 		// collect args as a slice
-		sliceType := &ast.ArrayType{Elt: variadicElmType}
+		sliceType := &ast.ArrayType{
+			Elt: variadicElmType,
+		}
 		vargsSliceWrapper := &ast.CompositeLit{
 			Type: sliceType,
 			Elts: variadicArgs,
@@ -512,8 +514,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
 		param := params[len(args)]
-		elp, ok := param.Type.(*ast.Ellipsis)
-		assert(ok, "compile error", __func__)
+		elp := param.Type.(*ast.Ellipsis)
 		args = append(args, &Arg{
 			e:         eNil,
 			paramType: e2t(elp),

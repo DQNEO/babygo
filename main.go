@@ -471,7 +471,6 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
 	var variadicElmType ast.Expr
 	var param *ast.Field
-	var arg *Arg
 	lenParams := len(params)
 	for argIndex, eArg := range eArgs {
 		if argIndex < lenParams {
@@ -487,54 +486,46 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 			continue
 		}
 
-		var paramType = e2t(param.Type)
-		arg = &Arg{}
-		arg.e = eArg
-		arg.paramType = paramType
+		paramType := e2t(param.Type)
+		arg := &Arg{
+			e:         eArg,
+			paramType: paramType,
+		}
 		args = append(args, arg)
 	}
 
 	if variadicElmType != nil && !expandElipsis {
 		// collect args as a slice
-		var sliceType = &ast.ArrayType{}
-		sliceType.Elt = variadicElmType
-		var eSliceType = sliceType
-		var sliceLiteral = &ast.CompositeLit{}
-		sliceLiteral.Type = eSliceType
-		sliceLiteral.Elts = variadicArgs
-		var _arg = &Arg{
-			e:         sliceLiteral,
-			paramType: e2t(eSliceType),
+		sliceType := &ast.ArrayType{
+			Elt: variadicElmType,
 		}
-		args = append(args, _arg)
+		vargsSliceWrapper := &ast.CompositeLit{
+			Type: sliceType,
+			Elts: variadicArgs,
+		}
+		args = append(args, &Arg{
+			e:         vargsSliceWrapper,
+			paramType: e2t(sliceType),
+		})
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
-		emitComment(2, "len(args)=%d, len(params)=%d\n", len(args), len(params))
-		var param = params[len(args)]
-		if param == nil {
-			panic("param should not be nil")
-		}
-		if param.Type == nil {
-			panic("param.Type should not be nil")
-		}
-		assert(isExprEllipsis(param.Type), "internal error", __func__)
-
-		var _arg = &Arg{}
-		_arg.e = eNil
-		_arg.paramType = e2t(param.Type)
-		args = append(args, _arg)
+		param := params[len(args)]
+		elp := param.Type.(*ast.Ellipsis)
+		args = append(args, &Arg{
+			e:         eNil,
+			paramType: e2t(elp),
+		})
 	}
 
-	if receiver != nil {
+	if receiver != nil { // method call
 		var receiverAndArgs []*Arg = []*Arg{
 			&Arg{
 				e:         receiver,
 				paramType: getTypeOfExpr(receiver),
 			},
 		}
-
-		for _, a := range args {
-			receiverAndArgs = append(receiverAndArgs, a)
+		for _, arg := range args {
+			receiverAndArgs = append(receiverAndArgs, arg)
 		}
 		return receiverAndArgs
 	}
