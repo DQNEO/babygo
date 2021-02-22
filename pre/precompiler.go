@@ -16,18 +16,6 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-var __func__ = "__func__"
-
-func assert(bol bool, msg string, caller string) {
-	if !bol {
-		panic(caller + ": " + msg)
-	}
-}
-
-func unexpectedKind(knd TypeKind) {
-	panic("Unexpected Kind: " + string(knd))
-}
-
 func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
@@ -46,6 +34,18 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 		panic(err)
 	}
 	return f
+}
+
+var __func__ = "__func__"
+
+func assert(bol bool, msg string, caller string) {
+	if !bol {
+		panic(caller + ": " + msg)
+	}
+}
+
+func unexpectedKind(knd TypeKind) {
+	panic("Unexpected Kind: " + string(knd))
 }
 
 var debugFrontEnd bool
