@@ -691,7 +691,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				args := []*Arg{
 					// elmSize
 					&Arg{
-						e: numlit,
+						e:         numlit,
 						paramType: tInt,
 					},
 					// len
@@ -810,7 +810,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 	case *ast.ParenExpr:
 		panic("[astParenExpr] TBI ")
 	default:
-		panic("TBI fun.dtype="+dtypeOf(fun))
+		panic("TBI fun.dtype=" + dtypeOf(fun))
 	}
 
 	args := prepareArgs(funcType, receiver, eArgs, hasEllissis)
@@ -936,7 +936,7 @@ func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
 		}
 		fmt.Printf("  pushq $%d # convert char literal to int\n", int(char))
 	default:
-		panic("[*ast.BasicLit] TBI : "+basicLit.Kind)
+		panic("[*ast.BasicLit] TBI : " + basicLit.Kind)
 	}
 }
 func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
@@ -955,7 +955,7 @@ func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
 		emitExpr(e.X, nil)
 		emitInvertBoolValue()
 	default:
-		panic("TBI:astUnaryExpr:"+e.Op)
+		panic("TBI:astUnaryExpr:" + e.Op)
 	}
 }
 func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
@@ -1058,7 +1058,7 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		emitExpr(e.Y, nil) // right
 		emitCompExpr("setge")
 	default:
-		panic("# TBI: binary operation for "+e.Op)
+		panic("# TBI: binary operation for " + e.Op)
 	}
 }
 func emitCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
@@ -1774,7 +1774,7 @@ func emitIncDecStmt(s *ast.IncDecStmt) {
 	case "--":
 		addValue = -1
 	default:
-		panic("Unexpected Tok="+s.Tok)
+		panic("Unexpected Tok=" + s.Tok)
 	}
 	emitAddr(s.X)
 	emitExpr(s.X, nil)
@@ -1944,7 +1944,7 @@ func emitBranchStmt(s *ast.BranchStmt) {
 		case *ast.RangeStmt:
 			labelToGo = s.LabelPost
 		default:
-			panic("unexpected container dtype="+dtypeOf(containerFor))
+			panic("unexpected container dtype=" + dtypeOf(containerFor))
 		}
 		fmt.Printf("jmp %s # continue\n", labelToGo)
 	case "break":
@@ -1954,11 +1954,11 @@ func emitBranchStmt(s *ast.BranchStmt) {
 		case *ast.RangeStmt:
 			labelToGo = s.LabelExit
 		default:
-			panic("unexpected container dtype="+dtypeOf(containerFor))
+			panic("unexpected container dtype=" + dtypeOf(containerFor))
 		}
 		fmt.Printf("jmp %s # break\n", labelToGo)
 	default:
-		panic("unexpected tok="+s.Tok)
+		panic("unexpected tok=" + s.Tok)
 	}
 }
 
@@ -1990,7 +1990,7 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.BranchStmt:
 		emitBranchStmt(s)
 	default:
-		panic("TBI:"+dtypeOf(stmt))
+		panic("TBI:" + dtypeOf(stmt))
 	}
 }
 
@@ -2316,10 +2316,10 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			case *ast.ValueSpec:
 				return e2t(decl2.Type)
 			default:
-				panic("cannot decide type of cont ="+e.Obj.Name)
+				panic("cannot decide type of cont =" + e.Obj.Name)
 			}
 		default:
-			panic("2:Obj="+e.Obj.Name+e.Obj.Kind)
+			panic("2:Obj=" + e.Obj.Name + e.Obj.Kind)
 		}
 	case *ast.BasicLit:
 		basicLit := expr2BasicLit(expr)
@@ -2331,7 +2331,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case "CHAR":
 			return tInt32
 		default:
-			panic("TBI:"+basicLit.Kind)
+			panic("TBI:" + basicLit.Kind)
 		}
 	case *ast.IndexExpr:
 		var list = e.X
@@ -2354,7 +2354,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			elmType := getElementTypeOfListType(listType)
 			return elmType
 		default:
-			panic("TBI: Op="+e.Op)
+			panic("TBI: Op=" + e.Op)
 		}
 	case *ast.CallExpr:
 		types := getCallResultTypes(e)
@@ -2413,7 +2413,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	case *ast.InterfaceType:
 		return tEface
 	default:
-		panic("TBI:dtype="+dtypeOf(expr))
+		panic("TBI:dtype=" + dtypeOf(expr))
 	}
 
 	panic("nil type is not allowed\n")
@@ -2456,7 +2456,7 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			}
 			var decl = fn.Obj.Decl
 			if decl == nil {
-				panic("decl of function "+fn.Name+" is  nil")
+				panic("decl of function " + fn.Name + " is  nil")
 			}
 			switch dcl := decl.(type) {
 			case *ast.FuncDecl:
@@ -2464,7 +2464,7 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			default:
 				panic("[astCallExpr] unknown dtype")
 			}
-			panic("[astCallExpr] Fun ident "+fn.Name)
+			panic("[astCallExpr] Fun ident " + fn.Name)
 		}
 	case *ast.ParenExpr: // (X)(e) funcall or conversion
 		if isType(fn.X) {
@@ -2489,7 +2489,7 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 	case *ast.InterfaceType:
 		return []*Type{tEface}
 	default:
-		panic("[astCallExpr] dtype="+dtypeOf(e.Fun))
+		panic("[astCallExpr] dtype=" + dtypeOf(e.Fun))
 	}
 	return nil
 }
@@ -2792,7 +2792,7 @@ func getStringLiteral(lit *ast.BasicLit) *sliteral {
 		}
 	}
 
-	panic("string literal not found:"+lit.Value)
+	panic("string literal not found:" + lit.Value)
 	var r *sliteral
 	return r
 }
@@ -3312,7 +3312,7 @@ func walkExpr(expr ast.Expr) {
 	case *ast.TypeAssertExpr:
 		walkTypeAssertExpr(e)
 	default:
-		panic("TBI:"+dtypeOf(expr))
+		panic("TBI:" + dtypeOf(expr))
 	}
 }
 
