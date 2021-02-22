@@ -221,18 +221,12 @@ func emitAddr(expr ast.Expr) {
 	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
-		if e.Name == "_" {
-			panic(" \"_\" has no address")
-		}
 		if e.Obj == nil {
 			panic("ident.Obj is nil: " + e.Name)
 		}
-		if e.Obj.Kind == ast.Var {
-			vr := obj2var(e.Obj)
-			emitVariableAddr(vr)
-		} else {
-			panic("Unexpected ident kind")
-		}
+		assert(e.Obj.Kind == ast.Var, "should be ast.Var", __func__)
+		vr := obj2var(e.Obj)
+		emitVariableAddr(vr)
 	case *ast.IndexExpr:
 		emitExpr(e.Index, nil) // index number
 		list := e.X
@@ -267,7 +261,7 @@ func emitAddr(expr ast.Expr) {
 		switch knd {
 		case T_STRUCT:
 			// result of evaluation of a struct literal is its address
-			emitExpr(expr, nil)
+			emitExpr(e, nil)
 		default:
 			unexpectedKind(knd)
 		}

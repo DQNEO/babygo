@@ -12,6 +12,14 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func throw(x interface{}) {
+	panic(x)
+}
+
+func panic2(caller string, x string) {
+	panic(caller + ": " + x)
+}
+
 var __func__ = "__func__"
 
 func assert(bol bool, msg string, caller string) {
@@ -22,14 +30,6 @@ func assert(bol bool, msg string, caller string) {
 
 func unexpectedKind(knd TypeKind) {
 	panic("Unexpected Kind: " + string(knd))
-}
-
-func throw(x interface{}) {
-	panic(x)
-}
-
-func panic2(caller string, x string) {
-	panic(caller + ": " + x)
 }
 
 var debugFrontEnd bool
@@ -205,18 +205,12 @@ func emitAddr(expr ast.Expr) {
 	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
-		if e.Name == "_" {
-			panic(" \"_\" has no address")
-		}
 		if e.Obj == nil {
 			panic("ident.Obj is nil: " + e.Name)
 		}
-		if e.Obj.Kind == ast.Var {
-			vr := obj2var(e.Obj)
-			emitVariableAddr(vr)
-		} else {
-			panic("Unexpected Kind "+e.Obj.Kind)
-		}
+		assert(e.Obj.Kind == ast.Var, "should be ast.Var", __func__)
+		vr := obj2var(e.Obj)
+		emitVariableAddr(vr)
 	case *ast.IndexExpr:
 		emitExpr(e.Index, nil) // index number
 		list := e.X
@@ -256,7 +250,7 @@ func emitAddr(expr ast.Expr) {
 			unexpectedKind(knd)
 		}
 	default:
-		panic("TBI "+dtypeOf(expr))
+		throw(expr)
 	}
 }
 
