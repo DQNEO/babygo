@@ -4,6 +4,7 @@ import (
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
+	"github.com/DQNEO/babygo/lib/token"
 	"syscall"
 )
 
@@ -471,7 +472,7 @@ func (p *parser) parseOperand() ast.Expr {
 		return eIdent
 	case "INT", "STRING", "CHAR":
 		var basicLit = &ast.BasicLit{
-			Kind:  p.tok.tok,
+			Kind:  token.Token(p.tok.tok),
 			Value: p.tok.lit,
 		}
 		p.next()

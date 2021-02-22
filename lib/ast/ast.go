@@ -1,5 +1,7 @@
 package ast
 
+import "github.com/DQNEO/babygo/lib/token"
+
 var Con string = "Con"
 var Typ string = "Typ"
 var Var string = "Var"
@@ -54,7 +56,7 @@ type Ellipsis struct {
 }
 
 type BasicLit struct {
-	Kind  string // token.INT, token.CHAR, or token.STRING
+	Kind  token.Token // token.INT, token.CHAR, or token.STRING
 	Value string
 }
 

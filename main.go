@@ -303,7 +303,9 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		if string(qi) == "unsafe.Pointer" {
 			emitExpr(arg0, nil)
 		} else {
-			panic("TBI")
+			ff := lookupForeignIdent(qi)
+			assert(ff.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
+			emitConversion(e2t(ff), arg0)
 		}
 	case *ast.ArrayType: // Conversion to slice
 		arrayType := to
@@ -897,7 +899,7 @@ func emitParenExpr(e *ast.ParenExpr, ctx *evalContext) {
 }
 // 1 value
 func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
-	switch e.Kind {
+	switch e.Kind.String() {
 	case "CHAR":
 		var val = e.Value
 		var char = val[1]

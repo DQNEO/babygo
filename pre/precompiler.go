@@ -307,7 +307,9 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		if string(qi) == "unsafe.Pointer" {
 			emitExpr(arg0, nil)
 		} else {
-			panic("TBI")
+			ff := lookupForeignIdent(qi)
+			assert(ff.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
+			emitConversion(e2t(ff), arg0)
 		}
 	case *ast.ArrayType: // Conversion to slice
 		arrayType := to

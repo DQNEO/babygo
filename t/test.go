@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/DQNEO/babygo/lib/token"
 	"os"
 	"reflect"
 	"syscall"
@@ -11,6 +12,11 @@ import (
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/strings"
 )
+
+func testTokenString() {
+	tok := token.Token("hello")
+	fmt.Printf("%s\n", tok.String())
+}
 
 func testAssignIncDec() {
 	var i int = 1
@@ -1977,6 +1983,7 @@ func testMisc() {
 }
 
 func main() {
+	testTokenString()
 	testAssignIncDec()
 	testTypeAlias()
 	testDerivedString()
