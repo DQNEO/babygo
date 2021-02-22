@@ -15,7 +15,7 @@ t/expected.txt: t/test.go lib/*/*
 	export FOO=bar; go run t/test.go t/another.go myargs > t/expected.txt
 
 $(tmp)/pre: $(tmp) pre/precompiler.go lib/*/*
-	go build -o $(tmp)/pre pre/precompiler.go
+	go build -o $(tmp)/pre ./pre
 
 $(tmp)/cross: *.go src/*/* $(tmp)/pre
 	$(tmp)/pre  *.go > $(tmp)/pre-main.s
@@ -24,7 +24,7 @@ $(tmp)/cross: *.go src/*/* $(tmp)/pre
 	ld -e _rt0_amd64_linux -o $(tmp)/cross $(tmp)/cross.o
 
 $(tmp)/babygo: $(tmp)  *.go lib/*/*
-	go build -o $(tmp)/babygo  *.go
+	go build -o $(tmp)/babygo .
 
 $(tmp)/babygo2: $(tmp)/babygo src/*/*
 	$(tmp)/babygo *.go > $(tmp)/babygo-main.s
