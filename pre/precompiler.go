@@ -1655,16 +1655,16 @@ func emitIfStmt(s *ast.IfStmt) {
 	emitComment(2, "end if\n")
 }
 func emitForStmt(s *ast.ForStmt) {
+	meta := mapForNodeToFor[s]
 	labelid++
-	forStmt := mapForNodeToFor[s]
 
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
 	labelExit := fmt.Sprintf(".L.for.exit.%d", labelid)
 
 
-	forStmt.labelPost = labelPost
-	forStmt.labelExit = labelExit
+	meta.LabelPost = labelPost
+	meta.LabelExit = labelExit
 
 	if s.Init != nil {
 		emitStmt(s.Init)
@@ -1688,15 +1688,15 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
+	meta, ok := mapRangeNodeToFor[s]
+	assert(ok, "map value should exist", __func__)
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
 	labelExit := fmt.Sprintf(".L.range.exit.%d", labelid)
 
-	forStmt, ok := mapRangeNodeToFor[s]
-	assert(ok, "map value should exist", __func__)
-	forStmt.labelPost = labelPost
-	forStmt.labelExit = labelExit
+	meta.LabelPost = labelPost
+	meta.LabelExit = labelExit
 	// initialization: store len(rangeexpr)
 	emitComment(2, "ForRange Initialization\n")
 
@@ -1963,9 +1963,9 @@ func emitBranchStmt(s *ast.BranchStmt) {
 	assert(ok, "map value should exist", __func__)
 	switch s.Tok.String() {
 	case "continue":
-		fmt.Printf("jmp %s # continue\n", containerFor.labelPost)
+		fmt.Printf("jmp %s # continue\n", containerFor.LabelPost)
 	case "break":
-		fmt.Printf("jmp %s # break\n", containerFor.labelExit)
+		fmt.Printf("jmp %s # break\n", containerFor.LabelExit)
 	default:
 		throw(s.Tok)
 	}
@@ -2837,12 +2837,12 @@ type stringLiteralsContainer struct {
 }
 
 type ForStmt struct {
-	kind      int    // 1:for 2:range
-	labelPost string // for continue
-	labelExit string // for break
-	outer     *ForStmt
-	astFor    *ast.ForStmt
-	astRange  *ast.RangeStmt
+	Kind      int    // 1:for 2:range
+	LabelPost string // for continue
+	LabelExit string // for break
+	Outer     *ForStmt
+	AstFor    *ast.ForStmt
+	AstRange  *ast.RangeStmt
 }
 
 type TypeSwitchStmt struct {
@@ -3154,8 +3154,8 @@ func walkBlockStmt(s *ast.BlockStmt) {
 }
 func walkForStmt(s *ast.ForStmt) {
 	forStmt := new(ForStmt)
-	forStmt.astFor = s
-	forStmt.outer = currentFor
+	forStmt.AstFor = s
+	forStmt.Outer = currentFor
 	currentFor = forStmt
 	mapForNodeToFor[s] = forStmt
 	if s.Init != nil {
@@ -3168,12 +3168,12 @@ func walkForStmt(s *ast.ForStmt) {
 		walkStmt(s.Post)
 	}
 	walkStmt(s.Body)
-	currentFor = forStmt.outer
+	currentFor = forStmt.Outer
 }
 func walkRangeStmt(s *ast.RangeStmt) {
 	forStmt := new(ForStmt)
-	forStmt.astRange = s
-	forStmt.outer = currentFor
+	forStmt.AstRange = s
+	forStmt.Outer = currentFor
 	currentFor = forStmt
 	mapRangeNodeToFor[s] = forStmt
 	walkExpr(s.X)
@@ -3199,7 +3199,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		lenvar:   lenvar,
 		indexvar: indexvar,
 	}
-	currentFor = forStmt.outer
+	currentFor = forStmt.Outer
 }
 func walkIncDecStmt(s *ast.IncDecStmt) {
 	walkExpr(s.X)

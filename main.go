@@ -936,6 +936,7 @@ func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
 		panic("Unexpected literal kind:" + e.Kind.String())
 	}
 }
+// 1 value
 func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
 	switch e.Op.String() {
 	case "+":
@@ -1663,14 +1664,15 @@ func emitIfStmt(s *ast.IfStmt) {
 	emitComment(2, "end if\n")
 }
 func emitForStmt(s *ast.ForStmt) {
+	meta := s
 	labelid++
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
 	labelExit := fmt.Sprintf(".L.for.exit.%d", labelid)
 
 
-	s.LabelPost = labelPost
-	s.LabelExit = labelExit
+	meta.LabelPost = labelPost
+	meta.LabelExit = labelExit
 
 	if s.Init != nil {
 		emitStmt(s.Init)
@@ -1694,13 +1696,14 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
+	meta := s
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
 	labelExit := fmt.Sprintf(".L.range.exit.%d", labelid)
 
-	s.LabelPost = labelPost
-	s.LabelExit = labelExit
+	meta.LabelPost = labelPost
+	meta.LabelExit = labelExit
 	// initialization: store len(rangeexpr)
 	emitComment(2, "ForRange Initialization\n")
 
