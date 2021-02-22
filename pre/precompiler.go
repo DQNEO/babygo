@@ -595,7 +595,7 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
-	node := mapReturnStmt[s]
+	node := mapReturnStmtMeta[s]
 	fnc := node.Fnc
 	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
@@ -1701,16 +1701,14 @@ func emitRangeStmt(s *ast.RangeStmt) {
 
 	emitComment(2, "  assign length to lenvar\n")
 	// lenvar = len(s.X)
-	rangeMeta, ok := mapRangeStmt[s]
-	assert(ok, "lenVar should exist", __func__)
 	// lenvar = len(s.X)
-	emitVariableAddr(rangeMeta.Lenvar)
+	emitVariableAddr(meta.RngLenvar)
 	emitLen(s.X)
 	emitStore(tInt, true, false)
 
 	emitComment(2, "  assign 0 to indexvar\n")
 	// indexvar = 0
-	emitVariableAddr(rangeMeta.Indexvar)
+	emitVariableAddr(meta.RngIndexvar)
 	emitZeroValue(tInt)
 	emitStore(tInt, true, false)
 
@@ -1732,9 +1730,9 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	emitComment(2, "ForRange Condition\n")
 	fmt.Printf("  %s:\n", labelCond)
 
-	emitVariableAddr(rangeMeta.Indexvar)
+	emitVariableAddr(meta.RngIndexvar)
 	emitLoadAndPush(tInt)
-	emitVariableAddr(rangeMeta.Lenvar)
+	emitVariableAddr(meta.RngLenvar)
 	emitLoadAndPush(tInt)
 	emitCompExpr("setl")
 	emitPopBool(" indexvar < lenvar")
@@ -1745,7 +1743,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	elemType := getTypeOfExpr(s.Value)
 	emitAddr(s.Value) // lhs
 
-	emitVariableAddr(rangeMeta.Indexvar)
+	emitVariableAddr(meta.RngIndexvar)
 	emitLoadAndPush(tInt) // index value
 	emitListElementAddr(s.X, elemType)
 
@@ -1759,8 +1757,8 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	// Post statement: Increment indexvar and go next
 	emitComment(2, "ForRange Post statement\n")
 	fmt.Printf("  %s:\n", labelPost)     // used for "continue"
-	emitVariableAddr(rangeMeta.Indexvar) // lhs
-	emitVariableAddr(rangeMeta.Indexvar) // rhs
+	emitVariableAddr(meta.RngIndexvar) // lhs
+	emitVariableAddr(meta.RngIndexvar) // rhs
 	emitLoadAndPush(tInt)
 	emitAddConst(1, "indexvar value ++")
 	emitStore(tInt, true, false)
@@ -1770,7 +1768,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 		keyIdent := s.Key.(*ast.Ident)
 		if keyIdent.Name != "_" {
 			emitAddr(s.Key)                      // lhs
-			emitVariableAddr(rangeMeta.Indexvar) // rhs
+			emitVariableAddr(meta.RngIndexvar) // rhs
 			emitLoadAndPush(tInt)
 			emitStore(tInt, true, false)
 		}
@@ -2834,15 +2832,16 @@ type stringLiteralsContainer struct {
 }
 
 type ForStmt struct {
-	Kind      int    // 1:for 2:range
 	LabelPost string // for continue
 	LabelExit string // for break
 	Outer     *ForStmt
 	AstFor    *ast.ForStmt
-	AstRange  *ast.RangeStmt
+	RngLenvar   *Variable
+	RngIndexvar *Variable
+
 }
 
-type TypeSwitchStmt struct {
+type TypeSwitchStmtMeta struct {
 	Subject         ast.Expr
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
@@ -2855,13 +2854,8 @@ type TypeSwitchCaseClose struct {
 	Orig         *ast.CaseClause
 }
 
-type nodeReturnStmt struct {
+type ReturnStmtMeta struct {
 	Fnc *Func
-}
-
-type RangeStmtMisc struct {
-	Lenvar   *Variable
-	Indexvar *Variable
 }
 
 type Func struct {
@@ -2919,11 +2913,12 @@ func registerLocalVariable(fnc *Func, name string, t *Type) *Variable {
 var currentFor *ForStmt
 
 var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
-var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
 var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
-var mapRangeStmt map[*ast.RangeStmt]*RangeStmtMisc = map[*ast.RangeStmt]*RangeStmtMisc{}
-var mapTypeSwitchStmtMeta = map[*ast.TypeSwitchStmt]*TypeSwitchStmt{}
-var mapReturnStmt = map[*ast.ReturnStmt]*nodeReturnStmt{}
+
+var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
+
+var mapTypeSwitchStmtMeta = map[*ast.TypeSwitchStmt]*TypeSwitchStmtMeta{}
+var mapReturnStmtMeta = map[*ast.ReturnStmt]*ReturnStmtMeta{}
 
 var currentFunc *Func
 
@@ -3130,7 +3125,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 	}
 }
 func walkReturnStmt(s *ast.ReturnStmt) {
-	mapReturnStmt[s] = &nodeReturnStmt{
+	mapReturnStmtMeta[s] = &ReturnStmtMeta{
 		Fnc: currentFunc,
 	}
 	for _, r := range s.Results {
@@ -3169,14 +3164,13 @@ func walkForStmt(s *ast.ForStmt) {
 }
 func walkRangeStmt(s *ast.RangeStmt) {
 	forStmt := new(ForStmt)
-	forStmt.AstRange = s
 	forStmt.Outer = currentFor
 	currentFor = forStmt
 	mapRangeNodeToFor[s] = forStmt
 	walkExpr(s.X)
 	walkStmt(s.Body)
-	lenvar := registerLocalVariable(currentFunc, ".range.len", tInt)
-	indexvar := registerLocalVariable(currentFunc, ".range.index", tInt)
+	forStmt.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
+	forStmt.RngIndexvar = registerLocalVariable(currentFunc, ".range.index", tInt)
 	if s.Tok.String() == ":=" {
 		// short var decl
 		listType := getTypeOfExpr(s.X)
@@ -3191,10 +3185,6 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		elmType := getElementTypeOfListType(listType)
 		valueIdent := s.Value.(*ast.Ident)
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
-	}
-	mapRangeStmt[s] = &RangeStmtMisc{
-		Lenvar:   lenvar,
-		Indexvar: indexvar,
 	}
 	currentFor = forStmt.Outer
 }
@@ -3211,7 +3201,7 @@ func walkSwitchStmt(s *ast.SwitchStmt) {
 	walkStmt(s.Body)
 }
 func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	typeSwitch := &TypeSwitchStmt{}
+	typeSwitch := &TypeSwitchStmtMeta{}
 	mapTypeSwitchStmtMeta[s] = typeSwitch
 	if s.Init != nil {
 		walkStmt(s.Init)
