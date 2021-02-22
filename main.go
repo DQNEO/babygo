@@ -1,11 +1,11 @@
 package main
 
 import (
+	"github.com/DQNEO/babygo/lib/ast"
+	"github.com/DQNEO/babygo/lib/fmt"
 	"os"
 	"syscall"
 
-	"github.com/DQNEO/babygo/lib/ast"
-	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
