@@ -595,7 +595,7 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
-	node := mapReturnStmtMeta[s]
+	node := mapMetaReturnStmt[s]
 	fnc := node.Fnc
 	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
@@ -1655,7 +1655,7 @@ func emitIfStmt(s *ast.IfStmt) {
 	emitComment(2, "end if\n")
 }
 func emitForStmt(s *ast.ForStmt) {
-	meta := mapForNodeToFor[s]
+	meta := mapMetaForStmt[s]
 	labelid++
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
@@ -1687,7 +1687,7 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
-	meta, ok := mapRangeNodeToFor[s]
+	meta, ok := mapMetaRangeStmt[s]
 	assert(ok, "map value should exist", __func__)
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
@@ -1875,7 +1875,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	typeSwitch, ok := mapTypeSwitchStmtMeta[s]
+	typeSwitch, ok := mapMetaTypeSwitchStmt[s]
 	assert(ok, "should exist", __func__)
 	labelid++
 	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
@@ -1954,7 +1954,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 
 }
 func emitBranchStmt(s *ast.BranchStmt) {
-	containerFor, ok := mapBranchToFor[s]
+	containerFor, ok := mapMetaBranchStmt[s]
 	assert(ok, "map value should exist", __func__)
 	switch s.Tok.String() {
 	case "continue":
@@ -2831,17 +2831,16 @@ type stringLiteralsContainer struct {
 	sl  *sliteral
 }
 
-type ForStmt struct {
+type MetaForStmt struct {
 	LabelPost string // for continue
 	LabelExit string // for break
-	Outer     *ForStmt
+	Outer     *MetaForStmt
 	AstFor    *ast.ForStmt
 	RngLenvar   *Variable
 	RngIndexvar *Variable
-
 }
 
-type TypeSwitchStmtMeta struct {
+type MetaTypeSwitchStmt struct {
 	Subject         ast.Expr
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
@@ -2854,7 +2853,7 @@ type TypeSwitchCaseClose struct {
 	Orig         *ast.CaseClause
 }
 
-type ReturnStmtMeta struct {
+type MetaReturnStmt struct {
 	Fnc *Func
 }
 
@@ -2910,15 +2909,15 @@ func registerLocalVariable(fnc *Func, name string, t *Type) *Variable {
 	return vr
 }
 
-var currentFor *ForStmt
+var currentFor *MetaForStmt
 
-var mapForNodeToFor map[*ast.ForStmt]*ForStmt = map[*ast.ForStmt]*ForStmt{}
-var mapBranchToFor map[*ast.BranchStmt]*ForStmt = map[*ast.BranchStmt]*ForStmt{}
+var mapMetaForStmt map[*ast.ForStmt]*MetaForStmt = map[*ast.ForStmt]*MetaForStmt{}
+var mapMetaRangeStmt map[*ast.RangeStmt]*MetaForStmt = map[*ast.RangeStmt]*MetaForStmt{}
 
-var mapRangeNodeToFor map[*ast.RangeStmt]*ForStmt = map[*ast.RangeStmt]*ForStmt{}
+var mapMetaBranchStmt map[*ast.BranchStmt]*MetaForStmt = map[*ast.BranchStmt]*MetaForStmt{}
 
-var mapTypeSwitchStmtMeta = map[*ast.TypeSwitchStmt]*TypeSwitchStmtMeta{}
-var mapReturnStmtMeta = map[*ast.ReturnStmt]*ReturnStmtMeta{}
+var mapMetaTypeSwitchStmt = map[*ast.TypeSwitchStmt]*MetaTypeSwitchStmt{}
+var mapMetaReturnStmt = map[*ast.ReturnStmt]*MetaReturnStmt{}
 
 var currentFunc *Func
 
@@ -3125,7 +3124,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 	}
 }
 func walkReturnStmt(s *ast.ReturnStmt) {
-	mapReturnStmtMeta[s] = &ReturnStmtMeta{
+	mapMetaReturnStmt[s] = &MetaReturnStmt{
 		Fnc: currentFunc,
 	}
 	for _, r := range s.Results {
@@ -3145,11 +3144,11 @@ func walkBlockStmt(s *ast.BlockStmt) {
 	}
 }
 func walkForStmt(s *ast.ForStmt) {
-	forStmt := new(ForStmt)
+	forStmt := new(MetaForStmt)
 	forStmt.AstFor = s
 	forStmt.Outer = currentFor
 	currentFor = forStmt
-	mapForNodeToFor[s] = forStmt
+	mapMetaForStmt[s] = forStmt
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3163,10 +3162,10 @@ func walkForStmt(s *ast.ForStmt) {
 	currentFor = forStmt.Outer
 }
 func walkRangeStmt(s *ast.RangeStmt) {
-	forStmt := new(ForStmt)
+	forStmt := new(MetaForStmt)
 	forStmt.Outer = currentFor
 	currentFor = forStmt
-	mapRangeNodeToFor[s] = forStmt
+	mapMetaRangeStmt[s] = forStmt
 	walkExpr(s.X)
 	walkStmt(s.Body)
 	forStmt.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
@@ -3201,8 +3200,8 @@ func walkSwitchStmt(s *ast.SwitchStmt) {
 	walkStmt(s.Body)
 }
 func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	typeSwitch := &TypeSwitchStmtMeta{}
-	mapTypeSwitchStmtMeta[s] = typeSwitch
+	typeSwitch := &MetaTypeSwitchStmt{}
+	mapMetaTypeSwitchStmt[s] = typeSwitch
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3263,7 +3262,7 @@ func walkCaseClause(s *ast.CaseClause) {
 }
 func walkBranchStmt(s *ast.BranchStmt) {
 	assert(currentFor != nil, "break or continue should be in for body", __func__)
-	mapBranchToFor[s] = currentFor
+	mapMetaBranchStmt[s] = currentFor
 }
 
 func walkStmt(stmt ast.Stmt) {
