@@ -1621,6 +1621,20 @@ func emitAssignStmt(s *ast.AssignStmt) {
 
 			}
 		}
+	case "+=":
+		binaryExpr := &ast.BinaryExpr{
+			X:     s.Lhs[0],
+			Op:    "+",
+			Y:     s.Rhs[0],
+		}
+		emitAssign(s.Lhs[0], binaryExpr)
+	case "-=":
+		binaryExpr := &ast.BinaryExpr{
+			X:     s.Lhs[0],
+			Op:    "-",
+			Y:     s.Rhs[0],
+		}
+		emitAssign(s.Lhs[0], binaryExpr)
 	default:
 		panic("TBI: assignment of " + s.Tok)
 	}

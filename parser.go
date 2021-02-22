@@ -997,7 +997,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 	var rangeX ast.Expr
 	var rangeUnary *ast.UnaryExpr
 	switch stok {
-	case ":=", "=":
+	case ":=", "=", "+=", "-=":
 		var assignToken = stok
 		p.next() // consume =
 		if isRangeOK && p.tok.tok == "range" {

@@ -12,6 +12,14 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testAssignIncDec() {
+	var i int = 1
+	i += 10
+	fmt.Printf("i=%d\n", i)
+	i -= 3
+	fmt.Printf("i=%d\n", i)
+}
+
 type Type = mylib.Type
 
 func testTypeAlias() {
@@ -1969,6 +1977,7 @@ func testMisc() {
 }
 
 func main() {
+	testAssignIncDec()
 	testTypeAlias()
 	testDerivedString()
 	testForeignType()
