@@ -408,10 +408,9 @@ func emitStructLiteral(e *ast.CompositeLit) {
 	emitComment(2, "emitStructLiteral\n")
 	structType := e2t(e.Type)
 	emitZeroValue(structType) // push address of the new storage
-	for i, elm := range e.Elts {
+	for _, elm := range e.Elts {
 		kvExpr := elm.(*ast.KeyValueExpr)
 		fieldName := kvExpr.Key.(*ast.Ident)
-		emitComment(2, "- [%d] : key=%s, value=%T\n", i, fieldName.Name, kvExpr.Value)
 		field := lookupStructField(getUnderlyingStructType(structType), fieldName.Name)
 		fieldType := e2t(field.Type)
 		fieldOffset := getStructFieldOffset(field)
@@ -475,17 +474,15 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 	params := funcType.Params.List
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
 	var variadicElmType ast.Expr
-	var argIndex int
-	var eArg ast.Expr
 	var param *ast.Field
 	lenParams := len(params)
-	for argIndex, eArg = range eArgs {
+	for argIndex, eArg := range eArgs {
 		if argIndex < lenParams {
 			param = params[argIndex]
-			elp, ok := param.Type.(*ast.Ellipsis)
-			if ok {
+			elp, isEllpsis := param.Type.(*ast.Ellipsis)
+			if isEllpsis {
 				variadicElmType = elp.Elt
-				variadicArgs = make([]ast.Expr, 0)
+				variadicArgs = make([]ast.Expr, 0, 20)
 			}
 		}
 		if variadicArgs != nil && !expandElipsis {
@@ -514,7 +511,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		})
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
-		param := params[argIndex+1]
+		param := params[len(args)]
 		elp, ok := param.Type.(*ast.Ellipsis)
 		assert(ok, "compile error", __func__)
 		args = append(args, &Arg{

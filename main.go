@@ -404,10 +404,9 @@ func emitStructLiteral(e *ast.CompositeLit) {
 	emitComment(2, "emitStructLiteral\n")
 	structType := e2t(e.Type)
 	emitZeroValue(structType) // push address of the new storage
-	for i, elm := range e.Elts {
+	for _, elm := range e.Elts {
 		kvExpr := elm.(*ast.KeyValueExpr)
 		fieldName := kvExpr.Key.(*ast.Ident)
-		emitComment(2, "  - [%d] : key=%s, value=%s\n", i, fieldName.Name, dtypeOf(kvExpr.Value))
 		field := lookupStructField(getUnderlyingStructType(structType), fieldName.Name)
 		fieldType := e2t(field.Type)
 		fieldOffset := getStructFieldOffset(field)
@@ -425,18 +424,20 @@ func emitStructLiteral(e *ast.CompositeLit) {
 }
 
 func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
-	var elmType = e2t(arrayType.Elt)
-	var elmSize = getSizeOfType(elmType)
-	var memSize = elmSize * arrayLen
+	elmType := e2t(arrayType.Elt)
+	elmSize := getSizeOfType(elmType)
+	memSize := elmSize * arrayLen
 	emitCallMalloc(memSize) // push
 	for i, elm := range elts {
-		// emit lhs
+		// push lhs address
 		emitPushStackTop(tUintptr, 0, "malloced address")
-		emitAddConst(elmSize*i, "malloced address + elmSize * index ("+strconv.Itoa(i)+")")
+		emitAddConst(elmSize*i, "malloced address + elmSize * index")
+		// push rhs value
 		ctx := &evalContext{
 			_type: elmType,
 		}
 		emitExprIfc(elm, ctx)
+		// assign
 		emitStore(elmType, true, false)
 	}
 }
@@ -465,20 +466,19 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 	if funcType == nil {
 		panic("no funcType")
 	}
-	var params = funcType.Params.List
-	var variadicArgs []ast.Expr
-	var variadicElmType ast.Expr
 	var args []*Arg
+	params := funcType.Params.List
+	var variadicArgs []ast.Expr // nil means there is no variadic in func params
+	var variadicElmType ast.Expr
 	var param *ast.Field
 	var arg *Arg
 	lenParams := len(params)
 	for argIndex, eArg := range eArgs {
-		emitComment(2, "[%s][*ast.Ident][default] loop idx %d, len params %d\n", __func__, argIndex, lenParams)
 		if argIndex < lenParams {
 			param = params[argIndex]
-			if isExprEllipsis(param.Type) {
-				ellipsis := expr2Ellipsis(param.Type)
-				variadicElmType = ellipsis.Elt
+			elp, isEllpsis := param.Type.(*ast.Ellipsis)
+			if isEllpsis {
+				variadicElmType = elp.Elt
 				variadicArgs = make([]ast.Expr, 0, 20)
 			}
 		}
