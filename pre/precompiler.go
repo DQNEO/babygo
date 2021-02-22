@@ -2895,7 +2895,7 @@ type Variable struct {
 	Typ          *Type
 }
 
-func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
+func registerParamVariable(fnc *Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
 	fnc.Argsarea += size
@@ -2903,7 +2903,7 @@ func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
 	return vr
 }
 
-func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
+func registerReturnVariable(fnc *Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
 	fnc.Argsarea += size
@@ -2911,7 +2911,7 @@ func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
 	return vr
 }
 
-func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
+func registerLocalVariable(fnc *Func, name string, t *Type) *Variable {
 	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
 	fnc.Localarea -= getSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
@@ -3093,7 +3093,7 @@ func walkDeclStmt(s *ast.DeclStmt) {
 		}
 		t := e2t(spec.Type)
 		obj := spec.Names[0].Obj
-		setVariable(obj, currentFunc.registerLocalVariable(obj.Name, t))
+		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
 		for _, v := range spec.Values {
 			walkExpr(v)
 		}
@@ -3116,7 +3116,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 				// declare lhs1 as an ok variable
 				okObj := s.Lhs[1].(*ast.Ident).Obj
 				//throw(okObj)
-				setVariable(okObj, currentFunc.registerLocalVariable(okObj.Name, tBool))
+				setVariable(okObj, registerLocalVariable(currentFunc, okObj.Name, tBool))
 			}
 		default:
 			typ0 = getTypeOfExpr(rhs0)
@@ -3127,7 +3127,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 			panic("type inference is not supported")
 		}
 		obj0 := s.Lhs[0].(*ast.Ident).Obj
-		setVariable(obj0, currentFunc.registerLocalVariable(obj0.Name, typ0))
+		setVariable(obj0, registerLocalVariable(currentFunc, obj0.Name, typ0))
 	} else {
 		walkExpr(s.Rhs[0])
 	}
@@ -3178,8 +3178,8 @@ func walkRangeStmt(s *ast.RangeStmt) {
 	mapRangeNodeToFor[s] = forStmt
 	walkExpr(s.X)
 	walkStmt(s.Body)
-	lenvar := currentFunc.registerLocalVariable(".range.len", tInt)
-	indexvar := currentFunc.registerLocalVariable(".range.index", tInt)
+	lenvar := registerLocalVariable(currentFunc, ".range.len", tInt)
+	indexvar := registerLocalVariable(currentFunc, ".range.index", tInt)
 	if s.Tok.String() == ":=" {
 		// short var decl
 		listType := getTypeOfExpr(s.X)
@@ -3188,12 +3188,12 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		//@TODO map key can be any type
 		//keyType := getKeyTypeOfListType(listType)
 		keyType := tInt
-		setVariable(keyIdent.Obj, currentFunc.registerLocalVariable(keyIdent.Name, keyType))
+		setVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, keyType))
 
 		// determine type of Value
 		elmType := getElementTypeOfListType(listType)
 		valueIdent := s.Value.(*ast.Ident)
-		setVariable(valueIdent.Obj, currentFunc.registerLocalVariable(valueIdent.Name, elmType))
+		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
 	mapRangeStmt[s] = &RangeStmtMisc{
 		lenvar:   lenvar,
@@ -3241,7 +3241,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		throw(s.Assign)
 	}
 
-	typeSwitch.SubjectVariable = currentFunc.registerLocalVariable(".switch_expr", tEface)
+	typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", tEface)
 	for _, _case := range s.Body.List {
 		cc := _case.(*ast.CaseClause)
 		tscc := &TypeSwitchCaseClose{
@@ -3251,7 +3251,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		if assignIdent != nil && len(cc.List) > 0 {
 			// inject a variable of that type
 			varType := e2t(cc.List[0])
-			vr := currentFunc.registerLocalVariable(assignIdent.Name, varType)
+			vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
 			tscc.Variable = vr
 			tscc.VariableType = varType
 			setVariable(assignIdent.Obj, vr)
@@ -3588,13 +3588,13 @@ func walk(pkg *PkgContainer) {
 
 		for _, field := range paramFields {
 			obj := field.Names[0].Obj
-			setVariable(obj, fnc.registerParamVariable(obj.Name, e2t(field.Type)))
+			setVariable(obj, registerParamVariable(fnc, obj.Name, e2t(field.Type)))
 		}
 
 		for i, field := range resultFields {
 			if len(field.Names) == 0 {
 				// unnamed retval
-				fnc.registerReturnVariable(".r"+strconv.Itoa(i), e2t(field.Type))
+				registerReturnVariable(fnc, ".r"+strconv.Itoa(i), e2t(field.Type))
 			} else {
 				panic("TBI: named return variable is not supported")
 			}
