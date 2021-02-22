@@ -561,9 +561,7 @@ func emitCall(symbol string, args []*Arg, resultList *ast.FieldList) {
 }
 
 func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
-	r := ff.decl.Type.Results
-	size := getTotalFieldsSize(r)
-	emitAllocReturnVarsArea(size)
+	emitAllocReturnVarsArea(getTotalFieldsSize(ff.decl.Type.Results))
 }
 
 func getTotalFieldsSize(flist *ast.FieldList) int {

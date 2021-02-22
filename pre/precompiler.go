@@ -594,14 +594,14 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 func emitReturnStmt(s *ast.ReturnStmt) {
 	node := mapReturnStmt[s]
 	fnc := node.fnc
-	if len(fnc.retvars) != len(s.Results) {
+	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
 	}
 
 	var i int
 	_len := len(s.Results)
 	for i = 0; i < _len; i++ {
-		emitAssignToVar(fnc.retvars[i], s.Results[i])
+		emitAssignToVar(fnc.Retvars[i], s.Results[i])
 	}
 	fmt.Printf("  leave\n")
 	fmt.Printf("  ret\n")
@@ -823,7 +823,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			receiver = fn.X
 			receiverType := getTypeOfExpr(receiver)
 			method := lookupMethod(receiverType, fn.Sel)
-			funcType = method.funcType
+			funcType = method.FuncType
 			symbol = getMethodSymbol(method)
 		}
 	default:
@@ -2033,15 +2033,15 @@ func emitRevertStackTop(t *Type) {
 var labelid int
 
 func getMethodSymbol(method *Method) string {
-	rcvTypeName := method.rcvNamedType
+	rcvTypeName := method.RcvNamedType
 	var subsymbol string
-	if method.isPtrMethod {
-		subsymbol = "$" + rcvTypeName.Name + "." + method.name // pointer
+	if method.IsPtrMethod {
+		subsymbol = "$" + rcvTypeName.Name + "." + method.Name // pointer
 	} else {
-		subsymbol = rcvTypeName.Name + "." + method.name // value
+		subsymbol = rcvTypeName.Name + "." + method.Name // value
 	}
 
-	return getPackageSymbol(method.pkgName, subsymbol)
+	return getPackageSymbol(method.PkgName, subsymbol)
 }
 
 func getPackageSymbol(pkgPrefix string, subsymbol string) string {
@@ -2050,42 +2050,42 @@ func getPackageSymbol(pkgPrefix string, subsymbol string) string {
 
 func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	fmt.Printf("# emitFuncDecl\n")
-	if len(fnc.params) > 0 {
-		for i := 0; i < len(fnc.params); i++ {
-			v := fnc.params[i]
+	if len(fnc.Params) > 0 {
+		for i := 0; i < len(fnc.Params); i++ {
+			v := fnc.Params[i]
 			logf("  #       params %d %d \"%s\" %s\n", v.LocalOffset, getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
 		}
 	}
-	if len(fnc.retvars) > 0 {
-		for i := 0; i < len(fnc.retvars); i++ {
-			v := fnc.retvars[i]
+	if len(fnc.Retvars) > 0 {
+		for i := 0; i < len(fnc.Retvars); i++ {
+			v := fnc.Retvars[i]
 			logf("  #       retvars %d %d \"%s\" %s\n", v.LocalOffset, getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
 		}
 	}
 
 	var symbol string
-	if fnc.method != nil {
-		symbol = getMethodSymbol(fnc.method)
+	if fnc.Method != nil {
+		symbol = getMethodSymbol(fnc.Method)
 	} else {
-		symbol = getPackageSymbol(pkgPrefix, fnc.name)
+		symbol = getPackageSymbol(pkgPrefix, fnc.Name)
 	}
-	fmt.Printf("%s: # args %d, locals %d\n", symbol, fnc.argsarea, fnc.localarea)
+	fmt.Printf("%s: # args %d, locals %d\n", symbol, fnc.Argsarea, fnc.Localarea)
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
-	if len(fnc.localvars) > 0 {
-		for i := len(fnc.localvars) - 1; i >= 0; i-- {
-			v := fnc.localvars[i]
+	if len(fnc.Localvars) > 0 {
+		for i := len(fnc.Localvars) - 1; i >= 0; i-- {
+			v := fnc.Localvars[i]
 			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -v.LocalOffset, getSizeOfType(v.Typ), v.Name)
 		}
 	}
 	logf("  #  0(%%rbp) previous rbp\n")
 	logf("  #  8(%%rbp) return address\n")
 
-	if int(fnc.localarea) != 0 {
-		fmt.Printf("  subq $%d, %%rsp # local area\n", -fnc.localarea)
+	if int(fnc.Localarea) != 0 {
+		fmt.Printf("  subq $%d, %%rsp # local area\n", -fnc.Localarea)
 
 	}
-	for _, stmt := range fnc.stmts {
+	for _, stmt := range fnc.Stmts {
 		emitStmt(stmt)
 	}
 	fmt.Printf("  leave\n")
@@ -2577,7 +2577,7 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 		} else { // obj.method()
 			rcvType := getTypeOfExpr(fn.X)
 			method := lookupMethod(rcvType, fn.Sel)
-			return fieldList2Types(method.funcType.Results)
+			return fieldList2Types(method.FuncType.Results)
 		}
 	case *ast.InterfaceType:
 		return []*Type{tEface}
@@ -2891,23 +2891,23 @@ type RangeStmtMisc struct {
 }
 
 type Func struct {
-	name      string
-	stmts     []ast.Stmt
-	localarea int
-	argsarea  int
-	localvars []*Variable
-	params    []*Variable
-	retvars   []*Variable
-	funcType  *ast.FuncType
-	method    *Method
+	Name      string
+	Stmts     []ast.Stmt
+	Localarea int
+	Argsarea  int
+	Localvars []*Variable
+	Params    []*Variable
+	Retvars   []*Variable
+	FuncType  *ast.FuncType
+	Method    *Method
 }
 
 type Method struct {
-	pkgName      string
-	rcvNamedType *ast.Ident
-	isPtrMethod  bool
-	name         string
-	funcType     *ast.FuncType
+	PkgName      string
+	RcvNamedType *ast.Ident
+	IsPtrMethod  bool
+	Name         string
+	FuncType     *ast.FuncType
 }
 
 type Variable struct {
@@ -2919,26 +2919,26 @@ type Variable struct {
 }
 
 func (fnc *Func) registerParamVariable(name string, t *Type) *Variable {
-	vr := newLocalVariable(name, fnc.argsarea, t)
+	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
-	fnc.argsarea += size
-	fnc.params = append(fnc.params, vr)
+	fnc.Argsarea += size
+	fnc.Params = append(fnc.Params, vr)
 	return vr
 }
 
 func (fnc *Func) registerReturnVariable(name string, t *Type) *Variable {
-	vr := newLocalVariable(name, fnc.argsarea, t)
+	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
-	fnc.argsarea += size
-	fnc.retvars = append(fnc.retvars, vr)
+	fnc.Argsarea += size
+	fnc.Retvars = append(fnc.Retvars, vr)
 	return vr
 }
 
 func (fnc *Func) registerLocalVariable(name string, t *Type) *Variable {
 	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
-	fnc.localarea -= getSizeOfType(t)
-	vr := newLocalVariable(name, currentFunc.localarea, t)
-	fnc.localvars = append(fnc.localvars, vr)
+	fnc.Localarea -= getSizeOfType(t)
+	vr := newLocalVariable(name, currentFunc.Localarea, t)
+	fnc.Localvars = append(fnc.Localvars, vr)
 	return vr
 }
 
@@ -3045,22 +3045,22 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	}
 	rcvNamedType := rcvType.(*ast.Ident)
 	method := &Method{
-		pkgName:      pkgName,
-		rcvNamedType: rcvNamedType,
-		isPtrMethod:  isPtr,
-		name:         funcDecl.Name.Name,
-		funcType:     funcDecl.Type,
+		PkgName:      pkgName,
+		RcvNamedType: rcvNamedType,
+		IsPtrMethod:  isPtr,
+		Name:         funcDecl.Name.Name,
+		FuncType:     funcDecl.Type,
 	}
 	return method
 }
 
 func registerMethod(method *Method) {
-	methodSet, ok := MethodSets[method.rcvNamedType.Obj]
+	methodSet, ok := MethodSets[method.RcvNamedType.Obj]
 	if !ok {
 		methodSet = map[string]*Method{}
-		MethodSets[method.rcvNamedType.Obj] = methodSet
+		MethodSets[method.RcvNamedType.Obj] = methodSet
 	}
-	methodSet[method.name] = method
+	methodSet[method.Name] = method
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
@@ -3351,7 +3351,7 @@ func walkCallExpr(e *ast.CallExpr) {
 				basicLit := &ast.BasicLit{
 					ValuePos: 0,
 					Kind:     token.STRING,
-					Value:    "\"" + currentFunc.name + "\"",
+					Value:    "\"" + currentFunc.Name + "\"",
 				}
 				arg = basicLit
 				e.Args[i] = arg
@@ -3585,10 +3585,10 @@ func walk(pkg *PkgContainer) {
 
 	for _, funcDecl := range funcDecls {
 		fnc := &Func{
-			name:      funcDecl.Name.Name,
-			funcType:  funcDecl.Type,
-			localarea: 0,
-			argsarea:  16, // return address + previous rbp
+			Name:      funcDecl.Name.Name,
+			FuncType:  funcDecl.Type,
+			Localarea: 0,
+			Argsarea:  16, // return address + previous rbp
 		}
 		currentFunc = fnc
 		logf("funcdef %s\n", funcDecl.Name.Name)
@@ -3624,13 +3624,13 @@ func walk(pkg *PkgContainer) {
 		}
 
 		if funcDecl.Body != nil {
-			fnc.stmts = funcDecl.Body.List
-			for _, stmt := range fnc.stmts {
+			fnc.Stmts = funcDecl.Body.List
+			for _, stmt := range fnc.Stmts {
 				walkStmt(stmt)
 			}
 
 			if funcDecl.Recv != nil { // is Method
-				fnc.method = newMethod(pkg.name, funcDecl)
+				fnc.Method = newMethod(pkg.name, funcDecl)
 			}
 			pkg.funcs = append(pkg.funcs, fnc)
 		}
