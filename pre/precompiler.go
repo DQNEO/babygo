@@ -1698,9 +1698,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	meta.LabelExit = labelExit
 	// initialization: store len(rangeexpr)
 	emitComment(2, "ForRange Initialization\n")
-
 	emitComment(2, "  assign length to lenvar\n")
-	// lenvar = len(s.X)
 	// lenvar = len(s.X)
 	emitVariableAddr(meta.RngLenvar)
 	emitLen(s.X)
@@ -1756,7 +1754,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 
 	// Post statement: Increment indexvar and go next
 	emitComment(2, "ForRange Post statement\n")
-	fmt.Printf("  %s:\n", labelPost)     // used for "continue"
+	fmt.Printf("  %s:\n", labelPost) // used for "continue"
 	emitVariableAddr(meta.RngIndexvar) // lhs
 	emitVariableAddr(meta.RngIndexvar) // rhs
 	emitLoadAndPush(tInt)
@@ -1767,7 +1765,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	if s.Key != nil {
 		keyIdent := s.Key.(*ast.Ident)
 		if keyIdent.Name != "_" {
-			emitAddr(s.Key)                      // lhs
+			emitAddr(s.Key)                 // lhs
 			emitVariableAddr(meta.RngIndexvar) // rhs
 			emitLoadAndPush(tInt)
 			emitStore(tInt, true, false)
@@ -1805,12 +1803,11 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	emitExpr(s.Tag, nil)
 	condType := getTypeOfExpr(s.Tag)
 	cases := s.Body.List
-	var labels = make([]string, len(cases))
+	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
 	emitComment(2, "Start comparison with cases\n")
 	for i, c := range cases {
-		cc, ok := c.(*ast.CaseClause)
-		assert(ok, "should be *ast.CaseClause", __func__)
+		cc := c.(*ast.CaseClause)
 		labelid++
 		labelCase := fmt.Sprintf(".L.case.%d", labelid)
 		labels[i] = labelCase
@@ -1864,8 +1861,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 
 	emitRevertStackTop(condType)
 	for i, c := range cases {
-		cc, ok := c.(*ast.CaseClause)
-		assert(ok, "should be *ast.CaseClause", __func__)
+		cc := c.(*ast.CaseClause)
 		fmt.Printf("%s:\n", labels[i])
 		for _, _s := range cc.Body {
 			emitStmt(_s)

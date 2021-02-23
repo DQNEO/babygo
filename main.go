@@ -1706,16 +1706,15 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	meta.LabelExit = labelExit
 	// initialization: store len(rangeexpr)
 	emitComment(2, "ForRange Initialization\n")
-	rangeMeta := s
 	emitComment(2, "  assign length to lenvar\n")
 	// lenvar = len(s.X)
-	emitVariableAddr(rangeMeta.Lenvar)
+	emitVariableAddr(meta.RngLenvar)
 	emitLen(s.X)
 	emitStore(tInt, true, false)
 
 	emitComment(2, "  assign 0 to indexvar\n")
 	// indexvar = 0
-	emitVariableAddr(s.Indexvar)
+	emitVariableAddr(meta.RngIndexvar)
 	emitZeroValue(tInt)
 	emitStore(tInt, true, false)
 
@@ -1737,9 +1736,9 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	emitComment(2, "ForRange Condition\n")
 	fmt.Printf("  %s:\n", labelCond)
 
-	emitVariableAddr(s.Indexvar)
+	emitVariableAddr(meta.RngIndexvar)
 	emitLoadAndPush(tInt)
-	emitVariableAddr(s.Lenvar)
+	emitVariableAddr(meta.RngLenvar)
 	emitLoadAndPush(tInt)
 	emitCompExpr("setl")
 	emitPopBool(" indexvar < lenvar")
@@ -1750,7 +1749,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	elemType := getTypeOfExpr(s.Value)
 	emitAddr(s.Value) // lhs
 
-	emitVariableAddr(s.Indexvar)
+	emitVariableAddr(meta.RngIndexvar)
 	emitLoadAndPush(tInt) // index value
 	emitListElementAddr(s.X, elemType)
 
@@ -1764,8 +1763,8 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	// Post statement: Increment indexvar and go next
 	emitComment(2, "ForRange Post statement\n")
 	fmt.Printf("  %s:\n", labelPost) // used for "continue"
-	emitVariableAddr(s.Indexvar)     // lhs
-	emitVariableAddr(s.Indexvar)     // rhs
+	emitVariableAddr(meta.RngIndexvar) // lhs
+	emitVariableAddr(meta.RngIndexvar) // rhs
 	emitLoadAndPush(tInt)
 	emitAddConst(1, "indexvar value ++")
 	emitStore(tInt, true, false)
@@ -1774,8 +1773,8 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	if s.Key != nil {
 		keyIdent := s.Key.(*ast.Ident)
 		if keyIdent.Name != "_" {
-			emitAddr(s.Key)              // lhs
-			emitVariableAddr(s.Indexvar) // rhs
+			emitAddr(s.Key)                 // lhs
+			emitVariableAddr(meta.RngIndexvar) // rhs
 			emitLoadAndPush(tInt)
 			emitStore(tInt, true, false)
 		}
@@ -1810,16 +1809,13 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 		panic("Omitted tag is not supported yet")
 	}
 	emitExpr(s.Tag, nil)
-	var condType = getTypeOfExpr(s.Tag)
-	var cases = s.Body.List
-	emitComment(2, "[DEBUG] cases len=%d\n", len(cases))
+	condType := getTypeOfExpr(s.Tag)
+	cases := s.Body.List
 	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
 	emitComment(2, "Start comparison with cases\n")
 	for i, c := range cases {
-		emitComment(2, "CASES idx=%d\n", i)
-		assert(isStmtCaseClause(c), "should be *ast.CaseClause", __func__)
-		cc := stmt2CaseClause(c)
+		cc := c.(*ast.CaseClause)
 		labelid++
 		var labelCase = ".L.case." + strconv.Itoa(labelid)
 		labels[i] = labelCase
@@ -1833,15 +1829,19 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 			case T_STRING:
 				ff := lookupForeignFunc(newQI("runtime", "cmpstrings"))
 				emitAllocReturnVarsAreaFF(ff)
+
 				emitPushStackTop(condType, SizeOfInt, "switch expr")
 				emitExpr(e, nil)
 
 				emitCallFF(ff)
 			case T_INTERFACE:
 				ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
+
 				emitAllocReturnVarsAreaFF(ff)
+
 				emitPushStackTop(condType, SizeOfInt, "switch expr")
 				emitExpr(e, nil)
+
 				emitCallFF(ff)
 			case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 				emitPushStackTop(condType, 0, "switch expr")
@@ -1869,7 +1869,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 
 	emitRevertStackTop(condType)
 	for i, c := range cases {
-		cc := stmt2CaseClause(c)
+		cc := c.(*ast.CaseClause)
 		fmt.Printf("%s:\n", labels[i])
 		for _, _s := range cc.Body {
 			emitStmt(_s)
@@ -3098,8 +3098,8 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		valueIdent := expr2Ident(s.Value)
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
-	s.Lenvar = lenvar
-	s.Indexvar = indexvar
+	s.RngLenvar = lenvar
+	s.RngIndexvar = indexvar
 	currentFor = s.Outer
 }
 func walkIncDecStmt(s *ast.IncDecStmt) {

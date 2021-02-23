@@ -249,16 +249,16 @@ type ForStmt struct {
 }
 
 type RangeStmt struct {
-	Key       Expr
-	Value     Expr
-	X         Expr
-	Body      *BlockStmt
-	Outer     Stmt // outer loop
-	LabelPost string
-	LabelExit string
-	Lenvar    *Variable
-	Indexvar  *Variable
-	Tok       token.Token
+	Key         Expr
+	Value       Expr
+	X           Expr
+	Body        *BlockStmt
+	Outer       Stmt // outer loop
+	LabelPost   string
+	LabelExit   string
+	RngLenvar   *Variable
+	RngIndexvar *Variable
+	Tok         token.Token
 }
 
 type ImportSpec struct {
