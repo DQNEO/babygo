@@ -2484,8 +2484,8 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 		} else {
 			panic("TBI: what should we do ?")
 		}
-	case *ast.ArrayType:
-		return []*Type{e2t(fun)}
+	case *ast.ArrayType: // conversion [n]T(e) or []T(e)
+		return []*Type{e2t(fn)}
 	case *ast.SelectorExpr:
 		if isType(fn) {
 			return []*Type{e2t(fn)}
@@ -2494,15 +2494,15 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			ff := lookupForeignFunc(selector2QI(fn))
 			return fieldList2Types(ff.decl.Type.Results)
 		} else { // obj.method()
-			var xType = getTypeOfExpr(fn.X)
-			var method = lookupMethod(xType, fn.Sel)
+			rcvType := getTypeOfExpr(fn.X)
+			method := lookupMethod(rcvType, fn.Sel)
 			return fieldList2Types(method.FuncType.Results)
 		}
 	case *ast.InterfaceType:
 		return []*Type{tEface}
-	default:
-		panic("[astCallExpr] dtype=" + dtypeOf(e.Fun))
 	}
+
+	throw(e)
 	return nil
 }
 
@@ -2510,9 +2510,9 @@ func e2t(typeExpr ast.Expr) *Type {
 	if typeExpr == nil {
 		panic("nil is not allowed")
 	}
-	var r = &Type{}
-	r.E = typeExpr
-	return r
+	return &Type{
+		E: typeExpr,
+	}
 }
 
 func serializeType(t *Type) string {
@@ -2529,7 +2529,7 @@ func serializeType(t *Type) string {
 			panic("Unresolved identifier:" + e.Name)
 		}
 		if e.Obj.Kind == ast.Var {
-			throw("bug?")
+			throw(e.Obj)
 		} else if e.Obj.Kind == ast.Typ {
 			switch e.Obj {
 			case gUintptr:
@@ -2547,12 +2547,7 @@ func serializeType(t *Type) string {
 			default:
 				// named type
 				decl := e.Obj.Decl
-				var typeSpec *ast.TypeSpec
-				var ok bool
-				typeSpec, ok = decl.(*ast.TypeSpec)
-				if !ok {
-					panic("unexpected dtype")
-				}
+				typeSpec := decl.(*ast.TypeSpec)
 				pkgName := typeSpec.Name.Obj.PkgName
 				return pkgName + "." + typeSpec.Name.Name
 			}
@@ -2578,7 +2573,7 @@ func serializeType(t *Type) string {
 		qi := selector2QI(e)
 		return string(qi)
 	default:
-		throw(dtypeOf(t.E))
+		throw(t)
 	}
 	return ""
 }

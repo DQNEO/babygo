@@ -2590,10 +2590,7 @@ func serializeType(t *Type) string {
 			default:
 				// named type
 				decl := e.Obj.Decl
-				typeSpec, ok := decl.(*ast.TypeSpec)
-				if !ok {
-					throw(decl)
-				}
+				typeSpec := decl.(*ast.TypeSpec)
 				pkgName := typeSpec.Name.Obj.Data.(string)
 				return pkgName + "." + typeSpec.Name.Name
 			}
