@@ -8,6 +8,7 @@ import (
 type Type = ast.Type
 type Variable = ast.Variable
 type Func = ast.Func
+type Method = ast.Method
 
 func newStmt(x interface{}) ast.Stmt {
 	return x

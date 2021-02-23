@@ -2025,7 +2025,7 @@ func emitRevertStackTop(t *Type) {
 
 var labelid int
 
-func getMethodSymbol(method *ast.Method) string {
+func getMethodSymbol(method *Method) string {
 	rcvTypeName := method.RcvNamedType
 	var subsymbol string
 	if method.IsPtrMethod {
@@ -2041,7 +2041,7 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 	return pkgName + "." + subsymbol
 }
 
-func emitFuncDecl(pkgName string, fnc *ast.Func) {
+func emitFuncDecl(pkgName string, fnc *Func) {
 	fmt.Printf("# emitFuncDecl\n")
 	var i int
 	if len(fnc.Params) > 0 {
@@ -2769,7 +2769,7 @@ type stringLiteralsContainer struct {
 	sl  *sliteral
 }
 
-func registerParamVariable(fnc *ast.Func, name string, t *Type) *Variable {
+func registerParamVariable(fnc *Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
 	fnc.Argsarea += size
@@ -2777,7 +2777,7 @@ func registerParamVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	return vr
 }
 
-func registerReturnVariable(fnc *ast.Func, name string, t *Type) *Variable {
+func registerReturnVariable(fnc *Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
 	fnc.Argsarea += size
@@ -2785,7 +2785,7 @@ func registerReturnVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	return vr
 }
 
-func registerLocalVariable(fnc *ast.Func, name string, t *Type) *Variable {
+func registerLocalVariable(fnc *Func, name string, t *Type) *Variable {
 	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
 	fnc.Localarea -= getSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
@@ -2793,7 +2793,7 @@ func registerLocalVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	return vr
 }
 
-var currentFunc *ast.Func
+var currentFunc *Func
 
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
 	for _, container := range currentPkg.stringLiterals {
@@ -2852,7 +2852,7 @@ func newLocalVariable(name string, localoffset int, t *Type) *Variable {
 
 type methodEntry struct {
 	name   string
-	method *ast.Method
+	method *Method
 }
 
 type namedTypeEntry struct {
@@ -2892,14 +2892,14 @@ func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
 	return newQI(pkgName.Name, e.Sel.Name)
 }
 
-func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ast.Method {
+func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	rcvType := funcDecl.Recv.List[0].Type
 	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
 	if isPtr {
 		rcvType = rcvPointerType.X
 	}
 	rcvNamedType := rcvType.(*ast.Ident)
-	var method = &ast.Method{
+	var method = &Method{
 		PkgName:      pkgName,
 		RcvNamedType: rcvNamedType,
 		IsPtrMethod:  isPtr,
@@ -2909,7 +2909,7 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ast.Method {
 	return method
 }
 
-func registerMethod(method *ast.Method) {
+func registerMethod(method *Method) {
 	var nt = findNamedType(method.RcvNamedType.Obj)
 	if nt == nil {
 		nt = &namedTypeEntry{
@@ -2926,7 +2926,7 @@ func registerMethod(method *ast.Method) {
 	nt.methods = append(nt.methods, me)
 }
 
-func lookupMethod(rcvT *Type, methodName *ast.Ident) *ast.Method {
+func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	rcvType := rcvT.E
 	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
 	if isPtr {
@@ -3455,7 +3455,7 @@ func walk(pkg *PkgContainer) {
 	}
 
 	for _, funcDecl := range funcDecls {
-		fnc := &ast.Func{
+		fnc := &Func{
 			Name:      funcDecl.Name.Name,
 			FuncType:  funcDecl.Type,
 			Localarea: 0,
