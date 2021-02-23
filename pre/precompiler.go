@@ -715,7 +715,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				resultList := &ast.FieldList{
 					List: []*ast.Field{
 						&ast.Field{
-							Type:  generalSlice,
+							Type: generalSlice,
 						},
 					},
 				}
@@ -758,7 +758,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			resultList := &ast.FieldList{
 				List: []*ast.Field{
 					&ast.Field{
-						Type:  generalSlice,
+						Type: generalSlice,
 					},
 				},
 			}
@@ -865,16 +865,19 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 	}
 	return false
 }
+
 // 1 or 2 values
 func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
 	emitAddr(e)
 	emitLoadAndPush(getTypeOfExpr(e))
 }
+
 // 1 value
 func emitStarExpr(e *ast.StarExpr, ctx *evalContext) {
 	emitAddr(e)
 	emitLoadAndPush(getTypeOfExpr(e))
 }
+
 // 1 value X.Sel
 func emitSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 	// pkg.Ident or strct.field
@@ -887,6 +890,7 @@ func emitSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 		emitLoadAndPush(getTypeOfExpr(e))
 	}
 }
+
 // multi values Fun(Args)
 func emitCallExpr(e *ast.CallExpr, ctx *evalContext) {
 	var fun = e.Fun
@@ -897,10 +901,12 @@ func emitCallExpr(e *ast.CallExpr, ctx *evalContext) {
 		emitFuncall(fun, e.Args, e.Ellipsis != token.NoPos)
 	}
 }
+
 // multi values (e)
 func emitParenExpr(e *ast.ParenExpr, ctx *evalContext) {
 	emitExpr(e.X, ctx)
 }
+
 // 1 value
 func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
 	switch e.Kind.String() {
@@ -939,6 +945,7 @@ func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
 		panic("Unexpected literal kind:" + e.Kind.String())
 	}
 }
+
 // 1 value
 func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
 	switch e.Op.String() {
@@ -958,6 +965,7 @@ func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
 		throw(e.Op)
 	}
 }
+
 // 1 value
 func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 	switch e.Op.String() {
@@ -1062,6 +1070,7 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		panic(e.Op.String())
 	}
 }
+
 // 1 value
 func emitCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
 	// slice , array, map or struct
@@ -1085,6 +1094,7 @@ func emitCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
 		unexpectedKind(kind(e2t(e.Type)))
 	}
 }
+
 // 1 value list[low:high]
 func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 	list := e.X
@@ -1160,6 +1170,7 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 	elmType := getElementTypeOfListType(listType)
 	emitListElementAddr(list, elmType)
 }
+
 // 1 or 2 values
 func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	emitExpr(e.X, nil)
@@ -1615,16 +1626,16 @@ func emitAssignStmt(s *ast.AssignStmt) {
 		}
 	case "+=":
 		binaryExpr := &ast.BinaryExpr{
-			X:     s.Lhs[0],
-			Op:    token.ADD,
-			Y:     s.Rhs[0],
+			X:  s.Lhs[0],
+			Op: token.ADD,
+			Y:  s.Rhs[0],
 		}
 		emitAssign(s.Lhs[0], binaryExpr)
 	case "-=":
 		binaryExpr := &ast.BinaryExpr{
-			X:     s.Lhs[0],
-			Op:    token.SUB,
-			Y:     s.Rhs[0],
+			X:  s.Lhs[0],
+			Op: token.SUB,
+			Y:  s.Rhs[0],
 		}
 		emitAssign(s.Lhs[0], binaryExpr)
 	default:
@@ -1660,7 +1671,6 @@ func emitForStmt(s *ast.ForStmt) {
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
 	labelExit := fmt.Sprintf(".L.for.exit.%d", labelid)
-
 
 	meta.LabelPost = labelPost
 	meta.LabelExit = labelExit
@@ -1754,7 +1764,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 
 	// Post statement: Increment indexvar and go next
 	emitComment(2, "ForRange Post statement\n")
-	fmt.Printf("  %s:\n", labelPost) // used for "continue"
+	fmt.Printf("  %s:\n", labelPost)   // used for "continue"
 	emitVariableAddr(meta.RngIndexvar) // lhs
 	emitVariableAddr(meta.RngIndexvar) // rhs
 	emitLoadAndPush(tInt)
@@ -1765,7 +1775,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	if s.Key != nil {
 		keyIdent := s.Key.(*ast.Ident)
 		if keyIdent.Name != "_" {
-			emitAddr(s.Key)                 // lhs
+			emitAddr(s.Key)                    // lhs
 			emitVariableAddr(meta.RngIndexvar) // rhs
 			emitLoadAndPush(tInt)
 			emitStore(tInt, true, false)
@@ -2401,7 +2411,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case "&":
 			t := getTypeOfExpr(e.X)
 			starExpr := &ast.StarExpr{
-				X : t.E,
+				X: t.E,
 			}
 			return e2t(starExpr)
 		case "range":
@@ -2864,7 +2874,7 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		value:  lit.Value,
 	}
 	cont := &stringLiteralsContainer{
-		sl : sl,
+		sl:  sl,
 		lit: lit,
 	}
 	currentPkg.stringLiterals = append(currentPkg.stringLiterals, cont)
@@ -4009,10 +4019,10 @@ var mapMetaTypeSwitchStmt = map[*ast.TypeSwitchStmt]*MetaTypeSwitchStmt{}
 var mapMetaReturnStmt = map[*ast.ReturnStmt]*MetaReturnStmt{}
 
 type MetaForStmt struct {
-	LabelPost string // for continue
-	LabelExit string // for break
-	Outer     *MetaForStmt
-	AstFor    *ast.ForStmt
+	LabelPost   string // for continue
+	LabelExit   string // for break
+	Outer       *MetaForStmt
+	AstFor      *ast.ForStmt
 	RngLenvar   *Variable
 	RngIndexvar *Variable
 }

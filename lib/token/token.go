@@ -16,4 +16,3 @@ var SUB Token = "-"
 func (tok Token) String() string {
 	return string(tok)
 }
-
