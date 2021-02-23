@@ -2345,6 +2345,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			panic("Obj=" + e.Obj.Name + e.Obj.Kind)
 		}
 	case *ast.BasicLit:
+		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
+		// depending on whether it is a boolean, rune, integer, floating-point, complex, or string constant.
 		switch e.Kind.String() {
 		case "STRING":
 			return tString
@@ -2355,9 +2357,6 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		default:
 			panic(e.Kind.String())
 		}
-	case *ast.IndexExpr:
-		var list = e.X
-		return getElementTypeOfListType(getTypeOfExpr(list))
 	case *ast.UnaryExpr:
 		switch e.Op.String() {
 		case "+":
@@ -2367,9 +2366,10 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case "!":
 			return tBool
 		case "&":
-			var starExpr = &ast.StarExpr{}
-			var t = getTypeOfExpr(e.X)
-			starExpr.X = t.E
+			t := getTypeOfExpr(e.X)
+			starExpr := &ast.StarExpr{
+				X : t.E,
+			}
 			return e2t(starExpr)
 		case "range":
 			listType := getTypeOfExpr(e.X)
@@ -2378,12 +2378,22 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		default:
 			panic(e.Op.String())
 		}
-	case *ast.CallExpr:
+	case *ast.BinaryExpr:
+		switch e.Op.String() {
+		case "==", "!=", "<", ">", "<=", ">=":
+			return tBool
+		default:
+			return getTypeOfExpr(e.X)
+		}
+	case *ast.IndexExpr:
+		var list = e.X
+		return getElementTypeOfListType(getTypeOfExpr(list))
+	case *ast.CallExpr: // funcall or conversion
 		types := getCallResultTypes(e)
 		assert(len(types) == 1, "single value is expected", __func__)
 		return types[0]
 	case *ast.SliceExpr:
-		var underlyingCollectionType = getTypeOfExpr(e.X)
+		underlyingCollectionType := getTypeOfExpr(e.X)
 		if kind(underlyingCollectionType) == T_STRING {
 			// str2 = str1[n:m]
 			return tString
@@ -2393,21 +2403,15 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case *ast.ArrayType:
 			elementTyp = expr2ArrayType(underlyingCollectionType.E).Elt
 		}
-		var t = &ast.ArrayType{}
-		t.Len = nil
-		t.Elt = elementTyp
-		return e2t(t)
+		r := &ast.ArrayType{
+			Len: nil,
+			Elt: elementTyp,
+		}
+		return e2t(r)
 	case *ast.StarExpr:
 		t := getTypeOfExpr(e.X)
 		ptrType := t.E.(*ast.StarExpr)
 		return e2t(ptrType.X)
-	case *ast.BinaryExpr:
-		switch e.Op.String() {
-		case "==", "!=", "<", ">", "<=", ">=":
-			return tBool
-		default:
-			return getTypeOfExpr(e.X)
-		}
 	case *ast.SelectorExpr:
 		if isQI(e) { // pkg.SomeType
 			ident := lookupForeignIdent(selector2QI(e))

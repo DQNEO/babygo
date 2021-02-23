@@ -2415,9 +2415,10 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case "!":
 			return tBool
 		case "&":
-			var starExpr = &ast.StarExpr{}
-			var t = getTypeOfExpr(e.X)
-			starExpr.X = t.E
+			t := getTypeOfExpr(e.X)
+			starExpr := &ast.StarExpr{
+				X : t.E,
+			}
 			return e2t(starExpr)
 		case "range":
 			listType := getTypeOfExpr(e.X)
@@ -2446,7 +2447,6 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			// str2 = str1[n:m]
 			return tString
 		}
-
 		var elementTyp ast.Expr
 		switch colType := underlyingCollectionType.E.(type) {
 		case *ast.ArrayType:
