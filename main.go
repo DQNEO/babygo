@@ -1300,24 +1300,17 @@ func typeIdToSymbol(id int) string {
 	return "dtype." + strconv.Itoa(id)
 }
 
-var typeMap []*typeEntry
-
-type typeEntry struct {
-	serialized string
-	id         int
-}
+var typesMap mapStringInt
 
 func getTypeId(serialized string) int {
-	for _, te := range typeMap {
-		if te.serialized == serialized {
-			return te.id
-		}
+	var id int
+	var ok bool
+	pTypeMap := &typesMap
+	id , ok = pTypeMap.get(serialized)
+	if ok {
+		return id
 	}
-	te := &typeEntry{
-		serialized: serialized,
-		id:         typeId,
-	}
-	typeMap = append(typeMap, te)
+	pTypeMap.set(serialized, typeId)
 	r := typeId
 	typeId++
 	return r
@@ -2272,13 +2265,13 @@ func generateCode(pkg *PkgContainer) {
 	fmt.Printf("\n")
 }
 
-func emitDynamicTypes(typeMap []*typeEntry) {
+func emitDynamicTypes(typeMap []*mapStringIntEntry) {
 	// emitting dynamic types
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
 	for _, te := range typeMap {
-		id := te.id
-		name := te.serialized
+		id := te.value
+		name := te.key
 		symbol := typeIdToSymbol(id)
 		fmt.Printf("%s: # %s\n", symbol, name)
 		fmt.Printf("  .quad %d\n", id)
@@ -3943,28 +3936,7 @@ func showHelp() {
 	fmt.Printf("    babygo [-DF] [-DG] filename\n")
 }
 
-func main() {
-	srcPath = os.Getenv("GOPATH") + "/src"
-	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src/"
-
-	if len(os.Args) == 1 {
-		showHelp()
-		return
-	}
-
-	if os.Args[1] == "version" {
-		fmt.Printf("babygo version 0.1.0  linux/amd64\n")
-		return
-	} else if os.Args[1] == "help" {
-		showHelp()
-		return
-	} else if os.Args[1] == "panic" {
-		panicVersion := strconv.Itoa(mylib.Sum(1, 1))
-		panic("I am panic version " + panicVersion)
-	}
-
-	logf("Build start\n")
-
+func initGlobals() {
 	eNil = identNil
 	eZeroInt = &ast.BasicLit{
 		Value: "0",
@@ -4020,6 +3992,30 @@ func main() {
 			Obj:  gBool,
 		},
 	}
+}
+
+func main() {
+	initGlobals()
+	srcPath = os.Getenv("GOPATH") + "/src"
+	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src"
+
+	if len(os.Args) == 1 {
+		showHelp()
+		return
+	}
+
+	if os.Args[1] == "version" {
+		fmt.Printf("babygo version 0.1.0  linux/amd64\n")
+		return
+	} else if os.Args[1] == "help" {
+		showHelp()
+		return
+	} else if os.Args[1] == "panic" {
+		panicVersion := strconv.Itoa(mylib.Sum(1, 1))
+		panic("I am panic version " + panicVersion)
+	}
+
+	logf("Build start\n")
 
 	var arg string
 	var inputFiles []string
@@ -4055,9 +4051,10 @@ func main() {
 		buildPackage(_pkg, universe)
 	}
 
-	emitDynamicTypes(typeMap)
+	emitDynamicTypes(typesMap)
 }
 
+// --- util ---
 func obj2var(obj *ast.Object) *Variable {
 	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
 	assert(obj.Variable != nil, "should not be nil", __func__)
