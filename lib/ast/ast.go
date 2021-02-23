@@ -200,10 +200,9 @@ type TypeSwitchStmt struct {
 }
 
 type Func struct {
-	Localvars []*string
 	Localarea int
 	Argsarea  int
-	Vars      []*Variable
+	LocalVars []*Variable
 	Params    []*Variable
 	Retvars   []*Variable
 	FuncType  *FuncType

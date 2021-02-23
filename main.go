@@ -2062,9 +2062,9 @@ func emitFuncDecl(pkgName string, fnc *ast.Func) {
 	fmt.Printf("%s: # args %d, locals %d\n", symbol, fnc.Argsarea, fnc.Localarea)
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
-	if len(fnc.Localvars) > 0 {
-		for i = len(fnc.Vars) - 1; i >= 0; i-- {
-			v := fnc.Vars[i]
+	if len(fnc.LocalVars) > 0 {
+		for i = len(fnc.LocalVars) - 1; i >= 0; i-- {
+			v := fnc.LocalVars[i]
 			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -v.LocalOffset, getSizeOfType(v.Typ), v.Name)
 		}
 	}
@@ -2784,7 +2784,7 @@ func registerLocalVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
 	fnc.Localarea -= getSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
-	fnc.Vars = append(fnc.Vars, vr)
+	fnc.LocalVars = append(fnc.LocalVars, vr)
 	return vr
 }
 
