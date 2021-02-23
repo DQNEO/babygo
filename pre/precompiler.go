@@ -2376,23 +2376,22 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			case *ast.AssignStmt: // var lhs = rhs | lhs := rhs
 				return getTypeOfExpr(dcl.Rhs[0])
 			default:
-				throw(e.Obj.Decl)
+				panic("Unknown type")
 			}
 		case ast.Con:
-			if e.Obj == gTrue {
+			switch e.Obj {
+			case gTrue, gFalse:
 				return tBool
-			} else if e.Obj == gFalse {
-				return tBool
-			} else {
-				switch dcl := e.Obj.Decl.(type) {
+			default:
+				switch decl2 := e.Obj.Decl.(type) {
 				case *ast.ValueSpec:
-					return e2t(dcl.Type)
+					return e2t(decl2.Type)
 				default:
-					throw(e.Obj)
+					panic("cannot decide type of cont =" + e.Obj.Name)
 				}
 			}
 		default:
-			throw(e.Obj)
+			panic("Obj=" + e.Obj.Name + e.Obj.Kind.String())
 		}
 	case *ast.BasicLit:
 		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,

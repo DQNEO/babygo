@@ -2303,13 +2303,11 @@ const T_ARRAY TypeKind = "T_ARRAY"
 const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
 
+// types of an expr in single value context
 func getTypeOfExpr(expr ast.Expr) *Type {
-	//emitComment(0, "[%s] start\n", __func__)
 	switch e := expr.(type) {
 	case *ast.Ident:
-		if e.Obj == nil {
-			panic(e.Name)
-		}
+		assert(e.Obj != nil, "Obj is nil in ident '"+e.Name+"'", __func__)
 		switch e.Obj.Kind {
 		case ast.Var:
 			// injected type is the 1st priority
@@ -2321,33 +2319,30 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			if e.Obj.Variable != nil {
 				return e.Obj.Variable.Typ
 			}
-			switch decl := e.Obj.Decl.(type) {
+			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
-				var t = &Type{}
-				t.E = decl.Type
-				return t
+				return e2t(dcl.Type)
 			case *ast.Field:
-				var t = &Type{}
-				t.E = decl.Type
-				return t
-			case *ast.AssignStmt: // lhs := rhs
-				return getTypeOfExpr(decl.Rhs[0])
+				return e2t(dcl.Type)
+			case *ast.AssignStmt: // var lhs = rhs | lhs := rhs
+				return getTypeOfExpr(dcl.Rhs[0])
 			default:
-				panic("unkown dtype ")
+				panic("Unknown type")
 			}
 		case ast.Con:
 			switch e.Obj {
 			case gTrue, gFalse:
 				return tBool
-			}
-			switch decl2 := e.Obj.Decl.(type) {
-			case *ast.ValueSpec:
-				return e2t(decl2.Type)
 			default:
-				panic("cannot decide type of cont =" + e.Obj.Name)
+				switch decl2 := e.Obj.Decl.(type) {
+				case *ast.ValueSpec:
+					return e2t(decl2.Type)
+				default:
+					panic("cannot decide type of cont =" + e.Obj.Name)
+				}
 			}
 		default:
-			panic("2:Obj=" + e.Obj.Name + e.Obj.Kind)
+			panic("Obj=" + e.Obj.Name + e.Obj.Kind)
 		}
 	case *ast.BasicLit:
 		switch e.Kind.String() {
