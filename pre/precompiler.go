@@ -2310,14 +2310,6 @@ var tUint8 *Type = &Type{
 	},
 }
 
-var tByte *Type = &Type{
-	E: &ast.Ident{
-		NamePos: 0,
-		Name:    "byte",
-		Obj:     gUint8,
-	},
-}
-
 var tSliceOfString *Type = &Type{
 	E: &ast.ArrayType{
 		Len: nil,
@@ -2814,60 +2806,6 @@ type stringLiteralsContainer struct {
 	sl  *sliteral
 }
 
-type MetaForStmt struct {
-	LabelPost string // for continue
-	LabelExit string // for break
-	Outer     *MetaForStmt
-	AstFor    *ast.ForStmt
-	RngLenvar   *Variable
-	RngIndexvar *Variable
-}
-
-type MetaTypeSwitchStmt struct {
-	Subject         ast.Expr
-	SubjectVariable *Variable
-	AssignIdent     *ast.Ident
-	Cases           []*TypeSwitchCaseClose
-}
-
-type TypeSwitchCaseClose struct {
-	Variable     *Variable
-	VariableType *Type
-	Orig         *ast.CaseClause
-}
-
-type MetaReturnStmt struct {
-	Fnc *Func
-}
-
-type Func struct {
-	Name      string
-	Stmts     []ast.Stmt
-	Localarea int
-	Argsarea  int
-	Localvars []*Variable
-	Params    []*Variable
-	Retvars   []*Variable
-	FuncType  *ast.FuncType
-	Method    *Method
-}
-
-type Method struct {
-	PkgName      string
-	RcvNamedType *ast.Ident
-	IsPtrMethod  bool
-	Name         string
-	FuncType     *ast.FuncType
-}
-
-type Variable struct {
-	Name         string
-	IsGlobal     bool
-	GlobalSymbol string
-	LocalOffset  int
-	Typ          *Type
-}
-
 func registerParamVariable(fnc *Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
@@ -3204,7 +3142,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", tEface)
 	for _, _case := range s.Body.List {
 		cc := _case.(*ast.CaseClause)
-		tscc := &TypeSwitchCaseClose{
+		tscc := &MetaTypeSwitchCaseClose{
 			Orig: cc,
 		}
 		typeSwitch.Cases = append(typeSwitch.Cases, tscc)
@@ -4069,3 +4007,57 @@ var mapMetaBranchStmt = map[*ast.BranchStmt]*MetaForStmt{}
 
 var mapMetaTypeSwitchStmt = map[*ast.TypeSwitchStmt]*MetaTypeSwitchStmt{}
 var mapMetaReturnStmt = map[*ast.ReturnStmt]*MetaReturnStmt{}
+
+type MetaForStmt struct {
+	LabelPost string // for continue
+	LabelExit string // for break
+	Outer     *MetaForStmt
+	AstFor    *ast.ForStmt
+	RngLenvar   *Variable
+	RngIndexvar *Variable
+}
+
+type MetaTypeSwitchStmt struct {
+	Subject         ast.Expr
+	SubjectVariable *Variable
+	AssignIdent     *ast.Ident
+	Cases           []*MetaTypeSwitchCaseClose
+}
+
+type MetaTypeSwitchCaseClose struct {
+	Variable     *Variable
+	VariableType *Type
+	Orig         *ast.CaseClause
+}
+
+type MetaReturnStmt struct {
+	Fnc *Func
+}
+
+type Func struct {
+	Name      string
+	Stmts     []ast.Stmt
+	Localarea int
+	Argsarea  int
+	Localvars []*Variable
+	Params    []*Variable
+	Retvars   []*Variable
+	FuncType  *ast.FuncType
+	Method    *Method
+}
+
+type Method struct {
+	PkgName      string
+	RcvNamedType *ast.Ident
+	IsPtrMethod  bool
+	Name         string
+	FuncType     *ast.FuncType
+}
+
+type Variable struct {
+	Name         string
+	IsGlobal     bool
+	GlobalSymbol string
+	LocalOffset  int
+	Typ          *Type
+}
