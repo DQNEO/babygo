@@ -1178,9 +1178,10 @@ func (p *parser) parseDecl(keyword string) *ast.GenDecl {
 			valSpec.Values = append(valSpec.Values, value)
 		}
 		declare(valSpec, p.topScope, ast.Var, ident)
-		r = &ast.GenDecl{}
-		r.Spec = valSpec
-		return r
+		specs := []ast.Spec{valSpec}
+		return &ast.GenDecl{
+			Specs: specs,
+		}
 	default:
 		panic2(__func__, "TBI\n")
 	}
@@ -1316,18 +1317,20 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 		switch p.tok.tok {
 		case "var", "const":
 			var spec = p.parseValueSpec(p.tok.tok)
-			var genDecl = &ast.GenDecl{}
-			genDecl.Spec = spec
-			decl = genDecl
+			specs := []ast.Spec{spec}
+			decl = &ast.GenDecl{
+				Specs: specs,
+			}
 		case "func":
 			logf("\n\n")
 			decl = p.parseFuncDecl()
 			//logf(" func decl parsed:%s\n", decl.funcDecl.Name.Name)
 		case "type":
-			var spec = p.parserTypeSpec()
-			var genDecl = &ast.GenDecl{}
-			genDecl.Spec = spec
-			decl = genDecl
+			spec := p.parserTypeSpec()
+			specs := []ast.Spec{spec}
+			decl = &ast.GenDecl{
+				Specs: specs,
+			}
 			logf(" type parsed:%s\n", "")
 		default:
 			panic2(__func__, "TBI:"+p.tok.tok)

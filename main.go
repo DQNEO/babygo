@@ -1556,7 +1556,7 @@ func emitExprStmt(s *ast.ExprStmt) {
 }
 func emitDeclStmt(s *ast.DeclStmt) {
 	genDecl := s.Decl.(*ast.GenDecl)
-	declSpec := genDecl.Spec
+	declSpec := genDecl.Specs[0]
 	switch spec := declSpec.(type) {
 	case *ast.ValueSpec:
 		valSpec := spec
@@ -2962,7 +2962,7 @@ func walkExprStmt(s *ast.ExprStmt) {
 }
 func walkDeclStmt(s *ast.DeclStmt) {
 	genDecl := s.Decl.(*ast.GenDecl)
-	declSpec := genDecl.Spec
+	declSpec := genDecl.Specs[0]
 	switch spec := declSpec.(type) {
 	case *ast.ValueSpec:
 		if spec.Type == nil { // var x = e
@@ -3371,7 +3371,7 @@ func walk(pkg *PkgContainer) {
 	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
-			switch spec := dcl.Spec.(type) {
+			switch spec := dcl.Specs[0].(type) {
 			case *ast.TypeSpec:
 				typeSpecs = append(typeSpecs, spec)
 			case *ast.ValueSpec:

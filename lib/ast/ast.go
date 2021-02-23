@@ -284,7 +284,7 @@ type Decl interface {
 type Spec interface{}
 
 type GenDecl struct {
-	Spec Spec // *ValueSpec | *TypeSpec
+	Specs []Spec
 }
 
 type FuncDecl struct {
