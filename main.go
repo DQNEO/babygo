@@ -1666,8 +1666,9 @@ func emitIfStmt(s *ast.IfStmt) {
 	fmt.Printf("  %s:\n", labelEndif)
 	emitComment(2, "end if\n")
 }
+
 func emitForStmt(s *ast.ForStmt) {
-	meta := s
+	meta := s.Meta
 	labelid++
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
@@ -1698,7 +1699,7 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
-	meta := s
+	meta := s.Meta
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -1957,28 +1958,13 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitBranchStmt(s *ast.BranchStmt) {
-	var containerFor = s.CurrentFor
 	var labelToGo string
 	switch s.Tok.String() {
 	case "continue":
-		switch s := containerFor.(type) {
-		case *ast.ForStmt:
-			labelToGo = s.LabelPost
-		case *ast.RangeStmt:
-			labelToGo = s.LabelPost
-		default:
-			panic("unexpected container dtype=" + dtypeOf(containerFor))
-		}
+		labelToGo = s.CurrentFor.LabelPost
 		fmt.Printf("jmp %s # continue\n", labelToGo)
 	case "break":
-		switch s := containerFor.(type) {
-		case *ast.ForStmt:
-			labelToGo = s.LabelExit
-		case *ast.RangeStmt:
-			labelToGo = s.LabelExit
-		default:
-			panic("unexpected container dtype=" + dtypeOf(containerFor))
-		}
+		labelToGo = s.CurrentFor.LabelExit
 		fmt.Printf("jmp %s # break\n", labelToGo)
 	default:
 		panic("unexpected tok=" + s.Tok)
@@ -3036,8 +3022,11 @@ func walkIfStmt(s *ast.IfStmt) {
 	}
 }
 func walkForStmt(s *ast.ForStmt) {
-	s.Outer = currentFor
-	currentFor = s
+	meta := &ast.MetaForStmt{
+		Outer: currentFor,
+	}
+	currentFor = meta
+	s.Meta = meta
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3047,35 +3036,35 @@ func walkForStmt(s *ast.ForStmt) {
 	if s.Post != nil {
 		walkStmt(s.Post)
 	}
-	walkStmt(newStmt(s.Body))
-	currentFor = s.Outer
+	walkStmt(s.Body)
+	currentFor = meta.Outer
 }
 func walkRangeStmt(s *ast.RangeStmt) {
+	meta := &ast.MetaForStmt{
+		Outer: currentFor,
+	}
+	currentFor = meta
+	s.Meta = meta
 	walkExpr(s.X)
-	s.Outer = currentFor
-	currentFor = s
-	var _s = s.Body
-	walkStmt(_s)
-	var lenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
-	var indexvar = registerLocalVariable(currentFunc, ".range.index", tInt)
-
+	walkStmt(s.Body)
+	meta.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
+	meta.RngIndexvar = registerLocalVariable(currentFunc, ".range.index", tInt)
 	if s.Tok.String() == ":=" {
+		// short var decl
 		listType := getTypeOfExpr(s.X)
 
-		keyIdent := expr2Ident(s.Key)
+		keyIdent := s.Key.(*ast.Ident)
 		//@TODO map key can be any type
 		//keyType := getKeyTypeOfListType(listType)
-		var keyType *Type = tInt
+		keyType := tInt
 		setVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, keyType))
 
 		// determine type of Value
 		elmType := getElementTypeOfListType(listType)
-		valueIdent := expr2Ident(s.Value)
+		valueIdent := s.Value.(*ast.Ident)
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
-	s.RngLenvar = lenvar
-	s.RngIndexvar = indexvar
-	currentFor = s.Outer
+	currentFor = meta.Outer
 }
 func walkIncDecStmt(s *ast.IncDecStmt) {
 	walkExpr(s.X)
@@ -3184,7 +3173,7 @@ func walkStmt(stmt ast.Stmt) {
 	}
 }
 
-var currentFor ast.Stmt
+var currentFor *ast.MetaForStmt
 
 func walkIdent(e *ast.Ident) {
 }

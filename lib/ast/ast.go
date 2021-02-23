@@ -167,7 +167,7 @@ type ReturnStmt struct {
 type BranchStmt struct {
 	Tok        token.Token
 	Label      string
-	CurrentFor Stmt
+	CurrentFor *MetaForStmt
 }
 
 type BlockStmt struct {
@@ -242,9 +242,15 @@ type ForStmt struct {
 	Cond      Expr
 	Post      Stmt
 	Body      *BlockStmt
-	Outer     Stmt // outer loop
+	Meta *MetaForStmt
+}
+
+type MetaForStmt struct {
 	LabelPost string
 	LabelExit string
+	RngLenvar   *Variable
+	RngIndexvar *Variable
+	Outer       *MetaForStmt
 }
 
 type RangeStmt struct {
@@ -252,11 +258,7 @@ type RangeStmt struct {
 	Value       Expr
 	X           Expr
 	Body        *BlockStmt
-	Outer       Stmt // outer loop
-	LabelPost   string
-	LabelExit   string
-	RngLenvar   *Variable
-	RngIndexvar *Variable
+	Meta *MetaForStmt
 	Tok         token.Token
 }
 

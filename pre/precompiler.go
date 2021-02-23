@@ -46,8 +46,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 		return
 	}
 	var spaces []uint8
-	var i int
-	for i = 0; i < indent; i++ {
+	for i := 0; i < indent; i++ {
 		spaces = append(spaces, ' ')
 	}
 	format2 := string(spaces) + "# " + format
@@ -601,9 +600,8 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 		panic("length of return and func type do not match")
 	}
 
-	var i int
 	_len := len(s.Results)
-	for i = 0; i < _len; i++ {
+	for i := 0; i < _len; i++ {
 		emitAssignToVar(fnc.Retvars[i], s.Results[i])
 	}
 	fmt.Printf("  leave\n")
@@ -3069,11 +3067,13 @@ func walkBlockStmt(s *ast.BlockStmt) {
 		walkStmt(stmt)
 	}
 }
+
 func walkForStmt(s *ast.ForStmt) {
-	forStmt := new(MetaForStmt)
-	forStmt.Outer = currentFor
-	currentFor = forStmt
-	mapAstMeta[s] = forStmt
+	meta := &MetaForStmt{
+		Outer: currentFor,
+	}
+	currentFor = meta
+	mapAstMeta[s] = meta
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3084,17 +3084,18 @@ func walkForStmt(s *ast.ForStmt) {
 		walkStmt(s.Post)
 	}
 	walkStmt(s.Body)
-	currentFor = forStmt.Outer
+	currentFor = meta.Outer
 }
 func walkRangeStmt(s *ast.RangeStmt) {
-	forStmt := new(MetaForStmt)
-	forStmt.Outer = currentFor
-	currentFor = forStmt
-	mapAstMeta[s] = forStmt
+	meta := &MetaForStmt{
+		Outer: currentFor,
+	}
+	currentFor = meta
+	mapAstMeta[s] = meta
 	walkExpr(s.X)
 	walkStmt(s.Body)
-	forStmt.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
-	forStmt.RngIndexvar = registerLocalVariable(currentFunc, ".range.index", tInt)
+	meta.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
+	meta.RngIndexvar = registerLocalVariable(currentFunc, ".range.index", tInt)
 	if s.Tok.String() == ":=" {
 		// short var decl
 		listType := getTypeOfExpr(s.X)
@@ -3110,7 +3111,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		valueIdent := s.Value.(*ast.Ident)
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
-	currentFor = forStmt.Outer
+	currentFor = meta.Outer
 }
 func walkIncDecStmt(s *ast.IncDecStmt) {
 	walkExpr(s.X)
