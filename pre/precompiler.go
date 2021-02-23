@@ -3949,9 +3949,8 @@ func main() {
 
 	logf("Build start\n")
 
-	var arg string
 	var inputFiles []string
-	for _, arg = range os.Args[1:] {
+	for _, arg := range os.Args[1:] {
 		switch arg {
 		case "-DF":
 			debugFrontEnd = true

@@ -44,8 +44,7 @@ func emitComment(indent int, format string, a ...interface{}) {
 		return
 	}
 	var spaces []uint8
-	var i int
-	for i = 0; i < indent; i++ {
+	for i := 0; i < indent; i++ {
 		spaces = append(spaces, ' ')
 	}
 	format2 := string(spaces) + "# " + format
@@ -599,9 +598,8 @@ func emitReturnStmt(s *ast.ReturnStmt) {
 		panic("length of return and func type do not match")
 	}
 
-	var i int
 	_len := len(s.Results)
-	for i = 0; i < _len; i++ {
+	for i := 0; i < _len; i++ {
 		emitAssignToVar(fnc.Retvars[i], s.Results[i])
 	}
 	fmt.Printf("  leave\n")
@@ -2043,9 +2041,8 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	fmt.Printf("# emitFuncDecl\n")
-	var i int
 	if len(fnc.Params) > 0 {
-		for i = 0; i < len(fnc.Params); i++ {
+		for i := 0; i < len(fnc.Params); i++ {
 			v := fnc.Params[i]
 			logf("  #       params %d %d \"%s\" %s\n", v.LocalOffset, getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
 		}
@@ -2067,7 +2064,7 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
 	if len(fnc.LocalVars) > 0 {
-		for i = len(fnc.LocalVars) - 1; i >= 0; i-- {
+		for i := len(fnc.LocalVars) - 1; i >= 0; i-- {
 			v := fnc.LocalVars[i]
 			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -v.LocalOffset, getSizeOfType(v.Typ), v.Name)
 		}
@@ -2211,8 +2208,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			unexpectedKind(knd)
 		}
 
-		var i int
-		for i = 0; i < length; i++ {
+		for i := 0; i < length; i++ {
 			fmt.Printf(zeroValue)
 		}
 	default:
@@ -4004,9 +4000,8 @@ func main() {
 
 	logf("Build start\n")
 
-	var arg string
 	var inputFiles []string
-	for _, arg = range os.Args[1:] {
+	for _, arg := range os.Args[1:] {
 		switch arg {
 		case "-DF":
 			debugFrontEnd = true
