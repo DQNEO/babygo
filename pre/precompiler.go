@@ -1485,6 +1485,7 @@ func emitRegiToMem(t *Type) {
 		unexpectedKind(k)
 	}
 }
+
 func isBlankIdentifier(e ast.Expr) bool {
 	ident, isIdent := e.(*ast.Ident)
 	if !isIdent {
@@ -2917,10 +2918,7 @@ func isQI(e *ast.SelectorExpr) bool {
 }
 
 func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
-	pkgName, isIdent := e.X.(*ast.Ident)
-	if !isIdent {
-		throw(e)
-	}
+	pkgName := e.X.(*ast.Ident)
 	assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg", __func__)
 	return newQI(pkgName.Name, e.Sel.Name)
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/token"
+
 	"os"
 	"syscall"
 
@@ -2878,9 +2879,7 @@ func newQI(pkg string, ident string) QualifiedIdent {
 }
 
 func isQI(e *ast.SelectorExpr) bool {
-	var ident *ast.Ident
-	var isIdent bool
-	ident, isIdent = e.X.(*ast.Ident)
+	ident, isIdent := e.X.(*ast.Ident)
 	if !isIdent {
 		return false
 	}
@@ -2888,13 +2887,7 @@ func isQI(e *ast.SelectorExpr) bool {
 }
 
 func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
-	var pkgName *ast.Ident
-	var isIdent bool
-	pkgName, isIdent = e.X.(*ast.Ident)
-	if !isIdent {
-		panic(e)
-	}
-	assert(pkgName.Obj != nil, "Obj should not be nil: "+pkgName.Name+"."+e.Sel.Name, __func__)
+	pkgName := e.X.(*ast.Ident)
 	assert(pkgName.Obj.Kind == ast.Pkg, "should be ast.Pkg", __func__)
 	return newQI(pkgName.Name, e.Sel.Name)
 }
@@ -2962,7 +2955,6 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *ast.Method {
 	}
 
 	panic("method not found: " + methodName.Name)
-	return nil
 }
 
 func walkExprStmt(s *ast.ExprStmt) {
