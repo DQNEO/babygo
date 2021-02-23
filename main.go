@@ -1561,7 +1561,7 @@ func emitDeclStmt(s *ast.DeclStmt) {
 	case *ast.ValueSpec:
 		valSpec := spec
 		t := e2t(valSpec.Type)
-		lhs := valSpec.Name
+		lhs := valSpec.Names[0]
 		if len(valSpec.Values) == 0 {
 			emitComment(2, "lhs addresss\n")
 			emitAddr(lhs)
@@ -2239,7 +2239,7 @@ func generateCode(pkg *PkgContainer) {
 			t = e2t(spec.Type)
 		}
 
-		emitGlobalVariable(pkg, spec.Name, t, val)
+		emitGlobalVariable(pkg, spec.Names[0], t, val)
 
 	}
 
@@ -2255,7 +2255,7 @@ func generateCode(pkg *PkgContainer) {
 		if spec.Type != nil {
 			t = e2t(spec.Type)
 		}
-		emitGlobalVariableComplex(spec.Name, t, val)
+		emitGlobalVariableComplex(spec.Names[0], t, val)
 	}
 	fmt.Printf("  ret\n")
 
@@ -2971,7 +2971,7 @@ func walkDeclStmt(s *ast.DeclStmt) {
 			}
 			// infer type from rhs
 			val := spec.Values[0]
-			logf("inferring type of variable %s\n", spec.Name.Name)
+			logf("inferring type of variable %s\n", spec.Names[0].Name)
 			typ := getTypeOfExpr(val)
 			if typ == nil || typ.E == nil {
 				panic("rhs should have a type")
@@ -2979,7 +2979,7 @@ func walkDeclStmt(s *ast.DeclStmt) {
 			spec.Type = typ.E
 		}
 		t := e2t(spec.Type)
-		obj := spec.Name.Obj
+		obj := spec.Names[0].Obj
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
 		if len(spec.Values) > 0 {
 			walkExpr(spec.Values[0])
@@ -3375,9 +3375,9 @@ func walk(pkg *PkgContainer) {
 			case *ast.TypeSpec:
 				typeSpecs = append(typeSpecs, spec)
 			case *ast.ValueSpec:
-				if spec.Name.Obj.Kind == ast.Var {
+				if spec.Names[0].Obj.Kind == ast.Var {
 					varSpecs = append(varSpecs, spec)
-				} else if spec.Name.Obj.Kind == ast.Con {
+				} else if spec.Names[0].Obj.Kind == ast.Con {
 					constSpecs = append(constSpecs, spec)
 				} else {
 					panic("Unexpected")
@@ -3435,7 +3435,7 @@ func walk(pkg *PkgContainer) {
 	}
 
 	for _, valSpec := range varSpecs {
-		var nameIdent = valSpec.Name
+		var nameIdent = valSpec.Names[0]
 		assert(nameIdent.Obj.Kind == ast.Var, "should be Var", __func__)
 		if valSpec.Type == nil {
 			var val = valSpec.Values[0]

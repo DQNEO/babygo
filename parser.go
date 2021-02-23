@@ -1166,16 +1166,18 @@ func (p *parser) parseDecl(keyword string) *ast.GenDecl {
 		var ident = p.parseIdent()
 		var typ = p.parseType()
 		var value ast.Expr
+		var values []ast.Expr
 		if p.tok.tok == "=" {
 			p.next()
 			value = p.parseExpr()
+			values = []ast.Expr{value}
 		}
 		p.expectSemi(__func__)
-		var valSpec = &ast.ValueSpec{}
-		valSpec.Name = ident
-		valSpec.Type = typ
-		if value != nil {
-			valSpec.Values = append(valSpec.Values, value)
+		names := []*ast.Ident{ident}
+		valSpec := &ast.ValueSpec{
+			Names: names,
+			Type : typ,
+			Values : values,
 		}
 		declare(valSpec, p.topScope, ast.Var, ident)
 		specs := []ast.Spec{valSpec}
@@ -1216,16 +1218,18 @@ func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
 	logf(" var = %s\n", ident.Name)
 	var typ = p.parseType()
 	var value ast.Expr
+	var values []ast.Expr
 	if p.tok.tok == "=" {
 		p.next()
 		value = p.parseExpr()
+		values = []ast.Expr{value}
 	}
 	p.expectSemi(__func__)
-	var spec = &ast.ValueSpec{}
-	spec.Name = ident
-	spec.Type = typ
-	if value != nil {
-		spec.Values = append(spec.Values, value)
+	names := []*ast.Ident{ident}
+	spec := &ast.ValueSpec{
+		Names: names,
+		Type: typ,
+		Values: values,
 	}
 	var kind = ast.Con
 	if keyword == "var" {
