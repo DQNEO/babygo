@@ -1669,7 +1669,7 @@ func emitIfStmt(s *ast.IfStmt) {
 }
 
 func emitForStmt(s *ast.ForStmt) {
-	meta := mapMetaForStmt[s].(*MetaForStmt)
+	meta := mapAstMeta[s].(*MetaForStmt)
 	labelid++
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
@@ -1700,7 +1700,7 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
-	metaIfc, ok := mapMetaRangeStmt[s]
+	metaIfc, ok := mapAstMeta[s]
 	assert(ok, "map value should exist", __func__)
 	meta := metaIfc.(*MetaForStmt)
 	labelid++
@@ -1885,7 +1885,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	meta, ok := mapMetaTypeSwitchStmt[s]
+	meta, ok := mapAstMeta[s]
 	assert(ok, "should exist", __func__)
 	typeSwitch := meta.(*MetaTypeSwitchStmt)
 	labelid++
@@ -1963,7 +1963,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 
 }
 func emitBranchStmt(s *ast.BranchStmt) {
-	meta, ok := mapMetaBranchStmt[s]
+	meta, ok := mapAstMeta[s]
 	assert(ok, "map value should exist", __func__)
 	containerFor := meta.(*MetaBranchStmt).containerForStmt
 	switch s.Tok.String() {
@@ -3050,7 +3050,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 	}
 }
 func walkReturnStmt(s *ast.ReturnStmt) {
-	mapMetaReturnStmt[s] = &MetaReturnStmt{
+	mapAstMeta[s] = &MetaReturnStmt{
 		Fnc: currentFunc,
 	}
 	for _, r := range s.Results {
@@ -3073,7 +3073,7 @@ func walkForStmt(s *ast.ForStmt) {
 	forStmt := new(MetaForStmt)
 	forStmt.Outer = currentFor
 	currentFor = forStmt
-	mapMetaForStmt[s] = forStmt
+	mapAstMeta[s] = forStmt
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3090,7 +3090,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 	forStmt := new(MetaForStmt)
 	forStmt.Outer = currentFor
 	currentFor = forStmt
-	mapMetaRangeStmt[s] = forStmt
+	mapAstMeta[s] = forStmt
 	walkExpr(s.X)
 	walkStmt(s.Body)
 	forStmt.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
@@ -3126,7 +3126,7 @@ func walkSwitchStmt(s *ast.SwitchStmt) {
 }
 func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	typeSwitch := &MetaTypeSwitchStmt{}
-	mapMetaTypeSwitchStmt[s] = typeSwitch
+	mapAstMeta[s] = typeSwitch
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3187,7 +3187,7 @@ func walkCaseClause(s *ast.CaseClause) {
 }
 func walkBranchStmt(s *ast.BranchStmt) {
 	assert(currentFor != nil, "break or continue should be in for body", __func__)
-	mapMetaBranchStmt[s] = &MetaBranchStmt{
+	mapAstMeta[s] = &MetaBranchStmt{
 		containerForStmt: currentFor,
 	}
 }
@@ -4020,11 +4020,7 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
 
-var mapMetaForStmt = map[ast.Stmt]interface{}{}
-var mapMetaRangeStmt = map[ast.Stmt]interface{}{}
-var mapMetaBranchStmt = map[ast.Stmt]interface{}{}
-var mapMetaTypeSwitchStmt = map[ast.Stmt]interface{}{}
-var mapMetaReturnStmt = map[ast.Stmt]interface{}{}
+var mapAstMeta = map[ast.Stmt]interface{}{}
 
 type MetaForStmt struct {
 	LabelPost   string // for continue
@@ -4084,7 +4080,7 @@ type Variable struct {
 }
 
 func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
-	meta, ok := mapMetaReturnStmt[s]
+	meta, ok := mapAstMeta[s]
 	if !ok {
 		panic("meta not found")
 	}
