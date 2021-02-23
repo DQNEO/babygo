@@ -595,8 +595,8 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
-	node := mapMetaReturnStmt[s]
-	fnc := node.Fnc
+	meta := getMetaReturnStmt(s)
+	fnc := meta.Fnc
 	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
 	}
@@ -1297,22 +1297,23 @@ func emitExprIfc(expr ast.Expr, ctx *evalContext) {
 	}
 }
 
-var typeMap map[string]int = map[string]int{}
 var typeId int = 1
 
 func typeIdToSymbol(id int) string {
 	return "dtype." + strconv.Itoa(id)
 }
 
+var typesMap = map[string]int{}
+
 func getTypeId(s string) int {
-	id, ok := typeMap[s]
-	if !ok {
-		typeMap[s] = typeId
-		r := typeId
-		typeId++
-		return r
+	id, ok := typesMap[s]
+	if ok {
+		return id
 	}
-	return id
+	typesMap[s] = typeId
+	r := typeId
+	typeId++
+	return r
 }
 
 func emitDtypeSymbol(t *Type) {
@@ -3973,7 +3974,7 @@ func main() {
 		buildPackage(_pkg, universe)
 	}
 
-	emitDynamicTypes(typeMap)
+	emitDynamicTypes(typesMap)
 }
 
 // --- util ---
@@ -4071,3 +4072,12 @@ type Variable struct {
 	LocalOffset  int
 	Typ          *Type
 }
+
+func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
+	meta, ok := mapMetaReturnStmt[s]
+	if !ok {
+		panic("meta not found")
+	}
+	return meta
+}
+

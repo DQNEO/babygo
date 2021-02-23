@@ -161,7 +161,7 @@ type AssignStmt struct {
 
 type ReturnStmt struct {
 	Results []Expr
-	Node    *NodeReturnStmt
+	Meta    *MetaReturnStmt
 }
 
 type BranchStmt struct {
@@ -220,7 +220,7 @@ type Method struct {
 	FuncType     *FuncType
 }
 
-type NodeReturnStmt struct {
+type MetaReturnStmt struct {
 	Fnc *Func
 }
 

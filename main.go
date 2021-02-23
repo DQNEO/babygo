@@ -592,8 +592,8 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
-	node := s.Node
-	fnc := node.Fnc
+	meta := getMetaReturnStmt(s)
+	fnc := meta.Fnc
 	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
 	}
@@ -1294,17 +1294,17 @@ func emitExprIfc(expr ast.Expr, ctx *evalContext) {
 	}
 }
 
+var typeId int = 1
+
+func typeIdToSymbol(id int) string {
+	return "dtype." + strconv.Itoa(id)
+}
+
 var typeMap []*typeEntry
 
 type typeEntry struct {
 	serialized string
 	id         int
-}
-
-var typeId int = 1
-
-func typeIdToSymbol(id int) string {
-	return "dtype." + strconv.Itoa(id)
 }
 
 func getTypeId(serialized string) int {
@@ -1313,12 +1313,12 @@ func getTypeId(serialized string) int {
 			return te.id
 		}
 	}
-	r := typeId
 	te := &typeEntry{
 		serialized: serialized,
 		id:         typeId,
 	}
 	typeMap = append(typeMap, te)
+	r := typeId
 	typeId++
 	return r
 }
@@ -3034,7 +3034,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 	}
 }
 func walkReturnStmt(s *ast.ReturnStmt) {
-	s.Node = &ast.NodeReturnStmt{
+	s.Meta = &ast.MetaReturnStmt{
 		Fnc: currentFunc,
 	}
 	for _, rt := range s.Results {
@@ -4074,3 +4074,8 @@ func throw(x interface{}) {
 func panic2(caller string, x string) {
 	panic(caller + ": " + x)
 }
+
+func getMetaReturnStmt(s *ast.ReturnStmt) *ast.MetaReturnStmt {
+	return s.Meta
+}
+
