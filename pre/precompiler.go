@@ -1960,8 +1960,9 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 
 }
 func emitBranchStmt(s *ast.BranchStmt) {
-	containerFor, ok := mapMetaBranchStmt[s]
+	meta, ok := mapMetaBranchStmt[s]
 	assert(ok, "map value should exist", __func__)
+	containerFor := meta.containerForStmt
 	switch s.Tok.String() {
 	case "continue":
 		fmt.Printf("jmp %s # continue\n", containerFor.LabelPost)
@@ -3183,7 +3184,9 @@ func walkCaseClause(s *ast.CaseClause) {
 }
 func walkBranchStmt(s *ast.BranchStmt) {
 	assert(currentFor != nil, "break or continue should be in for body", __func__)
-	mapMetaBranchStmt[s] = currentFor
+	mapMetaBranchStmt[s] = &MetaBranchStmt{
+		containerForStmt: currentFor,
+	}
 }
 
 func walkStmt(stmt ast.Stmt) {
@@ -4016,9 +4019,7 @@ func throw(x interface{}) {
 
 var mapMetaForStmt = map[*ast.ForStmt]*MetaForStmt{}
 var mapMetaRangeStmt = map[*ast.RangeStmt]*MetaForStmt{}
-
-var mapMetaBranchStmt = map[*ast.BranchStmt]*MetaForStmt{}
-
+var mapMetaBranchStmt = map[*ast.BranchStmt]*MetaBranchStmt{}
 var mapMetaTypeSwitchStmt = map[*ast.TypeSwitchStmt]*MetaTypeSwitchStmt{}
 var mapMetaReturnStmt = map[*ast.ReturnStmt]*MetaReturnStmt{}
 
@@ -4035,6 +4036,10 @@ type MetaTypeSwitchStmt struct {
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
+}
+
+type MetaBranchStmt struct {
+	containerForStmt *MetaForStmt
 }
 
 type MetaTypeSwitchCaseClose struct {
