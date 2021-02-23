@@ -2155,7 +2155,8 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		assert(arrayType.Len != nil, "slice type is not expected", __func__)
 		length := evalInt(arrayType.Len)
 		var zeroValue string
-		switch kind(e2t(arrayType.Elt)) {
+		knd := kind(e2t(arrayType.Elt))
+		switch knd {
 		case T_INT:
 			zeroValue = "  .quad 0 # int zero value\n"
 		case T_UINT8:
@@ -2167,7 +2168,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			zeroValue = "  .quad 0 # eface zero value (dtype)\n"
 			zeroValue += "  .quad 0 # eface zero value (data)\n"
 		default:
-			unexpectedKind(kind(e2t(arrayType.Elt)))
+			unexpectedKind(knd)
 		}
 		for i := 0; i < length; i++ {
 			fmt.Printf(zeroValue)
@@ -2216,8 +2217,7 @@ func generateCode(pkg *PkgContainer) {
 	}
 	fmt.Printf("  ret\n")
 
-	var fnc *Func
-	for _, fnc = range pkg.funcs {
+	for _, fnc := range pkg.funcs {
 		emitFuncDecl(pkg.name, fnc)
 	}
 

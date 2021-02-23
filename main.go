@@ -2127,10 +2127,10 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			case gFalse:
 				fmt.Printf("  .quad 0 # bool false\n")
 			default:
-				panic("")
+				throw(val)
 			}
 		default:
-			panic("")
+			throw(val)
 		}
 	case T_INT:
 		if val == nil {
@@ -2141,7 +2141,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		case *ast.BasicLit:
 			fmt.Printf("  .quad %s\n", vl.Value)
 		default:
-			panic("Unsupported global value")
+			throw(val)
 		}
 	case T_UINT8:
 		if val == nil {
@@ -2152,18 +2152,18 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		case *ast.BasicLit:
 			fmt.Printf("  .byte %s\n", vl.Value)
 		default:
-			panic("Unsupported global value")
+			throw(val)
 		}
 	case T_UINT16:
 		if val == nil {
 			fmt.Printf("  .word 0\n")
 			return
 		}
-		switch val.(type) {
+		switch vl := val.(type) {
 		case *ast.BasicLit:
-			fmt.Printf("  .word %s\n", expr2BasicLit(val).Value)
+			fmt.Printf("  .word %s\n", vl.Value)
 		default:
-			panic("Unsupported global value")
+			throw(val)
 		}
 	case T_POINTER:
 		// will be set in the initGlobal func
@@ -2188,12 +2188,8 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			panic("Unsupported global value")
 		}
 		arrayType := t.E.(*ast.ArrayType)
-		if arrayType.Len == nil {
-			panic("global slice is not supported")
-		}
-		bl := expr2BasicLit(arrayType.Len)
-		var length = evalInt(bl)
-		emitComment(0, "[emitGlobalVariable] array length uint8=%d\n", length)
+		assert(arrayType.Len != nil, "slice type is not expected", __func__)
+		length := evalInt(arrayType.Len)
 		var zeroValue string
 		knd := kind(e2t(arrayType.Elt))
 		switch knd {
@@ -2223,7 +2219,6 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 func generateCode(pkg *PkgContainer) {
 	fmt.Printf("#===================== generateCode %s =====================\n", pkg.name)
 	fmt.Printf(".data\n")
-	emitComment(0, "string literals len = %d\n", len(pkg.stringLiterals))
 	for _, con := range pkg.stringLiterals {
 		emitComment(0, "string literals\n")
 		fmt.Printf("%s:\n", con.sl.label)
@@ -2384,7 +2379,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			return getTypeOfExpr(e.X)
 		}
 	case *ast.IndexExpr:
-		var list = e.X
+		list := e.X
 		return getElementTypeOfListType(getTypeOfExpr(list))
 	case *ast.CallExpr: // funcall or conversion
 		types := getCallResultTypes(e)
