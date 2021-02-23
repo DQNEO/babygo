@@ -1667,8 +1667,9 @@ func emitIfStmt(s *ast.IfStmt) {
 	fmt.Printf("  %s:\n", labelEndif)
 	emitComment(2, "end if\n")
 }
+
 func emitForStmt(s *ast.ForStmt) {
-	meta := mapMetaForStmt[s]
+	meta := mapMetaForStmt[s].(*MetaForStmt)
 	labelid++
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
@@ -1699,8 +1700,9 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
-	meta, ok := mapMetaRangeStmt[s]
+	metaIfc, ok := mapMetaRangeStmt[s]
 	assert(ok, "map value should exist", __func__)
+	meta := metaIfc.(*MetaForStmt)
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -1883,8 +1885,9 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	typeSwitch, ok := mapMetaTypeSwitchStmt[s]
+	meta, ok := mapMetaTypeSwitchStmt[s]
 	assert(ok, "should exist", __func__)
+	typeSwitch := meta.(*MetaTypeSwitchStmt)
 	labelid++
 	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
@@ -1962,7 +1965,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 func emitBranchStmt(s *ast.BranchStmt) {
 	meta, ok := mapMetaBranchStmt[s]
 	assert(ok, "map value should exist", __func__)
-	containerFor := meta.containerForStmt
+	containerFor := meta.(*MetaBranchStmt).containerForStmt
 	switch s.Tok.String() {
 	case "continue":
 		fmt.Printf("jmp %s # continue\n", containerFor.LabelPost)
@@ -4017,11 +4020,11 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
 
-var mapMetaForStmt = map[*ast.ForStmt]*MetaForStmt{}
-var mapMetaRangeStmt = map[*ast.RangeStmt]*MetaForStmt{}
-var mapMetaBranchStmt = map[*ast.BranchStmt]*MetaBranchStmt{}
-var mapMetaTypeSwitchStmt = map[*ast.TypeSwitchStmt]*MetaTypeSwitchStmt{}
-var mapMetaReturnStmt = map[*ast.ReturnStmt]*MetaReturnStmt{}
+var mapMetaForStmt = map[ast.Stmt]interface{}{}
+var mapMetaRangeStmt = map[ast.Stmt]interface{}{}
+var mapMetaBranchStmt = map[ast.Stmt]interface{}{}
+var mapMetaTypeSwitchStmt = map[ast.Stmt]interface{}{}
+var mapMetaReturnStmt = map[ast.Stmt]interface{}{}
 
 type MetaForStmt struct {
 	LabelPost   string // for continue
@@ -4085,6 +4088,6 @@ func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
 	if !ok {
 		panic("meta not found")
 	}
-	return meta
+	return meta.(*MetaReturnStmt)
 }
 
