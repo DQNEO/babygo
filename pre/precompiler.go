@@ -3067,7 +3067,6 @@ func walkBlockStmt(s *ast.BlockStmt) {
 }
 func walkForStmt(s *ast.ForStmt) {
 	forStmt := new(MetaForStmt)
-	forStmt.AstFor = s
 	forStmt.Outer = currentFor
 	currentFor = forStmt
 	mapMetaForStmt[s] = forStmt
@@ -4027,7 +4026,6 @@ type MetaForStmt struct {
 	LabelPost   string // for continue
 	LabelExit   string // for break
 	Outer       *MetaForStmt
-	AstFor      *ast.ForStmt
 	RngLenvar   *Variable
 	RngIndexvar *Variable
 }
