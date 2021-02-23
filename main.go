@@ -2615,8 +2615,9 @@ func getUnderlyingType(t *Type) *Type {
 
 func kind(t *Type) TypeKind {
 	if t == nil {
-		panic("nil type is not expected\n")
+		panic("nil type is not expected")
 	}
+
 	ut := getUnderlyingType(t)
 	if ut.E == generalSlice {
 		return T_SLICE
@@ -2674,15 +2675,14 @@ func getElementTypeOfListType(t *Type) *Type {
 		case *ast.Ellipsis:
 			return e2t(e.Elt)
 		default:
-			throw(dtypeOf(t.E))
+			throw(t.E)
 		}
 	case T_STRING:
 		return tUint8
 	default:
 		unexpectedKind(kind(t))
 	}
-	var r *Type
-	return r
+	return nil
 }
 
 const SizeOfSlice int = 24
@@ -2725,7 +2725,7 @@ func getSizeOfType(t *Type) int {
 }
 
 func getStructFieldOffset(field *ast.Field) int {
-	var offset = field.Offset
+	offset := field.Offset
 	return offset
 }
 
@@ -2744,10 +2744,9 @@ func lookupStructField(structType *ast.StructType, selName string) *ast.Field {
 
 func calcStructSizeAndSetFieldOffset(structType *ast.StructType) int {
 	var offset int = 0
-	var fields = structType.Fields.List
-	for _, field := range fields {
+	for _, field := range structType.Fields.List {
 		setStructFieldOffset(field, offset)
-		var size = getSizeOfType(e2t(field.Type))
+		size := getSizeOfType(e2t(field.Type))
 		offset += size
 	}
 	return offset
@@ -2757,15 +2756,13 @@ func calcStructSizeAndSetFieldOffset(structType *ast.StructType) int {
 type sliteral struct {
 	label  string
 	strlen int
-	value  string // raw value/pre/precompiler.go:2150
+	value  string // raw value
 }
 
 type stringLiteralsContainer struct {
 	lit *ast.BasicLit
 	sl  *sliteral
 }
-
-//type localoffsetint int //@TODO
 
 func registerParamVariable(fnc *ast.Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)

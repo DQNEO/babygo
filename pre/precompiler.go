@@ -2639,7 +2639,6 @@ func getUnderlyingType(t *Type) *Type {
 		// type literal
 		return t
 	case *ast.Ident:
-		// predeclared identifier
 		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
 		if isPredeclaredType(e.Obj) {
 			return t
@@ -2713,11 +2712,11 @@ func isInterface(t *Type) bool {
 func getElementTypeOfListType(t *Type) *Type {
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
-		switch tt := t.E.(type) {
+		switch e := t.E.(type) {
 		case *ast.ArrayType:
-			return e2t(tt.Elt)
+			return e2t(e.Elt)
 		case *ast.Ellipsis:
-			return e2t(tt.Elt)
+			return e2t(e.Elt)
 		default:
 			throw(t.E)
 		}
@@ -2769,9 +2768,6 @@ func getSizeOfType(t *Type) int {
 }
 
 func getStructFieldOffset(field *ast.Field) int {
-	if field.Doc == nil {
-		panic("Doc is nil:" + field.Names[0].Name)
-	}
 	text := field.Doc.List[0].Text
 	offset := strconv.Atoi(text)
 	return offset
@@ -2929,7 +2925,7 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		strlen: strlen - 2,
 		value:  lit.Value,
 	}
-	cont :=  &stringLiteralsContainer{
+	cont := &stringLiteralsContainer{
 		sl : sl,
 		lit: lit,
 	}
