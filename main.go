@@ -2677,9 +2677,10 @@ func isInterface(t *Type) bool {
 }
 
 func getElementTypeOfListType(t *Type) *Type {
+	ut := getUnderlyingType(t)
 	switch kind(t) {
 	case T_SLICE, T_ARRAY:
-		switch e := t.E.(type) {
+		switch e := ut.E.(type) {
 		case *ast.ArrayType:
 			return e2t(e.Elt)
 		case *ast.Ellipsis:
