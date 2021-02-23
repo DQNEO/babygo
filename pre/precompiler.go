@@ -3892,13 +3892,18 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 		resolveImports(astFile)
 		var unresolved []*ast.Ident
 		for _, ident := range astFile.Unresolved {
-			if obj := pkgScope.Lookup(ident.Name); obj != nil {
+			obj := pkgScope.Lookup(ident.Name)
+			if obj != nil {
 				ident.Obj = obj
 			} else {
 				logf("# unresolved: %s\n", ident.Name)
-				if obj := universe.Lookup(ident.Name); obj != nil {
+				obj := universe.Lookup(ident.Name)
+				if obj != nil {
 					ident.Obj = obj
 				} else {
+					// we should allow unresolved for now.
+					// e.g foo in X{foo:bar,}
+					logf("Unresolved (maybe struct field name in composite literal): " + ident.Name)
 					unresolved = append(unresolved, ident)
 				}
 			}

@@ -3652,7 +3652,7 @@ type PkgContainer struct {
 	files          []string
 	astFiles       []*ast.File
 	vars           []*ast.ValueSpec
-	funcs          []*ast.Func
+	funcs          []*Func
 	stringLiterals []*stringLiteralsContainer
 	stringIndex    int
 	Decls          []ast.Decl
@@ -3895,22 +3895,17 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 			pkgScope.Objects = append(pkgScope.Objects, oe)
 		}
 	}
-	for _, af := range _pkg.astFiles {
-		resolveImports(af)
-		logf("[%s] start\n", __func__)
-		// inject predeclared identifers
+	for _, astFile := range _pkg.astFiles {
+		resolveImports(astFile)
 		var unresolved []*ast.Ident
-		logf(" [SEMA] resolving af.Unresolved (n=%d)\n", len(af.Unresolved))
-		for _, ident := range af.Unresolved {
-			logf(" [SEMA] resolving ident %s ... \n", ident.Name)
-			var obj *ast.Object = pkgScope.Lookup(ident.Name)
+		for _, ident := range astFile.Unresolved {
+			obj := pkgScope.Lookup(ident.Name)
 			if obj != nil {
-				logf(" matched\n")
 				ident.Obj = obj
 			} else {
-				obj = universe.Lookup(ident.Name)
+				logf("# unresolved: %s\n", ident.Name)
+				obj := universe.Lookup(ident.Name)
 				if obj != nil {
-					logf(" matched\n")
 					ident.Obj = obj
 				} else {
 					// we should allow unresolved for now.
@@ -3920,7 +3915,7 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 				}
 			}
 		}
-		for _, dcl := range af.Decls {
+		for _, dcl := range astFile.Decls {
 			_pkg.Decls = append(_pkg.Decls, dcl)
 		}
 	}
