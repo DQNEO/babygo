@@ -1817,7 +1817,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	for i, c := range cases {
 		cc := c.(*ast.CaseClause)
 		labelid++
-		var labelCase = ".L.case." + strconv.Itoa(labelid)
+		labelCase := fmt.Sprintf(".L.case.%d", labelid)
 		labels[i] = labelCase
 		if len(cc.List) == 0 { // @TODO implement slice nil comparison
 			defaultLabel = labelCase
@@ -1894,8 +1894,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	var defaultLabel string
 	emitComment(2, "Start comparison with cases\n")
 	for i, c := range cases {
-		cc := stmt2CaseClause(c)
-		//assert(ok, "should be *ast.CaseClause")
+		cc := c.(*ast.CaseClause)
 		labelid++
 		labelCase := ".L.case." + strconv.Itoa(labelid)
 		labels[i] = labelCase
@@ -1929,6 +1928,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	}
 
 	for i, typeSwitchCaseClose := range typeSwitch.Cases {
+		// Injecting variable and type to the subject
 		if typeSwitchCaseClose.Variable != nil {
 			setVariable(typeSwitch.AssignIdent.Obj, typeSwitchCaseClose.Variable)
 		}
@@ -1937,8 +1937,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		for _, _s := range typeSwitchCaseClose.Orig.Body {
 			if typeSwitchCaseClose.Variable != nil {
 				// do assignment
-				expr := typeSwitch.AssignIdent
-				emitAddr(expr)
+				emitAddr(typeSwitch.AssignIdent)
 				emitVariableAddr(typeSwitch.SubjectVariable)
 				emitLoadAndPush(tEface)
 				fmt.Printf("  popq %%rax # ifc.dtype\n")
@@ -1985,7 +1984,7 @@ func emitBranchStmt(s *ast.BranchStmt) {
 }
 
 func emitStmt(stmt ast.Stmt) {
-	emitComment(2, "== Statement %s ==\n", dtypeOf(stmt))
+	emitComment(2, "== Statement %T ==\n", stmt)
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
 		emitBlockStmt(s)
@@ -2012,7 +2011,7 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.BranchStmt:
 		emitBranchStmt(s)
 	default:
-		panic("TBI:" + dtypeOf(stmt))
+		throw(stmt)
 	}
 }
 
@@ -2023,7 +2022,7 @@ func emitRevertStackTop(t *Type) {
 var labelid int
 
 func getMethodSymbol(method *ast.Method) string {
-	var rcvTypeName = method.RcvNamedType
+	rcvTypeName := method.RcvNamedType
 	var subsymbol string
 	if method.IsPtrMethod {
 		subsymbol = "$" + rcvTypeName.Name + "." + method.Name // pointer
@@ -2044,13 +2043,13 @@ func emitFuncDecl(pkgName string, fnc *ast.Func) {
 	if len(fnc.Params) > 0 {
 		for i = 0; i < len(fnc.Params); i++ {
 			v := fnc.Params[i]
-			logf("  #       params %d %d \"%s\" %s\n", (v.LocalOffset), getSizeOfType(v.Typ), v.Name, (kind(v.Typ)))
+			logf("  #       params %d %d \"%s\" %s\n", v.LocalOffset, getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
 		}
 	}
 	if len(fnc.Retvars) > 0 {
 		for i := 0; i < len(fnc.Retvars); i++ {
 			v := fnc.Retvars[i]
-			logf("  #       retvars %d %d \"%s\" %s\n", (v.LocalOffset), getSizeOfType(v.Typ), v.Name, (kind(v.Typ)))
+			logf("  #       retvars %d %d \"%s\" %s\n", v.LocalOffset, getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
 		}
 	}
 
@@ -2060,7 +2059,7 @@ func emitFuncDecl(pkgName string, fnc *ast.Func) {
 	} else {
 		symbol = getPackageSymbol(pkgName, fnc.Name)
 	}
-	fmt.Printf("%s: # args %d, locals %d\n", symbol, int(fnc.Argsarea), int(fnc.Localarea))
+	fmt.Printf("%s: # args %d, locals %d\n", symbol, fnc.Argsarea, fnc.Localarea)
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
 	if len(fnc.Localvars) > 0 {
@@ -2089,8 +2088,7 @@ func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
 	switch typeKind {
 	case T_POINTER:
 		fmt.Printf("# init global %s:\n", name.Name)
-		lhs := name
-		emitAssign(lhs, val)
+		emitAssign(name, val)
 	}
 }
 
@@ -2171,16 +2169,16 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		// will be set in the initGlobal func
 		fmt.Printf("  .quad 0\n")
 	case T_UINTPTR:
+		// only zero value
 		if val != nil {
 			panic("Unsupported global value")
 		}
-		// only zero value
 		fmt.Printf("  .quad 0\n")
 	case T_SLICE:
+		// only zero value
 		if val != nil {
 			panic("Unsupported global value")
 		}
-		// only zero value
 		fmt.Printf("  .quad 0 # ptr\n")
 		fmt.Printf("  .quad 0 # len\n")
 		fmt.Printf("  .quad 0 # cap\n")
@@ -2189,7 +2187,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		if val != nil {
 			panic("Unsupported global value")
 		}
-		var arrayType = expr2ArrayType(t.E)
+		arrayType := t.E.(*ast.ArrayType)
 		if arrayType.Len == nil {
 			panic("global slice is not supported")
 		}

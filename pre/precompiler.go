@@ -1882,12 +1882,11 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	emitStore(tEface, true, false)
 
 	cases := s.Body.List
-	var labels = make([]string, len(cases))
+	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
 	emitComment(2, "Start comparison with cases\n")
 	for i, c := range cases {
-		cc, ok := c.(*ast.CaseClause)
-		assert(ok, "should be *ast.CaseClause", __func__)
+		cc := c.(*ast.CaseClause)
 		labelid++
 		labelCase := ".L.case." + strconv.Itoa(labelid)
 		labels[i] = labelCase
@@ -1931,7 +1930,6 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 			if typeSwitchCaseClose.Variable != nil {
 				// do assignment
 				emitAddr(typeSwitch.AssignIdent)
-
 				emitVariableAddr(typeSwitch.SubjectVariable)
 				emitLoadAndPush(tEface)
 				fmt.Printf("  popq %%rax # ifc.dtype\n")
@@ -2012,11 +2010,11 @@ func getMethodSymbol(method *Method) string {
 	return getPackageSymbol(method.PkgName, subsymbol)
 }
 
-func getPackageSymbol(pkgPrefix string, subsymbol string) string {
-	return pkgPrefix + "." + subsymbol
+func getPackageSymbol(pkgName string, subsymbol string) string {
+	return pkgName + "." + subsymbol
 }
 
-func emitFuncDecl(pkgPrefix string, fnc *Func) {
+func emitFuncDecl(pkgName string, fnc *Func) {
 	fmt.Printf("# emitFuncDecl\n")
 	if len(fnc.Params) > 0 {
 		for i := 0; i < len(fnc.Params); i++ {
@@ -2035,7 +2033,7 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	if fnc.Method != nil {
 		symbol = getMethodSymbol(fnc.Method)
 	} else {
-		symbol = getPackageSymbol(pkgPrefix, fnc.Name)
+		symbol = getPackageSymbol(pkgName, fnc.Name)
 	}
 	fmt.Printf("%s: # args %d, locals %d\n", symbol, fnc.Argsarea, fnc.Localarea)
 	fmt.Printf("  pushq %%rbp\n")
@@ -2049,9 +2047,8 @@ func emitFuncDecl(pkgPrefix string, fnc *Func) {
 	logf("  #  0(%%rbp) previous rbp\n")
 	logf("  #  8(%%rbp) return address\n")
 
-	if int(fnc.Localarea) != 0 {
+	if fnc.Localarea != 0 {
 		fmt.Printf("  subq $%d, %%rsp # local area\n", -fnc.Localarea)
-
 	}
 	for _, stmt := range fnc.Stmts {
 		emitStmt(stmt)
@@ -2154,8 +2151,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		if val != nil {
 			panic("Unsupported global value")
 		}
-		arrayType, ok := t.E.(*ast.ArrayType)
-		assert(ok, "should be *ast.ArrayType", __func__)
+		arrayType := t.E.(*ast.ArrayType)
 		assert(arrayType.Len != nil, "slice type is not expected", __func__)
 		length := evalInt(arrayType.Len)
 		var zeroValue string
