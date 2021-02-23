@@ -2435,15 +2435,11 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		return getTypeOfExpr(e.X)
 	case *ast.TypeAssertExpr:
 		return e2t(expr2TypeAssertExpr(expr).Type)
-	case *ast.InterfaceType:
-		return tEface
 	default:
-		panic("TBI:dtype=" + dtypeOf(expr))
+		panic(expr)
 	}
 
 	panic("nil type is not allowed\n")
-	var r *Type
-	return r
 }
 
 func fieldList2Types(fldlist *ast.FieldList) []*Type {

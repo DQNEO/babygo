@@ -2485,10 +2485,9 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	case *ast.TypeAssertExpr:
 		return e2t(e.Type)
 	default:
-		throw(expr)
+		panic(expr)
 	}
-	throw(expr)
-	return nil
+	panic("nil type is not allowed\n")
 }
 
 func fieldList2Types(fldlist *ast.FieldList) []*Type {
