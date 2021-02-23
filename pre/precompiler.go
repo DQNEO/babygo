@@ -2505,10 +2505,10 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			case gLen, gCap:
 				return []*Type{tInt}
 			case gNew:
-				return []*Type{e2t(&ast.StarExpr{
-					Star: 0,
-					X:    e.Args[0],
-				})}
+				starExpr := &ast.StarExpr{
+					X: e.Args[0],
+				}
+				return []*Type{e2t(starExpr)}
 			case gMake:
 				return []*Type{e2t(e.Args[0])}
 			case gAppend:

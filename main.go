@@ -2392,9 +2392,9 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			return tString
 		}
 		var elementTyp ast.Expr
-		switch underlyingCollectionType.E.(type) {
+		switch colType := underlyingCollectionType.E.(type) {
 		case *ast.ArrayType:
-			elementTyp = expr2ArrayType(underlyingCollectionType.E).Elt
+			elementTyp = colType.Elt
 		}
 		r := &ast.ArrayType{
 			Len: nil,
@@ -2427,11 +2427,10 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	case *ast.ParenExpr:
 		return getTypeOfExpr(e.X)
 	case *ast.TypeAssertExpr:
-		return e2t(expr2TypeAssertExpr(expr).Type)
+		return e2t(e.Type)
 	default:
 		panic(expr)
 	}
-
 	panic("nil type is not allowed\n")
 }
 
@@ -2445,23 +2444,22 @@ func fieldList2Types(fldlist *ast.FieldList) []*Type {
 }
 
 func getCallResultTypes(e *ast.CallExpr) []*Type {
-	emitComment(2, "[%s] *ast.CallExpr\n", __func__)
-	var fun = e.Fun
-	switch fn := fun.(type) {
+	switch fn := e.Fun.(type) {
 	case *ast.Ident:
 		if fn.Obj == nil {
-			panic("[astCallExpr] nil Obj is not allowed")
+			throw(fn)
 		}
 		switch fn.Obj.Kind {
-		case ast.Typ:
-			return []*Type{e2t(fun)}
+		case ast.Typ: // conversion
+			return []*Type{e2t(fn)}
 		case ast.Fun:
 			switch fn.Obj {
 			case gLen, gCap:
 				return []*Type{tInt}
 			case gNew:
-				var starExpr = &ast.StarExpr{}
-				starExpr.X = e.Args[0]
+				starExpr := &ast.StarExpr{
+					X: e.Args[0],
+				}
 				return []*Type{e2t(starExpr)}
 			case gMake:
 				return []*Type{e2t(e.Args[0])}
