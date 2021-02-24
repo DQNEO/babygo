@@ -16,6 +16,11 @@ func (mp *mapStringInt) get(key string) (int, bool) {
 }
 
 func (mp *mapStringInt) set(key string, value int)  {
+	for _, te := range *mp {
+		if te.key == key {
+			te.value = value
+		}
+	}
 	te := &mapStringIntEntry{
 		key:   key,
 		value: value,
