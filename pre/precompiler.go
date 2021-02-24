@@ -3007,37 +3007,48 @@ func walkDeclStmt(s *ast.DeclStmt) {
 		}
 	}
 }
+
+
+
 func walkAssignStmt(s *ast.AssignStmt) {
 	if s.Tok.String() == ":=" {
-		// short var decl
 		rhs0 := s.Rhs[0]
 		walkExpr(rhs0)
-		// infer type
-		var typ0 *Type
-		switch rhs := rhs0.(type) {
-		case *ast.CallExpr:
-			types := getCallResultTypes(rhs)
-			typ0 = types[0]
-		case *ast.TypeAssertExpr:
-			typ0 = getTypeOfExpr(rhs0)
-			if len(s.Lhs) == 2 { // lhs0, lhs1 := x.(T)
-				// declare lhs1 as an ok variable
-				okObj := s.Lhs[1].(*ast.Ident).Obj
-				//throw(okObj)
-				setVariable(okObj, registerLocalVariable(currentFunc, okObj.Name, tBool))
-			}
-		default:
-			typ0 = getTypeOfExpr(rhs0)
+		var isMultiValuedContext bool
+		if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
+			isMultiValuedContext = true
 		}
 
-		if typ0 != nil && typ0.E != nil {
+		if isMultiValuedContext {
+			// a, b, c := rhs0
+			// infer type
+			var types []*Type
+			switch rhs := rhs0.(type) {
+			case *ast.CallExpr:
+				types = getCallResultTypes(rhs)
+			case *ast.TypeAssertExpr:
+				typ0 := getTypeOfExpr(rhs0)
+				types = []*Type{typ0, tBool}
+			default:
+				panic("TBI")
+			}
+			for i, lhs := range s.Lhs {
+				obj := lhs.(*ast.Ident).Obj
+				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, types[i]))
+			}
 		} else {
-			panic("type inference is not supported")
+			for i, lhs := range s.Lhs {
+				obj := lhs.(*ast.Ident).Obj
+				rhs := s.Rhs[i]
+				walkExpr(rhs)
+				rhsType := getTypeOfExpr(s.Rhs[i])
+				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, rhsType))
+			}
 		}
-		obj0 := s.Lhs[0].(*ast.Ident).Obj
-		setVariable(obj0, registerLocalVariable(currentFunc, obj0.Name, typ0))
 	} else {
-		walkExpr(s.Rhs[0])
+		for _, rhs := range s.Rhs {
+			walkExpr(rhs)
+		}
 	}
 }
 func walkReturnStmt(s *ast.ReturnStmt) {
