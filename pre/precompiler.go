@@ -594,7 +594,7 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
-	meta := getMetaReturnStmt(s)
+	meta := mapAstMeta[s].(*MetaReturnStmt)
 	fnc := meta.Fnc
 	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
@@ -4077,12 +4077,3 @@ type Variable struct {
 	LocalOffset  int
 	Typ          *Type
 }
-
-func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
-	meta, ok := mapAstMeta[s]
-	if !ok {
-		panic("meta not found")
-	}
-	return meta.(*MetaReturnStmt)
-}
-
