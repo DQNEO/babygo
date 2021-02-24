@@ -3726,30 +3726,30 @@ func collectLeafNode(sortedPaths []string, tree []*depEntry) []string {
 	return sortedPaths
 }
 
-func sortDepTree(tree []*depEntry) []string {
+func (tree *DependencyTree) sortDepTree() []string {
 	var sortedPaths []string
 
 	var keys []string
-	for _, entry := range tree {
+	for _, entry := range *tree {
 		keys = append(keys, entry.path)
 	}
 	mylib.SortStrings(keys)
-	var newTree []*depEntry
+	var newTree DependencyTree
 	for _, key := range keys {
-		for _, entry := range tree {
+		for _, entry := range *tree {
 			if entry.path == key {
 				newTree = append(newTree, entry)
 			}
 		}
 	}
-	tree = newTree
+	tree = &newTree
 	logf("====TREE====\n")
 	for {
-		if len(tree) == 0 {
+		if len(*tree) == 0 {
 			break
 		}
-		sortedPaths = collectLeafNode(sortedPaths, tree)
-		tree = removeLeafNode(tree, sortedPaths)
+		sortedPaths = collectLeafNode(sortedPaths, *tree)
+		*tree = removeLeafNode(*tree, sortedPaths)
 	}
 	return sortedPaths
 }
@@ -3762,10 +3762,10 @@ func getPackageDir(importPath string) string {
 	}
 }
 
-func collectDependency(tree []*depEntry, paths []string) []*depEntry {
+func (ptree *DependencyTree) collectDependency(paths []string) {
 	logf(" collectDependency\n")
 	for _, pkgPath := range paths {
-		if isInTree(tree, pkgPath) {
+		if isInTree(*ptree, pkgPath) {
 			continue
 		}
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
@@ -3789,10 +3789,9 @@ func collectDependency(tree []*depEntry, paths []string) []*depEntry {
 			path:     pkgPath,
 			children: children,
 		}
-		tree = append(tree, newEntry)
-		tree = collectDependency(tree, children)
+		*ptree = append(*ptree, newEntry)
+		ptree.collectDependency(children)
 	}
-	return tree
 }
 
 type depEntry struct {
@@ -3803,11 +3802,14 @@ type depEntry struct {
 var srcPath string
 var prjSrcPath string
 
+type DependencyTree []*depEntry
+
 func collectAllPackages(inputFiles []string) []string {
-	var tree []*depEntry
+	var tree DependencyTree
+	ptree := &tree
 	directChildren := collectDirectDependents(inputFiles)
-	tree = collectDependency(tree, directChildren)
-	sortedPaths := sortDepTree(tree)
+	ptree.collectDependency(directChildren)
+	sortedPaths := ptree.sortDepTree()
 
 	// sort packages by this order
 	// 1: pseudo

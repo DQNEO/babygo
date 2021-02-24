@@ -3830,7 +3830,7 @@ var srcPath string
 var prjSrcPath string
 
 func collectAllPackages(inputFiles []string) []string {
-	var tree DependencyTree = map[string]map[string]bool{}
+	tree := DependencyTree{}
 	directChildren := collectDirectDependents(inputFiles)
 	tree.collectDependency(directChildren)
 	sortedPaths := tree.sortTopologically()
