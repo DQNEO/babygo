@@ -1302,10 +1302,8 @@ func typeIdToSymbol(id int) string {
 var typesMap mapStringInt
 
 func getTypeId(serialized string) int {
-	var id int
-	var ok bool
 	pTypeMap := &typesMap
-	id , ok = pTypeMap.get(serialized)
+	id , ok := pTypeMap.get(serialized)
 	if ok {
 		return id
 	}
