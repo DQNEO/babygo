@@ -1698,9 +1698,7 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
-	metaIfc, ok := mapAstMeta[s]
-	assert(ok, "map value should exist", __func__)
-	meta := metaIfc.(*MetaForStmt)
+	meta := mapAstMeta[s].(*MetaForStmt)
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -1883,15 +1881,13 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	meta, ok := mapAstMeta[s]
-	assert(ok, "should exist", __func__)
-	typeSwitch := meta.(*MetaTypeSwitchStmt)
+	meta := mapAstMeta[s].(*MetaTypeSwitchStmt)
 	labelid++
 	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
 	// subjectVariable = subject
-	emitVariableAddr(typeSwitch.SubjectVariable)
-	emitExpr(typeSwitch.Subject, nil)
+	emitVariableAddr(meta.SubjectVariable)
+	emitExpr(meta.Subject, nil)
 	emitStore(tEface, true, false)
 
 	cases := s.Body.List
@@ -1908,7 +1904,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 			continue
 		}
 		for _, e := range cc.List {
-			emitVariableAddr(typeSwitch.SubjectVariable)
+			emitVariableAddr(meta.SubjectVariable)
 			emitPopAddress("type switch subject")
 			fmt.Printf("  movq (%%rax), %%rax # dtype\n")
 			fmt.Printf("  pushq %%rax # dtype\n")
@@ -1932,18 +1928,18 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		fmt.Printf("  jmp %s\n", labelEnd)
 	}
 
-	for i, typeSwitchCaseClose := range typeSwitch.Cases {
+	for i, typeSwitchCaseClose := range meta.Cases {
 		// Injecting variable and type to the subject
 		if typeSwitchCaseClose.Variable != nil {
-			setVariable(typeSwitch.AssignIdent.Obj, typeSwitchCaseClose.Variable)
+			setVariable(meta.AssignIdent.Obj, typeSwitchCaseClose.Variable)
 		}
 		fmt.Printf("%s:\n", labels[i])
 
 		for _, _s := range typeSwitchCaseClose.Orig.Body {
 			if typeSwitchCaseClose.Variable != nil {
 				// do assignment
-				emitAddr(typeSwitch.AssignIdent)
-				emitVariableAddr(typeSwitch.SubjectVariable)
+				emitAddr(meta.AssignIdent)
+				emitVariableAddr(meta.SubjectVariable)
 				emitLoadAndPush(tEface)
 				fmt.Printf("  popq %%rax # ifc.dtype\n")
 				fmt.Printf("  popq %%rcx # ifc.data\n")
@@ -1958,12 +1954,9 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		fmt.Printf("  jmp %s\n", labelEnd)
 	}
 	fmt.Printf("%s:\n", labelEnd)
-
 }
 func emitBranchStmt(s *ast.BranchStmt) {
-	meta, ok := mapAstMeta[s]
-	assert(ok, "map value should exist", __func__)
-	containerFor := meta.(*MetaBranchStmt).containerForStmt
+	containerFor := mapAstMeta[s].(*MetaBranchStmt).containerForStmt
 	switch s.Tok.String() {
 	case "continue":
 		fmt.Printf("jmp %s # continue\n", containerFor.LabelPost)
@@ -2052,9 +2045,9 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	fmt.Printf("%s: # args %d, locals %d\n", symbol, fnc.Argsarea, fnc.Localarea)
 	fmt.Printf("  pushq %%rbp\n")
 	fmt.Printf("  movq %%rsp, %%rbp\n")
-	if len(fnc.Localvars) > 0 {
-		for i := len(fnc.Localvars) - 1; i >= 0; i-- {
-			v := fnc.Localvars[i]
+	if len(fnc.LocalVars) > 0 {
+		for i := len(fnc.LocalVars) - 1; i >= 0; i-- {
+			v := fnc.LocalVars[i]
 			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -v.LocalOffset, getSizeOfType(v.Typ), v.Name)
 		}
 	}
@@ -2841,7 +2834,7 @@ func registerLocalVariable(fnc *Func, name string, t *Type) *Variable {
 	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
 	fnc.Localarea -= getSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
-	fnc.Localvars = append(fnc.Localvars, vr)
+	fnc.LocalVars = append(fnc.LocalVars, vr)
 	return vr
 }
 
@@ -3292,6 +3285,7 @@ func walkSliceExpr(e *ast.SliceExpr) {
 	}
 	walkExpr(e.X)
 }
+// []T(e)
 func walkArrayType(e *ast.ArrayType) {
 	// first argument of builtin func like make()
 	// do nothing
@@ -3304,12 +3298,11 @@ func walkKeyValueExpr(e *ast.KeyValueExpr) {
 	walkExpr(e.Value)
 }
 func walkInterfaceType(e *ast.InterfaceType) {
-	// (interface{})(e)  conversion. Nothing to do.
+	// interface{}(e)  conversion. Nothing to do.
 }
 func walkTypeAssertExpr(e *ast.TypeAssertExpr) {
 	walkExpr(e.X)
 }
-
 func walkExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -3330,10 +3323,10 @@ func walkExpr(expr ast.Expr) {
 		walkBinaryExpr(e)
 	case *ast.IndexExpr:
 		walkIndexExpr(e)
+	case *ast.ArrayType:
+		walkArrayType(e) // []T(e)
 	case *ast.SliceExpr:
 		walkSliceExpr(e)
-	case *ast.ArrayType:
-		walkArrayType(e)
 	case *ast.StarExpr:
 		walkStarExpr(e)
 	case *ast.KeyValueExpr:
@@ -3364,13 +3357,8 @@ type ForeignFunc struct {
 
 func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 	ident := lookupForeignIdent(qi)
-	if ident.Obj.Kind != ast.Fun {
-		panic("Not ast.Fun: " + qi)
-	}
-	decl, ok := ident.Obj.Decl.(*ast.FuncDecl)
-	if !ok {
-		panic("Function not found: " + qi)
-	}
+	assert(ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
+	decl := ident.Obj.Decl.(*ast.FuncDecl)
 	return &ForeignFunc{
 		symbol: string(qi),
 		decl:   decl,
@@ -4056,7 +4044,7 @@ type Func struct {
 	Stmts     []ast.Stmt
 	Localarea int
 	Argsarea  int
-	Localvars []*Variable
+	LocalVars []*Variable
 	Params    []*Variable
 	Retvars   []*Variable
 	FuncType  *ast.FuncType

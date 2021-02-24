@@ -1882,14 +1882,13 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	typeSwitch := s.Node
-	//		assert(ok, "should exist")
+	meta := s.Node
 	labelid++
 	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
 	// subjectVariable = subject
-	emitVariableAddr(typeSwitch.SubjectVariable)
-	emitExpr(typeSwitch.Subject, nil)
+	emitVariableAddr(meta.SubjectVariable)
+	emitExpr(meta.Subject, nil)
 	emitStore(tEface, true, false)
 
 	cases := s.Body.List
@@ -1906,7 +1905,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 			continue
 		}
 		for _, e := range cc.List {
-			emitVariableAddr(typeSwitch.SubjectVariable)
+			emitVariableAddr(meta.SubjectVariable)
 			emitPopAddress("type switch subject")
 			fmt.Printf("  movq (%%rax), %%rax # dtype\n")
 			fmt.Printf("  pushq %%rax # dtype\n")
@@ -1930,18 +1929,18 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		fmt.Printf("  jmp %s\n", labelEnd)
 	}
 
-	for i, typeSwitchCaseClose := range typeSwitch.Cases {
+	for i, typeSwitchCaseClose := range meta.Cases {
 		// Injecting variable and type to the subject
 		if typeSwitchCaseClose.Variable != nil {
-			setVariable(typeSwitch.AssignIdent.Obj, typeSwitchCaseClose.Variable)
+			setVariable(meta.AssignIdent.Obj, typeSwitchCaseClose.Variable)
 		}
 		fmt.Printf("%s:\n", labels[i])
 
 		for _, _s := range typeSwitchCaseClose.Orig.Body {
 			if typeSwitchCaseClose.Variable != nil {
 				// do assignment
-				emitAddr(typeSwitch.AssignIdent)
-				emitVariableAddr(typeSwitch.SubjectVariable)
+				emitAddr(meta.AssignIdent)
+				emitVariableAddr(meta.SubjectVariable)
 				emitLoadAndPush(tEface)
 				fmt.Printf("  popq %%rax # ifc.dtype\n")
 				fmt.Printf("  popq %%rcx # ifc.data\n")
@@ -1958,16 +1957,14 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitBranchStmt(s *ast.BranchStmt) {
-	var labelToGo string
+	containerFor := s.CurrentFor
 	switch s.Tok.String() {
 	case "continue":
-		labelToGo = s.CurrentFor.LabelPost
-		fmt.Printf("jmp %s # continue\n", labelToGo)
+		fmt.Printf("jmp %s # continue\n", containerFor.LabelPost)
 	case "break":
-		labelToGo = s.CurrentFor.LabelExit
-		fmt.Printf("jmp %s # break\n", labelToGo)
+		fmt.Printf("jmp %s # break\n", containerFor.LabelExit)
 	default:
-		panic("unexpected tok=" + s.Tok)
+		throw(s.Tok)
 	}
 }
 
@@ -3133,11 +3130,11 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	}
 }
 func walkCaseClause(s *ast.CaseClause) {
-	for _, e_ := range s.List {
-		walkExpr(e_)
+	for _, e := range s.List {
+		walkExpr(e)
 	}
-	for _, s_ := range s.Body {
-		walkStmt(s_)
+	for _, stmt := range s.Body {
+		walkStmt(stmt)
 	}
 }
 func walkStmt(stmt ast.Stmt) {
@@ -3216,9 +3213,8 @@ func walkUnaryExpr(e *ast.UnaryExpr) {
 	walkExpr(e.X)
 }
 func walkBinaryExpr(e *ast.BinaryExpr) {
-	binaryExpr := e
-	walkExpr(binaryExpr.X)
-	walkExpr(binaryExpr.Y)
+	walkExpr(e.X) // left
+	walkExpr(e.Y) // right
 }
 func walkIndexExpr(e *ast.IndexExpr) {
 	walkExpr(e.Index)
@@ -3236,6 +3232,11 @@ func walkSliceExpr(e *ast.SliceExpr) {
 	}
 	walkExpr(e.X)
 }
+// []T(e)
+func walkArrayType(e *ast.ArrayType) {
+	// first argument of builtin func like make()
+	// do nothing
+}
 func walkStarExpr(e *ast.StarExpr) {
 	walkExpr(e.X)
 }
@@ -3243,10 +3244,6 @@ func walkSelectorExpr(e *ast.SelectorExpr) {
 	walkExpr(e.X)
 }
 
-// []T(e)
-func walkArrayType(e *ast.ArrayType) {
-	// do nothing ?
-}
 func walkParenExpr(e *ast.ParenExpr) {
 	walkExpr(e.X)
 }
@@ -3265,8 +3262,12 @@ func walkExpr(expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		walkIdent(e)
+	case *ast.SelectorExpr:
+		walkSelectorExpr(e)
 	case *ast.CallExpr:
 		walkCallExpr(e)
+	case *ast.ParenExpr:
+		walkParenExpr(e)
 	case *ast.BasicLit:
 		walkBasicLit(e)
 	case *ast.CompositeLit:
@@ -3277,16 +3278,12 @@ func walkExpr(expr ast.Expr) {
 		walkBinaryExpr(e)
 	case *ast.IndexExpr:
 		walkIndexExpr(e)
+	case *ast.ArrayType:
+		walkArrayType(e) // []T(e)
 	case *ast.SliceExpr:
 		walkSliceExpr(e)
 	case *ast.StarExpr:
 		walkStarExpr(e)
-	case *ast.SelectorExpr:
-		walkSelectorExpr(e)
-	case *ast.ArrayType:
-		walkArrayType(e) // []T(e)
-	case *ast.ParenExpr:
-		walkParenExpr(e)
 	case *ast.KeyValueExpr:
 		walkKeyValueExpr(e)
 	case *ast.InterfaceType:
@@ -3294,7 +3291,7 @@ func walkExpr(expr ast.Expr) {
 	case *ast.TypeAssertExpr:
 		walkTypeAssertExpr(e)
 	default:
-		panic("TBI:" + dtypeOf(expr))
+		throw(expr)
 	}
 }
 
@@ -3306,9 +3303,7 @@ type exportEntry struct {
 }
 
 func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
-	logf("lookupForeignIdent... %s\n", qi)
 	for _, entry := range ExportedQualifiedIdents {
-		logf("  looking into %s\n", entry.qi)
 		if entry.qi == qi {
 			return entry.any
 		}
@@ -3322,18 +3317,12 @@ type ForeignFunc struct {
 }
 
 func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
-	logf("lookupForeignFunc... \n")
 	ident := lookupForeignIdent(qi)
-	decl := ident.Obj.Decl
-	var fdecl *ast.FuncDecl
-	var ok bool
-	fdecl, ok = decl.(*ast.FuncDecl)
-	if !ok {
-		panic("not fdecl")
-	}
+	assert(ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
+	decl := ident.Obj.Decl.(*ast.FuncDecl)
 	return &ForeignFunc{
 		symbol: string(qi),
-		decl:   fdecl,
+		decl:   decl,
 	}
 }
 
