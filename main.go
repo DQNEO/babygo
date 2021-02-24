@@ -3301,20 +3301,15 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
-var ExportedQualifiedIdents []*exportEntry
-
-type exportEntry struct {
-	qi  QualifiedIdent
-	any *ast.Ident
-}
+var ExportedQualifiedIdents mapStringIfc
 
 func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
-	for _, entry := range ExportedQualifiedIdents {
-		if entry.qi == qi {
-			return entry.any
-		}
+	p := &ExportedQualifiedIdents
+	v, ok :=  p.get(string(qi))
+	if !ok {
+		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
-	panic("QI not found: " + string(qi))
+	return v.(*ast.Ident)
 }
 
 type ForeignFunc struct {
@@ -3378,11 +3373,8 @@ func walk(pkg *PkgContainer) {
 			structType := getUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
-		exportEntry := &exportEntry{
-			qi:  newQI(pkg.name, typeSpec.Name.Name),
-			any: typeSpec.Name,
-		}
-		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
+		p := &ExportedQualifiedIdents
+		p.set(string(newQI(pkg.name, typeSpec.Name.Name)), typeSpec.Name)
 	}
 
 	// collect methods in advance
@@ -3397,11 +3389,9 @@ func walk(pkg *PkgContainer) {
 			if !ok || funcDecl != fdcl {
 				panic("Bad func decl reference:" + funcDecl.Name.Name)
 			}
-			exportEntry := &exportEntry{
-				qi:  newQI(pkg.name, funcDecl.Name.Name),
-				any: funcDecl.Name,
-			}
-			ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
+			p := &ExportedQualifiedIdents
+			p.set(string(newQI(pkg.name, funcDecl.Name.Name)), funcDecl.Name)
+
 		} else { // method
 			if funcDecl.Body != nil {
 				var method = newMethod(pkg.name, funcDecl)
@@ -3424,11 +3414,9 @@ func walk(pkg *PkgContainer) {
 		}
 		setVariable(nameIdent.Obj, newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(valSpec.Type)))
 		pkg.vars = append(pkg.vars, valSpec)
-		exportEntry := &exportEntry{
-			qi:  newQI(pkg.name, nameIdent.Name),
-			any: nameIdent,
-		}
-		ExportedQualifiedIdents = append(ExportedQualifiedIdents, exportEntry)
+		p := &ExportedQualifiedIdents
+		p.set(string(newQI(pkg.name, nameIdent.Name)), nameIdent)
+
 		if len(valSpec.Values) > 0 {
 			walkExpr(valSpec.Values[0])
 		}
