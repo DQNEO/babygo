@@ -2787,6 +2787,7 @@ func registerLocalVariable(fnc *Func, name string, t *Type) *Variable {
 	return vr
 }
 
+var currentFor *MetaForStmt
 var currentFunc *Func
 
 func getStringLiteral(lit *ast.BasicLit) *sliteral {
@@ -3043,7 +3044,7 @@ func walkBlockStmt(s *ast.BlockStmt) {
 }
 
 func walkForStmt(s *ast.ForStmt) {
-	meta := &ast.MetaForStmt{
+	meta := &MetaForStmt{
 		Outer: currentFor,
 	}
 	currentFor = meta
@@ -3061,7 +3062,7 @@ func walkForStmt(s *ast.ForStmt) {
 	currentFor = meta.Outer
 }
 func walkRangeStmt(s *ast.RangeStmt) {
-	meta := &ast.MetaForStmt{
+	meta := &MetaForStmt{
 		Outer: currentFor,
 	}
 	currentFor = meta
@@ -3190,8 +3191,6 @@ func walkStmt(stmt ast.Stmt) {
 		throw(stmt)
 	}
 }
-
-var currentFor *ast.MetaForStmt
 
 func walkIdent(e *ast.Ident) {
 }
