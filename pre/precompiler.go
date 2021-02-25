@@ -2513,11 +2513,15 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			case gAppend:
 				return []*Type{e2t(e.Args[0])}
 			}
-			switch decl := fn.Obj.Decl.(type) {
+			decl := fn.Obj.Decl
+			if decl == nil {
+				panic("decl of function " + fn.Name + " should not nil")
+			}
+			switch dcl := decl.(type) {
 			case *ast.FuncDecl:
-				return fieldList2Types(decl.Type.Results)
+				return fieldList2Types(dcl.Type.Results)
 			default:
-				throw(fn.Obj)
+				throw(decl)
 			}
 		}
 	case *ast.ParenExpr: // (X)(e) funcall or conversion

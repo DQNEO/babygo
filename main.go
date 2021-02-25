@@ -2086,7 +2086,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		}
 		switch vl := val.(type) {
 		case *ast.BasicLit:
-			var sl = getStringLiteral(vl)
+			sl := getStringLiteral(vl)
 			fmt.Printf("  .quad %s\n", sl.label)
 			fmt.Printf("  .quad %d\n", sl.strlen)
 		default:
@@ -2215,11 +2215,11 @@ func generateCode(pkg *PkgContainer) {
 		if spec.Type != nil {
 			t = e2t(spec.Type)
 		}
-
+		if t == nil {
+			panic("type cannot be nil for global variable: " + spec.Names[0].Name)
+		}
 		emitGlobalVariable(pkg, spec.Names[0], t, val)
-
 	}
-
 	fmt.Printf("\n")
 	fmt.Printf(".text\n")
 	fmt.Printf("%s.__initGlobals:\n", pkg.name)
@@ -2447,17 +2447,16 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			case gAppend:
 				return []*Type{e2t(e.Args[0])}
 			}
-			var decl = fn.Obj.Decl
+			decl := fn.Obj.Decl
 			if decl == nil {
-				panic("decl of function " + fn.Name + " is  nil")
+				panic("decl of function " + fn.Name + " should not nil")
 			}
 			switch dcl := decl.(type) {
 			case *ast.FuncDecl:
 				return fieldList2Types(dcl.Type.Results)
 			default:
-				panic("[astCallExpr] unknown dtype")
+				throw(decl)
 			}
-			panic("[astCallExpr] Fun ident " + fn.Name)
 		}
 	case *ast.ParenExpr: // (X)(e) funcall or conversion
 		if isType(fn.X) {
