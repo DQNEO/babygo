@@ -2115,12 +2115,10 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 	fmt.Printf("%s.%s: # T %s\n", pkg.name, name.Name, string(typeKind))
 	switch typeKind {
 	case T_STRING:
-		if val == nil {
-			fmt.Printf("  .quad 0\n")
-			fmt.Printf("  .quad 0\n")
-			return
-		}
 		switch vl := val.(type) {
+		case nil:
+			fmt.Printf("  .quad 0\n")
+			fmt.Printf("  .quad 0\n")
 		case *ast.BasicLit:
 			sl := getStringLiteral(vl)
 			fmt.Printf("  .quad %s\n", sl.label)
@@ -2133,11 +2131,9 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		fmt.Printf("  .quad 0 # dtype\n")
 		fmt.Printf("  .quad 0 # data\n")
 	case T_BOOL:
-		if val == nil {
-			fmt.Printf("  .quad 0 # bool zero value\n")
-			return
-		}
 		switch vl := val.(type) {
+		case nil:
+			fmt.Printf("  .quad 0 # bool zero value\n")
 		case *ast.Ident:
 			switch vl.Obj {
 			case gTrue:
@@ -2151,33 +2147,27 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			throw(val)
 		}
 	case T_INT:
-		if val == nil {
-			fmt.Printf("  .quad 0\n")
-			return
-		}
 		switch vl := val.(type) {
+		case nil:
+			fmt.Printf("  .quad 0\n")
 		case *ast.BasicLit:
 			fmt.Printf("  .quad %s\n", vl.Value)
 		default:
 			throw(val)
 		}
 	case T_UINT8:
-		if val == nil {
-			fmt.Printf("  .byte 0\n")
-			return
-		}
 		switch vl := val.(type) {
+		case nil:
+			fmt.Printf("  .byte 0\n")
 		case *ast.BasicLit:
 			fmt.Printf("  .byte %s\n", vl.Value)
 		default:
 			throw(val)
 		}
 	case T_UINT16:
-		if val == nil {
-			fmt.Printf("  .word 0\n")
-			return
-		}
 		switch vl := val.(type) {
+		case nil:
+			fmt.Printf("  .word 0\n")
 		case *ast.BasicLit:
 			fmt.Printf("  .word %s\n", vl.Value)
 		default:
@@ -2224,7 +2214,6 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		default:
 			unexpectedKind(knd)
 		}
-
 		for i := 0; i < length; i++ {
 			fmt.Printf(zeroValue)
 		}
