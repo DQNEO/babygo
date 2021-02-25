@@ -3779,7 +3779,6 @@ func getPackageDir(importPath string) string {
 }
 
 func (ptree *DependencyTree) collectDependency(paths []string) {
-	logf(" collectDependency\n")
 	for _, pkgPath := range paths {
 		if isInTree(*ptree, pkgPath) {
 			continue
@@ -3787,7 +3786,6 @@ func (ptree *DependencyTree) collectDependency(paths []string) {
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
 		}
-		logf("   in pkgPath=%s\n", pkgPath)
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
 		var children []string
@@ -3836,7 +3834,6 @@ func collectAllPackages(inputFiles []string) []string {
 			paths = append(paths, pth)
 		}
 	}
-
 	for _, pth := range sortedPaths {
 		if !isStdLib(pth) {
 			paths = append(paths, pth)
@@ -3877,10 +3874,10 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 	pkgScope := ast.NewScope(universe)
 	for _, file := range _pkg.files {
 		logf("Parsing file: %s\n", file)
-		af := parseFile(file, false)
-		_pkg.name = af.Name
-		_pkg.astFiles = append(_pkg.astFiles, af)
-		for _, oe := range af.Scope.Objects {
+		astFile := parseFile(file, false)
+		_pkg.name = astFile.Name
+		_pkg.astFiles = append(_pkg.astFiles, astFile)
+		for _, oe := range astFile.Scope.Objects {
 			pkgScope.Objects = append(pkgScope.Objects, oe)
 		}
 	}

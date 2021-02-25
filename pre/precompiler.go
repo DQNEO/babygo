@@ -3811,13 +3811,12 @@ func (tree DependencyTree) collectDependency(paths map[string]bool) {
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
 		}
-		logf("collectDependency in %s\n", pkgPath)
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
 		var children = map[string]bool{}
 		for _, fname := range fnames {
-			importPathsOfFile := getImportPathsFromFile(packageDir + "/" + fname)
-			for _path, _ := range importPathsOfFile {
+			_paths := getImportPathsFromFile(packageDir + "/" + fname)
+			for _path, _ := range _paths {
 				if _path == "unsafe" || _path == "runtime" {
 					continue
 				}
@@ -3844,14 +3843,14 @@ func collectAllPackages(inputFiles []string) []string {
 	// 2: stdlib
 	// 3: external
 	paths := []string{"unsafe", "runtime"}
-	for _, _path := range sortedPaths {
-		if isStdLib(_path) {
-			paths = append(paths, _path)
+	for _, pth := range sortedPaths {
+		if isStdLib(pth) {
+			paths = append(paths, pth)
 		}
 	}
-	for _, _path := range sortedPaths {
-		if !isStdLib(_path) {
-			paths = append(paths, _path)
+	for _, pth := range sortedPaths {
+		if !isStdLib(pth) {
+			paths = append(paths, pth)
 		}
 	}
 	return paths
