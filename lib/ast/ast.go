@@ -238,28 +238,28 @@ type TypeSwitchCaseClose struct {
 }
 
 type ForStmt struct {
-	Init      Stmt
-	Cond      Expr
-	Post      Stmt
-	Body      *BlockStmt
+	Init Stmt
+	Cond Expr
+	Post Stmt
+	Body *BlockStmt
 	Meta *MetaForStmt
 }
 
 type MetaForStmt struct {
-	LabelPost string
-	LabelExit string
+	LabelPost   string
+	LabelExit   string
 	RngLenvar   *Variable
 	RngIndexvar *Variable
 	Outer       *MetaForStmt
 }
 
 type RangeStmt struct {
-	Key         Expr
-	Value       Expr
-	X           Expr
-	Body        *BlockStmt
-	Meta *MetaForStmt
-	Tok         token.Token
+	Key   Expr
+	Value Expr
+	X     Expr
+	Body  *BlockStmt
+	Meta  *MetaForStmt
+	Tok   token.Token
 }
 
 type ImportSpec struct {
@@ -267,7 +267,7 @@ type ImportSpec struct {
 }
 
 type ValueSpec struct {
-	Names   []*Ident
+	Names  []*Ident
 	Type   Expr
 	Values []Expr
 }

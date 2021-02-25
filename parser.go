@@ -1175,9 +1175,9 @@ func (p *parser) parseDecl(keyword string) *ast.GenDecl {
 		p.expectSemi(__func__)
 		names := []*ast.Ident{ident}
 		valSpec := &ast.ValueSpec{
-			Names: names,
-			Type : typ,
-			Values : values,
+			Names:  names,
+			Type:   typ,
+			Values: values,
 		}
 		declare(valSpec, p.topScope, ast.Var, ident)
 		specs := []ast.Spec{valSpec}
@@ -1227,8 +1227,8 @@ func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
 	p.expectSemi(__func__)
 	names := []*ast.Ident{ident}
 	spec := &ast.ValueSpec{
-		Names: names,
-		Type: typ,
+		Names:  names,
+		Type:   typ,
 		Values: values,
 	}
 	var kind = ast.Con

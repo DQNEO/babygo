@@ -810,8 +810,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 					// v.mp() => (&v).mp()
 					// @TODO we should check addressable
 					receiver = &ast.UnaryExpr{
-						Op:    token.AND,
-						X:     receiver,
+						Op: token.AND,
+						X:  receiver,
 					}
 				} else {
 					// v.mv() => as it is
@@ -1322,7 +1322,7 @@ func typeIdToSymbol(id int) string {
 var typesMap mapStringInt
 
 func getTypeId(serialized string) int {
-	id , ok := typesMap.get(serialized)
+	id, ok := typesMap.get(serialized)
 	if ok {
 		return id
 	}
@@ -3252,6 +3252,7 @@ func walkSliceExpr(e *ast.SliceExpr) {
 	}
 	walkExpr(e.X)
 }
+
 // []T(e)
 func walkArrayType(e *ast.ArrayType) {
 	// first argument of builtin func like make()
@@ -4041,4 +4042,3 @@ func panic2(caller string, x string) {
 func getMetaReturnStmt(s *ast.ReturnStmt) *ast.MetaReturnStmt {
 	return s.Meta
 }
-

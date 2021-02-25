@@ -15,7 +15,7 @@ func (mp *mapStringInt) get(key string) (int, bool) {
 	return 0, false
 }
 
-func (mp *mapStringInt) set(key string, value int)  {
+func (mp *mapStringInt) set(key string, value int) {
 	for _, te := range *mp {
 		if te.key == key {
 			te.value = value
@@ -44,7 +44,7 @@ func (mp *mapStringIfc) get(key string) (interface{}, bool) {
 	return 0, false
 }
 
-func (mp *mapStringIfc) set(key string, value interface{})  {
+func (mp *mapStringIfc) set(key string, value interface{}) {
 	for _, te := range *mp {
 		if te.key == key {
 			te.value = value

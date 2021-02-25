@@ -812,8 +812,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 					// v.mp() => (&v).mp()
 					// @TODO we should check addressable
 					receiver = &ast.UnaryExpr{
-						Op:    token.AND,
-						X:     receiver,
+						Op: token.AND,
+						X:  receiver,
 					}
 				} else {
 					// v.mv() => as it is
@@ -2913,10 +2913,10 @@ func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
 
 func newLocalVariable(name string, localoffset int, t *Type) *Variable {
 	return &Variable{
-		Name:         name,
-		IsGlobal:     false,
-		LocalOffset:  localoffset,
-		Typ:          t,
+		Name:        name,
+		IsGlobal:    false,
+		LocalOffset: localoffset,
+		Typ:         t,
 	}
 }
 
@@ -3027,8 +3027,6 @@ func walkDeclStmt(s *ast.DeclStmt) {
 		}
 	}
 }
-
-
 
 func walkAssignStmt(s *ast.AssignStmt) {
 	if s.Tok.String() == ":=" {
@@ -3316,6 +3314,7 @@ func walkSliceExpr(e *ast.SliceExpr) {
 	}
 	walkExpr(e.X)
 }
+
 // []T(e)
 func walkArrayType(e *ast.ArrayType) {
 	// first argument of builtin func like make()
