@@ -3415,9 +3415,8 @@ func walk(pkg *PkgContainer) {
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
-		if funcDecl.Recv == nil {
+		if funcDecl.Recv == nil { // non-method function
 			qi := newQI(pkg.name, funcDecl.Name.Name)
-			logf("ExportedQualifiedIdents added: %s\n", string(qi))
 			ExportedQualifiedIdents[qi] = funcDecl.Name
 		} else { // is method
 			if funcDecl.Body != nil {
@@ -3612,7 +3611,7 @@ var tInt *Type = &Type{
 // Rune
 var tInt32 *Type = &Type{
 	E: &ast.Ident{
-		Name: "int",
+		Name: "int32",
 		Obj:  gInt32,
 	},
 }
@@ -3623,7 +3622,6 @@ var tUintptr *Type = &Type{
 		Obj:  gUintptr,
 	},
 }
-
 var tUint8 *Type = &Type{
 	E: &ast.Ident{
 		Name: "uint8",
@@ -3631,6 +3629,12 @@ var tUint8 *Type = &Type{
 	},
 }
 
+var tUint16 *Type = &Type{
+	E: &ast.Ident{
+		Name: "uint16",
+		Obj:  gUint16,
+	},
+}
 var tString *Type = &Type{
 	E: &ast.Ident{
 		Name: "string",
@@ -3978,10 +3982,7 @@ func main() {
 // --- util ---
 func obj2var(obj *ast.Object) *Variable {
 	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
-	vr, ok := obj.Data.(*Variable)
-	if !ok {
-		throw(obj.Data)
-	}
+	vr := obj.Data.(*Variable)
 	return vr
 }
 

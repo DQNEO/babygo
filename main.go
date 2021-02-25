@@ -3434,6 +3434,7 @@ func walk(pkg *PkgContainer) {
 		nameIdent := varSpec.Names[0]
 		assert(nameIdent.Obj.Kind == ast.Var, "should be Var", __func__)
 		if varSpec.Type == nil {
+			// Infer type
 			val := varSpec.Values[0]
 			t := getTypeOfExpr(val)
 			if t == nil {
@@ -3612,6 +3613,13 @@ var tInt32 *Type = &Type{
 		Obj:  gInt32,
 	},
 }
+
+var tUintptr *Type = &Type{
+	E: &ast.Ident{
+		Name: "uintptr",
+		Obj:  gUintptr,
+	},
+}
 var tUint8 *Type = &Type{
 	E: &ast.Ident{
 		Name: "uint8",
@@ -3623,12 +3631,6 @@ var tUint16 *Type = &Type{
 	E: &ast.Ident{
 		Name: "uint16",
 		Obj:  gUint16,
-	},
-}
-var tUintptr *Type = &Type{
-	E: &ast.Ident{
-		Name: "uintptr",
-		Obj:  gUintptr,
 	},
 }
 var tString *Type = &Type{
@@ -3733,14 +3735,14 @@ func isStdLib(pth string) bool {
 
 func getImportPathsFromFile(file string) []string {
 	astFile0 := parseImports(file)
-	var importPaths []string
+	var paths []string
 	for _, importSpec := range astFile0.Imports {
 		rawValue := importSpec.Path
 		logf("import %s\n", rawValue)
 		pth := rawValue[1 : len(rawValue)-1]
-		importPaths = append(importPaths, pth)
+		paths = append(paths, pth)
 	}
-	return importPaths
+	return paths
 }
 
 func isInTree(tree []*depEntry, pth string) bool {
@@ -3961,11 +3963,7 @@ func showHelp() {
 	fmt.Printf("    babygo [-DF] [-DG] filename\n")
 }
 
-func initGlobals() {
-}
-
 func main() {
-	initGlobals()
 	srcPath = os.Getenv("GOPATH") + "/src"
 	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src"
 
