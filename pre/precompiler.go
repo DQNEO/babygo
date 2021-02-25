@@ -2958,23 +2958,21 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	if isPtr {
 		rcvType = rcvPointerType.X
 	}
-	var methodSet map[string]*Method
+	var typeObj *ast.Object
 	switch typ := rcvType.(type) {
 	case *ast.Ident:
-		var ok bool
-		methodSet, ok = MethodSets[typ.Obj]
-		if !ok {
-			panic(typ.Name + " has no methodSet (1)")
-		}
+		typeObj = typ.Obj
 	case *ast.SelectorExpr:
 		t := lookupForeignIdent(selector2QI(typ))
-		var ok bool
-		methodSet, ok = MethodSets[t.Obj]
-		if !ok {
-			panic(t.Name + " has no methodSet (2)")
-		}
+		typeObj = t.Obj
 	}
 
+	var methodSet map[string]*Method
+	var ok bool
+	methodSet, ok = MethodSets[typeObj]
+	if !ok {
+		panic(typeObj.Name + " has no methodSet")
+	}
 	method, ok := methodSet[methodName.Name]
 	if !ok {
 		panic("method not found")

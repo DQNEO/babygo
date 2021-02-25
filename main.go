@@ -2908,20 +2908,17 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	if isPtr {
 		rcvType = rcvPointerType.X
 	}
-	var nt *namedTypeEntry
+	var typeObj *ast.Object
 	switch typ := rcvType.(type) {
 	case *ast.Ident:
-		nt = findNamedType(typ.Obj)
-		if nt == nil {
-			panic(typ.Name + " has no moethodeiverTypeName:")
-		}
+		typeObj = typ.Obj
 	case *ast.SelectorExpr:
-		qi := selector2QI(typ)
-		t := lookupForeignIdent(qi)
-		nt = findNamedType(t.Obj)
-		if nt == nil {
-			panic(string(qi) + " has no moethodeiverTypeName:")
-		}
+		t := lookupForeignIdent(selector2QI(typ))
+		typeObj = t.Obj
+	}
+	nt := findNamedType(typeObj)
+	if nt == nil {
+		panic(typeObj.Name + " has no methodSet")
 	}
 
 	for _, me := range nt.methods {
