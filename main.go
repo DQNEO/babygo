@@ -3099,6 +3099,9 @@ func walkIncDecStmt(s *ast.IncDecStmt) {
 	walkExpr(s.X)
 }
 func walkSwitchStmt(s *ast.SwitchStmt) {
+	if s.Init != nil {
+		walkStmt(s.Init)
+	}
 	if s.Tag != nil {
 		walkExpr(s.Tag)
 	}
@@ -3108,30 +3111,26 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	typeSwitch := &ast.NodeTypeSwitchStmt{}
 	s.Node = typeSwitch
 	var assignIdent *ast.Ident
-	switch s2 := s.Assign.(type) {
+	switch assign := s.Assign.(type) {
 	case *ast.ExprStmt:
-		typeAssertExpr := expr2TypeAssertExpr(s2.X)
-		//assert(ok, "should be *ast.TypeAssertExpr")
+		typeAssertExpr := assign.X.(*ast.TypeAssertExpr)
 		typeSwitch.Subject = typeAssertExpr.X
 		walkExpr(typeAssertExpr.X)
 	case *ast.AssignStmt:
-		lhs := s2.Lhs[0]
-		//var ok bool
-		assignIdent = expr2Ident(lhs)
-		//assert(ok, "lhs should be ident")
+		lhs := assign.Lhs[0]
+		assignIdent = lhs.(*ast.Ident)
 		typeSwitch.AssignIdent = assignIdent
 		// ident will be a new local variable in each case clause
-		typeAssertExpr := expr2TypeAssertExpr(s2.Rhs[0])
-		//assert(ok, "should be *ast.TypeAssertExpr")
+		typeAssertExpr := assign.Rhs[0].(*ast.TypeAssertExpr)
 		typeSwitch.Subject = typeAssertExpr.X
 		walkExpr(typeAssertExpr.X)
 	default:
-		throw(dtypeOf(s.Assign))
+		throw(s.Assign)
 	}
 
 	typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", tEface)
 	for _, _case := range s.Body.List {
-		cc := stmt2CaseClause(_case)
+		cc := _case.(*ast.CaseClause)
 		tscc := &ast.TypeSwitchCaseClose{
 			Orig: cc,
 		}
@@ -3150,8 +3149,8 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 			setVariable(assignIdent.Obj, vr)
 		}
 
-		for _, s_ := range cc.Body {
-			walkStmt(s_)
+		for _, stmt := range cc.Body {
+			walkStmt(stmt)
 		}
 		if assignIdent != nil {
 			assignIdent.Obj.Variable = nil
@@ -3214,25 +3213,29 @@ func walkStmt(stmt ast.Stmt) {
 
 func walkIdent(e *ast.Ident) {
 }
+func walkSelectorExpr(e *ast.SelectorExpr) {
+	walkExpr(e.X)
+}
 func walkCallExpr(e *ast.CallExpr) {
 	walkExpr(e.Fun)
 	// Replace __func__ ident by a string literal
-	var basicLit *ast.BasicLit
-	var newArg ast.Expr
 	for i, arg := range e.Args {
-		if isExprIdent(arg) {
-			ident := expr2Ident(arg)
+		ident, ok := arg.(*ast.Ident)
+		if ok {
 			if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
-				basicLit = &ast.BasicLit{}
-				basicLit.Kind = "STRING"
-				basicLit.Value = "\"" + currentFunc.Name + "\""
-				newArg = basicLit
-				e.Args[i] = newArg
-				arg = newArg
+				basicLit := &ast.BasicLit{
+					Kind: token.STRING,
+					Value: "\"" + currentFunc.Name + "\"",
+				}
+				arg = basicLit
+				e.Args[i] = arg
 			}
 		}
 		walkExpr(arg)
 	}
+}
+func walkParenExpr(e *ast.ParenExpr) {
+	walkExpr(e.X)
 }
 func walkBasicLit(e *ast.BasicLit) {
 	switch e.Kind.String() {
@@ -3281,13 +3284,6 @@ func walkArrayType(e *ast.ArrayType) {
 func walkStarExpr(e *ast.StarExpr) {
 	walkExpr(e.X)
 }
-func walkSelectorExpr(e *ast.SelectorExpr) {
-	walkExpr(e.X)
-}
-
-func walkParenExpr(e *ast.ParenExpr) {
-	walkExpr(e.X)
-}
 func walkKeyValueExpr(e *ast.KeyValueExpr) {
 	walkExpr(e.Key)
 	walkExpr(e.Value)
@@ -3299,7 +3295,6 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr) {
 	walkExpr(e.X)
 }
 func walkExpr(expr ast.Expr) {
-	logf(" [walkExpr] dtype=%s\n", dtypeOf(expr))
 	switch e := expr.(type) {
 	case *ast.Ident:
 		walkIdent(e)
@@ -3386,11 +3381,13 @@ func walk(pkg *PkgContainer) {
 			case *ast.TypeSpec:
 				typeSpecs = append(typeSpecs, spec)
 			case *ast.ValueSpec:
-				if spec.Names[0].Obj.Kind == ast.Var {
+				nameIdent := spec.Names[0]
+				switch nameIdent.Obj.Kind {
+				case ast.Var:
 					varSpecs = append(varSpecs, spec)
-				} else if spec.Names[0].Obj.Kind == ast.Con {
+				case ast.Con:
 					constSpecs = append(constSpecs, spec)
-				} else {
+				default:
 					panic("Unexpected")
 				}
 			}
@@ -3415,43 +3412,40 @@ func walk(pkg *PkgContainer) {
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil { // non-method function
-			if funcDecl.Name.Obj == nil {
-				panic("funcDecl.Name.Obj is nil:" + funcDecl.Name.Name)
-			}
-			var fdcl *ast.FuncDecl
-			var ok bool
-			fdcl, ok = funcDecl.Name.Obj.Decl.(*ast.FuncDecl)
-			if !ok || funcDecl != fdcl {
-				panic("Bad func decl reference:" + funcDecl.Name.Name)
-			}
-			ExportedQualifiedIdents.set(string(newQI(pkg.name, funcDecl.Name.Name)), funcDecl.Name)
-
-		} else { // method
+			qi := newQI(pkg.name, funcDecl.Name.Name)
+			ExportedQualifiedIdents.set(string(qi), funcDecl.Name)
+		} else { // is method
 			if funcDecl.Body != nil {
-				var method = newMethod(pkg.name, funcDecl)
+				method := newMethod(pkg.name, funcDecl)
 				registerMethod(method)
 			}
 		}
 	}
 
 	for _, constSpec := range constSpecs {
-		walkExpr(constSpec.Values[0])
+		for _, v := range constSpec.Values {
+			walkExpr(v)
+		}
 	}
 
-	for _, valSpec := range varSpecs {
-		var nameIdent = valSpec.Names[0]
+	for _, varSpec := range varSpecs {
+		nameIdent := varSpec.Names[0]
 		assert(nameIdent.Obj.Kind == ast.Var, "should be Var", __func__)
-		if valSpec.Type == nil {
-			var val = valSpec.Values[0]
-			var t = getTypeOfExpr(val)
-			valSpec.Type = t.E
+		if varSpec.Type == nil {
+			val := varSpec.Values[0]
+			t := getTypeOfExpr(val)
+			if t == nil {
+				panic("variable type is not determined : " + nameIdent.Name)
+			}
+			varSpec.Type = t.E
 		}
-		setVariable(nameIdent.Obj, newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(valSpec.Type)))
-		pkg.vars = append(pkg.vars, valSpec)
+		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
+		setVariable(nameIdent.Obj, variable)
+		pkg.vars = append(pkg.vars, varSpec)
 		ExportedQualifiedIdents.set(string(newQI(pkg.name, nameIdent.Name)), nameIdent)
-
-		if len(valSpec.Values) > 0 {
-			walkExpr(valSpec.Values[0])
+		for _, v := range varSpec.Values {
+			// mainly to collect string literals
+			walkExpr(v)
 		}
 	}
 
@@ -3460,11 +3454,11 @@ func walk(pkg *PkgContainer) {
 			Name:      funcDecl.Name.Name,
 			FuncType:  funcDecl.Type,
 			Localarea: 0,
-			Argsarea:  16,
+			Argsarea:  16, // return address + previous rbp
 		}
 		currentFunc = fnc
-		logf(" [sema] == ast.FuncDecl %s ==\n", funcDecl.Name.Name)
-		//var paramoffset = 16
+		logf("funcdef %s\n", funcDecl.Name.Name)
+
 		var paramFields []*ast.Field
 		var resultFields []*ast.Field
 
@@ -3497,11 +3491,11 @@ func walk(pkg *PkgContainer) {
 
 		if funcDecl.Body != nil {
 			fnc.Stmts = funcDecl.Body.List
-			for _, stmt := range funcDecl.Body.List {
+			for _, stmt := range fnc.Stmts {
 				walkStmt(stmt)
 			}
 
-			if funcDecl.Recv != nil { // Method
+			if funcDecl.Recv != nil { // is Method
 				fnc.Method = newMethod(pkg.name, funcDecl)
 			}
 			pkg.funcs = append(pkg.funcs, fnc)
@@ -3511,16 +3505,15 @@ func walk(pkg *PkgContainer) {
 
 // --- universe ---
 var gNil = &ast.Object{
-	Kind: ast.Con, // is it Con ?
+	Kind: ast.Con, // is nil a constant ?
 	Name: "nil",
 }
 
-var identNil = &ast.Ident{
+var eNil = &ast.Ident{
 	Obj:  gNil,
 	Name: "nil",
 }
 
-var eNil ast.Expr
 var eZeroInt ast.Expr
 
 var gTrue = &ast.Object{
@@ -3926,7 +3919,6 @@ func showHelp() {
 }
 
 func initGlobals() {
-	eNil = identNil
 	eZeroInt = &ast.BasicLit{
 		Value: "0",
 		Kind:  "INT",

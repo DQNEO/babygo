@@ -3176,19 +3176,15 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	var assignIdent *ast.Ident
 	switch assign := s.Assign.(type) {
 	case *ast.ExprStmt:
-		typeAssertExpr, ok := assign.X.(*ast.TypeAssertExpr)
-		assert(ok, "should be *ast.TypeAssertExpr", __func__)
+		typeAssertExpr := assign.X.(*ast.TypeAssertExpr)
 		typeSwitch.Subject = typeAssertExpr.X
 		walkExpr(typeAssertExpr.X)
 	case *ast.AssignStmt:
 		lhs := assign.Lhs[0]
-		var ok bool
-		assignIdent, ok = lhs.(*ast.Ident)
-		assert(ok, "lhs should be ident", __func__)
+		assignIdent = lhs.(*ast.Ident)
 		typeSwitch.AssignIdent = assignIdent
 		// ident will be a new local variable in each case clause
-		typeAssertExpr, ok := assign.Rhs[0].(*ast.TypeAssertExpr)
-		assert(ok, "should be *ast.TypeAssertExpr", __func__)
+		typeAssertExpr := assign.Rhs[0].(*ast.TypeAssertExpr)
 		typeSwitch.Subject = typeAssertExpr.X
 		walkExpr(typeAssertExpr.X)
 	default:
@@ -3219,7 +3215,6 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		for _, stmt := range cc.Body {
 			walkStmt(stmt)
 		}
-
 		if assignIdent != nil {
 			assignIdent.Obj.Data = nil
 		}
@@ -3295,9 +3290,8 @@ func walkCallExpr(e *ast.CallExpr) {
 		if ok {
 			if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
 				basicLit := &ast.BasicLit{
-					ValuePos: 0,
-					Kind:     token.STRING,
-					Value:    "\"" + currentFunc.Name + "\"",
+					Kind: token.STRING,
+					Value: "\"" + currentFunc.Name + "\"",
 				}
 				arg = basicLit
 				e.Args[i] = arg
@@ -3492,7 +3486,6 @@ func walk(pkg *PkgContainer) {
 				method := newMethod(pkg.name, funcDecl)
 				registerMethod(method)
 			}
-
 		}
 	}
 
@@ -3582,9 +3575,6 @@ func walk(pkg *PkgContainer) {
 var gNil = &ast.Object{
 	Kind: ast.Con, // is nil a constant ?
 	Name: "nil",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
 }
 
 var eNil = &ast.Ident{
