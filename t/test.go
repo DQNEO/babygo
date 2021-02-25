@@ -110,7 +110,6 @@ func testReturnUint8s() {
 	var c uint8
 	a, b, c = returnUint8s('A', 'B', 'C')
 	fmt.Printf("abc=%s\n", string([]uint8{a, b, c}))
-	os.Exit(0)
 }
 
 func receiveBytes(a uint8, b uint8, c uint8) uint8 {
