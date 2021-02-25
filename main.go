@@ -1322,12 +1322,11 @@ func typeIdToSymbol(id int) string {
 var typesMap mapStringInt
 
 func getTypeId(serialized string) int {
-	pTypeMap := &typesMap
-	id , ok := pTypeMap.get(serialized)
+	id , ok := typesMap.get(serialized)
 	if ok {
 		return id
 	}
-	pTypeMap.set(serialized, typeId)
+	typesMap.set(serialized, typeId)
 	r := typeId
 	typeId++
 	return r
