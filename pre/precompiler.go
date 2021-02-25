@@ -2680,7 +2680,7 @@ func getUnderlyingType(t *Type) *Type {
 		// type literal
 		return t
 	case *ast.Ident:
-		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ : " + e.Obj.Name, __func__)
+		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ : "+e.Obj.Name, __func__)
 		if isPredeclaredType(e.Obj) {
 			return t
 		}
@@ -3290,7 +3290,7 @@ func walkCallExpr(e *ast.CallExpr) {
 		if ok {
 			if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
 				basicLit := &ast.BasicLit{
-					Kind: token.STRING,
+					Kind:  token.STRING,
 					Value: "\"" + currentFunc.Name + "\"",
 				}
 				arg = basicLit

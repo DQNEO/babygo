@@ -13,7 +13,8 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-type Expr interface {}
+type Expr interface{}
+
 func testTypeSwitchNil() {
 	var val Expr
 	val = nil
