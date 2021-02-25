@@ -13,6 +13,17 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testStructPointerMethodsByValue() {
+	var p = MyStruct{
+		field1: 10,
+	}
+
+	var f1 = p.getField1() // infer method return type
+	writeln(f1)
+	p.setField1(20)
+	writeln(strconv.Itoa(p.getField1()))
+}
+
 func testTokenString() {
 	tok := token.Token("hello")
 	fmt.Printf("%s\n", tok.String())
@@ -1983,6 +1994,7 @@ func testMisc() {
 }
 
 func main() {
+	testStructPointerMethodsByValue()
 	testTokenString()
 	testAssignIncDec()
 	testTypeAlias()

@@ -797,6 +797,26 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			method := lookupMethod(receiverType, fn.Sel)
 			funcType = method.FuncType
 			symbol = getMethodSymbol(method)
+
+			if kind(receiverType) == T_POINTER {
+				if method.IsPtrMethod {
+					// p.mp() => as it is
+				} else {
+					// p.mv()
+					panic("TBI")
+				}
+			} else {
+				if method.IsPtrMethod {
+					// v.mp() => (&v).mp()
+					// @TODO we should check addressable
+					receiver = &ast.UnaryExpr{
+						Op:    token.AND,
+						X:     receiver,
+					}
+				} else {
+					// v.mv() => as it is
+				}
+			}
 		}
 	case *ast.ParenExpr:
 		panic("[astParenExpr] TBI ")

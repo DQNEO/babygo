@@ -12,6 +12,7 @@ var NoPos Pos = 0
 // Token
 var ADD Token = "+"
 var SUB Token = "-"
+var AND Token = "&"
 
 func (tok Token) String() string {
 	return string(tok)
