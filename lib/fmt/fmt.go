@@ -51,7 +51,11 @@ func Sprintf(format string, a ...interface{}) string {
 					}
 				case 'T':
 					t := reflect.TypeOf(arg)
-					str = t.String()
+					if t == nil {
+						// ?
+					} else {
+						str = t.String()
+					}
 					for _, _c := range []uint8(str) {
 						r = append(r, _c)
 					}

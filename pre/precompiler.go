@@ -1929,7 +1929,11 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 			fmt.Printf("  movq (%%rax), %%rax # dtype\n")
 			fmt.Printf("  pushq %%rax # dtype\n")
 
-			emitDtypeSymbol(e2t(e))
+			if isNil(cc.List[0]) { // case nil:
+				fmt.Printf("  pushq $0 # nil\n")
+			} else { // case T:
+				emitDtypeSymbol(e2t(e))
+			}
 			emitCompExpr("sete") // this pushes 1 or 0 in the end
 			emitPopBool(" of switch-case comparison")
 
@@ -1955,18 +1959,32 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		}
 		fmt.Printf("%s:\n", labels[i])
 
-		for _, _s := range typeSwitchCaseClose.Orig.Body {
+		cc := typeSwitchCaseClose.Orig
+		var _isNil bool
+		for _, typ := range cc.List {
+			if isNil(typ) {
+				_isNil = true
+			}
+		}
+		for _, _s := range cc.Body {
 			if typeSwitchCaseClose.Variable != nil {
 				// do assignment
-				emitAddr(meta.AssignIdent)
-				emitVariableAddr(meta.SubjectVariable)
-				emitLoadAndPush(tEface)
-				fmt.Printf("  popq %%rax # ifc.dtype\n")
-				fmt.Printf("  popq %%rcx # ifc.data\n")
-				fmt.Printf("  push %%rcx # ifc.data\n")
-				emitLoadAndPush(typeSwitchCaseClose.VariableType)
+				if _isNil {
+					// @TODO: assign nil to the AssignIdent of interface type
+				} else {
+					emitAddr(meta.AssignIdent) // push lhs
 
-				emitStore(typeSwitchCaseClose.VariableType, true, false)
+					// push rhs
+					emitVariableAddr(meta.SubjectVariable)
+					emitLoadAndPush(tEface)
+					fmt.Printf("  popq %%rax # ifc.dtype\n")
+					fmt.Printf("  popq %%rcx # ifc.data\n")
+					fmt.Printf("  pushq %%rcx # ifc.data\n")
+					emitLoadAndPush(typeSwitchCaseClose.VariableType)
+
+					// assign
+					emitStore(typeSwitchCaseClose.VariableType, true, false)
+				}
 			}
 
 			emitStmt(_s)
@@ -2662,7 +2680,7 @@ func getUnderlyingType(t *Type) *Type {
 		// type literal
 		return t
 	case *ast.Ident:
-		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
+		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ : " + e.Obj.Name, __func__)
 		if isPredeclaredType(e.Obj) {
 			return t
 		}
@@ -3185,8 +3203,13 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		}
 		typeSwitch.Cases = append(typeSwitch.Cases, tscc)
 		if assignIdent != nil && len(cc.List) > 0 {
+			var varType *Type
+			if isNil(cc.List[0]) {
+				varType = getTypeOfExpr(typeSwitch.Subject)
+			} else {
+				varType = e2t(cc.List[0])
+			}
 			// inject a variable of that type
-			varType := e2t(cc.List[0])
 			vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
 			tscc.Variable = vr
 			tscc.VariableType = varType
@@ -3202,6 +3225,14 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		}
 	}
 }
+func isNil(e ast.Expr) bool {
+	ident, ok := e.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	return ident.Obj == gNil
+}
+
 func walkCaseClause(s *ast.CaseClause) {
 	for _, e := range s.List {
 		walkExpr(e)

@@ -1,3 +1,4 @@
+I am nil
 10
 20
 hello
@@ -107,6 +108,7 @@ abcde
 type is MySruct
 222
 type is bool
+ifc is nil
 1829
 1537
 aaaa
