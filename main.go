@@ -2893,7 +2893,7 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 		rcvType = rcvPointerType.X
 	}
 	rcvNamedType := rcvType.(*ast.Ident)
-	var method = &Method{
+	method := &Method{
 		PkgName:      pkgName,
 		RcvNamedType: rcvNamedType,
 		IsPtrMethod:  isPtr,
@@ -2972,8 +2972,8 @@ func walkDeclStmt(s *ast.DeclStmt) {
 		t := e2t(spec.Type)
 		obj := spec.Names[0].Obj
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
-		if len(spec.Values) > 0 {
-			walkExpr(spec.Values[0])
+		for _, v := range spec.Values {
+			walkExpr(v)
 		}
 	}
 }
@@ -3357,10 +3357,12 @@ func walk(pkg *PkgContainer) {
 	var varSpecs []*ast.ValueSpec
 	var constSpecs []*ast.ValueSpec
 
+	// grouping declarations by type
 	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
-			switch spec := dcl.Specs[0].(type) {
+			specInterface := dcl.Specs[0]
+			switch spec := specInterface.(type) {
 			case *ast.TypeSpec:
 				typeSpecs = append(typeSpecs, spec)
 			case *ast.ValueSpec:

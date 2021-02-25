@@ -3027,7 +3027,6 @@ func walkDeclStmt(s *ast.DeclStmt) {
 		}
 	}
 }
-
 func walkAssignStmt(s *ast.AssignStmt) {
 	if s.Tok.String() == ":=" {
 		rhs0 := s.Rhs[0]
@@ -3078,6 +3077,9 @@ func walkReturnStmt(s *ast.ReturnStmt) {
 	}
 }
 func walkIfStmt(s *ast.IfStmt) {
+	if s.Init != nil {
+		walkStmt(s.Init)
+	}
 	walkExpr(s.Cond)
 	walkStmt(s.Body)
 	if s.Else != nil {
@@ -3406,7 +3408,6 @@ func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 // - collect local variables and set offset
 // - determine types of variable declarations
 func walk(pkg *PkgContainer) {
-
 	var typeSpecs []*ast.TypeSpec
 	var funcDecls []*ast.FuncDecl
 	var varSpecs []*ast.ValueSpec
