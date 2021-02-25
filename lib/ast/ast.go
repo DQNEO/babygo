@@ -208,7 +208,7 @@ type Func struct {
 	FuncType  *FuncType
 	RcvType   Expr
 	Name      string
-	Body      *BlockStmt
+	Stmts     []Stmt
 	Method    *Method
 }
 

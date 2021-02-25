@@ -2076,8 +2076,8 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 		fmt.Printf("  subq $%d, %%rsp # local area\n", -fnc.Localarea)
 	}
 
-	if fnc.Body != nil {
-		emitStmt(fnc.Body)
+	for _, stmt := range fnc.Stmts {
+		emitStmt(stmt)
 	}
 	fmt.Printf("  leave\n")
 	fmt.Printf("  ret\n")
@@ -3476,10 +3476,10 @@ func walk(pkg *PkgContainer) {
 		}
 
 		if funcDecl.Body != nil {
+			fnc.Stmts = funcDecl.Body.List
 			for _, stmt := range funcDecl.Body.List {
 				walkStmt(stmt)
 			}
-			fnc.Body = funcDecl.Body
 
 			if funcDecl.Recv != nil { // Method
 				fnc.Method = newMethod(pkg.name, funcDecl)
