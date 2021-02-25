@@ -3728,8 +3728,6 @@ func resolveImports(file *ast.File) {
 
 // "some/dir" => []string{"a.go", "b.go"}
 func findFilesInDir(dir string) []string {
-	//fname := path.Base(dir) + ".go"
-	//return []string{fname}
 	dirents := mylib.GetDirents(dir)
 	var r []string
 	for _, dirent := range dirents {
@@ -3752,8 +3750,8 @@ func getImportPathsFromFile(file string) map[string]bool {
 	for _, importSpec := range astFile0.Imports {
 		rawValue := importSpec.Path.Value
 		logf("import %s\n", rawValue)
-		path := rawValue[1 : len(rawValue)-1]
-		paths[path] = true
+		pth := rawValue[1 : len(rawValue)-1]
+		paths[pth] = true
 	}
 	return paths
 }

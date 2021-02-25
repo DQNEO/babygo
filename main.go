@@ -3651,11 +3651,13 @@ func resolveImports(file *ast.File) {
 	var mapImports []string
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
-		rawPath := imprt.Path[1:(len(imprt.Path) - 1)]
-		base := path.Base(rawPath)
+		rawValue := imprt.Path
+		pth := rawValue[1:(len(rawValue)-1)]
+		base := path.Base(pth)
 		mapImports = append(mapImports, base)
 	}
 	for _, ident := range file.Unresolved {
+		// lookup imported package name
 		if mylib.InArray(ident.Name, mapImports) {
 			ident.Obj = &ast.Object{
 				Kind: ast.Pkg,
@@ -3668,11 +3670,8 @@ func resolveImports(file *ast.File) {
 
 const GOPATH string = "/root/go"
 
-// "foo/bar" => "bar.go"
 // "some/dir" => []string{"a.go", "b.go"}
 func findFilesInDir(dir string) []string {
-	//fname := path2.Base(dir) + ".go"
-	//return []string{fname}
 	dirents := mylib.GetDirents(dir)
 	var r []string
 	for _, dirent := range dirents {
