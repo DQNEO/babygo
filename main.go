@@ -2079,7 +2079,6 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	if fnc.Body != nil {
 		emitStmt(fnc.Body)
 	}
-
 	fmt.Printf("  leave\n")
 	fmt.Printf("  ret\n")
 }
@@ -2667,7 +2666,7 @@ func isInterface(t *Type) bool {
 
 func getElementTypeOfListType(t *Type) *Type {
 	ut := getUnderlyingType(t)
-	switch kind(t) {
+	switch kind(ut) {
 	case T_SLICE, T_ARRAY:
 		switch e := ut.E.(type) {
 		case *ast.ArrayType:

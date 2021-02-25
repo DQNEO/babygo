@@ -2262,7 +2262,7 @@ func emitDynamicTypes(typeMap map[string]int) {
 		sliceTypeMap[id] = name
 	}
 	for id, name := range sliceTypeMap {
-		if name == "" {
+		if id == 0 {
 			continue
 		}
 		symbol := typeIdToSymbol(id)
@@ -2907,7 +2907,6 @@ func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
 		Name:         name,
 		IsGlobal:     true,
 		GlobalSymbol: pkgName + "." + name,
-		LocalOffset:  0,
 		Typ:          t,
 	}
 }
@@ -2916,7 +2915,6 @@ func newLocalVariable(name string, localoffset int, t *Type) *Variable {
 	return &Variable{
 		Name:         name,
 		IsGlobal:     false,
-		GlobalSymbol: "",
 		LocalOffset:  localoffset,
 		Typ:          t,
 	}
