@@ -3590,17 +3590,10 @@ var eZeroInt = &ast.BasicLit{
 var gTrue = &ast.Object{
 	Kind: ast.Con,
 	Name: "true",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
 }
-
 var gFalse = &ast.Object{
 	Kind: ast.Con,
 	Name: "false",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
 }
 
 var gString = &ast.Object{
@@ -3611,19 +3604,11 @@ var gString = &ast.Object{
 var gUintptr = &ast.Object{
 	Kind: ast.Typ,
 	Name: "uintptr",
-	Decl: nil,
-	Data: 8,
-	Type: nil,
 }
-
 var gBool = &ast.Object{
 	Kind: ast.Typ,
 	Name: "bool",
-	Decl: nil,
-	Data: 8, // same as int for now
-	Type: nil,
 }
-
 var gInt = &ast.Object{
 	Kind: ast.Typ,
 	Name: "int",
@@ -3647,49 +3632,29 @@ var gUint16 = &ast.Object{
 var gNew = &ast.Object{
 	Kind: ast.Fun,
 	Name: "new",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
 }
 
 var gMake = &ast.Object{
 	Kind: ast.Fun,
 	Name: "make",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
 }
-
 var gAppend = &ast.Object{
 	Kind: ast.Fun,
 	Name: "append",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
 }
 
 var gLen = &ast.Object{
 	Kind: ast.Fun,
 	Name: "len",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
 }
 
 var gCap = &ast.Object{
 	Kind: ast.Fun,
 	Name: "cap",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
 }
-
 var gPanic = &ast.Object{
 	Kind: ast.Fun,
 	Name: "panic",
-	Decl: nil,
-	Data: nil,
-	Type: nil,
 }
 
 func isPredeclaredType(obj *ast.Object) bool {

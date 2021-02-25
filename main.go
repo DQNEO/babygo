@@ -3514,7 +3514,10 @@ var eNil = &ast.Ident{
 	Name: "nil",
 }
 
-var eZeroInt ast.Expr
+var eZeroInt = &ast.BasicLit{
+	Value: "0",
+	Kind:  token.INT,
+}
 
 var gTrue = &ast.Object{
 	Kind: ast.Con,
@@ -3530,6 +3533,14 @@ var gString = &ast.Object{
 	Name: "string",
 }
 
+var gUintptr = &ast.Object{
+	Kind: ast.Typ,
+	Name: "uintptr",
+}
+var gBool = &ast.Object{
+	Kind: ast.Typ,
+	Name: "bool",
+}
 var gInt = &ast.Object{
 	Kind: ast.Typ,
 	Name: "int",
@@ -3548,14 +3559,6 @@ var gUint8 = &ast.Object{
 var gUint16 = &ast.Object{
 	Kind: ast.Typ,
 	Name: "uint16",
-}
-var gUintptr = &ast.Object{
-	Kind: ast.Typ,
-	Name: "uintptr",
-}
-var gBool = &ast.Object{
-	Kind: ast.Typ,
-	Name: "bool",
 }
 
 var gNew = &ast.Object{
@@ -3919,10 +3922,6 @@ func showHelp() {
 }
 
 func initGlobals() {
-	eZeroInt = &ast.BasicLit{
-		Value: "0",
-		Kind:  "INT",
-	}
 	generalSlice = &ast.Ident{}
 	tInt = &Type{
 		E: &ast.Ident{
