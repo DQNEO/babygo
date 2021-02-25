@@ -2241,6 +2241,8 @@ func generateCode(pkg *PkgContainer) {
 		var t *Type
 		if spec.Type != nil {
 			t = e2t(spec.Type)
+		} else {
+			t = getTypeOfExpr(val)
 		}
 		if t == nil {
 			panic("type cannot be nil for global variable: " + spec.Names[0].Name)
