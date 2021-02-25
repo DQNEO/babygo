@@ -13,6 +13,22 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+type Expr interface {}
+func testTypeSwitchNil() {
+	var val Expr
+	val = nil
+	switch vl := val.(type) {
+	case string:
+		panic("ERROR 0" + vl)
+	case int:
+		panic("ERROR 1")
+	default:
+		panic("ERROR 2")
+	case nil:
+		fmt.Printf("I am nil\n")
+	}
+
+}
 func testStructPointerMethodsByValue() {
 	var p = MyStruct{
 		field1: 10,
@@ -499,6 +515,8 @@ func testTypeSwitch() {
 	case string:
 		writeln("type is string")
 		writeln(xxx)
+	case nil:
+		writeln(xxx)
 	default:
 		panic("ERROR")
 	}
@@ -517,6 +535,18 @@ func testTypeSwitch() {
 	}
 	ifc = true
 	switch ifc.(type) {
+	case int:
+		panic("ERROR")
+	case string:
+		panic("ERROR")
+	default:
+		writeln("type is bool")
+	}
+
+	ifc = nil
+	switch ifc.(type) {
+	case nil:
+		writeln("ifc is nil")
 	case int:
 		panic("ERROR")
 	case string:
@@ -1993,6 +2023,7 @@ func testMisc() {
 }
 
 func main() {
+	testTypeSwitchNil()
 	testStructPointerMethodsByValue()
 	testTokenString()
 	testAssignIncDec()
