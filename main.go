@@ -1839,7 +1839,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 		labelid++
 		labelCase := fmt.Sprintf(".L.case.%d", labelid)
 		labels[i] = labelCase
-		if len(cc.List) == 0 { // @TODO implement slice nil comparison
+		if len(cc.List) == 0 {
 			defaultLabel = labelCase
 			continue
 		}
@@ -1917,7 +1917,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		labelid++
 		labelCase := ".L.case." + strconv.Itoa(labelid)
 		labels[i] = labelCase
-		if len(cc.List) == 0 { // @TODO implement slice nil comparison
+		if len(cc.List) == 0 {
 			defaultLabel = labelCase
 			continue
 		}

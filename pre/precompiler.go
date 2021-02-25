@@ -1841,7 +1841,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 		labelid++
 		labelCase := fmt.Sprintf(".L.case.%d", labelid)
 		labels[i] = labelCase
-		if cc.List == nil {
+		if len(cc.List) == 0 {
 			defaultLabel = labelCase
 			continue
 		}
