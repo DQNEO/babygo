@@ -3319,8 +3319,7 @@ func walkExpr(expr ast.Expr) {
 var ExportedQualifiedIdents mapStringIfc
 
 func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
-	p := &ExportedQualifiedIdents
-	v, ok :=  p.get(string(qi))
+	v, ok := ExportedQualifiedIdents.get(string(qi))
 	if !ok {
 		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
@@ -3388,8 +3387,7 @@ func walk(pkg *PkgContainer) {
 			structType := getUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
-		p := &ExportedQualifiedIdents
-		p.set(string(newQI(pkg.name, typeSpec.Name.Name)), typeSpec.Name)
+		ExportedQualifiedIdents.set(string(newQI(pkg.name, typeSpec.Name.Name)), typeSpec.Name)
 	}
 
 	// collect methods in advance
@@ -3404,8 +3402,7 @@ func walk(pkg *PkgContainer) {
 			if !ok || funcDecl != fdcl {
 				panic("Bad func decl reference:" + funcDecl.Name.Name)
 			}
-			p := &ExportedQualifiedIdents
-			p.set(string(newQI(pkg.name, funcDecl.Name.Name)), funcDecl.Name)
+			ExportedQualifiedIdents.set(string(newQI(pkg.name, funcDecl.Name.Name)), funcDecl.Name)
 
 		} else { // method
 			if funcDecl.Body != nil {
@@ -3429,8 +3426,7 @@ func walk(pkg *PkgContainer) {
 		}
 		setVariable(nameIdent.Obj, newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(valSpec.Type)))
 		pkg.vars = append(pkg.vars, valSpec)
-		p := &ExportedQualifiedIdents
-		p.set(string(newQI(pkg.name, nameIdent.Name)), nameIdent)
+		ExportedQualifiedIdents.set(string(newQI(pkg.name, nameIdent.Name)), nameIdent)
 
 		if len(valSpec.Values) > 0 {
 			walkExpr(valSpec.Values[0])
@@ -3809,10 +3805,9 @@ type DependencyTree []*depEntry
 
 func collectAllPackages(inputFiles []string) []string {
 	var tree DependencyTree
-	ptree := &tree
 	directChildren := collectDirectDependents(inputFiles)
-	ptree.collectDependency(directChildren)
-	sortedPaths := ptree.sortDepTree()
+	tree.collectDependency(directChildren)
+	sortedPaths := tree.sortDepTree()
 
 	// sort packages by this order
 	// 1: pseudo
