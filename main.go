@@ -2107,6 +2107,8 @@ func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
 	case T_POINTER:
 		fmt.Printf("# init global %s:\n", name.Name)
 		emitAssign(name, val)
+	case T_INTERFACE:
+		emitAssign(name, val)
 	}
 }
 
@@ -2126,10 +2128,6 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		default:
 			panic("Unsupported global string value")
 		}
-	case T_INTERFACE:
-		// only zero value
-		fmt.Printf("  .quad 0 # dtype\n")
-		fmt.Printf("  .quad 0 # data\n")
 	case T_BOOL:
 		switch vl := val.(type) {
 		case nil:
@@ -2173,9 +2171,6 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		default:
 			throw(val)
 		}
-	case T_POINTER:
-		// will be set in the initGlobal func
-		fmt.Printf("  .quad 0\n")
 	case T_UINTPTR:
 		// only zero value
 		if val != nil {
@@ -2217,6 +2212,13 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		for i := 0; i < length; i++ {
 			fmt.Printf(zeroValue)
 		}
+	case T_POINTER:
+		// will be set in the initGlobal func
+		fmt.Printf("  .quad 0\n")
+	case T_INTERFACE:
+		// will be set in the initGlobal func
+		fmt.Printf("  .quad 0\n")
+		fmt.Printf("  .quad 0\n")
 	default:
 		unexpectedKind(typeKind)
 	}
@@ -3589,15 +3591,58 @@ var gPanic = &ast.Object{
 	Name: "panic",
 }
 
-var tInt *Type
-var tInt32 *Type // Rune
-var tUint8 *Type
-var tUint16 *Type
-var tUintptr *Type
-var tString *Type
-var tEface *Type
-var tBool *Type
-var generalSlice ast.Expr
+var tBool *Type = &Type{
+	E: &ast.Ident{
+		Name: "bool",
+		Obj:  gBool,
+	},
+}
+
+var tInt *Type = &Type{
+	E: &ast.Ident{
+		Name: "int",
+		Obj:  gInt,
+	},
+}
+
+// Rune
+var tInt32 *Type = &Type{
+	E: &ast.Ident{
+		Name: "int32",
+		Obj:  gInt32,
+	},
+}
+var tUint8 *Type = &Type{
+	E: &ast.Ident{
+		Name: "uint8",
+		Obj:  gUint8,
+	},
+}
+
+var tUint16 *Type = &Type{
+	E: &ast.Ident{
+		Name: "uint16",
+		Obj:  gUint16,
+	},
+}
+var tUintptr *Type = &Type{
+	E: &ast.Ident{
+		Name: "uintptr",
+		Obj:  gUintptr,
+	},
+}
+var tString *Type = &Type{
+	E: &ast.Ident{
+		Name: "string",
+		Obj:  gString,
+	},
+}
+
+var tEface *Type = &Type{
+	E: &ast.InterfaceType{},
+}
+
+var generalSlice ast.Expr = &ast.Ident{}
 
 func isPredeclaredType(obj *ast.Object) bool {
 	switch obj {
@@ -3609,7 +3654,6 @@ func isPredeclaredType(obj *ast.Object) bool {
 
 func createUniverse() *ast.Scope {
 	var universe = new(ast.Scope)
-
 	objects := []*ast.Object{
 		gNil,
 		// constants
@@ -3918,56 +3962,6 @@ func showHelp() {
 }
 
 func initGlobals() {
-	generalSlice = &ast.Ident{}
-	tInt = &Type{
-		E: &ast.Ident{
-			Name: "int",
-			Obj:  gInt,
-		},
-	}
-	tInt32 = &Type{
-		E: &ast.Ident{
-			Name: "int32",
-			Obj:  gInt32,
-		},
-	}
-	tUint8 = &Type{
-		E: &ast.Ident{
-			Name: "uint8",
-			Obj:  gUint8,
-		},
-	}
-
-	tUint16 = &Type{
-		E: &ast.Ident{
-			Name: "uint16",
-			Obj:  gUint16,
-		},
-	}
-	tUintptr = &Type{
-		E: &ast.Ident{
-			Name: "uintptr",
-			Obj:  gUintptr,
-		},
-	}
-
-	tString = &Type{
-		E: &ast.Ident{
-			Name: "string",
-			Obj:  gString,
-		},
-	}
-
-	tEface = &Type{
-		E: &ast.InterfaceType{},
-	}
-
-	tBool = &Type{
-		E: &ast.Ident{
-			Name: "bool",
-			Obj:  gBool,
-		},
-	}
 }
 
 func main() {

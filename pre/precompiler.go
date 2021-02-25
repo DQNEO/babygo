@@ -2108,6 +2108,8 @@ func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
 	case T_POINTER:
 		fmt.Printf("# init global %s:\n", name.Name)
 		emitAssign(name, val)
+	case T_INTERFACE:
+		emitAssign(name, val)
 	}
 }
 
@@ -2127,10 +2129,6 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		default:
 			panic("Unsupported global string value")
 		}
-	case T_INTERFACE:
-		// only zero value
-		fmt.Printf("  .quad 0 # dtype\n")
-		fmt.Printf("  .quad 0 # data\n")
 	case T_BOOL:
 		switch vl := val.(type) {
 		case nil:
@@ -2174,9 +2172,6 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		default:
 			throw(val)
 		}
-	case T_POINTER:
-		// will be set in the initGlobal func
-		fmt.Printf("  .quad 0\n")
 	case T_UINTPTR:
 		// only zero value
 		if val != nil {
@@ -2218,6 +2213,13 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		for i := 0; i < length; i++ {
 			fmt.Printf(zeroValue)
 		}
+	case T_POINTER:
+		// will be set in the initGlobal func
+		fmt.Printf("  .quad 0\n")
+	case T_INTERFACE:
+		// will be set in the initGlobal func
+		fmt.Printf("  .quad 0\n")
+		fmt.Printf("  .quad 0\n")
 	default:
 		unexpectedKind(typeKind)
 	}
@@ -2240,6 +2242,8 @@ func generateCode(pkg *PkgContainer) {
 		var t *Type
 		if spec.Type != nil {
 			t = e2t(spec.Type)
+		} else {
+			t = getTypeOfExpr(val)
 		}
 		if t == nil {
 			panic("type cannot be nil for global variable: " + spec.Names[0].Name)
@@ -2313,72 +2317,6 @@ const T_UINTPTR TypeKind = "T_UINTPTR"
 const T_ARRAY TypeKind = "T_ARRAY"
 const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
-
-var tBool *Type = &Type{
-	E: &ast.Ident{
-		NamePos: 0,
-		Name:    "bool",
-		Obj:     gBool,
-	},
-}
-
-var tInt *Type = &Type{
-	E: &ast.Ident{
-		NamePos: 0,
-		Name:    "int",
-		Obj:     gInt,
-	},
-}
-
-// Rune
-var tInt32 *Type = &Type{
-	E: &ast.Ident{
-		NamePos: 0,
-		Name:    "int",
-		Obj:     gInt32,
-	},
-}
-
-var tUintptr *Type = &Type{
-	E: &ast.Ident{
-		NamePos: 0,
-		Name:    "uintptr",
-		Obj:     gUintptr,
-	},
-}
-
-var tUint8 *Type = &Type{
-	E: &ast.Ident{
-		NamePos: 0,
-		Name:    "uint8",
-		Obj:     gUint8,
-	},
-}
-
-var tSliceOfString *Type = &Type{
-	E: &ast.ArrayType{
-		Len: nil,
-		Elt: &ast.Ident{
-			NamePos: 0,
-			Name:    "string",
-			Obj:     gString,
-		},
-	},
-}
-
-var tString *Type = &Type{
-	E: &ast.Ident{
-		NamePos: 0,
-		Name:    "string",
-		Obj:     gString,
-	},
-}
-
-var tEface *Type = &Type{
-	E: &ast.InterfaceType{},
-}
-
-var generalSlice ast.Expr = &ast.Ident{}
 
 // types of an expr in single value context
 func getTypeOfExpr(expr ast.Expr) *Type {
@@ -3656,6 +3594,55 @@ var gPanic = &ast.Object{
 	Kind: ast.Fun,
 	Name: "panic",
 }
+
+var tBool *Type = &Type{
+	E: &ast.Ident{
+		Name: "bool",
+		Obj:  gBool,
+	},
+}
+
+var tInt *Type = &Type{
+	E: &ast.Ident{
+		Name: "int",
+		Obj:  gInt,
+	},
+}
+
+// Rune
+var tInt32 *Type = &Type{
+	E: &ast.Ident{
+		Name: "int",
+		Obj:  gInt32,
+	},
+}
+
+var tUintptr *Type = &Type{
+	E: &ast.Ident{
+		Name: "uintptr",
+		Obj:  gUintptr,
+	},
+}
+
+var tUint8 *Type = &Type{
+	E: &ast.Ident{
+		Name: "uint8",
+		Obj:  gUint8,
+	},
+}
+
+var tString *Type = &Type{
+	E: &ast.Ident{
+		Name: "string",
+		Obj:  gString,
+	},
+}
+
+var tEface *Type = &Type{
+	E: &ast.InterfaceType{},
+}
+
+var generalSlice ast.Expr = &ast.Ident{}
 
 func isPredeclaredType(obj *ast.Object) bool {
 	switch obj {
