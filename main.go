@@ -3022,8 +3022,8 @@ func walkReturnStmt(s *ast.ReturnStmt) {
 	s.Meta = &ast.MetaReturnStmt{
 		Fnc: currentFunc,
 	}
-	for _, rt := range s.Results {
-		walkExpr(rt)
+	for _, r := range s.Results {
+		walkExpr(r)
 	}
 }
 func walkIfStmt(s *ast.IfStmt) {
@@ -3031,13 +3031,17 @@ func walkIfStmt(s *ast.IfStmt) {
 		walkStmt(s.Init)
 	}
 	walkExpr(s.Cond)
-	for _, s := range s.Body.List {
-		walkStmt(s)
-	}
+	walkStmt(s.Body)
 	if s.Else != nil {
 		walkStmt(s.Else)
 	}
 }
+func walkBlockStmt(s *ast.BlockStmt) {
+	for _, stmt := range s.List {
+		walkStmt(stmt)
+	}
+}
+
 func walkForStmt(s *ast.ForStmt) {
 	meta := &ast.MetaForStmt{
 		Outer: currentFor,
@@ -3085,14 +3089,6 @@ func walkRangeStmt(s *ast.RangeStmt) {
 }
 func walkIncDecStmt(s *ast.IncDecStmt) {
 	walkExpr(s.X)
-}
-func walkBlockStmt(s *ast.BlockStmt) {
-	for _, _s := range s.List {
-		walkStmt(_s)
-	}
-}
-func walkBranchStmt(s *ast.BranchStmt) {
-	s.CurrentFor = currentFor
 }
 func walkSwitchStmt(s *ast.SwitchStmt) {
 	if s.Tag != nil {
@@ -3157,6 +3153,11 @@ func walkCaseClause(s *ast.CaseClause) {
 		walkStmt(stmt)
 	}
 }
+func walkBranchStmt(s *ast.BranchStmt) {
+	assert(currentFor != nil, "break or continue should be in for body", __func__)
+	s.CurrentFor = currentFor
+}
+
 func walkStmt(stmt ast.Stmt) {
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
