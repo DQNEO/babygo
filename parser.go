@@ -192,10 +192,10 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 	var typ = p.tryVarType(false)
 
 	p.expectSemi(__func__)
-	ident := expr2Ident(varType)
+	ident := varType.(*ast.Ident)
 	var field = &ast.Field{
-		Type: typ,
-		Name: ident,
+		Type:  typ,
+		Names: []*ast.Ident{ident},
 	}
 	declareField(field, scope, ast.Var, ident)
 	p.resolve(typ)
@@ -300,11 +300,12 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 			panic2(__func__, "Ident list is not supported")
 		}
 		var eIdent = list[0]
-		ident := expr2Ident(eIdent)
+		ident := eIdent.(*ast.Ident)
 		logf(" [%s] ident.Name=%s\n", __func__, ident.Name)
-		var field = &ast.Field{}
-		field.Name = ident
-		field.Type = typ
+		field := &ast.Field{
+			Names: []*ast.Ident{ident},
+			Type:  typ,
+		}
 		params = append(params, field)
 		declareField(field, scope, ast.Var, ident)
 		p.resolve(typ)
@@ -317,8 +318,8 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 			ident = p.parseIdent()
 			typ = p.parseVarType(ellipsisOK)
 			field = &ast.Field{
-				Name: ident,
-				Type: typ,
+				Names: []*ast.Ident{ident},
+				Type:  typ,
 			}
 			params = append(params, field)
 			declareField(field, scope, ast.Var, ident)

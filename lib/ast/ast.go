@@ -37,7 +37,7 @@ type Object struct {
 type Expr interface{}
 
 type Field struct {
-	Name   *Ident
+	Names  []*Ident
 	Type   Expr
 	Offset int
 }

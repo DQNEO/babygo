@@ -2745,7 +2745,7 @@ func setStructFieldOffset(field *ast.Field, offset int) {
 
 func lookupStructField(structType *ast.StructType, selName string) *ast.Field {
 	for _, field := range structType.Fields.List {
-		if field.Name.Name == selName {
+		if field.Names[0].Name == selName {
 			return field
 		}
 	}
@@ -3481,12 +3481,12 @@ func walk(pkg *PkgContainer) {
 		}
 
 		for _, field := range paramFields {
-			obj := field.Name.Obj
+			obj := field.Names[0].Obj
 			setVariable(obj, registerParamVariable(fnc, obj.Name, e2t(field.Type)))
 		}
 
 		for i, field := range resultFields {
-			if field.Name == nil {
+			if len(field.Names) == 0 {
 				// unnamed retval
 				registerReturnVariable(fnc, ".r"+strconv.Itoa(i), e2t(field.Type))
 			} else {
