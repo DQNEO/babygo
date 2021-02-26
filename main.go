@@ -3699,8 +3699,6 @@ func resolveImports(file *ast.File) {
 	}
 }
 
-const GOPATH string = "/root/go"
-
 // "some/dir" => []string{"a.go", "b.go"}
 func findFilesInDir(dir string) []string {
 	dirents := mylib.GetDirents(dir)
