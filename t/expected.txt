@@ -1,3 +1,12 @@
+mp.Len=0
+mp.Len=2
+mp.a=11
+mp.bb=22
+mp.ccc=333
+mp.Len=2
+mp.bb is nil
+mp.Len=1
+mp.Len=0
 I am nil
 10
 20
