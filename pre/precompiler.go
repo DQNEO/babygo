@@ -2283,10 +2283,10 @@ func emitDynamicTypes(typeMap map[string]int) {
 	for name, id := range typeMap {
 		sliceTypeMap[id] = name
 	}
-	for id, name := range sliceTypeMap {
-		if id == 0 {
-			continue
-		}
+
+	// skip id=0
+	for id:=1;id<len(sliceTypeMap);id++{
+		name := sliceTypeMap[id]
 		symbol := typeIdToSymbol(id)
 		fmt.Printf("%s: # %s\n", symbol, name)
 		fmt.Printf("  .quad %d\n", id)
