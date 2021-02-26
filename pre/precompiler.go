@@ -2747,14 +2747,12 @@ func getSizeOfType(t *Type) int {
 	return 0
 }
 
-var mapFieldOffset  = map[*ast.Field]int{}
-
 func getStructFieldOffset(field *ast.Field) int {
-	return mapFieldOffset[field]
+	return mapAstMeta[field].(int)
 }
 
 func setStructFieldOffset(field *ast.Field, offset int) {
-	mapFieldOffset[field] = offset
+	mapAstMeta[field] = offset
 }
 
 func lookupStructField(structType *ast.StructType, selName string) *ast.Field {
@@ -4004,7 +4002,7 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
 
-var mapAstMeta = map[ast.Stmt]interface{}{}
+var mapAstMeta = map[ast.Node]interface{}{}
 
 type MetaForStmt struct {
 	LabelPost   string // for continue
