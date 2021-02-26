@@ -2907,15 +2907,16 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 
 // https://golang.org/ref/spec#Method_sets
 // @TODO map key should be a QI ?
-var MethodSets = map[*ast.Object]map[string]*Method{}
+var MethodSets = map[*ast.Object]NamedType{}
+type NamedType map[string]*Method
 
 func registerMethod(method *Method) {
-	methodSet, ok := MethodSets[method.RcvNamedType.Obj]
+	namedType, ok := MethodSets[method.RcvNamedType.Obj]
 	if !ok {
-		methodSet = map[string]*Method{}
-		MethodSets[method.RcvNamedType.Obj] = methodSet
+		namedType = NamedType{}
+		MethodSets[method.RcvNamedType.Obj] = namedType
 	}
-	methodSet[method.Name] = method
+	namedType[method.Name] = method
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
@@ -2935,11 +2936,11 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 		panic(rcvType)
 	}
 
-	methodSet, ok := MethodSets[typeObj]
+	namedType, ok := MethodSets[typeObj]
 	if !ok {
 		panic(typeObj.Name + " has no methodSet")
 	}
-	method, ok := methodSet[methodName.Name]
+	method, ok := namedType[methodName.Name]
 	if !ok {
 		panic("method not found")
 	}

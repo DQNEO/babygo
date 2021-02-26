@@ -4,6 +4,7 @@ import (
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/token"
+	"unsafe"
 
 	"os"
 	"syscall"
@@ -2893,32 +2894,23 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	return method
 }
 
-var MethodSets []*namedTypeEntry
-type namedTypeEntry struct {
-	//name    string
-	obj       *ast.Object
+var MethodSets mapPtrIfc
+
+type namedType struct {
 	methodSet mapStringIfc
 }
 
-func getMethodSet(obj *ast.Object) (*namedTypeEntry, bool) {
-	for _, t := range MethodSets {
-		if t.obj == obj {
-			return t, true
-		}
-	}
-	return nil, false
-}
-
 func registerMethod(method *Method) {
-	namedType, ok := getMethodSet(method.RcvNamedType.Obj)
+	key := unsafe.Pointer(method.RcvNamedType.Obj)
+	namedTypeIfc, ok := MethodSets.get(key)
 	if !ok {
-		namedType = &namedTypeEntry{
-			obj:       method.RcvNamedType.Obj,
+		namedTypeIfc = &namedType{
 			methodSet: nil,
 		}
-		MethodSets = append(MethodSets, namedType)
+		MethodSets.set(key, namedTypeIfc)
 	}
-	namedType.methodSet.set(method.Name, method)
+	nt := namedTypeIfc.(*namedType)
+	nt.methodSet.set(method.Name, method)
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
@@ -2938,12 +2930,12 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 		panic(rcvType)
 	}
 
-	namedType, ok := getMethodSet(typeObj)
+	namedTypeIfc, ok := MethodSets.get(unsafe.Pointer(typeObj))
 	if !ok {
 		panic(typeObj.Name + " has no methodSet")
 	}
-
-	ifc, ok := namedType.methodSet.get(methodName.Name)
+	nt := namedTypeIfc.(*namedType)
+	ifc, ok := nt.methodSet.get(methodName.Name)
 	if !ok {
 		panic("method not found")
 	}
