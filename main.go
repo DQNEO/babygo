@@ -3745,15 +3745,19 @@ func removeLeafNode(tree []*depEntry, sortedPaths []string) []*depEntry {
 		if mylib.InArray(entry.path, sortedPaths) {
 			continue
 		}
-		de := &depEntry{
-			path:     entry.path,
-			children: nil,
-		}
-		for _, child := range entry.children {
+
+		oldChildren := entry.children
+		var newChildren []string
+		for _, child := range oldChildren {
 			if mylib.InArray(child, sortedPaths) {
 				continue
 			}
-			de.children = append(de.children, child)
+			newChildren = append(newChildren, child)
+		}
+
+		de := &depEntry{
+			path:     entry.path,
+			children: newChildren,
 		}
 		newTree = append(newTree, de)
 	}
