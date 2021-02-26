@@ -11,7 +11,52 @@ import (
 	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/strings"
+	"github.com/DQNEO/babygo/lib/mymap"
 )
+
+func testMap() {
+	mp := &mymap.Map{}
+	fmt.Printf("mp.Len=%d\n", mp.Len()) // => 0
+
+	mp.Set("a", 11)
+	mp.Set("bb", 22)
+	fmt.Printf("mp.Len=%d\n", mp.Len()) // => 2
+
+	v1, ok1 := mp.Get("a")
+	if !ok1 {
+		panic("not found")
+	}
+	fmt.Printf("mp.a=%d\n", v1.(int)) // => 11
+
+	v2, ok2 := mp.Get("bb")
+	if !ok2 {
+		panic("not found")
+	}
+	fmt.Printf("mp.bb=%d\n", v2.(int)) // => 22
+
+	mp.Set("ccc", 333)
+	v3, ok3 := mp.Get("ccc")
+	if !ok3 {
+		panic("not found")
+	}
+	fmt.Printf("mp.ccc=%d\n", v3.(int)) // => 333
+
+	mp.Delete("bb")
+	fmt.Printf("mp.Len=%d\n", mp.Len()) // => 2
+	v2, ok2 = mp.Get("bb")
+	if ok2 {
+		panic("should not be present")
+	}
+	if v2 == nil {
+		fmt.Printf("mp.bb is nil\n")
+	}
+
+	mp.Delete("a")
+	fmt.Printf("mp.Len=%d\n", mp.Len()) // => 1
+
+	mp.Delete("ccc")
+	fmt.Printf("mp.Len=%d\n", mp.Len()) // => 0
+}
 
 type Expr interface{}
 
@@ -2024,6 +2069,7 @@ func testMisc() {
 }
 
 func main() {
+	testMap()
 	testTypeSwitchNil()
 	testStructPointerMethodsByValue()
 	testTokenString()

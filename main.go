@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
+	"github.com/DQNEO/babygo/lib/mymap"
 	"github.com/DQNEO/babygo/lib/token"
 	"unsafe"
 
@@ -1320,14 +1321,14 @@ func typeIdToSymbol(id int) string {
 	return "dtype." + strconv.Itoa(id)
 }
 
-var typesMap mapStringInt
+var typesMap = &mymap.Map{}
 
 func getTypeId(serialized string) int {
-	id, ok := typesMap.get(serialized)
+	id, ok := typesMap.Get(serialized)
 	if ok {
-		return id
+		return id.(int)
 	}
-	typesMap.set(serialized, typeId)
+	typesMap.Set(serialized, typeId)
 	r := typeId
 	typeId++
 	return r
@@ -2273,13 +2274,13 @@ func generateCode(pkg *PkgContainer) {
 	fmt.Printf("\n")
 }
 
-func emitDynamicTypes(typeMap []*mapStringIntEntry) {
+func emitDynamicTypes(typeMap *mymap.Map) {
 	// emitting dynamic types
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
-	for _, te := range typeMap {
-		id := te.value
-		name := te.key
+	for item:=typeMap.First(); item!=nil; item=item.Next() {
+		name := item.GetKeyAsString()
+		id := item.Value.(int)
 		symbol := typeIdToSymbol(id)
 		fmt.Printf("%s: # %s\n", symbol, name)
 		fmt.Printf("  .quad %d\n", id)
@@ -2894,23 +2895,23 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	return method
 }
 
-var MethodSets mapPtrIfc
+var MethodSets = &mymap.Map{}
 
 type NamedType struct {
-	methodSet mapStringIfc
+	methodSet *mymap.Map
 }
 
 func registerMethod(method *Method) {
 	key := unsafe.Pointer(method.RcvNamedType.Obj)
-	namedTypeIfc, ok := MethodSets.get(key)
+	namedTypeIfc, ok := MethodSets.Get(key)
 	if !ok {
 		namedTypeIfc = &NamedType{
-			methodSet: nil,
+			methodSet: &mymap.Map{},
 		}
-		MethodSets.set(key, namedTypeIfc)
+		MethodSets.Set(key, namedTypeIfc)
 	}
 	namedType := namedTypeIfc.(*NamedType)
-	namedType.methodSet.set(method.Name, method)
+	namedType.methodSet.Set(method.Name, method)
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
@@ -2930,12 +2931,12 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 		panic(rcvType)
 	}
 
-	namedTypeIfc, ok := MethodSets.get(unsafe.Pointer(typeObj))
+	namedTypeIfc, ok := MethodSets.Get(unsafe.Pointer(typeObj))
 	if !ok {
 		panic(typeObj.Name + " has no methodSet")
 	}
 	namedType := namedTypeIfc.(*NamedType)
-	ifc, ok := namedType.methodSet.get(methodName.Name)
+	ifc, ok := namedType.methodSet.Get(methodName.Name)
 	if !ok {
 		panic("method not found")
 	}
@@ -3317,10 +3318,10 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
-var ExportedQualifiedIdents mapStringIfc
+var ExportedQualifiedIdents = &mymap.Map{}
 
 func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
-	v, ok := ExportedQualifiedIdents.get(string(qi))
+	v, ok := ExportedQualifiedIdents.Get(string(qi))
 	if !ok {
 		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
@@ -3392,14 +3393,14 @@ func walk(pkg *PkgContainer) {
 			structType := getUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
-		ExportedQualifiedIdents.set(string(newQI(pkg.name, typeSpec.Name.Name)), typeSpec.Name)
+		ExportedQualifiedIdents.Set(string(newQI(pkg.name, typeSpec.Name.Name)), typeSpec.Name)
 	}
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil { // non-method function
 			qi := newQI(pkg.name, funcDecl.Name.Name)
-			ExportedQualifiedIdents.set(string(qi), funcDecl.Name)
+			ExportedQualifiedIdents.Set(string(qi), funcDecl.Name)
 		} else { // is method
 			if funcDecl.Body != nil {
 				method := newMethod(pkg.name, funcDecl)
@@ -3429,7 +3430,7 @@ func walk(pkg *PkgContainer) {
 		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		setVariable(nameIdent.Obj, variable)
 		pkg.vars = append(pkg.vars, varSpec)
-		ExportedQualifiedIdents.set(string(newQI(pkg.name, nameIdent.Name)), nameIdent)
+		ExportedQualifiedIdents.Set(string(newQI(pkg.name, nameIdent.Name)), nameIdent)
 		for _, v := range varSpec.Values {
 			// mainly to collect string literals
 			walkExpr(v)
@@ -3812,8 +3813,9 @@ func getPackageDir(importPath string) string {
 	}
 }
 
-func (ptree *DependencyTree) collectDependency(paths []string) {
-	for _, pkgPath := range paths {
+func (ptree *DependencyTree) collectDependency(mapPaths *mymap.Map) {
+	for item:=mapPaths.First();item!=nil;item=item.Next() {
+		pkgPath := item.GetKeyAsString()
 		if isInTree(*ptree, pkgPath) {
 			continue
 		}
@@ -3838,7 +3840,12 @@ func (ptree *DependencyTree) collectDependency(paths []string) {
 			children: children,
 		}
 		*ptree = append(*ptree, newEntry)
-		ptree.collectDependency(children)
+
+		var mpChildren = &mymap.Map{}
+		for _, child := range children {
+			mpChildren.Set(child, true)
+		}
+		ptree.collectDependency(mpChildren)
 	}
 }
 
@@ -3854,8 +3861,8 @@ type DependencyTree []*depEntry
 
 func collectAllPackages(inputFiles []string) []string {
 	var tree DependencyTree
-	directChildren := collectDirectDependents(inputFiles)
-	tree.collectDependency(directChildren)
+	mpDirectChildren := collectDirectDependents(inputFiles)
+	tree.collectDependency(mpDirectChildren)
 	sortedPaths := tree.sortDepTree()
 
 	// sort packages by this order
@@ -3876,17 +3883,14 @@ func collectAllPackages(inputFiles []string) []string {
 	return paths
 }
 
-func collectDirectDependents(inputFiles []string) []string {
-	var importPaths []string
-
+func collectDirectDependents(inputFiles []string) *mymap.Map {
+	var importPaths = &mymap.Map{}
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")
 		_paths := getImportPathsFromFile(inputFile)
 		for _, p := range _paths {
-			if !mylib.InArray(p, importPaths) {
-				importPaths = append(importPaths, p)
-			}
+			importPaths.Set(p, true)
 		}
 	}
 	return importPaths
