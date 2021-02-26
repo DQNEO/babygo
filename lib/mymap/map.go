@@ -52,9 +52,15 @@ func (mp *Map) Get(key interface{}) (interface{}, bool){
 }
 
 func (mp *Map) Delete(key string) {
+	if mp.first == nil {
+		return
+	}
 	if mp.first.match(key) {
 		mp.first = mp.first.next
 		mp.length -= 1
+		if mp.last == nil {
+			return
+		}
 		if mp.last.match(key) {
 			mp.last = nil
 		}

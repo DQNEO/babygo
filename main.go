@@ -3747,30 +3747,19 @@ func removeLeafNode(tree []*depEntry, sortedPaths []string) []*depEntry {
 			continue
 		}
 
-		oldChildren := entry.children
-		var newChildren []string
-		for _, child := range oldChildren {
-			if mylib.InArray(child, sortedPaths) {
-				continue
-			}
-			newChildren = append(newChildren, child)
+		for _, sp := range sortedPaths {
+			entry.children.Delete(sp)
 		}
-
-		de := &depEntry{
-			path:     entry.path,
-			children: newChildren,
-		}
-		newTree = append(newTree, de)
+		newTree = append(newTree, entry)
 	}
 	return newTree
 }
 
 func collectLeafNode(sortedPaths []string, tree []*depEntry) []string {
 	for _, entry := range tree {
-		if len(entry.children) == 0 {
+		if entry.children.Len() == 0 {
 			// leaf node
 			logf("Found leaf node: %s\n", entry.path)
-			logf("  num children: %d\n", len(entry.children))
 			sortedPaths = append(sortedPaths, entry.path)
 		}
 	}
@@ -3824,7 +3813,6 @@ func (ptree *DependencyTree) collectDependency(mapPaths *mymap.Map) {
 		}
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
-		var children []string
 		var mpChildren = &mymap.Map{}
 		for _, fname := range fnames {
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
@@ -3832,14 +3820,13 @@ func (ptree *DependencyTree) collectDependency(mapPaths *mymap.Map) {
 				if p == "unsafe" || p == "runtime" {
 					continue
 				}
-				children = append(children, p)
 				mpChildren.Set(p, true)
 			}
 		}
 
 		newEntry := &depEntry{
 			path:     pkgPath,
-			children: children,
+			children: mpChildren,
 		}
 		*ptree = append(*ptree, newEntry)
 
@@ -3849,7 +3836,7 @@ func (ptree *DependencyTree) collectDependency(mapPaths *mymap.Map) {
 
 type depEntry struct {
 	path     string
-	children []string
+	children *mymap.Map
 }
 
 var srcPath string
