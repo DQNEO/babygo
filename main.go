@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
+	"github.com/DQNEO/babygo/lib/mymap"
 	"github.com/DQNEO/babygo/lib/token"
 	"unsafe"
 
@@ -1320,14 +1321,14 @@ func typeIdToSymbol(id int) string {
 	return "dtype." + strconv.Itoa(id)
 }
 
-var typesMap mapStringInt
+var typesMap = &mymap.MapStrKey{}
 
 func getTypeId(serialized string) int {
-	id, ok := typesMap.get(serialized)
+	id, ok := typesMap.Get(serialized)
 	if ok {
-		return id
+		return id.(int)
 	}
-	typesMap.set(serialized, typeId)
+	typesMap.Set(serialized, typeId)
 	r := typeId
 	typeId++
 	return r
@@ -2273,13 +2274,13 @@ func generateCode(pkg *PkgContainer) {
 	fmt.Printf("\n")
 }
 
-func emitDynamicTypes(typeMap []*mapStringIntEntry) {
+func emitDynamicTypes(typeMap *mymap.MapStrKey) {
 	// emitting dynamic types
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
-	for _, te := range typeMap {
-		id := te.value
-		name := te.key
+	for item:=typeMap.First(); item!=nil; item=item.Next() {
+		name := item.Key
+		id := item.Value.(int)
 		symbol := typeIdToSymbol(id)
 		fmt.Printf("%s: # %s\n", symbol, name)
 		fmt.Printf("  .quad %d\n", id)
@@ -2897,7 +2898,7 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 var MethodSets mapPtrIfc
 
 type NamedType struct {
-	methodSet mapStringIfc
+	methodSet *mymap.MapStrKey
 }
 
 func registerMethod(method *Method) {
@@ -2905,12 +2906,12 @@ func registerMethod(method *Method) {
 	namedTypeIfc, ok := MethodSets.get(key)
 	if !ok {
 		namedTypeIfc = &NamedType{
-			methodSet: nil,
+			methodSet: &mymap.MapStrKey{},
 		}
 		MethodSets.set(key, namedTypeIfc)
 	}
 	namedType := namedTypeIfc.(*NamedType)
-	namedType.methodSet.set(method.Name, method)
+	namedType.methodSet.Set(method.Name, method)
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
@@ -2935,7 +2936,7 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 		panic(typeObj.Name + " has no methodSet")
 	}
 	namedType := namedTypeIfc.(*NamedType)
-	ifc, ok := namedType.methodSet.get(methodName.Name)
+	ifc, ok := namedType.methodSet.Get(methodName.Name)
 	if !ok {
 		panic("method not found")
 	}
@@ -3317,10 +3318,10 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
-var ExportedQualifiedIdents mapStringIfc
+var ExportedQualifiedIdents = &mymap.MapStrKey{}
 
 func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
-	v, ok := ExportedQualifiedIdents.get(string(qi))
+	v, ok := ExportedQualifiedIdents.Get(string(qi))
 	if !ok {
 		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
@@ -3392,14 +3393,14 @@ func walk(pkg *PkgContainer) {
 			structType := getUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
-		ExportedQualifiedIdents.set(string(newQI(pkg.name, typeSpec.Name.Name)), typeSpec.Name)
+		ExportedQualifiedIdents.Set(string(newQI(pkg.name, typeSpec.Name.Name)), typeSpec.Name)
 	}
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil { // non-method function
 			qi := newQI(pkg.name, funcDecl.Name.Name)
-			ExportedQualifiedIdents.set(string(qi), funcDecl.Name)
+			ExportedQualifiedIdents.Set(string(qi), funcDecl.Name)
 		} else { // is method
 			if funcDecl.Body != nil {
 				method := newMethod(pkg.name, funcDecl)
@@ -3429,7 +3430,7 @@ func walk(pkg *PkgContainer) {
 		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		setVariable(nameIdent.Obj, variable)
 		pkg.vars = append(pkg.vars, varSpec)
-		ExportedQualifiedIdents.set(string(newQI(pkg.name, nameIdent.Name)), nameIdent)
+		ExportedQualifiedIdents.Set(string(newQI(pkg.name, nameIdent.Name)), nameIdent)
 		for _, v := range varSpec.Values {
 			// mainly to collect string literals
 			walkExpr(v)
