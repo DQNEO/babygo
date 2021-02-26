@@ -3813,24 +3813,24 @@ func (ptree *DependencyTree) collectDependency(mapPaths *mymap.Map) {
 		}
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
-		var mpChildren = &mymap.Map{}
+		var children = &mymap.Map{}
 		for _, fname := range fnames {
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
 			for _, p := range _paths {
 				if p == "unsafe" || p == "runtime" {
 					continue
 				}
-				mpChildren.Set(p, true)
+				children.Set(p, true)
 			}
 		}
 
 		newEntry := &depEntry{
 			path:     pkgPath,
-			children: mpChildren,
+			children: children,
 		}
 		*ptree = append(*ptree, newEntry)
 
-		ptree.collectDependency(mpChildren)
+		ptree.collectDependency(children)
 	}
 }
 
