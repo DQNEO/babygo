@@ -2747,20 +2747,14 @@ func getSizeOfType(t *Type) int {
 	return 0
 }
 
+var mapFieldOffset  = map[*ast.Field]int{}
+
 func getStructFieldOffset(field *ast.Field) int {
-	text := field.Doc.List[0].Text
-	offset := strconv.Atoi(text)
-	return offset
+	return mapFieldOffset[field]
 }
 
 func setStructFieldOffset(field *ast.Field, offset int) {
-	comment := &ast.Comment{
-		Text: strconv.Itoa(offset),
-	}
-	commentGroup := &ast.CommentGroup{
-		List: []*ast.Comment{comment},
-	}
-	field.Doc = commentGroup
+	mapFieldOffset[field] = offset
 }
 
 func lookupStructField(structType *ast.StructType, selName string) *ast.Field {
