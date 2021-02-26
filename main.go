@@ -2279,7 +2279,7 @@ func emitDynamicTypes(typeMap *mymap.MapStrKey) {
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
 	for item:=typeMap.First(); item!=nil; item=item.Next() {
-		name := item.Key
+		name := item.GetKeyAsString()
 		id := item.Value.(int)
 		symbol := typeIdToSymbol(id)
 		fmt.Printf("%s: # %s\n", symbol, name)

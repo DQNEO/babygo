@@ -1,32 +1,51 @@
 package mymap
 
 type MapStrKey struct {
-	first  *mapLinkedListStrKey
-	last   *mapLinkedListStrKey
+	first  *item
+	last   *item
 	length int
 }
 
-type mapLinkedListStrKey struct {
-	Key   string
+type item struct {
+	key   interface{}
 	Value interface{}
-	next  *mapLinkedListStrKey
+	next  *item
 }
 
-func (i *mapLinkedListStrKey) Next() *mapLinkedListStrKey {
+func (i *item) Next() *item {
 	return i.next
+}
+
+func (i *item) GetKeyAsString() string {
+	return i.key.(string)
+}
+
+func (i *item) match(key interface{}) bool {
+	switch k := key.(type) {
+	case string:
+		itemKey := i.key.(string)
+		if itemKey == k {
+			return true
+		} else {
+			return false
+		}
+	default:
+		panic("Not supported key type")
+	}
+	panic("Not supported key type")
 }
 
 func (mp *MapStrKey) Len() int {
 	return mp.length
 }
 
-func (mp *MapStrKey) First() *mapLinkedListStrKey {
+func (mp *MapStrKey) First() *item {
 	return mp.first
 }
 
-func (mp *MapStrKey) Get(key string) (interface{}, bool){
+func (mp *MapStrKey) Get(key interface{}) (interface{}, bool){
 	for item:=mp.first; item!=nil; item=item.next {
-		if item.Key == key {
+		if item.match(key) {
 			return item.Value, true
 		}
 	}
@@ -34,20 +53,20 @@ func (mp *MapStrKey) Get(key string) (interface{}, bool){
 }
 
 func (mp *MapStrKey) Delete(key string) {
-	if mp.first.Key == key {
+	if mp.first.match(key) {
 		mp.first = mp.first.next
 		mp.length -= 1
-		if mp.last.Key == key {
+		if mp.last.match(key) {
 			mp.last = nil
 		}
 		return
 	}
-	var last *mapLinkedListStrKey
+	var last *item
 	for item:=mp.first; item!=nil; item=item.next {
-		if item.Key == key {
+		if item.match(key) {
 			last.next = item.next
 			mp.length -= 1
-			if mp.last.Key == key {
+			if mp.last.match(key) {
 				mp.last = nil
 			}
 			return
@@ -57,26 +76,26 @@ func (mp *MapStrKey) Delete(key string) {
 
 }
 
-func (mp *MapStrKey) Set(key string, value interface{}) {
+func (mp *MapStrKey) Set(key interface{}, value interface{}) {
 	if mp.first == nil {
-		mp.first = &mapLinkedListStrKey{
-			Key:   key,
+		mp.first = &item{
+			key:   key,
 			Value: value,
 		}
 		mp.last = mp.first
 		mp.length += 1
 		return
 	}
-	var last *mapLinkedListStrKey
+	var last *item
 	for item:=mp.first; item!=nil; item=item.next {
-		if item.Key == key {
+		if item.match(key) {
 			item.Value = value
 			return
 		}
 		last = item
 	}
-	newItem := &mapLinkedListStrKey{
-		Key:   key,
+	newItem := &item{
+		key:   key,
 		Value: value,
 	}
 	last.next = newItem
