@@ -3825,6 +3825,7 @@ func (ptree *DependencyTree) collectDependency(mapPaths *mymap.Map) {
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
 		var children []string
+		var mpChildren = &mymap.Map{}
 		for _, fname := range fnames {
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
 			for _, p := range _paths {
@@ -3832,6 +3833,7 @@ func (ptree *DependencyTree) collectDependency(mapPaths *mymap.Map) {
 					continue
 				}
 				children = append(children, p)
+				mpChildren.Set(p, true)
 			}
 		}
 
@@ -3841,10 +3843,6 @@ func (ptree *DependencyTree) collectDependency(mapPaths *mymap.Map) {
 		}
 		*ptree = append(*ptree, newEntry)
 
-		var mpChildren = &mymap.Map{}
-		for _, child := range children {
-			mpChildren.Set(child, true)
-		}
 		ptree.collectDependency(mpChildren)
 	}
 }
@@ -3861,8 +3859,8 @@ type DependencyTree []*depEntry
 
 func collectAllPackages(inputFiles []string) []string {
 	var tree DependencyTree
-	mpDirectChildren := collectDirectDependents(inputFiles)
-	tree.collectDependency(mpDirectChildren)
+	directChildren := collectDirectDependents(inputFiles)
+	tree.collectDependency(directChildren)
 	sortedPaths := tree.sortDepTree()
 
 	// sort packages by this order
