@@ -592,7 +592,7 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
-	meta := getMetaReturnStmt(s)
+	meta := s.Meta
 	fnc := meta.Fnc
 	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
@@ -4040,8 +4040,4 @@ func throw(x interface{}) {
 
 func panic2(caller string, x string) {
 	panic(caller + ": " + x)
-}
-
-func getMetaReturnStmt(s *ast.ReturnStmt) *ast.MetaReturnStmt {
-	return s.Meta
 }
