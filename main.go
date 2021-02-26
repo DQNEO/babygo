@@ -2856,17 +2856,6 @@ func newLocalVariable(name string, localoffset int, t *Type) *Variable {
 	}
 }
 
-type methodEntry struct {
-	name   string
-	method *Method
-}
-
-type namedTypeEntry struct {
-	//name    string
-	obj     *ast.Object
-	methods []*methodEntry
-}
-
 type QualifiedIdent string
 
 func newQI(pkg string, ident string) QualifiedIdent {
@@ -2905,8 +2894,13 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 }
 
 var MethodSets []*namedTypeEntry
+type namedTypeEntry struct {
+	//name    string
+	obj       *ast.Object
+	methodSet mapStringIfc
+}
 
-func findNamedType(obj *ast.Object) (*namedTypeEntry, bool) {
+func getMethodSet(obj *ast.Object) (*namedTypeEntry, bool) {
 	for _, t := range MethodSets {
 		if t.obj == obj {
 			return t, true
@@ -2916,20 +2910,15 @@ func findNamedType(obj *ast.Object) (*namedTypeEntry, bool) {
 }
 
 func registerMethod(method *Method) {
-	methodSet, ok := findNamedType(method.RcvNamedType.Obj)
+	namedType, ok := getMethodSet(method.RcvNamedType.Obj)
 	if !ok {
-		methodSet = &namedTypeEntry{
-			obj:     method.RcvNamedType.Obj,
-			methods: nil,
+		namedType = &namedTypeEntry{
+			obj:       method.RcvNamedType.Obj,
+			methodSet: nil,
 		}
-		MethodSets = append(MethodSets, methodSet)
+		MethodSets = append(MethodSets, namedType)
 	}
-
-	var me *methodEntry = &methodEntry{
-		name:   method.Name,
-		method: method,
-	}
-	methodSet.methods = append(methodSet.methods, me)
+	namedType.methodSet.set(method.Name, method)
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
@@ -2949,18 +2938,16 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 		panic(rcvType)
 	}
 
-	methodSet, ok := findNamedType(typeObj)
+	namedType, ok := getMethodSet(typeObj)
 	if !ok {
 		panic(typeObj.Name + " has no methodSet")
 	}
 
-	for _, me := range methodSet.methods {
-		if me.name == methodName.Name {
-			return me.method
-		}
+	ifc, ok := namedType.methodSet.get(methodName.Name)
+	if !ok {
+		panic("method not found")
 	}
-
-	panic("method not found: " + methodName.Name)
+	return ifc.(*Method)
 }
 
 func walkExprStmt(s *ast.ExprStmt) {
