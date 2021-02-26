@@ -1393,3 +1393,77 @@ func parseFile(filename string, importsOnly bool) *ast.File {
 	p.init(text)
 	return p.parseFile(importsOnly)
 }
+
+func newStmt(x interface{}) ast.Stmt {
+	return x
+}
+
+func isStmtAssignStmt(s ast.Stmt) bool {
+	var ok bool
+	_, ok = s.(*ast.AssignStmt)
+	return ok
+}
+
+func stmt2AssignStmt(s ast.Stmt) *ast.AssignStmt {
+	var r *ast.AssignStmt
+	var ok bool
+	r, ok = s.(*ast.AssignStmt)
+	if !ok {
+		panic("Not *ast.AssignStmt")
+	}
+	return r
+}
+
+func stmt2ExprStmt(s ast.Stmt) *ast.ExprStmt {
+	var r *ast.ExprStmt
+	var ok bool
+	r, ok = s.(*ast.ExprStmt)
+	if !ok {
+		panic("Not *ast.ExprStmt")
+	}
+	return r
+}
+
+func expr2Ident(e ast.Expr) *ast.Ident {
+	var r *ast.Ident
+	var ok bool
+	r, ok = e.(*ast.Ident)
+	if !ok {
+		panic(fmt.Sprintf("Not *ast.Ident but got: %T", e))
+	}
+	return r
+}
+
+func expr2UnaryExpr(e ast.Expr) *ast.UnaryExpr {
+	var r *ast.UnaryExpr
+	var ok bool
+	r, ok = e.(*ast.UnaryExpr)
+	if !ok {
+		panic("Not *ast.UnaryExpr")
+	}
+	return r
+}
+
+func expr2TypeAssertExpr(e ast.Expr) *ast.TypeAssertExpr {
+	var r *ast.TypeAssertExpr
+	var ok bool
+	r, ok = e.(*ast.TypeAssertExpr)
+	if !ok {
+		panic("Not *ast.TypeAssertExpr")
+	}
+	return r
+}
+
+func isExprTypeAssertExpr(e ast.Expr) bool {
+	_, ok := e.(*ast.TypeAssertExpr)
+	return ok
+}
+
+func isExprIdent(e ast.Expr) bool {
+	_, ok := e.(*ast.Ident)
+	return ok
+}
+
+func dtypeOf(x interface{}) string {
+	return fmt.Sprintf("%T", x)
+}
