@@ -2867,17 +2867,6 @@ type namedTypeEntry struct {
 	methods []*methodEntry
 }
 
-var typesWithMethods []*namedTypeEntry
-
-func findNamedType(obj *ast.Object) *namedTypeEntry {
-	for _, t := range typesWithMethods {
-		if t.obj == obj {
-			return t
-		}
-	}
-	return nil
-}
-
 type QualifiedIdent string
 
 func newQI(pkg string, ident string) QualifiedIdent {
@@ -2915,21 +2904,32 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	return method
 }
 
+var MethodSets []*namedTypeEntry
+
+func findNamedType(obj *ast.Object) (*namedTypeEntry, bool) {
+	for _, t := range MethodSets {
+		if t.obj == obj {
+			return t, true
+		}
+	}
+	return nil, false
+}
+
 func registerMethod(method *Method) {
-	var nt = findNamedType(method.RcvNamedType.Obj)
-	if nt == nil {
-		nt = &namedTypeEntry{
+	methodSet, ok := findNamedType(method.RcvNamedType.Obj)
+	if !ok {
+		methodSet = &namedTypeEntry{
 			obj:     method.RcvNamedType.Obj,
 			methods: nil,
 		}
-		typesWithMethods = append(typesWithMethods, nt)
+		MethodSets = append(MethodSets, methodSet)
 	}
 
 	var me *methodEntry = &methodEntry{
 		name:   method.Name,
 		method: method,
 	}
-	nt.methods = append(nt.methods, me)
+	methodSet.methods = append(methodSet.methods, me)
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
@@ -2945,13 +2945,16 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	case *ast.SelectorExpr:
 		t := lookupForeignIdent(selector2QI(typ))
 		typeObj = t.Obj
+	default:
+		panic(rcvType)
 	}
-	nt := findNamedType(typeObj)
-	if nt == nil {
+
+	methodSet, ok := findNamedType(typeObj)
+	if !ok {
 		panic(typeObj.Name + " has no methodSet")
 	}
 
-	for _, me := range nt.methods {
+	for _, me := range methodSet.methods {
 		if me.name == methodName.Name {
 			return me.method
 		}

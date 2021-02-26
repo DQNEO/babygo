@@ -2888,10 +2888,6 @@ func selector2QI(e *ast.SelectorExpr) QualifiedIdent {
 	return newQI(pkgName.Name, e.Sel.Name)
 }
 
-// https://golang.org/ref/spec#Method_sets
-// @TODO map key should be a QI ?
-var MethodSets = map[*ast.Object]map[string]*Method{}
-
 func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	rcvType := funcDecl.Recv.List[0].Type
 	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
@@ -2908,6 +2904,10 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	}
 	return method
 }
+
+// https://golang.org/ref/spec#Method_sets
+// @TODO map key should be a QI ?
+var MethodSets = map[*ast.Object]map[string]*Method{}
 
 func registerMethod(method *Method) {
 	methodSet, ok := MethodSets[method.RcvNamedType.Obj]
@@ -2931,11 +2931,11 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	case *ast.SelectorExpr:
 		t := lookupForeignIdent(selector2QI(typ))
 		typeObj = t.Obj
+	default:
+		panic(rcvType)
 	}
 
-	var methodSet map[string]*Method
-	var ok bool
-	methodSet, ok = MethodSets[typeObj]
+	methodSet, ok := MethodSets[typeObj]
 	if !ok {
 		panic(typeObj.Name + " has no methodSet")
 	}
