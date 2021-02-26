@@ -2896,7 +2896,7 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 
 var MethodSets mapPtrIfc
 
-type namedType struct {
+type NamedType struct {
 	methodSet mapStringIfc
 }
 
@@ -2904,13 +2904,13 @@ func registerMethod(method *Method) {
 	key := unsafe.Pointer(method.RcvNamedType.Obj)
 	namedTypeIfc, ok := MethodSets.get(key)
 	if !ok {
-		namedTypeIfc = &namedType{
+		namedTypeIfc = &NamedType{
 			methodSet: nil,
 		}
 		MethodSets.set(key, namedTypeIfc)
 	}
-	nt := namedTypeIfc.(*namedType)
-	nt.methodSet.set(method.Name, method)
+	namedType := namedTypeIfc.(*NamedType)
+	namedType.methodSet.set(method.Name, method)
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
@@ -2934,8 +2934,8 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	if !ok {
 		panic(typeObj.Name + " has no methodSet")
 	}
-	nt := namedTypeIfc.(*namedType)
-	ifc, ok := nt.methodSet.get(methodName.Name)
+	namedType := namedTypeIfc.(*NamedType)
+	ifc, ok := namedType.methodSet.get(methodName.Name)
 	if !ok {
 		panic("method not found")
 	}
