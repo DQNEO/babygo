@@ -25,19 +25,9 @@ func (i *item) GetKeyAsString() string {
 func (i *item) match(key interface{}) bool {
 	switch k := key.(type) {
 	case string:
-		itemKey := i.key.(string)
-		if itemKey == k {
-			return true
-		} else {
-			return false
-		}
+		return i.key.(string) == k
 	case unsafe.Pointer:
-		itemKey := i.key.(unsafe.Pointer)
-		if itemKey == k {
-			return true
-		} else {
-			return false
-		}
+		return i.key.(unsafe.Pointer) == k
 	default:
 		panic("Not supported key type")
 	}
