@@ -3855,7 +3855,11 @@ type DependencyTree []*depEntry
 
 func collectAllPackages(inputFiles []string) []string {
 	var tree DependencyTree
-	directChildren := collectDirectDependents(inputFiles)
+	mpDirectChildren := collectDirectDependents(inputFiles)
+	var directChildren []string
+	for item:=mpDirectChildren.First();item!=nil;item=item.Next() {
+		directChildren = append(directChildren, item.GetKeyAsString())
+	}
 	tree.collectDependency(directChildren)
 	sortedPaths := tree.sortDepTree()
 
@@ -3877,17 +3881,14 @@ func collectAllPackages(inputFiles []string) []string {
 	return paths
 }
 
-func collectDirectDependents(inputFiles []string) []string {
-	var importPaths []string
-
+func collectDirectDependents(inputFiles []string) *mymap.Map {
+	var importPaths = &mymap.Map{}
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")
 		_paths := getImportPathsFromFile(inputFile)
 		for _, p := range _paths {
-			if !mylib.InArray(p, importPaths) {
-				importPaths = append(importPaths, p)
-			}
+			importPaths.Set(p, true)
 		}
 	}
 	return importPaths
