@@ -15,7 +15,7 @@ import (
 )
 
 func testMap() {
-	mp := &mymap.MapStrKey{}
+	mp := &mymap.Map{}
 	fmt.Printf("mp.Len=%d\n", mp.Len()) // => 0
 
 	mp.Set("a", 11)

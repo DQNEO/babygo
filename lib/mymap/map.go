@@ -1,6 +1,8 @@
 package mymap
 
-type MapStrKey struct {
+import "unsafe"
+
+type Map struct {
 	first  *item
 	last   *item
 	length int
@@ -29,21 +31,28 @@ func (i *item) match(key interface{}) bool {
 		} else {
 			return false
 		}
+	case unsafe.Pointer:
+		itemKey := i.key.(unsafe.Pointer)
+		if itemKey == k {
+			return true
+		} else {
+			return false
+		}
 	default:
 		panic("Not supported key type")
 	}
 	panic("Not supported key type")
 }
 
-func (mp *MapStrKey) Len() int {
+func (mp *Map) Len() int {
 	return mp.length
 }
 
-func (mp *MapStrKey) First() *item {
+func (mp *Map) First() *item {
 	return mp.first
 }
 
-func (mp *MapStrKey) Get(key interface{}) (interface{}, bool){
+func (mp *Map) Get(key interface{}) (interface{}, bool){
 	for item:=mp.first; item!=nil; item=item.next {
 		if item.match(key) {
 			return item.Value, true
@@ -52,7 +61,7 @@ func (mp *MapStrKey) Get(key interface{}) (interface{}, bool){
 	return nil, false
 }
 
-func (mp *MapStrKey) Delete(key string) {
+func (mp *Map) Delete(key string) {
 	if mp.first.match(key) {
 		mp.first = mp.first.next
 		mp.length -= 1
@@ -76,7 +85,7 @@ func (mp *MapStrKey) Delete(key string) {
 
 }
 
-func (mp *MapStrKey) Set(key interface{}, value interface{}) {
+func (mp *Map) Set(key interface{}, value interface{}) {
 	if mp.first == nil {
 		mp.first = &item{
 			key:   key,

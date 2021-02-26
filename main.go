@@ -1321,7 +1321,7 @@ func typeIdToSymbol(id int) string {
 	return "dtype." + strconv.Itoa(id)
 }
 
-var typesMap = &mymap.MapStrKey{}
+var typesMap = &mymap.Map{}
 
 func getTypeId(serialized string) int {
 	id, ok := typesMap.Get(serialized)
@@ -2274,7 +2274,7 @@ func generateCode(pkg *PkgContainer) {
 	fmt.Printf("\n")
 }
 
-func emitDynamicTypes(typeMap *mymap.MapStrKey) {
+func emitDynamicTypes(typeMap *mymap.Map) {
 	// emitting dynamic types
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
@@ -2895,20 +2895,20 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	return method
 }
 
-var MethodSets mapPtrIfc
+var MethodSets = &mymap.Map{}
 
 type NamedType struct {
-	methodSet *mymap.MapStrKey
+	methodSet *mymap.Map
 }
 
 func registerMethod(method *Method) {
 	key := unsafe.Pointer(method.RcvNamedType.Obj)
-	namedTypeIfc, ok := MethodSets.get(key)
+	namedTypeIfc, ok := MethodSets.Get(key)
 	if !ok {
 		namedTypeIfc = &NamedType{
-			methodSet: &mymap.MapStrKey{},
+			methodSet: &mymap.Map{},
 		}
-		MethodSets.set(key, namedTypeIfc)
+		MethodSets.Set(key, namedTypeIfc)
 	}
 	namedType := namedTypeIfc.(*NamedType)
 	namedType.methodSet.Set(method.Name, method)
@@ -2931,7 +2931,7 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 		panic(rcvType)
 	}
 
-	namedTypeIfc, ok := MethodSets.get(unsafe.Pointer(typeObj))
+	namedTypeIfc, ok := MethodSets.Get(unsafe.Pointer(typeObj))
 	if !ok {
 		panic(typeObj.Name + " has no methodSet")
 	}
@@ -3318,7 +3318,7 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
-var ExportedQualifiedIdents = &mymap.MapStrKey{}
+var ExportedQualifiedIdents = &mymap.Map{}
 
 func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
 	v, ok := ExportedQualifiedIdents.Get(string(qi))
