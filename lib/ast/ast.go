@@ -13,19 +13,6 @@ type Signature struct {
 	Results *FieldList
 }
 
-type Type struct {
-	//kind string
-	E Expr
-}
-
-type Variable struct {
-	Name         string
-	IsGlobal     bool
-	GlobalSymbol string
-	LocalOffset  int
-	Typ          *Type
-}
-
 type Object struct {
 	Kind     string
 	Name     string
@@ -199,58 +186,12 @@ type TypeSwitchStmt struct {
 	Node   *NodeTypeSwitchStmt
 }
 
-type Func struct {
-	Localarea int
-	Argsarea  int
-	LocalVars []*Variable
-	Params    []*Variable
-	Retvars   []*Variable
-	FuncType  *FuncType
-	RcvType   Expr
-	Name      string
-	Stmts     []Stmt
-	Method    *Method
-}
-
-type Method struct {
-	PkgName      string
-	RcvNamedType *Ident
-	IsPtrMethod  bool
-	Name         string
-	FuncType     *FuncType
-}
-
-type MetaReturnStmt struct {
-	Fnc *Func
-}
-
-type NodeTypeSwitchStmt struct {
-	Subject         Expr
-	SubjectVariable *Variable
-	AssignIdent     *Ident
-	Cases           []*TypeSwitchCaseClose
-}
-
-type TypeSwitchCaseClose struct {
-	Variable     *Variable
-	VariableType *Type
-	Orig         *CaseClause
-}
-
 type ForStmt struct {
 	Init Stmt
 	Cond Expr
 	Post Stmt
 	Body *BlockStmt
 	Meta *MetaForStmt
-}
-
-type MetaForStmt struct {
-	LabelPost   string
-	LabelExit   string
-	RngLenvar   *Variable
-	RngIndexvar *Variable
-	Outer       *MetaForStmt
 }
 
 type RangeStmt struct {
