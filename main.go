@@ -4019,15 +4019,14 @@ type MetaTypeSwitchCaseClose struct {
 	Orig         *ast.CaseClause
 }
 type Func struct {
+	Name      string
+	Stmts     []ast.Stmt
 	Localarea int
 	Argsarea  int
 	LocalVars []*Variable
 	Params    []*Variable
 	Retvars   []*Variable
 	FuncType  *ast.FuncType
-	RcvType   ast.Expr
-	Name      string
-	Stmts     []ast.Stmt
 	Method    *Method
 }
 type Method struct {
@@ -4044,4 +4043,3 @@ type Variable struct {
 	LocalOffset  int
 	Typ          *Type
 }
-
