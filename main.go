@@ -3677,7 +3677,7 @@ func resolveImports(file *ast.File) {
 	mapImports := &mymap.Map{}
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
-		rawValue := imprt.Path
+		rawValue := imprt.Path.Value
 		pth := rawValue[1:(len(rawValue)-1)]
 		base := path.Base(pth)
 		mapImports.Set(base, true)
@@ -3716,7 +3716,7 @@ func getImportPathsFromFile(file string) []string {
 	astFile0 := parseImports(file)
 	var paths []string
 	for _, importSpec := range astFile0.Imports {
-		rawValue := importSpec.Path
+		rawValue := importSpec.Path.Value
 		logf("import %s\n", rawValue)
 		pth := rawValue[1 : len(rawValue)-1]
 		paths = append(paths, pth)
@@ -3823,7 +3823,7 @@ func collectAllPackages(inputFiles []string) []string {
 }
 
 func collectDirectDependents(inputFiles []string) *mymap.Map {
-	var importPaths = &mymap.Map{}
+	importPaths := &mymap.Map{}
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")

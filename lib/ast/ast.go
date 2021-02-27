@@ -213,7 +213,7 @@ type RangeStmt struct {
 }
 
 type ImportSpec struct {
-	Path string
+	Path *BasicLit
 }
 
 type ValueSpec struct {

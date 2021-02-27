@@ -115,7 +115,10 @@ func (p *parser) parseImportSpec() *ast.ImportSpec {
 	var pth = p.tok.lit
 	p.next()
 	spec := &ast.ImportSpec{
-		Path: pth,
+		Path: &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: pth,
+		},
 	}
 	p.imports = append(p.imports, spec)
 	return spec

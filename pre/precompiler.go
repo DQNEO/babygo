@@ -3759,14 +3759,16 @@ func sortTopologically(tree DependencyTree) []string {
 		keys := getKeys(tree)
 		mylib.SortStrings(keys)
 		for _, _path := range keys {
-			children := tree[_path]
+			children, ok := tree[_path]
+			if !ok {
+				panic("not found in tree")
+			}
 			if len(children) == 0 {
 				// collect leaf node
 				sorted = append(sorted, _path)
 				removeNode(tree, _path)
 			}
 		}
-
 	}
 	return sorted
 }
