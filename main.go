@@ -3995,3 +3995,9 @@ type MetaTypeSwitchStmt struct {
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
 }
+
+type MetaTypeSwitchCaseClose struct {
+	Variable     *Variable
+	VariableType *Type
+	Orig         *ast.CaseClause
+}

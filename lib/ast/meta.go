@@ -21,12 +21,6 @@ type Method struct {
 	FuncType     *FuncType
 }
 
-type MetaTypeSwitchCaseClose struct {
-	Variable     *Variable
-	VariableType *Type
-	Orig         *CaseClause
-}
-
 type MetaForStmt struct {
 	LabelPost   string
 	LabelExit   string

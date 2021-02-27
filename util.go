@@ -8,6 +8,5 @@ type Type = ast.Type
 type Variable = ast.Variable
 type Func = ast.Func
 type MetaForStmt = ast.MetaForStmt
-type MetaTypeSwitchCaseClose = ast.MetaTypeSwitchCaseClose
 
 type Method = ast.Method
