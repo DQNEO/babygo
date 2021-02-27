@@ -25,14 +25,14 @@ type MetaReturnStmt struct {
 	Fnc *Func
 }
 
-type NodeTypeSwitchStmt struct {
+type MetaTypeSwitchStmt struct {
 	Subject         Expr
 	SubjectVariable *Variable
 	AssignIdent     *Ident
-	Cases           []*TypeSwitchCaseClose
+	Cases           []*MetaTypeSwitchCaseClose
 }
 
-type TypeSwitchCaseClose struct {
+type MetaTypeSwitchCaseClose struct {
 	Variable     *Variable
 	VariableType *Type
 	Orig         *CaseClause

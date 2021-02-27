@@ -3092,7 +3092,7 @@ func walkSwitchStmt(s *ast.SwitchStmt) {
 	walkStmt(s.Body)
 }
 func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	typeSwitch := &ast.NodeTypeSwitchStmt{}
+	typeSwitch := &MetaTypeSwitchStmt{}
 	s.Node = typeSwitch
 	var assignIdent *ast.Ident
 	switch assign := s.Assign.(type) {
