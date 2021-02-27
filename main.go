@@ -3855,7 +3855,7 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 	for _, file := range _pkg.files {
 		logf("Parsing file: %s\n", file)
 		astFile := parseFile(file, false)
-		_pkg.name = astFile.Name
+		_pkg.name = astFile.Name.Name
 		_pkg.astFiles = append(_pkg.astFiles, astFile)
 		for _, oe := range astFile.Scope.Objects {
 			pkgScope.Objects = append(pkgScope.Objects, oe)

@@ -244,7 +244,7 @@ type FuncDecl struct {
 }
 
 type File struct {
-	Name       string
+	Name       *Ident
 	Imports    []*ImportSpec
 	Decls      []Decl
 	Unresolved []*Ident

@@ -1291,7 +1291,7 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 	p.expect("package", __func__)
 	p.unresolved = nil
 	var ident = p.parseIdent()
-	var packageName = ident.Name
+	packageName := ident
 	p.expectSemi(__func__)
 
 	p.topScope = &ast.Scope{} // open scope
