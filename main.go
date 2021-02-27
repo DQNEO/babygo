@@ -3115,7 +3115,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", tEface)
 	for _, _case := range s.Body.List {
 		cc := _case.(*ast.CaseClause)
-		tscc := &ast.TypeSwitchCaseClose{
+		tscc := &MetaTypeSwitchCaseClose{
 			Orig: cc,
 		}
 		typeSwitch.Cases = append(typeSwitch.Cases, tscc)
@@ -3137,7 +3137,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 			walkStmt(stmt)
 		}
 		if assignIdent != nil {
-			assignIdent.Obj.Variable = nil
+			setVariable(assignIdent.Obj, nil)
 		}
 	}
 }

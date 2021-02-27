@@ -3144,7 +3144,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 			walkStmt(stmt)
 		}
 		if assignIdent != nil {
-			assignIdent.Obj.Data = nil
+			setVariable(assignIdent.Obj, nil)
 		}
 	}
 }
@@ -3693,7 +3693,8 @@ func resolveImports(file *ast.File) {
 	}
 	for _, ident := range file.Unresolved {
 		// lookup imported package name
-		if mapImports[ident.Name] {
+		_, ok := mapImports[ident.Name]
+		if ok {
 			ident.Obj = &ast.Object{
 				Kind: ast.Pkg,
 				Name: ident.Name,
@@ -3970,7 +3971,11 @@ func obj2var(obj *ast.Object) *Variable {
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
-	obj.Data = vr
+	if vr == nil {
+		obj.Data = nil
+	} else {
+		obj.Data = vr
+	}
 }
 
 func parseImports(fset *token.FileSet, filename string) *ast.File {
