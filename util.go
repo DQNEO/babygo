@@ -4,7 +4,10 @@ import (
 	"github.com/DQNEO/babygo/lib/ast"
 )
 
-type Type = ast.Type
+type Type struct {
+	//kind string
+	E ast.Expr
+}
 
 type Variable struct {
 	Name         string
@@ -27,6 +30,15 @@ type Func struct {
 	Method    *Method
 }
 
+
+type Method struct {
+	PkgName      string
+	RcvNamedType *ast.Ident
+	IsPtrMethod  bool
+	Name         string
+	FuncType     *ast.FuncType
+}
+
 type MetaForStmt struct {
 	LabelPost   string
 	LabelExit   string
@@ -35,4 +47,3 @@ type MetaForStmt struct {
 	Outer       *MetaForStmt
 }
 
-type Method = ast.Method
