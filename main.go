@@ -2275,7 +2275,6 @@ func generateCode(pkg *PkgContainer) {
 }
 
 func emitDynamicTypes(typeMap *mymap.Map) {
-	// emitting dynamic types
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
 	for item:=typeMap.First(); item!=nil; item=item.Next() {
