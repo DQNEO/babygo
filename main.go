@@ -3764,30 +3764,28 @@ func collectLeafNode(sortedPaths []string, tree []*depEntry) []string {
 	return sortedPaths
 }
 
-func (tree *DependencyTree) sortDepTree() []string {
+func sortDepTree(mtree *mymap.Map) []string {
 	var sortedPaths []string
-
 	var keys []string
-	for _, entry := range *tree {
-		keys = append(keys, entry.path)
+	for item:=mtree.First();item!=nil;item=item.Next() {
+		key := item.GetKeyAsString()
+		keys = append(keys, key)
 	}
 	mylib.SortStrings(keys)
 	var newTree DependencyTree
 	for _, key := range keys {
-		for _, entry := range *tree {
-			if entry.path == key {
-				newTree = append(newTree, entry)
-			}
+		entry , ok := mtree.Get(key)
+		if ok {
+			newTree = append(newTree, entry.(*depEntry))
 		}
 	}
-	tree = &newTree
 	logf("====TREE====\n")
 	for {
-		if len(*tree) == 0 {
+		if len(newTree) == 0 {
 			break
 		}
-		sortedPaths = collectLeafNode(sortedPaths, *tree)
-		*tree = removeLeafNode(*tree, sortedPaths)
+		sortedPaths = collectLeafNode(sortedPaths, newTree)
+		newTree = removeLeafNode(newTree, sortedPaths)
 	}
 	return sortedPaths
 }
@@ -3800,12 +3798,9 @@ func getPackageDir(importPath string) string {
 	}
 }
 
-func (ptree *DependencyTree) collectDependency(mapPaths *mymap.Map) {
+func collectDependency(mtree *mymap.Map, mapPaths *mymap.Map) {
 	for item:=mapPaths.First();item!=nil;item=item.Next() {
 		pkgPath := item.GetKeyAsString()
-		if isInTree(*ptree, pkgPath) {
-			continue
-		}
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
 		}
@@ -3826,9 +3821,8 @@ func (ptree *DependencyTree) collectDependency(mapPaths *mymap.Map) {
 			path:     pkgPath,
 			children: children,
 		}
-		*ptree = append(*ptree, newEntry)
-
-		ptree.collectDependency(children)
+		mtree.Set(pkgPath, newEntry)
+		collectDependency(mtree, children)
 	}
 }
 
@@ -3843,10 +3837,10 @@ var prjSrcPath string
 type DependencyTree []*depEntry
 
 func collectAllPackages(inputFiles []string) []string {
-	var tree DependencyTree
 	directChildren := collectDirectDependents(inputFiles)
-	tree.collectDependency(directChildren)
-	sortedPaths := tree.sortDepTree()
+	var mtree = &mymap.Map{}
+	collectDependency(mtree, directChildren)
+	sortedPaths := sortDepTree(mtree)
 
 	// sort packages by this order
 	// 1: pseudo
