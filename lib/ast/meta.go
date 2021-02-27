@@ -21,13 +21,6 @@ type Method struct {
 	FuncType     *FuncType
 }
 
-type MetaTypeSwitchStmt struct {
-	Subject         Expr
-	SubjectVariable *Variable
-	AssignIdent     *Ident
-	Cases           []*MetaTypeSwitchCaseClose
-}
-
 type MetaTypeSwitchCaseClose struct {
 	Variable     *Variable
 	VariableType *Type

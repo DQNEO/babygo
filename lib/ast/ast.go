@@ -190,7 +190,6 @@ type SwitchStmt struct {
 type TypeSwitchStmt struct {
 	Assign Stmt
 	Body   *BlockStmt
-	Node   *MetaTypeSwitchStmt
 }
 
 type ForStmt struct {

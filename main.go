@@ -1904,7 +1904,8 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	meta := s.Node
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	meta := metaIfc.(*MetaTypeSwitchStmt)
 	labelid++
 	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
@@ -3101,7 +3102,7 @@ func walkSwitchStmt(s *ast.SwitchStmt) {
 }
 func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	typeSwitch := &MetaTypeSwitchStmt{}
-	s.Node = typeSwitch
+	mapMeta.Set(unsafe.Pointer(s), typeSwitch)
 	var assignIdent *ast.Ident
 	switch assign := s.Assign.(type) {
 	case *ast.ExprStmt:
@@ -3987,4 +3988,10 @@ func panic2(caller string, x string) {
 // --- meta nodes ---
 type MetaReturnStmt struct {
 	Fnc *Func
+}
+type MetaTypeSwitchStmt struct {
+	Subject         ast.Expr
+	SubjectVariable *Variable
+	AssignIdent     *ast.Ident
+	Cases           []*MetaTypeSwitchCaseClose
 }
