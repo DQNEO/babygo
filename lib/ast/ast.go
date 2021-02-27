@@ -2,19 +2,25 @@ package ast
 
 import "github.com/DQNEO/babygo/lib/token"
 
-var Con string = "Con"
-var Typ string = "Typ"
-var Var string = "Var"
-var Fun string = "Fun"
-var Pkg string = "Pkg"
+var Con ObjKind = "Con"
+var Typ ObjKind = "Typ"
+var Var ObjKind = "Var"
+var Fun ObjKind = "Fun"
+var Pkg ObjKind = "Pkg"
 
 type Signature struct {
 	Params  *FieldList
 	Results *FieldList
 }
 
+type ObjKind string
+
+func (ok ObjKind) String() string {
+	return string(ok)
+}
+
 type Object struct {
-	Kind     string
+	Kind     ObjKind
 	Name     string
 	Decl     interface{} // *ValueSpec|*FuncDecl|*TypeSpec|*Field|*AssignStmt
 	Variable *Variable

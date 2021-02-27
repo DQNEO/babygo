@@ -400,7 +400,7 @@ func (p *parser) parseSignature(scope *ast.Scope) *ast.Signature {
 	}
 }
 
-func declareField(decl *ast.Field, scope *ast.Scope, kind string, ident *ast.Ident) {
+func declareField(decl *ast.Field, scope *ast.Scope, kind ast.ObjKind, ident *ast.Ident) {
 	// declare
 	var obj = &ast.Object{
 		Decl: decl,
@@ -416,7 +416,7 @@ func declareField(decl *ast.Field, scope *ast.Scope, kind string, ident *ast.Ide
 	}
 }
 
-func declare(decl interface{}, scope *ast.Scope, kind string, ident *ast.Ident) {
+func declare(decl interface{}, scope *ast.Scope, kind ast.ObjKind, ident *ast.Ident) {
 	logf(" [declare] ident %s\n", ident.Name)
 
 	//valSpec.Name.Obj

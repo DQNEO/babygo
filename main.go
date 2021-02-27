@@ -2095,7 +2095,6 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	if fnc.Localarea != 0 {
 		fmt.Printf("  subq $%d, %%rsp # local area\n", -fnc.Localarea)
 	}
-
 	for _, stmt := range fnc.Stmts {
 		emitStmt(stmt)
 	}
@@ -2346,7 +2345,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				}
 			}
 		default:
-			panic("Obj=" + e.Obj.Name + e.Obj.Kind)
+			panic("Obj=" + e.Obj.Name + e.Obj.Kind.String())
 		}
 	case *ast.BasicLit:
 		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
