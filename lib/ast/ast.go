@@ -1,6 +1,9 @@
 package ast
 
-import "github.com/DQNEO/babygo/lib/token"
+import (
+	"github.com/DQNEO/babygo/lib/mymap"
+	"github.com/DQNEO/babygo/lib/token"
+)
 
 var Con ObjKind = "Con"
 var Typ ObjKind = "Typ"
@@ -253,17 +256,13 @@ type File struct {
 
 type Scope struct {
 	Outer   *Scope
-	Objects []*ObjectEntry
-}
-
-type ObjectEntry struct {
-	Name string
-	Obj  *Object
+	Objects *mymap.Map
 }
 
 func NewScope(outer *Scope) *Scope {
 	return &Scope{
 		Outer: outer,
+		Objects: &mymap.Map{},
 	}
 }
 
@@ -271,19 +270,14 @@ func (s *Scope) Insert(obj *Object) {
 	if s == nil {
 		panic("s sholud not be nil\n")
 	}
-
-	s.Objects = append(s.Objects, &ObjectEntry{
-		Name: obj.Name,
-		Obj:  obj,
-	})
+	s.Objects.Set(obj.Name, obj)
 }
 
 func (s *Scope) Lookup(name string) *Object {
-	for _, oe := range s.Objects {
-		if oe.Name == name {
-			return oe.Obj
-		}
+	v, ok := s.Objects.Get(name)
+	if !ok {
+		return nil
 	}
 
-	return nil
+	return v.(*Object)
 }

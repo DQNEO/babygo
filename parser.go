@@ -1294,7 +1294,7 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 	packageName := ident
 	p.expectSemi(__func__)
 
-	p.topScope = &ast.Scope{} // open scope
+	p.topScope = ast.NewScope(nil)  // open scope
 	p.pkgScope = p.topScope
 
 	for p.tok.tok == "import" {
@@ -1347,9 +1347,7 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 
 	// dump p.pkgScope
 	logf("[DEBUG] Dump objects in the package scope\n")
-	for _, oe := range p.pkgScope.Objects {
-		logf("    object %s\n", oe.Name)
-	}
+
 
 	var unresolved []*ast.Ident
 	logf(" [parserFile] resolving parser's unresolved (n=%s)\n", strconv.Itoa(len(p.unresolved)))

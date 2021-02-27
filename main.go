@@ -3638,7 +3638,7 @@ func isPredeclaredType(obj *ast.Object) bool {
 }
 
 func createUniverse() *ast.Scope {
-	var universe = new(ast.Scope)
+	var universe = ast.NewScope(nil)
 	objects := []*ast.Object{
 		gNil,
 		// constants
@@ -3653,10 +3653,7 @@ func createUniverse() *ast.Scope {
 	}
 
 	// setting aliases
-	universe.Objects = append(universe.Objects, &ast.ObjectEntry{
-		Name: "byte",
-		Obj:  gUint8,
-	})
+	universe.Objects.Set("byte", gUint8)
 
 	return universe
 }
@@ -3857,8 +3854,8 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 		astFile := parseFile(file, false)
 		_pkg.name = astFile.Name.Name
 		_pkg.astFiles = append(_pkg.astFiles, astFile)
-		for _, oe := range astFile.Scope.Objects {
-			pkgScope.Objects = append(pkgScope.Objects, oe)
+		for item:=astFile.Scope.Objects.First();item!=nil;item=item.Next() {
+			pkgScope.Objects.Set(item.GetKeyAsString(), item.Value)
 		}
 	}
 	for _, astFile := range _pkg.astFiles {
