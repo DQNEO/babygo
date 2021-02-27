@@ -5,8 +5,27 @@ import (
 )
 
 type Type = ast.Type
-type Variable = ast.Variable
-type Func = ast.Func
+
+type Variable struct {
+	Name         string
+	IsGlobal     bool
+	GlobalSymbol string
+	LocalOffset  int
+	Typ          *Type
+}
+
+type Func struct {
+	Localarea int
+	Argsarea  int
+	LocalVars []*Variable
+	Params    []*Variable
+	Retvars   []*Variable
+	FuncType  *ast.FuncType
+	RcvType   ast.Expr
+	Name      string
+	Stmts     []ast.Stmt
+	Method    *Method
+}
 
 type MetaForStmt struct {
 	LabelPost   string
