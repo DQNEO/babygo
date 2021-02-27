@@ -161,7 +161,6 @@ type ReturnStmt struct {
 type BranchStmt struct {
 	Tok        token.Token
 	Label      string
-	CurrentFor *MetaForStmt
 }
 
 type BlockStmt struct {

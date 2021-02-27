@@ -21,13 +21,6 @@ type Method struct {
 	FuncType     *FuncType
 }
 
-type MetaForStmt struct {
-	LabelPost   string
-	LabelExit   string
-	RngLenvar   *Variable
-	RngIndexvar *Variable
-	Outer       *MetaForStmt
-}
 
 type Type struct {
 	//kind string

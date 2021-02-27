@@ -1998,7 +1998,9 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitBranchStmt(s *ast.BranchStmt) {
-	containerFor := s.CurrentFor
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	meta := metaIfc.(*MetaBranchStmt)
+	containerFor := meta.containerForStmt
 	switch s.Tok.String() {
 	case "continue":
 		fmt.Printf("jmp %s # continue\n", containerFor.LabelPost)
@@ -3168,7 +3170,9 @@ func walkCaseClause(s *ast.CaseClause) {
 }
 func walkBranchStmt(s *ast.BranchStmt) {
 	assert(currentFor != nil, "break or continue should be in for body", __func__)
-	s.CurrentFor = currentFor
+	mapMeta.Set(unsafe.Pointer(s), &MetaBranchStmt{
+		containerForStmt: currentFor,
+	})
 }
 
 func walkStmt(stmt ast.Stmt) {
@@ -3989,6 +3993,10 @@ func panic2(caller string, x string) {
 type MetaReturnStmt struct {
 	Fnc *Func
 }
+type MetaBranchStmt struct {
+	containerForStmt *MetaForStmt
+}
+
 type MetaTypeSwitchStmt struct {
 	Subject         ast.Expr
 	SubjectVariable *Variable
