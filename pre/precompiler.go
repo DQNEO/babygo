@@ -1687,7 +1687,7 @@ func emitIfStmt(s *ast.IfStmt) {
 }
 
 func emitForStmt(s *ast.ForStmt) {
-	meta := mapMeta[s].(*MetaForStmt)
+	meta := getMetaForStmt(s)
 	labelid++
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
@@ -1718,7 +1718,7 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
-	meta := mapMeta[s].(*MetaForStmt)
+	meta := getMetaForStmt(s)
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -1901,7 +1901,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	meta := mapMeta[s].(*MetaTypeSwitchStmt)
+	meta := getMetaTypeSwitchStmt(s)
 	labelid++
 	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
@@ -1994,7 +1994,8 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitBranchStmt(s *ast.BranchStmt) {
-	containerFor := mapMeta[s].(*MetaBranchStmt).containerForStmt
+	meta := getMetaBranchStmt(s)
+	containerFor := meta.containerForStmt
 	switch s.Tok.String() {
 	case "continue":
 		fmt.Printf("jmp %s # continue\n", containerFor.LabelPost)
@@ -4017,15 +4018,37 @@ type MetaForStmt struct {
 	RngLenvar   *Variable
 	RngIndexvar *Variable
 }
+
+func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
+	switch s := stmt.(type) {
+	case *ast.ForStmt:
+		return mapMeta[s].(*MetaForStmt)
+	case *ast.RangeStmt:
+		return mapMeta[s].(*MetaForStmt)
+	default:
+		panic(stmt)
+	}
+}
+
 type MetaBranchStmt struct {
 	containerForStmt *MetaForStmt
 }
+
+func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
+	return mapMeta[s].(*MetaBranchStmt)
+}
+
 type MetaTypeSwitchStmt struct {
 	Subject         ast.Expr
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
 }
+
+func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
+	return mapMeta[s].(*MetaTypeSwitchStmt)
+}
+
 type MetaTypeSwitchCaseClose struct {
 	Variable     *Variable
 	VariableType *Type

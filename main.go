@@ -1687,8 +1687,7 @@ func emitIfStmt(s *ast.IfStmt) {
 }
 
 func emitForStmt(s *ast.ForStmt) {
-	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-	meta := metaIfc.(*MetaForStmt)
+	meta := getMetaForStmt(s)
 	labelid++
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
@@ -1719,8 +1718,7 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
-	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-	meta := metaIfc.(*MetaForStmt)
+	meta := getMetaForStmt(s)
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -1903,8 +1901,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-	meta := metaIfc.(*MetaTypeSwitchStmt)
+	meta := getMetaTypeSwitchStmt(s)
 	labelid++
 	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
@@ -1997,8 +1994,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitBranchStmt(s *ast.BranchStmt) {
-	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-	meta := metaIfc.(*MetaBranchStmt)
+	meta := getMetaBranchStmt(s)
 	containerFor := meta.containerForStmt
 	switch s.Tok.String() {
 	case "continue":
@@ -4005,15 +4001,41 @@ type MetaForStmt struct {
 	RngLenvar   *Variable
 	RngIndexvar *Variable
 }
+
+func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
+	switch s := stmt.(type) {
+	case *ast.ForStmt:
+		metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+		return metaIfc.(*MetaForStmt)
+	case *ast.RangeStmt:
+		metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+		return metaIfc.(*MetaForStmt)
+	default:
+		panic(stmt)
+	}
+}
+
 type MetaBranchStmt struct {
 	containerForStmt *MetaForStmt
 }
+
+func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	return metaIfc.(*MetaBranchStmt)
+}
+
 type MetaTypeSwitchStmt struct {
 	Subject         ast.Expr
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
 }
+
+func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	return metaIfc.(*MetaTypeSwitchStmt)
+}
+
 type MetaTypeSwitchCaseClose struct {
 	Variable     *Variable
 	VariableType *Type
