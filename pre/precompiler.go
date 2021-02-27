@@ -594,7 +594,7 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
-	meta := mapMeta[s].(*MetaReturnStmt)
+	meta := getMetaReturnStmt(s)
 	fnc := meta.Fnc
 	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
@@ -4005,6 +4005,11 @@ var mapMeta = map[ast.Node]interface{}{}
 type MetaReturnStmt struct {
 	Fnc *Func
 }
+
+func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
+	return mapMeta[s].(*MetaReturnStmt)
+}
+
 type MetaForStmt struct {
 	LabelPost   string // for continue
 	LabelExit   string // for break
