@@ -3678,7 +3678,7 @@ func resolveImports(file *ast.File) {
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		rawValue := imprt.Path.Value
-		pth := rawValue[1:(len(rawValue)-1)]
+		pth := rawValue[1:len(rawValue)-1]
 		base := path.Base(pth)
 		mapImports.Set(base, true)
 	}
