@@ -27,7 +27,6 @@ type Object struct {
 	Name     string
 	Decl     interface{} // *ValueSpec|*FuncDecl|*TypeSpec|*Field|*AssignStmt
 	Data interface{}
-	Variable *Variable
 }
 
 type Expr interface{}
@@ -157,13 +156,11 @@ type AssignStmt struct {
 
 type ReturnStmt struct {
 	Results []Expr
-	Meta    *MetaReturnStmt
 }
 
 type BranchStmt struct {
 	Tok        token.Token
 	Label      string
-	CurrentFor *MetaForStmt
 }
 
 type BlockStmt struct {
@@ -192,7 +189,6 @@ type SwitchStmt struct {
 type TypeSwitchStmt struct {
 	Assign Stmt
 	Body   *BlockStmt
-	Node   *MetaTypeSwitchStmt
 }
 
 type ForStmt struct {
@@ -200,7 +196,6 @@ type ForStmt struct {
 	Cond Expr
 	Post Stmt
 	Body *BlockStmt
-	Meta *MetaForStmt
 }
 
 type RangeStmt struct {
@@ -208,7 +203,6 @@ type RangeStmt struct {
 	Value Expr
 	X     Expr
 	Body  *BlockStmt
-	Meta  *MetaForStmt
 	Tok   token.Token
 }
 

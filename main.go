@@ -594,7 +594,7 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
-	meta := s.Meta
+	meta := getMetaReturnStmt(s)
 	fnc := meta.Fnc
 	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
@@ -1687,7 +1687,7 @@ func emitIfStmt(s *ast.IfStmt) {
 }
 
 func emitForStmt(s *ast.ForStmt) {
-	meta := s.Meta
+	meta := getMetaForStmt(s)
 	labelid++
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
@@ -1718,7 +1718,7 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
-	meta := s.Meta
+	meta := getMetaForStmt(s)
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -1901,7 +1901,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	meta := s.Node
+	meta := getMetaTypeSwitchStmt(s)
 	labelid++
 	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
@@ -1994,7 +1994,8 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	fmt.Printf("%s:\n", labelEnd)
 }
 func emitBranchStmt(s *ast.BranchStmt) {
-	containerFor := s.CurrentFor
+	meta := getMetaBranchStmt(s)
+	containerFor := meta.containerForStmt
 	switch s.Tok.String() {
 	case "continue":
 		fmt.Printf("jmp %s # continue\n", containerFor.LabelPost)
@@ -2291,6 +2292,10 @@ func emitDynamicTypes(typeMap *mymap.Map) {
 }
 
 // --- type ---
+type Type struct {
+	E ast.Expr // original
+}
+
 type TypeKind string
 
 const T_STRING TypeKind = "T_STRING"
@@ -2319,8 +2324,9 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			// case T:
 			//    y := ident // <= type of ident cannot be associated directly with ident
 			//
-			if e.Obj.Variable != nil {
-				return e.Obj.Variable.Typ
+			variable, isVariable := e.Obj.Data.(*Variable)
+			if isVariable {
+				return variable.Typ
 			}
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
@@ -3010,10 +3016,12 @@ func walkAssignStmt(s *ast.AssignStmt) {
 		}
 	}
 }
+
 func walkReturnStmt(s *ast.ReturnStmt) {
-	s.Meta = &ast.MetaReturnStmt{
+	meta := &MetaReturnStmt{
 		Fnc: currentFunc,
 	}
+	mapMeta.Set(unsafe.Pointer(s), meta)
 	for _, r := range s.Results {
 		walkExpr(r)
 	}
@@ -3039,7 +3047,7 @@ func walkForStmt(s *ast.ForStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	s.Meta = meta
+	mapMeta.Set(unsafe.Pointer(s), meta)
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3057,7 +3065,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	s.Meta = meta
+	mapMeta.Set(unsafe.Pointer(s), meta)
 	walkExpr(s.X)
 	walkStmt(s.Body)
 	meta.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
@@ -3093,7 +3101,7 @@ func walkSwitchStmt(s *ast.SwitchStmt) {
 }
 func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	typeSwitch := &MetaTypeSwitchStmt{}
-	s.Node = typeSwitch
+	mapMeta.Set(unsafe.Pointer(s), typeSwitch)
 	var assignIdent *ast.Ident
 	switch assign := s.Assign.(type) {
 	case *ast.ExprStmt:
@@ -3159,7 +3167,9 @@ func walkCaseClause(s *ast.CaseClause) {
 }
 func walkBranchStmt(s *ast.BranchStmt) {
 	assert(currentFor != nil, "break or continue should be in for body", __func__)
-	s.CurrentFor = currentFor
+	mapMeta.Set(unsafe.Pointer(s), &MetaBranchStmt{
+		containerForStmt: currentFor,
+	})
 }
 
 func walkStmt(stmt ast.Stmt) {
@@ -3957,17 +3967,102 @@ func main() {
 // --- util ---
 func obj2var(obj *ast.Object) *Variable {
 	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
-	return obj.Variable
+	return obj.Data.(*Variable)
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
-	obj.Variable = vr
+	if vr == nil {
+		obj.Data = nil
+	} else {
+		obj.Data = vr
+	}
 }
 
 func throw(x interface{}) {
 	panic(x)
 }
 
-func panic2(caller string, x string) {
-	panic(caller + ": " + x)
+// --- AST meta data ---
+var mapMeta = &mymap.Map{}
+
+type MetaReturnStmt struct {
+	Fnc *Func
+}
+
+func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	return metaIfc.(*MetaReturnStmt)
+}
+
+type MetaForStmt struct {
+	LabelPost   string // for continue
+	LabelExit   string // for break
+	Outer       *MetaForStmt
+	RngLenvar   *Variable
+	RngIndexvar *Variable
+}
+
+func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
+	switch s := stmt.(type) {
+	case *ast.ForStmt:
+		metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+		return metaIfc.(*MetaForStmt)
+	case *ast.RangeStmt:
+		metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+		return metaIfc.(*MetaForStmt)
+	default:
+		panic(stmt)
+	}
+}
+
+type MetaBranchStmt struct {
+	containerForStmt *MetaForStmt
+}
+
+func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	return metaIfc.(*MetaBranchStmt)
+}
+
+type MetaTypeSwitchStmt struct {
+	Subject         ast.Expr
+	SubjectVariable *Variable
+	AssignIdent     *ast.Ident
+	Cases           []*MetaTypeSwitchCaseClose
+}
+
+func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	return metaIfc.(*MetaTypeSwitchStmt)
+}
+
+type MetaTypeSwitchCaseClose struct {
+	Variable     *Variable
+	VariableType *Type
+	Orig         *ast.CaseClause
+}
+type Func struct {
+	Name      string
+	Stmts     []ast.Stmt
+	Localarea int
+	Argsarea  int
+	LocalVars []*Variable
+	Params    []*Variable
+	Retvars   []*Variable
+	FuncType  *ast.FuncType
+	Method    *Method
+}
+type Method struct {
+	PkgName      string
+	RcvNamedType *ast.Ident
+	IsPtrMethod  bool
+	Name         string
+	FuncType     *ast.FuncType
+}
+type Variable struct {
+	Name         string
+	IsGlobal     bool
+	GlobalSymbol string
+	LocalOffset  int
+	Typ          *Type
 }
