@@ -27,7 +27,6 @@ type Object struct {
 	Name     string
 	Decl     interface{} // *ValueSpec|*FuncDecl|*TypeSpec|*Field|*AssignStmt
 	Data interface{}
-	Variable *Variable
 }
 
 type Expr interface{}

@@ -2320,8 +2320,9 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			// case T:
 			//    y := ident // <= type of ident cannot be associated directly with ident
 			//
-			if e.Obj.Variable != nil {
-				return e.Obj.Variable.Typ
+			variable, isVariable := e.Obj.Data.(*Variable)
+			if isVariable {
+				return variable.Typ
 			}
 			switch dcl := e.Obj.Decl.(type) {
 			case *ast.ValueSpec:
@@ -3961,11 +3962,15 @@ func main() {
 // --- util ---
 func obj2var(obj *ast.Object) *Variable {
 	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
-	return obj.Variable
+	return obj.Data.(*Variable)
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
-	obj.Variable = vr
+	if vr == nil {
+		obj.Data = nil
+	} else {
+		obj.Data = vr
+	}
 }
 
 func throw(x interface{}) {
