@@ -3727,15 +3727,15 @@ func isStdLib(pth string) bool {
 	return !strings.Contains(pth, "/")
 }
 
-func getImportPathsFromFile(file string) map[string]bool {
+func getImportPathsFromFile(file string) []string {
 	fset := &token.FileSet{}
 	astFile0 := parseImports(fset, file)
-	var paths = map[string]bool{}
+	var paths []string
 	for _, importSpec := range astFile0.Imports {
 		rawValue := importSpec.Path.Value
 		logf("import %s\n", rawValue)
 		pth := rawValue[1 : len(rawValue)-1]
-		paths[pth] = true
+		paths = append(paths, pth)
 	}
 	return paths
 }
@@ -3760,8 +3760,7 @@ type DependencyTree map[string]map[string]bool
 
 // Do topological sort
 // In the result list, the independent (lowest level) packages come first.
-func (tree DependencyTree) sortTopologically() []string {
-	logf("sortTopologically start\n")
+func sortTopologically(tree DependencyTree) []string {
 	var sorted []string
 	for len(tree) > 0 {
 		keys := getKeys(tree)
@@ -3769,16 +3768,13 @@ func (tree DependencyTree) sortTopologically() []string {
 		for _, _path := range keys {
 			children := tree[_path]
 			if len(children) == 0 {
-				// leaf node
-				logf("Found leaf node: %s\n", _path)
+				// collect leaf node
 				sorted = append(sorted, _path)
 				removeNode(tree, _path)
 			}
 		}
 
 	}
-
-	logf("sortTopologically end\n")
 	return sorted
 }
 
@@ -3790,26 +3786,25 @@ func getPackageDir(importPath string) string {
 	}
 }
 
-func (tree DependencyTree) collectDependency(paths map[string]bool) {
+func collectDependency(tree DependencyTree, paths map[string]bool) {
 	for pkgPath, _ := range paths {
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
 		}
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
-		var children = map[string]bool{}
+		children := map[string]bool{}
 		for _, fname := range fnames {
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
-			for _path, _ := range _paths {
-				if _path == "unsafe" || _path == "runtime" {
+			for _, pth := range _paths {
+				if pth == "unsafe" || pth == "runtime" {
 					continue
 				}
-				logf("  found %s\n", _path)
-				children[_path] = true
+				children[pth] = true
 			}
 		}
 		tree[pkgPath] = children
-		tree.collectDependency(children)
+		collectDependency(tree, children)
 	}
 }
 
@@ -3819,8 +3814,8 @@ var prjSrcPath string
 func collectAllPackages(inputFiles []string) []string {
 	directChildren := collectDirectDependents(inputFiles)
 	tree := DependencyTree{}
-	tree.collectDependency(directChildren)
-	sortedPaths := tree.sortTopologically()
+	collectDependency(tree, directChildren)
+	sortedPaths := sortTopologically(tree)
 
 	// sort packages by this order
 	// 1: pseudo
@@ -3846,9 +3841,9 @@ func collectDirectDependents(inputFiles []string) map[string]bool {
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")
-		_paths := getImportPathsFromFile(inputFile)
-		for k, _ := range _paths {
-			importPaths[k] = true
+		paths := getImportPathsFromFile(inputFile)
+		for _, pth := range paths {
+			importPaths[pth] = true
 		}
 	}
 	return importPaths

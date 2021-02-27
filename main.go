@@ -3728,66 +3728,44 @@ func getImportPathsFromFile(file string) []string {
 	return paths
 }
 
-func isInTree(tree []*depEntry, pth string) bool {
-	for _, entry := range tree {
-		if entry.path == pth {
-			return true
-		}
+func removeNode(tree *mymap.Map, node string) {
+	for item:= tree.First();item!=nil;item=item.Next() {
+		children := item.Value.(*mymap.Map)
+		children.Delete(node)
 	}
-	return false
+	tree.Delete(node)
 }
 
-func removeLeafNode(tree []*depEntry, sortedPaths []string) []*depEntry {
-	// remove leaf node
-	var newTree []*depEntry
-	for _, entry := range tree {
-		if mylib.InArray(entry.path, sortedPaths) {
-			continue
-		}
-
-		for _, sp := range sortedPaths {
-			entry.children.Delete(sp)
-		}
-		newTree = append(newTree, entry)
-	}
-	return newTree
-}
-
-func collectLeafNode(sortedPaths []string, tree []*depEntry) []string {
-	for _, entry := range tree {
-		if entry.children.Len() == 0 {
-			// leaf node
-			logf("Found leaf node: %s\n", entry.path)
-			sortedPaths = append(sortedPaths, entry.path)
-		}
-	}
-	return sortedPaths
-}
-
-func sortDepTree(mtree *mymap.Map) []string {
-	var sortedPaths []string
+func getKeys(tree *mymap.Map) []string {
 	var keys []string
-	for item:=mtree.First();item!=nil;item=item.Next() {
+	for item:= tree.First();item!=nil;item=item.Next() {
 		key := item.GetKeyAsString()
 		keys = append(keys, key)
 	}
-	mylib.SortStrings(keys)
-	var newTree DependencyTree
-	for _, key := range keys {
-		entry , ok := mtree.Get(key)
-		if ok {
-			newTree = append(newTree, entry.(*depEntry))
+	return keys
+}
+
+// Do topological sort
+// In the result list, the independent (lowest level) packages come first.
+func sortTopologically(tree *mymap.Map) []string {
+	var sorted []string
+	for tree.Len() > 0 {
+		keys := getKeys(tree)
+		mylib.SortStrings(keys)
+		for _, _path := range keys {
+			ifc,ok := tree.Get(_path)
+			if !ok {
+				panic("not found in tree")
+			}
+			children := ifc.(*mymap.Map)
+			if children.Len() == 0 {
+				// collect leaf node
+				sorted = append(sorted, _path)
+				removeNode(tree, _path)
+			}
 		}
 	}
-	logf("====TREE====\n")
-	for {
-		if len(newTree) == 0 {
-			break
-		}
-		sortedPaths = collectLeafNode(sortedPaths, newTree)
-		newTree = removeLeafNode(newTree, sortedPaths)
-	}
-	return sortedPaths
+	return sorted
 }
 
 func getPackageDir(importPath string) string {
@@ -3798,7 +3776,7 @@ func getPackageDir(importPath string) string {
 	}
 }
 
-func collectDependency(mtree *mymap.Map, mapPaths *mymap.Map) {
+func collectDependency(tree *mymap.Map, mapPaths *mymap.Map) {
 	for item:=mapPaths.First();item!=nil;item=item.Next() {
 		pkgPath := item.GetKeyAsString()
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
@@ -3806,41 +3784,29 @@ func collectDependency(mtree *mymap.Map, mapPaths *mymap.Map) {
 		}
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
-		var children = &mymap.Map{}
+		children := &mymap.Map{}
 		for _, fname := range fnames {
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
-			for _, p := range _paths {
-				if p == "unsafe" || p == "runtime" {
+			for _, pth := range _paths {
+				if pth == "unsafe" || pth == "runtime" {
 					continue
 				}
-				children.Set(p, true)
+				children.Set(pth, true)
 			}
 		}
-
-		newEntry := &depEntry{
-			path:     pkgPath,
-			children: children,
-		}
-		mtree.Set(pkgPath, newEntry)
-		collectDependency(mtree, children)
+		tree.Set(pkgPath, children)
+		collectDependency(tree, children)
 	}
-}
-
-type depEntry struct {
-	path     string
-	children *mymap.Map
 }
 
 var srcPath string
 var prjSrcPath string
 
-type DependencyTree []*depEntry
-
 func collectAllPackages(inputFiles []string) []string {
 	directChildren := collectDirectDependents(inputFiles)
-	var mtree = &mymap.Map{}
-	collectDependency(mtree, directChildren)
-	sortedPaths := sortDepTree(mtree)
+	tree := &mymap.Map{}
+	collectDependency(tree, directChildren)
+	sortedPaths := sortTopologically(tree)
 
 	// sort packages by this order
 	// 1: pseudo
@@ -3865,9 +3831,9 @@ func collectDirectDependents(inputFiles []string) *mymap.Map {
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")
-		_paths := getImportPathsFromFile(inputFile)
-		for _, p := range _paths {
-			importPaths.Set(p, true)
+		paths := getImportPathsFromFile(inputFile)
+		for _, pth := range paths {
+			importPaths.Set(pth, true)
 		}
 	}
 	return importPaths

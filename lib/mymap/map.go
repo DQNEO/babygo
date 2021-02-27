@@ -71,6 +71,9 @@ func (mp *Map) Delete(key string) {
 		if item.match(key) {
 			last.next = item.next
 			mp.length -= 1
+			if mp.last == nil {
+				return
+			}
 			if mp.last.match(key) {
 				mp.last = nil
 			}
