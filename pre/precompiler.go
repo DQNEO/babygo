@@ -2300,7 +2300,7 @@ func emitDynamicTypes(typeMap map[string]int) {
 
 // --- type ---
 type Type struct {
-	E ast.Expr // original expr
+	E ast.Expr // original
 }
 
 type TypeKind string
@@ -3999,8 +3999,12 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v", x))
 }
 
+// --- AST meta data ---
 var mapMeta = map[ast.Node]interface{}{}
 
+type MetaReturnStmt struct {
+	Fnc *Func
+}
 type MetaForStmt struct {
 	LabelPost   string // for continue
 	LabelExit   string // for break
@@ -4008,28 +4012,20 @@ type MetaForStmt struct {
 	RngLenvar   *Variable
 	RngIndexvar *Variable
 }
-
+type MetaBranchStmt struct {
+	containerForStmt *MetaForStmt
+}
 type MetaTypeSwitchStmt struct {
 	Subject         ast.Expr
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
 }
-
-type MetaBranchStmt struct {
-	containerForStmt *MetaForStmt
-}
-
 type MetaTypeSwitchCaseClose struct {
 	Variable     *Variable
 	VariableType *Type
 	Orig         *ast.CaseClause
 }
-
-type MetaReturnStmt struct {
-	Fnc *Func
-}
-
 type Func struct {
 	Name      string
 	Stmts     []ast.Stmt
@@ -4041,7 +4037,6 @@ type Func struct {
 	FuncType  *ast.FuncType
 	Method    *Method
 }
-
 type Method struct {
 	PkgName      string
 	RcvNamedType *ast.Ident
@@ -4049,7 +4044,6 @@ type Method struct {
 	Name         string
 	FuncType     *ast.FuncType
 }
-
 type Variable struct {
 	Name         string
 	IsGlobal     bool

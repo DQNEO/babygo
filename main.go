@@ -2297,6 +2297,10 @@ func emitDynamicTypes(typeMap *mymap.Map) {
 }
 
 // --- type ---
+type Type struct {
+	E ast.Expr // original
+}
+
 type TypeKind string
 
 const T_STRING TypeKind = "T_STRING"
@@ -3017,8 +3021,6 @@ func walkAssignStmt(s *ast.AssignStmt) {
 		}
 	}
 }
-
-var mapMeta = &mymap.Map{}
 
 func walkReturnStmt(s *ast.ReturnStmt) {
 	meta := &MetaReturnStmt{
@@ -3989,41 +3991,33 @@ func panic2(caller string, x string) {
 	panic(caller + ": " + x)
 }
 
-// --- meta nodes ---
+// --- AST meta data ---
+var mapMeta = &mymap.Map{}
+
 type MetaReturnStmt struct {
 	Fnc *Func
+}
+type MetaForStmt struct {
+	LabelPost   string // for continue
+	LabelExit   string // for break
+	Outer       *MetaForStmt
+	RngLenvar   *Variable
+	RngIndexvar *Variable
 }
 type MetaBranchStmt struct {
 	containerForStmt *MetaForStmt
 }
-
 type MetaTypeSwitchStmt struct {
 	Subject         ast.Expr
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
 }
-
 type MetaTypeSwitchCaseClose struct {
 	Variable     *Variable
 	VariableType *Type
 	Orig         *ast.CaseClause
 }
-
-
-type Type struct {
-	//kind string
-	E ast.Expr
-}
-
-type Variable struct {
-	Name         string
-	IsGlobal     bool
-	GlobalSymbol string
-	LocalOffset  int
-	Typ          *Type
-}
-
 type Func struct {
 	Localarea int
 	Argsarea  int
@@ -4036,8 +4030,6 @@ type Func struct {
 	Stmts     []ast.Stmt
 	Method    *Method
 }
-
-
 type Method struct {
 	PkgName      string
 	RcvNamedType *ast.Ident
@@ -4045,12 +4037,11 @@ type Method struct {
 	Name         string
 	FuncType     *ast.FuncType
 }
-
-type MetaForStmt struct {
-	LabelPost   string
-	LabelExit   string
-	RngLenvar   *Variable
-	RngIndexvar *Variable
-	Outer       *MetaForStmt
+type Variable struct {
+	Name         string
+	IsGlobal     bool
+	GlobalSymbol string
+	LocalOffset  int
+	Typ          *Type
 }
 
