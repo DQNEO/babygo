@@ -3891,10 +3891,12 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 }
 
 // --- main ---
+const ProgName string = "babygo"
+
 func showHelp() {
 	fmt.Printf("Usage:\n")
-	fmt.Printf("    babygo version:  show version\n")
-	fmt.Printf("    babygo [-DF] [-DG] filename\n")
+	fmt.Printf("    %s version:  show version\n", ProgName)
+	fmt.Printf("    %s [-DF] [-DG] filename\n", ProgName)
 }
 
 func main() {
@@ -3958,7 +3960,6 @@ func main() {
 // --- util ---
 func obj2var(obj *ast.Object) *Variable {
 	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
-	assert(obj.Variable != nil, "should not be nil", __func__)
 	return obj.Variable
 }
 

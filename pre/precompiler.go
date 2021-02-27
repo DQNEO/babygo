@@ -3834,7 +3834,6 @@ func collectAllPackages(inputFiles []string) []string {
 
 func collectDirectDependents(inputFiles []string) map[string]bool {
 	importPaths := map[string]bool{}
-
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")
@@ -3900,10 +3899,12 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 }
 
 // --- main ---
+const ProgName string = "pre"
+
 func showHelp() {
 	fmt.Printf("Usage:\n")
-	fmt.Printf("    pre version:  show version\n")
-	fmt.Printf("    pre [-DF] [-DG] filename\n")
+	fmt.Printf("    %s version:  show version\n", ProgName)
+	fmt.Printf("    %s [-DF] [-DG] filename\n", ProgName)
 }
 
 func main() {
@@ -3967,8 +3968,7 @@ func main() {
 // --- util ---
 func obj2var(obj *ast.Object) *Variable {
 	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
-	vr := obj.Data.(*Variable)
-	return vr
+	return obj.Data.(*Variable)
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
