@@ -2735,8 +2735,7 @@ func getSizeOfType(t *Type) int {
 }
 
 func getStructFieldOffset(field *ast.Field) int {
-	offset := field.Offset
-	return offset
+	return field.Offset
 }
 
 func setStructFieldOffset(field *ast.Field, offset int) {
@@ -3197,6 +3196,7 @@ func walkStmt(stmt ast.Stmt) {
 }
 
 func walkIdent(e *ast.Ident) {
+	// what to do ?
 }
 func walkSelectorExpr(e *ast.SelectorExpr) {
 	walkExpr(e.X)
@@ -3677,17 +3677,18 @@ type PkgContainer struct {
 }
 
 func resolveImports(file *ast.File) {
-	var mapImports []string
+	mapImports := &mymap.Map{}
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		rawValue := imprt.Path
-		pth := rawValue[1:(len(rawValue) - 1)]
+		pth := rawValue[1:(len(rawValue)-1)]
 		base := path.Base(pth)
-		mapImports = append(mapImports, base)
+		mapImports.Set(base, true)
 	}
 	for _, ident := range file.Unresolved {
 		// lookup imported package name
-		if mylib.InArray(ident.Name, mapImports) {
+		_, ok := mapImports.Get(ident.Name)
+		if ok {
 			ident.Obj = &ast.Object{
 				Kind: ast.Pkg,
 				Name: ident.Name,

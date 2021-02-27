@@ -3101,9 +3101,6 @@ func walkSwitchStmt(s *ast.SwitchStmt) {
 func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	typeSwitch := &MetaTypeSwitchStmt{}
 	mapNodeMeta[s] = typeSwitch
-	if s.Init != nil {
-		walkStmt(s.Init)
-	}
 	var assignIdent *ast.Ident
 	switch assign := s.Assign.(type) {
 	case *ast.ExprStmt:
@@ -3331,8 +3328,8 @@ func walkExpr(expr ast.Expr) {
 var ExportedQualifiedIdents = map[QualifiedIdent]*ast.Ident{}
 
 func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
-	ident, found := ExportedQualifiedIdents[qi]
-	if !found {
+	ident, ok := ExportedQualifiedIdents[qi]
+	if !ok {
 		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
 	return ident
@@ -3690,11 +3687,11 @@ type PkgContainer struct {
 }
 
 func resolveImports(file *ast.File) {
-	var mapImports = map[string]bool{}
+	mapImports := map[string]bool{}
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		rawValue := imprt.Path.Value
-		pth := rawValue[1 : len(rawValue)-1]
+		pth := rawValue[1:len(rawValue)-1]
 		base := path.Base(pth)
 		mapImports[base] = true
 	}
