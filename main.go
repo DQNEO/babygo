@@ -2557,7 +2557,7 @@ func serializeType(t *Type) string {
 				// named type
 				decl := e.Obj.Decl
 				typeSpec := decl.(*ast.TypeSpec)
-				pkgName := typeSpec.Name.Obj.PkgName
+				pkgName := typeSpec.Name.Obj.Data.(string)
 				return pkgName + "." + typeSpec.Name.Name
 			}
 		}
@@ -3384,7 +3384,7 @@ func walk(pkg *PkgContainer) {
 	}
 
 	for _, typeSpec := range typeSpecs {
-		typeSpec.Name.Obj.PkgName = pkg.name // package to which the type belongs to
+		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
 		t := e2t(typeSpec.Type)
 		switch kind(t) {
 		case T_STRUCT:
