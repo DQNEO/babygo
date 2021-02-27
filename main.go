@@ -3723,7 +3723,7 @@ func isStdLib(pth string) bool {
 }
 
 func getImportPathsFromFile(file string) []string {
-	astFile0 := parseImports(file)
+	astFile0 := parseImports(nil, file)
 	var paths []string
 	for _, importSpec := range astFile0.Imports {
 		rawValue := importSpec.Path.Value
@@ -3858,10 +3858,11 @@ func collectSourceFiles(pkgDir string) []string {
 
 func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 	logf("Building package : %s\n", _pkg.path)
+	fset := &token.FileSet{}
 	pkgScope := ast.NewScope(universe)
 	for _, file := range _pkg.files {
 		logf("Parsing file: %s\n", file)
-		astFile := parseFile(file, false)
+		astFile := parseFile(fset, file)
 		_pkg.name = astFile.Name.Name
 		_pkg.astFiles = append(_pkg.astFiles, astFile)
 		for item:=astFile.Scope.Objects.First();item!=nil;item=item.Next() {
@@ -3964,7 +3965,6 @@ func main() {
 	emitDynamicTypes(typesMap)
 }
 
-// --- util ---
 func obj2var(obj *ast.Object) *Variable {
 	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
 	return obj.Data.(*Variable)
@@ -3976,10 +3976,6 @@ func setVariable(obj *ast.Object, vr *Variable) {
 	} else {
 		obj.Data = vr
 	}
-}
-
-func throw(x interface{}) {
-	panic(x)
 }
 
 // --- AST meta data ---
@@ -4065,4 +4061,17 @@ type Variable struct {
 	GlobalSymbol string
 	LocalOffset  int
 	Typ          *Type
+}
+
+// --- util ---
+func parseImports(fset *token.FileSet, filename string) *ast.File {
+	return ParseFile(fset, filename, nil, 1)
+}
+
+func parseFile(fset *token.FileSet, filename string) *ast.File {
+	return ParseFile(fset, filename, nil, 0)
+}
+
+func throw(x interface{}) {
+	panic(x)
 }

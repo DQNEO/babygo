@@ -17,3 +17,7 @@ var AND Token = "&"
 func (tok Token) String() string {
 	return string(tok)
 }
+
+type FileSet struct {
+	base int
+}

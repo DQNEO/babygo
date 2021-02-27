@@ -3966,7 +3966,6 @@ func main() {
 	emitDynamicTypes(typesMap)
 }
 
-// --- util ---
 func obj2var(obj *ast.Object) *Variable {
 	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
 	return obj.Data.(*Variable)
@@ -3978,26 +3977,6 @@ func setVariable(obj *ast.Object, vr *Variable) {
 	} else {
 		obj.Data = vr
 	}
-}
-
-func parseImports(fset *token.FileSet, filename string) *ast.File {
-	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
-	if err != nil {
-		panic(filename + ":" + err.Error())
-	}
-	return f
-}
-
-func parseFile(fset *token.FileSet, filename string) *ast.File {
-	f, err := parser.ParseFile(fset, filename, nil, 0)
-	if err != nil {
-		panic(err)
-	}
-	return f
-}
-
-func throw(x interface{}) {
-	panic(fmt.Sprintf("%#v", x))
 }
 
 // --- AST meta data ---
@@ -4078,4 +4057,25 @@ type Variable struct {
 	GlobalSymbol string
 	LocalOffset  int
 	Typ          *Type
+}
+
+// --- util ---
+func parseImports(fset *token.FileSet, filename string) *ast.File {
+	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
+	if err != nil {
+		panic(filename + ":" + err.Error())
+	}
+	return f
+}
+
+func parseFile(fset *token.FileSet, filename string) *ast.File {
+	f, err := parser.ParseFile(fset, filename, nil, 0)
+	if err != nil {
+		panic(err)
+	}
+	return f
+}
+
+func throw(x interface{}) {
+	panic(fmt.Sprintf("%#v", x))
 }

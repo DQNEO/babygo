@@ -1378,15 +1378,16 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 	return f
 }
 
-func parseImports(filename string) *ast.File {
-	return parseFile(filename, true)
-}
-
 func readSource(filename string) []uint8 {
 	return readFile(filename)
 }
 
-func parseFile(filename string, importsOnly bool) *ast.File {
+func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8) *ast.File {
+	var importsOnly bool
+	if mode == 1 {
+		importsOnly = true
+	}
+
 	var text = readSource(filename)
 
 	var p = &parser{}
