@@ -198,7 +198,6 @@ type ForStmt struct {
 	Cond Expr
 	Post Stmt
 	Body *BlockStmt
-	Meta *MetaForStmt
 }
 
 type RangeStmt struct {
@@ -206,7 +205,6 @@ type RangeStmt struct {
 	Value Expr
 	X     Expr
 	Body  *BlockStmt
-	Meta  *MetaForStmt
 	Tok   token.Token
 }
 

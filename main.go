@@ -1688,7 +1688,8 @@ func emitIfStmt(s *ast.IfStmt) {
 }
 
 func emitForStmt(s *ast.ForStmt) {
-	meta := s.Meta
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	meta := metaIfc.(*MetaForStmt)
 	labelid++
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
@@ -1719,7 +1720,8 @@ func emitForStmt(s *ast.ForStmt) {
 
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
-	meta := s.Meta
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	meta := metaIfc.(*MetaForStmt)
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -3016,9 +3018,10 @@ func walkAssignStmt(s *ast.AssignStmt) {
 var mapMeta = &mymap.Map{}
 
 func walkReturnStmt(s *ast.ReturnStmt) {
-	mapMeta.Set(unsafe.Pointer(s), &MetaReturnStmt{
+	meta := &MetaReturnStmt{
 		Fnc: currentFunc,
-	})
+	}
+	mapMeta.Set(unsafe.Pointer(s), meta)
 	for _, r := range s.Results {
 		walkExpr(r)
 	}
@@ -3044,7 +3047,7 @@ func walkForStmt(s *ast.ForStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	s.Meta = meta
+	mapMeta.Set(unsafe.Pointer(s), meta)
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3062,7 +3065,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	s.Meta = meta
+	mapMeta.Set(unsafe.Pointer(s), meta)
 	walkExpr(s.X)
 	walkStmt(s.Body)
 	meta.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
