@@ -3638,7 +3638,7 @@ func isPredeclaredType(obj *ast.Object) bool {
 }
 
 func createUniverse() *ast.Scope {
-	var universe = ast.NewScope(nil)
+	universe := ast.NewScope(nil)
 	objects := []*ast.Object{
 		gNil,
 		// constants

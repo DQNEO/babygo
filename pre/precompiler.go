@@ -3647,11 +3647,7 @@ func isPredeclaredType(obj *ast.Object) bool {
 }
 
 func createUniverse() *ast.Scope {
-	universe := &ast.Scope{
-		Outer:   nil,
-		Objects: make(map[string]*ast.Object),
-	}
-
+	universe := ast.NewScope(nil)
 	objects := []*ast.Object{
 		gNil,
 		// constants
