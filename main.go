@@ -3987,10 +3987,6 @@ func throw(x interface{}) {
 	panic(x)
 }
 
-func panic2(caller string, x string) {
-	panic(caller + ": " + x)
-}
-
 // --- AST meta data ---
 var mapMeta = &mymap.Map{}
 
