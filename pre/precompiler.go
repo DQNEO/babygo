@@ -3017,6 +3017,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 		}
 	}
 }
+
 func walkReturnStmt(s *ast.ReturnStmt) {
 	mapMeta[s] = &MetaReturnStmt{
 		Fnc: currentFunc,

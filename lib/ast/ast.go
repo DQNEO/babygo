@@ -157,7 +157,6 @@ type AssignStmt struct {
 
 type ReturnStmt struct {
 	Results []Expr
-	Meta    *MetaReturnStmt
 }
 
 type BranchStmt struct {

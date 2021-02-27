@@ -21,10 +21,6 @@ type Method struct {
 	FuncType     *FuncType
 }
 
-type MetaReturnStmt struct {
-	Fnc *Func
-}
-
 type MetaTypeSwitchStmt struct {
 	Subject         Expr
 	SubjectVariable *Variable

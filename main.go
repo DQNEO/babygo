@@ -594,7 +594,8 @@ func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(s *ast.ReturnStmt) {
-	meta := s.Meta
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	meta := metaIfc.(*MetaReturnStmt)
 	fnc := meta.Fnc
 	if len(fnc.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
@@ -3010,10 +3011,13 @@ func walkAssignStmt(s *ast.AssignStmt) {
 		}
 	}
 }
+
+var mapMeta = &mymap.Map{}
+
 func walkReturnStmt(s *ast.ReturnStmt) {
-	s.Meta = &ast.MetaReturnStmt{
+	mapMeta.Set(unsafe.Pointer(s), &MetaReturnStmt{
 		Fnc: currentFunc,
-	}
+	})
 	for _, r := range s.Results {
 		walkExpr(r)
 	}
@@ -3970,4 +3974,9 @@ func throw(x interface{}) {
 
 func panic2(caller string, x string) {
 	panic(caller + ": " + x)
+}
+
+// --- meta nodes ---
+type MetaReturnStmt struct {
+	Fnc *Func
 }
