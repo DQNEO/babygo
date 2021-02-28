@@ -3012,9 +3012,9 @@ func walkAssignStmt(s *ast.AssignStmt) {
 }
 
 func walkReturnStmt(s *ast.ReturnStmt) {
-	mapMeta[s] = &MetaReturnStmt{
+	setMetaReturnStmt(s, &MetaReturnStmt{
 		Fnc: currentFunc,
-	}
+	})
 	for _, r := range s.Results {
 		walkExpr(r)
 	}
@@ -3969,20 +3969,8 @@ func setVariable(obj *ast.Object, vr *Variable) {
 // --- AST meta data ---
 var mapMeta = map[ast.Node]interface{}{}
 
-func getStructFieldOffset(field *ast.Field) int {
-	return mapMeta[field].(int)
-}
-
-func setStructFieldOffset(field *ast.Field, offset int) {
-	mapMeta[field] = offset
-}
-
 type MetaReturnStmt struct {
 	Fnc *Func
-}
-
-func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
-	return mapMeta[s].(*MetaReturnStmt)
 }
 
 type MetaForStmt struct {
@@ -3993,23 +3981,8 @@ type MetaForStmt struct {
 	RngIndexvar *Variable
 }
 
-func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
-	switch s := stmt.(type) {
-	case *ast.ForStmt:
-		return mapMeta[s].(*MetaForStmt)
-	case *ast.RangeStmt:
-		return mapMeta[s].(*MetaForStmt)
-	default:
-		panic(stmt)
-	}
-}
-
 type MetaBranchStmt struct {
 	containerForStmt *MetaForStmt
-}
-
-func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
-	return mapMeta[s].(*MetaBranchStmt)
 }
 
 type MetaTypeSwitchStmt struct {
@@ -4017,10 +3990,6 @@ type MetaTypeSwitchStmt struct {
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
-}
-
-func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
-	return mapMeta[s].(*MetaTypeSwitchStmt)
 }
 
 type MetaTypeSwitchCaseClose struct {
@@ -4052,6 +4021,41 @@ type Variable struct {
 	GlobalSymbol string
 	LocalOffset  int
 	Typ          *Type
+}
+
+func getStructFieldOffset(field *ast.Field) int {
+	return mapMeta[field].(int)
+}
+
+func setStructFieldOffset(field *ast.Field, offset int) {
+	mapMeta[field] = offset
+}
+
+func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
+	return mapMeta[s].(*MetaReturnStmt)
+}
+
+func setMetaReturnStmt(s *ast.ReturnStmt, meta *MetaReturnStmt) {
+	mapMeta[s] = meta
+}
+
+func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
+	switch s := stmt.(type) {
+	case *ast.ForStmt:
+		return mapMeta[s].(*MetaForStmt)
+	case *ast.RangeStmt:
+		return mapMeta[s].(*MetaForStmt)
+	default:
+		panic(stmt)
+	}
+}
+
+func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
+	return mapMeta[s].(*MetaBranchStmt)
+}
+
+func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
+	return mapMeta[s].(*MetaTypeSwitchStmt)
 }
 
 // --- util ---

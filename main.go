@@ -3010,10 +3010,9 @@ func walkAssignStmt(s *ast.AssignStmt) {
 }
 
 func walkReturnStmt(s *ast.ReturnStmt) {
-	meta := &MetaReturnStmt{
+	setMetaReturnStmt(s, &MetaReturnStmt{
 		Fnc: currentFunc,
-	}
-	mapMeta.Set(unsafe.Pointer(s), meta)
+	})
 	for _, r := range s.Results {
 		walkExpr(r)
 	}
@@ -3715,7 +3714,8 @@ func isStdLib(pth string) bool {
 }
 
 func getImportPathsFromFile(file string) []string {
-	astFile0 := parseImports(nil, file)
+	fset := &token.FileSet{}
+	astFile0 := parseImports(fset, file)
 	var paths []string
 	for _, importSpec := range astFile0.Imports {
 		rawValue := importSpec.Path.Value
@@ -3737,8 +3737,7 @@ func removeNode(tree *mymap.Map, node string) {
 func getKeys(tree *mymap.Map) []string {
 	var keys []string
 	for item:= tree.First();item!=nil;item=item.Next() {
-		key := item.GetKeyAsString()
-		keys = append(keys, key)
+		keys = append(keys, item.GetKeyAsString())
 	}
 	return keys
 }
@@ -3968,22 +3967,8 @@ func setVariable(obj *ast.Object, vr *Variable) {
 // --- AST meta data ---
 var mapMeta = &mymap.Map{}
 
-func getStructFieldOffset(field *ast.Field) int {
-	metaIfc , _ := mapMeta.Get(unsafe.Pointer(field))
-	return metaIfc.(int)
-}
-
-func setStructFieldOffset(field *ast.Field, offset int) {
-	mapMeta.Set(unsafe.Pointer(field), offset)
-}
-
 type MetaReturnStmt struct {
 	Fnc *Func
-}
-
-func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
-	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-	return metaIfc.(*MetaReturnStmt)
 }
 
 type MetaForStmt struct {
@@ -3994,26 +3979,8 @@ type MetaForStmt struct {
 	RngIndexvar *Variable
 }
 
-func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
-	switch s := stmt.(type) {
-	case *ast.ForStmt:
-		metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-		return metaIfc.(*MetaForStmt)
-	case *ast.RangeStmt:
-		metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-		return metaIfc.(*MetaForStmt)
-	default:
-		panic(stmt)
-	}
-}
-
 type MetaBranchStmt struct {
 	containerForStmt *MetaForStmt
-}
-
-func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
-	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-	return metaIfc.(*MetaBranchStmt)
 }
 
 type MetaTypeSwitchStmt struct {
@@ -4021,11 +3988,6 @@ type MetaTypeSwitchStmt struct {
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
-}
-
-func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
-	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-	return metaIfc.(*MetaTypeSwitchStmt)
 }
 
 type MetaTypeSwitchCaseClose struct {
@@ -4057,6 +4019,47 @@ type Variable struct {
 	GlobalSymbol string
 	LocalOffset  int
 	Typ          *Type
+}
+
+func getStructFieldOffset(field *ast.Field) int {
+	metaIfc , _ := mapMeta.Get(unsafe.Pointer(field))
+	return metaIfc.(int)
+}
+
+func setStructFieldOffset(field *ast.Field, offset int) {
+	mapMeta.Set(unsafe.Pointer(field), offset)
+}
+
+func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	return metaIfc.(*MetaReturnStmt)
+}
+
+func setMetaReturnStmt(s *ast.ReturnStmt, meta *MetaReturnStmt) {
+	mapMeta.Set(unsafe.Pointer(s), meta)
+}
+
+func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
+	switch s := stmt.(type) {
+	case *ast.ForStmt:
+		metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+		return metaIfc.(*MetaForStmt)
+	case *ast.RangeStmt:
+		metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+		return metaIfc.(*MetaForStmt)
+	default:
+		panic(stmt)
+	}
+}
+
+func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	return metaIfc.(*MetaBranchStmt)
+}
+
+func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
+	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
+	return metaIfc.(*MetaTypeSwitchStmt)
 }
 
 // --- util ---
