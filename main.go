@@ -3038,7 +3038,7 @@ func walkForStmt(s *ast.ForStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	mapMeta.Set(unsafe.Pointer(s), meta)
+	setMetaForStmt(s , meta)
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3056,7 +3056,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	mapMeta.Set(unsafe.Pointer(s), meta)
+	setMetaForStmt(s , meta)
 	walkExpr(s.X)
 	walkStmt(s.Body)
 	meta.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
@@ -3092,7 +3092,7 @@ func walkSwitchStmt(s *ast.SwitchStmt) {
 }
 func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	typeSwitch := &MetaTypeSwitchStmt{}
-	mapMeta.Set(unsafe.Pointer(s), typeSwitch)
+	setMetaTypeSwitchStmt(s, typeSwitch)
 	var assignIdent *ast.Ident
 	switch assign := s.Assign.(type) {
 	case *ast.ExprStmt:
@@ -3158,7 +3158,7 @@ func walkCaseClause(s *ast.CaseClause) {
 }
 func walkBranchStmt(s *ast.BranchStmt) {
 	assert(currentFor != nil, "break or continue should be in for body", __func__)
-	mapMeta.Set(unsafe.Pointer(s), &MetaBranchStmt{
+	setMetaBranchStmt(s, &MetaBranchStmt{
 		containerForStmt: currentFor,
 	})
 }
@@ -4052,9 +4052,24 @@ func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
 	}
 }
 
+func setMetaForStmt(stmt ast.Stmt, meta *MetaForStmt) {
+	switch s := stmt.(type) {
+	case *ast.ForStmt:
+		mapMeta.Set(unsafe.Pointer(s), meta)
+	case *ast.RangeStmt:
+		mapMeta.Set(unsafe.Pointer(s), meta)
+	default:
+		panic(stmt)
+	}
+}
+
 func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
 	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
 	return metaIfc.(*MetaBranchStmt)
+}
+
+func setMetaBranchStmt(s *ast.BranchStmt, meta *MetaBranchStmt) {
+	mapMeta.Set(unsafe.Pointer(s) , meta)
 }
 
 func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
@@ -4062,6 +4077,9 @@ func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	return metaIfc.(*MetaTypeSwitchStmt)
 }
 
+func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
+	mapMeta.Set(unsafe.Pointer(s) , meta)
+}
 // --- util ---
 func parseImports(fset *token.FileSet, filename string) *ast.File {
 	return ParseFile(fset, filename, nil, 1)

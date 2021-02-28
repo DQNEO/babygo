@@ -3040,7 +3040,7 @@ func walkForStmt(s *ast.ForStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	mapMeta[s] = meta
+	setMetaForStmt(s , meta)
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3058,7 +3058,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	mapMeta[s] = meta
+	setMetaForStmt(s , meta)
 	walkExpr(s.X)
 	walkStmt(s.Body)
 	meta.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
@@ -3094,7 +3094,7 @@ func walkSwitchStmt(s *ast.SwitchStmt) {
 }
 func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	typeSwitch := &MetaTypeSwitchStmt{}
-	mapMeta[s] = typeSwitch
+	setMetaTypeSwitchStmt(s, typeSwitch)
 	var assignIdent *ast.Ident
 	switch assign := s.Assign.(type) {
 	case *ast.ExprStmt:
@@ -3160,9 +3160,9 @@ func walkCaseClause(s *ast.CaseClause) {
 }
 func walkBranchStmt(s *ast.BranchStmt) {
 	assert(currentFor != nil, "break or continue should be in for body", __func__)
-	mapMeta[s] = &MetaBranchStmt{
+	setMetaBranchStmt(s, &MetaBranchStmt{
 		containerForStmt: currentFor,
-	}
+	})
 }
 
 func walkStmt(stmt ast.Stmt) {
@@ -4050,12 +4050,31 @@ func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
 	}
 }
 
+func setMetaForStmt(stmt ast.Stmt, meta *MetaForStmt) {
+	switch s := stmt.(type) {
+	case *ast.ForStmt:
+		mapMeta[s] = meta
+	case *ast.RangeStmt:
+		mapMeta[s] = meta
+	default:
+		panic(stmt)
+	}
+}
+
 func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
 	return mapMeta[s].(*MetaBranchStmt)
 }
 
+func setMetaBranchStmt(s *ast.BranchStmt, meta *MetaBranchStmt) {
+	mapMeta[s] = meta
+}
+
 func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	return mapMeta[s].(*MetaTypeSwitchStmt)
+}
+
+func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
+	mapMeta[s] = meta
 }
 
 // --- util ---
