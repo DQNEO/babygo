@@ -2740,14 +2740,6 @@ func getSizeOfType(t *Type) int {
 	return 0
 }
 
-func getStructFieldOffset(field *ast.Field) int {
-	return field.Offset
-}
-
-func setStructFieldOffset(field *ast.Field, offset int) {
-	field.Offset = offset
-}
-
 func lookupStructField(structType *ast.StructType, selName string) *ast.Field {
 	for _, field := range structType.Fields.List {
 		if field.Names[0].Name == selName {
@@ -3980,6 +3972,15 @@ func setVariable(obj *ast.Object, vr *Variable) {
 
 // --- AST meta data ---
 var mapMeta = &mymap.Map{}
+
+func getStructFieldOffset(field *ast.Field) int {
+	metaIfc , _ := mapMeta.Get(unsafe.Pointer(field))
+	return metaIfc.(int)
+}
+
+func setStructFieldOffset(field *ast.Field, offset int) {
+	mapMeta.Set(unsafe.Pointer(field), offset)
+}
 
 type MetaReturnStmt struct {
 	Fnc *Func
