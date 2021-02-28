@@ -204,7 +204,7 @@ func emitAddr(expr ast.Expr) {
 			panic("ident.Obj is nil: " + e.Name)
 		}
 		assert(e.Obj.Kind == ast.Var, "should be ast.Var", __func__)
-		vr := obj2var(e.Obj)
+		vr := e.Obj.Data.(*Variable)
 		emitVariableAddr(vr)
 	case *ast.IndexExpr:
 		emitExpr(e.Index, nil) // index number
@@ -3956,11 +3956,6 @@ func main() {
 	}
 
 	emitDynamicTypes(typesMap)
-}
-
-func obj2var(obj *ast.Object) *Variable {
-	assert(obj.Kind == ast.Var, "should be ast.Var", __func__)
-	return obj.Data.(*Variable)
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
