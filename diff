@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# Compare the precompipler and the main compiler
 diff -U 0 pre/precompiler.go main.go
 
 
