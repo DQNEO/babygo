@@ -4,7 +4,6 @@ import "unsafe"
 
 type Map struct {
 	first  *item
-	last   *item
 	length int
 }
 
@@ -58,28 +57,16 @@ func (mp *Map) Delete(key string) {
 	if mp.first.match(key) {
 		mp.first = mp.first.next
 		mp.length -= 1
-		if mp.last == nil {
-			return
-		}
-		if mp.last.match(key) {
-			mp.last = nil
-		}
 		return
 	}
-	var last *item
+	var prev *item
 	for item:=mp.first; item!=nil; item=item.next {
 		if item.match(key) {
-			last.next = item.next
+			prev.next = item.next
 			mp.length -= 1
-			if mp.last == nil {
-				return
-			}
-			if mp.last.match(key) {
-				mp.last = nil
-			}
 			return
 		}
-		last = item
+		prev = item
 	}
 
 }
@@ -90,7 +77,6 @@ func (mp *Map) Set(key interface{}, value interface{}) {
 			key:   key,
 			Value: value,
 		}
-		mp.last = mp.first
 		mp.length += 1
 		return
 	}
@@ -107,7 +93,6 @@ func (mp *Map) Set(key interface{}, value interface{}) {
 		Value: value,
 	}
 	last.next = newItem
-	mp.last = newItem
 	mp.length += 1
 }
 
