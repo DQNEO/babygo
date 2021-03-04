@@ -8,9 +8,22 @@ type Map struct {
 }
 
 type item struct {
-	key   string // interface{}
+	key   interface{}
 	Value string // interface{}
 	next  *item
+}
+
+func (i *item) match(key interface{}) bool {
+	switch k := key.(type) {
+	case string:
+		return i.key.(string) == k
+	case unsafe.Pointer:
+		return i.key.(unsafe.Pointer) == k
+	default:
+		panic("Not supported key type")
+	}
+	panic("Not supported key type")
+	return false
 }
 
 func makeMap(size uintptr) uintptr {
@@ -34,7 +47,7 @@ func getAddrForMapSet(mp *Map, key string) unsafe.Pointer {
 	}
 	var last *item
 	for item:=mp.first; item!=nil; item=item.next {
-		if item.key == key {
+		if item.match(key) {
 			return unsafe.Pointer(&item.Value)
 		}
 		last = item
@@ -52,7 +65,7 @@ func getAddrForMapSet(mp *Map, key string) unsafe.Pointer {
 var emptyString string  // = "not found"
 func getAddrForMapGet(mp *Map, key string) unsafe.Pointer {
 	for item:=mp.first; item!=nil; item=item.next {
-		if item.key == key {
+		if item.match(key) {
 			return unsafe.Pointer(&item.Value)
 		}
 	}
