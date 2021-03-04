@@ -36,6 +36,26 @@ func lenMap(mp *Map) int {
 	return mp.length
 }
 
+func deleteFromMap(mp *Map, key interface{}) {
+	if mp.first == nil {
+		return
+	}
+	if mp.first.match(key) {
+		mp.first = mp.first.next
+		mp.length -= 1
+		return
+	}
+	var prev *item
+	for item:=mp.first; item!=nil; item=item.next {
+		if item.match(key) {
+			prev.next = item.next
+			mp.length -= 1
+			return
+		}
+		prev = item
+	}
+}
+
 func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
 	if mp.first == nil {
 		// alloc new item
