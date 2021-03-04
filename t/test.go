@@ -19,8 +19,16 @@ func testMap() {
 	mp["key1"] = "value1"
 	var s0 string = mp["noexist"]
 	fmt.Printf("noexist=>\"%s\"\n", s0)
-	var s string = mp["key1"]
-	fmt.Printf("key1=>\"%s\"\n", s)
+	var s1 string = mp["key1"]
+	fmt.Printf("key1=>\"%s\"\n", s1)
+	var s2 string = mp["key2"]
+	fmt.Printf("key2=>\"%s\"\n", s2)
+
+	mp["key2"] = "value2"
+
+	s2  = mp["key2"]
+	fmt.Printf("key2=>\"%s\"\n", s2)
+
 	os.Exit(0)
 	return
 	//v, ok := mp["key1"]
