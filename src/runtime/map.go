@@ -9,8 +9,12 @@ type Map struct {
 
 type item struct {
 	key   interface{}
-	Value string // interface{}
+	value string // interface{}
 	next  *item
+}
+
+func (i *item) valueAddr() unsafe.Pointer {
+	return unsafe.Pointer(&i.value)
 }
 
 func (i *item) match(key interface{}) bool {
@@ -63,12 +67,12 @@ func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
 			key: key,
 		}
 		mp.length += 1
-		return unsafe.Pointer(&mp.first.Value)
+		return mp.first.valueAddr()
 	}
 	var last *item
 	for item:=mp.first; item!=nil; item=item.next {
 		if item.match(key) {
-			return unsafe.Pointer(&item.Value)
+			return item.valueAddr()
 		}
 		last = item
 	}
@@ -78,14 +82,14 @@ func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
 	last.next = newItem
 	mp.length += 1
 
-	return unsafe.Pointer(&newItem.Value)
+	return newItem.valueAddr()
 }
 
 var emptyString string  // = "not found"
 func getAddrForMapGet(mp *Map, key interface{}) unsafe.Pointer {
 	for item:=mp.first; item!=nil; item=item.next {
 		if item.match(key) {
-			return unsafe.Pointer(&item.Value)
+			return item.valueAddr()
 		}
 	}
 	return unsafe.Pointer(&emptyString)
