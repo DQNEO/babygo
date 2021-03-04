@@ -50,7 +50,7 @@ func (mp *Map) Get(key interface{}) (interface{}, bool){
 	return nil, false
 }
 
-func (mp *Map) Delete(key string) {
+func (mp *Map) Delete(key interface{}) {
 	if mp.first == nil {
 		return
 	}
