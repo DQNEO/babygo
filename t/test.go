@@ -34,6 +34,11 @@ func testMap() {
 
 	fmt.Printf("len=>\"%d\"\n", len(mp))
 
+	//delete(mp, "key1")
+	//s1  = mp["key1"]
+	//fmt.Printf("key1=>\"%s\"\n", s1)
+	//fmt.Printf("len=>\"%d\"\n", len(mp))
+
 	fmt.Printf("--------\n")
 
 	var mp2 = make(map[unsafe.Pointer]string)
