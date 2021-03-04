@@ -16,6 +16,7 @@ import (
 
 func testMap() {
 	var mp map[string]string  = make(map[string]string)
+	return
 	mp["key1"] = "value1"
 	v, ok := mp["key1"]
 	if ok {

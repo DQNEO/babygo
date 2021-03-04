@@ -2318,6 +2318,7 @@ const T_UINTPTR TypeKind = "T_UINTPTR"
 const T_ARRAY TypeKind = "T_ARRAY"
 const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
+const T_MAP TypeKind = "T_MAP"
 
 // types of an expr in single value context
 func getTypeOfExpr(expr ast.Expr) *Type {
@@ -2615,7 +2616,7 @@ func getUnderlyingType(t *Type) *Type {
 	}
 
 	switch e := t.E.(type) {
-	case *ast.StructType, *ast.ArrayType, *ast.StarExpr, *ast.Ellipsis, *ast.InterfaceType:
+	case *ast.StructType, *ast.ArrayType, *ast.StarExpr, *ast.Ellipsis, *ast.MapType, *ast.InterfaceType:
 		// type literal
 		return t
 	case *ast.Ident:
@@ -2679,6 +2680,8 @@ func kind(t *Type) TypeKind {
 		return T_POINTER
 	case *ast.Ellipsis: // x ...T
 		return T_SLICE // @TODO is this right ?
+	case *ast.MapType:
+		return T_MAP
 	case *ast.InterfaceType:
 		return T_INTERFACE
 	}
@@ -2726,7 +2729,7 @@ func getSizeOfType(t *Type) int {
 		return SizeOfString
 	case T_INT:
 		return SizeOfInt
-	case T_UINTPTR, T_POINTER:
+	case T_UINTPTR, T_POINTER, T_MAP:
 		return SizeOfPtr
 	case T_UINT8:
 		return SizeOfUint8
