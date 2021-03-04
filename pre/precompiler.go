@@ -950,7 +950,7 @@ func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
 			},
 			&Arg{
 				e:         key,
-				paramType: tString,
+				paramType: tEface,
 			},
 		}
 		resultList := &ast.FieldList{
@@ -1447,7 +1447,7 @@ func emitAddrForMapSet(indexExpr *ast.IndexExpr) {
 		},
 		&Arg{
 			e:         key,
-			paramType: tString,
+			paramType: tEface,
 		},
 	}
 	resultList := &ast.FieldList{

@@ -36,7 +36,7 @@ func lenMap(mp *Map) int {
 	return mp.length
 }
 
-func getAddrForMapSet(mp *Map, key string) unsafe.Pointer {
+func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
 	if mp.first == nil {
 		// alloc new item
 		mp.first = &item{
@@ -63,7 +63,7 @@ func getAddrForMapSet(mp *Map, key string) unsafe.Pointer {
 }
 
 var emptyString string  // = "not found"
-func getAddrForMapGet(mp *Map, key string) unsafe.Pointer {
+func getAddrForMapGet(mp *Map, key interface{}) unsafe.Pointer {
 	for item:=mp.first; item!=nil; item=item.next {
 		if item.match(key) {
 			return unsafe.Pointer(&item.Value)
