@@ -15,7 +15,7 @@ import (
 )
 
 func testMap() {
-	var mp map[string]string  = make(map[string]string)
+	mp := make(map[string]string)
 	fmt.Printf("len=>\"%d\"\n", len(mp))
 	mp["key1"] = "value1"
 	fmt.Printf("len=>\"%d\"\n", len(mp))

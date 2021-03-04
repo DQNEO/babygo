@@ -59,7 +59,6 @@ func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
 	mp.length += 1
 
 	return unsafe.Pointer(&newItem.Value)
-	//return unsafe.Pointer(mp)
 }
 
 var emptyString string  // = "not found"
