@@ -14,7 +14,7 @@ import (
 	"github.com/DQNEO/babygo/lib/mymap"
 )
 
-func testMap() {
+func testMyMap() {
 	mp := &mymap.Map{}
 	fmt.Printf("mp.Len=%d\n", mp.Len()) // => 0
 
@@ -2069,7 +2069,7 @@ func testMisc() {
 }
 
 func main() {
-	testMap()
+	testMyMap()
 	testTypeSwitchNil()
 	testStructPointerMethodsByValue()
 	testTokenString()
