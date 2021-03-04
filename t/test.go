@@ -16,7 +16,9 @@ import (
 
 func testMap() {
 	var mp map[string]string  = make(map[string]string)
+	fmt.Printf("len=>\"%d\"\n", len(mp))
 	mp["key1"] = "value1"
+	fmt.Printf("len=>\"%d\"\n", len(mp))
 	var s0 string = mp["noexist"]
 	fmt.Printf("noexist=>\"%s\"\n", s0)
 	var s1 string = mp["key1"]
@@ -29,6 +31,7 @@ func testMap() {
 	s2  = mp["key2"]
 	fmt.Printf("key2=>\"%s\"\n", s2)
 
+	fmt.Printf("len=>\"%d\"\n", len(mp))
 	os.Exit(0)
 	return
 	//v, ok := mp["key1"]

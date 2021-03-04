@@ -385,6 +385,23 @@ func emitLen(arg ast.Expr) {
 		emitExpr(arg, nil)
 		emitPopString()
 		fmt.Printf("  pushq %%rcx # len\n")
+	case T_MAP:
+		args := []*Arg{
+			// len
+			&Arg{
+				e:         arg,
+				paramType: tUintptr,
+			},
+		}
+		resultList := &ast.FieldList{
+			List: []*ast.Field{
+				&ast.Field{
+					Type: tInt.E,
+				},
+			},
+		}
+		emitCall("runtime.lenMap", args, resultList)
+
 	default:
 		unexpectedKind(kind(getTypeOfExpr(arg)))
 	}

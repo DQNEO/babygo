@@ -173,6 +173,10 @@ func makeMap(size uintptr) uintptr {
 	return addr
 }
 
+func lenMap(mp *Map) int {
+	return mp.length
+}
+
 func getAddrForMapSet(mp *Map, key string) unsafe.Pointer {
 	if mp.first == nil {
 		// alloc new item

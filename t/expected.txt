@@ -1,4 +1,7 @@
+len=>"0"
+len=>"1"
 noexist=>""
 key1=>"value1"
 key2=>""
 key2=>"value2"
+len=>"2"
