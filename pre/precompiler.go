@@ -158,6 +158,9 @@ func emitLoadAndPush(t *Type) {
 	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
 		fmt.Printf("  movq %d(%%rax), %%rax # load int\n", 0)
 		fmt.Printf("  pushq %%rax\n")
+	case T_MAP:
+		fmt.Printf("  movq %d(%%rax), %%rax # load map content\n", 0)
+		fmt.Printf("  pushq %%rax\n")
 	case T_ARRAY, T_STRUCT:
 		// pure proxy
 		fmt.Printf("  pushq %%rax\n")
@@ -191,6 +194,8 @@ func emitListHeadAddr(list ast.Expr) {
 		emitExpr(list, nil)
 		emitPopString()
 		fmt.Printf("  pushq %%rax # string.ptr\n")
+	case T_MAP:
+		panic("STOP:T_MAP")
 	default:
 		unexpectedKind(kind(t))
 	}
@@ -207,10 +212,15 @@ func emitAddr(expr ast.Expr) {
 		vr := e.Obj.Data.(*Variable)
 		emitVariableAddr(vr)
 	case *ast.IndexExpr:
-		emitExpr(e.Index, nil) // index number
 		list := e.X
-		elmType := getTypeOfExpr(e)
-		emitListElementAddr(list, elmType)
+		//emitComment(2, " kind of e.X = " + kind(getTypeOfExpr(list)))
+		if kind(getTypeOfExpr(list)) == T_MAP {
+			emitAddrForMapSet(e)
+		} else {
+			elmType := getTypeOfExpr(e)
+			emitExpr(e.Index, nil) // index number
+			emitListElementAddr(list, elmType)
+		}
 	case *ast.StarExpr:
 		emitExpr(e.X, nil)
 	case *ast.SelectorExpr:
@@ -687,6 +697,28 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		case gMake:
 			typeArg := e2t(eArgs[0])
 			switch kind(typeArg) {
+			case T_MAP:
+				//mapType := getUnderlyingType(typeArg).E.(*ast.MapType)
+
+				// A new, empty map value is made using the built-in function make,
+				// which takes the map type and an optional capacity hint as arguments:
+				length :=  newNumberLiteral(0)
+				args := []*Arg{
+					// len
+					&Arg{
+						e:         length,
+						paramType: tUintptr,
+					},
+				}
+				resultList := &ast.FieldList{
+					List: []*ast.Field{
+						&ast.Field{
+							Type: tUintptr.E,
+						},
+					},
+				}
+				emitCall("runtime.makeMap", args, resultList)
+				return
 			case T_SLICE:
 				// make([]T, ...)
 				arrayType := getUnderlyingType(typeArg).E.(*ast.ArrayType)
@@ -886,8 +918,42 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 
 // 1 or 2 values
 func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
-	emitAddr(e)
-	emitLoadAndPush(getTypeOfExpr(e))
+	if kind(getTypeOfExpr(e.X)) == T_MAP {
+		// MAP GET
+		valueType := getTypeOfExpr(e)
+		emitComment(2, "MAP GET for map[string]string\n")
+		// emit addr of map element
+		mp := e.X
+		key := e.Index
+
+		args := []*Arg{
+			&Arg{
+				e:         mp,
+				paramType: tUintptr,
+			},
+			&Arg{
+				e:         key,
+				paramType: tString,
+			},
+		}
+		resultList := &ast.FieldList{
+			List: []*ast.Field{
+				&ast.Field{
+					Type: tUintptr.E,
+				},
+			},
+		}
+		emitCall("runtime.getAddrForMapGet", args, resultList)
+
+		// label load_value:
+		emitLoadAndPush(valueType)
+
+		// label not_found:
+		//emitZeroValue(valueType)
+	} else {
+		emitAddr(e)
+		emitLoadAndPush(getTypeOfExpr(e))
+	}
 }
 
 // 1 value
@@ -1350,6 +1416,33 @@ func newNumberLiteral(x int) *ast.BasicLit {
 	return e
 }
 
+func emitAddrForMapSet(indexExpr *ast.IndexExpr) {
+	// alloc heap for map value
+	//size := getSizeOfType(elmType)
+	emitComment(2, "[emitAddrForMapSet]\n")
+	mp := indexExpr.X
+	key := indexExpr.Index
+
+	args := []*Arg{
+		&Arg{
+			e:         mp,
+			paramType: tUintptr,
+		},
+		&Arg{
+			e:         key,
+			paramType: tString,
+		},
+	}
+	resultList := &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type: tUintptr.E,
+			},
+		},
+	}
+	emitCall("runtime.getAddrForMapSet", args, resultList)
+}
+
 func emitListElementAddr(list ast.Expr, elmType *Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
@@ -1442,7 +1535,7 @@ func emitPop(knd TypeKind) {
 		emitPopString()
 	case T_INTERFACE:
 		emitPopInterFace()
-	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER, T_MAP:
 		emitPopPrimitive(string(knd))
 	case T_UINT16:
 		emitPopPrimitive(string(knd))
@@ -1487,7 +1580,7 @@ func emitRegiToMem(t *Type) {
 	case T_INTERFACE:
 		fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8)
-	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER, T_MAP:
 		fmt.Printf("  movq %%rax, %d(%%rsi) # assign\n", 0)
 	case T_UINT16:
 		fmt.Printf("  movw %%ax, %d(%%rsi) # assign word\n", 0)
@@ -1602,7 +1695,15 @@ func emitAssignStmt(s *ast.AssignStmt) {
 	case "=", ":=":
 		rhs0 := s.Rhs[0]
 		_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
-		if len(s.Lhs) == 2 && isTypeAssertion {
+		indexExpr, isIndexExpr := rhs0.(*ast.IndexExpr)
+		var isOKSytax bool
+		if isTypeAssertion {
+			isOKSytax = true
+		}
+		if isIndexExpr && kind(getTypeOfExpr(indexExpr.X)) == T_MAP {
+			isOKSytax = true
+		}
+		if len(s.Lhs) == 2 && isOKSytax {
 			emitAssignWithOK(s.Lhs, rhs0)
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
@@ -2706,6 +2807,9 @@ func getElementTypeOfListType(t *Type) *Type {
 		}
 	case T_STRING:
 		return tUint8
+	case T_MAP:
+		mapType := ut.E.(*ast.MapType)
+		return e2t(mapType.Value)
 	default:
 		unexpectedKind(kind(t))
 	}
@@ -2973,6 +3077,7 @@ func walkDeclStmt(s *ast.DeclStmt) {
 	}
 }
 func walkAssignStmt(s *ast.AssignStmt) {
+	walkExpr(s.Lhs[0])
 	if s.Tok.String() == ":=" {
 		rhs0 := s.Rhs[0]
 		walkExpr(rhs0)
@@ -2988,11 +3093,14 @@ func walkAssignStmt(s *ast.AssignStmt) {
 			switch rhs := rhs0.(type) {
 			case *ast.CallExpr:
 				types = getCallResultTypes(rhs)
-			case *ast.TypeAssertExpr:
+			case *ast.TypeAssertExpr: // v, ok := x.(T)
+				typ0 := getTypeOfExpr(rhs0)
+				types = []*Type{typ0, tBool}
+			case *ast.IndexExpr: // v, ok := m[k]
 				typ0 := getTypeOfExpr(rhs0)
 				types = []*Type{typ0, tBool}
 			default:
-				panic("TBI")
+				throw(rhs0)
 			}
 			for i, lhs := range s.Lhs {
 				obj := lhs.(*ast.Ident).Obj
@@ -3269,7 +3377,11 @@ func walkSliceExpr(e *ast.SliceExpr) {
 
 // []T(e)
 func walkArrayType(e *ast.ArrayType) {
-	// first argument of builtin func like make()
+	// first argument of builtin func
+	// do nothing
+}
+func walkMapType(e *ast.MapType) {
+	// first argument of builtin func
 	// do nothing
 }
 func walkStarExpr(e *ast.StarExpr) {
@@ -3307,6 +3419,8 @@ func walkExpr(expr ast.Expr) {
 		walkIndexExpr(e)
 	case *ast.ArrayType:
 		walkArrayType(e) // []T(e)
+	case *ast.MapType:
+		walkMapType(e)
 	case *ast.SliceExpr:
 		walkSliceExpr(e)
 	case *ast.StarExpr:

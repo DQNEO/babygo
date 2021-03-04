@@ -33,7 +33,7 @@ $(tmp)/babygo2: $(tmp)/babygo src/*/*
 	ld -e _rt0_amd64_linux -o $(tmp)/babygo2 $(tmp)/babygo2.o
 
 $(tmp)/pre-test.s: t/test.go src/*/* $(tmp)/pre
-	$(tmp)/pre t/test.go t/another.go > $(tmp)/pre-test.s
+	$(tmp)/pre -DF -DG t/test.go t/another.go > $(tmp)/pre-test.s
 	cp $(tmp)/pre-test.s ./.shared/
 
 $(tmp)/cross-test.s: t/test.go $(tmp)/cross

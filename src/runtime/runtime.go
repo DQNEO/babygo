@@ -154,6 +154,47 @@ func malloc(size uintptr) uintptr {
 	return r
 }
 
+
+
+type Map struct {
+	first  *item
+	length int
+}
+
+type item struct {
+	key   string // interface{}
+	Value string // interface{}
+	next  *item
+}
+
+func makeMap(size uintptr) uintptr {
+	var mp = &Map{}
+	var addr uintptr = uintptr(unsafe.Pointer(mp))
+	return addr
+}
+
+func getAddrForMapSet(mp *Map, key string) unsafe.Pointer {
+	if mp.first == nil {
+		mp.first = &item{
+			key: key,
+		}
+		mp.length += 1
+		return unsafe.Pointer(&mp.first.Value)
+	}
+
+	return unsafe.Pointer(&mp.first.Value)
+	//return unsafe.Pointer(mp)
+}
+
+var emptyString string  // = "not found"
+func getAddrForMapGet(mp *Map, key string) unsafe.Pointer {
+	if mp.first.key == key {
+		return unsafe.Pointer(&mp.first.Value)
+	}
+	//gs = key
+	return unsafe.Pointer(&emptyString)
+}
+
 func makeSlice(elmSize int, slen int, scap int) (uintptr, int, int) {
 	var size uintptr = uintptr(elmSize * scap)
 	var addr uintptr = malloc(size)

@@ -16,14 +16,19 @@ import (
 
 func testMap() {
 	var mp map[string]string  = make(map[string]string)
-	return
 	mp["key1"] = "value1"
-	v, ok := mp["key1"]
-	if ok {
-		fmt.Printf("key1=%s\n", v)
-	} else {
-		panic("FAILED")
-	}
+	var s0 string = mp["noexist"]
+	fmt.Printf("noexist=>\"%s\"\n", s0)
+	var s string = mp["key1"]
+	fmt.Printf("key1=>\"%s\"\n", s)
+	os.Exit(0)
+	return
+	//v, ok := mp["key1"]
+	//if ok {
+	//	fmt.Printf("key1=%s\n", v)
+	//} else {
+	//	panic("FAILED")
+	//}
 }
 
 func testMyMap() {
