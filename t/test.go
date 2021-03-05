@@ -41,13 +41,13 @@ func testMap() {
 
 	fmt.Printf("--------\n")
 
-	var mp2 = make(map[unsafe.Pointer]string)
+	var mp2 = make(map[unsafe.Pointer]int)
 	fmt.Printf("len=>\"%d\"\n", len(mp2))
-	s1 = mp2[unsafe.Pointer(&s0)]
-	fmt.Printf("key1=>\"%s\"\n", s1)
-	mp2[unsafe.Pointer(&s0)] = "unsafe pointer value 1"
-	s1 = mp2[unsafe.Pointer(&s0)]
-	fmt.Printf("key1=>\"%s\"\n", s1)
+	i := mp2[unsafe.Pointer(&s0)]
+	fmt.Printf("i=>%d\n", i)
+	mp2[unsafe.Pointer(&s0)] = 2
+	i= mp2[unsafe.Pointer(&s0)]
+	fmt.Printf("i=>%d\n", i)
 	//var s0 string = mp["noexist"]
 	//fmt.Printf("noexist=>\"%s\"\n", s0)
 
