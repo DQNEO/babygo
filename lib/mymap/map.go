@@ -72,14 +72,6 @@ func (mp *Map) Delete(key interface{}) {
 }
 
 func (mp *Map) Set(key interface{}, value interface{}) {
-	if mp.first == nil {
-		mp.first = &item{
-			key:   key,
-			Value: value,
-		}
-		mp.length += 1
-		return
-	}
 	var last *item
 	for item:=mp.first; item!=nil; item=item.next {
 		if item.match(key) {
@@ -92,7 +84,11 @@ func (mp *Map) Set(key interface{}, value interface{}) {
 		key:   key,
 		Value: value,
 	}
-	last.next = newItem
+	if mp.first == nil {
+		mp.first = newItem
+	} else {
+		last.next = newItem
+	}
 	mp.length += 1
 }
 
