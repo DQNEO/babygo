@@ -31,9 +31,9 @@ func (i *item) match(key interface{}) bool {
 	return false
 }
 
-func makeMap(size uintptr) uintptr {
+func makeMap(length uintptr, valueSize uintptr) uintptr {
 	var mp = &Map{
-		valueSize: 24,
+		valueSize: valueSize,
 	}
 	var addr uintptr = uintptr(unsafe.Pointer(mp))
 	return addr
@@ -84,14 +84,15 @@ func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
 	return newItem.valueAddr()
 }
 
-var emptyString string  // = "not found"
 func getAddrForMapGet(mp *Map, key interface{}) unsafe.Pointer {
 	for item:=mp.first; item!=nil; item=item.next {
 		if item.match(key) {
 			return item.valueAddr()
 		}
 	}
-	return unsafe.Pointer(&emptyString)
+	// zero value
+	zeroValueAddr := malloc(mp.valueSize)
+	return unsafe.Pointer(zeroValueAddr)
 }
 
 

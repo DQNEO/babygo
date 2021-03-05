@@ -715,15 +715,18 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			typeArg := e2t(eArgs[0])
 			switch kind(typeArg) {
 			case T_MAP:
-				//mapType := getUnderlyingType(typeArg).E.(*ast.MapType)
-
+				mapType := getUnderlyingType(typeArg).E.(*ast.MapType)
+				valueSize := newNumberLiteral(getSizeOfType(e2t(mapType.Value)))
 				// A new, empty map value is made using the built-in function make,
 				// which takes the map type and an optional capacity hint as arguments:
 				length :=  newNumberLiteral(0)
 				args := []*Arg{
-					// len
 					&Arg{
 						e:         length,
+						paramType: tUintptr,
+					},
+					&Arg{
+						e:         valueSize,
 						paramType: tUintptr,
 					},
 				}
