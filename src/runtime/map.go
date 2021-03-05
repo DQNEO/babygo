@@ -5,16 +5,17 @@ import "unsafe"
 type Map struct {
 	first  *item
 	length int
+	valueSize uintptr
 }
 
 type item struct {
 	key   interface{}
-	value string // interface{}
+	value uintptr
 	next  *item
 }
 
 func (i *item) valueAddr() unsafe.Pointer {
-	return unsafe.Pointer(&i.value)
+	return unsafe.Pointer(i.value)
 }
 
 func (i *item) match(key interface{}) bool {
@@ -31,7 +32,9 @@ func (i *item) match(key interface{}) bool {
 }
 
 func makeMap(size uintptr) uintptr {
-	var mp = &Map{}
+	var mp = &Map{
+		valueSize: 24,
+	}
 	var addr uintptr = uintptr(unsafe.Pointer(mp))
 	return addr
 }
@@ -61,14 +64,6 @@ func deleteFromMap(mp *Map, key interface{}) {
 }
 
 func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
-	if mp.first == nil {
-		// alloc new item
-		mp.first = &item{
-			key: key,
-		}
-		mp.length += 1
-		return mp.first.valueAddr()
-	}
 	var last *item
 	for item:=mp.first; item!=nil; item=item.next {
 		if item.match(key) {
@@ -78,10 +73,14 @@ func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
 	}
 	newItem := &item{
 		key:   key,
+		value: malloc(mp.valueSize),
 	}
-	last.next = newItem
+	if mp.first == nil {
+		mp.first = newItem
+	} else {
+		last.next = newItem
+	}
 	mp.length += 1
-
 	return newItem.valueAddr()
 }
 
