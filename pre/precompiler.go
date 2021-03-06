@@ -1671,10 +1671,10 @@ func emitAssignStmt(s *ast.AssignStmt) {
 		_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
 		indexExpr, isIndexExpr := rhs0.(*ast.IndexExpr)
 		var isOKSytax bool
-		if isTypeAssertion {
+		if len(s.Lhs) == 2 && isTypeAssertion {
 			isOKSytax = true
 		}
-		if isIndexExpr && kind(getTypeOfExpr(indexExpr.X)) == T_MAP {
+		if len(s.Lhs) == 2 && isIndexExpr && kind(getTypeOfExpr(indexExpr.X)) == T_MAP {
 			isOKSytax = true
 		}
 		if isOKSytax {
