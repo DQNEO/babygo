@@ -823,6 +823,20 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			}}
 			emitCall(symbol, _args, nil)
 			return
+		case gDelete:
+			symbol = "runtime.deleteMap"
+			_args := []*Arg{
+				&Arg{
+				e:         eArgs[0],
+				paramType: getTypeOfExpr(eArgs[0]),
+				},
+				&Arg{
+					e:         eArgs[1],
+					paramType: tEface,
+				},
+			}
+			emitCall(symbol, _args, nil)
+			return
 		}
 
 		if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
@@ -3729,6 +3743,10 @@ var gPanic = &ast.Object{
 	Kind: ast.Fun,
 	Name: "panic",
 }
+var gDelete = &ast.Object{
+	Kind: ast.Fun,
+	Name: "delete",
+}
 
 var tBool *Type = &Type{
 	E: &ast.Ident{
@@ -3801,7 +3819,7 @@ func createUniverse() *ast.Scope {
 		// types
 		gString, gUintptr, gBool, gInt, gUint8, gUint16,
 		// funcs
-		gNew, gMake, gAppend, gLen, gCap, gPanic,
+		gNew, gMake, gAppend, gLen, gCap, gPanic, gDelete,
 	}
 	for _, obj := range objects {
 		universe.Insert(obj)

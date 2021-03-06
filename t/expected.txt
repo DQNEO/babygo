@@ -7,6 +7,8 @@ key1=>"value1"
 key2=>""
 key2=>"value2"
 len=>"2"
+key1=>""
+len=>"1"
 --------
 len=>"0"
 i=>0

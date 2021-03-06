@@ -95,4 +95,22 @@ func getAddrForMapGet(mp *Map, key interface{}) (bool, unsafe.Pointer) {
 	return false, unsafe.Pointer(nil)
 }
 
-
+func deleteMap(mp *Map, key interface{}) {
+	if mp.first == nil {
+		return
+	}
+	if mp.first.match(key) {
+		mp.first = mp.first.next
+		mp.length -= 1
+		return
+	}
+	var prev *item
+	for item:=mp.first; item!=nil; item=item.next {
+		if item.match(key) {
+			prev.next = item.next
+			mp.length -= 1
+			return
+		}
+		prev = item
+	}
+}
