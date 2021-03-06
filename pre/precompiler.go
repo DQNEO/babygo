@@ -934,37 +934,7 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 // 1 or 2 values
 func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
 	if kind(getTypeOfExpr(e.X)) == T_MAP {
-		// MAP GET
-		valueType := getTypeOfExpr(e)
-		emitComment(2, "MAP GET for map[string]string\n")
-		// emit addr of map element
-		mp := e.X
-		key := e.Index
-
-		args := []*Arg{
-			&Arg{
-				e:         mp,
-				paramType: tUintptr,
-			},
-			&Arg{
-				e:         key,
-				paramType: tEface,
-			},
-		}
-		resultList := &ast.FieldList{
-			List: []*ast.Field{
-				&ast.Field{
-					Type: tUintptr.E,
-				},
-			},
-		}
-		emitCall("runtime.getAddrForMapGet", args, resultList)
-
-		// label load_value:
-		emitLoadAndPush(valueType)
-
-		// label not_found:
-		//emitZeroValue(valueType)
+		emitMapGet(e, ctx)
 	} else {
 		emitAddr(e)
 		emitLoadAndPush(getTypeOfExpr(e))
@@ -1271,6 +1241,43 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 }
 
 // 1 or 2 values
+func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
+	// MAP GET
+	valueType := getTypeOfExpr(e)
+	emitComment(2, "MAP GET for map[string]string\n")
+	// emit addr of map element
+	mp := e.X
+	key := e.Index
+
+	args := []*Arg{
+		&Arg{
+			e:         mp,
+			paramType: tUintptr,
+		},
+		&Arg{
+			e:         key,
+			paramType: tEface,
+		},
+	}
+	resultList := &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type: tUintptr.E,
+			},
+		},
+	}
+	emitCall("runtime.getAddrForMapGet", args, resultList)
+
+	if ctx != nil && ctx.okContext {
+		// label load_value:
+		// if matched
+		emitLoadAndPush(valueType)
+	} else {
+		panic("TBI")
+	}
+}
+
+// 1 or 2 values
 func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	emitExpr(e.X, nil)
 	fmt.Printf("  popq  %%rax # ifc.dtype\n")
@@ -1293,11 +1300,11 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
 	fmt.Printf("  jne %s # jmp if false\n", labelElse)
 
-	// if matched
 	if ctx != nil && ctx.okContext {
 		// ok context
 		emitComment(2, " double value context\n")
-		emitExpr(e.X, nil)
+		// if matched
+		emitExpr(e.X, nil) // @TODO avoid duplicate evaluation
 		fmt.Printf("  popq %%rax # destroy dtype\n")
 		emitLoadAndPush(e2t(e.Type)) // load dynamic data
 		fmt.Printf("  pushq $1 # ok = true\n")
@@ -1310,7 +1317,8 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	} else {
 		// default context is single value context
 		emitComment(2, " single value context\n")
-		emitExpr(e.X, nil)
+		// if matched
+		emitExpr(e.X, nil) // @TODO avoid duplicate evaluation
 		fmt.Printf("  popq %%rax # destroy dtype\n")
 		emitLoadAndPush(e2t(e.Type)) // load dynamic data
 		// exit

@@ -2127,7 +2127,7 @@ func testMisc() {
 }
 
 func main() {
-	 testMapOK()
+	testMapOK()
 	return
 	testMap()
 	testMyMap()
