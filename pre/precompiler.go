@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"unsafe"
 
 	"os"
 	"syscall"
@@ -4124,7 +4125,7 @@ func setVariable(obj *ast.Object, vr *Variable) {
 }
 
 // --- AST meta data ---
-var mapMeta = make(map[ast.Node]interface{})
+var mapMeta = make(map[unsafe.Pointer]interface{})
 
 type MetaReturnStmt struct {
 	Fnc *Func
@@ -4181,27 +4182,27 @@ type Variable struct {
 }
 
 func getStructFieldOffset(field *ast.Field) int {
-	return mapMeta[field].(int)
+	return mapMeta[unsafe.Pointer(field)].(int)
 }
 
 func setStructFieldOffset(field *ast.Field, offset int) {
-	mapMeta[field] = offset
+	mapMeta[unsafe.Pointer(field)] = offset
 }
 
 func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
-	return mapMeta[s].(*MetaReturnStmt)
+	return mapMeta[unsafe.Pointer(s)].(*MetaReturnStmt)
 }
 
 func setMetaReturnStmt(s *ast.ReturnStmt, meta *MetaReturnStmt) {
-	mapMeta[s] = meta
+	mapMeta[unsafe.Pointer(s)] = meta
 }
 
 func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
 	switch s := stmt.(type) {
 	case *ast.ForStmt:
-		return mapMeta[s].(*MetaForStmt)
+		return mapMeta[unsafe.Pointer(s)].(*MetaForStmt)
 	case *ast.RangeStmt:
-		return mapMeta[s].(*MetaForStmt)
+		return mapMeta[unsafe.Pointer(s)].(*MetaForStmt)
 	default:
 		panic(stmt)
 	}
@@ -4210,28 +4211,28 @@ func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
 func setMetaForStmt(stmt ast.Stmt, meta *MetaForStmt) {
 	switch s := stmt.(type) {
 	case *ast.ForStmt:
-		mapMeta[s] = meta
+		mapMeta[unsafe.Pointer(s)] = meta
 	case *ast.RangeStmt:
-		mapMeta[s] = meta
+		mapMeta[unsafe.Pointer(s)] = meta
 	default:
 		panic(stmt)
 	}
 }
 
 func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
-	return mapMeta[s].(*MetaBranchStmt)
+	return mapMeta[unsafe.Pointer(s)].(*MetaBranchStmt)
 }
 
 func setMetaBranchStmt(s *ast.BranchStmt, meta *MetaBranchStmt) {
-	mapMeta[s] = meta
+	mapMeta[unsafe.Pointer(s)] = meta
 }
 
 func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
-	return mapMeta[s].(*MetaTypeSwitchStmt)
+	return mapMeta[unsafe.Pointer(s)].(*MetaTypeSwitchStmt)
 }
 
 func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
-	mapMeta[s] = meta
+	mapMeta[unsafe.Pointer(s)] = meta
 }
 
 // --- util ---

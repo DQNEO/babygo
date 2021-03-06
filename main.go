@@ -4235,6 +4235,7 @@ func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
 	mapMeta[unsafe.Pointer(s)] = meta
 }
+
 // --- util ---
 func parseImports(fset *token.FileSet, filename string) *ast.File {
 	return ParseFile(fset, filename, nil, 1)
