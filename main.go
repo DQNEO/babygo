@@ -3483,14 +3483,14 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
-var ExportedQualifiedIdents = &mymap.Map{}
+var ExportedQualifiedIdents = make(map[string]*ast.Ident)
 
 func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
-	v, ok := ExportedQualifiedIdents.Get(string(qi))
+	ident, ok := ExportedQualifiedIdents[string(qi)]
 	if !ok {
 		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
-	return v.(*ast.Ident)
+	return ident
 }
 
 type ForeignFunc struct {
@@ -3558,14 +3558,14 @@ func walk(pkg *PkgContainer) {
 			structType := getUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
-		ExportedQualifiedIdents.Set(string(newQI(pkg.name, typeSpec.Name.Name)), typeSpec.Name)
+		ExportedQualifiedIdents[string(newQI(pkg.name, typeSpec.Name.Name))] =  typeSpec.Name
 	}
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil { // non-method function
 			qi := newQI(pkg.name, funcDecl.Name.Name)
-			ExportedQualifiedIdents.Set(string(qi), funcDecl.Name)
+			ExportedQualifiedIdents[string(qi)] =  funcDecl.Name
 		} else { // is method
 			if funcDecl.Body != nil {
 				method := newMethod(pkg.name, funcDecl)
@@ -3595,7 +3595,7 @@ func walk(pkg *PkgContainer) {
 		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		setVariable(nameIdent.Obj, variable)
 		pkg.vars = append(pkg.vars, varSpec)
-		ExportedQualifiedIdents.Set(string(newQI(pkg.name, nameIdent.Name)), nameIdent)
+		ExportedQualifiedIdents[string(newQI(pkg.name, nameIdent.Name))] = nameIdent
 		for _, v := range varSpec.Values {
 			// mainly to collect string literals
 			walkExpr(v)
