@@ -15,6 +15,25 @@ import (
 	"github.com/DQNEO/babygo/lib/mymap"
 )
 
+var gmp map[string]string = make(map[string]string)
+
+func testGlobalMapOK() {
+	mp := gmp
+	mp["key1"] = "value1"
+
+	s, ok := mp["key1"]
+	if !ok {
+		panic("not found")
+	}
+	fmt.Printf("key1=>\"%s\"\n", s)
+
+	s, ok = mp["noexist"]
+	if ok {
+		panic("ERROR"+ s)
+	}
+	fmt.Printf("noexist=>\"%s\"\n", s)
+}
+
 func testMapOK() {
 	mp := make(map[string]string)
 	mp["key1"] = "value1"
@@ -30,7 +49,6 @@ func testMapOK() {
 		panic("ERROR"+ s)
 	}
 	fmt.Printf("noexist=>\"%s\"\n", s)
-
 }
 
 func testMap() {
@@ -2127,6 +2145,7 @@ func testMisc() {
 }
 
 func main() {
+	testGlobalMapOK()
 	testMapOK()
 	testMap()
 	testMyMap()

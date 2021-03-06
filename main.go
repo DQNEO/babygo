@@ -2254,6 +2254,8 @@ func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
 	case T_POINTER:
 		fmt.Printf("# init global %s:\n", name.Name)
 		emitAssign(name, val)
+	case T_MAP:
+		emitAssign(name, val)
 	case T_INTERFACE:
 		emitAssign(name, val)
 	}
@@ -2360,6 +2362,9 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			fmt.Printf(zeroValue)
 		}
 	case T_POINTER:
+		// will be set in the initGlobal func
+		fmt.Printf("  .quad 0\n")
+	case T_MAP:
 		// will be set in the initGlobal func
 		fmt.Printf("  .quad 0\n")
 	case T_INTERFACE:
