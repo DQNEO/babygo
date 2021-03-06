@@ -1309,9 +1309,6 @@ func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
 // 1 or 2 values
 func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	emitExpr(e.X, nil)
-	fmt.Printf("  popq  %%rax # ifc.dtype\n")
-	fmt.Printf("  popq  %%rcx # ifc.data\n")
-	fmt.Printf("  pushq %%rax # ifc.data\n")
 	typ := e2t(e.Type)
 	sType := serializeType(typ)
 	tid := getTypeId(sType)
@@ -1331,8 +1328,6 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 
 	okContext := ctx != nil && ctx.okContext
 	// if matched
-	emitExpr(e.X, nil) // @TODO avoid duplicate evaluation
-	fmt.Printf("  popq %%rax # destroy dtype\n")
 	emitLoadAndPush(e2t(e.Type)) // load dynamic data
 	if okContext {
 		fmt.Printf("  pushq $1 # ok = true\n")
@@ -1341,6 +1336,7 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	fmt.Printf("  jmp %s\n", labelEnd)
 	// if not matched
 	fmt.Printf("  %s:\n", labelElse)
+	fmt.Printf("  popq %%rax # drop ifc.data\n")
 	emitZeroValue(typ)
 	if okContext {
 		fmt.Printf("  pushq $0 # ok = false\n")
