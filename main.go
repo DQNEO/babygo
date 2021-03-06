@@ -155,8 +155,8 @@ func emitLoadAndPush(t *Type) {
 	case T_UINT16:
 		fmt.Printf("  movzwq %d(%%rax), %%rax # load uint16\n", 0)
 		fmt.Printf("  pushq %%rax\n")
-	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmt.Printf("  movq %d(%%rax), %%rax # load int\n", 0)
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER, T_MAP:
+		fmt.Printf("  movq %d(%%rax), %%rax # load 64\n", 0)
 		fmt.Printf("  pushq %%rax\n")
 	case T_ARRAY, T_STRUCT:
 		// pure proxy
@@ -207,10 +207,14 @@ func emitAddr(expr ast.Expr) {
 		vr := e.Obj.Data.(*Variable)
 		emitVariableAddr(vr)
 	case *ast.IndexExpr:
-		emitExpr(e.Index, nil) // index number
 		list := e.X
-		elmType := getTypeOfExpr(e)
-		emitListElementAddr(list, elmType)
+		if kind(getTypeOfExpr(list)) == T_MAP {
+			emitAddrForMapSet(e)
+		} else {
+			elmType := getTypeOfExpr(e)
+			emitExpr(e.Index, nil) // index number
+			emitListElementAddr(list, elmType)
+		}
 	case *ast.StarExpr:
 		emitExpr(e.X, nil)
 	case *ast.SelectorExpr:
@@ -254,6 +258,7 @@ func isType(expr ast.Expr) bool {
 	case *ast.ArrayType:
 		return true
 	case *ast.Ident:
+		assert(e.Obj != nil, "e.Obj should not be nil: " + e.Name, __func__)
 		return e.Obj.Kind == ast.Typ
 	case *ast.SelectorExpr:
 		if isQI(e) {
@@ -295,7 +300,8 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 			emitExpr(arg0, nil)
 		default:
 			if to.Obj.Kind == ast.Typ {
-				emitExpr(arg0, nil)
+				ctx := &evalContext{_type: toType}
+				emitExpr(arg0, ctx)
 			} else {
 				throw(to.Obj)
 			}
@@ -303,13 +309,9 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 	case *ast.SelectorExpr:
 		// pkg.Type(arg0)
 		qi := selector2QI(to)
-		if string(qi) == "unsafe.Pointer" {
-			emitExpr(arg0, nil)
-		} else {
-			ff := lookupForeignIdent(qi)
-			assert(ff.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
-			emitConversion(e2t(ff), arg0)
-		}
+		ff := lookupForeignIdent(qi)
+		assert(ff.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
+		emitConversion(e2t(ff), arg0)
 	case *ast.ArrayType: // Conversion to slice
 		arrayType := to
 		if arrayType.Len != nil {
@@ -375,6 +377,23 @@ func emitLen(arg ast.Expr) {
 		emitExpr(arg, nil)
 		emitPopString()
 		fmt.Printf("  pushq %%rcx # len\n")
+	case T_MAP:
+		args := []*Arg{
+			// len
+			&Arg{
+				e:         arg,
+				paramType: getTypeOfExpr(arg),
+			},
+		}
+		resultList := &ast.FieldList{
+			List: []*ast.Field{
+				&ast.Field{
+					Type: tInt.E,
+				},
+			},
+		}
+		emitCall("runtime.lenMap", args, resultList)
+
 	default:
 		unexpectedKind(kind(getTypeOfExpr(arg)))
 	}
@@ -687,6 +706,31 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		case gMake:
 			typeArg := e2t(eArgs[0])
 			switch kind(typeArg) {
+			case T_MAP:
+				mapType := getUnderlyingType(typeArg).E.(*ast.MapType)
+				valueSize := newNumberLiteral(getSizeOfType(e2t(mapType.Value)))
+				// A new, empty map value is made using the built-in function make,
+				// which takes the map type and an optional capacity hint as arguments:
+				length :=  newNumberLiteral(0)
+				args := []*Arg{
+					&Arg{
+						e:         length,
+						paramType: tUintptr,
+					},
+					&Arg{
+						e:         valueSize,
+						paramType: tUintptr,
+					},
+				}
+				resultList := &ast.FieldList{
+					List: []*ast.Field{
+						&ast.Field{
+							Type: tUintptr.E,
+						},
+					},
+				}
+				emitCall("runtime.makeMap", args, resultList)
+				return
 			case T_SLICE:
 				// make([]T, ...)
 				arrayType := getUnderlyingType(typeArg).E.(*ast.ArrayType)
@@ -768,6 +812,20 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				e:         eArgs[0],
 				paramType: tEface,
 			}}
+			emitCall(symbol, _args, nil)
+			return
+		case gDelete:
+			symbol = "runtime.deleteMap"
+			_args := []*Arg{
+				&Arg{
+				e:         eArgs[0],
+				paramType: getTypeOfExpr(eArgs[0]),
+				},
+				&Arg{
+					e:         eArgs[1],
+					paramType: tEface,
+				},
+			}
 			emitCall(symbol, _args, nil)
 			return
 		}
@@ -881,8 +939,12 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 
 // 1 or 2 values
 func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
-	emitAddr(e)
-	emitLoadAndPush(getTypeOfExpr(e))
+	if kind(getTypeOfExpr(e.X)) == T_MAP {
+		emitMapGet(e, ctx)
+	} else {
+		emitAddr(e)
+		emitLoadAndPush(getTypeOfExpr(e))
+	}
 }
 
 // 1 value
@@ -1185,6 +1247,65 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 }
 
 // 1 or 2 values
+func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
+	// MAP GET
+	valueType := getTypeOfExpr(e)
+	emitComment(2, "MAP GET for map[string]string\n")
+	// emit addr of map element
+	mp := e.X
+	key := e.Index
+
+	args := []*Arg{
+		&Arg{
+			e:         mp,
+			paramType: tUintptr,
+		},
+		&Arg{
+			e:         key,
+			paramType: tEface,
+		},
+	}
+	resultList := &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type: tBool.E,
+			},
+			&ast.Field{
+				Type: tUintptr.E,
+			},
+		},
+	}
+	emitCall("runtime.getAddrForMapGet", args, resultList)
+	// return values = [ptr, bool(stack top)]
+	emitPopBool("map get:  ok value")
+	fmt.Printf("  cmpq $1, %%rax\n")
+	labelid++
+	labelEnd := fmt.Sprintf(".L.end_map_get.%d", labelid)
+	labelElse := fmt.Sprintf(".L.not_found.%d", labelid)
+	fmt.Printf("  jne %s # jmp if false\n", labelElse)
+
+	okContext := ctx != nil && ctx.okContext
+
+	// if matched
+	emitLoadAndPush(valueType)
+	if okContext {
+		fmt.Printf("  pushq $1 # ok = true\n")
+	}
+	// exit
+	fmt.Printf("  jmp %s\n", labelEnd)
+
+	// if not matched
+	fmt.Printf("  %s:\n", labelElse)
+	emitPop(T_POINTER) // destroy nil
+	emitZeroValue(valueType)
+	if okContext {
+		fmt.Printf("  pushq $0 # ok = false\n")
+	}
+
+	fmt.Printf("  %s:\n", labelEnd)
+}
+
+// 1 or 2 values
 func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	emitExpr(e.X, nil)
 	fmt.Printf("  popq  %%rax # ifc.dtype\n")
@@ -1203,20 +1324,20 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	fmt.Printf("  cmpq $1, %%rax\n")
 
 	labelid++
-	labelTypeAssertionEnd := fmt.Sprintf(".L.end_type_assertion.%d", labelid)
+	labelEnd := fmt.Sprintf(".L.end_type_assertion.%d", labelid)
 	labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
 	fmt.Printf("  jne %s # jmp if false\n", labelElse)
 
-	// if matched
 	if ctx != nil && ctx.okContext {
 		// ok context
 		emitComment(2, " double value context\n")
-		emitExpr(e.X, nil)
+		// if matched
+		emitExpr(e.X, nil) // @TODO avoid duplicate evaluation
 		fmt.Printf("  popq %%rax # destroy dtype\n")
 		emitLoadAndPush(e2t(e.Type)) // load dynamic data
 		fmt.Printf("  pushq $1 # ok = true\n")
 		// exit
-		fmt.Printf("  jmp %s\n", labelTypeAssertionEnd)
+		fmt.Printf("  jmp %s\n", labelEnd)
 		// if not matched
 		fmt.Printf("  %s:\n", labelElse)
 		emitZeroValue(typ)
@@ -1224,17 +1345,18 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	} else {
 		// default context is single value context
 		emitComment(2, " single value context\n")
-		emitExpr(e.X, nil)
+		// if matched
+		emitExpr(e.X, nil) // @TODO avoid duplicate evaluation
 		fmt.Printf("  popq %%rax # destroy dtype\n")
 		emitLoadAndPush(e2t(e.Type)) // load dynamic data
 		// exit
-		fmt.Printf("  jmp %s\n", labelTypeAssertionEnd)
+		fmt.Printf("  jmp %s\n", labelEnd)
 		// if not matched
 		fmt.Printf("  %s:\n", labelElse)
 		emitZeroValue(typ)
 	}
 
-	fmt.Printf("  %s:\n", labelTypeAssertionEnd)
+	fmt.Printf("  %s:\n", labelEnd)
 }
 
 // targetType is the type of someone who receives the expr value.
@@ -1332,6 +1454,33 @@ func newNumberLiteral(x int) *ast.BasicLit {
 	return e
 }
 
+func emitAddrForMapSet(indexExpr *ast.IndexExpr) {
+	// alloc heap for map value
+	//size := getSizeOfType(elmType)
+	emitComment(2, "[emitAddrForMapSet]\n")
+	mp := indexExpr.X
+	key := indexExpr.Index
+
+	args := []*Arg{
+		&Arg{
+			e:         mp,
+			paramType: tUintptr,
+		},
+		&Arg{
+			e:         key,
+			paramType: tEface,
+		},
+	}
+	resultList := &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type: tUintptr.E,
+			},
+		},
+	}
+	emitCall("runtime.getAddrForMapSet", args, resultList)
+}
+
 func emitListElementAddr(list ast.Expr, elmType *Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
@@ -1424,7 +1573,7 @@ func emitPop(knd TypeKind) {
 		emitPopString()
 	case T_INTERFACE:
 		emitPopInterFace()
-	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER, T_MAP:
 		emitPopPrimitive(string(knd))
 	case T_UINT16:
 		emitPopPrimitive(string(knd))
@@ -1469,7 +1618,7 @@ func emitRegiToMem(t *Type) {
 	case T_INTERFACE:
 		fmt.Printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0)
 		fmt.Printf("  movq %%rcx, %d(%%rsi) # store data\n", 8)
-	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER, T_MAP:
 		fmt.Printf("  movq %%rax, %d(%%rsi) # assign\n", 0)
 	case T_UINT16:
 		fmt.Printf("  movw %%ax, %d(%%rsi) # assign word\n", 0)
@@ -1560,7 +1709,15 @@ func emitAssignStmt(s *ast.AssignStmt) {
 	case "=", ":=":
 		rhs0 := s.Rhs[0]
 		_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
+		indexExpr, isIndexExpr := rhs0.(*ast.IndexExpr)
+		var isOKSytax bool
 		if len(s.Lhs) == 2 && isTypeAssertion {
+			isOKSytax = true
+		}
+		if len(s.Lhs) == 2 && isIndexExpr && kind(getTypeOfExpr(indexExpr.X)) == T_MAP {
+			isOKSytax = true
+		}
+		if isOKSytax {
 			emitComment(2, "Assignment: emitAssignWithOK rhs\n")
 			ctx := &evalContext{
 				okContext: true,
@@ -2088,6 +2245,8 @@ func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
 	case T_POINTER:
 		fmt.Printf("# init global %s:\n", name.Name)
 		emitAssign(name, val)
+	case T_MAP:
+		emitAssign(name, val)
 	case T_INTERFACE:
 		emitAssign(name, val)
 	}
@@ -2196,6 +2355,9 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 	case T_POINTER:
 		// will be set in the initGlobal func
 		fmt.Printf("  .quad 0\n")
+	case T_MAP:
+		// will be set in the initGlobal func
+		fmt.Printf("  .quad 0\n")
 	case T_INTERFACE:
 		// will be set in the initGlobal func
 		fmt.Printf("  .quad 0\n")
@@ -2289,6 +2451,7 @@ const T_UINTPTR TypeKind = "T_UINTPTR"
 const T_ARRAY TypeKind = "T_ARRAY"
 const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
+const T_MAP TypeKind = "T_MAP"
 
 // types of an expr in single value context
 func getTypeOfExpr(expr ast.Expr) *Type {
@@ -2586,7 +2749,7 @@ func getUnderlyingType(t *Type) *Type {
 	}
 
 	switch e := t.E.(type) {
-	case *ast.StructType, *ast.ArrayType, *ast.StarExpr, *ast.Ellipsis, *ast.InterfaceType:
+	case *ast.StructType, *ast.ArrayType, *ast.StarExpr, *ast.Ellipsis, *ast.MapType, *ast.InterfaceType:
 		// type literal
 		return t
 	case *ast.Ident:
@@ -2650,6 +2813,8 @@ func kind(t *Type) TypeKind {
 		return T_POINTER
 	case *ast.Ellipsis: // x ...T
 		return T_SLICE // @TODO is this right ?
+	case *ast.MapType:
+		return T_MAP
 	case *ast.InterfaceType:
 		return T_INTERFACE
 	}
@@ -2674,6 +2839,9 @@ func getElementTypeOfListType(t *Type) *Type {
 		}
 	case T_STRING:
 		return tUint8
+	case T_MAP:
+		mapType := ut.E.(*ast.MapType)
+		return e2t(mapType.Value)
 	default:
 		unexpectedKind(kind(t))
 	}
@@ -2697,7 +2865,7 @@ func getSizeOfType(t *Type) int {
 		return SizeOfString
 	case T_INT:
 		return SizeOfInt
-	case T_UINTPTR, T_POINTER:
+	case T_UINTPTR, T_POINTER, T_MAP:
 		return SizeOfPtr
 	case T_UINT8:
 		return SizeOfUint8
@@ -2947,6 +3115,7 @@ func walkDeclStmt(s *ast.DeclStmt) {
 	}
 }
 func walkAssignStmt(s *ast.AssignStmt) {
+	walkExpr(s.Lhs[0])
 	if s.Tok.String() == ":=" {
 		rhs0 := s.Rhs[0]
 		walkExpr(rhs0)
@@ -2962,11 +3131,14 @@ func walkAssignStmt(s *ast.AssignStmt) {
 			switch rhs := rhs0.(type) {
 			case *ast.CallExpr:
 				types = getCallResultTypes(rhs)
-			case *ast.TypeAssertExpr:
+			case *ast.TypeAssertExpr: // v, ok := x.(T)
+				typ0 := getTypeOfExpr(rhs0)
+				types = []*Type{typ0, tBool}
+			case *ast.IndexExpr: // v, ok := m[k]
 				typ0 := getTypeOfExpr(rhs0)
 				types = []*Type{typ0, tBool}
 			default:
-				panic("TBI")
+				throw(rhs0)
 			}
 			for i, lhs := range s.Lhs {
 				obj := lhs.(*ast.Ident).Obj
@@ -3246,6 +3418,10 @@ func walkArrayType(e *ast.ArrayType) {
 	// first argument of builtin func like make()
 	// do nothing
 }
+func walkMapType(e *ast.MapType) {
+	// first argument of builtin func
+	// do nothing
+}
 func walkStarExpr(e *ast.StarExpr) {
 	walkExpr(e.X)
 }
@@ -3281,6 +3457,8 @@ func walkExpr(expr ast.Expr) {
 		walkIndexExpr(e)
 	case *ast.ArrayType:
 		walkArrayType(e) // []T(e)
+	case *ast.MapType:
+		walkMapType(e)
 	case *ast.SliceExpr:
 		walkSliceExpr(e)
 	case *ast.StarExpr:
@@ -3296,14 +3474,14 @@ func walkExpr(expr ast.Expr) {
 	}
 }
 
-var ExportedQualifiedIdents = &mymap.Map{}
+var ExportedQualifiedIdents = make(map[string]*ast.Ident)
 
 func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
-	v, ok := ExportedQualifiedIdents.Get(string(qi))
+	ident, ok := ExportedQualifiedIdents[string(qi)]
 	if !ok {
 		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
-	return v.(*ast.Ident)
+	return ident
 }
 
 type ForeignFunc struct {
@@ -3371,14 +3549,14 @@ func walk(pkg *PkgContainer) {
 			structType := getUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
-		ExportedQualifiedIdents.Set(string(newQI(pkg.name, typeSpec.Name.Name)), typeSpec.Name)
+		ExportedQualifiedIdents[string(newQI(pkg.name, typeSpec.Name.Name))] =  typeSpec.Name
 	}
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil { // non-method function
 			qi := newQI(pkg.name, funcDecl.Name.Name)
-			ExportedQualifiedIdents.Set(string(qi), funcDecl.Name)
+			ExportedQualifiedIdents[string(qi)] =  funcDecl.Name
 		} else { // is method
 			if funcDecl.Body != nil {
 				method := newMethod(pkg.name, funcDecl)
@@ -3408,7 +3586,7 @@ func walk(pkg *PkgContainer) {
 		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		setVariable(nameIdent.Obj, variable)
 		pkg.vars = append(pkg.vars, varSpec)
-		ExportedQualifiedIdents.Set(string(newQI(pkg.name, nameIdent.Name)), nameIdent)
+		ExportedQualifiedIdents[string(newQI(pkg.name, nameIdent.Name))] = nameIdent
 		for _, v := range varSpec.Values {
 			// mainly to collect string literals
 			walkExpr(v)
@@ -3554,6 +3732,10 @@ var gPanic = &ast.Object{
 	Kind: ast.Fun,
 	Name: "panic",
 }
+var gDelete = &ast.Object{
+	Kind: ast.Fun,
+	Name: "delete",
+}
 
 var tBool *Type = &Type{
 	E: &ast.Ident{
@@ -3626,7 +3808,7 @@ func createUniverse() *ast.Scope {
 		// types
 		gString, gUintptr, gBool, gInt, gUint8, gUint16,
 		// funcs
-		gNew, gMake, gAppend, gLen, gCap, gPanic,
+		gNew, gMake, gAppend, gLen, gCap, gPanic, gDelete,
 	}
 	for _, obj := range objects {
 		universe.Insert(obj)
@@ -3944,7 +4126,7 @@ func setVariable(obj *ast.Object, vr *Variable) {
 }
 
 // --- AST meta data ---
-var mapMeta = &mymap.Map{}
+var mapMeta = make(map[unsafe.Pointer]interface{})
 
 type MetaReturnStmt struct {
 	Fnc *Func
@@ -4001,31 +4183,27 @@ type Variable struct {
 }
 
 func getStructFieldOffset(field *ast.Field) int {
-	metaIfc , _ := mapMeta.Get(unsafe.Pointer(field))
-	return metaIfc.(int)
+	return mapMeta[unsafe.Pointer(field)].(int)
 }
 
 func setStructFieldOffset(field *ast.Field, offset int) {
-	mapMeta.Set(unsafe.Pointer(field), offset)
+	mapMeta[unsafe.Pointer(field)] = offset
 }
 
 func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
-	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-	return metaIfc.(*MetaReturnStmt)
+	return mapMeta[unsafe.Pointer(s)].(*MetaReturnStmt)
 }
 
 func setMetaReturnStmt(s *ast.ReturnStmt, meta *MetaReturnStmt) {
-	mapMeta.Set(unsafe.Pointer(s), meta)
+	mapMeta[unsafe.Pointer(s)] = meta
 }
 
 func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
 	switch s := stmt.(type) {
 	case *ast.ForStmt:
-		metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-		return metaIfc.(*MetaForStmt)
+		return mapMeta[unsafe.Pointer(s)].(*MetaForStmt)
 	case *ast.RangeStmt:
-		metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-		return metaIfc.(*MetaForStmt)
+		return mapMeta[unsafe.Pointer(s)].(*MetaForStmt)
 	default:
 		panic(stmt)
 	}
@@ -4034,31 +4212,30 @@ func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
 func setMetaForStmt(stmt ast.Stmt, meta *MetaForStmt) {
 	switch s := stmt.(type) {
 	case *ast.ForStmt:
-		mapMeta.Set(unsafe.Pointer(s), meta)
+		mapMeta[unsafe.Pointer(s)] = meta
 	case *ast.RangeStmt:
-		mapMeta.Set(unsafe.Pointer(s), meta)
+		mapMeta[unsafe.Pointer(s)] = meta
 	default:
 		panic(stmt)
 	}
 }
 
 func getMetaBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
-	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-	return metaIfc.(*MetaBranchStmt)
+	return mapMeta[unsafe.Pointer(s)].(*MetaBranchStmt)
 }
 
 func setMetaBranchStmt(s *ast.BranchStmt, meta *MetaBranchStmt) {
-	mapMeta.Set(unsafe.Pointer(s) , meta)
+	mapMeta[unsafe.Pointer(s)] = meta
 }
 
 func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
-	metaIfc, _ := mapMeta.Get(unsafe.Pointer(s))
-	return metaIfc.(*MetaTypeSwitchStmt)
+	return mapMeta[unsafe.Pointer(s)].(*MetaTypeSwitchStmt)
 }
 
 func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
-	mapMeta.Set(unsafe.Pointer(s) , meta)
+	mapMeta[unsafe.Pointer(s)] = meta
 }
+
 // --- util ---
 func parseImports(fset *token.FileSet, filename string) *ast.File {
 	return ParseFile(fset, filename, nil, 1)

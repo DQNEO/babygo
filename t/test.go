@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"syscall"
+	"unsafe"
 
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
@@ -14,7 +15,82 @@ import (
 	"github.com/DQNEO/babygo/lib/mymap"
 )
 
+var gmp map[string]string = make(map[string]string)
+
+func testGlobalMapOK() {
+	mp := gmp
+	mp["key1"] = "value1"
+
+	s, ok := mp["key1"]
+	if !ok {
+		panic("not found")
+	}
+	fmt.Printf("key1=>\"%s\"\n", s)
+
+	s, ok = mp["noexist"]
+	if ok {
+		panic("ERROR"+ s)
+	}
+	fmt.Printf("noexist=>\"%s\"\n", s)
+}
+
+func testMapOK() {
+	mp := make(map[string]string)
+	mp["key1"] = "value1"
+
+	s, ok := mp["key1"]
+	if !ok {
+		panic("not found")
+	}
+	fmt.Printf("key1=>\"%s\"\n", s)
+
+	s, ok = mp["noexist"]
+	if ok {
+		panic("ERROR"+ s)
+	}
+	fmt.Printf("noexist=>\"%s\"\n", s)
+}
+
 func testMap() {
+	mp := make(map[string]string)
+	fmt.Printf("len=>\"%d\"\n", len(mp))
+	mp["key1"] = "value1"
+	fmt.Printf("len=>\"%d\"\n", len(mp))
+	var s0 string = mp["noexist"]
+	fmt.Printf("noexist=>\"%s\"\n", s0)
+
+	var s1 string = mp["key1"]
+	fmt.Printf("key1=>\"%s\"\n", s1)
+	var s2 string = mp["key2"]
+	fmt.Printf("key2=>\"%s\"\n", s2)
+
+	mp["key2"] = "value2"
+
+	s2  = mp["key2"]
+	fmt.Printf("key2=>\"%s\"\n", s2)
+
+	fmt.Printf("len=>\"%d\"\n", len(mp))
+
+	delete(mp, "key1")
+	s1  = mp["key1"]
+	fmt.Printf("key1=>\"%s\"\n", s1)
+	fmt.Printf("len=>\"%d\"\n", len(mp))
+
+	fmt.Printf("--------\n")
+
+	var mp2 = make(map[unsafe.Pointer]int)
+	fmt.Printf("len=>\"%d\"\n", len(mp2))
+	i := mp2[unsafe.Pointer(&s0)]
+	fmt.Printf("i=>%d\n", i)
+	mp2[unsafe.Pointer(&s0)] = 2
+	i= mp2[unsafe.Pointer(&s0)]
+	fmt.Printf("i=>%d\n", i)
+
+	os.Exit(0)
+	return
+}
+
+func testMyMap() {
 	mp := &mymap.Map{}
 	fmt.Printf("mp.Len=%d\n", mp.Len()) // => 0
 
@@ -2069,7 +2145,10 @@ func testMisc() {
 }
 
 func main() {
+	testGlobalMapOK()
+	testMapOK()
 	testMap()
+	testMyMap()
 	testTypeSwitchNil()
 	testStructPointerMethodsByValue()
 	testTokenString()
