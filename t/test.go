@@ -15,6 +15,17 @@ import (
 	"github.com/DQNEO/babygo/lib/mymap"
 )
 
+func testMapOK() {
+	var s3 string = "x"
+	var ok bool = true
+	mp := make(map[string]string)
+	s3, ok = mp["noexist"]
+	if ok {
+		panic("ERROR"+ s3)
+	}
+	fmt.Printf("noexist=>\"%s\"\n", s3)
+}
+
 func testMap() {
 	mp := make(map[string]string)
 	fmt.Printf("len=>\"%d\"\n", len(mp))
@@ -2116,6 +2127,8 @@ func testMisc() {
 }
 
 func main() {
+	 testMapOK()
+	return
 	testMap()
 	testMyMap()
 	testTypeSwitchNil()
