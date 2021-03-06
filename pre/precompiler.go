@@ -155,11 +155,8 @@ func emitLoadAndPush(t *Type) {
 	case T_UINT16:
 		fmt.Printf("  movzwq %d(%%rax), %%rax # load uint16\n", 0)
 		fmt.Printf("  pushq %%rax\n")
-	case T_INT, T_BOOL, T_UINTPTR, T_POINTER:
-		fmt.Printf("  movq %d(%%rax), %%rax # load int\n", 0)
-		fmt.Printf("  pushq %%rax\n")
-	case T_MAP:
-		fmt.Printf("  movq %d(%%rax), %%rax # load map content\n", 0)
+	case T_INT, T_BOOL, T_UINTPTR, T_POINTER, T_MAP:
+		fmt.Printf("  movq %d(%%rax), %%rax # load 64\n", 0)
 		fmt.Printf("  pushq %%rax\n")
 	case T_ARRAY, T_STRUCT:
 		// pure proxy
