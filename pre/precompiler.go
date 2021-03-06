@@ -191,8 +191,6 @@ func emitListHeadAddr(list ast.Expr) {
 		emitExpr(list, nil)
 		emitPopString()
 		fmt.Printf("  pushq %%rax # string.ptr\n")
-	case T_MAP:
-		panic("STOP:T_MAP")
 	default:
 		unexpectedKind(kind(t))
 	}
@@ -210,7 +208,6 @@ func emitAddr(expr ast.Expr) {
 		emitVariableAddr(vr)
 	case *ast.IndexExpr:
 		list := e.X
-		//emitComment(2, " kind of e.X = " + kind(getTypeOfExpr(list)))
 		if kind(getTypeOfExpr(list)) == T_MAP {
 			emitAddrForMapSet(e)
 		} else {
@@ -261,6 +258,7 @@ func isType(expr ast.Expr) bool {
 	case *ast.ArrayType:
 		return true
 	case *ast.Ident:
+		assert(e.Obj != nil, "e.Obj should not be nil: " + e.Name, __func__)
 		return e.Obj.Kind == ast.Typ
 	case *ast.SelectorExpr:
 		if isQI(e) {
@@ -388,7 +386,7 @@ func emitLen(arg ast.Expr) {
 			// len
 			&Arg{
 				e:         arg,
-				paramType: tUintptr,
+				paramType: getTypeOfExpr(arg),
 			},
 		}
 		resultList := &ast.FieldList{

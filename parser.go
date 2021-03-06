@@ -226,6 +226,18 @@ func (p *parser) parseStructType() ast.Expr {
 	})
 }
 
+func (p *parser) parseMaptype() ast.Expr  {
+	p.expect("map", __func__)
+	p.expect("[", __func__)
+	keyType := p.parseType()
+	p.expect("]", __func__)
+	valueType := p.parseType()
+	return &ast.MapType{
+		Key: keyType,
+		Value: valueType,
+	}
+}
+
 func (p *parser) parseTypeName() ast.Expr {
 	logf(" [%s] begin\n", __func__)
 	var ident = p.parseIdent()
@@ -254,6 +266,8 @@ func (p *parser) tryIdentOrType() ast.Expr {
 		return p.parseArrayType()
 	case "struct":
 		return p.parseStructType()
+	case "map":
+		return p.parseMaptype()
 	case "*":
 		return p.parsePointerType()
 	case "interface":

@@ -127,6 +127,11 @@ type InterfaceType struct {
 	Methods []string
 }
 
+type MapType struct {
+	Key   Expr
+	Value Expr
+}
+
 type FuncType struct {
 	Params  *FieldList
 	Results *FieldList
