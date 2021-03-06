@@ -1264,17 +1264,46 @@ func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
 			&ast.Field{
 				Type: tUintptr.E,
 			},
+			&ast.Field{
+				Type: tBool.E,
+			},
 		},
 	}
 	emitCall("runtime.getAddrForMapGet", args, resultList)
 
+	emitPopBool("map getok value")
+	fmt.Printf("  cmpq $1, %%rax\n")
+	labelid++
+	labelEnd := fmt.Sprintf(".L.end_map_get.%d", labelid)
+	labelElse := fmt.Sprintf(".L.not_found.%d", labelid)
+	fmt.Printf("  jne %s # jmp if false\n", labelElse)
+
 	if ctx != nil && ctx.okContext {
-		// label load_value:
+		// ok context
+		emitComment(2, " double value context\n")
 		// if matched
 		emitLoadAndPush(valueType)
+		fmt.Printf("  pushq $1 # ok = true\n")
+		// exit
+		fmt.Printf("  jmp %s\n", labelEnd)
+		// if not matched
+		fmt.Printf("  %s:\n", labelElse)
+		emitPop(T_POINTER) // destroy
+		emitZeroValue(valueType)
+		fmt.Printf("  pushq $0 # ok = false\n")
 	} else {
-		panic("TBI")
+		// default context is single value context
+		emitComment(2, " single value context\n")
+		// if matched
+		emitLoadAndPush(valueType)
+		// exit
+		fmt.Printf("  jmp %s\n", labelEnd)
+		// if not matched
+		emitPop(T_POINTER) // destroy
+		fmt.Printf("  %s:\n", labelElse)
+		emitZeroValue(valueType)
 	}
+	fmt.Printf("  %s:\n", labelEnd)
 }
 
 // 1 or 2 values
@@ -1296,7 +1325,7 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	fmt.Printf("  cmpq $1, %%rax\n")
 
 	labelid++
-	labelTypeAssertionEnd := fmt.Sprintf(".L.end_type_assertion.%d", labelid)
+	labelEnd := fmt.Sprintf(".L.end_type_assertion.%d", labelid)
 	labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
 	fmt.Printf("  jne %s # jmp if false\n", labelElse)
 
@@ -1309,7 +1338,7 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 		emitLoadAndPush(e2t(e.Type)) // load dynamic data
 		fmt.Printf("  pushq $1 # ok = true\n")
 		// exit
-		fmt.Printf("  jmp %s\n", labelTypeAssertionEnd)
+		fmt.Printf("  jmp %s\n", labelEnd)
 		// if not matched
 		fmt.Printf("  %s:\n", labelElse)
 		emitZeroValue(typ)
@@ -1322,13 +1351,13 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 		fmt.Printf("  popq %%rax # destroy dtype\n")
 		emitLoadAndPush(e2t(e.Type)) // load dynamic data
 		// exit
-		fmt.Printf("  jmp %s\n", labelTypeAssertionEnd)
+		fmt.Printf("  jmp %s\n", labelEnd)
 		// if not matched
 		fmt.Printf("  %s:\n", labelElse)
 		emitZeroValue(typ)
 	}
 
-	fmt.Printf("  %s:\n", labelTypeAssertionEnd)
+	fmt.Printf("  %s:\n", labelEnd)
 }
 
 // targetType is the type of someone who receives the expr value.

@@ -19,11 +19,20 @@ func testMapOK() {
 	var s3 string = "x"
 	var ok bool = true
 	mp := make(map[string]string)
-	s3, ok = mp["noexist"]
-	if ok {
-		panic("ERROR"+ s3)
+
+	//s3, ok = mp["noexist"]
+	//if ok {
+	//	panic("ERROR"+ s3)
+	//}
+	//fmt.Printf("noexist=>\"%s\"\n", s3)
+
+	mp["key1"] = "value1"
+
+	s3, ok = mp["key1"]
+	if !ok {
+		panic("not found")
 	}
-	fmt.Printf("noexist=>\"%s\"\n", s3)
+	fmt.Printf("key1=>\"%s\"\n", s3)
 }
 
 func testMap() {
@@ -2128,7 +2137,6 @@ func testMisc() {
 
 func main() {
 	testMapOK()
-	return
 	testMap()
 	testMyMap()
 	testTypeSwitchNil()
