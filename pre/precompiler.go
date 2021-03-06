@@ -300,7 +300,8 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 			emitExpr(arg0, nil)
 		default:
 			if to.Obj.Kind == ast.Typ {
-				emitExpr(arg0, nil)
+				ctx := &evalContext{_type: toType}
+				emitExpr(arg0, ctx)
 			} else {
 				throw(to.Obj)
 			}
@@ -308,14 +309,9 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 	case *ast.SelectorExpr:
 		// pkg.Type(arg0)
 		qi := selector2QI(to)
-		if string(qi) == "unsafe.Pointer" {
-			ctx := &evalContext{_type: tUintptr}
-			emitExpr(arg0, ctx)
-		} else {
-			ff := lookupForeignIdent(qi)
-			assert(ff.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
-			emitConversion(e2t(ff), arg0)
-		}
+		ff := lookupForeignIdent(qi)
+		assert(ff.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
+		emitConversion(e2t(ff), arg0)
 	case *ast.ArrayType: // Conversion to slice
 		arrayType := to
 		if arrayType.Len != nil {
@@ -897,7 +893,7 @@ func emitNil(targetType *Type) {
 		panic("Type is required to emit nil")
 	}
 	switch kind(targetType) {
-	case T_SLICE, T_POINTER, T_INTERFACE, T_UINTPTR:
+	case T_SLICE, T_POINTER, T_INTERFACE:
 		emitZeroValue(targetType)
 	default:
 		unexpectedKind(kind(targetType))
