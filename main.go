@@ -848,13 +848,8 @@ func emitNamedConst(ident *ast.Ident, ctx *evalContext) {
 	emitExprIfc(lit, ctx)
 }
 
-type okContext struct {
-	needMain bool
-	needOk   bool
-}
-
 type evalContext struct {
-	okContext *okContext
+	okContext bool
 	_type     *Type
 }
 
@@ -1213,42 +1208,29 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	fmt.Printf("  jne %s # jmp if false\n", labelElse)
 
 	// if matched
-	if ctx != nil && ctx.okContext != nil {
+	if ctx != nil && ctx.okContext {
 		// ok context
 		emitComment(2, " double value context\n")
-		if ctx.okContext.needMain {
-			emitExpr(e.X, nil)
-			fmt.Printf("  popq %%rax # garbage\n")
-			emitLoadAndPush(e2t(e.Type)) // load dynamic data
-		}
-		if ctx.okContext.needOk {
-			fmt.Printf("  pushq $1 # ok = true\n")
-		}
+		emitExpr(e.X, nil)
+		fmt.Printf("  popq %%rax # destroy dtype\n")
+		emitLoadAndPush(e2t(e.Type)) // load dynamic data
+		fmt.Printf("  pushq $1 # ok = true\n")
+		// exit
+		fmt.Printf("  jmp %s\n", labelTypeAssertionEnd)
+		// if not matched
+		fmt.Printf("  %s:\n", labelElse)
+		emitZeroValue(typ)
+		fmt.Printf("  pushq $0 # ok = false\n")
 	} else {
 		// default context is single value context
 		emitComment(2, " single value context\n")
 		emitExpr(e.X, nil)
-		fmt.Printf("  popq %%rax # garbage\n")
+		fmt.Printf("  popq %%rax # destroy dtype\n")
 		emitLoadAndPush(e2t(e.Type)) // load dynamic data
-	}
-
-	// exit
-	fmt.Printf("  jmp %s\n", labelTypeAssertionEnd)
-
-	// if not matched
-	fmt.Printf("  %s:\n", labelElse)
-	if ctx != nil && ctx.okContext != nil {
-		// ok context
-		emitComment(2, " double value context\n")
-		if ctx.okContext.needMain {
-			emitZeroValue(typ)
-		}
-		if ctx.okContext.needOk {
-			fmt.Printf("  pushq $0 # ok = false\n")
-		}
-	} else {
-		// default context is single value context
-		emitComment(2, " single value context\n")
+		// exit
+		fmt.Printf("  jmp %s\n", labelTypeAssertionEnd)
+		// if not matched
+		fmt.Printf("  %s:\n", labelElse)
 		emitZeroValue(typ)
 	}
 
@@ -1513,31 +1495,7 @@ func isBlankIdentifier(e ast.Expr) bool {
 }
 
 // support assignment of ok syntax. Blank ident is considered.
-func emitAssignWithOK(lhss []ast.Expr, rhs ast.Expr) {
-	lhsMain := lhss[0]
-	lhsOK := lhss[1]
-
-	needMain := !isBlankIdentifier(lhsMain)
-	needOK := !isBlankIdentifier(lhsOK)
-	emitComment(2, "Assignment: emitAssignWithOK rhs\n")
-	ctx := &evalContext{
-		okContext: &okContext{
-			needMain: needMain,
-			needOk:   needOK,
-		},
-	}
-	emitExprIfc(rhs, ctx) // {push data}, {push bool}
-	if needOK {
-		emitComment(2, "Assignment: ok variable\n")
-		emitAddr(lhsOK)
-		emitStore(getTypeOfExpr(lhsOK), false, false)
-	}
-
-	if needMain {
-		emitAddr(lhsMain)
-		emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
-		emitStore(getTypeOfExpr(lhsMain), false, false)
-	}
+func emitAssignWithOK(lhss []ast.Expr, rhs0 ast.Expr) {
 }
 
 func emitAssignToVar(vr *Variable, rhs ast.Expr) {
@@ -1603,7 +1561,28 @@ func emitAssignStmt(s *ast.AssignStmt) {
 		rhs0 := s.Rhs[0]
 		_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
 		if len(s.Lhs) == 2 && isTypeAssertion {
-			emitAssignWithOK(s.Lhs, rhs0)
+			emitComment(2, "Assignment: emitAssignWithOK rhs\n")
+			ctx := &evalContext{
+				okContext: true,
+			}
+			emitExprIfc(rhs0, ctx) // {push data}, {push bool}
+			lhsOK := s.Lhs[1]
+			if isBlankIdentifier(lhsOK) {
+				emitPop(T_BOOL)
+			} else {
+				emitComment(2, "Assignment: ok variable\n")
+				emitAddr(lhsOK)
+				emitStore(getTypeOfExpr(lhsOK), false, false)
+			}
+
+			lhsMain := s.Lhs[0]
+			if isBlankIdentifier(lhsMain) {
+				emitPop(kind(e2t(rhs0.(*ast.TypeAssertExpr).Type)))
+			} else {
+				emitAddr(lhsMain)
+				emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
+				emitStore(getTypeOfExpr(lhsMain), false, false)
+			}
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 				// 1 to 1 assignment
