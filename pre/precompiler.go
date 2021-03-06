@@ -1329,32 +1329,21 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
 	fmt.Printf("  jne %s # jmp if false\n", labelElse)
 
-	if ctx != nil && ctx.okContext {
-		// ok context
-		emitComment(2, " double value context\n")
-		// if matched
-		emitExpr(e.X, nil) // @TODO avoid duplicate evaluation
-		fmt.Printf("  popq %%rax # destroy dtype\n")
-		emitLoadAndPush(e2t(e.Type)) // load dynamic data
+	okContext := ctx != nil && ctx.okContext
+	// if matched
+	emitExpr(e.X, nil) // @TODO avoid duplicate evaluation
+	fmt.Printf("  popq %%rax # destroy dtype\n")
+	emitLoadAndPush(e2t(e.Type)) // load dynamic data
+	if okContext {
 		fmt.Printf("  pushq $1 # ok = true\n")
-		// exit
-		fmt.Printf("  jmp %s\n", labelEnd)
-		// if not matched
-		fmt.Printf("  %s:\n", labelElse)
-		emitZeroValue(typ)
+	}
+	// exit
+	fmt.Printf("  jmp %s\n", labelEnd)
+	// if not matched
+	fmt.Printf("  %s:\n", labelElse)
+	emitZeroValue(typ)
+	if okContext {
 		fmt.Printf("  pushq $0 # ok = false\n")
-	} else {
-		// default context is single value context
-		emitComment(2, " single value context\n")
-		// if matched
-		emitExpr(e.X, nil) // @TODO avoid duplicate evaluation
-		fmt.Printf("  popq %%rax # destroy dtype\n")
-		emitLoadAndPush(e2t(e.Type)) // load dynamic data
-		// exit
-		fmt.Printf("  jmp %s\n", labelEnd)
-		// if not matched
-		fmt.Printf("  %s:\n", labelElse)
-		emitZeroValue(typ)
 	}
 
 	fmt.Printf("  %s:\n", labelEnd)
