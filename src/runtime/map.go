@@ -84,15 +84,15 @@ func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
 	return newItem.valueAddr()
 }
 
-func getAddrForMapGet(mp *Map, key interface{}) (unsafe.Pointer, bool) {
+func getAddrForMapGet(mp *Map, key interface{}) (bool, unsafe.Pointer) {
 	for item:=mp.first; item!=nil; item=item.next {
 		if item.match(key) {
 			// not found
-			return item.valueAddr(), true
+			return true, item.valueAddr()
 		}
 	}
 	// not found
-	return unsafe.Pointer(uintptr(0)), false
+	return false, unsafe.Pointer(nil)
 }
 
 

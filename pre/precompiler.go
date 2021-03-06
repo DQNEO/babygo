@@ -314,7 +314,8 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		// pkg.Type(arg0)
 		qi := selector2QI(to)
 		if string(qi) == "unsafe.Pointer" {
-			emitExpr(arg0, nil)
+			ctx := &evalContext{_type: tUintptr}
+			emitExpr(arg0, ctx)
 		} else {
 			ff := lookupForeignIdent(qi)
 			assert(ff.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
@@ -887,7 +888,7 @@ func emitNil(targetType *Type) {
 		panic("Type is required to emit nil")
 	}
 	switch kind(targetType) {
-	case T_SLICE, T_POINTER, T_INTERFACE:
+	case T_SLICE, T_POINTER, T_INTERFACE, T_UINTPTR:
 		emitZeroValue(targetType)
 	default:
 		unexpectedKind(kind(targetType))
@@ -1262,16 +1263,16 @@ func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
 	resultList := &ast.FieldList{
 		List: []*ast.Field{
 			&ast.Field{
-				Type: tUintptr.E,
+				Type: tBool.E,
 			},
 			&ast.Field{
-				Type: tBool.E,
+				Type: tUintptr.E,
 			},
 		},
 	}
 	emitCall("runtime.getAddrForMapGet", args, resultList)
-
-	emitPopBool("map getok value")
+	// return values = [ptr, bool(stack top)]
+	emitPopBool("map get:  ok value")
 	fmt.Printf("  cmpq $1, %%rax\n")
 	labelid++
 	labelEnd := fmt.Sprintf(".L.end_map_get.%d", labelid)
@@ -1286,9 +1287,10 @@ func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
 		fmt.Printf("  pushq $1 # ok = true\n")
 		// exit
 		fmt.Printf("  jmp %s\n", labelEnd)
+
 		// if not matched
 		fmt.Printf("  %s:\n", labelElse)
-		emitPop(T_POINTER) // destroy
+		emitPop(T_POINTER) // destroy nil
 		emitZeroValue(valueType)
 		fmt.Printf("  pushq $0 # ok = false\n")
 	} else {
@@ -1298,9 +1300,10 @@ func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
 		emitLoadAndPush(valueType)
 		// exit
 		fmt.Printf("  jmp %s\n", labelEnd)
+
 		// if not matched
-		emitPop(T_POINTER) // destroy
 		fmt.Printf("  %s:\n", labelElse)
+		emitPop(T_POINTER) // destroy nil
 		emitZeroValue(valueType)
 	}
 	fmt.Printf("  %s:\n", labelEnd)

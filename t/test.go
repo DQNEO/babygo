@@ -16,23 +16,21 @@ import (
 )
 
 func testMapOK() {
-	var s3 string = "x"
-	var ok bool = true
 	mp := make(map[string]string)
-
-	//s3, ok = mp["noexist"]
-	//if ok {
-	//	panic("ERROR"+ s3)
-	//}
-	//fmt.Printf("noexist=>\"%s\"\n", s3)
-
 	mp["key1"] = "value1"
 
-	s3, ok = mp["key1"]
+	s, ok := mp["key1"]
 	if !ok {
 		panic("not found")
 	}
-	fmt.Printf("key1=>\"%s\"\n", s3)
+	fmt.Printf("key1=>\"%s\"\n", s)
+
+	s, ok = mp["noexist"]
+	if ok {
+		panic("ERROR"+ s)
+	}
+	fmt.Printf("noexist=>\"%s\"\n", s)
+
 }
 
 func testMap() {
@@ -42,6 +40,7 @@ func testMap() {
 	fmt.Printf("len=>\"%d\"\n", len(mp))
 	var s0 string = mp["noexist"]
 	fmt.Printf("noexist=>\"%s\"\n", s0)
+
 	var s1 string = mp["key1"]
 	fmt.Printf("key1=>\"%s\"\n", s1)
 	var s2 string = mp["key2"]
@@ -68,17 +67,9 @@ func testMap() {
 	mp2[unsafe.Pointer(&s0)] = 2
 	i= mp2[unsafe.Pointer(&s0)]
 	fmt.Printf("i=>%d\n", i)
-	//var s0 string = mp["noexist"]
-	//fmt.Printf("noexist=>\"%s\"\n", s0)
 
 	os.Exit(0)
 	return
-	//v, ok := mp["key1"]
-	//if ok {
-	//	fmt.Printf("key1=%s\n", v)
-	//} else {
-	//	panic("FAILED")
-	//}
 }
 
 func testMyMap() {
