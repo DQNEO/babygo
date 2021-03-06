@@ -1284,33 +1284,24 @@ func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
 	labelElse := fmt.Sprintf(".L.not_found.%d", labelid)
 	fmt.Printf("  jne %s # jmp if false\n", labelElse)
 
-	if ctx != nil && ctx.okContext {
-		// ok context
-		emitComment(2, " double value context\n")
-		// if matched
-		emitLoadAndPush(valueType)
+	okContext := ctx != nil && ctx.okContext
+
+	// if matched
+	emitLoadAndPush(valueType)
+	if okContext {
 		fmt.Printf("  pushq $1 # ok = true\n")
-		// exit
-		fmt.Printf("  jmp %s\n", labelEnd)
-
-		// if not matched
-		fmt.Printf("  %s:\n", labelElse)
-		emitPop(T_POINTER) // destroy nil
-		emitZeroValue(valueType)
-		fmt.Printf("  pushq $0 # ok = false\n")
-	} else {
-		// default context is single value context
-		emitComment(2, " single value context\n")
-		// if matched
-		emitLoadAndPush(valueType)
-		// exit
-		fmt.Printf("  jmp %s\n", labelEnd)
-
-		// if not matched
-		fmt.Printf("  %s:\n", labelElse)
-		emitPop(T_POINTER) // destroy nil
-		emitZeroValue(valueType)
 	}
+	// exit
+	fmt.Printf("  jmp %s\n", labelEnd)
+
+	// if not matched
+	fmt.Printf("  %s:\n", labelElse)
+	emitPop(T_POINTER) // destroy nil
+	emitZeroValue(valueType)
+	if okContext {
+		fmt.Printf("  pushq $0 # ok = false\n")
+	}
+
 	fmt.Printf("  %s:\n", labelEnd)
 }
 
