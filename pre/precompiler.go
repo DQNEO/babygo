@@ -4133,7 +4133,7 @@ func setVariable(obj *ast.Object, vr *Variable) {
 }
 
 // --- AST meta data ---
-var mapMeta = map[ast.Node]interface{}{}
+var mapMeta = make(map[ast.Node]interface{})
 
 type MetaReturnStmt struct {
 	Fnc *Func
