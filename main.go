@@ -3022,23 +3022,23 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 	return method
 }
 
-var MethodSets = &mymap.Map{}
-
+// https://golang.org/ref/spec#Method_sets
+// @TODO map key should be a QI ?
+var MethodSets = make(map[unsafe.Pointer]*NamedType)
 type NamedType struct {
-	methodSet *mymap.Map
+	methodSet map[string]*Method
 }
 
 func registerMethod(method *Method) {
 	key := unsafe.Pointer(method.RcvNamedType.Obj)
-	namedTypeIfc, ok := MethodSets.Get(key)
+	namedType, ok := MethodSets[key]
 	if !ok {
-		namedTypeIfc = &NamedType{
-			methodSet: &mymap.Map{},
+		namedType = &NamedType{
+			methodSet: make(map[string]*Method),
 		}
-		MethodSets.Set(key, namedTypeIfc)
+		MethodSets[key] = namedType
 	}
-	namedType := namedTypeIfc.(*NamedType)
-	namedType.methodSet.Set(method.Name, method)
+	namedType.methodSet[method.Name] = method
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
@@ -3058,16 +3058,15 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 		panic(rcvType)
 	}
 
-	namedTypeIfc, ok := MethodSets.Get(unsafe.Pointer(typeObj))
+	namedType, ok := MethodSets[unsafe.Pointer(typeObj)]
 	if !ok {
 		panic(typeObj.Name + " has no methodSet")
 	}
-	namedType := namedTypeIfc.(*NamedType)
-	ifc, ok := namedType.methodSet.Get(methodName.Name)
+	method, ok := namedType.methodSet[methodName.Name]
 	if !ok {
 		panic("method not found")
 	}
-	return ifc.(*Method)
+	return method
 }
 
 func walkExprStmt(s *ast.ExprStmt) {
