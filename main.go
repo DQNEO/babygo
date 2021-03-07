@@ -3396,7 +3396,7 @@ func walkSliceExpr(e *ast.SliceExpr) {
 
 // []T(e)
 func walkArrayType(e *ast.ArrayType) {
-	// first argument of builtin func like make()
+	// first argument of builtin func
 	// do nothing
 }
 func walkMapType(e *ast.MapType) {
