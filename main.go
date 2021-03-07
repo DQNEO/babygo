@@ -1628,10 +1628,6 @@ func isBlankIdentifier(e ast.Expr) bool {
 	return ident.Name == "_"
 }
 
-// support assignment of ok syntax. Blank ident is considered.
-func emitAssignWithOK(lhss []ast.Expr, rhs0 ast.Expr) {
-}
-
 func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitVariableAddr(vr)
