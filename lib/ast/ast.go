@@ -23,9 +23,9 @@ func (ok ObjKind) String() string {
 }
 
 type Object struct {
-	Kind     ObjKind
-	Name     string
-	Decl     interface{} // *ValueSpec|*FuncDecl|*TypeSpec|*Field|*AssignStmt
+	Kind ObjKind
+	Name string
+	Decl interface{} // *ValueSpec|*FuncDecl|*TypeSpec|*Field|*AssignStmt
 	Data interface{}
 }
 
@@ -164,8 +164,8 @@ type ReturnStmt struct {
 }
 
 type BranchStmt struct {
-	Tok        token.Token
-	Label      string
+	Tok   token.Token
+	Label string
 }
 
 type BlockStmt struct {
@@ -260,7 +260,7 @@ type Scope struct {
 
 func NewScope(outer *Scope) *Scope {
 	return &Scope{
-		Outer: outer,
+		Outer:   outer,
 		Objects: &mymap.Map{},
 	}
 }

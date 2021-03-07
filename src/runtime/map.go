@@ -3,8 +3,8 @@ package runtime
 import "unsafe"
 
 type Map struct {
-	first  *item
-	length int
+	first     *item
+	length    int
 	valueSize uintptr
 }
 
@@ -53,7 +53,7 @@ func deleteFromMap(mp *Map, key interface{}) {
 		return
 	}
 	var prev *item
-	for item:=mp.first; item!=nil; item=item.next {
+	for item := mp.first; item != nil; item = item.next {
 		if item.match(key) {
 			prev.next = item.next
 			mp.length -= 1
@@ -65,7 +65,7 @@ func deleteFromMap(mp *Map, key interface{}) {
 
 func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
 	var last *item
-	for item:=mp.first; item!=nil; item=item.next {
+	for item := mp.first; item != nil; item = item.next {
 		if item.match(key) {
 			return item.valueAddr()
 		}
@@ -85,7 +85,7 @@ func getAddrForMapSet(mp *Map, key interface{}) unsafe.Pointer {
 }
 
 func getAddrForMapGet(mp *Map, key interface{}) (bool, unsafe.Pointer) {
-	for item:=mp.first; item!=nil; item=item.next {
+	for item := mp.first; item != nil; item = item.next {
 		if item.match(key) {
 			// not found
 			return true, item.valueAddr()
@@ -105,7 +105,7 @@ func deleteMap(mp *Map, key interface{}) {
 		return
 	}
 	var prev *item
-	for item:=mp.first; item!=nil; item=item.next {
+	for item := mp.first; item != nil; item = item.next {
 		if item.match(key) {
 			prev.next = item.next
 			mp.length -= 1

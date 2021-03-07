@@ -9,10 +9,10 @@ import (
 
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
+	"github.com/DQNEO/babygo/lib/mymap"
 	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/strings"
-	"github.com/DQNEO/babygo/lib/mymap"
 )
 
 var gmp map[string]string = make(map[string]string)
@@ -29,7 +29,7 @@ func testGlobalMapOK() {
 
 	s, ok = mp["noexist"]
 	if ok {
-		panic("ERROR"+ s)
+		panic("ERROR" + s)
 	}
 	fmt.Printf("noexist=>\"%s\"\n", s)
 }
@@ -46,7 +46,7 @@ func testMapOK() {
 
 	s, ok = mp["noexist"]
 	if ok {
-		panic("ERROR"+ s)
+		panic("ERROR" + s)
 	}
 	fmt.Printf("noexist=>\"%s\"\n", s)
 }
@@ -66,13 +66,13 @@ func testMap() {
 
 	mp["key2"] = "value2"
 
-	s2  = mp["key2"]
+	s2 = mp["key2"]
 	fmt.Printf("key2=>\"%s\"\n", s2)
 
 	fmt.Printf("len=>\"%d\"\n", len(mp))
 
 	delete(mp, "key1")
-	s1  = mp["key1"]
+	s1 = mp["key1"]
 	fmt.Printf("key1=>\"%s\"\n", s1)
 	fmt.Printf("len=>\"%d\"\n", len(mp))
 
@@ -83,7 +83,7 @@ func testMap() {
 	i := mp2[unsafe.Pointer(&s0)]
 	fmt.Printf("i=>%d\n", i)
 	mp2[unsafe.Pointer(&s0)] = 2
-	i= mp2[unsafe.Pointer(&s0)]
+	i = mp2[unsafe.Pointer(&s0)]
 	fmt.Printf("i=>%d\n", i)
 
 	os.Exit(0)

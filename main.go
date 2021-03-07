@@ -258,7 +258,7 @@ func isType(expr ast.Expr) bool {
 	case *ast.ArrayType:
 		return true
 	case *ast.Ident:
-		assert(e.Obj != nil, "e.Obj should not be nil: " + e.Name, __func__)
+		assert(e.Obj != nil, "e.Obj should not be nil: "+e.Name, __func__)
 		return e.Obj.Kind == ast.Typ
 	case *ast.SelectorExpr:
 		if isQI(e) {
@@ -711,7 +711,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				valueSize := newNumberLiteral(getSizeOfType(e2t(mapType.Value)))
 				// A new, empty map value is made using the built-in function make,
 				// which takes the map type and an optional capacity hint as arguments:
-				length :=  newNumberLiteral(0)
+				length := newNumberLiteral(0)
 				args := []*Arg{
 					&Arg{
 						e:         length,
@@ -818,8 +818,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			symbol = "runtime.deleteMap"
 			_args := []*Arg{
 				&Arg{
-				e:         eArgs[0],
-				paramType: getTypeOfExpr(eArgs[0]),
+					e:         eArgs[0],
+					paramType: getTypeOfExpr(eArgs[0]),
 				},
 				&Arg{
 					e:         eArgs[1],
@@ -2399,7 +2399,7 @@ func generateCode(pkg *PkgContainer) {
 func emitDynamicTypes(typeMap *mymap.Map) {
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
-	for item:=typeMap.First(); item!=nil; item=item.Next() {
+	for item := typeMap.First(); item != nil; item = item.Next() {
 		name := item.GetKeyAsString()
 		id := item.Value.(int)
 		symbol := typeIdToSymbol(id)
@@ -3021,6 +3021,7 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 // https://golang.org/ref/spec#Method_sets
 // @TODO map key should be a QI ?
 var MethodSets = make(map[unsafe.Pointer]*NamedType)
+
 type NamedType struct {
 	methodSet map[string]*Method
 }
@@ -3169,7 +3170,7 @@ func walkForStmt(s *ast.ForStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	setMetaForStmt(s , meta)
+	setMetaForStmt(s, meta)
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3187,7 +3188,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	setMetaForStmt(s , meta)
+	setMetaForStmt(s, meta)
 	walkExpr(s.X)
 	walkStmt(s.Body)
 	meta.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
@@ -3529,14 +3530,14 @@ func walk(pkg *PkgContainer) {
 			structType := getUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
-		ExportedQualifiedIdents[string(newQI(pkg.name, typeSpec.Name.Name))] =  typeSpec.Name
+		ExportedQualifiedIdents[string(newQI(pkg.name, typeSpec.Name.Name))] = typeSpec.Name
 	}
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil { // non-method function
 			qi := newQI(pkg.name, funcDecl.Name.Name)
-			ExportedQualifiedIdents[string(qi)] =  funcDecl.Name
+			ExportedQualifiedIdents[string(qi)] = funcDecl.Name
 		} else { // is method
 			if funcDecl.Body != nil {
 				method := newMethod(pkg.name, funcDecl)
@@ -3820,7 +3821,7 @@ func resolveImports(file *ast.File) {
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		rawValue := imprt.Path.Value
-		pth := rawValue[1:len(rawValue)-1]
+		pth := rawValue[1 : len(rawValue)-1]
 		base := path.Base(pth)
 		mapImports.Set(base, true)
 	}
@@ -3868,7 +3869,7 @@ func getImportPathsFromFile(file string) []string {
 }
 
 func removeNode(tree *mymap.Map, node string) {
-	for item:= tree.First();item!=nil;item=item.Next() {
+	for item := tree.First(); item != nil; item = item.Next() {
 		children := item.Value.(*mymap.Map)
 		children.Delete(node)
 	}
@@ -3877,7 +3878,7 @@ func removeNode(tree *mymap.Map, node string) {
 
 func getKeys(tree *mymap.Map) []string {
 	var keys []string
-	for item:= tree.First();item!=nil;item=item.Next() {
+	for item := tree.First(); item != nil; item = item.Next() {
 		keys = append(keys, item.GetKeyAsString())
 	}
 	return keys
@@ -3891,7 +3892,7 @@ func sortTopologically(tree *mymap.Map) []string {
 		keys := getKeys(tree)
 		mylib.SortStrings(keys)
 		for _, _path := range keys {
-			ifc,ok := tree.Get(_path)
+			ifc, ok := tree.Get(_path)
 			if !ok {
 				panic("not found in tree")
 			}
@@ -3915,7 +3916,7 @@ func getPackageDir(importPath string) string {
 }
 
 func collectDependency(tree *mymap.Map, mapPaths *mymap.Map) {
-	for item:=mapPaths.First();item!=nil;item=item.Next() {
+	for item := mapPaths.First(); item != nil; item = item.Next() {
 		pkgPath := item.GetKeyAsString()
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
@@ -3997,7 +3998,7 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 		astFile := parseFile(fset, file)
 		_pkg.name = astFile.Name.Name
 		_pkg.astFiles = append(_pkg.astFiles, astFile)
-		for item:=astFile.Scope.Objects.First();item!=nil;item=item.Next() {
+		for item := astFile.Scope.Objects.First(); item != nil; item = item.Next() {
 			pkgScope.Objects.Set(item.GetKeyAsString(), item.Value)
 		}
 	}

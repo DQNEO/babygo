@@ -41,8 +41,8 @@ func (mp *Map) First() *item {
 	return mp.first
 }
 
-func (mp *Map) Get(key interface{}) (interface{}, bool){
-	for item:=mp.first; item!=nil; item=item.next {
+func (mp *Map) Get(key interface{}) (interface{}, bool) {
+	for item := mp.first; item != nil; item = item.next {
 		if item.match(key) {
 			return item.Value, true
 		}
@@ -60,7 +60,7 @@ func (mp *Map) Delete(key interface{}) {
 		return
 	}
 	var prev *item
-	for item:=mp.first; item!=nil; item=item.next {
+	for item := mp.first; item != nil; item = item.next {
 		if item.match(key) {
 			prev.next = item.next
 			mp.length -= 1
@@ -73,7 +73,7 @@ func (mp *Map) Delete(key interface{}) {
 
 func (mp *Map) Set(key interface{}, value interface{}) {
 	var last *item
-	for item:=mp.first; item!=nil; item=item.next {
+	for item := mp.first; item != nil; item = item.next {
 		if item.match(key) {
 			item.Value = value
 			return
@@ -91,4 +91,3 @@ func (mp *Map) Set(key interface{}, value interface{}) {
 	}
 	mp.length += 1
 }
-

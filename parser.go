@@ -226,14 +226,14 @@ func (p *parser) parseStructType() ast.Expr {
 	})
 }
 
-func (p *parser) parseMaptype() ast.Expr  {
+func (p *parser) parseMaptype() ast.Expr {
 	p.expect("map", __func__)
 	p.expect("[", __func__)
 	keyType := p.parseType()
 	p.expect("]", __func__)
 	valueType := p.parseType()
 	return &ast.MapType{
-		Key: keyType,
+		Key:   keyType,
 		Value: valueType,
 	}
 }
@@ -1311,7 +1311,7 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 	packageName := ident
 	p.expectSemi(__func__)
 
-	p.topScope = ast.NewScope(nil)  // open scope
+	p.topScope = ast.NewScope(nil) // open scope
 	p.pkgScope = p.topScope
 
 	for p.tok.tok == "import" {
@@ -1364,7 +1364,6 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 
 	// dump p.pkgScope
 	logf("[DEBUG] Dump objects in the package scope\n")
-
 
 	var unresolved []*ast.Ident
 	logf(" [parserFile] resolving parser's unresolved (n=%s)\n", strconv.Itoa(len(p.unresolved)))

@@ -259,7 +259,7 @@ func isType(expr ast.Expr) bool {
 	case *ast.ArrayType:
 		return true
 	case *ast.Ident:
-		assert(e.Obj != nil, "e.Obj should not be nil: " + e.Name, __func__)
+		assert(e.Obj != nil, "e.Obj should not be nil: "+e.Name, __func__)
 		return e.Obj.Kind == ast.Typ
 	case *ast.SelectorExpr:
 		if isQI(e) {
@@ -712,7 +712,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				valueSize := newNumberLiteral(getSizeOfType(e2t(mapType.Value)))
 				// A new, empty map value is made using the built-in function make,
 				// which takes the map type and an optional capacity hint as arguments:
-				length :=  newNumberLiteral(0)
+				length := newNumberLiteral(0)
 				args := []*Arg{
 					&Arg{
 						e:         length,
@@ -819,8 +819,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			symbol = "runtime.deleteMap"
 			_args := []*Arg{
 				&Arg{
-				e:         eArgs[0],
-				paramType: getTypeOfExpr(eArgs[0]),
+					e:         eArgs[0],
+					paramType: getTypeOfExpr(eArgs[0]),
 				},
 				&Arg{
 					e:         eArgs[1],
@@ -2409,7 +2409,7 @@ func emitDynamicTypes(typeMap map[string]int) {
 	}
 
 	// skip id=0
-	for id:=1;id<len(sliceTypeMap);id++{
+	for id := 1; id < len(sliceTypeMap); id++ {
 		name := sliceTypeMap[id]
 		symbol := typeIdToSymbol(id)
 		fmt.Printf("%s: # %s\n", symbol, name)
@@ -3030,6 +3030,7 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 // https://golang.org/ref/spec#Method_sets
 // @TODO map key should be a QI ?
 var MethodSets = make(map[unsafe.Pointer]*NamedType)
+
 type NamedType struct {
 	methodSet map[string]*Method
 }
@@ -3178,7 +3179,7 @@ func walkForStmt(s *ast.ForStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	setMetaForStmt(s , meta)
+	setMetaForStmt(s, meta)
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3196,7 +3197,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	setMetaForStmt(s , meta)
+	setMetaForStmt(s, meta)
 	walkExpr(s.X)
 	walkStmt(s.Body)
 	meta.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
@@ -3829,7 +3830,7 @@ func resolveImports(file *ast.File) {
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		rawValue := imprt.Path.Value
-		pth := rawValue[1:len(rawValue)-1]
+		pth := rawValue[1 : len(rawValue)-1]
 		base := path.Base(pth)
 		mapImports[base] = true
 	}
