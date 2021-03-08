@@ -857,7 +857,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 	var as *ast.AssignStmt
 	var rangeX ast.Expr
 	if isRange {
-		assert(isStmtAssignStmt(s2), "type mismatch:"+dtypeOf(s2), __func__)
+		assert(isStmtAssignStmt(s2), "type mismatch", __func__)
 		as = stmt2AssignStmt(s2)
 		logf(" [DEBUG] range as len lhs=%s\n", strconv.Itoa(len(as.Lhs)))
 		var key ast.Expr
@@ -1474,10 +1474,6 @@ func isExprTypeAssertExpr(e ast.Expr) bool {
 func isExprIdent(e ast.Expr) bool {
 	_, ok := e.(*ast.Ident)
 	return ok
-}
-
-func dtypeOf(x interface{}) string {
-	return fmt.Sprintf("%T", x)
 }
 
 func panic2(caller string, x string) {
