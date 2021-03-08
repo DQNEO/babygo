@@ -459,7 +459,7 @@ func (p *parser) tryResolve(x ast.Expr, collectUnresolved bool) {
 	if !isExprIdent(x) {
 		return
 	}
-	ident := expr2Ident(x)
+	ident := x.(*ast.Ident)
 	if ident.Name == "_" {
 		return
 	}
@@ -814,7 +814,7 @@ func makeExpr(s ast.Stmt) ast.Expr {
 		var r ast.Expr
 		return r
 	}
-	return stmt2ExprStmt(s).X
+	return s.(*ast.ExprStmt).X
 }
 
 func (p *parser) parseForStmt() ast.Stmt {
@@ -857,8 +857,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 	var as *ast.AssignStmt
 	var rangeX ast.Expr
 	if isRange {
-		assert(isStmtAssignStmt(s2), "type mismatch", __func__)
-		as = stmt2AssignStmt(s2)
+		as = s2.(*ast.AssignStmt)
 		logf(" [DEBUG] range as len lhs=%s\n", strconv.Itoa(len(as.Lhs)))
 		var key ast.Expr
 		var value ast.Expr
@@ -873,7 +872,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 			panic2(__func__, "Unexpected len of as.Lhs")
 		}
 
-		rangeX = expr2UnaryExpr(as.Rhs[0]).X
+		rangeX = as.Rhs[0].(*ast.UnaryExpr).X
 		var rangeStmt = &ast.RangeStmt{}
 		rangeStmt.Key = key
 		rangeStmt.Value = value
@@ -898,7 +897,7 @@ func (p *parser) parseIfStmt() ast.Stmt {
 	p.expect("if", __func__)
 	parserExprLev = -1
 	var condStmt ast.Stmt = p.parseSimpleStmt(false)
-	exprStmt := stmt2ExprStmt(condStmt)
+	exprStmt := condStmt.(*ast.ExprStmt)
 	var cond = exprStmt.X
 	parserExprLev = 0
 	var body = p.parseBlockStmt()
@@ -943,8 +942,9 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 	return r
 }
 
-func isTypeSwitchAssert(x ast.Expr) bool {
-	return isExprTypeAssertExpr(x) && expr2TypeAssertExpr(x).Type == nil
+func isTypeSwitchAssert(e ast.Expr) bool {
+	_, ok := e.(*ast.TypeAssertExpr)
+	return ok
 }
 
 func isTypeSwitchGuard(stmt ast.Stmt) bool {
@@ -1040,8 +1040,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 		if as.Tok == ":=" {
 			lhss := x
 			for _, lhs := range lhss {
-				assert(isExprIdent(lhs), "should be ident", __func__)
-				declare(as, p.topScope, ast.Var, expr2Ident(lhs))
+				declare(as, p.topScope, ast.Var, lhs.(*ast.Ident))
 			}
 		}
 		logf(" parseSimpleStmt end =, := %s\n", __func__)
@@ -1408,67 +1407,6 @@ func parserParseFile(fset *token.FileSet, filename string, src interface{}, mode
 	p.scanner = &scanner{}
 	p.init(text)
 	return p.parseFile(importsOnly), nil
-}
-
-func isStmtAssignStmt(s ast.Stmt) bool {
-	var ok bool
-	_, ok = s.(*ast.AssignStmt)
-	return ok
-}
-
-func stmt2AssignStmt(s ast.Stmt) *ast.AssignStmt {
-	var r *ast.AssignStmt
-	var ok bool
-	r, ok = s.(*ast.AssignStmt)
-	if !ok {
-		panic("Not *ast.AssignStmt")
-	}
-	return r
-}
-
-func stmt2ExprStmt(s ast.Stmt) *ast.ExprStmt {
-	var r *ast.ExprStmt
-	var ok bool
-	r, ok = s.(*ast.ExprStmt)
-	if !ok {
-		panic("Not *ast.ExprStmt")
-	}
-	return r
-}
-
-func expr2Ident(e ast.Expr) *ast.Ident {
-	var r *ast.Ident
-	var ok bool
-	r, ok = e.(*ast.Ident)
-	if !ok {
-		panic(fmt.Sprintf("Not *ast.Ident but got: %T", e))
-	}
-	return r
-}
-
-func expr2UnaryExpr(e ast.Expr) *ast.UnaryExpr {
-	var r *ast.UnaryExpr
-	var ok bool
-	r, ok = e.(*ast.UnaryExpr)
-	if !ok {
-		panic("Not *ast.UnaryExpr")
-	}
-	return r
-}
-
-func expr2TypeAssertExpr(e ast.Expr) *ast.TypeAssertExpr {
-	var r *ast.TypeAssertExpr
-	var ok bool
-	r, ok = e.(*ast.TypeAssertExpr)
-	if !ok {
-		panic("Not *ast.TypeAssertExpr")
-	}
-	return r
-}
-
-func isExprTypeAssertExpr(e ast.Expr) bool {
-	_, ok := e.(*ast.TypeAssertExpr)
-	return ok
 }
 
 func isExprIdent(e ast.Expr) bool {
