@@ -4151,8 +4151,8 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 		astFile := parseFile(fset, file)
 		_pkg.name = astFile.Name.Name
 		_pkg.astFiles = append(_pkg.astFiles, astFile)
-		for _, obj := range astFile.Scope.Objects {
-			pkgScope.Objects[obj.Name] = obj
+		for name, obj := range astFile.Scope.Objects {
+			pkgScope.Objects[name] = obj
 		}
 	}
 	for _, astFile := range _pkg.astFiles {

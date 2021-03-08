@@ -3947,7 +3947,7 @@ func createUniverse() *ast.Scope {
 	}
 
 	// setting aliases
-	universe.Objects.Set("byte", gUint8)
+	universe.Objects["byte"] = gUint8
 
 	return universe
 }
@@ -4149,8 +4149,8 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 		astFile := parseFile(fset, file)
 		_pkg.name = astFile.Name.Name
 		_pkg.astFiles = append(_pkg.astFiles, astFile)
-		for item := astFile.Scope.Objects.First(); item != nil; item = item.Next() {
-			pkgScope.Objects.Set(item.GetKeyAsString(), item.Value)
+		for name, obj := range astFile.Scope.Objects {
+			pkgScope.Objects[name] = obj
 		}
 	}
 	for _, astFile := range _pkg.astFiles {
