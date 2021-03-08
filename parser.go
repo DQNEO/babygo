@@ -1395,9 +1395,10 @@ func readSource(filename string) []uint8 {
 	return readFile(filename)
 }
 
-func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8) *ast.File {
+const parserImportOnly = 1
+func parserParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8) (*ast.File, *ParserError) {
 	var importsOnly bool
-	if mode == 1 {
+	if mode == parserImportOnly {
 		importsOnly = true
 	}
 
@@ -1406,7 +1407,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8
 	var p = &parser{}
 	p.scanner = &scanner{}
 	p.init(text)
-	return p.parseFile(importsOnly)
+	return p.parseFile(importsOnly), nil
 }
 
 func newStmt(x interface{}) ast.Stmt {
@@ -1485,4 +1486,12 @@ func dtypeOf(x interface{}) string {
 
 func panic2(caller string, x string) {
 	panic(caller + ": " + x)
+}
+
+type ParserError struct {
+	msg string
+}
+
+func (err *ParserError) Error() string {
+	return err.msg
 }

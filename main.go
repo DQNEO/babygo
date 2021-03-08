@@ -4377,11 +4377,19 @@ func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
 
 // --- util ---
 func parseImports(fset *token.FileSet, filename string) *ast.File {
-	return ParseFile(fset, filename, nil, 1)
+	f, err := parserParseFile(fset, filename, nil, parserImportOnly)
+	if err != nil {
+		panic(filename + ":" + err.Error())
+	}
+	return f
 }
 
 func parseFile(fset *token.FileSet, filename string) *ast.File {
-	return ParseFile(fset, filename, nil, 0)
+	f, err := parserParseFile(fset, filename, nil, 0)
+	if err != nil {
+		panic(err.Error())
+	}
+	return f
 }
 
 func throw(x interface{}) {

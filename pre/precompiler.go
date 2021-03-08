@@ -4389,7 +4389,7 @@ func parseImports(fset *token.FileSet, filename string) *ast.File {
 func parseFile(fset *token.FileSet, filename string) *ast.File {
 	f, err := parser.ParseFile(fset, filename, nil, 0)
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 	return f
 }
