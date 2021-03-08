@@ -4143,6 +4143,22 @@ func collectSourceFiles(pkgDir string) []string {
 	return files
 }
 
+func parseImports(fset *token.FileSet, filename string) *ast.File {
+	f, err := parserParseFile(fset, filename, nil, parserImportsOnly)
+	if err != nil {
+		panic(filename + ":" + err.Error())
+	}
+	return f
+}
+
+func parseFile(fset *token.FileSet, filename string) *ast.File {
+	f, err := parserParseFile(fset, filename, nil, 0)
+	if err != nil {
+		panic(err.Error())
+	}
+	return f
+}
+
 func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 	logf("Building package : %s\n", _pkg.path)
 	fset := &token.FileSet{}
@@ -4374,23 +4390,6 @@ func getMetaTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 
 func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
 	mapMeta[unsafe.Pointer(s)] = meta
-}
-
-// --- util ---
-func parseImports(fset *token.FileSet, filename string) *ast.File {
-	f, err := parserParseFile(fset, filename, nil, parserImportOnly)
-	if err != nil {
-		panic(filename + ":" + err.Error())
-	}
-	return f
-}
-
-func parseFile(fset *token.FileSet, filename string) *ast.File {
-	f, err := parserParseFile(fset, filename, nil, 0)
-	if err != nil {
-		panic(err.Error())
-	}
-	return f
 }
 
 func throw(x interface{}) {

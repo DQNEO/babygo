@@ -1395,10 +1395,11 @@ func readSource(filename string) []uint8 {
 	return readFile(filename)
 }
 
-const parserImportOnly = 1
+const parserImportsOnly = 1
+
 func parserParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8) (*ast.File, *ParserError) {
 	var importsOnly bool
-	if mode == parserImportOnly {
+	if mode == parserImportsOnly {
 		importsOnly = true
 	}
 

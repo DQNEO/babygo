@@ -4144,6 +4144,22 @@ func collectSourceFiles(pkgDir string) []string {
 	return files
 }
 
+func parseImports(fset *token.FileSet, filename string) *ast.File {
+	f, err := parserParseFile(fset, filename, nil, parserImportsOnly)
+	if err != nil {
+		panic(filename + ":" + err.Error())
+	}
+	return f
+}
+
+func parseFile(fset *token.FileSet, filename string) *ast.File {
+	f, err := parserParseFile(fset, filename, nil, 0)
+	if err != nil {
+		panic(err.Error())
+	}
+	return f
+}
+
 func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 	logf("Building package : %s\n", _pkg.path)
 	fset := &token.FileSet{}
@@ -4377,23 +4393,13 @@ func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
 	mapMeta[unsafe.Pointer(s)] = meta
 }
 
-// --- util ---
-func parseImports(fset *token.FileSet, filename string) *ast.File {
-	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
-	if err != nil {
-		panic(filename + ":" + err.Error())
-	}
-	return f
-}
-
-func parseFile(fset *token.FileSet, filename string) *ast.File {
-	f, err := parser.ParseFile(fset, filename, nil, 0)
-	if err != nil {
-		panic(err.Error())
-	}
-	return f
-}
-
 func throw(x interface{}) {
 	panic(x)
+}
+
+// tweak to reduce diff with main.go
+const parserImportsOnly = parser.ImportsOnly
+
+func parserParseFile(fset *token.FileSet, filename string, src interface{}, mode parser.Mode) (*ast.File, error) {
+	return parser.ParseFile(fset, filename, src, mode)
 }
