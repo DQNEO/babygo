@@ -650,7 +650,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 			fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
 			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 			fmt.Printf("  pushq %%rax\n")
-		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+		case T_BOOL, T_INT, T_UINTPTR, T_POINTER,T_MAP:
 		case T_SLICE:
 		default:
 			unexpectedKind(knd)
@@ -2833,6 +2833,8 @@ func serializeType(t *Type) string {
 		panic("TBD: Ellipsis")
 	case *ast.InterfaceType:
 		return "interface"
+	case *ast.MapType:
+		return "map[" + serializeType(e2t(e.Key)) + "]" + serializeType(e2t(e.Value))
 	case *ast.SelectorExpr:
 		qi := selector2QI(e)
 		return string(qi)
@@ -4074,7 +4076,7 @@ func collectDependency(tree DependencyTree, paths map[string]bool) {
 		}
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
-		children := map[string]bool{}
+		children := make(map[string]bool)
 		for _, fname := range fnames {
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
 			for _, pth := range _paths {
@@ -4117,7 +4119,7 @@ func collectAllPackages(inputFiles []string) []string {
 }
 
 func collectDirectDependents(inputFiles []string) map[string]bool {
-	importPaths := map[string]bool{}
+	importPaths := make(map[string]bool)
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")

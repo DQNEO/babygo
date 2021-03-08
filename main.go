@@ -649,7 +649,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 			fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
 			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 			fmt.Printf("  pushq %%rax\n")
-		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+		case T_BOOL, T_INT, T_UINTPTR, T_POINTER,T_MAP:
 		case T_SLICE:
 		default:
 			unexpectedKind(knd)
@@ -2832,6 +2832,8 @@ func serializeType(t *Type) string {
 		panic("TBD: Ellipsis")
 	case *ast.InterfaceType:
 		return "interface"
+	case *ast.MapType:
+		return "map[" + serializeType(e2t(e.Key)) + "]" + serializeType(e2t(e.Value))
 	case *ast.SelectorExpr:
 		qi := selector2QI(e)
 		return string(qi)
@@ -4020,8 +4022,8 @@ func getImportPathsFromFile(file string) []string {
 
 func removeNode(tree *mymap.Map, node string) {
 	for item := tree.First(); item != nil; item = item.Next() {
-		children := item.Value.(*mymap.Map)
-		children.Delete(node)
+		children := item.Value.(map[string]bool)
+		delete(children, node)
 	}
 	tree.Delete(node)
 }
@@ -4046,8 +4048,8 @@ func sortTopologically(tree *mymap.Map) []string {
 			if !ok {
 				panic("not found in tree")
 			}
-			children := ifc.(*mymap.Map)
-			if children.Len() == 0 {
+			children := ifc.(map[string]bool)
+			if len(children) == 0 {
 				// collect leaf node
 				sorted = append(sorted, _path)
 				removeNode(tree, _path)
@@ -4065,22 +4067,21 @@ func getPackageDir(importPath string) string {
 	}
 }
 
-func collectDependency(tree *mymap.Map, mapPaths *mymap.Map) {
-	for item := mapPaths.First(); item != nil; item = item.Next() {
-		pkgPath := item.GetKeyAsString()
+func collectDependency(tree *mymap.Map, paths map[string]bool) {
+	for pkgPath, _ := range paths {
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
 		}
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
-		children := &mymap.Map{}
+		children := make(map[string]bool)
 		for _, fname := range fnames {
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
 			for _, pth := range _paths {
 				if pth == "unsafe" || pth == "runtime" {
 					continue
 				}
-				children.Set(pth, true)
+				children[pth] = true
 			}
 		}
 		tree.Set(pkgPath, children)
@@ -4115,14 +4116,14 @@ func collectAllPackages(inputFiles []string) []string {
 	return paths
 }
 
-func collectDirectDependents(inputFiles []string) *mymap.Map {
-	importPaths := &mymap.Map{}
+func collectDirectDependents(inputFiles []string) map[string]bool {
+	importPaths := make(map[string]bool)
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")
 		paths := getImportPathsFromFile(inputFile)
 		for _, pth := range paths {
-			importPaths.Set(pth, true)
+			importPaths[pth] = true
 		}
 	}
 	return importPaths
