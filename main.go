@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
-	"github.com/DQNEO/babygo/lib/mymap"
 	"github.com/DQNEO/babygo/lib/token"
 	"unsafe"
 
@@ -164,6 +163,11 @@ func emitLoadAndPush(t *Type) {
 	default:
 		unexpectedKind(kind(t))
 	}
+}
+
+func emitVariable(variable *Variable) {
+	emitVariableAddr(variable)
+	emitLoadAndPush(variable.Typ)
 }
 
 func emitVariableAddr(variable *Variable) {
@@ -353,7 +357,7 @@ func emitZeroValue(t *Type) {
 	case T_INTERFACE:
 		fmt.Printf("  pushq $0 # interface data\n")
 		fmt.Printf("  pushq $0 # interface dtype\n")
-	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
+	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL, T_MAP:
 		fmt.Printf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
 		structSize := getSizeOfType(t)
@@ -644,7 +648,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 			fmt.Printf("  movzbq (%%rsp), %%rax # load uint8\n")
 			fmt.Printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 			fmt.Printf("  pushq %%rax\n")
-		case T_BOOL, T_INT, T_UINTPTR, T_POINTER:
+		case T_BOOL, T_INT, T_UINTPTR, T_POINTER,T_MAP:
 		case T_SLICE:
 		default:
 			unexpectedKind(knd)
@@ -893,7 +897,7 @@ func emitNil(targetType *Type) {
 		panic("Type is required to emit nil")
 	}
 	switch kind(targetType) {
-	case T_SLICE, T_POINTER, T_INTERFACE:
+	case T_SLICE, T_POINTER, T_INTERFACE, T_MAP:
 		emitZeroValue(targetType)
 	default:
 		unexpectedKind(kind(targetType))
@@ -1410,14 +1414,14 @@ func typeIdToSymbol(id int) string {
 	return "dtype." + strconv.Itoa(id)
 }
 
-var typesMap = &mymap.Map{}
+var typesMap = make(map[string]int)
 
 func getTypeId(serialized string) int {
-	id, ok := typesMap.Get(serialized)
+	id, ok := typesMap[serialized]
 	if ok {
-		return id.(int)
+		return id
 	}
-	typesMap.Set(serialized, typeId)
+	typesMap[serialized] = typeId
 	r := typeId
 	typeId++
 	return r
@@ -1833,9 +1837,121 @@ func emitForStmt(s *ast.ForStmt) {
 	fmt.Printf("  %s:\n", labelExit)
 }
 
+func emitRangeMap(s *ast.RangeStmt, meta *MetaForStmt) {
+	labelid++
+	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
+	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
+	labelExit := fmt.Sprintf(".L.range.exit.%d", labelid)
+
+	meta.LabelPost = labelPost
+	meta.LabelExit = labelExit
+
+	// Overall design:
+	//  _mp := EXPR
+	//  if _mp == nil then exit
+	// 	for _item = _mp.first; _item != nil; item = item.next {
+	//    ...
+	//  }
+
+	emitComment(2, "ForRange map Initialization\n")
+
+	// _mp = EXPR
+	emitAssignToVar(meta.ForRange.MapVar, s.X)
+
+	//  if _mp == nil then exit
+	emitVariable(meta.ForRange.MapVar) // value of _mp
+	fmt.Printf("  popq %%rax\n")
+	fmt.Printf("  cmpq $0, %%rax\n")
+	fmt.Printf("  je %s # exit if nil\n", labelExit)
+
+	// item = mp.first
+	emitVariableAddr(meta.ForRange.ItemVar)
+	emitVariable(meta.ForRange.MapVar) // value of _mp
+	emitLoadAndPush(tUintptr) // value of _mp.first
+	emitStore(tUintptr, true, false) // assign
+
+	// Condition
+	// if item != nil; then
+	//   execute body
+	// else
+	//   exit
+	emitComment(2, "ForRange Condition\n")
+	fmt.Printf("  %s:\n", labelCond)
+
+	emitVariable(meta.ForRange.ItemVar)
+	fmt.Printf("  popq %%rax\n")
+	fmt.Printf("  cmpq $0, %%rax\n")
+	fmt.Printf("  je %s # exit if nil\n", labelExit)
+
+	emitComment(2, "assign key value to variables\n")
+
+	// assign key
+	if s.Key != nil {
+		keyIdent := s.Key.(*ast.Ident)
+		if keyIdent.Name != "_" {
+			emitAddr(s.Key) // lhs
+			// emit value of item.key
+			//type item struct {
+			//	next  *item
+			//	key_dtype uintptr
+			//  key_data uintptr <-- this
+			//	value uintptr
+			//}
+			emitVariable(meta.ForRange.ItemVar)
+			fmt.Printf("  popq %%rax\n")            // &item{....}
+			fmt.Printf("  movq 16(%%rax), %%rcx\n") // item.key_data
+			fmt.Printf("  pushq %%rcx\n")
+			emitLoadAndPush(getTypeOfExpr(s.Key)) // load dynamic data
+			emitStore(getTypeOfExpr(s.Key), true, false)
+		}
+	}
+
+	// assign value
+	if s.Value != nil {
+		valueIdent := s.Value.(*ast.Ident)
+		if valueIdent.Name != "_" {
+			emitAddr(s.Value) // lhs
+			// emit value of item
+			//type item struct {
+			//	next  *item
+			//	key_dtype uintptr
+			//  key_data uintptr
+			//	value uintptr  <-- this
+			//}
+			emitVariable(meta.ForRange.ItemVar)
+			fmt.Printf("  popq %%rax\n")            // &item{....}
+			fmt.Printf("  movq 24(%%rax), %%rcx\n") // item.key_data
+			fmt.Printf("  pushq %%rcx\n")
+			emitLoadAndPush(getTypeOfExpr(s.Value)) // load dynamic data
+			emitStore(getTypeOfExpr(s.Value), true, false)
+		}
+	}
+
+	// Body
+	emitComment(2, "ForRange Body\n")
+	emitStmt(s.Body)
+
+	// Post statement
+	// item = item.next
+	emitComment(2, "ForRange Post statement\n")
+	fmt.Printf("  %s:\n", labelPost)         // used for "continue"
+	emitVariableAddr(meta.ForRange.ItemVar) // lhs
+	emitVariable(meta.ForRange.ItemVar) // item
+	emitLoadAndPush(tUintptr) // item.next
+	emitStore(tUintptr, true, false)
+
+	fmt.Printf("  jmp %s\n", labelCond)
+
+	fmt.Printf("  %s:\n", labelExit)
+}
+
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
 	meta := getMetaForStmt(s)
+	if meta.ForRange.IsMap {
+		emitRangeMap(s, meta)
+		return
+	}
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -2396,12 +2512,20 @@ func generateCode(pkg *PkgContainer) {
 	fmt.Printf("\n")
 }
 
-func emitDynamicTypes(typeMap *mymap.Map) {
+func emitDynamicTypes(typeMap map[string]int) {
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
-	for item := typeMap.First(); item != nil; item = item.Next() {
-		name := item.GetKeyAsString()
-		id := item.Value.(int)
+
+	sliceTypeMap := make([]string, len(typeMap)+1, len(typeMap)+1)
+
+	// sort map in order to assure the deterministic results
+	for name, id := range typeMap {
+		sliceTypeMap[id] = name
+	}
+
+	// skip id=0
+	for id := 1; id < len(sliceTypeMap); id++ {
+		name := sliceTypeMap[id]
 		symbol := typeIdToSymbol(id)
 		fmt.Printf("%s: # %s\n", symbol, name)
 		fmt.Printf("  .quad %d\n", id)
@@ -2707,6 +2831,8 @@ func serializeType(t *Type) string {
 		panic("TBD: Ellipsis")
 	case *ast.InterfaceType:
 		return "interface"
+	case *ast.MapType:
+		return "map[" + serializeType(e2t(e.Key)) + "]" + serializeType(e2t(e.Value))
 	case *ast.SelectorExpr:
 		qi := selector2QI(e)
 		return string(qi)
@@ -3212,8 +3338,15 @@ func walkRangeStmt(s *ast.RangeStmt) {
 	switch kind(collectionType) {
 	case T_SLICE, T_ARRAY:
 		meta.ForRange = &MetaForRange{
+			IsMap: false,
 			LenVar:   registerLocalVariable(currentFunc, ".range.len", tInt),
 			Indexvar: registerLocalVariable(currentFunc, ".range.index", tInt),
+		}
+	case T_MAP:
+		meta.ForRange = &MetaForRange{
+			IsMap: true,
+			MapVar: registerLocalVariable(currentFunc, ".range.map", tUintptr),
+			ItemVar: registerLocalVariable(currentFunc, ".range.item", tUintptr),
 		}
 	default:
 		throw(collectionType)
@@ -3814,7 +3947,7 @@ func createUniverse() *ast.Scope {
 	}
 
 	// setting aliases
-	universe.Objects.Set("byte", gUint8)
+	universe.Objects["byte"] = gUint8
 
 	return universe
 }
@@ -3886,36 +4019,37 @@ func getImportPathsFromFile(file string) []string {
 	return paths
 }
 
-func removeNode(tree *mymap.Map, node string) {
-	for item := tree.First(); item != nil; item = item.Next() {
-		children := item.Value.(*mymap.Map)
-		children.Delete(node)
+func removeNode(tree DependencyTree, node string) {
+	for _, paths := range tree {
+		delete(paths, node)
 	}
-	tree.Delete(node)
+
+	delete(tree, node)
 }
 
-func getKeys(tree *mymap.Map) []string {
+func getKeys(tree DependencyTree) []string {
 	var keys []string
-	for item := tree.First(); item != nil; item = item.Next() {
-		keys = append(keys, item.GetKeyAsString())
+	for k, _ := range tree {
+		keys = append(keys, k)
 	}
 	return keys
 }
 
+type DependencyTree map[string]map[string]bool
+
 // Do topological sort
 // In the result list, the independent (lowest level) packages come first.
-func sortTopologically(tree *mymap.Map) []string {
+func sortTopologically(tree DependencyTree) []string {
 	var sorted []string
-	for tree.Len() > 0 {
+	for len(tree) > 0 {
 		keys := getKeys(tree)
 		mylib.SortStrings(keys)
 		for _, _path := range keys {
-			ifc, ok := tree.Get(_path)
+			children, ok := tree[_path]
 			if !ok {
 				panic("not found in tree")
 			}
-			children := ifc.(*mymap.Map)
-			if children.Len() == 0 {
+			if len(children) == 0 {
 				// collect leaf node
 				sorted = append(sorted, _path)
 				removeNode(tree, _path)
@@ -3933,25 +4067,24 @@ func getPackageDir(importPath string) string {
 	}
 }
 
-func collectDependency(tree *mymap.Map, mapPaths *mymap.Map) {
-	for item := mapPaths.First(); item != nil; item = item.Next() {
-		pkgPath := item.GetKeyAsString()
+func collectDependency(tree DependencyTree, paths map[string]bool) {
+	for pkgPath, _ := range paths {
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
 		}
 		packageDir := getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
-		children := &mymap.Map{}
+		children := make(map[string]bool)
 		for _, fname := range fnames {
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
 			for _, pth := range _paths {
 				if pth == "unsafe" || pth == "runtime" {
 					continue
 				}
-				children.Set(pth, true)
+				children[pth] = true
 			}
 		}
-		tree.Set(pkgPath, children)
+		tree[pkgPath] = children
 		collectDependency(tree, children)
 	}
 }
@@ -3961,7 +4094,7 @@ var prjSrcPath string
 
 func collectAllPackages(inputFiles []string) []string {
 	directChildren := collectDirectDependents(inputFiles)
-	tree := &mymap.Map{}
+	tree := make(DependencyTree)
 	collectDependency(tree, directChildren)
 	sortedPaths := sortTopologically(tree)
 
@@ -3983,14 +4116,14 @@ func collectAllPackages(inputFiles []string) []string {
 	return paths
 }
 
-func collectDirectDependents(inputFiles []string) *mymap.Map {
-	importPaths := &mymap.Map{}
+func collectDirectDependents(inputFiles []string) map[string]bool {
+	importPaths := make(map[string]bool)
 	for _, inputFile := range inputFiles {
 		logf("input file: \"%s\"\n", inputFile)
 		logf("Parsing imports\n")
 		paths := getImportPathsFromFile(inputFile)
 		for _, pth := range paths {
-			importPaths.Set(pth, true)
+			importPaths[pth] = true
 		}
 	}
 	return importPaths
@@ -4016,8 +4149,8 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 		astFile := parseFile(fset, file)
 		_pkg.name = astFile.Name.Name
 		_pkg.astFiles = append(_pkg.astFiles, astFile)
-		for item := astFile.Scope.Objects.First(); item != nil; item = item.Next() {
-			pkgScope.Objects.Set(item.GetKeyAsString(), item.Value)
+		for name, obj := range astFile.Scope.Objects {
+			pkgScope.Objects[name] = obj
 		}
 	}
 	for _, astFile := range _pkg.astFiles {
@@ -4132,8 +4265,11 @@ type MetaReturnStmt struct {
 }
 
 type MetaForRange struct {
+	IsMap   bool
 	LenVar   *Variable
 	Indexvar *Variable
+	MapVar *Variable // map
+	ItemVar *Variable // map element
 }
 
 type MetaForStmt struct {

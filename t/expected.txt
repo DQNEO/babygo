@@ -1,3 +1,9 @@
+map iteration 1 times
+key=key1, value=100
+map iteration 2 times
+key=key2, value=200
+key=key1, value=100
+key=key2, value=200
 key1=>"value1"
 noexist=>""
 key1=>"value1"
