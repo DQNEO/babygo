@@ -1415,14 +1415,14 @@ func typeIdToSymbol(id int) string {
 	return "dtype." + strconv.Itoa(id)
 }
 
-var typesMap = &mymap.Map{}
+var typesMap = make(map[string]int)
 
 func getTypeId(serialized string) int {
-	id, ok := typesMap.Get(serialized)
+	id, ok := typesMap[serialized]
 	if ok {
-		return id.(int)
+		return id
 	}
-	typesMap.Set(serialized, typeId)
+	typesMap[serialized] = typeId
 	r := typeId
 	typeId++
 	return r
@@ -2513,12 +2513,20 @@ func generateCode(pkg *PkgContainer) {
 	fmt.Printf("\n")
 }
 
-func emitDynamicTypes(typeMap *mymap.Map) {
+func emitDynamicTypes(typeMap map[string]int) {
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
-	for item := typeMap.First(); item != nil; item = item.Next() {
-		name := item.GetKeyAsString()
-		id := item.Value.(int)
+
+	sliceTypeMap := make([]string, len(typeMap)+1, len(typeMap)+1)
+
+	// sort map in order to assure the deterministic results
+	for name, id := range typeMap {
+		sliceTypeMap[id] = name
+	}
+
+	// skip id=0
+	for id := 1; id < len(sliceTypeMap); id++ {
+		name := sliceTypeMap[id]
 		symbol := typeIdToSymbol(id)
 		fmt.Printf("%s: # %s\n", symbol, name)
 		fmt.Printf("  .quad %d\n", id)

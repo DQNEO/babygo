@@ -1416,7 +1416,7 @@ func typeIdToSymbol(id int) string {
 	return "dtype." + strconv.Itoa(id)
 }
 
-var typesMap = map[string]int{}
+var typesMap = make(map[string]int)
 
 func getTypeId(serialized string) int {
 	id, ok := typesMap[serialized]
@@ -2518,7 +2518,7 @@ func emitDynamicTypes(typeMap map[string]int) {
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
 
-	sliceTypeMap := make([]string, len(typeMap)+1)
+	sliceTypeMap := make([]string, len(typeMap)+1, len(typeMap)+1)
 
 	// sort map in order to assure the deterministic results
 	for name, id := range typeMap {
