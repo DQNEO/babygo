@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
-	"github.com/DQNEO/babygo/lib/mymap"
 	"github.com/DQNEO/babygo/lib/token"
 	"unsafe"
 
@@ -4020,35 +4019,36 @@ func getImportPathsFromFile(file string) []string {
 	return paths
 }
 
-func removeNode(tree *mymap.Map, node string) {
-	for item := tree.First(); item != nil; item = item.Next() {
-		children := item.Value.(map[string]bool)
-		delete(children, node)
+func removeNode(tree DependencyTree, node string) {
+	for _, paths := range tree {
+		delete(paths, node)
 	}
-	tree.Delete(node)
+
+	delete(tree, node)
 }
 
-func getKeys(tree *mymap.Map) []string {
+func getKeys(tree DependencyTree) []string {
 	var keys []string
-	for item := tree.First(); item != nil; item = item.Next() {
-		keys = append(keys, item.GetKeyAsString())
+	for k, _ := range tree {
+		keys = append(keys, k)
 	}
 	return keys
 }
 
+type DependencyTree map[string]map[string]bool
+
 // Do topological sort
 // In the result list, the independent (lowest level) packages come first.
-func sortTopologically(tree *mymap.Map) []string {
+func sortTopologically(tree DependencyTree) []string {
 	var sorted []string
-	for tree.Len() > 0 {
+	for len(tree) > 0 {
 		keys := getKeys(tree)
 		mylib.SortStrings(keys)
 		for _, _path := range keys {
-			ifc, ok := tree.Get(_path)
+			children, ok := tree[_path]
 			if !ok {
 				panic("not found in tree")
 			}
-			children := ifc.(map[string]bool)
 			if len(children) == 0 {
 				// collect leaf node
 				sorted = append(sorted, _path)
@@ -4067,7 +4067,7 @@ func getPackageDir(importPath string) string {
 	}
 }
 
-func collectDependency(tree *mymap.Map, paths map[string]bool) {
+func collectDependency(tree DependencyTree, paths map[string]bool) {
 	for pkgPath, _ := range paths {
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
@@ -4084,7 +4084,7 @@ func collectDependency(tree *mymap.Map, paths map[string]bool) {
 				children[pth] = true
 			}
 		}
-		tree.Set(pkgPath, children)
+		tree[pkgPath] = children
 		collectDependency(tree, children)
 	}
 }
@@ -4094,7 +4094,7 @@ var prjSrcPath string
 
 func collectAllPackages(inputFiles []string) []string {
 	directChildren := collectDirectDependents(inputFiles)
-	tree := &mymap.Map{}
+	tree := make(DependencyTree)
 	collectDependency(tree, directChildren)
 	sortedPaths := sortTopologically(tree)
 

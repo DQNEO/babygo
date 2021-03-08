@@ -4021,7 +4021,7 @@ func getImportPathsFromFile(file string) []string {
 	return paths
 }
 
-func removeNode(tree map[string]map[string]bool, node string) {
+func removeNode(tree DependencyTree, node string) {
 	for _, paths := range tree {
 		delete(paths, node)
 	}
@@ -4029,7 +4029,7 @@ func removeNode(tree map[string]map[string]bool, node string) {
 	delete(tree, node)
 }
 
-func getKeys(tree map[string]map[string]bool) []string {
+func getKeys(tree DependencyTree) []string {
 	var keys []string
 	for k, _ := range tree {
 		keys = append(keys, k)
@@ -4096,7 +4096,7 @@ var prjSrcPath string
 
 func collectAllPackages(inputFiles []string) []string {
 	directChildren := collectDirectDependents(inputFiles)
-	tree := DependencyTree{}
+	tree := make(DependencyTree)
 	collectDependency(tree, directChildren)
 	sortedPaths := sortTopologically(tree)
 
