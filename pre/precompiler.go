@@ -1,21 +1,23 @@
 package main
 
 import (
-	//"github.com/DQNEO/babygo/lib/fmt"
-	"fmt"
+	"unsafe"
+	"os"
+	"syscall"
+
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"unsafe"
-
-	"os"
-	"syscall"
 
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/strings"
+
+	"github.com/DQNEO/babygo/lib/fmt"
 )
+
+const ProgName string = "pre"
 
 var __func__ = "__func__"
 
@@ -4185,8 +4187,6 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 }
 
 // --- main ---
-const ProgName string = "pre"
-
 func showHelp() {
 	fmt.Printf("Usage:\n")
 	fmt.Printf("    %s version:  show version\n", ProgName)
@@ -4395,5 +4395,5 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 }
 
 func throw(x interface{}) {
-	panic(fmt.Sprintf("%#v", x))
+	panic(x)
 }
