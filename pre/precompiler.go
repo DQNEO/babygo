@@ -1716,7 +1716,7 @@ func emitAssignStmt(s *ast.AssignStmt) {
 
 			lhsMain := s.Lhs[0]
 			if isBlankIdentifier(lhsMain) {
-				emitPop(kind(e2t(rhs0.(*ast.TypeAssertExpr).Type)))
+				emitPop(kind(getTypeOfExpr(rhs0)))
 			} else {
 				emitAddr(lhsMain)
 				emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
@@ -3826,7 +3826,7 @@ type PkgContainer struct {
 }
 
 func resolveImports(file *ast.File) {
-	mapImports := map[string]bool{}
+	mapImports := make(map[string]bool)
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		rawValue := imprt.Path.Value

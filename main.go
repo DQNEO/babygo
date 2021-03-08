@@ -1715,7 +1715,7 @@ func emitAssignStmt(s *ast.AssignStmt) {
 
 			lhsMain := s.Lhs[0]
 			if isBlankIdentifier(lhsMain) {
-				emitPop(kind(e2t(rhs0.(*ast.TypeAssertExpr).Type)))
+				emitPop(kind(getTypeOfExpr(rhs0)))
 			} else {
 				emitAddr(lhsMain)
 				emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
@@ -3817,17 +3817,17 @@ type PkgContainer struct {
 }
 
 func resolveImports(file *ast.File) {
-	mapImports := &mymap.Map{}
+	mapImports := make(map[string]bool)
 	for _, imprt := range file.Imports {
 		// unwrap double quote "..."
 		rawValue := imprt.Path.Value
 		pth := rawValue[1 : len(rawValue)-1]
 		base := path.Base(pth)
-		mapImports.Set(base, true)
+		mapImports[base] = true
 	}
 	for _, ident := range file.Unresolved {
 		// lookup imported package name
-		_, ok := mapImports.Get(ident.Name)
+		_, ok := mapImports[ident.Name]
 		if ok {
 			ident.Obj = &ast.Object{
 				Kind: ast.Pkg,
