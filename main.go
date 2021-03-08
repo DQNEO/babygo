@@ -769,7 +769,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		case gAppend:
 			sliceArg := eArgs[0]
 			elemArg := eArgs[1]
-			elmType := getElementTypeOfListType(getTypeOfExpr(sliceArg))
+			elmType := getElementTypeOfCollectionType(getTypeOfExpr(sliceArg))
 			elmSize := getSizeOfType(elmType)
 			args := []*Arg{
 				// slice
@@ -1242,7 +1242,7 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 	}
 
 	emitExpr(low, nil) // index number
-	elmType := getElementTypeOfListType(listType)
+	elmType := getElementTypeOfCollectionType(listType)
 	emitListElementAddr(list, elmType)
 }
 
@@ -1847,13 +1847,13 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	emitComment(2, "ForRange Initialization\n")
 	emitComment(2, "  assign length to lenvar\n")
 	// lenvar = len(s.X)
-	emitVariableAddr(meta.RngLenvar)
+	emitVariableAddr(meta.ForRange.LenVar)
 	emitLen(s.X)
 	emitStore(tInt, true, false)
 
 	emitComment(2, "  assign 0 to indexvar\n")
 	// indexvar = 0
-	emitVariableAddr(meta.RngIndexvar)
+	emitVariableAddr(meta.ForRange.Indexvar)
 	emitZeroValue(tInt)
 	emitStore(tInt, true, false)
 
@@ -1875,9 +1875,9 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	emitComment(2, "ForRange Condition\n")
 	fmt.Printf("  %s:\n", labelCond)
 
-	emitVariableAddr(meta.RngIndexvar)
+	emitVariableAddr(meta.ForRange.Indexvar)
 	emitLoadAndPush(tInt)
-	emitVariableAddr(meta.RngLenvar)
+	emitVariableAddr(meta.ForRange.LenVar)
 	emitLoadAndPush(tInt)
 	emitCompExpr("setl")
 	emitPopBool(" indexvar < lenvar")
@@ -1888,7 +1888,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	elemType := getTypeOfExpr(s.Value)
 	emitAddr(s.Value) // lhs
 
-	emitVariableAddr(meta.RngIndexvar)
+	emitVariableAddr(meta.ForRange.Indexvar)
 	emitLoadAndPush(tInt) // index value
 	emitListElementAddr(s.X, elemType)
 
@@ -1901,9 +1901,9 @@ func emitRangeStmt(s *ast.RangeStmt) {
 
 	// Post statement: Increment indexvar and go next
 	emitComment(2, "ForRange Post statement\n")
-	fmt.Printf("  %s:\n", labelPost)   // used for "continue"
-	emitVariableAddr(meta.RngIndexvar) // lhs
-	emitVariableAddr(meta.RngIndexvar) // rhs
+	fmt.Printf("  %s:\n", labelPost)         // used for "continue"
+	emitVariableAddr(meta.ForRange.Indexvar) // lhs
+	emitVariableAddr(meta.ForRange.Indexvar) // rhs
 	emitLoadAndPush(tInt)
 	emitAddConst(1, "indexvar value ++")
 	emitStore(tInt, true, false)
@@ -1912,8 +1912,8 @@ func emitRangeStmt(s *ast.RangeStmt) {
 	if s.Key != nil {
 		keyIdent := s.Key.(*ast.Ident)
 		if keyIdent.Name != "_" {
-			emitAddr(s.Key)                    // lhs
-			emitVariableAddr(meta.RngIndexvar) // rhs
+			emitAddr(s.Key)                          // lhs
+			emitVariableAddr(meta.ForRange.Indexvar) // rhs
 			emitLoadAndPush(tInt)
 			emitStore(tInt, true, false)
 		}
@@ -2505,7 +2505,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			return e2t(starExpr)
 		case "range":
 			listType := getTypeOfExpr(e.X)
-			elmType := getElementTypeOfListType(listType)
+			elmType := getElementTypeOfCollectionType(listType)
 			return elmType
 		default:
 			panic(e.Op.String())
@@ -2519,7 +2519,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		}
 	case *ast.IndexExpr:
 		list := e.X
-		return getElementTypeOfListType(getTypeOfExpr(list))
+		return getElementTypeOfCollectionType(getTypeOfExpr(list))
 	case *ast.CallExpr: // funcall or conversion
 		types := getCallResultTypes(e)
 		assert(len(types) == 1, "single value is expected", __func__)
@@ -2806,7 +2806,7 @@ func isInterface(t *Type) bool {
 	return kind(t) == T_INTERFACE
 }
 
-func getElementTypeOfListType(t *Type) *Type {
+func getElementTypeOfCollectionType(t *Type) *Type {
 	ut := getUnderlyingType(t)
 	switch kind(ut) {
 	case T_SLICE, T_ARRAY:
@@ -2823,6 +2823,20 @@ func getElementTypeOfListType(t *Type) *Type {
 	case T_MAP:
 		mapType := ut.E.(*ast.MapType)
 		return e2t(mapType.Value)
+	default:
+		unexpectedKind(kind(t))
+	}
+	return nil
+}
+
+func getKeyTypeOfCollectionType(t *Type) *Type {
+	ut := getUnderlyingType(t)
+	switch kind(ut) {
+	case T_SLICE, T_ARRAY,T_STRING:
+		return tInt
+	case T_MAP:
+		mapType := ut.E.(*ast.MapType)
+		return e2t(mapType.Key)
 	default:
 		unexpectedKind(kind(t))
 	}
@@ -3191,20 +3205,24 @@ func walkRangeStmt(s *ast.RangeStmt) {
 	setMetaForStmt(s, meta)
 	walkExpr(s.X)
 	walkStmt(s.Body)
-	meta.RngLenvar = registerLocalVariable(currentFunc, ".range.len", tInt)
-	meta.RngIndexvar = registerLocalVariable(currentFunc, ".range.index", tInt)
-	if s.Tok.String() == ":=" {
-		// short var decl
-		listType := getTypeOfExpr(s.X)
 
+	collectionType := getUnderlyingType(getTypeOfExpr(s.X))
+	keyType := getKeyTypeOfCollectionType(collectionType)
+	elmType := getElementTypeOfCollectionType(collectionType)
+	switch kind(collectionType) {
+	case T_SLICE, T_ARRAY:
+		meta.ForRange = &MetaForRange{
+			LenVar:   registerLocalVariable(currentFunc, ".range.len", tInt),
+			Indexvar: registerLocalVariable(currentFunc, ".range.index", tInt),
+		}
+	default:
+		throw(collectionType)
+	}
+	if s.Tok.String() == ":=" {
+		// declare local variables
 		keyIdent := s.Key.(*ast.Ident)
-		//@TODO map key can be any type
-		//keyType := getKeyTypeOfListType(listType)
-		keyType := tInt
 		setVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, keyType))
 
-		// determine type of Value
-		elmType := getElementTypeOfListType(listType)
 		valueIdent := s.Value.(*ast.Ident)
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
@@ -4113,12 +4131,16 @@ type MetaReturnStmt struct {
 	Fnc *Func
 }
 
+type MetaForRange struct {
+	LenVar   *Variable
+	Indexvar *Variable
+}
+
 type MetaForStmt struct {
 	LabelPost   string // for continue
 	LabelExit   string // for break
 	Outer       *MetaForStmt
-	RngLenvar   *Variable
-	RngIndexvar *Variable
+	ForRange    *MetaForRange // for array or slice
 }
 
 type MetaBranchStmt struct {
