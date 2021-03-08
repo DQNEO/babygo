@@ -882,7 +882,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		rangeStmt.Tok = token.Token(as.Tok)
 		p.closeScope()
 		logf(" end %s\n", __func__)
-		return newStmt(rangeStmt)
+		return rangeStmt
 	}
 	var forStmt = &ast.ForStmt{}
 	forStmt.Init = s1
@@ -891,7 +891,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 	forStmt.Body = body
 	p.closeScope()
 	logf(" end %s\n", __func__)
-	return newStmt(forStmt)
+	return forStmt
 }
 
 func (p *parser) parseIfStmt() ast.Stmt {
@@ -910,7 +910,7 @@ func (p *parser) parseIfStmt() ast.Stmt {
 		} else {
 			var elseblock = p.parseBlockStmt()
 			p.expectSemi(__func__)
-			else_ = newStmt(elseblock)
+			else_ = elseblock
 		}
 	} else {
 		p.expectSemi(__func__)
@@ -920,7 +920,7 @@ func (p *parser) parseIfStmt() ast.Stmt {
 	ifStmt.Body = body
 	ifStmt.Else = else_
 
-	return newStmt(ifStmt)
+	return ifStmt
 }
 
 func (p *parser) parseCaseClause() *ast.CaseClause {
@@ -976,7 +976,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	var ccs ast.Stmt
 	for p.tok.tok == "case" || p.tok.tok == "default" {
 		cc = p.parseCaseClause()
-		ccs = newStmt(cc)
+		ccs = cc
 		list = append(list, ccs)
 	}
 	p.expect("}", __func__)
@@ -988,15 +988,15 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 
 	p.closeScope()
 	if typeSwitch {
-		return newStmt(&ast.TypeSwitchStmt{
+		return &ast.TypeSwitchStmt{
 			Assign: s2,
 			Body:   body,
-		})
+		}
 	} else {
-		return newStmt(&ast.SwitchStmt{
+		return &ast.SwitchStmt{
 			Body: body,
 			Tag:  makeExpr(s2),
-		})
+		}
 	}
 }
 
@@ -1036,7 +1036,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 		as.Rhs = make([]ast.Expr, 1, 1)
 		as.Rhs[0] = y
 		as.IsRange = isRange
-		s := newStmt(as)
+		s := as
 		if as.Tok == ":=" {
 			lhss := x
 			for _, lhs := range lhss {
@@ -1050,7 +1050,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 		var exprStmt = &ast.ExprStmt{}
 		exprStmt.X = x[0]
 		logf(" parseSimpleStmt end ; %s\n", __func__)
-		return newStmt(exprStmt)
+		return exprStmt
 	}
 
 	switch stok {
@@ -1059,12 +1059,12 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 		sInc.X = x[0]
 		sInc.Tok = token.Token(stok)
 		p.next() // consume "++" or "--"
-		return newStmt(sInc)
+		return sInc
 	}
 	var exprStmt = &ast.ExprStmt{}
 	exprStmt.X = x[0]
 	logf(" parseSimpleStmt end (final) %s\n", __func__)
-	return newStmt(exprStmt)
+	return exprStmt
 }
 
 func (p *parser) parseStmt() ast.Stmt {
@@ -1073,10 +1073,9 @@ func (p *parser) parseStmt() ast.Stmt {
 	var s ast.Stmt
 	switch p.tok.tok {
 	case "var":
-		var genDecl = p.parseDecl("var")
-		s = newStmt(&ast.DeclStmt{
-			Decl: genDecl,
-		})
+		s = &ast.DeclStmt{
+			Decl: p.parseDecl("var"),
+		}
 		logf(" = end parseStmt()\n")
 	case "IDENT", "*":
 		s = p.parseSimpleStmt(false)
@@ -1125,7 +1124,7 @@ func (p *parser) parseBranchStmt(tok string) ast.Stmt {
 
 	var branchStmt = &ast.BranchStmt{}
 	branchStmt.Tok = token.Token(tok)
-	return newStmt(branchStmt)
+	return branchStmt
 }
 
 func (p *parser) parseReturnStmt() ast.Stmt {
@@ -1137,7 +1136,7 @@ func (p *parser) parseReturnStmt() ast.Stmt {
 	p.expectSemi(__func__)
 	var returnStmt = &ast.ReturnStmt{}
 	returnStmt.Results = x
-	return newStmt(returnStmt)
+	return returnStmt
 }
 
 func (p *parser) parseStmtList() []ast.Stmt {
@@ -1409,10 +1408,6 @@ func parserParseFile(fset *token.FileSet, filename string, src interface{}, mode
 	p.scanner = &scanner{}
 	p.init(text)
 	return p.parseFile(importsOnly), nil
-}
-
-func newStmt(x interface{}) ast.Stmt {
-	return x
 }
 
 func isStmtAssignStmt(s ast.Stmt) bool {
