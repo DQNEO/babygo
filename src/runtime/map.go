@@ -9,9 +9,9 @@ type Map struct {
 }
 
 type item struct {
+	next  *item
 	key   interface{}
 	value uintptr
-	next  *item
 }
 
 func (i *item) valueAddr() unsafe.Pointer {

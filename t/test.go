@@ -17,6 +17,40 @@ import (
 
 var gmp map[string]string = make(map[string]string)
 
+func testMapForrange() {
+	mapExpr := make(map[string]int)
+
+	var a string
+	var b int
+
+	for a, b = range mapExpr {
+		panic("Should not reach here:")
+		gString = a
+		gInt = b
+	}
+
+	mapExpr["key1"] = 100
+	mapExpr["key2"] = 200
+	var i int
+	for a, b = range mapExpr {
+		i++
+		fmt.Printf("map iteration %d times\n", i)
+		fmt.Printf("key=%s, ", a)
+		fmt.Printf("value=%d\n", b)
+	}
+
+	for k, v := range mapExpr {
+		fmt.Printf("key=%s, ", k)
+		fmt.Printf("value=%d\n", v)
+	}
+	mapExpr = nil
+	for a, b = range mapExpr {
+		panic("Should not reach here:")
+		gString = a
+		gInt = b
+	}
+}
+
 func testGlobalMapOK() {
 	mp := gmp
 	mp["key1"] = "value1"
@@ -2145,6 +2179,7 @@ func testMisc() {
 }
 
 func main() {
+	testMapForrange()
 	testGlobalMapOK()
 	testMapOK()
 	testMap()

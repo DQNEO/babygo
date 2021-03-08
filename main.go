@@ -166,6 +166,11 @@ func emitLoadAndPush(t *Type) {
 	}
 }
 
+func emitVariable(variable *Variable) {
+	emitVariableAddr(variable)
+	emitLoadAndPush(variable.Typ)
+}
+
 func emitVariableAddr(variable *Variable) {
 	emitComment(2, "emit Addr of variable \"%s\" \n", variable.Name)
 
@@ -353,7 +358,7 @@ func emitZeroValue(t *Type) {
 	case T_INTERFACE:
 		fmt.Printf("  pushq $0 # interface data\n")
 		fmt.Printf("  pushq $0 # interface dtype\n")
-	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL:
+	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL, T_MAP:
 		fmt.Printf("  pushq $0 # %s zero value\n", string(kind(t)))
 	case T_STRUCT:
 		structSize := getSizeOfType(t)
@@ -893,7 +898,7 @@ func emitNil(targetType *Type) {
 		panic("Type is required to emit nil")
 	}
 	switch kind(targetType) {
-	case T_SLICE, T_POINTER, T_INTERFACE:
+	case T_SLICE, T_POINTER, T_INTERFACE, T_MAP:
 		emitZeroValue(targetType)
 	default:
 		unexpectedKind(kind(targetType))
@@ -1833,9 +1838,121 @@ func emitForStmt(s *ast.ForStmt) {
 	fmt.Printf("  %s:\n", labelExit)
 }
 
+func emitRangeMap(s *ast.RangeStmt, meta *MetaForStmt) {
+	labelid++
+	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
+	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
+	labelExit := fmt.Sprintf(".L.range.exit.%d", labelid)
+
+	meta.LabelPost = labelPost
+	meta.LabelExit = labelExit
+
+	// Overall design:
+	//  _mp := EXPR
+	//  if _mp == nil then exit
+	// 	for _item = _mp.first; _item != nil; item = item.next {
+	//    ...
+	//  }
+
+	emitComment(2, "ForRange map Initialization\n")
+
+	// _mp = EXPR
+	emitAssignToVar(meta.ForRange.MapVar, s.X)
+
+	//  if _mp == nil then exit
+	emitVariable(meta.ForRange.MapVar) // value of _mp
+	fmt.Printf("  popq %%rax\n")
+	fmt.Printf("  cmpq $0, %%rax\n")
+	fmt.Printf("  je %s # exit if nil\n", labelExit)
+
+	// item = mp.first
+	emitVariableAddr(meta.ForRange.ItemVar)
+	emitVariable(meta.ForRange.MapVar) // value of _mp
+	emitLoadAndPush(tUintptr) // value of _mp.first
+	emitStore(tUintptr, true, false) // assign
+
+	// Condition
+	// if item != nil; then
+	//   execute body
+	// else
+	//   exit
+	emitComment(2, "ForRange Condition\n")
+	fmt.Printf("  %s:\n", labelCond)
+
+	emitVariable(meta.ForRange.ItemVar)
+	fmt.Printf("  popq %%rax\n")
+	fmt.Printf("  cmpq $0, %%rax\n")
+	fmt.Printf("  je %s # exit if nil\n", labelExit)
+
+	emitComment(2, "assign key value to variables\n")
+
+	// assign key
+	if s.Key != nil {
+		keyIdent := s.Key.(*ast.Ident)
+		if keyIdent.Name != "_" {
+			emitAddr(s.Key) // lhs
+			// emit value of item.key
+			//type item struct {
+			//	next  *item
+			//	key_dtype uintptr
+			//  key_data uintptr <-- this
+			//	value uintptr
+			//}
+			emitVariable(meta.ForRange.ItemVar)
+			fmt.Printf("  popq %%rax\n")            // &item{....}
+			fmt.Printf("  movq 16(%%rax), %%rcx\n") // item.key_data
+			fmt.Printf("  pushq %%rcx\n")
+			emitLoadAndPush(getTypeOfExpr(s.Key)) // load dynamic data
+			emitStore(getTypeOfExpr(s.Key), true, false)
+		}
+	}
+
+	// assign value
+	if s.Value != nil {
+		valueIdent := s.Value.(*ast.Ident)
+		if valueIdent.Name != "_" {
+			emitAddr(s.Value) // lhs
+			// emit value of item
+			//type item struct {
+			//	next  *item
+			//	key_dtype uintptr
+			//  key_data uintptr
+			//	value uintptr  <-- this
+			//}
+			emitVariable(meta.ForRange.ItemVar)
+			fmt.Printf("  popq %%rax\n")            // &item{....}
+			fmt.Printf("  movq 24(%%rax), %%rcx\n") // item.key_data
+			fmt.Printf("  pushq %%rcx\n")
+			emitLoadAndPush(getTypeOfExpr(s.Value)) // load dynamic data
+			emitStore(getTypeOfExpr(s.Value), true, false)
+		}
+	}
+
+	// Body
+	emitComment(2, "ForRange Body\n")
+	emitStmt(s.Body)
+
+	// Post statement
+	// item = item.next
+	emitComment(2, "ForRange Post statement\n")
+	fmt.Printf("  %s:\n", labelPost)         // used for "continue"
+	emitVariableAddr(meta.ForRange.ItemVar) // lhs
+	emitVariable(meta.ForRange.ItemVar) // item
+	emitLoadAndPush(tUintptr) // item.next
+	emitStore(tUintptr, true, false)
+
+	fmt.Printf("  jmp %s\n", labelCond)
+
+	fmt.Printf("  %s:\n", labelExit)
+}
+
 // only for array and slice for now
 func emitRangeStmt(s *ast.RangeStmt) {
 	meta := getMetaForStmt(s)
+	if meta.ForRange.IsMap {
+		emitRangeMap(s, meta)
+		return
+	}
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -3212,8 +3329,15 @@ func walkRangeStmt(s *ast.RangeStmt) {
 	switch kind(collectionType) {
 	case T_SLICE, T_ARRAY:
 		meta.ForRange = &MetaForRange{
+			IsMap: false,
 			LenVar:   registerLocalVariable(currentFunc, ".range.len", tInt),
 			Indexvar: registerLocalVariable(currentFunc, ".range.index", tInt),
+		}
+	case T_MAP:
+		meta.ForRange = &MetaForRange{
+			IsMap: true,
+			MapVar: registerLocalVariable(currentFunc, ".range.map", tUintptr),
+			ItemVar: registerLocalVariable(currentFunc, ".range.item", tUintptr),
 		}
 	default:
 		throw(collectionType)
@@ -4132,8 +4256,11 @@ type MetaReturnStmt struct {
 }
 
 type MetaForRange struct {
+	IsMap   bool
 	LenVar   *Variable
 	Indexvar *Variable
+	MapVar *Variable // map
+	ItemVar *Variable // map element
 }
 
 type MetaForStmt struct {
