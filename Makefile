@@ -109,4 +109,4 @@ sample/sample.s: sample/sample.go
 	go tool compile -N -S -l sample/sample.go > sample/sample.s
 
 sample/min.s: sample/min.go
-	go tool compile -N -S sample/min.go > sample/min.s
+	go tool compile -N -S -l sample/min.go > sample/min.s
