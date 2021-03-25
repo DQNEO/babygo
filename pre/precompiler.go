@@ -60,10 +60,8 @@ func evalInt(expr ast.Expr) int {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
 		return strconv.Atoi(e.Value)
-	default:
-		panic("Unknown type")
 	}
-	return 0
+	panic("Unknown type")
 }
 
 func emitPopPrimitive(comment string) {
@@ -2695,10 +2693,8 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		return getTypeOfExpr(e.X)
 	case *ast.TypeAssertExpr:
 		return e2t(e.Type)
-	default:
-		panic(expr)
 	}
-	panic("nil type is not allowed\n")
+	panic("bad type\n")
 }
 
 func fieldList2Types(fldlist *ast.FieldList) []*Type {
