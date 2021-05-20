@@ -24,5 +24,9 @@ func TypeOf(x interface{}) *Type {
 }
 
 func (t *Type) String() string {
-	return t.typ.name
+	return t.typ.String()
+}
+
+func (t *rtype) String() string {
+	return t.name
 }
