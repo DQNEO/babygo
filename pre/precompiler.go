@@ -17,7 +17,7 @@ import (
 	"github.com/DQNEO/babygo/lib/fmt"
 )
 
-const ProgName string = "pre"
+var ProgName string = "pre"
 
 var __func__ = "__func__"
 
