@@ -1,4 +1,4 @@
-"".main STEXT size=86 args=0x0 locals=0x18
+"".main STEXT size=86 args=0x0 locals=0x18 funcid=0x0
 	0x0000 00000 (min.go:4)	TEXT	"".main(SB), ABIInternal, $24-0
 	0x0000 00000 (min.go:4)	MOVQ	(TLS), CX
 	0x0009 00009 (min.go:4)	CMPQ	SP, 16(CX)
@@ -28,7 +28,7 @@
 	0x004f 00079 (min.go:4)	CALL	runtime.morestack_noctxt(SB)
 	0x0054 00084 (min.go:4)	PCDATA	$0, $-1
 	0x0054 00084 (min.go:4)	JMP	0
-	0x0000 64 48 8b 0c 25 00 00 00 00 48 3b 61 10 76 40 48  dH..%....H;a.v@H
+	0x0000 65 48 8b 0c 25 00 00 00 00 48 3b 61 10 76 40 48  eH..%....H;a.v@H
 	0x0010 83 ec 18 48 89 6c 24 10 48 8d 6c 24 10 0f 1f 00  ...H.l$.H.l$....
 	0x0020 e8 00 00 00 00 48 8d 05 00 00 00 00 48 89 04 24  .....H......H..$
 	0x0030 48 c7 44 24 08 0c 00 00 00 e8 00 00 00 00 66 90  H.D$..........f.
@@ -40,14 +40,14 @@
 	rel 58+4 t=8 runtime.printstring+0
 	rel 65+4 t=8 runtime.printunlock+0
 	rel 80+4 t=8 runtime.morestack_noctxt+0
-go.cuinfo.packagename. SDWARFINFO dupok size=0
+go.cuinfo.packagename. SDWARFCUINFO dupok size=0
 	0x0000 6d 61 69 6e                                      main
+""..inittask SNOPTRDATA size=24
+	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+	0x0010 00 00 00 00 00 00 00 00                          ........
 go.string."hello world" SRODATA dupok size=11
 	0x0000 68 65 6c 6c 6f 20 77 6f 72 6c 64                 hello world
 go.string."hello world\n" SRODATA dupok size=12
 	0x0000 68 65 6c 6c 6f 20 77 6f 72 6c 64 0a              hello world.
-""..inittask SNOPTRDATA size=24
-	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-	0x0010 00 00 00 00 00 00 00 00                          ........
 gclocals·33cdeccccebe80329f1fdbee7f5874cb SRODATA dupok size=8
 	0x0000 01 00 00 00 00 00 00 00                          ........

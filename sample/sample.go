@@ -1,5 +1,5 @@
 // How to compile:
-// go tool compile -N -S -l sample.go
+// go tool compile -N -S -l sample.go > sample.s
 package main
 
 func multiVars(a uint8, b uint8, c uint8) (uint8, uint8, uint8) {
