@@ -1415,7 +1415,6 @@ func getDtypeLabel(serializedType string) string {
 
 var typesMap = make(map[string]int)
 
-// TODO: we should check type identity by comparing its serialization, not id or address of dtype label.
 func getTypeId(serialized string) int {
 	id, ok := typesMap[serialized]
 	if ok {
@@ -1427,9 +1426,54 @@ func getTypeId(serialized string) int {
 	return r
 }
 
+// Check type identity by comparing its serialization, not id or address of dtype label.
 // pop pop, compare and push 1(match) or 0(not match)
 func emitCompareDtypes() {
-	emitCompExpr("sete") // this pushes 1 or 0 in the end
+	labelid++
+	labelTrue := fmt.Sprintf(".L.cmpdtypes.%d.true", labelid)
+	labelFalse := fmt.Sprintf(".L.cmpdtypes.%d.false", labelid)
+	labelEnd := fmt.Sprintf(".L.cmpdtypes.%d.end", labelid)
+	labelCmp := fmt.Sprintf(".L.cmpdtypes.%d.cmp", labelid)
+	fmt.Printf("  popq %%rdx           # dtype label address A\n")
+	fmt.Printf("  popq %%rcx           # dtype label address B\n")
+
+	fmt.Printf("  cmpq %%rcx, %%rdx\n")
+	fmt.Printf("  je %s # jump if match\n", labelTrue)
+
+	fmt.Printf("  cmpq $0, %%rdx # check if A is nil\n")
+	fmt.Printf("  je %s # jump if nil\n", labelFalse)
+
+	fmt.Printf("  cmpq $0, %%rcx # check if B is nil\n")
+	fmt.Printf("  je %s # jump if nil\n", labelFalse)
+
+	fmt.Printf("  jmp %s # jump to end\n", labelCmp)
+
+	fmt.Printf("%s:\n", labelTrue)
+	fmt.Printf("  pushq $1\n")
+	fmt.Printf("  jmp %s # jump to end\n", labelEnd)
+
+	fmt.Printf("%s:\n", labelFalse)
+	fmt.Printf("  pushq $0\n")
+	fmt.Printf("  jmp %s # jump to end\n", labelEnd)
+
+	fmt.Printf("%s:\n", labelCmp)
+	emitAllocReturnVarsArea(SizeOfInt) // for bool
+
+	// push len, push ptr
+	fmt.Printf("  movq 16(%%rax), %%rdx           # str.len of dtype A\n")
+	fmt.Printf("  pushq %%rdx\n")
+	fmt.Printf("  movq 8(%%rax), %%rdx           # str.ptr of dtype A\n")
+	fmt.Printf("  pushq %%rdx\n")
+
+	// push len, push ptr
+	fmt.Printf("  movq 16(%%rcx), %%rdx           # str.len of dtype B\n")
+	fmt.Printf("  pushq %%rdx\n")
+	fmt.Printf("  movq 8(%%rcx), %%rdx           # str.ptr of dtype B\n")
+	fmt.Printf("  pushq %%rdx\n")
+
+	fmt.Printf("  callq %s\n", "runtime.cmpstrings")
+	emitFreeParametersArea(16*2)
+	fmt.Printf("%s:\n", labelEnd)
 }
 
 func emitDtypeLabelAddr(t *Type) {
