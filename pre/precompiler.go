@@ -1314,15 +1314,9 @@ func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
 // 1 or 2 values
 func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	emitExpr(e.X, nil)
-	typ := e2t(e.Type)
-	sType := serializeType(typ)
-	tid := getTypeId(sType)
-	typeSymbol := typeIdToSymbol(tid)
-	// check if type matches
-	fmt.Printf("  leaq %s(%%rip), %%rax # ifc.dtype\n", typeSymbol)
-	fmt.Printf("  pushq %%rax           # ifc.dtype\n")
+	emitDtypeLabelAddr(e2t(e.Type))
+	emitCompareDtypes()
 
-	emitCompExpr("sete") // this pushes 1 or 0 in the end
 	emitPopBool("type assertion ok value")
 	fmt.Printf("  cmpq $1, %%rax\n")
 
@@ -1342,7 +1336,7 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	// if not matched
 	fmt.Printf("  %s:\n", labelElse)
 	fmt.Printf("  popq %%rax # drop ifc.data\n")
-	emitZeroValue(typ)
+	emitZeroValue(e2t(e.Type))
 	if okContext {
 		fmt.Printf("  pushq $0 # ok = false\n")
 	}
@@ -1400,7 +1394,7 @@ func emitConvertToInterface(fromType *Type) {
 	emitCallMalloc(memSize)
 	emitStore(fromType, false, true) // heap addr pushed
 	// push type id
-	emitDtypeSymbol(fromType)
+	emitDtypeLabelAddr(fromType)
 }
 
 func emitExprIfc(expr ast.Expr, ctx *evalContext) {
@@ -1412,12 +1406,17 @@ func emitExprIfc(expr ast.Expr, ctx *evalContext) {
 
 var typeId int = 1
 
-func typeIdToSymbol(id int) string {
-	return "dtype." + strconv.Itoa(id)
+// "**[1][]*int" => "dtype.8"
+func getDtypeLabel(serializedType string) string {
+	id := getTypeId(serializedType)
+	// 8 => "dtype.8"
+	dtypeLabel := "dtype." + strconv.Itoa(id)
+	return dtypeLabel
 }
 
 var typesMap = make(map[string]int)
 
+// TODO: we should check type identity by comparing its serialization, not id or address of dtype label.
 func getTypeId(serialized string) int {
 	id, ok := typesMap[serialized]
 	if ok {
@@ -1429,12 +1428,16 @@ func getTypeId(serialized string) int {
 	return r
 }
 
-func emitDtypeSymbol(t *Type) {
-	str := serializeType(t)
-	typeId := getTypeId(str)
-	typeSymbol := typeIdToSymbol(typeId)
-	fmt.Printf("  leaq %s(%%rip), %%rax # type symbol \"%s\"\n", typeSymbol, str)
-	fmt.Printf("  pushq %%rax           # type symbol\n")
+// pop pop, compare and push 1(match) or 0(not match)
+func emitCompareDtypes() {
+	emitCompExpr("sete") // this pushes 1 or 0 in the end
+}
+
+func emitDtypeLabelAddr(t *Type) {
+	serializedType := serializeType(t)
+	dtypeLabel := getDtypeLabel(serializedType)
+	fmt.Printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, serializedType)
+	fmt.Printf("  pushq %%rax           # dtype label address\n")
 }
 
 func newNumberLiteral(x int) *ast.BasicLit {
@@ -2161,13 +2164,13 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		for _, e := range cc.List {
 			emitVariableAddr(meta.SubjectVariable)
 			emitPopAddress("type switch subject")
-			fmt.Printf("  movq (%%rax), %%rax # dtype\n")
-			fmt.Printf("  pushq %%rax # dtype\n")
+			fmt.Printf("  movq (%%rax), %%rax # dtype label addr\n")
+			fmt.Printf("  pushq %%rax # dtype label addr\n")
 
 			if isNil(cc.List[0]) { // case nil:
 				fmt.Printf("  pushq $0 # nil\n")
 			} else { // case T:
-				emitDtypeSymbol(e2t(e))
+				emitDtypeLabelAddr(e2t(e))
 			}
 			emitCompExpr("sete") // this pushes 1 or 0 in the end
 			emitPopBool(" of switch-case comparison")
@@ -2527,14 +2530,14 @@ func emitDynamicTypes(typeMap map[string]int) {
 
 	// skip id=0
 	for id := 1; id < len(sliceTypeMap); id++ {
-		name := sliceTypeMap[id]
-		symbol := typeIdToSymbol(id)
-		fmt.Printf("%s: # %s\n", symbol, name)
+		serializedType := sliceTypeMap[id]
+		symbol := getDtypeLabel(serializedType)
+		fmt.Printf("%s: # %s\n", symbol, serializedType)
 		fmt.Printf("  .quad %d\n", id)
 		fmt.Printf("  .quad .S.dtype.%d\n", id)
-		fmt.Printf("  .quad %d\n", len(name))
+		fmt.Printf("  .quad %d\n", len(serializedType))
 		fmt.Printf(".S.dtype.%d:\n", id)
-		fmt.Printf("  .string \"%s\"\n", name)
+		fmt.Printf("  .string \"%s\"\n", serializedType)
 	}
 	fmt.Printf("\n")
 }
