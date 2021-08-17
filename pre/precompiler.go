@@ -1,9 +1,9 @@
 package main
 
 import (
-	"unsafe"
 	"os"
 	"syscall"
+	"unsafe"
 
 	"go/ast"
 	"go/parser"
@@ -1393,7 +1393,7 @@ func emitConvertToInterface(fromType *Type) {
 	// copy data to heap
 	emitCallMalloc(memSize)
 	emitStore(fromType, false, true) // heap addr pushed
-	// push type id
+	// push dtype label's address
 	emitDtypeLabelAddr(fromType)
 }
 
@@ -1416,7 +1416,6 @@ func getDtypeLabel(serializedType string) string {
 
 var typesMap = make(map[string]int)
 
-// TODO: we should check type identity by comparing its serialization, not id or address of dtype label.
 func getTypeId(serialized string) int {
 	id, ok := typesMap[serialized]
 	if ok {
