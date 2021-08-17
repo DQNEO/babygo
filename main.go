@@ -1403,24 +1403,34 @@ func emitExprIfc(expr ast.Expr, ctx *evalContext) {
 	}
 }
 
-var typeId int = 1
-var typesMap = make(map[string]int)
+type dtypeEntry struct {
+	id int
+	pkgname string
+	serialized string
+	label string
+}
+var typeId int
+var typesMap map[string]*dtypeEntry
 
 // "**[1][]*int" => "dtype.8"
-func getDtypeLabel(serializedType string) string {
-	var id int
-	_id, ok := typesMap[serializedType]
+func getDtypeLabel(pkg *PkgContainer, serializedType string) string {
+	s := pkg.name + ":" + serializedType
+	ent, ok := typesMap[s]
 	if ok {
-		id = _id
+		return ent.label
 	} else {
-		typesMap[serializedType] = typeId
-		id = typeId
+		id := typeId
+		ent = &dtypeEntry{
+			id:      id,
+			pkgname: pkg.name,
+			serialized: serializedType,
+			label: pkg.name + "." + "dtype." + strconv.Itoa(id),
+		}
+		typesMap[s] = ent
 		typeId++
 	}
 
-	// 8 => "dtype.8"
-	dtypeLabel := "dtype." + strconv.Itoa(id)
-	return dtypeLabel
+	return ent.label
 }
 
 // Check type identity by comparing its serialization, not id or address of dtype label.
@@ -1475,7 +1485,7 @@ func emitCompareDtypes() {
 
 func emitDtypeLabelAddr(t *Type) {
 	serializedType := serializeType(t)
-	dtypeLabel := getDtypeLabel(serializedType)
+	dtypeLabel := getDtypeLabel(currentPkg, serializedType)
 	fmt.Printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, serializedType)
 	fmt.Printf("  pushq %%rax           # dtype label address\n")
 }
@@ -2557,27 +2567,28 @@ func generateCode(pkg *PkgContainer) {
 	fmt.Printf("\n")
 }
 
-func emitDynamicTypes(typeMap map[string]int) {
+func emitDynamicTypes(mapDtypes map[string]*dtypeEntry) {
 	fmt.Printf("# ------- Dynamic Types ------\n")
 	fmt.Printf(".data\n")
 
-	sliceTypeMap := make([]string, len(typeMap)+1, len(typeMap)+1)
+	sliceTypeMap := make([]string, len(mapDtypes)+1, len(mapDtypes)+1)
 
 	// sort map in order to assure the deterministic results
-	for name, id := range typeMap {
-		sliceTypeMap[id] = name
+	for key, ent := range mapDtypes {
+		sliceTypeMap[ent.id] = key
 	}
 
 	// skip id=0
 	for id := 1; id < len(sliceTypeMap); id++ {
-		serializedType := sliceTypeMap[id]
-		symbol := getDtypeLabel(serializedType)
-		fmt.Printf("%s: # %s\n", symbol, serializedType)
+		key := sliceTypeMap[id]
+		ent := mapDtypes[key]
+
+		fmt.Printf("%s: # %s\n", ent.label, key)
 		fmt.Printf("  .quad %d\n", id)
-		fmt.Printf("  .quad .S.dtype.%d\n", id)
-		fmt.Printf("  .quad %d\n", len(serializedType))
-		fmt.Printf(".S.dtype.%d:\n", id)
-		fmt.Printf("  .string \"%s\"\n", serializedType)
+		fmt.Printf("  .quad .%s.S.dtype.%d\n", ent.pkgname, id)
+		fmt.Printf("  .quad %d\n", len(ent.serialized))
+		fmt.Printf(".%s.S.dtype.%d:\n", ent.pkgname, id)
+		fmt.Printf("  .string \"%s\"\n", ent.serialized)
 	}
 	fmt.Printf("\n")
 }
@@ -4300,10 +4311,11 @@ func main() {
 	var universe = createUniverse()
 	for _, _pkg := range packagesToBuild {
 		currentPkg = _pkg
+		typesMap = make(map[string]*dtypeEntry)
+		typeId = 1
 		buildPackage(_pkg, universe)
+		emitDynamicTypes(typesMap)
 	}
-
-	emitDynamicTypes(typesMap)
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
