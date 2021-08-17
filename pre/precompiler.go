@@ -1405,26 +1405,23 @@ func emitExprIfc(expr ast.Expr, ctx *evalContext) {
 }
 
 var typeId int = 1
+var typesMap = make(map[string]int)
 
 // "**[1][]*int" => "dtype.8"
 func getDtypeLabel(serializedType string) string {
-	id := getTypeId(serializedType)
+	var id int
+	_id, ok := typesMap[serializedType]
+	if ok {
+		id = _id
+	} else {
+		typesMap[serializedType] = typeId
+		id = typeId
+		typeId++
+	}
+
 	// 8 => "dtype.8"
 	dtypeLabel := "dtype." + strconv.Itoa(id)
 	return dtypeLabel
-}
-
-var typesMap = make(map[string]int)
-
-func getTypeId(serialized string) int {
-	id, ok := typesMap[serialized]
-	if ok {
-		return id
-	}
-	typesMap[serialized] = typeId
-	r := typeId
-	typeId++
-	return r
 }
 
 // Check type identity by comparing its serialization, not id or address of dtype label.
