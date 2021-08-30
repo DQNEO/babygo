@@ -1019,7 +1019,7 @@ func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
 			emitZeroValue(tString)
 		} else {
 			fmt.Printf("  pushq $%d # str len\n", sl.strlen)
-			fmt.Printf("  leaq %s, %%rax # str ptr\n", sl.label)
+			fmt.Printf("  leaq %s(%%rip), %%rax # str ptr\n", sl.label)
 			fmt.Printf("  pushq %%rax # str ptr\n")
 		}
 	default:
