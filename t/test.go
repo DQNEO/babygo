@@ -120,7 +120,6 @@ func testMap() {
 	i = mp2[unsafe.Pointer(&s0)]
 	fmt.Printf("i=>%d\n", i)
 
-	os.Exit(0)
 	return
 }
 
