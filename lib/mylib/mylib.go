@@ -86,7 +86,9 @@ func GetDirents(dir string) []string {
 	var entries []string
 	var fd int
 	fd, _ = syscall.Open(dir, O_READONLY_, 0)
-
+	if fd < 0 {
+		panic("cannot open " + dir)
+	}
 	var buf []byte = _buf[:]
 	var counter int
 	for {

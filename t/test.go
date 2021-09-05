@@ -373,7 +373,8 @@ func testSortStrings() {
 }
 
 func testGetdents64() {
-	dirents := mylib.GetDirents("t")
+	// This succeeds only when invoked from babygo's root directory
+	dirents := mylib.GetDirents("./t")
 	var counter int
 	for _, dirent := range dirents {
 		if dirent == "." || dirent == ".." {
