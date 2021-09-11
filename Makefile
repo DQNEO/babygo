@@ -18,7 +18,7 @@ $(tmp)/pre: $(tmp) pre/precompiler.go lib/*/*
 	go build -o $(tmp)/pre ./pre
 
 $(tmp)/cross: *.go src/*/* $(tmp)/pre
-	$(tmp)/pre  *.go > $(tmp)/pre-main.s
+	$(tmp)/pre *.go && mv /tmp/a.s $(tmp)/pre-main.s
 	cp $(tmp)/pre-main.s ./.shared/ # for debug
 	as -o $(tmp)/cross.o $(tmp)/pre-main.s src/runtime/runtime.s
 	ld -o $(tmp)/cross $(tmp)/cross.o
@@ -33,7 +33,7 @@ $(tmp)/babygo2: $(tmp)/babygo src/*/*
 	ld -o $(tmp)/babygo2 $(tmp)/babygo2.o
 
 $(tmp)/pre-test.s: t/test.go src/*/* $(tmp)/pre
-	$(tmp)/pre t/test.go t/another.go > $(tmp)/pre-test.s
+	$(tmp)/pre t/test.go t/another.go && mv /tmp/a.s $(tmp)/pre-test.s
 	cp $(tmp)/pre-test.s ./.shared/
 
 $(tmp)/cross-test.s: t/test.go $(tmp)/cross
