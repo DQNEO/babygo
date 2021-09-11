@@ -53,7 +53,7 @@ $ ./babygo t/hello.go > /tmp/hello.s
 
 # Assemble and link
 $ as -o hello.o /tmp/hello.s runtime.s
-$ ld -e _rt0_amd64_linux -o hello hello.o
+$ ld -o hello hello.o
 
 # Run hello world
 $ ./hello
@@ -69,7 +69,7 @@ $ go build -o babygo *.go
 # Build babygo by babygo (2nd generation)
 $ ./babygo *.go > /tmp/babygo2.s
 $ as -o babygo2.o /tmp/babygo2.s runtime.s
-$ ld -e _rt0_amd64_linux  -o babygo2 babygo2.o # 2nd generation compiler
+$ ld -o babygo2 babygo2.o # 2nd generation compiler
 
 # Assert babygo2.s and babygo3.s are exactly same
 $ ./babygo2 *.go > /tmp/babygo3.s

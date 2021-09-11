@@ -21,7 +21,7 @@ $(tmp)/cross: *.go src/*/* $(tmp)/pre
 	$(tmp)/pre  *.go > $(tmp)/pre-main.s
 	cp $(tmp)/pre-main.s ./.shared/ # for debug
 	as -o $(tmp)/cross.o $(tmp)/pre-main.s src/runtime/runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/cross $(tmp)/cross.o
+	ld -o $(tmp)/cross $(tmp)/cross.o
 
 $(tmp)/babygo: $(tmp)  *.go lib/*/*
 	go build -o $(tmp)/babygo .
@@ -30,7 +30,7 @@ $(tmp)/babygo2: $(tmp)/babygo src/*/*
 	$(tmp)/babygo *.go > $(tmp)/babygo-main.s
 	cp $(tmp)/babygo-main.s ./.shared/ # for debug
 	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s src/runtime/runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/babygo2 $(tmp)/babygo2.o
+	ld -o $(tmp)/babygo2 $(tmp)/babygo2.o
 
 $(tmp)/pre-test.s: t/test.go src/*/* $(tmp)/pre
 	$(tmp)/pre t/test.go t/another.go > $(tmp)/pre-test.s
@@ -57,7 +57,7 @@ compare-test: $(tmp)/pre-test.s $(tmp)/babygo-test.s $(tmp)/babygo2-test.s $(tmp
 
 $(tmp)/test0: $(tmp)/pre-test.s src/*/*
 	as -o $(tmp)/test0.o $(tmp)/pre-test.s src/runtime/runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/test0 $(tmp)/test0.o
+	ld -o $(tmp)/test0 $(tmp)/test0.o
 
 .PHONY: test0
 test0: $(tmp)/test0 t/expected.txt
@@ -65,7 +65,7 @@ test0: $(tmp)/test0 t/expected.txt
 
 $(tmp)/test1: $(tmp)/babygo-test.s src/*/*
 	as -o $(tmp)/test1.o $(tmp)/babygo-test.s src/runtime/runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/test1 $(tmp)/test1.o
+	ld -o $(tmp)/test1 $(tmp)/test1.o
 
 .PHONY: test1
 test1: $(tmp)/test1 t/expected.txt
@@ -73,7 +73,7 @@ test1: $(tmp)/test1 t/expected.txt
 
 $(tmp)/testcross: $(tmp)/cross-test.s src/*/*
 	as -o $(tmp)/testcross.o $(tmp)/cross-test.s src/runtime/runtime.s
-	ld -e _rt0_amd64_linux -o $(tmp)/testcross $(tmp)/testcross.o
+	ld -o $(tmp)/testcross $(tmp)/testcross.o
 
 .PHONY: testcross
 testcross: $(tmp)/testcross t/expected.txt
