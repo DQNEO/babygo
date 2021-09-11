@@ -374,7 +374,7 @@ func testSortStrings() {
 
 func testGetdents64() {
 	// This succeeds only when invoked from babygo's root directory
-	dirents := mylib.GetDirents("./t")
+	dirents := mylib.GetDirents("./t") // fd should be 3
 	var counter int
 	for _, dirent := range dirents {
 		if dirent == "." || dirent == ".." {
@@ -1136,11 +1136,12 @@ func testVaargs() {
 }
 
 const O_READONLY_ int = 0
+const O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
 
 func testOpenRead() {
 	var fd int
 	fd, _ = syscall.Open("t/text.txt", O_READONLY_, 0)
-	writeln(fd) // should be 3
+	writeln(fd) // should be 4
 	var buf []uint8 = make([]uint8, 300, 300)
 	var n int
 	n, _ = syscall.Read(fd, buf)
@@ -1150,6 +1151,24 @@ func testOpenRead() {
 	writeln(n) // should be 280
 	var readbytes []uint8 = buf[0:n]
 	writeln(string(readbytes))
+}
+
+func testOpenWrite() {
+	writeln("testOpenWrite")
+
+	//var fd int
+	var fd int
+	fd, _ = syscall.Open("/tmp/bbgwrite.txt", O_CREATE_WRITE, 438)
+	//println(os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_CLOEXEC)
+//	println(0666)
+//	if err != nil {
+//		panic(err)
+//	}
+	writeln(fd) // should be 5
+	var buf []uint8 = []uint8{'a','b','c','d','e','f','g','\n'}
+	var n int
+	n ,_  = syscall.Write(fd, buf)
+	writeln(n) // should be 8
 }
 
 func testInfer() {
@@ -2237,6 +2256,7 @@ func main() {
 	testIsLetter()
 	testVaargs()
 	testOpenRead()
+	testOpenWrite()
 	testInfer()
 	testEscapedChar()
 	testSwitchString()

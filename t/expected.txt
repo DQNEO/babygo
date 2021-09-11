@@ -221,6 +221,9 @@ In a hole in the ground there lived a hobbit. Not a nasty, dirty, wet hole, fill
 
 ― J.R.R. Tolkien, The Hobbit
 
+testOpenWrite
+5
+8
 infer string literal
 8
 start
