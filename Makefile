@@ -63,8 +63,9 @@ $(tmp)/babygo2-test.s: t/test.go $(tmp)/babygo2
 # compare output of test0 and test1
 .PHONY: compare-test
 compare-test: $(tmp)/pre-test.s $(tmp)/babygo-test.s $(tmp)/babygo2-test.s $(tmp)/cross-test.s
-	diff -u $(tmp)/babygo-test.s $(tmp)/babygo2-test.s
+	diff -u $(tmp)/babygo-test.s $(tmp)/pre-test.s
 	diff -u $(tmp)/babygo-test.s $(tmp)/cross-test.s
+	diff -u $(tmp)/babygo-test.s $(tmp)/babygo2-test.s
 
 .PHONY: test0
 test0: $(tmp)/test0 t/expected.txt
@@ -72,10 +73,6 @@ test0: $(tmp)/test0 t/expected.txt
 
 .PHONY: test1
 test1: $(tmp)/test1 t/expected.txt
-	./test.sh $<
-
-.PHONY: testcross
-testcross: $(tmp)/testcross t/expected.txt
 	./test.sh $<
 
 $(tmp)/test0: $(tmp)/pre-test.s src/*/*
@@ -86,16 +83,12 @@ $(tmp)/test1: $(tmp)/babygo-test.s src/*/*
 	as -o $(tmp)/a.o $<
 	ld -o $@ $(tmp)/a.o
 
-$(tmp)/testcross: $(tmp)/cross-test.s src/*/*
-	as -o $(tmp)/a.o $<
-	ld -o $@ $(tmp)/a.o
-
 # test self hosting by comparing 2gen.s and 3gen.s
 .PHONY: selfhost
-selfhost: $(tmp)/babygo $(tmp)/babygo2 $(tmp)/babygo-main.s
+selfhost: $(tmp)/babygo $(tmp)/babygo2
 	@echo "testing self host ..."
 	rm /tmp/work/*.s
-	$(tmp)/babygo2   *.go
+	$(tmp)/babygo2 *.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/babygo2-main.s
 	diff $(tmp)/babygo-main.s $(tmp)/babygo2-main.s
 	@echo "self host is ok"
