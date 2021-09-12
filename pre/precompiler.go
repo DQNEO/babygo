@@ -2570,6 +2570,7 @@ func generateCode(pkg *PkgContainer) {
 		emitFuncDecl(pkg.name, fnc)
 	}
 
+	emitDynamicTypes(typesMap)
 	printf("\n")
 }
 
@@ -4217,6 +4218,9 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 }
 
 func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
+	typesMap = make(map[string]*dtypeEntry)
+	typeId = 1
+
 	logf("Building package : %s\n", _pkg.path)
 	fset := &token.FileSet{}
 	pkgScope := ast.NewScope(universe)
@@ -4322,10 +4326,7 @@ func main() {
 	var universe = createUniverse()
 	for _, _pkg := range packagesToBuild {
 		currentPkg = _pkg
-		typesMap = make(map[string]*dtypeEntry)
-		typeId = 1
 		buildPackage(_pkg, universe)
-		emitDynamicTypes(typesMap)
 	}
 	fout.Close()
 }
