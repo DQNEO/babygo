@@ -31,11 +31,11 @@ func unexpectedKind(knd TypeKind) {
 	panic("Unexpected Kind: " + string(knd))
 }
 
-var asmFile *os.File
+var fout *os.File
 
 func printf(format string, a ...interface{}) {
 	var s = fmt.Sprintf(format, a...)
-	_, err := asmFile.Write([]uint8(s))
+	_, err := fout.Write([]uint8(s))
 	if err != nil {
 		panic(err)
 	}
@@ -49,7 +49,7 @@ func logf(format string, a ...interface{}) {
 	}
 	f := "# " + format
 	s := fmt.Sprintf(f, a...)
-	_, err := asmFile.Write([]uint8(s))
+	_, err := fout.Write([]uint8(s))
 	if err != nil {
 		panic(err)
 	}
@@ -4297,7 +4297,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	asmFile = outFile
+	fout = outFile
 	logf("Build start\n")
 
 	var inputFiles []string
