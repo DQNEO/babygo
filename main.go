@@ -4310,6 +4310,7 @@ func main() {
 	for _, _path := range paths {
 		files := collectSourceFiles(getPackageDir(_path))
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			name: path.Base(_path),
 			path:  _path,
 			files: files,
 		})
@@ -4323,7 +4324,13 @@ func main() {
 	var universe = createUniverse()
 	for _, _pkg := range packagesToBuild {
 		currentPkg = _pkg
+		if _pkg.name == "" {
+			panic("empty pkg name")
+		}
+		pgkAsm, _ := os.Create(fmt.Sprintf("/tmp/work/%s.s", _pkg.name))
+		fout = pgkAsm
 		buildPackage(_pkg, universe)
+		pgkAsm.Close()
 	}
 
 	fout.Close()

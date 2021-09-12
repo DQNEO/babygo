@@ -29,7 +29,9 @@ $(tmp)/babygo: $(tmp)  *.go lib/*/*
 	go build -o $(tmp)/babygo .
 
 $(tmp)/babygo2: $(tmp)/babygo src/*/*
-	$(tmp)/babygo *.go && mv /tmp/a.s $(tmp)/babygo-main.s
+	rm /tmp/work/*.s
+	$(tmp)/babygo *.go
+	cat /tmp/work/*.s > $(tmp)/babygo-main.s
 	cp $(tmp)/babygo-main.s ./.shared/ # for debug
 	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s src/runtime/runtime.s
 	ld -o $(tmp)/babygo2 $(tmp)/babygo2.o
@@ -41,15 +43,21 @@ $(tmp)/pre-test.s: t/test.go src/*/* $(tmp)/pre
 	cp $(tmp)/pre-test.s ./.shared/
 
 $(tmp)/cross-test.s: t/test.go $(tmp)/cross
-	$(tmp)/cross t/test.go t/another.go && mv /tmp/a.s $(tmp)/cross-test.s
+	rm /tmp/work/*.s
+	$(tmp)/cross t/test.go t/another.go
+	cat /tmp/work/*.s > $(tmp)/cross-test.s
 	cp $(tmp)/cross-test.s ./.shared/
 
 $(tmp)/babygo-test.s: t/test.go src/*/* $(tmp)/babygo
-	$(tmp)/babygo t/test.go t/another.go && mv /tmp/a.s $(tmp)/babygo-test.s
+	rm /tmp/work/*.s
+	$(tmp)/babygo t/test.go t/another.go
+	cat /tmp/work/*.s > $(tmp)/babygo-test.s
 	cp $(tmp)/babygo-test.s ./.shared/
 
 $(tmp)/babygo2-test.s: t/test.go $(tmp)/babygo2
-	$(tmp)/babygo2 t/test.go t/another.go && mv /tmp/a.s $(tmp)/babygo2-test.s
+	rm /tmp/work/*.s
+	$(tmp)/babygo2 t/test.go t/another.go
+	cat /tmp/work/*.s > $(tmp)/babygo2-test.s
 	cp $(tmp)/babygo2-test.s ./.shared/
 
 # compare output of test0 and test1
@@ -86,7 +94,9 @@ testcross: $(tmp)/testcross t/expected.txt
 .PHONY: selfhost
 selfhost: $(tmp)/babygo $(tmp)/babygo2 $(tmp)/babygo-main.s
 	@echo "testing self host ..."
-	$(tmp)/babygo2   *.go && mv /tmp/a.s $(tmp)/babygo2-main.s
+	rm /tmp/work/*.s
+	$(tmp)/babygo2   *.go
+	cat /tmp/work/*.s > $(tmp)/babygo2-main.s
 	diff $(tmp)/babygo-main.s $(tmp)/babygo2-main.s
 	@echo "self host is ok"
 
