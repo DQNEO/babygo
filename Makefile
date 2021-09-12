@@ -18,7 +18,9 @@ $(tmp)/pre: $(tmp) pre/precompiler.go lib/*/*
 	go build -o $(tmp)/pre ./pre
 
 $(tmp)/cross: *.go src/*/* $(tmp)/pre
-	$(tmp)/pre *.go && mv /tmp/a.s $(tmp)/pre-main.s
+	rm /tmp/work/*.s
+	$(tmp)/pre *.go
+	cat /tmp/work/*.s > $(tmp)/pre-main.s
 	cp $(tmp)/pre-main.s ./.shared/ # for debug
 	as -o $(tmp)/cross.o $(tmp)/pre-main.s src/runtime/runtime.s
 	ld -o $(tmp)/cross $(tmp)/cross.o
@@ -33,7 +35,9 @@ $(tmp)/babygo2: $(tmp)/babygo src/*/*
 	ld -o $(tmp)/babygo2 $(tmp)/babygo2.o
 
 $(tmp)/pre-test.s: t/test.go src/*/* $(tmp)/pre
-	$(tmp)/pre t/test.go t/another.go && mv /tmp/a.s $(tmp)/pre-test.s
+	rm /tmp/work/*.s
+	$(tmp)/pre t/test.go t/another.go
+	cat /tmp/work/*.s > $(tmp)/pre-test.s
 	cp $(tmp)/pre-test.s ./.shared/
 
 $(tmp)/cross-test.s: t/test.go $(tmp)/cross
@@ -51,9 +55,8 @@ $(tmp)/babygo2-test.s: t/test.go $(tmp)/babygo2
 # compare output of test0 and test1
 .PHONY: compare-test
 compare-test: $(tmp)/pre-test.s $(tmp)/babygo-test.s $(tmp)/babygo2-test.s $(tmp)/cross-test.s
-	diff -u $(tmp)/pre-test.s $(tmp)/babygo-test.s
-	diff -u $(tmp)/pre-test.s $(tmp)/babygo2-test.s
-	diff -u $(tmp)/pre-test.s $(tmp)/cross-test.s
+	diff -u $(tmp)/babygo-test.s $(tmp)/babygo2-test.s
+	diff -u $(tmp)/babygo-test.s $(tmp)/cross-test.s
 
 $(tmp)/test0: $(tmp)/pre-test.s src/*/*
 	as -o $(tmp)/test0.o $(tmp)/pre-test.s src/runtime/runtime.s

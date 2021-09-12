@@ -4289,11 +4289,11 @@ func main() {
 		panic("I am panic version " + panicVersion)
 	}
 
-	outFile, err := os.Create("/tmp/a.s")
+	initAsm, err := os.Create("/tmp/work/a.s")
 	if err != nil {
 		panic(err)
 	}
-	fout = outFile
+	fout = initAsm
 	logf("Build start\n")
 
 	var inputFiles []string
@@ -4313,6 +4313,7 @@ func main() {
 	for _, _path := range paths {
 		files := collectSourceFiles(getPackageDir(_path))
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			name: path.Base(_path),
 			path:  _path,
 			files: files,
 		})
@@ -4326,9 +4327,18 @@ func main() {
 	var universe = createUniverse()
 	for _, _pkg := range packagesToBuild {
 		currentPkg = _pkg
+		if _pkg.name == "" {
+			panic("empty pkg name")
+		}
+		pgkAsm, err := os.Create(fmt.Sprintf("/tmp/work/%s.s", _pkg.name))
+		if err != nil {
+			panic(err)
+		}
+		fout = pgkAsm
 		buildPackage(_pkg, universe)
+		pgkAsm.Close()
 	}
-	fout.Close()
+	initAsm.Close()
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
