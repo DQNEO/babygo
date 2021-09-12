@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"syscall"
 	"unsafe"
 
 	"github.com/DQNEO/babygo/lib/ast"
@@ -30,19 +29,10 @@ func unexpectedKind(knd TypeKind) {
 	panic("Unexpected Kind: " + string(knd))
 }
 
-type file struct {
-	fd int
-}
-
-var fout *file
-
-func (f *file) Write(buf []byte) {
-	syscall.Write(f.fd, buf)
-}
+var fout *os.File
 
 func printf(format string, a ...interface{}) {
-	var s = fmt.Sprintf(format, a...)
-	fout.Write([]uint8(s))
+	fmt.Fprintf(fout, format, a...)
 }
 
 var debugFrontEnd bool
@@ -52,8 +42,7 @@ func logf(format string, a ...interface{}) {
 		return
 	}
 	f := "# " + format
-	s := fmt.Sprintf(f, a...)
-	fout.Write([]uint8(s))
+	fmt.Fprintf(fout, f, a...)
 }
 
 var debugCodeGen bool
@@ -4295,7 +4284,7 @@ func main() {
 		panic("I am panic version " + panicVersion)
 	}
 
-	f := osCreate("/tmp/a.s")
+	f,_ := os.Create("/tmp/a.s")
 	fout = f
 
 	logf("Build start\n")
@@ -4467,15 +4456,3 @@ func throw(x interface{}) {
 	panic(x)
 }
 
-func osCreate(name string) *file {
-	var O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
-	var fd int
-	fd, _ = syscall.Open(name, O_CREATE_WRITE, 438)
-	if fd < 0 {
-		panic("unable to create file " + name)
-	}
-
-	var f *file = new(file)
-	f.fd = fd
-	return f
-}

@@ -34,11 +34,7 @@ func unexpectedKind(knd TypeKind) {
 var fout *os.File
 
 func printf(format string, a ...interface{}) {
-	var s = fmt.Sprintf(format, a...)
-	_, err := fout.Write([]uint8(s))
-	if err != nil {
-		panic(err)
-	}
+	fmt.Fprintf(fout, format, a...)
 }
 
 var debugFrontEnd bool
@@ -48,11 +44,7 @@ func logf(format string, a ...interface{}) {
 		return
 	}
 	f := "# " + format
-	s := fmt.Sprintf(f, a...)
-	_, err := fout.Write([]uint8(s))
-	if err != nil {
-		panic(err)
-	}
+	fmt.Fprintf(fout, f, a...)
 }
 
 var debugCodeGen bool
