@@ -4335,6 +4335,7 @@ func main() {
 		buildPackage(_pkg, universe)
 		emitDynamicTypes(typesMap)
 	}
+	fout.Close()
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
