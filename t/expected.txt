@@ -1,5 +1,3 @@
-key=key1, value=100
-key=key2, value=200
 key1=>"value1"
 noexist=>""
 key1=>"value1"

@@ -39,10 +39,10 @@ func testMapForrange() {
 //		fmt.Printf("value=%d\n", b)
 	}
 
-	for k, v := range mapExpr {
-		fmt.Printf("key=%s, ", k)
-		fmt.Printf("value=%d\n", v)
-	}
+//	for k, v := range mapExpr {
+//		fmt.Printf("key=%s, ", k)
+//		fmt.Printf("value=%d\n", v)
+//	}
 	mapExpr = nil
 	for a, b = range mapExpr {
 		panic("Should not reach here:")
