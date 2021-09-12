@@ -15,10 +15,10 @@ t/expected.txt: t/test.go lib/*/*
 	export FOO=bar; go run t/test.go t/another.go myargs > t/expected.txt
 
 $(tmp)/pre: $(tmp) pre/precompiler.go lib/*/*
-	go build -o $(tmp)/pre ./pre
+	go build -o $@ ./pre
 
 $(tmp)/babygo: $(tmp)  *.go lib/*/*
-	go build -o $(tmp)/babygo .
+	go build -o $@ .
 
 $(tmp)/cross: *.go src/*/* $(tmp)/pre
 	rm /tmp/work/*.s
@@ -26,7 +26,7 @@ $(tmp)/cross: *.go src/*/* $(tmp)/pre
 	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/pre-main.s
 	cp $(tmp)/pre-main.s ./.shared/ # for debug
 	as -o $(tmp)/a.o $(tmp)/pre-main.s
-	ld -o $(tmp)/cross $(tmp)/a.o
+	ld -o $@ $(tmp)/a.o
 
 $(tmp)/babygo2: $(tmp)/babygo src/*/*
 	rm /tmp/work/*.s
@@ -34,31 +34,31 @@ $(tmp)/babygo2: $(tmp)/babygo src/*/*
 	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/babygo-main.s
 	cp $(tmp)/babygo-main.s ./.shared/ # for debug
 	as -o $(tmp)/a.o $(tmp)/babygo-main.s
-	ld -o $(tmp)/babygo2 $(tmp)/a.o
+	ld -o $@ $(tmp)/a.o
 
 $(tmp)/pre-test.s: t/test.go src/*/* $(tmp)/pre
 	rm /tmp/work/*.s
 	$(tmp)/pre t/test.go t/another.go
-	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/pre-test.s
-	cp $(tmp)/pre-test.s ./.shared/
+	cat src/runtime/runtime.s /tmp/work/*.s > $@
+	cp $@ ./.shared/
 
 $(tmp)/cross-test.s: t/test.go $(tmp)/cross
 	rm /tmp/work/*.s
 	$(tmp)/cross t/test.go t/another.go
-	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/cross-test.s
-	cp $(tmp)/cross-test.s ./.shared/
+	cat src/runtime/runtime.s /tmp/work/*.s > $@
+	cp $@ ./.shared/
 
 $(tmp)/babygo-test.s: t/test.go src/*/* $(tmp)/babygo
 	rm /tmp/work/*.s
 	$(tmp)/babygo t/test.go t/another.go
-	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/babygo-test.s
-	cp $(tmp)/babygo-test.s ./.shared/
+	cat src/runtime/runtime.s /tmp/work/*.s > $@
+	cp $@ ./.shared/
 
 $(tmp)/babygo2-test.s: t/test.go $(tmp)/babygo2
 	rm /tmp/work/*.s
 	$(tmp)/babygo2 t/test.go t/another.go
-	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/babygo2-test.s
-	cp $(tmp)/babygo2-test.s ./.shared/
+	cat src/runtime/runtime.s /tmp/work/*.s > $@
+	cp $@ ./.shared/
 
 # compare output of test0 and test1
 .PHONY: compare-test
@@ -66,29 +66,29 @@ compare-test: $(tmp)/pre-test.s $(tmp)/babygo-test.s $(tmp)/babygo2-test.s $(tmp
 	diff -u $(tmp)/babygo-test.s $(tmp)/babygo2-test.s
 	diff -u $(tmp)/babygo-test.s $(tmp)/cross-test.s
 
-$(tmp)/test0: $(tmp)/pre-test.s src/*/*
-	as -o $(tmp)/a.o $(tmp)/pre-test.s
-	ld -o $(tmp)/test0 $(tmp)/a.o
-
 .PHONY: test0
 test0: $(tmp)/test0 t/expected.txt
-	./test.sh $(tmp)/test0
-
-$(tmp)/test1: $(tmp)/babygo-test.s src/*/*
-	as -o $(tmp)/a.o $(tmp)/babygo-test.s
-	ld -o $(tmp)/test1 $(tmp)/a.o
+	./test.sh $<
 
 .PHONY: test1
 test1: $(tmp)/test1 t/expected.txt
-	./test.sh $(tmp)/test1
-
-$(tmp)/testcross: $(tmp)/cross-test.s src/*/*
-	as -o $(tmp)/a.o $(tmp)/cross-test.s
-	ld -o $(tmp)/testcross $(tmp)/a.o
+	./test.sh $<
 
 .PHONY: testcross
 testcross: $(tmp)/testcross t/expected.txt
-	./test.sh $(tmp)/testcross
+	./test.sh $<
+
+$(tmp)/test0: $(tmp)/pre-test.s src/*/*
+	as -o $(tmp)/a.o $<
+	ld -o $@ $(tmp)/a.o
+
+$(tmp)/test1: $(tmp)/babygo-test.s src/*/*
+	as -o $(tmp)/a.o $<
+	ld -o $@ $(tmp)/a.o
+
+$(tmp)/testcross: $(tmp)/cross-test.s src/*/*
+	as -o $(tmp)/a.o $<
+	ld -o $@ $(tmp)/a.o
 
 # test self hosting by comparing 2gen.s and 3gen.s
 .PHONY: selfhost
