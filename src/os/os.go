@@ -24,6 +24,10 @@ func Create(name string) (*File, int) {
 	return f, 0
 }
 
+func (f *File) Close() {
+	syscall.Close(f.fd)
+}
+
 func (f *File) Write(p []byte) (int, int) {
 	syscall.Write(f.fd, p)
 	return 0, 0
