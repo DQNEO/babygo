@@ -1151,6 +1151,7 @@ func testOpenRead() {
 	writeln(n) // should be 280
 	var readbytes []uint8 = buf[0:n]
 	writeln(string(readbytes))
+	syscall.Close(fd)
 }
 
 func testOpenWrite() {
@@ -1169,6 +1170,7 @@ func testOpenWrite() {
 	var n int
 	n ,_  = syscall.Write(fd, buf)
 	writeln(n) // should be 8
+	syscall.Close(fd)
 }
 
 func testInfer() {

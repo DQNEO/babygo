@@ -5,6 +5,7 @@ import "unsafe"
 const SYS_READ uintptr = 0
 const SYS_WRITE uintptr = 1
 const SYS_OPEN uintptr = 2
+const SYS_CLOSE uintptr = 3
 const SYS_GETDENTS64 uintptr = 217
 
 func Read(fd int, buf []byte) (uintptr, int) {
@@ -22,6 +23,12 @@ func Open(path string, mode int, perm int) (uintptr, int) {
 	var fd uintptr
 	fd = Syscall(SYS_OPEN, uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(perm))
 	return fd, 0
+}
+
+func Close(fd int) uintptr {
+	var e uintptr
+	e = Syscall(SYS_CLOSE, uintptr(fd), 0,0)
+	return e
 }
 
 func Write(fd int, buf []byte) (uintptr, int) {
