@@ -34,9 +34,9 @@ func testMapForrange() {
 	var i int
 	for a, b = range mapExpr {
 		i++
-		fmt.Printf("map iteration %d times\n", i)
-		fmt.Printf("key=%s, ", a)
-		fmt.Printf("value=%d\n", b)
+//		fmt.Printf("map iteration %d times\n", i)
+//		fmt.Printf("key=%s, ", a)
+//		fmt.Printf("value=%d\n", b)
 	}
 
 	for k, v := range mapExpr {
