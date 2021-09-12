@@ -25,16 +25,16 @@ $(tmp)/cross: *.go src/*/* $(tmp)/pre
 	$(tmp)/pre *.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/pre-main.s
 	cp $(tmp)/pre-main.s ./.shared/ # for debug
-	as -o $(tmp)/cross.o $(tmp)/pre-main.s
-	ld -o $(tmp)/cross $(tmp)/cross.o
+	as -o $(tmp)/a.o $(tmp)/pre-main.s
+	ld -o $(tmp)/cross $(tmp)/a.o
 
 $(tmp)/babygo2: $(tmp)/babygo src/*/*
 	rm /tmp/work/*.s
 	$(tmp)/babygo *.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/babygo-main.s
 	cp $(tmp)/babygo-main.s ./.shared/ # for debug
-	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s
-	ld -o $(tmp)/babygo2 $(tmp)/babygo2.o
+	as -o $(tmp)/a.o $(tmp)/babygo-main.s
+	ld -o $(tmp)/babygo2 $(tmp)/a.o
 
 $(tmp)/pre-test.s: t/test.go src/*/* $(tmp)/pre
 	rm /tmp/work/*.s
@@ -67,24 +67,24 @@ compare-test: $(tmp)/pre-test.s $(tmp)/babygo-test.s $(tmp)/babygo2-test.s $(tmp
 	diff -u $(tmp)/babygo-test.s $(tmp)/cross-test.s
 
 $(tmp)/test0: $(tmp)/pre-test.s src/*/*
-	as -o $(tmp)/test0.o $(tmp)/pre-test.s
-	ld -o $(tmp)/test0 $(tmp)/test0.o
+	as -o $(tmp)/a.o $(tmp)/pre-test.s
+	ld -o $(tmp)/test0 $(tmp)/a.o
 
 .PHONY: test0
 test0: $(tmp)/test0 t/expected.txt
 	./test.sh $(tmp)/test0
 
 $(tmp)/test1: $(tmp)/babygo-test.s src/*/*
-	as -o $(tmp)/test1.o $(tmp)/babygo-test.s
-	ld -o $(tmp)/test1 $(tmp)/test1.o
+	as -o $(tmp)/a.o $(tmp)/babygo-test.s
+	ld -o $(tmp)/test1 $(tmp)/a.o
 
 .PHONY: test1
 test1: $(tmp)/test1 t/expected.txt
 	./test.sh $(tmp)/test1
 
 $(tmp)/testcross: $(tmp)/cross-test.s src/*/*
-	as -o $(tmp)/testcross.o $(tmp)/cross-test.s
-	ld -o $(tmp)/testcross $(tmp)/testcross.o
+	as -o $(tmp)/a.o $(tmp)/cross-test.s
+	ld -o $(tmp)/testcross $(tmp)/a.o
 
 .PHONY: testcross
 testcross: $(tmp)/testcross t/expected.txt
