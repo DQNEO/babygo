@@ -44,7 +44,7 @@ $(tmp)/pre-bbg-test.s: $(tmp)/pre-bbg t/*.go
 	$< t/*.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $@
 
-$(tmp)/bbg-test.s: $(tmp)/bbg t/*.go src/*/*
+$(tmp)/bbg-test.s: $(tmp)/bbg t/*.go
 	rm /tmp/work/*.s
 	$< t/*.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $@
@@ -62,18 +62,18 @@ compare-test: $(tmp)/pre-test.s $(tmp)/bbg-test.s $(tmp)/bbg-bbg-test.s $(tmp)/p
 	diff -u $(tmp)/bbg-test.s $(tmp)/bbg-bbg-test.s
 
 .PHONY: test0
-test0: $(tmp)/test0 t/expected.txt
+test0: $(tmp)/pre-test t/expected.txt
 	./test.sh $<
 
 .PHONY: test1
-test1: $(tmp)/test1 t/expected.txt
+test1: $(tmp)/bbg-test t/expected.txt
 	./test.sh $<
 
-$(tmp)/test0: $(tmp)/pre-test.s src/*/*
+$(tmp)/pre-test: $(tmp)/pre-test.s
 	as -o $(tmp)/a.o $<
 	ld -o $@ $(tmp)/a.o
 
-$(tmp)/test1: $(tmp)/babygo-test.s src/*/*
+$(tmp)/bbg-test: $(tmp)/bbg-test.s
 	as -o $(tmp)/a.o $<
 	ld -o $@ $(tmp)/a.o
 
