@@ -10,15 +10,16 @@ type File struct {
 	fd int
 }
 
+const O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
+
 func Create(name string) (*File, interface{}) {
-	var O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
 	var fd int
 	fd, _ = syscall.Open(name, O_CREATE_WRITE, 438)
 	if fd < 0 {
 		panic("unable to create file " + name)
 	}
 
-	var f *File = new(File)
+	f := new(File)
 	f.fd = fd
 	return f, nil
 }
