@@ -116,7 +116,7 @@ func GetDirents(dir string) []string {
 			counter++
 		}
 	}
-
+	syscall.Close(fd)
 	return entries
 }
 
