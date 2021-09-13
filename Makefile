@@ -1,15 +1,19 @@
 # Run this on Linux
 tmp = /tmp/bbg
+work = /tmp/work
 
 .PHONY: all
 all: test
 
 # test all
 .PHONY: test
-test: $(tmp) test0 test1 selfhost compare-test
+test: $(tmp) $(work) test0 test1 selfhost compare-test
 
 $(tmp):
 	mkdir -p $(tmp)
+
+$(work):
+	mkdir -p $(work)
 
 t/expected.txt: t/*.go lib/*/*
 	export FOO=bar; go run t/*.go myargs > t/expected.txt
