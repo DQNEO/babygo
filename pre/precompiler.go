@@ -4070,7 +4070,7 @@ func findFilesInDir(dir string) []string {
 		if dirent == "." || dirent == ".." {
 			continue
 		}
-		if strings.HasSuffix(dirent, "dummy.s") {
+		if dirent == "_.s" {
 			continue
 		}
 		if strings.HasSuffix(dirent, ".go") || strings.HasSuffix(dirent, ".s") {
