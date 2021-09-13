@@ -57,7 +57,7 @@ $(tmp)/bbg-bbg-test.s: $(tmp)/bbg-bbg t/*.go
 # compare output of test0 and test1
 .PHONY: compare-test
 compare-test: $(tmp)/pre-test.s $(tmp)/bbg-test.s $(tmp)/bbg-bbg-test.s $(tmp)/pre-bbg-test.s
-	diff -u $(tmp)/bbg-test.s $(tmp)/pre-test.s
+	diff -u $(tmp)/pre-test.s $(tmp)/bbg-test.s
 	diff -u $(tmp)/bbg-test.s $(tmp)/pre-bbg-test.s
 	diff -u $(tmp)/bbg-test.s $(tmp)/bbg-bbg-test.s
 
