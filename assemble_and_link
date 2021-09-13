@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+as_file=$1
+exe_file=$2
+tmp_dir=$3
+
+as -o ${tmp_dir}/a.o ${as_file}
+ld -o ${exe_file} ${tmp_dir}/a.o

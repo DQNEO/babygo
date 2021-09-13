@@ -22,13 +22,11 @@ $(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
 
 $(tmp)/pre-bbg: $(tmp)/pre *.go src/*/*
 	./compile $< $(@).s *.go
-	as -o $(tmp)/a.o $(@).s
-	ld -o $@ $(tmp)/a.o
+	./assemble_and_link $(@).s $@ $(tmp)
 
 $(tmp)/bbg-bbg: $(tmp)/bbg src/*/*
 	./compile $< $(@).s *.go
-	as -o $(tmp)/a.o $(@).s
-	ld -o $@ $(tmp)/a.o
+	./assemble_and_link $(@).s $@ $(tmp)
 
 $(tmp)/pre-test.s: $(tmp)/pre t/*.go src/*/*
 	./compile $< $(@) t/*.go
@@ -58,12 +56,10 @@ test1: $(tmp)/bbg-test t/expected.txt
 	./test.sh $<
 
 $(tmp)/pre-test: $(tmp)/pre-test.s
-	as -o $(tmp)/a.o $<
-	ld -o $@ $(tmp)/a.o
+	./assemble_and_link $< $@ $(tmp)
 
 $(tmp)/bbg-test: $(tmp)/bbg-test.s
-	as -o $(tmp)/a.o $<
-	ld -o $@ $(tmp)/a.o
+	./assemble_and_link $< $@ $(tmp)
 
 # test self hosting by comparing 2gen.s and 3gen.s
 .PHONY: selfhost
