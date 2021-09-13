@@ -11,10 +11,11 @@ It is made from scratch and can compile itself.
 
 It depends only on `as` as an assembler and `ld` as a linker.
 
-It is composed of only a fiew files.
+It is composed of only a few files.
 
 * main.go - the main compiler
-* runtime.s - low level of runtime
+* parser.go - parser
+* scanner.go - scanner(or lexer)
 * src/ - internal packages
 * lib/ - libraries
 
