@@ -6,13 +6,13 @@ all: test
 
 .PHONY: test
 # test all
-test: test0 test1 testcross selfhost  compare-test
+test: test0 test1 selfhost  compare-test
 
 $(tmp):
 	mkdir -p $(tmp)
 
-t/expected.txt: t/test.go lib/*/*
-	export FOO=bar; go run t/test.go t/another.go myargs > t/expected.txt
+t/expected.txt: t/*.go lib/*/*
+	export FOO=bar; go run t/*.go myargs > t/expected.txt
 
 $(tmp)/pre: $(tmp) pre/precompiler.go lib/*/*
 	go build -o $@ ./pre
@@ -36,27 +36,27 @@ $(tmp)/babygo2: $(tmp)/babygo src/*/*
 	as -o $(tmp)/a.o $(tmp)/babygo-main.s
 	ld -o $@ $(tmp)/a.o
 
-$(tmp)/pre-test.s: t/test.go src/*/* $(tmp)/pre
+$(tmp)/pre-test.s: t/*.go src/*/* $(tmp)/pre
 	rm /tmp/work/*.s
-	$(tmp)/pre t/test.go t/another.go
+	$(tmp)/pre t/*.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $@
 	cp $@ ./.shared/
 
-$(tmp)/cross-test.s: t/test.go $(tmp)/cross
+$(tmp)/cross-test.s: t/*.go $(tmp)/cross
 	rm /tmp/work/*.s
-	$(tmp)/cross t/test.go t/another.go
+	$(tmp)/cross t/*.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $@
 	cp $@ ./.shared/
 
-$(tmp)/babygo-test.s: t/test.go src/*/* $(tmp)/babygo
+$(tmp)/babygo-test.s: t/*.go src/*/* $(tmp)/babygo
 	rm /tmp/work/*.s
-	$(tmp)/babygo t/test.go t/another.go
+	$(tmp)/babygo t/*.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $@
 	cp $@ ./.shared/
 
-$(tmp)/babygo2-test.s: t/test.go $(tmp)/babygo2
+$(tmp)/babygo2-test.s: t/*.go $(tmp)/babygo2
 	rm /tmp/work/*.s
-	$(tmp)/babygo2 t/test.go t/another.go
+	$(tmp)/babygo2 t/*.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $@
 	cp $@ ./.shared/
 
