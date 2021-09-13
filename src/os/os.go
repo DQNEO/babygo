@@ -20,16 +20,16 @@ func Create(name string) (*File, interface{}) {
 
 	var f *File = new(File)
 	f.fd = fd
-	return f, 0
+	return f, nil
 }
 
 func (f *File) Close() {
 	syscall.Close(f.fd)
 }
 
-func (f *File) Write(p []byte) (int, int) {
+func (f *File) Write(p []byte) (int, interface{}) {
 	syscall.Write(f.fd, p)
-	return 0, 0
+	return 0, nil
 }
 
 func init() {
