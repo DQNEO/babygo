@@ -1,19 +1,15 @@
 # Run this on Linux
 tmp = /tmp/bbg
-work = /tmp/work
 
 .PHONY: all
 all: test
 
 # test all
 .PHONY: test
-test: $(tmp) $(work) test0 test1 selfhost compare-test
+test: $(tmp) test0 test1 selfhost compare-test
 
 $(tmp):
 	mkdir -p $(tmp)
-
-$(work):
-	mkdir -p $(work)
 
 t/expected.txt: t/*.go lib/*/*
 	export FOO=bar; go run t/*.go myargs > t/expected.txt
@@ -35,16 +31,16 @@ $(tmp)/bbg-bbg: $(tmp)/bbg src/*/*
 	ld -o $@ $(tmp)/a.o
 
 $(tmp)/pre-test.s: $(tmp)/pre t/*.go src/*/*
-	./compile $< $(@).s t/*.go
+	./compile $< $(@) t/*.go
 
 $(tmp)/pre-bbg-test.s: $(tmp)/pre-bbg t/*.go
-	./compile $< $(@).s t/*.go
+	./compile $< $(@) t/*.go
 
 $(tmp)/bbg-test.s: $(tmp)/bbg t/*.go
-	./compile $< $(@).s t/*.go
+	./compile $< $(@) t/*.go
 
 $(tmp)/bbg-bbg-test.s: $(tmp)/bbg-bbg t/*.go
-	./compile $< $(@).s t/*.go
+	./compile $< $(@) t/*.go
 
 # compare output of test0 and test1
 .PHONY: compare-test

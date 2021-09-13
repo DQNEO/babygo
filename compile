@@ -1,11 +1,13 @@
 #!/bin/bash
-# Usage
-# ./compile cmd *.go
-set -e
-program=$1
+set -ex
+compiler=$1
 outfile=$2
 shift
 shift
-rm -f /tmp/work/*.s
-$program "$@"
-cat /tmp/work/*.s > ${outfile}
+
+workdir=/tmp/work-`date +%s`
+rm -rf $workdir
+mkdir -p $workdir
+
+WORKDIR="$workdir" $compiler "$@"
+cat $workdir/*.s > ${outfile}

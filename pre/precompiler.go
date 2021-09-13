@@ -4309,7 +4309,8 @@ func main() {
 		panic("I am panic version " + panicVersion)
 	}
 
-	initAsm, err := os.Create("/tmp/work/a.s")
+	workdir := os.Getenv("WORKDIR")
+	initAsm, err := os.Create(workdir + "/a.s")
 	if err != nil {
 		panic(err)
 	}
@@ -4350,7 +4351,7 @@ func main() {
 		if _pkg.name == "" {
 			panic("empty pkg name")
 		}
-		pgkAsm, err := os.Create(fmt.Sprintf("/tmp/work/%s.s", _pkg.name))
+		pgkAsm, err := os.Create(fmt.Sprintf("%s/%s.s", workdir, _pkg.name))
 		if err != nil {
 			panic(err)
 		}
