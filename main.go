@@ -653,7 +653,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 			printf("  movzbq (%%rsp), %%rax # load uint8\n")
 			printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 			printf("  pushq %%rax\n")
-		case T_BOOL, T_INT, T_UINTPTR, T_POINTER,T_MAP:
+		case T_BOOL, T_INT, T_UINTPTR, T_POINTER, T_MAP:
 		case T_SLICE:
 		default:
 			unexpectedKind(knd)
@@ -1408,11 +1408,12 @@ func emitExprIfc(expr ast.Expr, ctx *evalContext) {
 }
 
 type dtypeEntry struct {
-	id int
-	pkgname string
+	id         int
+	pkgname    string
 	serialized string
-	label string
+	label      string
 }
+
 var typeId int
 var typesMap map[string]*dtypeEntry
 
@@ -1425,10 +1426,10 @@ func getDtypeLabel(pkg *PkgContainer, serializedType string) string {
 	} else {
 		id := typeId
 		ent = &dtypeEntry{
-			id:      id,
-			pkgname: pkg.name,
+			id:         id,
+			pkgname:    pkg.name,
 			serialized: serializedType,
-			label: pkg.name + "." + "dtype." + strconv.Itoa(id),
+			label:      pkg.name + "." + "dtype." + strconv.Itoa(id),
 		}
 		typesMap[s] = ent
 		typeId++
@@ -1483,7 +1484,7 @@ func emitCompareDtypes() {
 	printf("  pushq %%rdx\n")
 
 	printf("  callq %s\n", "runtime.cmpstrings")
-	emitFreeParametersArea(16*2)
+	emitFreeParametersArea(16 * 2)
 	printf("%s:\n", labelEnd)
 }
 
@@ -1926,8 +1927,8 @@ func emitRangeMap(s *ast.RangeStmt, meta *MetaForStmt) {
 	// item = mp.first
 	emitVariableAddr(meta.ForRange.ItemVar)
 	emitVariable(meta.ForRange.MapVar) // value of _mp
-	emitLoadAndPush(tUintptr) // value of _mp.first
-	emitStore(tUintptr, true, false) // assign
+	emitLoadAndPush(tUintptr)          // value of _mp.first
+	emitStore(tUintptr, true, false)   // assign
 
 	// Condition
 	// if item != nil; then
@@ -1993,10 +1994,10 @@ func emitRangeMap(s *ast.RangeStmt, meta *MetaForStmt) {
 	// Post statement
 	// item = item.next
 	emitComment(2, "ForRange Post statement\n")
-	printf("  %s:\n", labelPost)         // used for "continue"
+	printf("  %s:\n", labelPost)            // used for "continue"
 	emitVariableAddr(meta.ForRange.ItemVar) // lhs
-	emitVariable(meta.ForRange.ItemVar) // item
-	emitLoadAndPush(tUintptr) // item.next
+	emitVariable(meta.ForRange.ItemVar)     // item
+	emitLoadAndPush(tUintptr)               // item.next
 	emitStore(tUintptr, true, false)
 
 	printf("  jmp %s\n", labelCond)
@@ -2076,7 +2077,7 @@ func emitRangeStmt(s *ast.RangeStmt) {
 
 	// Post statement: Increment indexvar and go next
 	emitComment(2, "ForRange Post statement\n")
-	printf("  %s:\n", labelPost)         // used for "continue"
+	printf("  %s:\n", labelPost)             // used for "continue"
 	emitVariableAddr(meta.ForRange.Indexvar) // lhs
 	emitVariableAddr(meta.ForRange.Indexvar) // rhs
 	emitLoadAndPush(tInt)
@@ -3025,7 +3026,7 @@ func getElementTypeOfCollectionType(t *Type) *Type {
 func getKeyTypeOfCollectionType(t *Type) *Type {
 	ut := getUnderlyingType(t)
 	switch kind(ut) {
-	case T_SLICE, T_ARRAY,T_STRING:
+	case T_SLICE, T_ARRAY, T_STRING:
 		return tInt
 	case T_MAP:
 		mapType := ut.E.(*ast.MapType)
@@ -3405,14 +3406,14 @@ func walkRangeStmt(s *ast.RangeStmt) {
 	switch kind(collectionType) {
 	case T_SLICE, T_ARRAY:
 		meta.ForRange = &MetaForRange{
-			IsMap: false,
+			IsMap:    false,
 			LenVar:   registerLocalVariable(currentFunc, ".range.len", tInt),
 			Indexvar: registerLocalVariable(currentFunc, ".range.index", tInt),
 		}
 	case T_MAP:
 		meta.ForRange = &MetaForRange{
-			IsMap: true,
-			MapVar: registerLocalVariable(currentFunc, ".range.map", tUintptr),
+			IsMap:   true,
+			MapVar:  registerLocalVariable(currentFunc, ".range.map", tUintptr),
 			ItemVar: registerLocalVariable(currentFunc, ".range.item", tUintptr),
 		}
 	default:
@@ -4287,7 +4288,6 @@ func showHelp() {
 	fmt.Printf("    %s [-DF] [-DG] filename\n", ProgName)
 }
 
-
 func main() {
 	srcPath = os.Getenv("GOPATH") + "/src"
 	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src"
@@ -4308,7 +4308,7 @@ func main() {
 		panic("I am panic version " + panicVersion)
 	}
 
-	f,_ := os.Create("/tmp/a.s")
+	f, _ := os.Create("/tmp/a.s")
 	fout = f
 
 	logf("Build start\n")
@@ -4330,7 +4330,7 @@ func main() {
 	for _, _path := range paths {
 		files := collectSourceFiles(getPackageDir(_path))
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
-			name: path.Base(_path),
+			name:  path.Base(_path),
 			path:  _path,
 			files: files,
 		})
@@ -4372,18 +4372,18 @@ type MetaReturnStmt struct {
 }
 
 type MetaForRange struct {
-	IsMap   bool
+	IsMap    bool
 	LenVar   *Variable
 	Indexvar *Variable
-	MapVar *Variable // map
-	ItemVar *Variable // map element
+	MapVar   *Variable // map
+	ItemVar  *Variable // map element
 }
 
 type MetaForStmt struct {
-	LabelPost   string // for continue
-	LabelExit   string // for break
-	Outer       *MetaForStmt
-	ForRange    *MetaForRange // for array or slice
+	LabelPost string // for continue
+	LabelExit string // for break
+	Outer     *MetaForStmt
+	ForRange  *MetaForRange // for array or slice
 }
 
 type MetaBranchStmt struct {
@@ -4485,4 +4485,3 @@ func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
 func throw(x interface{}) {
 	panic(x)
 }
-

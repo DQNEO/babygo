@@ -7,7 +7,7 @@ type Type struct {
 }
 
 type emptyInterface struct {
-	typ  *rtype // dynamic type
+	typ  *rtype         // dynamic type
 	data unsafe.Pointer // pointer to the actual data of the dynamic type
 }
 

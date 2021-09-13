@@ -27,7 +27,7 @@ func Open(path string, mode int, perm int) (uintptr, int) {
 
 func Close(fd int) uintptr {
 	var e uintptr
-	e = Syscall(SYS_CLOSE, uintptr(fd), 0,0)
+	e = Syscall(SYS_CLOSE, uintptr(fd), 0, 0)
 	return e
 }
 

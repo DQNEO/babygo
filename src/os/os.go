@@ -10,7 +10,6 @@ type File struct {
 	fd int
 }
 
-
 func Create(name string) (*File, interface{}) {
 	var O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
 	var fd int

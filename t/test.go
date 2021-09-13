@@ -34,15 +34,15 @@ func testMapForrange() {
 	var i int
 	for a, b = range mapExpr {
 		i++
-//		fmt.Printf("map iteration %d times\n", i)
-//		fmt.Printf("key=%s, ", a)
-//		fmt.Printf("value=%d\n", b)
+		//		fmt.Printf("map iteration %d times\n", i)
+		//		fmt.Printf("key=%s, ", a)
+		//		fmt.Printf("value=%d\n", b)
 	}
 
-//	for k, v := range mapExpr {
-//		fmt.Printf("key=%s, ", k)
-//		fmt.Printf("value=%d\n", v)
-//	}
+	//	for k, v := range mapExpr {
+	//		fmt.Printf("key=%s, ", k)
+	//		fmt.Printf("value=%d\n", v)
+	//	}
 	mapExpr = nil
 	for a, b = range mapExpr {
 		panic("Should not reach here:")
@@ -1161,14 +1161,14 @@ func testOpenWrite() {
 	var fd int
 	fd, _ = syscall.Open("/tmp/bbgwrite.txt", O_CREATE_WRITE, 438)
 	//println(os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_CLOEXEC)
-//	println(0666)
-//	if err != nil {
-//		panic(err)
-//	}
+	//	println(0666)
+	//	if err != nil {
+	//		panic(err)
+	//	}
 	writeln(fd) // should be 5
-	var buf []uint8 = []uint8{'a','b','c','d','e','f','g','\n'}
+	var buf []uint8 = []uint8{'a', 'b', 'c', 'd', 'e', 'f', 'g', '\n'}
 	var n int
-	n ,_  = syscall.Write(fd, buf)
+	n, _ = syscall.Write(fd, buf)
 	writeln(n) // should be 8
 	syscall.Close(fd)
 }

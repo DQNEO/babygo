@@ -2,8 +2,8 @@ package fmt
 
 import (
 	"github.com/DQNEO/babygo/lib/strconv"
-	"reflect"
 	"os"
+	"reflect"
 )
 import "syscall"
 
@@ -87,4 +87,3 @@ func Fprintf(w *os.File, format string, a ...interface{}) {
 	var s = Sprintf(format, a...)
 	w.Write([]uint8(s))
 }
-
