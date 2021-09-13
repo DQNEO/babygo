@@ -6,6 +6,10 @@ const SYS_EXIT int = 60
 
 var Args []string
 
+var Stdin *File
+var Stdout *File
+var Stderr *File
+
 type File struct {
 	fd int
 }
@@ -35,6 +39,15 @@ func (f *File) Write(p []byte) (int, interface{}) {
 
 func init() {
 	Args = runtime_args()
+	Stdin = &File{
+		fd: 0,
+	}
+	Stdout = &File{
+		fd: 1,
+	}
+	Stderr = &File{
+		fd: 2,
+	}
 }
 
 func Getenv(key string) string {
