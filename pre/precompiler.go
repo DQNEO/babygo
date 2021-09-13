@@ -2572,6 +2572,12 @@ func generateCode(pkg *PkgContainer) {
 
 	emitDynamicTypes(typesMap)
 	printf("\n")
+
+	for _, file := range pkg.files {
+		if strings.HasSuffix(file, ".s") {
+			printf("# === static assembly %s ====\n", file)
+		}
+	}
 }
 
 func emitDynamicTypes(mapDtypes map[string]*dtypeEntry) {
@@ -4055,10 +4061,15 @@ func findFilesInDir(dir string) []string {
 	dirents := mylib.GetDirents(dir)
 	var r []string
 	for _, dirent := range dirents {
-		if dirent == "." || dirent == ".." || !strings.HasSuffix(dirent, ".go") {
+		if dirent == "." || dirent == ".." {
 			continue
 		}
-		r = append(r, dirent)
+		if strings.HasSuffix(dirent, "dummy.s") {
+			continue
+		}
+		if strings.HasSuffix(dirent, ".go") || strings.HasSuffix(dirent, ".s") {
+			r = append(r, dirent)
+		}
 	}
 	return r
 }
@@ -4225,6 +4236,9 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 	fset := &token.FileSet{}
 	pkgScope := ast.NewScope(universe)
 	for _, file := range _pkg.files {
+		if strings.HasSuffix(file, ".s") {
+			continue
+		}
 		logf("Parsing file: %s\n", file)
 		astFile := parseFile(fset, file)
 		_pkg.name = astFile.Name.Name
