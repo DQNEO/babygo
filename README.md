@@ -49,10 +49,10 @@ $ ./docker-run
 $ go build -o babygo *.go
 
 # Compile the hello world program by babygo
-$ ./babygo t/hello.go > /tmp/hello.s
+$ ./babygo example/hello.go
 
 # Assemble and link
-$ as -o hello.o /tmp/hello.s runtime.s
+$ as -o hello.o /tmp/*.s
 $ ld -o hello hello.o
 
 # Run hello world
@@ -67,13 +67,16 @@ hello world!
 $ go build -o babygo *.go
 
 # Build babygo by babygo (2nd generation)
-$ ./babygo *.go > /tmp/babygo2.s
-$ as -o babygo2.o /tmp/babygo2.s runtime.s
+$ rm /tmp/*.s
+$ ./babygo *.go
+$ as -o babygo2.o /tmp/*.s
 $ ld -o babygo2 babygo2.o # 2nd generation compiler
 
-# Assert babygo2.s and babygo3.s are exactly same
-$ ./babygo2 *.go > /tmp/babygo3.s
-$ diff /tmp/babygo2.s /tmp/babygo3.s
+# You can generate babygo3 (3rd generation), babygo4, and so on...
+$ rm /tmp/*.s
+$ ./babygo2 *.go
+$ as -o babygo3.o /tmp/*.s
+$ ld -o babygo3 babygo3.o # 3rd generation compiler
 ```
 
 ## Test
