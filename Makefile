@@ -14,51 +14,45 @@ $(tmp):
 t/expected.txt: t/*.go lib/*/*
 	export FOO=bar; go run t/*.go myargs > t/expected.txt
 
-$(tmp)/pre: $(tmp) pre/precompiler.go lib/*/*
+$(tmp)/pre: pre/*.go lib/*/* $(tmp)
 	go build -o $@ ./pre
 
-$(tmp)/babygo: $(tmp)  *.go lib/*/*
-	go build -o $@ .
+$(tmp)/babygo: *.go lib/*/* src/*/* $(tmp)
+	go build -o $@ ./
 
 $(tmp)/cross: *.go src/*/* $(tmp)/pre
 	rm /tmp/work/*.s
 	$(tmp)/pre *.go
-	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/pre-main.s
-	cp $(tmp)/pre-main.s ./.shared/ # for debug
-	as -o $(tmp)/a.o $(tmp)/pre-main.s
+	cat src/runtime/runtime.s /tmp/work/*.s > $(@).s
+	as -o $(tmp)/a.o $(@).s
 	ld -o $@ $(tmp)/a.o
 
 $(tmp)/babygo2: $(tmp)/babygo src/*/*
 	rm /tmp/work/*.s
 	$(tmp)/babygo *.go
-	cat src/runtime/runtime.s /tmp/work/*.s > $(tmp)/babygo-main.s
-	cp $(tmp)/babygo-main.s ./.shared/ # for debug
-	as -o $(tmp)/a.o $(tmp)/babygo-main.s
+	cat src/runtime/runtime.s /tmp/work/*.s > $(@).s
+	as -o $(tmp)/a.o $(@).s
 	ld -o $@ $(tmp)/a.o
 
 $(tmp)/pre-test.s: t/*.go src/*/* $(tmp)/pre
 	rm /tmp/work/*.s
 	$(tmp)/pre t/*.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $@
-	cp $@ ./.shared/
 
 $(tmp)/cross-test.s: t/*.go $(tmp)/cross
 	rm /tmp/work/*.s
 	$(tmp)/cross t/*.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $@
-	cp $@ ./.shared/
 
 $(tmp)/babygo-test.s: t/*.go src/*/* $(tmp)/babygo
 	rm /tmp/work/*.s
 	$(tmp)/babygo t/*.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $@
-	cp $@ ./.shared/
 
 $(tmp)/babygo2-test.s: t/*.go $(tmp)/babygo2
 	rm /tmp/work/*.s
 	$(tmp)/babygo2 t/*.go
 	cat src/runtime/runtime.s /tmp/work/*.s > $@
-	cp $@ ./.shared/
 
 # compare output of test0 and test1
 .PHONY: compare-test
