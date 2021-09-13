@@ -4310,6 +4310,9 @@ func main() {
 	}
 
 	workdir := os.Getenv("WORKDIR")
+	if workdir == "" {
+		workdir = "/tmp"
+	}
 	initAsm, err := os.Create(workdir + "/a.s")
 	if err != nil {
 		panic(err)

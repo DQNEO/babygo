@@ -4309,6 +4309,9 @@ func main() {
 	}
 
 	workdir := os.Getenv("WORKDIR")
+	if workdir == "" {
+		workdir = "/tmp"
+	}
 	initAsm, _ := os.Create(workdir + "/a.s")
 	fout = initAsm
 	logf("Build start\n")
