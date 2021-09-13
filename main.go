@@ -2568,7 +2568,16 @@ func generateCode(pkg *PkgContainer) {
 		emitFuncDecl(pkg.name, fnc)
 	}
 
+	emitDynamicTypes(typesMap)
 	printf("\n")
+
+	for _, file := range pkg.files {
+		if strings.HasSuffix(file, ".s") {
+			printf("# === static assembly %s ====\n", file)
+			asmContents := readFile(file)
+			printf("%s", string(asmContents))
+		}
+	}
 }
 
 func emitDynamicTypes(mapDtypes map[string]*dtypeEntry) {
@@ -4052,10 +4061,15 @@ func findFilesInDir(dir string) []string {
 	dirents := mylib.GetDirents(dir)
 	var r []string
 	for _, dirent := range dirents {
-		if dirent == "." || dirent == ".." || !strings.HasSuffix(dirent, ".go") {
+		if dirent == "." || dirent == ".." {
 			continue
 		}
-		r = append(r, dirent)
+		if strings.HasSuffix(dirent, "dummy.s") {
+			continue
+		}
+		if strings.HasSuffix(dirent, ".go") || strings.HasSuffix(dirent, ".s") {
+			r = append(r, dirent)
+		}
 	}
 	return r
 }
@@ -4134,6 +4148,10 @@ func collectDependency(tree DependencyTree, paths map[string]bool) {
 		fnames := findFilesInDir(packageDir)
 		children := make(map[string]bool)
 		for _, fname := range fnames {
+			if !strings.HasSuffix(fname, ".go") {
+				// skip ".s"
+				continue
+			}
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
 			for _, pth := range _paths {
 				if pth == "unsafe" || pth == "runtime" {
@@ -4215,10 +4233,16 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 }
 
 func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
+	typesMap = make(map[string]*dtypeEntry)
+	typeId = 1
+
 	logf("Building package : %s\n", _pkg.path)
 	fset := &token.FileSet{}
 	pkgScope := ast.NewScope(universe)
 	for _, file := range _pkg.files {
+		if strings.HasSuffix(file, ".s") {
+			continue
+		}
 		logf("Parsing file: %s\n", file)
 		astFile := parseFile(fset, file)
 		_pkg.name = astFile.Name.Name
@@ -4306,6 +4330,7 @@ func main() {
 	for _, _path := range paths {
 		files := collectSourceFiles(getPackageDir(_path))
 		packagesToBuild = append(packagesToBuild, &PkgContainer{
+			name: path.Base(_path),
 			path:  _path,
 			files: files,
 		})
@@ -4319,10 +4344,13 @@ func main() {
 	var universe = createUniverse()
 	for _, _pkg := range packagesToBuild {
 		currentPkg = _pkg
-		typesMap = make(map[string]*dtypeEntry)
-		typeId = 1
+		if _pkg.name == "" {
+			panic("empty pkg name")
+		}
+		pgkAsm, _ := os.Create(fmt.Sprintf("/tmp/work/%s.s", _pkg.name))
+		fout = pgkAsm
 		buildPackage(_pkg, universe)
-		emitDynamicTypes(typesMap)
+		pgkAsm.Close()
 	}
 
 	fout.Close()

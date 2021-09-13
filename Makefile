@@ -1,90 +1,94 @@
 # Run this on Linux
-tmp = /tmp/babygo
+tmp = /tmp/bbg
+work = /tmp/work
 
 .PHONY: all
 all: test
 
-.PHONY: test
 # test all
-test: test0 test1 testcross selfhost  compare-test
+.PHONY: test
+test: $(tmp) $(work) test0 test1 selfhost compare-test
 
 $(tmp):
 	mkdir -p $(tmp)
 
-t/expected.txt: t/test.go lib/*/*
-	export FOO=bar; go run t/test.go t/another.go myargs > t/expected.txt
+$(work):
+	mkdir -p $(work)
 
-$(tmp)/pre: $(tmp) pre/precompiler.go lib/*/*
-	go build -o $(tmp)/pre ./pre
+t/expected.txt: t/*.go lib/*/*
+	export FOO=bar; go run t/*.go myargs > t/expected.txt
 
-$(tmp)/cross: *.go src/*/* $(tmp)/pre
-	$(tmp)/pre *.go && mv /tmp/a.s $(tmp)/pre-main.s
-	cp $(tmp)/pre-main.s ./.shared/ # for debug
-	as -o $(tmp)/cross.o $(tmp)/pre-main.s src/runtime/runtime.s
-	ld -o $(tmp)/cross $(tmp)/cross.o
+$(tmp)/pre: pre/*.go lib/*/* $(tmp)
+	go build -o $@ ./pre
 
-$(tmp)/babygo: $(tmp)  *.go lib/*/*
-	go build -o $(tmp)/babygo .
+$(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
+	go build -o $@ ./
 
-$(tmp)/babygo2: $(tmp)/babygo src/*/*
-	$(tmp)/babygo *.go && mv /tmp/a.s $(tmp)/babygo-main.s
-	cp $(tmp)/babygo-main.s ./.shared/ # for debug
-	as -o $(tmp)/babygo2.o $(tmp)/babygo-main.s src/runtime/runtime.s
-	ld -o $(tmp)/babygo2 $(tmp)/babygo2.o
+$(tmp)/pre-bbg: $(tmp)/pre *.go src/*/*
+	rm -f /tmp/work/*.s
+	$< *.go
+	cat /tmp/work/*.s > $(@).s
+	as -o $(tmp)/a.o $(@).s
+	ld -o $@ $(tmp)/a.o
 
-$(tmp)/pre-test.s: t/test.go src/*/* $(tmp)/pre
-	$(tmp)/pre t/test.go t/another.go && mv /tmp/a.s $(tmp)/pre-test.s
-	cp $(tmp)/pre-test.s ./.shared/
+$(tmp)/bbg-bbg: $(tmp)/bbg src/*/*
+	rm -f /tmp/work/*.s
+	$< *.go
+	cat /tmp/work/*.s > $(@).s
+	as -o $(tmp)/a.o $(@).s
+	ld -o $@ $(tmp)/a.o
 
-$(tmp)/cross-test.s: t/test.go $(tmp)/cross
-	$(tmp)/cross t/test.go t/another.go && mv /tmp/a.s $(tmp)/cross-test.s
-	cp $(tmp)/cross-test.s ./.shared/
+$(tmp)/pre-test.s: $(tmp)/pre t/*.go src/*/*
+	rm -f /tmp/work/*.s
+	$< t/*.go
+	cat /tmp/work/*.s > $@
 
-$(tmp)/babygo-test.s: t/test.go src/*/* $(tmp)/babygo
-	$(tmp)/babygo t/test.go t/another.go && mv /tmp/a.s $(tmp)/babygo-test.s
-	cp $(tmp)/babygo-test.s ./.shared/
+$(tmp)/pre-bbg-test.s: $(tmp)/pre-bbg t/*.go
+	rm -f /tmp/work/*.s
+	$< t/*.go
+	cat /tmp/work/*.s > $@
 
-$(tmp)/babygo2-test.s: t/test.go $(tmp)/babygo2
-	$(tmp)/babygo2 t/test.go t/another.go && mv /tmp/a.s $(tmp)/babygo2-test.s
-	cp $(tmp)/babygo2-test.s ./.shared/
+$(tmp)/bbg-test.s: $(tmp)/bbg t/*.go
+	rm -f /tmp/work/*.s
+	$< t/*.go
+	cat /tmp/work/*.s > $@
+
+$(tmp)/bbg-bbg-test.s: $(tmp)/bbg-bbg t/*.go
+	rm -f /tmp/work/*.s
+	$< t/*.go
+	cat /tmp/work/*.s > $@
 
 # compare output of test0 and test1
 .PHONY: compare-test
-compare-test: $(tmp)/pre-test.s $(tmp)/babygo-test.s $(tmp)/babygo2-test.s $(tmp)/cross-test.s
-	diff -u $(tmp)/pre-test.s $(tmp)/babygo-test.s
-	diff -u $(tmp)/pre-test.s $(tmp)/babygo2-test.s
-	diff -u $(tmp)/pre-test.s $(tmp)/cross-test.s
-
-$(tmp)/test0: $(tmp)/pre-test.s src/*/*
-	as -o $(tmp)/test0.o $(tmp)/pre-test.s src/runtime/runtime.s
-	ld -o $(tmp)/test0 $(tmp)/test0.o
+compare-test: $(tmp)/pre-test.s $(tmp)/bbg-test.s $(tmp)/bbg-bbg-test.s $(tmp)/pre-bbg-test.s
+	diff -u $(tmp)/pre-test.s $(tmp)/bbg-test.s
+	diff -u $(tmp)/bbg-test.s $(tmp)/pre-bbg-test.s
+	diff -u $(tmp)/bbg-test.s $(tmp)/bbg-bbg-test.s
 
 .PHONY: test0
-test0: $(tmp)/test0 t/expected.txt
-	./test.sh $(tmp)/test0
-
-$(tmp)/test1: $(tmp)/babygo-test.s src/*/*
-	as -o $(tmp)/test1.o $(tmp)/babygo-test.s src/runtime/runtime.s
-	ld -o $(tmp)/test1 $(tmp)/test1.o
+test0: $(tmp)/pre-test t/expected.txt
+	./test.sh $<
 
 .PHONY: test1
-test1: $(tmp)/test1 t/expected.txt
-	./test.sh $(tmp)/test1
+test1: $(tmp)/bbg-test t/expected.txt
+	./test.sh $<
 
-$(tmp)/testcross: $(tmp)/cross-test.s src/*/*
-	as -o $(tmp)/testcross.o $(tmp)/cross-test.s src/runtime/runtime.s
-	ld -o $(tmp)/testcross $(tmp)/testcross.o
+$(tmp)/pre-test: $(tmp)/pre-test.s
+	as -o $(tmp)/a.o $<
+	ld -o $@ $(tmp)/a.o
 
-.PHONY: testcross
-testcross: $(tmp)/testcross t/expected.txt
-	./test.sh $(tmp)/testcross
+$(tmp)/bbg-test: $(tmp)/bbg-test.s
+	as -o $(tmp)/a.o $<
+	ld -o $@ $(tmp)/a.o
 
 # test self hosting by comparing 2gen.s and 3gen.s
 .PHONY: selfhost
-selfhost: $(tmp)/babygo $(tmp)/babygo2 $(tmp)/babygo-main.s
+selfhost: $(tmp)/bbg-bbg
 	@echo "testing self host ..."
-	$(tmp)/babygo2   *.go && mv /tmp/a.s $(tmp)/babygo2-main.s
-	diff $(tmp)/babygo-main.s $(tmp)/babygo2-main.s
+	rm -f /tmp/work/*.s
+	$< *.go
+	cat /tmp/work/*.s > $(tmp)/bbg-bbg-bbg.s
+	diff $(tmp)/bbg-bbg.s $(tmp)/bbg-bbg-bbg.s
 	@echo "self host is ok"
 
 .PHONY: fmt
@@ -93,11 +97,8 @@ fmt:
 
 .PHONY: clean
 clean:
-	rm -f babygo*
 	rm -f ./tmp/* ./.shared/*
 	rm -fr $(tmp)
-	rm -f precompiler babygo babygo2
-
 
 # to learn the official Go's assembly
 .PHONY: sample
