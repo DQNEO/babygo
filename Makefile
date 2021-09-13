@@ -25,36 +25,36 @@ $(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
 	go build -o $@ ./
 
 $(tmp)/pre-bbg: $(tmp)/pre *.go src/*/*
-	rm /tmp/work/*.s
+	rm -f /tmp/work/*.s
 	$< *.go
 	cat /tmp/work/*.s > $(@).s
 	as -o $(tmp)/a.o $(@).s
 	ld -o $@ $(tmp)/a.o
 
 $(tmp)/bbg-bbg: $(tmp)/bbg src/*/*
-	rm /tmp/work/*.s
+	rm -f /tmp/work/*.s
 	$< *.go
 	cat /tmp/work/*.s > $(@).s
 	as -o $(tmp)/a.o $(@).s
 	ld -o $@ $(tmp)/a.o
 
 $(tmp)/pre-test.s: $(tmp)/pre t/*.go src/*/*
-	rm /tmp/work/*.s
+	rm -f /tmp/work/*.s
 	$< t/*.go
 	cat /tmp/work/*.s > $@
 
 $(tmp)/pre-bbg-test.s: $(tmp)/pre-bbg t/*.go
-	rm /tmp/work/*.s
+	rm -f /tmp/work/*.s
 	$< t/*.go
 	cat /tmp/work/*.s > $@
 
 $(tmp)/bbg-test.s: $(tmp)/bbg t/*.go
-	rm /tmp/work/*.s
+	rm -f /tmp/work/*.s
 	$< t/*.go
 	cat /tmp/work/*.s > $@
 
 $(tmp)/bbg-bbg-test.s: $(tmp)/bbg-bbg t/*.go
-	rm /tmp/work/*.s
+	rm -f /tmp/work/*.s
 	$< t/*.go
 	cat /tmp/work/*.s > $@
 
@@ -85,7 +85,7 @@ $(tmp)/bbg-test: $(tmp)/bbg-test.s
 .PHONY: selfhost
 selfhost: $(tmp)/bbg-bbg
 	@echo "testing self host ..."
-	rm /tmp/work/*.s
+	rm -f /tmp/work/*.s
 	$< *.go
 	cat /tmp/work/*.s > $(tmp)/bbg-bbg-bbg.s
 	diff $(tmp)/bbg-bbg.s $(tmp)/bbg-bbg-bbg.s
