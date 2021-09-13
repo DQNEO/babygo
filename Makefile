@@ -80,13 +80,13 @@ clean:
 	rm -fr $(tmp)
 
 # to learn the official Go's assembly
-.PHONY: sample
-sample:
-	make sample/sample.s sample/min.s
+.PHONY: example
+example:
+	make example/example.s example/min.s
 
-sample/sample.s: sample/sample.go
+example/example.s: example
 	# -N: disable optimizations, -S: print assembly listing -l: no inline
-	go tool compile -N -S -l sample/sample.go > sample/sample.s
+	go tool compile -N -S -l example/example.go > example/example.s
 
-sample/min.s: sample/min.go
-	go tool compile -N -S -l sample/min.go > sample/min.s
+example/min.s: example
+	go tool compile -N -S -l example/min.go > example/min.s
