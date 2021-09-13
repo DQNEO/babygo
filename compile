@@ -1,0 +1,11 @@
+#!/bin/bash
+# Usage
+# ./compile cmd *.go
+set -e
+program=$1
+outfile=$2
+shift
+shift
+rm -f /tmp/work/*.s
+$program "$@"
+cat /tmp/work/*.s > ${outfile}

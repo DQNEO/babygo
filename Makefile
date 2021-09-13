@@ -25,38 +25,26 @@ $(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
 	go build -o $@ ./
 
 $(tmp)/pre-bbg: $(tmp)/pre *.go src/*/*
-	rm -f /tmp/work/*.s
-	$< *.go
-	cat /tmp/work/*.s > $(@).s
+	./compile $< $(@).s *.go
 	as -o $(tmp)/a.o $(@).s
 	ld -o $@ $(tmp)/a.o
 
 $(tmp)/bbg-bbg: $(tmp)/bbg src/*/*
-	rm -f /tmp/work/*.s
-	$< *.go
-	cat /tmp/work/*.s > $(@).s
+	./compile $< $(@).s *.go
 	as -o $(tmp)/a.o $(@).s
 	ld -o $@ $(tmp)/a.o
 
 $(tmp)/pre-test.s: $(tmp)/pre t/*.go src/*/*
-	rm -f /tmp/work/*.s
-	$< t/*.go
-	cat /tmp/work/*.s > $@
+	./compile $< $(@).s t/*.go
 
 $(tmp)/pre-bbg-test.s: $(tmp)/pre-bbg t/*.go
-	rm -f /tmp/work/*.s
-	$< t/*.go
-	cat /tmp/work/*.s > $@
+	./compile $< $(@).s t/*.go
 
 $(tmp)/bbg-test.s: $(tmp)/bbg t/*.go
-	rm -f /tmp/work/*.s
-	$< t/*.go
-	cat /tmp/work/*.s > $@
+	./compile $< $(@).s t/*.go
 
 $(tmp)/bbg-bbg-test.s: $(tmp)/bbg-bbg t/*.go
-	rm -f /tmp/work/*.s
-	$< t/*.go
-	cat /tmp/work/*.s > $@
+	./compile $< $(@).s t/*.go
 
 # compare output of test0 and test1
 .PHONY: compare-test
@@ -85,9 +73,8 @@ $(tmp)/bbg-test: $(tmp)/bbg-test.s
 .PHONY: selfhost
 selfhost: $(tmp)/bbg-bbg
 	@echo "testing self host ..."
-	rm -f /tmp/work/*.s
-	$< *.go
-	cat /tmp/work/*.s > $(tmp)/bbg-bbg-bbg.s
+	./compile $< $(tmp)/bbg-bbg-bbg.s *.go
+
 	diff $(tmp)/bbg-bbg.s $(tmp)/bbg-bbg-bbg.s
 	@echo "self host is ok"
 
