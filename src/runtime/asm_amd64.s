@@ -3,9 +3,10 @@
 runtime.rt0_go:
   movq %rdi, %rax # argc
   movq %rsi, %rbx # argv
-  movq %rbx, runtime.__argv__+0(%rip)  # ptr
-  movq %rax, runtime.__argv__+8(%rip)  # len
-  movq %rax, runtime.__argv__+16(%rip) # cap
+  pushq %rbx # argv
+  pushq %rax # argc
+  callq runtime.args
+  addq $16, %rsp
 
   movq %rdi, %rax # argc
   imulq $8,  %rax # argc * 8
@@ -27,3 +28,12 @@ runtime.rt0_go:
   movq $60, %rax # sys_exit
   syscall
   # End of program
+
+runtime.args:
+  movq  8(%rsp), %rax # argc
+  movq 16(%rsp), %rbx # argv
+  movq %rbx, runtime.__argv__+0(%rip)  # ptr
+  movq %rax, runtime.__argv__+8(%rip)  # len
+  movq %rax, runtime.__argv__+16(%rip) # cap
+  ret
+
