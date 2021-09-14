@@ -1,8 +1,16 @@
 #!/bin/bash
 set -e
-as_file=$1
-exe_file=$2
-tmp_dir=$3
+exe_file=$1
+work_dir=$2
 
-as -o ${tmp_dir}/a.o ${as_file}
-ld -o ${exe_file} ${tmp_dir}/a.o
+cd $work_dir
+
+for f in *.s
+do
+  b=$(basename $f .s)
+  as -o $b.o $b.s
+done
+
+ld *.o
+
+mv a.out $exe_file

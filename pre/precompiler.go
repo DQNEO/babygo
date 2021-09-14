@@ -2376,6 +2376,7 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	} else {
 		symbol = getPackageSymbol(pkgName, fnc.Name)
 	}
+	printf(".global %s\n", symbol)
 	printf("%s: # args %d, locals %d\n", symbol, fnc.Argsarea, fnc.Localarea)
 	printf("  pushq %%rbp\n")
 	printf("  movq %%rsp, %%rbp\n")
@@ -2413,6 +2414,7 @@ func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
 
 func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Expr) {
 	typeKind := kind(t)
+	printf(".global %s.%s\n", pkg.name, name.Name)
 	printf("%s.%s: # T %s\n", pkg.name, name.Name, string(typeKind))
 	switch typeKind {
 	case T_STRING:
@@ -2553,6 +2555,7 @@ func generateCode(pkg *PkgContainer) {
 	}
 	printf("\n")
 	printf(".text\n")
+	printf(".global %s.__initGlobals\n", pkg.name)
 	printf("%s.__initGlobals:\n", pkg.name)
 	for _, spec := range pkg.vars {
 		if len(spec.Values) == 0 {
@@ -4154,6 +4157,10 @@ func collectDependency(tree DependencyTree, paths map[string]bool) {
 		fnames := findFilesInDir(packageDir)
 		children := make(map[string]bool)
 		for _, fname := range fnames {
+			if !strings.HasSuffix(fname, ".go") {
+				// skip ".s"
+				continue
+			}
 			_paths := getImportPathsFromFile(packageDir + "/" + fname)
 			for _, pth := range _paths {
 				if pth == "unsafe" || pth == "runtime" {

@@ -48,6 +48,7 @@ runtime.rt0_go:
   # End of program
 
 // func Write(fd int, p []byte) int
+.global runtime.Write
 runtime.Write:
   movq  8(%rsp), %rax # arg0:fd
   movq 16(%rsp), %rdi # arg1:ptr
@@ -63,6 +64,7 @@ runtime.Write:
   movq %rax, 32(%rsp) # r0 int
   ret
 
+.global runtime.printstring
 runtime.printstring:
   movq  8(%rsp), %rdi # arg0:ptr
   movq 16(%rsp), %rsi # arg1:len
@@ -77,6 +79,7 @@ runtime.printstring:
   ret
 
 // func Syscall(trap, a1, a2, a3 uintptr) uintptr
+.global runtime.Syscall
 runtime.Syscall:
   movq   8(%rsp), %rax # syscall number
   movq  16(%rsp), %rdi # arg0
@@ -87,6 +90,7 @@ runtime.Syscall:
   ret
 
 // func Syscall(trap, a1, a2, a3 uintptr) uintptr
+.global syscall.Syscall
 syscall.Syscall:
   movq   8(%rsp), %rax # syscall number
   movq  16(%rsp), %rdi # arg0

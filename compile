@@ -1,13 +1,14 @@
 #!/bin/bash
 set -ex
 compiler=$1
-outfile=$2
+workdir=$2
 shift
 shift
 
-workdir=/tmp/work-`date +%s`
 rm -rf $workdir
 mkdir -p $workdir
 
 WORKDIR="$workdir" $compiler "$@"
-cat $workdir/*.s > ${outfile}
+
+cd $workdir
+cat *.s > all

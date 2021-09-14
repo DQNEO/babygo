@@ -20,32 +20,42 @@ $(tmp)/pre: pre/*.go lib/*/* $(tmp)
 $(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
 	go build -o $@ ./
 
-$(tmp)/pre-bbg: $(tmp)/pre *.go src/*/*
-	./compile $< $(@).s *.go
-	./assemble_and_link $(@).s $@ $(tmp)
+$(tmp)/pre-test.d: $(tmp)/pre t/*.go src/*/*
+	./compile $< $@ t/*.go
 
-$(tmp)/bbg-bbg: $(tmp)/bbg src/*/*
-	./compile $< $(@).s *.go
-	./assemble_and_link $(@).s $@ $(tmp)
+$(tmp)/bbg-test.d: $(tmp)/bbg t/*.go
+	./compile $< $@ t/*.go
 
-$(tmp)/pre-test.s: $(tmp)/pre t/*.go src/*/*
-	./compile $< $(@) t/*.go
+$(tmp)/bbg-bbg-test.d: $(tmp)/bbg-bbg t/*.go
+	./compile $< $@ t/*.go
 
-$(tmp)/pre-bbg-test.s: $(tmp)/pre-bbg t/*.go
-	./compile $< $(@) t/*.go
+$(tmp)/pre-bbg.d: $(tmp)/pre *.go src/*/*
+	./compile $< $(@) *.go
 
-$(tmp)/bbg-test.s: $(tmp)/bbg t/*.go
-	./compile $< $(@) t/*.go
+$(tmp)/pre-bbg: $(tmp)/pre-bbg.d
+	./assemble_and_link $@ $<
 
-$(tmp)/bbg-bbg-test.s: $(tmp)/bbg-bbg t/*.go
-	./compile $< $(@) t/*.go
+$(tmp)/pre-bbg-test.d: $(tmp)/pre-bbg t/*.go
+	./compile $< $@ t/*.go
+
+$(tmp)/bbg-bbg.d: $(tmp)/bbg
+	./compile $< $(@) *.go
+
+$(tmp)/bbg-bbg: $(tmp)/bbg-bbg.d
+	./assemble_and_link $@ $<
+
+$(tmp)/pre-test: $(tmp)/pre-test.d
+	./assemble_and_link $@ $<
+
+$(tmp)/bbg-test: $(tmp)/bbg-test.d
+	./assemble_and_link $@ $<
 
 # compare output of test0 and test1
 .PHONY: compare-test
-compare-test: $(tmp)/pre-test.s $(tmp)/bbg-test.s $(tmp)/bbg-bbg-test.s $(tmp)/pre-bbg-test.s
-	diff -u $(tmp)/pre-test.s $(tmp)/bbg-test.s
-	diff -u $(tmp)/bbg-test.s $(tmp)/pre-bbg-test.s
-	diff -u $(tmp)/bbg-test.s $(tmp)/bbg-bbg-test.s
+compare-test: $(tmp)/pre-test.d $(tmp)/bbg-test.d $(tmp)/bbg-bbg-test.d $(tmp)/pre-bbg-test.d
+	diff $(tmp)/pre-test.d/all $(tmp)/bbg-test.d/all
+	diff $(tmp)/bbg-test.d/all $(tmp)/pre-bbg-test.d/all
+	diff $(tmp)/bbg-test.d/all $(tmp)/bbg-bbg-test.d/all
 
 .PHONY: test0
 test0: $(tmp)/pre-test t/expected.txt
@@ -55,19 +65,14 @@ test0: $(tmp)/pre-test t/expected.txt
 test1: $(tmp)/bbg-test t/expected.txt
 	./test.sh $<
 
-$(tmp)/pre-test: $(tmp)/pre-test.s
-	./assemble_and_link $< $@ $(tmp)
 
-$(tmp)/bbg-test: $(tmp)/bbg-test.s
-	./assemble_and_link $< $@ $(tmp)
+$(tmp)/bbg-bbg-bbg.d: $(tmp)/bbg-bbg
+	./compile $< $(@) *.go
 
 # test self hosting by comparing 2gen.s and 3gen.s
 .PHONY: selfhost
-selfhost: $(tmp)/bbg-bbg
-	@echo "testing self host ..."
-	./compile $< $(tmp)/bbg-bbg-bbg.s *.go
-
-	diff $(tmp)/bbg-bbg.s $(tmp)/bbg-bbg-bbg.s
+selfhost: $(tmp)/bbg-bbg.d $(tmp)/bbg-bbg-bbg.d
+	diff $(tmp)/bbg-bbg.d/all $(tmp)/bbg-bbg-bbg.d/all
 	@echo "self host is ok"
 
 .PHONY: fmt
