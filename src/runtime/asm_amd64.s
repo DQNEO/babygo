@@ -39,13 +39,22 @@ runtime.rt0_go:
 
   callq os.init # set os.Args
 
+  callq runtime.mstart
+  ret # not reached
+
+runtime.mstart:
+  callq runtime.mstart0
+  ret # not reached
+
+runtime.main:
   movq runtime.main_main(%rip), %rax
   callq *%rax
-
+  pushq $0
   callq runtime.exit
   # End of program
 
+
 runtime.exit:
-  movq $0, %rdi  # status 0
+  movq 8(%rsp), %rdi  # status 0
   movq $60, %rax # sys_exit
   syscall

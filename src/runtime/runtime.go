@@ -26,6 +26,12 @@ func args(c int, v **uint8) {
 	argv = v
 }
 
+func main()
+
+func mstart0() {
+	main()
+}
+
 // Environment variables
 var envp uintptr
 var envlines []string // []{"FOO=BAR\0", "HOME=/home/...\0", ..}
