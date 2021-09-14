@@ -12,7 +12,19 @@ var heapTail uintptr
 const SYS_BRK int = 12
 const SYS_EXIT int = 60
 
-var __argv__ []*uint8 // C argv
+var argc int
+var argv **uint8
+
+type argvSlice struct {
+	ptr **uint8
+	len int
+	cap int
+}
+
+func args(c int, v **uint8) {
+	argc = c
+	argv = v
+}
 
 // Environment variables
 var envp uintptr
@@ -87,11 +99,18 @@ func cstring2string(b *uint8) string {
 	return string(buf)
 }
 
+
 // create os.Args
 func runtime_args() []string {
+	var c_style_args []*uint8 // C-style args
+	p := (*argvSlice)(unsafe.Pointer(&c_style_args))
+	p.cap = argc
+	p.len = argc
+	p.ptr = argv
+
 	var a *uint8
 	var r []string
-	for _, a = range __argv__ {
+	for _, a = range c_style_args {
 		var s string = cstring2string(a)
 		r = append(r, s)
 	}
