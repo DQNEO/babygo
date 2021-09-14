@@ -58,7 +58,7 @@ runtime.Write:
   pushq %rdi
   pushq %rax
   pushq $1  # sys_write
-  callq syscall.Syscall
+  callq runtime.Syscall
   addq $8 * 4, %rsp # reset args area
   popq %rax # retval
   movq %rax, 32(%rsp) # r0 int
@@ -73,7 +73,7 @@ runtime.printstring:
   pushq %rdi
   pushq $2 # stderr
   pushq $1 # sys_write
-  callq syscall.Syscall
+  callq runtime.Syscall
   addq $8 * 4, %rsp
   popq %rax # retval
   ret
