@@ -1,17 +1,6 @@
 # runtime.s
 .text
 
-# shortcut entrypoint to simplify linker invocation
-.global _start
-_start:
-  jmp _rt0_amd64_linux
-
-# Start of the program
-# (runtime/rt0_linux_amd64.s)
-.global _rt0_amd64_linux
-_rt0_amd64_linux:
-  jmp _rt0_amd64
-
 # (runtime/asm_amd64.s)
 _rt0_amd64:
   movq 0(%rsp), %rdi # argc
