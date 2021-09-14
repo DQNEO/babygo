@@ -3,8 +3,11 @@
 runtime.rt0_go:
   movq %rdi, %rax # argc
   movq %rsi, %rbx # argv
-  pushq %rbx # argv
-  pushq %rax # argc
+
+
+  subq $16, %rsp
+  movq %rbx, 8(%rsp) # argv
+  movq %rax, 0(%rsp) # argc
   callq runtime.args
   addq $16, %rsp
 
