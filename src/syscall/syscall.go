@@ -8,8 +8,6 @@ const SYS_OPEN uintptr = 2
 const SYS_CLOSE uintptr = 3
 const SYS_GETDENTS64 uintptr = 217
 
-type error interface{}
-
 func Read(fd int, buf []byte) (uintptr, error) {
 	p := &buf[0]
 	_cap := cap(buf)
@@ -27,7 +25,7 @@ func Open(path string, mode int, perm int) (uintptr, error) {
 	return fd, nil
 }
 
-func Close(fd int) interface{} {
+func Close(fd int) error {
 	Syscall(SYS_CLOSE, uintptr(fd), 0, 0)
 	return nil
 }
@@ -44,7 +42,7 @@ func Getdents(fd int, buf []byte) (int, error) {
 	var _p0 unsafe.Pointer
 	_p0 = unsafe.Pointer(&buf[0])
 	nread := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
-	return int(nread), 0
+	return int(nread), nil
 }
 
 func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr

@@ -16,8 +16,6 @@ type File struct {
 
 const O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
 
-type error interface {}
-
 func Create(name string) (*File, error) {
 	var fd int
 	fd, _ = syscall.Open(name, O_CREATE_WRITE, 438)

@@ -2882,6 +2882,8 @@ func serializeType(t *Type) string {
 				return "uint16"
 			case gBool:
 				return "bool"
+			case gError:
+				return "error"
 			default:
 				// named type
 				decl := e.Obj.Decl
@@ -2937,8 +2939,13 @@ func getUnderlyingType(t *Type) *Type {
 		return t
 	case *ast.Ident:
 		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ : "+e.Obj.Name, __func__)
-		if isPredeclaredType(e.Obj) {
+		switch e.Obj {
+		case gUintptr, gInt, gInt32, gString, gUint8, gUint16, gBool:
 			return t
+		case gError:
+			return e2t(&ast.InterfaceType{
+				Methods: nil, //  @FIXME
+			})
 		}
 		// defined type or alias
 		typeSpec := e.Obj.Decl.(*ast.TypeSpec)
@@ -2981,6 +2988,8 @@ func kind(t *Type) TypeKind {
 			return T_UINT16
 		case gBool:
 			return T_BOOL
+		case gError:
+			return T_INTERFACE
 		default:
 			panic("Unexpected type")
 		}
@@ -3913,6 +3922,11 @@ var gUint16 = &ast.Object{
 	Name: "uint16",
 }
 
+var gError = &ast.Object{
+	Kind: ast.Typ,
+	Name: "error",
+}
+
 var gNew = &ast.Object{
 	Kind: ast.Fun,
 	Name: "new",
@@ -3993,19 +4007,12 @@ var tString *Type = &Type{
 	},
 }
 
+
 var tEface *Type = &Type{
 	E: &ast.InterfaceType{},
 }
 
 var generalSlice ast.Expr = &ast.Ident{}
-
-func isPredeclaredType(obj *ast.Object) bool {
-	switch obj {
-	case gUintptr, gInt, gInt32, gString, gUint8, gUint16, gBool:
-		return true
-	}
-	return false
-}
 
 func createUniverse() *ast.Scope {
 	universe := ast.NewScope(nil)
@@ -4014,7 +4021,7 @@ func createUniverse() *ast.Scope {
 		// constants
 		gTrue, gFalse,
 		// types
-		gString, gUintptr, gBool, gInt, gUint8, gUint16,
+		gString, gUintptr, gBool, gInt, gUint8, gUint16, gError,
 		// funcs
 		gNew, gMake, gAppend, gLen, gCap, gPanic, gDelete,
 	}
