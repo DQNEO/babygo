@@ -16,7 +16,9 @@ type File struct {
 
 const O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
 
-func Create(name string) (*File, interface{}) {
+type error interface {}
+
+func Create(name string) (*File, error) {
 	var fd int
 	fd, _ = syscall.Open(name, O_CREATE_WRITE, 438)
 	if fd < 0 {
@@ -28,11 +30,12 @@ func Create(name string) (*File, interface{}) {
 	return f, nil
 }
 
-func (f *File) Close() {
-	syscall.Close(f.fd)
+func (f *File) Close() error {
+	err := syscall.Close(f.fd)
+	return err
 }
 
-func (f *File) Write(p []byte) (int, interface{}) {
+func (f *File) Write(p []byte) (int, error) {
 	syscall.Write(f.fd, p)
 	return 0, nil
 }

@@ -8,38 +8,39 @@ const SYS_OPEN uintptr = 2
 const SYS_CLOSE uintptr = 3
 const SYS_GETDENTS64 uintptr = 217
 
-func Read(fd int, buf []byte) (uintptr, int) {
+type error interface{}
+
+func Read(fd int, buf []byte) (uintptr, error) {
 	p := &buf[0]
 	_cap := cap(buf)
 	var ret uintptr
 	ret = Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_cap))
-	return ret, 0
+	return ret, nil
 }
 
-func Open(path string, mode int, perm int) (uintptr, int) {
+func Open(path string, mode int, perm int) (uintptr, error) {
 	buf := []byte(path)
 	buf = append(buf, 0) // add null terminator
 	p := &buf[0]
 	var fd uintptr
 	fd = Syscall(SYS_OPEN, uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(perm))
-	return fd, 0
+	return fd, nil
 }
 
-func Close(fd int) uintptr {
-	var e uintptr
-	e = Syscall(SYS_CLOSE, uintptr(fd), 0, 0)
-	return e
+func Close(fd int) interface{} {
+	Syscall(SYS_CLOSE, uintptr(fd), 0, 0)
+	return nil
 }
 
-func Write(fd int, buf []byte) (uintptr, int) {
+func Write(fd int, buf []byte) (uintptr, error) {
 	p := &buf[0]
 	_len := len(buf)
 	var ret uintptr
 	ret = Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_len))
-	return ret, 0
+	return ret, nil
 }
 
-func Getdents(fd int, buf []byte) (int, int) {
+func Getdents(fd int, buf []byte) (int, error) {
 	var _p0 unsafe.Pointer
 	_p0 = unsafe.Pointer(&buf[0])
 	nread := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
