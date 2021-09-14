@@ -4,12 +4,16 @@ runtime.rt0_go:
   movq %rdi, %rax # argc
   movq %rsi, %rbx # argv
 
+  subq $32, %rsp
+  movq %rax, 16(%rsp) # argc
+  movq %rbx, 24(%rsp) # argv
 
-  subq $16, %rsp
-  movq %rbx, 8(%rsp) # argv
-  movq %rax, 0(%rsp) # argc
+  movq 16(%rsp), %rax  # copy argc
+  movq %rax, 0(%rsp)
+  movq 24(%rsp), %rbx  # copy argv
+  movq %rbx, 8(%rsp)
   callq runtime.args
-  addq $16, %rsp
+  addq $32, %rsp
 
   movq %rdi, %rax # argc
   imulq $8,  %rax # argc * 8
