@@ -15,6 +15,11 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testPrint() {
+	syscall.Write(1, []uint8("syscall.Write"))
+	fmt.Printf("test printf\n")
+}
+
 var gmp map[string]string = make(map[string]string)
 
 func testMapForrange() {
@@ -2200,6 +2205,7 @@ func testMisc() {
 }
 
 func main() {
+	testPrint()
 	testMapForrange()
 	testGlobalMapOK()
 	testMapOK()
