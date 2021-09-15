@@ -30,10 +30,10 @@ runtime.rt0_go:
   leaq main.main(%rip), %rax
   movq %rax, runtime.main_main(%rip)
 
-  callq runtime.heapInit
-
   callq runtime.__initGlobals
-  callq runtime.envInit
+
+
+  callq runtime.schedinit
 
   callq main.__initGlobals
 

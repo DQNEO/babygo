@@ -21,9 +21,17 @@ type argvSlice struct {
 	cap int
 }
 
+var argslice []string
+
 func args(c int, v **uint8) {
 	argc = c
 	argv = v
+}
+
+func schedinit() {
+	heapInit()
+	goargs()
+	envInit()
 }
 
 func main()
@@ -106,8 +114,7 @@ func cstring2string(b *uint8) string {
 }
 
 
-// create os.Args
-func runtime_args() []string {
+func goargs() {
 	var c_style_args []*uint8 // C-style args
 	p := (*argvSlice)(unsafe.Pointer(&c_style_args))
 	p.cap = argc
@@ -115,13 +122,16 @@ func runtime_args() []string {
 	p.ptr = argv
 
 	var a *uint8
-	var r []string
 	for _, a = range c_style_args {
 		var s string = cstring2string(a)
-		r = append(r, s)
+		argslice = append(argslice, s)
 	}
 
-	return r
+}
+
+// This func has an alias in os package
+func runtime_args() []string {
+	return argslice
 }
 
 func brk(addr uintptr) uintptr {
