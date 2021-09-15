@@ -15,18 +15,23 @@ const SYS_EXIT int = 60
 var argc int
 var argv **uint8
 
-type argvSlice struct {
-	ptr **uint8
-	len int
-	cap int
+func argv_index(argv **uint8, i int) *uint8 {
+	return *(**uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(argv)) + uintptr(i)*8))
 }
-
-var argslice []string
 
 func args(c int, v **uint8) {
 	argc = c
 	argv = v
 }
+
+func goargs() {
+	argslice = make([]string, argc, argc)
+	for i := 0; i < argc; i++ {
+		argslice[i] = cstring2string(argv_index(argv, i))
+	}
+}
+
+var argslice []string
 
 func schedinit() {
 	heapInit()
@@ -113,21 +118,6 @@ func cstring2string(b *uint8) string {
 	return string(buf)
 }
 
-
-func goargs() {
-	var c_style_args []*uint8 // C-style args
-	p := (*argvSlice)(unsafe.Pointer(&c_style_args))
-	p.cap = argc
-	p.len = argc
-	p.ptr = argv
-
-	var a *uint8
-	for _, a = range c_style_args {
-		var s string = cstring2string(a)
-		argslice = append(argslice, s)
-	}
-
-}
 
 // This func has an alias in os package
 func runtime_args() []string {
