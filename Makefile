@@ -18,7 +18,7 @@ $(tmp)/pre: pre/*.go lib/*/* $(tmp)
 	go build -o $@ ./pre
 
 $(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
-	go build -o $@ ./
+	go build -o $@ .
 
 $(tmp)/pre-test.d: $(tmp)/pre t/*.go src/*/*
 	./compile $< $@ t/*.go
