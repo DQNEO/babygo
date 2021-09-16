@@ -159,8 +159,11 @@ func emitLoadAndPush(t *Type) {
 	case T_UINT16:
 		printf("  movzwq %d(%%rax), %%rax # load uint16\n", 0)
 		printf("  pushq %%rax\n")
-	case T_INT, T_BOOL, T_UINTPTR, T_POINTER, T_MAP:
-		printf("  movq %d(%%rax), %%rax # load 64\n", 0)
+	case T_INT, T_BOOL:
+		printf("  movq %d(%%rax), %%rax # load 64 bit\n", 0)
+		printf("  pushq %%rax\n")
+	case T_UINTPTR, T_POINTER, T_MAP:
+		printf("  movq %d(%%rax), %%rax # load 64 bit pointer\n", 0)
 		printf("  pushq %%rax\n")
 	case T_ARRAY, T_STRUCT:
 		// pure proxy
@@ -362,8 +365,10 @@ func emitZeroValue(t *Type) {
 	case T_INTERFACE:
 		printf("  pushq $0 # interface data\n")
 		printf("  pushq $0 # interface dtype\n")
-	case T_INT, T_UINTPTR, T_UINT8, T_POINTER, T_BOOL, T_MAP:
-		printf("  pushq $0 # %s zero value\n", string(kind(t)))
+	case T_INT, T_UINT8, T_BOOL:
+		printf("  pushq $0 # %s zero value (number)\n", string(kind(t)))
+	case T_UINTPTR, T_POINTER, T_MAP:
+		printf("  pushq $0 # %s zero value (nil pointer)\n", string(kind(t)))
 	case T_STRUCT:
 		structSize := getSizeOfType(t)
 		emitComment(2, "zero value of a struct. size=%d (allocating on heap)\n", structSize)
@@ -1622,7 +1627,9 @@ func emitPop(knd TypeKind) {
 		emitPopString()
 	case T_INTERFACE:
 		emitPopInterFace()
-	case T_INT, T_BOOL, T_UINTPTR, T_POINTER, T_MAP:
+	case T_INT, T_BOOL:
+		emitPopPrimitive(string(knd))
+	case T_UINTPTR, T_POINTER, T_MAP:
 		emitPopPrimitive(string(knd))
 	case T_UINT16:
 		emitPopPrimitive(string(knd))
@@ -1667,8 +1674,10 @@ func emitRegiToMem(t *Type) {
 	case T_INTERFACE:
 		printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0)
 		printf("  movq %%rcx, %d(%%rsi) # store data\n", 8)
-	case T_INT, T_BOOL, T_UINTPTR, T_POINTER, T_MAP:
-		printf("  movq %%rax, %d(%%rsi) # assign\n", 0)
+	case T_INT, T_BOOL:
+		printf("  movq %%rax, %d(%%rsi) # assign quad\n", 0)
+	case T_UINTPTR, T_POINTER, T_MAP:
+		printf("  movq %%rax, %d(%%rsi) # assign ptr\n", 0)
 	case T_UINT16:
 		printf("  movw %%ax, %d(%%rsi) # assign word\n", 0)
 	case T_UINT8:
