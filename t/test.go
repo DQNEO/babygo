@@ -15,6 +15,16 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+
+func testFuncValue() {
+	var f func()
+	f = testPrint
+	f()
+	var sum func(a int, b int) int = mylib.Sum
+	var sm = sum(2, 3)
+	fmt.Printf("sum=%d\n", sm)
+}
+
 func testPrint() {
 	syscall.Write(1, []uint8("syscall.Write"))
 	fmt.Printf("test printf\n")
@@ -2205,6 +2215,7 @@ func testMisc() {
 }
 
 func main() {
+	testFuncValue()
 	testPrint()
 	testMapForrange()
 	testGlobalMapOK()

@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	//	"syscall"
 	"unsafe"
 
 	"go/ast"
@@ -15,6 +14,7 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 
 	"github.com/DQNEO/babygo/lib/fmt"
+	//"fmt"
 )
 
 var ProgName string = "pre"
@@ -164,7 +164,7 @@ func emitLoadAndPush(t *Type) {
 	case T_INT, T_BOOL:
 		printf("  movq %d(%%rax), %%rax # load 64 bit\n", 0)
 		printf("  pushq %%rax\n")
-	case T_UINTPTR, T_POINTER, T_MAP:
+	case T_UINTPTR, T_POINTER, T_MAP, T_FUNC:
 		printf("  movq %d(%%rax), %%rax # load 64 bit pointer\n", 0)
 		printf("  pushq %%rax\n")
 	case T_ARRAY, T_STRUCT:
@@ -178,6 +178,11 @@ func emitLoadAndPush(t *Type) {
 func emitVariable(variable *Variable) {
 	emitVariableAddr(variable)
 	emitLoadAndPush(variable.Typ)
+}
+
+func emitFuncAddr(funcQI QualifiedIdent) {
+	printf("  leaq %s(%%rip), %%rax # func addr\n", string(funcQI))
+	printf("  pushq %%rax # func addr\n")
 }
 
 func emitVariableAddr(variable *Variable) {
@@ -217,9 +222,20 @@ func emitAddr(expr ast.Expr) {
 		if e.Obj == nil {
 			panic("ident.Obj is nil: " + e.Name)
 		}
-		assert(e.Obj.Kind == ast.Var, "should be ast.Var", __func__)
-		vr := e.Obj.Data.(*Variable)
-		emitVariableAddr(vr)
+		switch e.Obj.Kind {
+		case ast.Var:
+			if e.Obj.Data == nil {
+				panic(fmt.Sprintf("%#v", e.Obj))
+			}
+			assert(e.Obj.Data != nil, "Obj.Data is nil: " + e.Name, __func__)
+			vr := e.Obj.Data.(*Variable)
+			emitVariableAddr(vr)
+		case ast.Fun:
+			qi := newQI(currentPkg.name, e.Obj.Name)
+			emitFuncAddr(qi)
+		default:
+			panic("Unexpected kind")
+		}
 	case *ast.IndexExpr:
 		list := e.X
 		if kind(getTypeOfExpr(list)) == T_MAP {
@@ -369,7 +385,7 @@ func emitZeroValue(t *Type) {
 		printf("  pushq $0 # interface dtype\n")
 	case T_INT, T_UINT8, T_BOOL:
 		printf("  pushq $0 # %s zero value (number)\n", string(kind(t)))
-	case T_UINTPTR, T_POINTER, T_MAP:
+	case T_UINTPTR, T_POINTER, T_MAP, T_FUNC:
 		printf("  pushq $0 # %s zero value (nil pointer)\n", string(kind(t)))
 	case T_STRUCT:
 		structSize := getSizeOfType(t)
@@ -574,8 +590,8 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 }
 
 // see "ABI of stack layout" in the emitFuncall comment
-func emitCall(symbol string, args []*Arg, resultList *ast.FieldList) {
-	emitComment(2, "emitArgs len=%d\n", len(args))
+func emitCall(fn interface{}, args []*Arg, resultList *ast.FieldList) {
+	emitComment(2, "emitCall len(args)=%d\n", len(args))
 
 	var totalParamSize int
 	for _, arg := range args {
@@ -597,7 +613,7 @@ func emitCall(symbol string, args []*Arg, resultList *ast.FieldList) {
 		emitRegiToMem(paramType)
 	}
 
-	emitCallQ(symbol, totalParamSize, resultList)
+	emitCallQ(fn, totalParamSize, resultList)
 }
 
 func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
@@ -620,8 +636,18 @@ func emitCallFF(ff *ForeignFunc) {
 	emitCallQ(ff.symbol, totalParamSize, ff.decl.Type.Results)
 }
 
-func emitCallQ(symbol string, totalParamSize int, resultList *ast.FieldList) {
-	printf("  callq %s\n", symbol)
+func emitCallQ(fn interface{}, totalParamSize int, resultList *ast.FieldList) {
+	switch f := fn.(type){
+	case string:
+		symbol := f
+		printf("  callq %s\n", symbol)
+	case *ast.Ident:
+		emitExpr(f, nil)
+		printf("  popq %%rax\n")
+		printf("  callq *%%rax\n")
+	default:
+		throw(fn)
+	}
 	emitFreeParametersArea(totalParamSize)
 	printf("#  totalReturnSize=%d\n", getTotalFieldsSize(resultList))
 	emitFreeAndPushReturnedValue(resultList)
@@ -700,8 +726,9 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 //   r
 //   --
 func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
+	emitComment(2, "[emitFuncall] %T(...)\n", fun)
 	var funcType *ast.FuncType
-	var symbol string
+	var funcVal interface{}
 	var receiver ast.Expr
 	switch fn := fun.(type) {
 	case *ast.Ident:
@@ -823,15 +850,15 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			emitCall(symbol, args, resultList)
 			return
 		case gPanic:
-			symbol = "runtime.panic"
+			funcVal = "runtime.panic"
 			_args := []*Arg{&Arg{
 				e:         eArgs[0],
 				paramType: tEface,
 			}}
-			emitCall(symbol, _args, nil)
+			emitCall(funcVal, _args, nil)
 			return
 		case gDelete:
-			symbol = "runtime.deleteMap"
+			funcVal = "runtime.deleteMap"
 			_args := []*Arg{
 				&Arg{
 					e:         eArgs[0],
@@ -842,7 +869,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 					paramType: tEface,
 				},
 			}
-			emitCall(symbol, _args, nil)
+			emitCall(funcVal, _args, nil)
 			return
 		}
 
@@ -850,20 +877,38 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			fn.Name = "makeSlice"
 		}
 		// general function call
-		symbol = getPackageSymbol(currentPkg.name, fn.Name)
+		funcVal = getPackageSymbol(currentPkg.name, fn.Name)
 		if currentPkg.name == "os" && fn.Name == "runtime_args" {
-			symbol = "runtime.runtime_args"
+			funcVal = "runtime.runtime_args"
 		} else if currentPkg.name == "os" && fn.Name == "runtime_getenv" {
-			symbol = "runtime.runtime_getenv"
+			funcVal = "runtime.runtime_getenv"
 		}
 
-		fndecl := fn.Obj.Decl.(*ast.FuncDecl)
-		funcType = fndecl.Type
+		switch dcl := fn.Obj.Decl.(type) {
+		case *ast.FuncDecl:
+			funcType =  dcl.Type
+		case *ast.ValueSpec: // var f func()
+			funcType =  dcl.Type.(*ast.FuncType)
+			funcVal = fun
+		case *ast.AssignStmt: //  f := anotherF
+			rhs := dcl.Rhs[0]
+			switch r := rhs.(type) {
+			case *ast.SelectorExpr:
+				assert(isQI(r), "expect QI", __func__)
+				ff := lookupForeignFunc(selector2QI(r))
+				funcType = ff.decl.Type
+				funcVal = fun
+			default:
+				throw(r)
+			}
+		default:
+			throw(dcl)
+		}
 	case *ast.SelectorExpr:
 		if isQI(fn) {
 			// pkg.Sel()
 			qi := selector2QI(fn)
-			symbol = string(qi)
+			funcVal = string(qi)
 			ff := lookupForeignFunc(qi)
 			funcType = ff.decl.Type
 		} else {
@@ -872,7 +917,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			receiverType := getTypeOfExpr(receiver)
 			method := lookupMethod(receiverType, fn.Sel)
 			funcType = method.FuncType
-			symbol = getMethodSymbol(method)
+			funcVal = getMethodSymbol(method)
 
 			if kind(receiverType) == T_POINTER {
 				if method.IsPtrMethod {
@@ -901,7 +946,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 	}
 
 	args := prepareArgs(funcType, receiver, eArgs, hasEllissis)
-	emitCall(symbol, args, funcType.Results)
+	emitCall(funcVal, args, funcType.Results)
 }
 
 func emitNil(targetType *Type) {
@@ -946,8 +991,10 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 			emitLoadAndPush(getTypeOfExpr(e))
 		case ast.Con:
 			emitNamedConst(e, ctx)
+		case ast.Fun:
+			emitAddr(e)
 		default:
-			panic("Unexpected ident kind:")
+			panic("Unexpected ident kind:" + e.Obj.Kind.String())
 		}
 	}
 	return false
@@ -973,8 +1020,13 @@ func emitStarExpr(e *ast.StarExpr, ctx *evalContext) {
 func emitSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 	// pkg.Ident or strct.field
 	if isQI(e) {
-		ident := lookupForeignIdent(selector2QI(e))
-		emitExpr(ident, ctx)
+		qi := selector2QI(e)
+		ident := lookupForeignIdent(qi)
+		if ident.Obj.Kind == ast.Fun {
+			emitFuncAddr(qi)
+		} else {
+			emitExpr(ident, ctx)
+		}
 	} else {
 		// strct.field
 		emitAddr(e)
@@ -987,8 +1039,10 @@ func emitCallExpr(e *ast.CallExpr, ctx *evalContext) {
 	var fun = e.Fun
 	// check if it's a conversion
 	if isType(fun) {
+		emitComment(2, "[emitCallExpr] Conversion\n")
 		emitConversion(e2t(fun), e.Args[0])
 	} else {
+		emitComment(2, "[emitCallExpr] Funcall\n")
 		emitFuncall(fun, e.Args, e.Ellipsis != token.NoPos)
 	}
 }
@@ -1631,7 +1685,7 @@ func emitPop(knd TypeKind) {
 		emitPopInterFace()
 	case T_INT, T_BOOL:
 		emitPopPrimitive(string(knd))
-	case T_UINTPTR, T_POINTER, T_MAP:
+	case T_UINTPTR, T_POINTER, T_MAP, T_FUNC:
 		emitPopPrimitive(string(knd))
 	case T_UINT16:
 		emitPopPrimitive(string(knd))
@@ -1678,7 +1732,7 @@ func emitRegiToMem(t *Type) {
 		printf("  movq %%rcx, %d(%%rsi) # store data\n", 8)
 	case T_INT, T_BOOL:
 		printf("  movq %%rax, %d(%%rsi) # assign quad\n", 0)
-	case T_UINTPTR, T_POINTER, T_MAP:
+	case T_UINTPTR, T_POINTER, T_MAP, T_FUNC:
 		printf("  movq %%rax, %d(%%rsi) # assign ptr\n", 0)
 	case T_UINT16:
 		printf("  movw %%ax, %d(%%rsi) # assign word\n", 0)
@@ -2633,6 +2687,7 @@ type TypeKind string
 
 const T_STRING TypeKind = "T_STRING"
 const T_INTERFACE TypeKind = "T_INTERFACE"
+const T_FUNC TypeKind = "T_FUNC"
 const T_SLICE TypeKind = "T_SLICE"
 const T_BOOL TypeKind = "T_BOOL"
 const T_INT TypeKind = "T_INT"
@@ -2684,8 +2739,10 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 					panic("cannot decide type of cont =" + e.Obj.Name)
 				}
 			}
+		case ast.Fun:
+			return e2t(e.Obj.Decl.(*ast.FuncDecl).Type)
 		default:
-			panic("Obj=" + e.Obj.Name + e.Obj.Kind.String())
+			panic("Obj=" + e.Obj.Name + ", Kind=" +  e.Obj.Kind.String())
 		}
 	case *ast.BasicLit:
 		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
@@ -2798,6 +2855,21 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			throw(fn)
 		}
 		switch fn.Obj.Kind {
+		case ast.Var:
+			switch dcl := fn.Obj.Decl.(type) {
+			case *ast.AssignStmt: // short var decl
+				rhs := dcl.Rhs[0]
+				switch r := rhs.(type) {
+				case *ast.SelectorExpr:
+					assert(isQI(r), "expect QI", __func__)
+					ff := lookupForeignFunc(selector2QI(r))
+					return fieldList2Types(ff.decl.Type.Results)
+				}
+			case *ast.ValueSpec: // var v func(T1)T2
+				return fieldList2Types(dcl.Type.(*ast.FuncType).Results)
+			default:
+				throw(dcl)
+			}
 		case ast.Typ: // conversion
 			return []*Type{e2t(fn)}
 		case ast.Fun:
@@ -2965,8 +3037,11 @@ func getUnderlyingType(t *Type) *Type {
 		return getUnderlyingType(e2t(ident))
 	case *ast.ParenExpr:
 		return getUnderlyingType(e2t(e.X))
+	case *ast.FuncType:
+		return t
 	}
-	panic("should not reach here")
+	throw(t.E)
+	return nil
 }
 
 func kind(t *Type) TypeKind {
@@ -3018,6 +3093,8 @@ func kind(t *Type) TypeKind {
 		return T_MAP
 	case *ast.InterfaceType:
 		return T_INTERFACE
+	case *ast.FuncType:
+		return T_FUNC
 	}
 	panic("should not reach here")
 }
@@ -3096,6 +3173,8 @@ func getSizeOfType(t *Type) int {
 		return elmSize * evalInt(arrayType.Len)
 	case T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(ut.E.(*ast.StructType))
+	case T_FUNC:
+		return SizeOfPtr
 	default:
 		unexpectedKind(kind(t))
 	}
@@ -4514,7 +4593,7 @@ func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
 }
 
 func throw(x interface{}) {
-	panic(x)
+	panic(fmt.Sprintf("%#v",x))
 }
 
 // tweak to reduce diff with main.go

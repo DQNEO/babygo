@@ -259,6 +259,8 @@ func (p *parser) tryIdentOrType() ast.Expr {
 		return (&ast.InterfaceType{
 			Methods: nil,
 		})
+	case "func":
+		return p.parseFuncType()
 	case "(":
 		p.next()
 		var _typ = p.parseType()
@@ -1235,6 +1237,19 @@ func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
 	declare(spec, p.topScope, kind, ident)
 	logf(" [parserValueSpec] end\n")
 	return spec
+}
+
+func (p *parser) parseFuncType() ast.Expr {
+	p.next()
+	var scope = ast.NewScope(p.topScope) // function scope
+	var sig = p.parseSignature(scope)
+	var params = sig.Params
+	var results = sig.Results
+	ft := &ast.FuncType{
+		Params: params,
+		Results: results,
+	}
+	return ft
 }
 
 func (p *parser) parseFuncDecl() ast.Decl {
