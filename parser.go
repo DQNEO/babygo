@@ -291,7 +291,6 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 			break
 		}
 	}
-	logf(" [%s] collected list n=%s\n", __func__, strconv.Itoa(len(list)))
 
 	var params []*ast.Field
 
@@ -342,7 +341,6 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 		params[i] = &ast.Field{
 			Type: typ,
 		}
-		logf(" [DEBUG] range i = %s\n", strconv.Itoa(i))
 	}
 	logf("  end %s\n", __func__)
 	return params
@@ -418,7 +416,6 @@ func declareField(decl *ast.Field, scope *ast.Scope, kind ast.ObjKind, ident *as
 }
 
 func declare(decl interface{}, scope *ast.Scope, kind ast.ObjKind, ident *ast.Ident) {
-	logf(" [declare] ident %s\n", ident.Name)
 
 	//valSpec.Name.Obj
 	var obj = &ast.Object{
@@ -432,7 +429,6 @@ func declare(decl interface{}, scope *ast.Scope, kind ast.ObjKind, ident *ast.Id
 	if ident.Name != "_" {
 		scope.Insert(obj)
 	}
-	logf(" [declare] end\n")
 
 }
 
@@ -459,7 +455,6 @@ func (p *parser) tryResolve(x ast.Expr, collectUnresolved bool) {
 
 	if collectUnresolved {
 		p.unresolved = append(p.unresolved, ident)
-		logf(" appended unresolved ident %s\n", ident.Name)
 	}
 }
 
@@ -570,11 +565,8 @@ func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
 				}
 				if p.tok.tok == "(" {
 					var fn = (sel)
-					// string = x.ident.Name + "." + secondIdent
 					x = p.parseCallExpr(fn)
-					logf(" [parsePrimaryExpr] 741 p.tok.tok=%s\n", p.tok.tok)
 				} else {
-					logf("   end parsePrimaryExpr()\n")
 					x = (sel)
 				}
 			case "(": // type assertion
@@ -717,7 +709,6 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 
 func (p *parser) parseUnaryExpr(lhs bool) ast.Expr {
 	var r ast.Expr
-	logf("   begin parseUnaryExpr()\n")
 	switch p.tok.tok {
 	case "+", "-", "!", "&":
 		var tok = p.tok.tok
@@ -767,8 +758,6 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 	for {
 		var op = p.tok.tok
 		oprec = precedence(op)
-		logf(" oprec %s\n", strconv.Itoa(oprec))
-		logf(" precedence \"%s\" %s < %s\n", op, strconv.Itoa(oprec), strconv.Itoa(prec1))
 		if oprec < prec1 {
 			logf("   end parseBinaryExpr() (NonBinary)\n")
 			return x
@@ -1381,24 +1370,16 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 
 	p.topScope = nil
 
-	// dump p.pkgScope
-	logf("[DEBUG] Dump objects in the package scope\n")
-
 	var unresolved []*ast.Ident
-	logf(" [parserFile] resolving parser's unresolved (n=%s)\n", strconv.Itoa(len(p.unresolved)))
 	for _, idnt := range p.unresolved {
-		logf(" [parserFile] resolving ident %s ...\n", idnt.Name)
 		ps := p.pkgScope
 		var obj *ast.Object = ps.Lookup(idnt.Name)
 		if obj != nil {
-			logf(" resolved \n")
 			idnt.Obj = obj
 		} else {
-			logf(" unresolved \n")
 			unresolved = append(unresolved, idnt)
 		}
 	}
-	logf(" [parserFile] Unresolved (n=%s)\n", strconv.Itoa(len(unresolved)))
 
 	var f = &ast.File{}
 	f.Name = packageName
@@ -1406,7 +1387,6 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 	f.Decls = decls
 	f.Unresolved = unresolved
 	f.Imports = p.imports
-	logf(" [%s] end\n", __func__)
 	return f
 }
 
@@ -1418,6 +1398,7 @@ func readSource(filename string) ([]uint8) {
 const parserImportsOnly = 1
 
 func parserParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8) (*ast.File, *ParserError) {
+	logf("[parserParseFile] Start file %s\n", filename)
 	var importsOnly bool
 	if mode == parserImportsOnly {
 		importsOnly = true

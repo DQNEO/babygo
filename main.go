@@ -223,9 +223,6 @@ func emitAddr(expr ast.Expr) {
 		}
 		switch e.Obj.Kind {
 		case ast.Var:
-			if e.Obj.Data == nil {
-				panic(fmt.Sprintf("%#v", e.Obj))
-			}
 			assert(e.Obj.Data != nil, "Obj.Data is nil: " + e.Name, __func__)
 			vr := e.Obj.Data.(*Variable)
 			emitVariableAddr(vr)
@@ -889,7 +886,8 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 		case *ast.ValueSpec: // var f func()
 			funcType =  dcl.Type.(*ast.FuncType)
 			funcVal = fun
-		case *ast.AssignStmt: //  f := anotherF
+		case *ast.AssignStmt: // f := staticF
+			assert(fn.Obj.Data != nil, "funcvalue should be a variable:" + fn.Name, __func__)
 			rhs := dcl.Rhs[0]
 			switch r := rhs.(type) {
 			case *ast.SelectorExpr:
@@ -973,6 +971,7 @@ type evalContext struct {
 
 // 1 value
 func emitIdent(e *ast.Ident, ctx *evalContext) bool {
+	assert(e.Obj != nil, currentPkg.name + " ident.Obj should not be nil:" + e.Name, __func__)
 	switch e.Obj {
 	case gTrue: // true constant
 		emitTrue()
@@ -983,7 +982,6 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 		emitNil(ctx._type)
 		return true
 	default:
-		assert(e.Obj != nil, "should not be nil", __func__)
 		switch e.Obj.Kind {
 		case ast.Var:
 			emitAddr(e)
@@ -2419,18 +2417,6 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("# emitFuncDecl\n")
-	if len(fnc.Params) > 0 {
-		for i := 0; i < len(fnc.Params); i++ {
-			v := fnc.Params[i]
-			logf("  #       params %d %d \"%s\" %s\n", v.LocalOffset, getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
-		}
-	}
-	if len(fnc.Retvars) > 0 {
-		for i := 0; i < len(fnc.Retvars); i++ {
-			v := fnc.Retvars[i]
-			logf("  #       retvars %d %d \"%s\" %s\n", v.LocalOffset, getSizeOfType(v.Typ), v.Name, string(kind(v.Typ)))
-		}
-	}
 
 	var symbol string
 	if fnc.Method != nil {
@@ -2442,14 +2428,6 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("%s: # args %d, locals %d\n", symbol, fnc.Argsarea, fnc.Localarea)
 	printf("  pushq %%rbp\n")
 	printf("  movq %%rsp, %%rbp\n")
-	if len(fnc.LocalVars) > 0 {
-		for i := len(fnc.LocalVars) - 1; i >= 0; i-- {
-			v := fnc.LocalVars[i]
-			logf("  # -%d(%%rbp) local variable %d \"%s\"\n", -v.LocalOffset, getSizeOfType(v.Typ), v.Name)
-		}
-	}
-	logf("  #  0(%%rbp) previous rbp\n")
-	logf("  #  8(%%rbp) return address\n")
 
 	if fnc.Localarea != 0 {
 		printf("  subq $%d, %%rsp # local area\n", -fnc.Localarea)
@@ -3304,6 +3282,7 @@ func isQI(e *ast.SelectorExpr) bool {
 	if !isIdent {
 		return false
 	}
+	assert(ident.Obj != nil, "ident.Obj is nil:" + ident.Name, __func__)
 	return ident.Obj.Kind == ast.Pkg
 }
 
@@ -3392,7 +3371,6 @@ func walkDeclStmt(s *ast.DeclStmt) {
 			}
 			// infer type from rhs
 			val := spec.Values[0]
-			logf("inferring type of variable %s\n", spec.Names[0].Name)
 			typ := getTypeOfExpr(val)
 			if typ == nil || typ.E == nil {
 				panic("rhs should have a type")
@@ -3905,7 +3883,6 @@ func walk(pkg *PkgContainer) {
 			Argsarea:  16, // return address + previous rbp
 		}
 		currentFunc = fnc
-		logf("funcdef %s\n", funcDecl.Name.Name)
 
 		var paramFields []*ast.Field
 		var resultFields []*ast.Field
@@ -4153,7 +4130,6 @@ func resolveImports(file *ast.File) {
 				Kind: ast.Pkg,
 				Name: ident.Name,
 			}
-			logf("# resolved: %s\n", ident.Name)
 		}
 	}
 }
@@ -4186,7 +4162,6 @@ func getImportPathsFromFile(file string) []string {
 	var paths []string
 	for _, importSpec := range astFile0.Imports {
 		rawValue := importSpec.Path.Value
-		logf("import %s\n", rawValue)
 		pth := rawValue[1 : len(rawValue)-1]
 		paths = append(paths, pth)
 	}
@@ -4297,8 +4272,6 @@ func collectAllPackages(inputFiles []string) []string {
 func collectDirectDependents(inputFiles []string) map[string]bool {
 	importPaths := make(map[string]bool)
 	for _, inputFile := range inputFiles {
-		logf("input file: \"%s\"\n", inputFile)
-		logf("Parsing imports\n")
 		paths := getImportPathsFromFile(inputFile)
 		for _, pth := range paths {
 			importPaths[pth] = true
@@ -4311,7 +4284,6 @@ func collectSourceFiles(pkgDir string) []string {
 	fnames := findFilesInDir(pkgDir)
 	var files []string
 	for _, fname := range fnames {
-		logf("fname: %s\n", fname)
 		srcFile := pkgDir + "/" + fname
 		files = append(files, srcFile)
 	}
@@ -4361,14 +4333,12 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 			if obj != nil {
 				ident.Obj = obj
 			} else {
-				logf("# unresolved: %s\n", ident.Name)
 				obj := universe.Lookup(ident.Name)
 				if obj != nil {
 					ident.Obj = obj
 				} else {
 					// we should allow unresolved for now.
 					// e.g foo in X{foo:bar,}
-					logf("Unresolved (maybe struct field name in composite literal): " + ident.Name)
 					unresolved = append(unresolved, ident)
 				}
 			}
@@ -4466,6 +4436,7 @@ func main() {
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
+	assert(obj.Kind == ast.Var, "obj is not  ast.Var", __func__)
 	if vr == nil {
 		obj.Data = nil
 	} else {
