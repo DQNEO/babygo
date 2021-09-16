@@ -53,13 +53,13 @@ func deleteFromMap(mp *Map, key interface{}) {
 		return
 	}
 	var prev *item
-	for item := mp.first; item != nil; item = item.next {
-		if item.match(key) {
-			prev.next = item.next
+	for itm := mp.first; itm != nil; itm = itm.next {
+		if itm.match(key) {
+			prev.next = itm.next
 			mp.length -= 1
 			return
 		}
-		prev = item
+		prev = itm
 	}
 }
 
