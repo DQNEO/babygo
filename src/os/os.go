@@ -3,7 +3,6 @@ package os
 import "syscall"
 
 const SYS_EXIT int = 60
-
 var Args []string
 
 var Stdin *File
@@ -14,6 +13,8 @@ type File struct {
 	fd int
 }
 
+const O_READONLY int = 0
+const FILE_SIZE int = 2000000
 const O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
 
 func Create(name string) (*File, error) {
@@ -36,6 +37,21 @@ func (f *File) Close() error {
 func (f *File) Write(p []byte) (int, error) {
 	syscall.Write(f.fd, p)
 	return 0, nil
+}
+
+func ReadFile(filename string) ([]uint8, error) {
+	// @TODO check error
+	var fd int
+	fd, _ = syscall.Open(filename, O_READONLY, 0)
+	if fd < 0 {
+		panic("syscall.Open failed: " + filename)
+	}
+	var buf = make([]uint8, FILE_SIZE, FILE_SIZE)
+	var n int
+	n, _ = syscall.Read(fd, buf)
+	syscall.Close(fd)
+	var readbytes = buf[0:n]
+	return readbytes, nil
 }
 
 func init() {

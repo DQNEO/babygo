@@ -5,28 +5,8 @@ import (
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
-	"syscall"
+	"os"
 )
-
-const O_READONLY int = 0
-const FILE_SIZE int = 2000000
-
-func readFile(filename string) []uint8 {
-	var fd int
-	logf("Opening %s\n", filename)
-	fd, _ = syscall.Open(filename, O_READONLY, 0)
-	if fd < 0 {
-		panic("syscall.Open failed: " + filename)
-	}
-	var buf = make([]uint8, FILE_SIZE, FILE_SIZE)
-	var n int
-	// @TODO check error
-	n, _ = syscall.Read(fd, buf)
-	logf("syscall.Read len=%s\n", strconv.Itoa(n))
-	syscall.Close(fd)
-	var readbytes = buf[0:n]
-	return readbytes
-}
 
 func (p *parser) init(src []uint8) {
 	var s = p.scanner
@@ -1390,8 +1370,9 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 	return f
 }
 
-func readSource(filename string) []uint8 {
-	return readFile(filename)
+func readSource(filename string) ([]uint8) {
+	buf , _ := os.ReadFile(filename)
+	return buf
 }
 
 const parserImportsOnly = 1
@@ -1402,7 +1383,7 @@ func parserParseFile(fset *token.FileSet, filename string, src interface{}, mode
 		importsOnly = true
 	}
 
-	var text = readSource(filename)
+	text := readSource(filename)
 
 	var p = &parser{}
 	p.scanner = &scanner{}

@@ -2578,7 +2578,10 @@ func generateCode(pkg *PkgContainer) {
 	for _, file := range pkg.files {
 		if strings.HasSuffix(file, ".s") {
 			printf("# === static assembly %s ====\n", file)
-			asmContents := readFile(file)
+			asmContents, err := os.ReadFile(file)
+			if err != nil {
+				panic(err)
+			}
 			printf("%s", string(asmContents))
 		}
 	}
