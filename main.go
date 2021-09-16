@@ -22,7 +22,7 @@ var __func__ = "__func__"
 
 func assert(bol bool, msg string, caller string) {
 	if !bol {
-		panic(caller + ": " + msg)
+		panic(currentPkg.name + ":" + caller + ": " + msg)
 	}
 }
 
