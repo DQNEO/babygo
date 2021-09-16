@@ -53,9 +53,9 @@ $(tmp)/bbg-test: $(tmp)/bbg-test.d
 # compare output of test0 and test1
 .PHONY: compare-test
 compare-test: $(tmp)/pre-test.d $(tmp)/bbg-test.d $(tmp)/bbg-bbg-test.d $(tmp)/pre-bbg-test.d
-	diff $(tmp)/pre-test.d/all $(tmp)/bbg-test.d/all
-	diff $(tmp)/bbg-test.d/all $(tmp)/pre-bbg-test.d/all
-	diff $(tmp)/bbg-test.d/all $(tmp)/bbg-bbg-test.d/all
+	diff -u $(tmp)/pre-test.d/all $(tmp)/bbg-test.d/all
+	diff -u $(tmp)/bbg-test.d/all $(tmp)/pre-bbg-test.d/all
+	diff -u $(tmp)/bbg-test.d/all $(tmp)/bbg-bbg-test.d/all
 
 .PHONY: test0
 test0: $(tmp)/pre-test t/expected.txt
