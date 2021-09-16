@@ -27,7 +27,6 @@ func (i *item) match(key interface{}) bool {
 	default:
 		panic("Not supported key type")
 	}
-	panic("Not supported key type")
 	return false
 }
 
