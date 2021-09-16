@@ -4007,7 +4007,6 @@ var tString *Type = &Type{
 	},
 }
 
-
 var tEface *Type = &Type{
 	E: &ast.InterfaceType{},
 }

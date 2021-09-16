@@ -4324,7 +4324,10 @@ func main() {
 	if workdir == "" {
 		workdir = "/tmp"
 	}
-	initAsm, _ := os.Create(workdir + "/a.s")
+	initAsm, err := os.Create(workdir + "/a.s")
+	if err != nil {
+		panic(err)
+	}
 	fout = initAsm
 	logf("Build start\n")
 
@@ -4355,13 +4358,17 @@ func main() {
 		name:  "main",
 		files: inputFiles,
 	})
+
 	var universe = createUniverse()
 	for _, _pkg := range packagesToBuild {
 		currentPkg = _pkg
 		if _pkg.name == "" {
 			panic("empty pkg name")
 		}
-		pgkAsm, _ := os.Create(fmt.Sprintf("%s/%s.s", workdir, _pkg.name))
+		pgkAsm, err := os.Create(fmt.Sprintf("%s/%s.s", workdir, _pkg.name))
+		if err != nil {
+			panic(err)
+		}
 		fout = pgkAsm
 		buildPackage(_pkg, universe)
 		pgkAsm.Close()
