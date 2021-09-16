@@ -25,6 +25,8 @@ func Sprintf(format string, a ...interface{}) string {
 				var sign uint8 = c
 				var str string
 				switch sign {
+				case '#':
+					// skip for now
 				case 's': // %s
 					switch _arg := arg.(type) {
 					case string: // ("%s", "xyz")
@@ -38,7 +40,7 @@ func Sprintf(format string, a ...interface{}) string {
 					for _, _c := range []uint8(str) {
 						r = append(r, _c)
 					}
-				case 'd': // %d
+				case 'd', 'p': // %d
 					switch _arg := arg.(type) {
 					case string: // ("%d", "xyz")
 						str = "%!d(string=" + _arg + ")" // %!d(string=xyz)
