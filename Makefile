@@ -6,7 +6,7 @@ all: test
 
 # test all
 .PHONY: test
-test: $(tmp) test0 test1 selfhost compare-test
+test: $(tmp) test0 test1 test2 selfhost #compare-test
 
 $(tmp):
 	mkdir -p $(tmp)
@@ -50,6 +50,9 @@ $(tmp)/pre-test: $(tmp)/pre-test.d
 $(tmp)/bbg-test: $(tmp)/bbg-test.d
 	./assemble_and_link $@ $<
 
+$(tmp)/bbg-bbg-test: $(tmp)/bbg-bbg-test.d
+	./assemble_and_link $@ $<
+
 # compare output of test0 and test1
 .PHONY: compare-test
 compare-test: $(tmp)/pre-test.d $(tmp)/bbg-test.d $(tmp)/bbg-bbg-test.d $(tmp)/pre-bbg-test.d
@@ -65,6 +68,9 @@ test0: $(tmp)/pre-test t/expected.txt
 test1: $(tmp)/bbg-test t/expected.txt
 	./test.sh $<
 
+.PHONY: test2
+test2: $(tmp)/bbg-bbg-test t/expected.txt
+	./test.sh $<
 
 $(tmp)/bbg-bbg-bbg.d: $(tmp)/bbg-bbg
 	./compile $< $(@) *.go
