@@ -1,3 +1,6 @@
+testTypeSwitchShortVar ok
+f001=1
+f001=1
 syscall.Writetest printf
 sum=5
 syscall.Writetest printf

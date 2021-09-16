@@ -21,6 +21,7 @@ type parser struct {
 	pkgScope   *ast.Scope
 	scanner    *scanner
 	imports    []*ast.ImportSpec
+	filename   string
 }
 
 func (p *parser) openScope() {
@@ -462,14 +463,15 @@ func (p *parser) tryResolve(x ast.Expr, collectUnresolved bool) {
 	}
 }
 
-func (p *parser) parseOperand() ast.Expr {
-	logf("   begin %s\n", __func__)
+func (p *parser) parseOperand(lhs bool) ast.Expr {
+	logf("   parseOperand lhs=%v %s\n", lhs, __func__)
 	switch p.tok.tok {
 	case "IDENT":
 		var ident = p.parseIdent()
 		var eIdent = (ident)
-		p.tryResolve(eIdent, true)
-		logf("   end %s\n", __func__)
+		if !lhs {
+			p.tryResolve(eIdent, true)
+		}
 		return eIdent
 	case "INT", "STRING", "CHAR":
 		var basicLit = &ast.BasicLit{
@@ -500,17 +502,17 @@ func (p *parser) parseOperand() ast.Expr {
 }
 
 func (p *parser) parseRhsOrType() ast.Expr {
-	var x = p.parseExpr()
+	var x = p.parseExpr(false)
 	return x
 }
 
 func (p *parser) parseCallExpr(fn ast.Expr) ast.Expr {
 	p.expect("(", __func__)
-	logf(" [parsePrimaryExpr] p.tok.tok=%s\n", p.tok.tok)
+	logf(" [parseCallExpr] p.tok.tok=%s\n", p.tok.tok)
 	var list []ast.Expr
 	var ellipsis token.Pos
 	for p.tok.tok != ")" {
-		var arg = p.parseExpr()
+		var arg = p.parseExpr(false)
 		list = append(list, arg)
 		if p.tok.tok == "," {
 			p.next()
@@ -538,9 +540,9 @@ func (p *parser) parseCallExpr(fn ast.Expr) ast.Expr {
 
 var parserExprLev int // < 0: in control clause, >= 0: in expression
 
-func (p *parser) parsePrimaryExpr() ast.Expr {
+func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
 	logf("   begin %s\n", __func__)
-	var x = p.parseOperand()
+	var x = p.parseOperand(lhs)
 
 	var cnt int
 
@@ -554,6 +556,9 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
 		switch p.tok.tok {
 		case ".":
 			p.next() // consume "."
+			if lhs {
+				p.resolve(x)
+			}
 
 			switch p.tok.tok {
 			case "IDENT":
@@ -578,6 +583,11 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
 				panic2(__func__, "Unexpected token:"+p.tok.tok)
 			}
 		case "(":
+			// a simpleStmt like x() is parsed in lhs=true mode.
+			// So we must resolve "x" here
+			if lhs {
+				p.resolve(x)
+			}
 			x = p.parseCallExpr(x)
 		case "[":
 			p.resolve(x)
@@ -609,12 +619,12 @@ func (p *parser) parseTypeAssertion(x ast.Expr) ast.Expr {
 }
 
 func (p *parser) parseElement() ast.Expr {
-	var x = p.parseExpr() // key or value
+	var x = p.parseExpr(false) // key or value
 	var v ast.Expr
 	var kvExpr *ast.KeyValueExpr
 	if p.tok.tok == ":" {
 		p.next() // skip ":"
-		v = p.parseExpr()
+		v = p.parseExpr(false)
 		kvExpr = &ast.KeyValueExpr{
 			Key:   x,
 			Value: v,
@@ -705,15 +715,14 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 	return (indexExpr)
 }
 
-func (p *parser) parseUnaryExpr() ast.Expr {
+func (p *parser) parseUnaryExpr(lhs bool) ast.Expr {
 	var r ast.Expr
 	logf("   begin parseUnaryExpr()\n")
 	switch p.tok.tok {
 	case "+", "-", "!", "&":
 		var tok = p.tok.tok
 		p.next()
-		var x = p.parseUnaryExpr()
-		logf(" [DEBUG] unary op = %s\n", tok)
+		var x = p.parseUnaryExpr(false)
 		r = (&ast.UnaryExpr{
 			X:  x,
 			Op: token.Token(tok),
@@ -721,14 +730,13 @@ func (p *parser) parseUnaryExpr() ast.Expr {
 		return r
 	case "*":
 		p.next() // consume "*"
-		var x = p.parseUnaryExpr()
+		var x = p.parseUnaryExpr(false)
 		r = (&ast.StarExpr{
 			X: x,
 		})
 		return r
 	}
-	r = p.parsePrimaryExpr()
-	logf("   end parseUnaryExpr()\n")
+	r = p.parsePrimaryExpr(lhs)
 	return r
 }
 
@@ -752,9 +760,9 @@ func precedence(op string) int {
 	return 0
 }
 
-func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
+func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 	logf("   begin parseBinaryExpr() prec1=%s\n", strconv.Itoa(prec1))
-	var x = p.parseUnaryExpr()
+	var x = p.parseUnaryExpr(lhs)
 	var oprec int
 	for {
 		var op = p.tok.tok
@@ -766,7 +774,14 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 			return x
 		}
 		p.expect(op, __func__)
-		var y = p.parseBinaryExpr(oprec + 1)
+		if lhs {
+			// x + y
+			// x is not lhs at all !!!
+			p.resolve(x)
+			lhs = false
+		}
+
+		var y = p.parseBinaryExpr(false, oprec + 1)
 		var binaryExpr = &ast.BinaryExpr{}
 		binaryExpr.X = x
 		binaryExpr.Y = y
@@ -778,15 +793,15 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 	return x
 }
 
-func (p *parser) parseExpr() ast.Expr {
+func (p *parser) parseExpr(lhs bool) ast.Expr {
 	logf("   begin p.parseExpr()\n")
-	var e = p.parseBinaryExpr(1)
+	var e = p.parseBinaryExpr(lhs, 1)
 	logf("   end p.parseExpr()\n")
 	return e
 }
 
 func (p *parser) parseRhs() ast.Expr {
-	var x = p.parseExpr()
+	var x = p.parseExpr(false)
 	return x
 }
 
@@ -985,7 +1000,16 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 
 func (p *parser) parseLhsList() []ast.Expr {
 	logf(" [%s] start\n", __func__)
-	var list = p.parseExprList()
+	var list = p.parseExprList(true)
+
+	if p.tok.tok != ":=" {
+		// x = y
+		// x is declared earlier and it should be resolved here
+		for _, lhs := range list {
+			p.resolve(lhs)
+		}
+	}
+
 	logf(" end %s\n", __func__)
 	return list
 }
@@ -1011,7 +1035,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 			y = (rangeUnary)
 			isRange = true
 		} else {
-			y = p.parseExpr() // rhs
+			y = p.parseExpr(false) // rhs
 		}
 		var as = &ast.AssignStmt{}
 		as.Tok = token.Token(assignToken)
@@ -1023,7 +1047,8 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 		if as.Tok == ":=" {
 			lhss := x
 			for _, lhs := range lhss {
-				declare(as, p.topScope, ast.Var, lhs.(*ast.Ident))
+				idnt := lhs.(*ast.Ident)
+				declare(as, p.topScope, ast.Var, idnt)
 			}
 		}
 		logf(" parseSimpleStmt end =, := %s\n", __func__)
@@ -1079,14 +1104,14 @@ func (p *parser) parseStmt() ast.Stmt {
 	return s
 }
 
-func (p *parser) parseExprList() []ast.Expr {
+func (p *parser) parseExprList(lhs bool) []ast.Expr {
 	logf(" [%s] start\n", __func__)
 	var list []ast.Expr
-	var e = p.parseExpr()
+	var e = p.parseExpr(lhs)
 	list = append(list, e)
 	for p.tok.tok == "," {
 		p.next() // consume ","
-		e = p.parseExpr()
+		e = p.parseExpr(lhs)
 		list = append(list, e)
 	}
 
@@ -1095,7 +1120,7 @@ func (p *parser) parseExprList() []ast.Expr {
 }
 
 func (p *parser) parseRhsList() []ast.Expr {
-	var list = p.parseExprList()
+	var list = p.parseExprList(false)
 	return list
 }
 
@@ -1168,7 +1193,7 @@ func (p *parser) parseDecl(keyword string) *ast.GenDecl {
 		var values []ast.Expr
 		if p.tok.tok == "=" {
 			p.next()
-			value = p.parseExpr()
+			value = p.parseExpr(false)
 			values = []ast.Expr{value}
 		}
 		p.expectSemi(__func__)
@@ -1220,7 +1245,7 @@ func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
 	var values []ast.Expr
 	if p.tok.tok == "=" {
 		p.next()
-		value = p.parseExpr()
+		value = p.parseExpr(false)
 		values = []ast.Expr{value}
 	}
 	p.expectSemi(__func__)
@@ -1401,6 +1426,7 @@ func parserParseFile(fset *token.FileSet, filename string, src interface{}, mode
 	text := readSource(filename)
 
 	var p = &parser{}
+	p.filename = filename
 	p.scanner = &scanner{}
 	p.init(text)
 	return p.parseFile(importsOnly), nil

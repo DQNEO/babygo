@@ -15,14 +15,39 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testTypeSwitchShortVar() {
+	var bol bool
+	var key interface{} = "abc"
+	switch k := key.(type) {
+	case string:
+		bol = ("abc" == k)
+	}
+	if bol {
+		fmt.Printf("testTypeSwitchShortVar ok\n")
+	}
+}
+
+func testOverridePkgIdent() {
+	var f001 int = 1
+	fmt.Printf("f001=%d\n", f001)
+
+	f002 := 1
+	fmt.Printf("f001=%d\n", f002)
+}
+
+func f001() {
+}
+
+func f002() {
+}
 
 func testFuncValue() {
 	var f func()
 	f = testPrint
 	f()
-	var sum = mylib.Sum
-	var sm = sum(2, 3)
-	fmt.Printf("sum=%d\n", sm)
+	_sm := mylib.Sum
+	summed := _sm(2, 3)
+	fmt.Printf("sum=%d\n", summed)
 }
 
 func testPrint() {
@@ -2215,6 +2240,8 @@ func testMisc() {
 }
 
 func main() {
+	testTypeSwitchShortVar()
+	testOverridePkgIdent()
 	testFuncValue()
 	testPrint()
 	testMapForrange()
