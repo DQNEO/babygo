@@ -20,7 +20,7 @@ func testFuncValue() {
 	var f func()
 	f = testPrint
 	f()
-	var sum func(a int, b int) int = mylib.Sum
+	var sum = mylib.Sum
 	var sm = sum(2, 3)
 	fmt.Printf("sum=%d\n", sm)
 }
