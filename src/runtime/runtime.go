@@ -39,7 +39,15 @@ func schedinit() {
 	envInit()
 }
 
-func main()
+var main_main func()
+
+func exit(c int)
+
+func main() {
+	var fn = main_main
+	fn()
+	exit(0)
+}
 
 func mstart0() {
 	main()

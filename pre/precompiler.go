@@ -2554,7 +2554,7 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		for i := 0; i < length; i++ {
 			printf(zeroValue)
 		}
-	case T_POINTER:
+	case T_POINTER, T_FUNC:
 		// will be set in the initGlobal func
 		printf("  .quad 0\n")
 	case T_MAP:

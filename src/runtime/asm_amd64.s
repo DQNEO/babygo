@@ -1,6 +1,3 @@
-.data
-runtime.main_main:
-  .quad 0
 
 .text
 
@@ -45,14 +42,6 @@ runtime.rt0_go:
 runtime.mstart:
   callq runtime.mstart0
   ret # not reached
-
-runtime.main:
-  movq runtime.main_main(%rip), %rax
-  callq *%rax
-  pushq $0
-  callq runtime.exit
-  # End of program
-
 
 runtime.exit:
   movq 8(%rsp), %rdi  # status 0
