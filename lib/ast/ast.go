@@ -210,6 +210,10 @@ type RangeStmt struct {
 	Tok   token.Token
 }
 
+type GoStmt struct {
+	Call *CallExpr
+}
+
 type ImportSpec struct {
 	Path *BasicLit
 }

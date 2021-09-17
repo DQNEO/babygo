@@ -15,6 +15,15 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func f() {
+	msg := "[stderr] I'm a child\n"
+	os.Stderr.Write([]byte(msg))
+}
+
+func testSimpleGoroutine() {
+	go f()
+}
+
 func testTypeSwitchShortVar() {
 	var bol bool
 	var key interface{} = "abc"
@@ -2242,6 +2251,7 @@ func testMisc() {
 }
 
 func main() {
+	testSimpleGoroutine()
 	testTypeSwitchShortVar()
 	testOverridePkgIdent()
 	testFuncValue()

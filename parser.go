@@ -459,7 +459,7 @@ func (p *parser) tryResolve(x ast.Expr, collectUnresolved bool) {
 }
 
 func (p *parser) parseOperand(lhs bool) ast.Expr {
-	logf("   parseOperand lhs=%v %s\n", lhs, __func__)
+	logf("   parseOperand lhs=%d %s\n", lhs, __func__)
 	switch p.tok.tok {
 	case "IDENT":
 		var ident = p.parseIdent()
@@ -804,6 +804,15 @@ func makeExpr(s ast.Stmt) ast.Expr {
 	return s.(*ast.ExprStmt).X
 }
 
+func (p *parser) parseGoStmt() ast.Stmt {
+	p.expect("go", __func__)
+	expr := p.parsePrimaryExpr(false)
+	p.expectSemi(__func__)
+	return &ast.GoStmt{
+		Call: expr.(*ast.CallExpr),
+	}
+}
+
 func (p *parser) parseForStmt() ast.Stmt {
 	logf(" begin %s\n", __func__)
 	p.expect("for", __func__)
@@ -1086,6 +1095,8 @@ func (p *parser) parseStmt() ast.Stmt {
 		s = p.parseSwitchStmt()
 	case "for":
 		s = p.parseForStmt()
+	case "go":
+		s = p.parseGoStmt()
 	default:
 		panic2(__func__, "TBI 3:"+p.tok.tok)
 	}

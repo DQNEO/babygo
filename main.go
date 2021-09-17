@@ -2361,6 +2361,20 @@ func emitBranchStmt(s *ast.BranchStmt) {
 	}
 }
 
+func emitGoStmt(s *ast.GoStmt) {
+	emitCallMalloc(SizeOfPtr) // area := new(func())
+	emitExpr(s.Call.Fun, nil)
+	printf("  popq %%rax # func addr\n")
+	printf("  popq %%rcx # malloced area\n")
+	printf("  movq %%rax, (%%rcx) # malloced area\n") // *area = fn
+	printf("  pushq %%rcx # malloced area\n")
+	printf("  pushq $0 # arg size\n")
+	printf("  callq runtime.newproc\n") // runtime.newproc(0, area)
+	printf("  popq %%rax\n")
+	printf("  popq %%rax\n")
+	printf("  callq runtime.mstart0\n")
+}
+
 func emitStmt(stmt ast.Stmt) {
 	emitComment(2, "== Statement %T ==\n", stmt)
 	switch s := stmt.(type) {
@@ -2388,6 +2402,8 @@ func emitStmt(stmt ast.Stmt) {
 		emitTypeSwitchStmt(s)
 	case *ast.BranchStmt:
 		emitBranchStmt(s)
+	case *ast.GoStmt:
+		emitGoStmt(s)
 	default:
 		throw(stmt)
 	}
@@ -3603,6 +3619,10 @@ func walkBranchStmt(s *ast.BranchStmt) {
 	})
 }
 
+func walkGoStmt(s *ast.GoStmt) {
+	walkExpr(s.Call)
+}
+
 func walkStmt(stmt ast.Stmt) {
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
@@ -3631,6 +3651,8 @@ func walkStmt(stmt ast.Stmt) {
 		walkCaseClause(s)
 	case *ast.BranchStmt:
 		walkBranchStmt(s)
+	case *ast.GoStmt:
+		walkGoStmt(s)
 	default:
 		throw(stmt)
 	}
