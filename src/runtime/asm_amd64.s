@@ -1,3 +1,7 @@
+.data
+
+runtime.mainPC:
+  .quad runtime.main
 
 .text
 
@@ -28,13 +32,17 @@ runtime.rt0_go:
   movq %rax, runtime.main_main(%rip)
 
   callq runtime.__initGlobals
-
-
   callq runtime.schedinit
-
   callq main.__initGlobals
-
   callq os.init # set os.Args
+
+  // wrapper to runtime.main
+  leaq runtime.mainPC(%rip), %rax # entry
+  pushq %rax
+  pushq $0 # arg size
+  callq runtime.newproc
+  popq %rax
+  popq %rax
 
   callq runtime.mstart
   ret # not reached

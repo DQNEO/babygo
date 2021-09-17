@@ -2526,6 +2526,13 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		printf("  .quad 0 # ptr\n")
 		printf("  .quad 0 # len\n")
 		printf("  .quad 0 # cap\n")
+	case T_STRUCT:
+		if val != nil {
+			panic("Unsupported global value")
+		}
+		for i := 0; i < getSizeOfType(t); i++ {
+			printf("  .byte 0 # struct zero value\n")
+		}
 	case T_ARRAY:
 		// only zero value
 		if val != nil {

@@ -39,18 +39,32 @@ func schedinit() {
 	envInit()
 }
 
-var main_main func()
+var mainStarted bool
 
-func exit(c int)
+var main_main func() // = main.main
 
 func main() {
+	mainStarted = true
 	var fn = main_main
 	fn()
 	exit(0)
 }
 
+type p struct {
+	runq func()
+}
+
+var p0 p
+
+func newproc(size int, fn *func()) {
+	p0.runq = *fn
+}
+
 func mstart0() {
-	main()
+	// clone : create OS thread
+
+	var g func() = p0.runq
+	g()
 }
 
 // Environment variables
@@ -338,6 +352,7 @@ func cmpinterface(a uintptr, b uintptr, c uintptr, d uintptr) bool {
 
 func Write(fd int, p []byte) int
 func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
+func exit(c int)
 
 // Actually this is an alias to makeSlice
 func makeSlice1(elmSize int, slen int, scap int) []uint8

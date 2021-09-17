@@ -934,6 +934,8 @@ var gPointer *MyStruct = &MyStruct{
 	field2: 22,
 }
 
+var globalStruct MyStruct
+
 var gChar uint8 = 'A'
 
 func testGlobalValues() {
