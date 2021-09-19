@@ -52,6 +52,6 @@ runtime.mstart:
   ret # not reached
 
 runtime.exit:
-  movq 8(%rsp), %rdi  # status 0
+  movq 8(%rsp), %rdi  # status
   movq $60, %rax # sys_exit
   syscall

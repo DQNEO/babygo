@@ -2372,5 +2372,4 @@ func main() {
 	testGlobalCharArray()
 
 	testMisc()
-	os.Exit(0)
 }
