@@ -3383,7 +3383,7 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	}
 	method, ok := namedType.methodSet[methodName.Name]
 	if !ok {
-		panic("method not found")
+		panic("method not found: " + methodName.Name)
 	}
 	return method
 }
