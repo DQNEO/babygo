@@ -61,24 +61,6 @@ type linux_dirent struct {
 	d_name    byte
 }
 
-func print_dirp(dirp *linux_dirent) {
-	//var reclen int = int(dirp.d_reclen1)
-
-	//fmt.Printf("%p  ", uintptr(dirp))
-	//fmt.Printf("%d\t", dirp.d_ino)
-	//fmt.Printf("%d\t", dirp.d_off)
-	//fmt.Printf("%d\t", dirp.d_type)
-	//fmt.Printf("%d\t", reclen)
-	//reclen := int(dirp.d_reclen1)
-	//fmt.Printf("%d  ", dirp.d_type)
-	//p := unsafe.Pointer(&dirp.d_name)
-	//var bp *byte = (*byte)(p)
-	//var s string = Cstring2string(bp)
-	//return
-	//fmt.Printf("%s", s)
-	//fmt.Printf("\n")
-}
-
 func readdirnames(f *os.File, n int) ([]string, error) {
 	var fd uintptr = f.Fd()
 	var buf []byte = make([]byte, 1024, 1024)
@@ -93,18 +75,15 @@ func readdirnames(f *os.File, n int) ([]string, error) {
 			break
 		}
 
-		//fmt.Printf("--------------- nread=%d ---------------\n", nread)
-		//fmt.Printf("inode   d_off   d_type  d_reclen    d_name\n")
 		var bpos int
 		for bpos < nread {
 			var dirp *linux_dirent
 			p := uintptr(unsafe.Pointer(&buf[0])) + uintptr(bpos)
 			dirp = (*linux_dirent)(unsafe.Pointer(p))
-			//print_dirp(dirp)
 			pp := unsafe.Pointer(&dirp.d_name)
 			var bp *byte = (*byte)(pp)
 			var s string = Cstring2string(bp)
-			bpos = bpos + int(dirp.d_reclen1) // 24 is wrong
+			bpos = bpos + int(dirp.d_reclen1)
 			counter++
 			if s == "." || s == ".." {
 				continue
