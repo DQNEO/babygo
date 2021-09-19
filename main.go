@@ -4165,7 +4165,7 @@ func resolveImports(file *ast.File) {
 
 // "some/dir" => []string{"a.go", "b.go"}
 func findFilesInDir(dir string) []string {
-	dirents := mylib.GetDirents(dir)
+	dirents, _ := mylib.Readdirnames(dir)
 	var r []string
 	for _, dirent := range dirents {
 		if dirent == "_.s" {

@@ -82,8 +82,7 @@ func print_dirp(dirp *linux_dirent) {
 
 const O_READONLY_ int = 0
 
-func GetDirents(dir string) []string {
-	var entries []string
+func Readdirnames(dir string) ([]string, error) {
 	var fd int
 	fd, _ = syscall.Open(dir, O_READONLY_, 0)
 	if fd < 0 {
@@ -91,6 +90,7 @@ func GetDirents(dir string) []string {
 	}
 	var buf []byte = _buf[:]
 	var counter int
+	var entries []string
 	for {
 		nread, _ := syscall.Getdents(int(fd), buf)
 		if nread == -1 {
@@ -120,7 +120,7 @@ func GetDirents(dir string) []string {
 		}
 	}
 	syscall.Close(fd)
-	return entries
+	return entries, nil
 }
 
 func needSwap(a string, b string) bool {
