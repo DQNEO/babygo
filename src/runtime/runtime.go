@@ -62,7 +62,7 @@ func newproc(size int, fn *func()) {
 
 func mstart1() {
 	Write(2, []byte("hello, I am a cloned thread in mstart1\n"))
-	exit(0)
+	exitThread()
 }
 
 const CloneFlags int = 331520
@@ -364,6 +364,7 @@ func cmpinterface(a uintptr, b uintptr, c uintptr, d uintptr) bool {
 func Write(fd int, p []byte) int
 func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
 func exit(c int)
+func exitThread()
 func clone(flags int, b uintptr, fn func())
 
 // Actually this is an alias to makeSlice

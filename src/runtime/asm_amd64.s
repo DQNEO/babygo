@@ -54,5 +54,11 @@ runtime.mstart:
 
 runtime.exit:
   movq 8(%rsp), %rdi  # status
-  movq $60, %rax # sys_exit
+  movq $231, %rax # exit_group
   syscall
+
+runtime.exitThread:
+  movq $0, %rdi  # status
+  movq $60, %rax # exit_group
+  syscall
+

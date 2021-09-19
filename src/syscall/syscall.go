@@ -2,6 +2,7 @@ package syscall
 
 import "unsafe"
 
+// cheat sheet: https://chromium.googlesource.com/chromiumos/docs/+/HEAD/constants/syscalls.md#x86_64-64_bit
 const SYS_READ uintptr = 0
 const SYS_WRITE uintptr = 1
 const SYS_OPEN uintptr = 2
