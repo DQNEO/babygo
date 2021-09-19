@@ -43,8 +43,6 @@ func Cstring2string(b *byte) string {
 	return string(bs)
 }
 
-var _buf [1024]byte
-
 // Translation of http://man7.org/linux/man-pages/man2/getdents64.2.html#top_of_page
 
 //struct linux_dirent64 {
@@ -88,7 +86,7 @@ func Readdirnames(dir string) ([]string, error) {
 	if fd < 0 {
 		panic("cannot open " + dir)
 	}
-	var buf []byte = _buf[:]
+	var buf []byte = make([]byte, 1024, 1024)
 	var counter int
 	var entries []string
 	for {
