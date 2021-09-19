@@ -19,6 +19,13 @@ import (
 
 var ProgName string = "pre"
 
+// tweak to reduce diff with main.go
+const parserImportsOnly = parser.ImportsOnly
+
+func ParseFile(fset *token.FileSet, filename string, src interface{}, mode parser.Mode) (*ast.File, error) {
+	return parser.ParseFile(fset, filename, src, mode)
+}
+
 var __func__ = "__func__"
 
 func assert(bol bool, msg string, caller string) {
@@ -4321,7 +4328,7 @@ func collectSourceFiles(pkgDir string) []string {
 }
 
 func parseImports(fset *token.FileSet, filename string) *ast.File {
-	f, err := parserParseFile(fset, filename, nil, parserImportsOnly)
+	f, err := ParseFile(fset, filename, nil, parserImportsOnly)
 	if err != nil {
 		panic(filename + ":" + err.Error())
 	}
@@ -4329,7 +4336,7 @@ func parseImports(fset *token.FileSet, filename string) *ast.File {
 }
 
 func parseFile(fset *token.FileSet, filename string) *ast.File {
-	f, err := parserParseFile(fset, filename, nil, 0)
+	f, err := ParseFile(fset, filename, nil, 0)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -4594,11 +4601,4 @@ func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
 
 func throw(x interface{}) {
 	panic(fmt.Sprintf("%#v",x))
-}
-
-// tweak to reduce diff with main.go
-const parserImportsOnly = parser.ImportsOnly
-
-func parserParseFile(fset *token.FileSet, filename string, src interface{}, mode parser.Mode) (*ast.File, error) {
-	return parser.ParseFile(fset, filename, src, mode)
 }
