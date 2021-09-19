@@ -4168,9 +4168,6 @@ func findFilesInDir(dir string) []string {
 	dirents := mylib.GetDirents(dir)
 	var r []string
 	for _, dirent := range dirents {
-		if dirent == "." || dirent == ".." {
-			continue
-		}
 		if dirent == "_.s" {
 			continue
 		}

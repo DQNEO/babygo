@@ -425,9 +425,7 @@ func testGetdents64() {
 	dirents := mylib.GetDirents("./t") // fd should be 3
 	var counter int
 	for _, dirent := range dirents {
-		if dirent == "." || dirent == ".." {
-			continue
-		}
+		fmt.Printf("%s ", dirent)
 		counter++
 	}
 	fmt.Printf("%d\n", counter)
