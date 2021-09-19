@@ -1,9 +1,9 @@
+test syscall.Write
 testTypeSwitchShortVar ok
 f001=1
 f001=1
-syscall.Writetest printf
+test syscall.Write
 sum=5
-syscall.Writetest printf
 key1=>"value1"
 noexist=>""
 key1=>"value1"

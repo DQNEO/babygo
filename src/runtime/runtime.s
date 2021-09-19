@@ -39,6 +39,34 @@ runtime.printstring:
   popq %rax # retval
   ret
 
+# see https://man7.org/linux/man-pages/man2/clone.2.html
+#  long clone(
+#       unsigned long flags,
+#       void *stack,
+#       int *parent_tid,
+#       int *child_tid,
+#       unsigned long tls);
+
+// func int clone(int flags, uintptr stack, uintptr fn)
+runtime.clone:
+  movq 24(%rsp), %r12
+  movl $56, %eax # sys_clone
+  movq 8(%rsp), %rdi # flags
+  movq $0, %rsi # stack
+  movq $0, %rdx # ptid
+  movq $0, %r10 # chtid
+  movq $0, %r8 # tls
+  syscall
+
+  cmpq $0, %rax # rax is pid for parent, 0 for child
+  je .child # jump if child
+
+  RET # return if parent
+
+.child:
+  callq *%r12
+  ret
+
 // func Syscall(trap, a1, a2, a3 uintptr) uintptr
 .global runtime.Syscall
 runtime.Syscall:

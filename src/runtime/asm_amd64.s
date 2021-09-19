@@ -44,6 +44,7 @@ runtime.rt0_go:
   popq %rax
   popq %rax
 
+  callq runtime.newosproc
   callq runtime.mstart
   ret # not reached
 

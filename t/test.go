@@ -16,7 +16,7 @@ import (
 )
 
 func f() {
-	msg := "[stderr] I'm a child\n"
+	msg := "[stderr] I run in a synchronous goroutine\n"
 	os.Stderr.Write([]byte(msg))
 }
 
@@ -60,8 +60,7 @@ func testFuncValue() {
 }
 
 func testPrint() {
-	syscall.Write(1, []uint8("syscall.Write"))
-	fmt.Printf("test printf\n")
+	syscall.Write(1, []uint8("test syscall.Write\n"))
 }
 
 var gmp map[string]string = make(map[string]string)
@@ -2251,11 +2250,11 @@ func testMisc() {
 }
 
 func main() {
+	testPrint()
 	testSimpleGoroutine()
 	testTypeSwitchShortVar()
 	testOverridePkgIdent()
 	testFuncValue()
-	testPrint()
 	testMapForrange()
 	testGlobalMapOK()
 	testMapOK()
