@@ -8,6 +8,10 @@ shift
 rm -rf $workdir
 mkdir -p $workdir
 
+if [[ $(uname) == "Darwin" ]] ; then
+  compiler=./${compiler}
+fi
+
 WORKDIR="$workdir" $compiler "$@"
 
 cd $workdir

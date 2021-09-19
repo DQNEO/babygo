@@ -20,7 +20,7 @@ $(tmp)/pre: pre/*.go lib/*/* $(tmp)
 $(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
 	go build -o $@ .
 
-$(tmp)/pre-test.d: $(tmp)/pre t/*.go src/*/*
+$(tmp)/pre-test.d: $(tmp)/pre t/*.go src/*/* lib/*/*
 	./compile $< $@ t/*.go
 
 $(tmp)/bbg-test.d: $(tmp)/bbg t/*.go

@@ -1,31 +1,23 @@
 # build from Mac OS
-
-.PHONY: all
-all: test test1
+tmp = .shared
 
 .PHONY: test
 
-# test all
-test: test0 cross test1 self
+test: $(tmp)/pre-test.d $(tmp)/bbg-test.d
 
-pre.mac: pre/precompiler.go
-	go build -o pre.mac pre/precompiler.go
+pre.mac: pre/*.go lib/*/*
+	go build -o pre.mac ./pre
 
-.PHONY: test0
-test0: t/test.go pre.mac runtime.go runtime.s
-	./pre.mac t/test.go > .shared/pre-test.s
+babygo.mac: *.go lib/*/* src/*/*
+	go build -o babygo.mac .
 
-.PHONY: cross
-cross: main.go runtime.go runtime.s pre.mac
-	./pre.mac main.go > .shared/pre-main.s
+$(tmp)/pre-test.d: ./pre.mac t/*.go src/*/* lib/*/*
+	./compile $< $@ t/*.go
 
-babygo.mac: main.go
-	go build -o babygo.mac main.go
+$(tmp)/bbg-test.d: ./bbg.mac t/*.go src/*/* lib/*/*
+	./compile $< $@ t/*.go
 
-.PHONY: test1
-test1: babygo.mac t/test.go
-	./babygo.mac ${HOME} -DF -DG t/test.go > .shared/babygo-DF-DG-test.s
 
-.PHONY: self
-self: babygo.mac main.go
-	./babygo.mac ${HOME} main.go > .shared/babygo-main.s
+.PHONY: clean
+clean:
+	rm -rf ./pre.mac ./babygo.mac $(tmp)/*.d
