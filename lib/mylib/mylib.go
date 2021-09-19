@@ -79,13 +79,8 @@ func print_dirp(dirp *linux_dirent) {
 	//fmt.Printf("\n")
 }
 
-func Readdirnames(dir string) ([]string, error) {
-	f, _ := os.Open(dir)
+func readdirnames(f *os.File, n int) ([]string, error) {
 	var fd uintptr = f.Fd()
-
-	if fd < 0 {
-		panic("cannot open " + dir)
-	}
 	var buf []byte = make([]byte, 1024, 1024)
 	var counter int
 	var entries []string
@@ -119,6 +114,17 @@ func Readdirnames(dir string) ([]string, error) {
 	}
 	f.Close()
 	return entries, nil
+}
+
+func Readdirnames(dir string) ([]string, error) {
+	f, _ := os.Open(dir)
+	if f.Fd() < 0 {
+		panic("cannot open " + dir)
+	}
+
+	names, _ := readdirnames(f, -1)
+	f.Close()
+	return names, nil
 }
 
 func needSwap(a string, b string) bool {
