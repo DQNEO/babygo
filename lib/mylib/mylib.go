@@ -111,9 +111,12 @@ func GetDirents(dir string) []string {
 			pp := unsafe.Pointer(&dirp.d_name)
 			var bp *byte = (*byte)(pp)
 			var s string = Cstring2string(bp)
-			entries = append(entries, s)
 			bpos = bpos + int(dirp.d_reclen1) // 24 is wrong
 			counter++
+			if s == "." || s == ".." {
+				continue
+			}
+			entries = append(entries, s)
 		}
 	}
 	syscall.Close(fd)
