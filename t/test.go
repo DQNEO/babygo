@@ -15,6 +15,32 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testBitWiseOr() {
+	var a int
+	var b int
+	var c int
+	c = a | b // 0b...00000000 | 0b....00000000
+	fmt.Printf(" %d | %d = %d\n", a, b, c) // => 0
+
+	a = 1 // 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000001
+	b = 0 // 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000
+	c = a | b
+	fmt.Printf(" %d | %d = %d\n", a, b, c) // => 1
+
+	a = 240  // 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_11110000
+	b = 15   // 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00001111
+	c = a | b
+	fmt.Printf(" %d | %d = %d\n", a, b, c) // => 255
+
+	a = 1
+	b = 1
+	c = a | b
+	fmt.Printf(" %d | %d = %d\n", a, b, c) // => 1
+
+	c = 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512
+	fmt.Printf(" c = %d\n", c)  // => 1023
+}
+
 func f() {
 	msg := "[stderr] I run in a synchronous goroutine\n"
 	os.Stderr.Write([]byte(msg))
@@ -2248,6 +2274,7 @@ func testMisc() {
 }
 
 func main() {
+	testBitWiseOr()
 	testPrint()
 	testSimpleGoroutine()
 	testTypeSwitchShortVar()

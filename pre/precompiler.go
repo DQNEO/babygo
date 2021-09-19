@@ -1216,6 +1216,10 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		emitExpr(e.X, nil) // left
 		emitExpr(e.Y, nil) // right
 		emitCompExpr("setge")
+	case "|":
+		emitExpr(e.X, nil) // left
+		emitExpr(e.Y, nil) // right
+		emitBitWiseOr()
 	default:
 		panic(e.Op.String())
 	}
@@ -1677,6 +1681,13 @@ func emitCompExpr(inst string) {
 	printf("  cmpq %%rcx, %%rax\n")
 	printf("  %s %%al\n", inst)
 	printf("  movzbq %%al, %%rax\n") // true:1, false:0
+	printf("  pushq %%rax\n")
+}
+
+func emitBitWiseOr() {
+	printf("  popq %%rcx # right\n")
+	printf("  popq %%rax # left\n")
+	printf("  orq %%rcx, %%rax # bitwise or\n")
 	printf("  pushq %%rax\n")
 }
 

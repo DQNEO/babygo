@@ -738,7 +738,7 @@ func precedence(op string) int {
 	switch op {
 	case "*", "/", "%":
 		return 5
-	case "+", "-":
+	case "+", "-", "|":
 		return 4
 	case "==", "!=", "<", "<=", ">", ">=":
 		return 3

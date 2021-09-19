@@ -1,3 +1,8 @@
+ 0 | 0 = 0
+ 1 | 0 = 1
+ 240 | 15 = 255
+ 1 | 1 = 1
+ c = 1023
 test syscall.Write
 testTypeSwitchShortVar ok
 f001=1
