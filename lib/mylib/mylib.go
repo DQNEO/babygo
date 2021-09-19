@@ -2,6 +2,7 @@ package mylib
 
 import "unsafe"
 import "syscall"
+import "os"
 import "github.com/DQNEO/babygo/lib/mylib2"
 
 type Type struct {
@@ -80,11 +81,10 @@ func print_dirp(dirp *linux_dirent) {
 	//fmt.Printf("\n")
 }
 
-const O_READONLY_ int = 0
-
 func Readdirnames(dir string) ([]string, error) {
-	var fd int
-	fd, _ = syscall.Open(dir, O_READONLY_, 0)
+	f, _ := os.Open(dir)
+	var fd uintptr = f.Fd()
+
 	if fd < 0 {
 		panic("cannot open " + dir)
 	}
@@ -119,7 +119,7 @@ func Readdirnames(dir string) ([]string, error) {
 			entries = append(entries, s)
 		}
 	}
-	syscall.Close(fd)
+	f.Close()
 	return entries, nil
 }
 

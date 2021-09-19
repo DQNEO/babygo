@@ -17,6 +17,18 @@ const O_READONLY int = 0
 const FILE_SIZE int = 2000000
 const O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
 
+func Open(name string) (*File, error) {
+	var fd int
+	fd, _ = syscall.Open(name, O_READONLY, 438)
+	if fd < 0 {
+		panic("unable to create file " + name)
+	}
+
+	f := new(File)
+	f.fd = fd
+	return f, nil
+}
+
 func Create(name string) (*File, error) {
 	var fd int
 	fd, _ = syscall.Open(name, O_CREATE_WRITE, 438)
@@ -27,6 +39,10 @@ func Create(name string) (*File, error) {
 	f := new(File)
 	f.fd = fd
 	return f, nil
+}
+
+func (f *File) Fd() uintptr {
+	return uintptr(f.fd)
 }
 
 func (f *File) Close() error {
