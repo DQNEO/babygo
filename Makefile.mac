@@ -8,8 +8,8 @@ test: $(tmp)/pre-test.d $(tmp)/bbg-test.d
 pre.mac: pre/*.go lib/*/*
 	go build -o pre.mac ./pre
 
-babygo.mac: *.go lib/*/* src/*/*
-	go build -o babygo.mac .
+bbg.mac: *.go lib/*/* src/*/*
+	go build -o bbg.mac .
 
 $(tmp)/pre-test.d: ./pre.mac t/*.go src/*/* lib/*/*
 	./compile $< $@ t/*.go
