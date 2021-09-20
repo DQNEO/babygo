@@ -59,11 +59,11 @@ runtime.clone:
   syscall
 
   cmpq $0, %rax # rax is pid for parent, 0 for child
-  je .child # jump if child
+  je .L.child # jump if child
 
   RET # return if parent
 
-.child:
+.L.child:
   callq *%r12
   ret
 
