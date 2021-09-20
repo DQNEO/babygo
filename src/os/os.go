@@ -14,9 +14,13 @@ type File struct {
 	fd int
 }
 
-const O_READONLY int = 0
 const FILE_SIZE int = 2000000
-const O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
+
+const O_READONLY int = 0
+const O_RDWR int = 2
+const O_CREATE int = 64 // 0x40
+const O_TRUNC int = 512 // 0x200
+const O_CLOSEXEC int = 524288 // 0x80000
 
 func Open(name string) (*File, error) {
 	var fd int
@@ -32,7 +36,7 @@ func Open(name string) (*File, error) {
 
 func Create(name string) (*File, error) {
 	var fd int
-	fd, _ = syscall.Open(name, O_CREATE_WRITE, 438)
+	fd, _ = syscall.Open(name, O_RDWR|O_CREATE|O_TRUNC|O_CLOSEXEC, 438)
 	if fd < 0 {
 		panic("unable to create file " + name)
 	}
