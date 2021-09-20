@@ -65,10 +65,17 @@ func mstart1() {
 	exitThread()
 }
 
-const CloneFlags int = 331520
+const _CLONE_VM int = 256        // 0x100
+const _CLONE_FS int = 512       // 0x200
+const _CLONE_FILES int = 1024   // 0x400
+const _CLONE_SIGHAND int = 2048  // 0x800
+const _CLONE_THREAD int = 65536 // 0x10000
+
 func newosproc() {
+	// Setting _CLONE_VM will cause Segmentation fault.
+	var cloneFlags int =  _CLONE_FS | _CLONE_FILES | _CLONE_SIGHAND | _CLONE_THREAD
 	var fn func() = mstart1
-	clone(CloneFlags - 256 , 0, fn)
+	clone(cloneFlags, 0, fn)
 }
 
 func mstart0() {
