@@ -87,8 +87,8 @@ fmt:
 
 .PHONY: clean
 clean:
-	rm -f ./tmp/* ./.shared/*
-	rm -fr $(tmp)
+	rm -f ./tmp/*
+	rm -fr $(tmp) ./.shared/*
 
 # to learn the official Go's assembly
 .PHONY: example
