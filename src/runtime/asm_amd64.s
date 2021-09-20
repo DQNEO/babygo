@@ -59,6 +59,6 @@ runtime.exit:
 
 runtime.exitThread:
   movq $0, %rdi  # status
-  movq $60, %rax # exit_group
+  movq $60, %rax # exit
   syscall
 
