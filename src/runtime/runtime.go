@@ -72,15 +72,12 @@ const _CLONE_SIGHAND int = 2048  // 0x800
 const _CLONE_THREAD int = 65536 // 0x10000
 
 func newosproc() {
-	// Setting _CLONE_VM will cause Segmentation fault.
-	var cloneFlags int =  _CLONE_FS | _CLONE_FILES | _CLONE_SIGHAND | _CLONE_THREAD
-	var fn func() = mstart1
+	var cloneFlags int =  _CLONE_VM | _CLONE_FS | _CLONE_FILES | _CLONE_SIGHAND | _CLONE_THREAD
+	var fn func() = exitThread
 	clone(cloneFlags, 0, fn)
 }
 
 func mstart0() {
-	// clone : create OS thread
-
 	var g func() = p0.runq
 	g()
 }
