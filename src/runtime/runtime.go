@@ -73,8 +73,10 @@ const _CLONE_THREAD int = 65536 // 0x10000
 
 func newosproc() {
 	var cloneFlags int =  _CLONE_VM | _CLONE_FS | _CLONE_FILES | _CLONE_SIGHAND | _CLONE_THREAD
-	var fn func() = exitThread
-	clone(cloneFlags, 0, fn)
+	var fn func() = mstart1
+	stackSize := uintptr(1024)
+	stack := malloc(stackSize + 8)
+	clone(cloneFlags, stack + stackSize, fn)
 }
 
 func mstart0() {
@@ -369,7 +371,7 @@ func Write(fd int, p []byte) int
 func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
 func exit(c int)
 func exitThread()
-func clone(flags int, b uintptr, fn func())
+func clone(flags int, stack uintptr, fn func())
 
 // Actually this is an alias to makeSlice
 func makeSlice1(elmSize int, slen int, scap int) []uint8

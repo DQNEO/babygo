@@ -47,12 +47,12 @@ runtime.printstring:
 #       int *child_tid,
 #       unsigned long tls);
 
-// func int clone(int flags, uintptr stack, uintptr fn)
+// func clone(flags int, stack uintptr, fn func())
 runtime.clone:
   movq 24(%rsp), %r12
   movl $56, %eax # sys_clone
   movq 8(%rsp), %rdi # flags
-  movq $0, %rsi # stack
+  movq 16(%rsp), %rsi # stack
   movq $0, %rdx # ptid
   movq $0, %r10 # chtid
   movq $0, %r8 # tls
@@ -64,6 +64,7 @@ runtime.clone:
   RET # return if parent
 
 .L.child:
+  movq %rsi , %rsp # start from new stack
   callq *%r12
   ret
 
