@@ -49,8 +49,9 @@ static void futex_aquire_or_wait(uint32_t *futexp) {
     while (1) {
 
         /* Is the futex available? */
-        const uint32_t one = 1;
-        if (atomic_compare_exchange_strong(futexp, &one, 0))
+        const uint32_t old = 1;
+        const uint32_t _new = 0;
+        if (atomic_compare_exchange_strong(futexp, &old, _new))
             break;      /* Yes */
 
         /* Futex is not available; wait. */
@@ -65,8 +66,9 @@ static void futex_aquire_or_wait(uint32_t *futexp) {
    so that if the peer is blocked in futex_aquire_or_wait(), it can proceed. */
 static void futex_release_and_wake(uint32_t *futexp) {
     long s;
-    const uint32_t zero = 0;
-    if (atomic_compare_exchange_strong(futexp, &zero, 1)) {
+    const uint32_t old = 0;
+    const uint32_t _new = 1;
+    if (atomic_compare_exchange_strong(futexp, &old, _new)) {
         s = futex(futexp, FUTEX_WAKE, 1, NULL, NULL, 0);
         if (s  == -1)
             errExit("futex-FUTEX_WAKE");
