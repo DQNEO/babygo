@@ -37,7 +37,7 @@ static int futex(uint32_t *uaddr, int futex_op, uint32_t val,
 
 /* Acquire the futex pointed to by 'futexp': wait for its value to
    become 1, and then set the value to 0. */
-static void f_aquire_or_wait(uint32_t *futexp) {
+static void futex_aquire_or_wait(uint32_t *futexp) {
     long s;
 
     /* atomic_compare_exchange_strong(ptr, oldval, newval)
@@ -62,8 +62,8 @@ static void f_aquire_or_wait(uint32_t *futexp) {
 
 /* Release the futex pointed to by 'futexp': if the futex currently
    has the value 0, set its value to 1 and the wake any futex waiters,
-   so that if the peer is blocked in f_aquire_or_wait(), it can proceed. */
-static void fpost(uint32_t *futexp) {
+   so that if the peer is blocked in futex_aquire_or_wait(), it can proceed. */
+static void futex_release_and_wake(uint32_t *futexp) {
     long s;
     const uint32_t zero = 0;
     if (atomic_compare_exchange_strong(futexp, &zero, 1)) {
@@ -106,9 +106,9 @@ int main(int argc, char *argv[]) {
 
     if (childPid == 0) {        /* Child */
         for (int j = 0; j < nloops; j++) {
-            f_aquire_or_wait(futex1);
+            futex_aquire_or_wait(futex1);
             printf("\t\t\t[%jd] Child  %d\n", (intmax_t) getpid(), j);
-            fpost(futex2);
+            futex_release_and_wake(futex2);
         }
 
         exit(EXIT_SUCCESS);
@@ -117,9 +117,9 @@ int main(int argc, char *argv[]) {
     /* Parent falls through to here. */
 
     for (int j = 0; j < nloops; j++) {
-        f_aquire_or_wait(futex2);
+        futex_aquire_or_wait(futex2);
         printf("[%jd] Parent %d\n", (intmax_t) getpid(), j);
-        fpost(futex1);
+        futex_release_and_wake(futex1);
     }
 
     wait(NULL);
