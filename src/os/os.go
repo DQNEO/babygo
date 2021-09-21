@@ -100,9 +100,8 @@ func (f *File) Readdirnames(n int) ([]string, error) {
 			var dirp *linux_dirent
 			p := uintptr(unsafe.Pointer(&buf[0])) + uintptr(bpos)
 			dirp = (*linux_dirent)(unsafe.Pointer(p))
-			pp := unsafe.Pointer(&dirp.d_name)
-			var bp *byte = (*byte)(pp)
-			var s string = Cstring2string(bp)
+			var bytes *byte = &dirp.d_name
+			var s string = Cstring2string(bytes)
 			bpos = bpos + int(dirp.d_reclen1)
 			counter++
 			if s == "." || s == ".." {
