@@ -3058,7 +3058,8 @@ func getUnderlyingType(t *Type) *Type {
 		// type literal
 		return t
 	case *ast.Ident:
-		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ : "+e.Obj.Name, __func__)
+		assert(e.Obj != nil, "should not be nil : "+e.Name, __func__)
+		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ : "+e.Name, __func__)
 		switch e.Obj {
 		case gUintptr, gInt, gInt32, gString, gUint8, gUint16, gBool:
 			return t

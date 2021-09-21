@@ -3,9 +3,6 @@ package runtime
 
 import "unsafe"
 
-var futexp *int32
-var futexv int32
-
 const heapSize uintptr = 620205360
 
 var heapHead uintptr
@@ -38,6 +35,7 @@ var argslice []string
 
 func schedinit() {
 	heapInit()
+	futexp = malloc(4) // futexp must be aligned on a four-byte boundary.
 	goargs()
 	envInit()
 }
@@ -63,8 +61,18 @@ func newproc(size int, fn *func()) {
 	p0.runq = *fn
 }
 
+var futexp uintptr // *int32
+
+const _FUTEX_WAIT int = 0
+const _FUTEX_PRIVATE_FLAG int = 128
+
+func futexsleep(addr uintptr, val int) {
+	futex(unsafe.Pointer(addr), _FUTEX_WAIT|_FUTEX_PRIVATE_FLAG, val) // sleep
+}
+
 func mstart1() {
 	Write(2, []byte("hello, I am a cloned thread in mstart1\n"))
+	futexsleep(futexp, 0)
 	exitThread()
 }
 
@@ -101,7 +109,12 @@ var Envs []*envEntry
 func heapInit() {
 	heapHead = brk(0)
 	heapTail = brk(heapHead + heapSize)
-	heapCurrent = heapHead
+	if heapHead % 8 == 0 {
+		heapCurrent = heapHead
+	} else {
+		// align with 8 bytes boundary
+		heapCurrent = heapHead + (8 - (heapHead % 8))
+	}
 }
 
 // Inital stack layout is illustrated in this page
@@ -375,6 +388,7 @@ func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
 func exit(c int)
 func exitThread()
 func clone(flags int, stack uintptr, fn func())
+func futex(addr unsafe.Pointer, op int, val int)
 
 // Actually this is an alias to makeSlice
 func makeSlice1(elmSize int, slen int, scap int) []uint8

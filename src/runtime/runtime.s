@@ -39,6 +39,23 @@ runtime.printstring:
   popq %rax # retval
   ret
 
+// func futex(addr unsafe.Pointer, op int, val int)
+runtime.futex:
+  # https://man7.org/linux/man-pages/man2/futex.2.html
+  # long futex(uint32_t *uaddr, int futex_op, uint32_t val,
+  #                      const struct timespec *timeout,   /* or: uint32_t val2 */
+  #                     uint32_t *uaddr2, uint32_t val3);
+  # The uaddr : On all platforms, futexes are four-byte integers that must be aligned on a four-byte boundary.
+  movq 8(%rsp), %rdi
+  movq 16(%rsp), %rsi
+  movq 24(%rsp), %rdx
+  movq $0, %r10
+  movq $0, %r8
+  movq $0, %r9
+  movq $202, %rax
+  syscall
+  ret
+
 # see https://man7.org/linux/man-pages/man2/clone.2.html
 #  long clone(
 #       unsigned long flags,
