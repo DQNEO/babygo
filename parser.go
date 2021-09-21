@@ -736,7 +736,7 @@ const LowestPrec int = 0
 // https://golang.org/ref/spec#Operators
 func precedence(op string) int {
 	switch op {
-	case "*", "/", "%":
+	case "*", "/", "%", "&":
 		return 5
 	case "+", "-", "|":
 		return 4
