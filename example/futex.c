@@ -30,28 +30,20 @@
 
 static uint32_t *futex1, *futex2, *iaddr;
 
-static int
-futex(uint32_t *uaddr, int futex_op, uint32_t val,
-      const struct timespec *timeout, uint32_t *uaddr2, uint32_t val3)
-{
-    return syscall(SYS_futex, uaddr, futex_op, val,
-                   timeout, uaddr2, val3);
+static int futex(uint32_t *uaddr, int futex_op, uint32_t val,
+      const struct timespec *timeout, uint32_t *uaddr2, uint32_t val3) {
+    return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr2, val3);
 }
 
 /* Acquire the futex pointed to by 'futexp': wait for its value to
    become 1, and then set the value to 0. */
-
-static void
-fwait(uint32_t *futexp)
-{
+static void f_aquire_or_wait(uint32_t *futexp) {
     long s;
 
     /* atomic_compare_exchange_strong(ptr, oldval, newval)
        atomically performs the equivalent of:
-
            if (*ptr == *oldval)
                *ptr = newval;
-
        It returns true if the test yielded true and *ptr was updated. */
 
     while (1) {
@@ -62,7 +54,6 @@ fwait(uint32_t *futexp)
             break;      /* Yes */
 
         /* Futex is not available; wait. */
-
         s = futex(futexp, FUTEX_WAIT, 0, NULL, NULL, 0);
         if (s == -1 && errno != EAGAIN)
             errExit("futex-FUTEX_WAIT");
@@ -71,16 +62,9 @@ fwait(uint32_t *futexp)
 
 /* Release the futex pointed to by 'futexp': if the futex currently
    has the value 0, set its value to 1 and the wake any futex waiters,
-   so that if the peer is blocked in fwait(), it can proceed. */
-
-static void
-fpost(uint32_t *futexp)
-{
+   so that if the peer is blocked in f_aquire_or_wait(), it can proceed. */
+static void fpost(uint32_t *futexp) {
     long s;
-
-    /* atomic_compare_exchange_strong() was described
-       in comments above. */
-
     const uint32_t zero = 0;
     if (atomic_compare_exchange_strong(futexp, &zero, 1)) {
         s = futex(futexp, FUTEX_WAKE, 1, NULL, NULL, 0);
@@ -89,9 +73,7 @@ fpost(uint32_t *futexp)
     }
 }
 
-int
-main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     pid_t childPid;
     int nloops;
 
@@ -112,8 +94,8 @@ main(int argc, char *argv[])
     futex1 = &iaddr[0];
     futex2 = &iaddr[1];
 
-    *futex1 = 0;        /* State: unavailable */
-    *futex2 = 1;        /* State: available */
+    *futex1 = 0; /* State: unavailable */
+    *futex2 = 1; /* State: available */
 
     /* Create a child process that inherits the shared anonymous
        mapping. */
@@ -124,8 +106,8 @@ main(int argc, char *argv[])
 
     if (childPid == 0) {        /* Child */
         for (int j = 0; j < nloops; j++) {
-            fwait(futex1);
-            printf("Child  (%jd) %d\n", (intmax_t) getpid(), j);
+            f_aquire_or_wait(futex1);
+            printf("\t\t\t[%jd] Child  %d\n", (intmax_t) getpid(), j);
             fpost(futex2);
         }
 
@@ -135,8 +117,8 @@ main(int argc, char *argv[])
     /* Parent falls through to here. */
 
     for (int j = 0; j < nloops; j++) {
-        fwait(futex2);
-        printf("Parent (%jd) %d\n", (intmax_t) getpid(), j);
+        f_aquire_or_wait(futex2);
+        printf("[%jd] Parent %d\n", (intmax_t) getpid(), j);
         fpost(futex1);
     }
 
