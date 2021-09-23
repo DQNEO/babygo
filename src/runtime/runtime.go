@@ -3,6 +3,9 @@ package runtime
 
 import "unsafe"
 
+var futexp *int32
+var futexv int32
+
 const heapSize uintptr = 620205360
 
 var heapHead uintptr

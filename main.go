@@ -2550,6 +2550,15 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 		default:
 			throw(val)
 		}
+	case T_INT32:
+		switch vl := val.(type) {
+		case nil:
+			printf("  .long 0\n")
+		case *ast.BasicLit:
+			printf("  .long %s\n", vl.Value)
+		default:
+			throw(val)
+		}
 	case T_UINTPTR:
 		// only zero value
 		if val != nil {
@@ -3041,7 +3050,8 @@ func getUnderlyingType(t *Type) *Type {
 		// type literal
 		return t
 	case *ast.Ident:
-		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ : "+e.Obj.Name, __func__)
+		assert(e.Obj != nil, "should not be nil : "+e.Name, __func__)
+		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ : "+e.Name, __func__)
 		switch e.Obj {
 		case gUintptr, gInt, gInt32, gString, gUint8, gUint16, gBool:
 			return t
@@ -4135,7 +4145,7 @@ func createUniverse() *ast.Scope {
 		// constants
 		gTrue, gFalse,
 		// types
-		gString, gUintptr, gBool, gInt, gUint8, gUint16, gError,
+		gString, gUintptr, gBool, gInt, gUint8, gUint16, gInt32, gError,
 		// funcs
 		gNew, gMake, gAppend, gLen, gCap, gPanic, gDelete,
 	}
@@ -4377,14 +4387,18 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 		resolveImports(astFile)
 		var unresolved []*ast.Ident
 		for _, ident := range astFile.Unresolved {
+			logf("resolving %s ...", ident.Name)
 			obj := pkgScope.Lookup(ident.Name)
 			if obj != nil {
+				logf("  ===> obj found in pkg scope\n")
 				ident.Obj = obj
 			} else {
 				obj := universe.Lookup(ident.Name)
 				if obj != nil {
+					logf("  ===> obj found in universe scope\n")
 					ident.Obj = obj
 				} else {
+					logf("  ===> NOT FOUND\n")
 					// we should allow unresolved for now.
 					// e.g foo in X{foo:bar,}
 					unresolved = append(unresolved, ident)
