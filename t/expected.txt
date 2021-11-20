@@ -88,7 +88,7 @@ os
 reflect
 syscall
 unsafe
-another.go expected.txt test.go text.txt 4
+counter=4, totallen=37
 env FOO=bar
 int
 *int

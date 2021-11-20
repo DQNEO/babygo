@@ -481,11 +481,13 @@ func testGetdents64() {
 	// This succeeds only when invoked from babygo's root directory
 	dirents, _ := mylib.Readdirnames("./t") // fd should be 3
 	var counter int
+	var ss string
 	for _, dirent := range dirents {
-		fmt.Printf("%s ", dirent)
+		ss = ss + dirent
+		//fmt.Printf("%s ", dirent)
 		counter++
 	}
-	fmt.Printf("%d\n", counter)
+	fmt.Printf("counter=%d, totallen=%d\n", counter, len(ss))
 }
 
 func testEnv() {
