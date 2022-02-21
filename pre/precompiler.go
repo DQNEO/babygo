@@ -2485,19 +2485,6 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("  ret\n")
 }
 
-func emitGlobalVariableComplex(name *ast.Ident, t *Type, val ast.Expr) {
-	typeKind := kind(t)
-	switch typeKind {
-	case T_POINTER:
-		printf("# init global %s:\n", name.Name)
-		emitAssign(name, val)
-	case T_MAP:
-		emitAssign(name, val)
-	case T_INTERFACE:
-		emitAssign(name, val)
-	}
-}
-
 func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Expr) {
 	typeKind := kind(t)
 	printf(".global %s.%s\n", pkg.name, name.Name)
@@ -2655,6 +2642,8 @@ func generateCode(pkg *PkgContainer) {
 		}
 		emitGlobalVariable(pkg, spec.Names[0], t, val)
 	}
+
+	// Assign global vars dynamically
 	printf("\n")
 	printf(".text\n")
 	printf(".global %s.__initGlobals\n", pkg.name)
@@ -2668,7 +2657,13 @@ func generateCode(pkg *PkgContainer) {
 		if spec.Type != nil {
 			t = e2t(spec.Type)
 		}
-		emitGlobalVariableComplex(spec.Names[0], t, val)
+		name := spec.Names[0]
+		typeKind := kind(t)
+		switch typeKind {
+		case T_POINTER, T_MAP, T_INTERFACE:
+			printf("# init global %s:\n", name.Name)
+			emitAssign(name, val)
+		}
 	}
 	printf("  ret\n")
 
