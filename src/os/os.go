@@ -4,6 +4,7 @@ import "syscall"
 import "unsafe"
 
 const SYS_EXIT int = 60
+
 var Args []string
 
 var Stdin *File
@@ -18,8 +19,8 @@ const FILE_SIZE int = 2000000
 
 const O_READONLY int = 0
 const O_RDWR int = 2
-const O_CREATE int = 64 // 0x40
-const O_TRUNC int = 512 // 0x200
+const O_CREATE int = 64       // 0x40
+const O_TRUNC int = 512       // 0x200
 const O_CLOSEXEC int = 524288 // 0x80000
 
 func Open(name string) (*File, error) {

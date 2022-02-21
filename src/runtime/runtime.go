@@ -76,18 +76,18 @@ func mstart1() {
 	exitThread()
 }
 
-const _CLONE_VM int = 256        // 0x100
+const _CLONE_VM int = 256       // 0x100
 const _CLONE_FS int = 512       // 0x200
 const _CLONE_FILES int = 1024   // 0x400
-const _CLONE_SIGHAND int = 2048  // 0x800
+const _CLONE_SIGHAND int = 2048 // 0x800
 const _CLONE_THREAD int = 65536 // 0x10000
 
 func newosproc() {
-	var cloneFlags int =  _CLONE_VM | _CLONE_FS | _CLONE_FILES | _CLONE_SIGHAND | _CLONE_THREAD
+	var cloneFlags int = _CLONE_VM | _CLONE_FS | _CLONE_FILES | _CLONE_SIGHAND | _CLONE_THREAD
 	var fn func() = mstart1
 	stackSize := uintptr(1024)
 	stack := malloc(stackSize + 8)
-	clone(cloneFlags, stack + stackSize, fn)
+	clone(cloneFlags, stack+stackSize, fn)
 }
 
 func mstart0() {
@@ -109,7 +109,7 @@ var Envs []*envEntry
 func heapInit() {
 	heapHead = brk(0)
 	heapTail = brk(heapHead + heapSize)
-	if heapHead % 8 == 0 {
+	if heapHead%8 == 0 {
 		heapCurrent = heapHead
 	} else {
 		// align with 8 bytes boundary
@@ -172,7 +172,6 @@ func cstring2string(b *uint8) string {
 	}
 	return string(buf)
 }
-
 
 // This func has an alias in os package
 func runtime_args() []string {

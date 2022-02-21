@@ -223,7 +223,7 @@ func emitAddr(expr ast.Expr) {
 		}
 		switch e.Obj.Kind {
 		case ast.Var:
-			assert(e.Obj.Data != nil, "Obj.Data is nil: " + e.Name, __func__)
+			assert(e.Obj.Data != nil, "Obj.Data is nil: "+e.Name, __func__)
 			vr := e.Obj.Data.(*Variable)
 			emitVariableAddr(vr)
 		case ast.Fun:
@@ -633,7 +633,7 @@ func emitCallFF(ff *ForeignFunc) {
 }
 
 func emitCallQ(fn interface{}, totalParamSize int, resultList *ast.FieldList) {
-	switch f := fn.(type){
+	switch f := fn.(type) {
 	case string:
 		symbol := f
 		printf("  callq %s\n", symbol)
@@ -882,12 +882,12 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 
 		switch dcl := fn.Obj.Decl.(type) {
 		case *ast.FuncDecl:
-			funcType =  dcl.Type
+			funcType = dcl.Type
 		case *ast.ValueSpec: // var f func()
-			funcType =  dcl.Type.(*ast.FuncType)
+			funcType = dcl.Type.(*ast.FuncType)
 			funcVal = fun
 		case *ast.AssignStmt: // f := staticF
-			assert(fn.Obj.Data != nil, "funcvalue should be a variable:" + fn.Name, __func__)
+			assert(fn.Obj.Data != nil, "funcvalue should be a variable:"+fn.Name, __func__)
 			rhs := dcl.Rhs[0]
 			switch r := rhs.(type) {
 			case *ast.SelectorExpr:
@@ -971,7 +971,7 @@ type evalContext struct {
 
 // 1 value
 func emitIdent(e *ast.Ident, ctx *evalContext) bool {
-	assert(e.Obj != nil, currentPkg.name + " ident.Obj should not be nil:" + e.Name, __func__)
+	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
 	case gTrue: // true constant
 		emitTrue()
@@ -2773,7 +2773,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case ast.Fun:
 			return e2t(e.Obj.Decl.(*ast.FuncDecl).Type)
 		default:
-			panic("Obj=" + e.Obj.Name + ", Kind=" +  e.Obj.Kind.String())
+			panic("Obj=" + e.Obj.Name + ", Kind=" + e.Obj.Kind.String())
 		}
 	case *ast.BasicLit:
 		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
@@ -3337,7 +3337,7 @@ func isQI(e *ast.SelectorExpr) bool {
 	if !isIdent {
 		return false
 	}
-	assert(ident.Obj != nil, "ident.Obj is nil:" + ident.Name, __func__)
+	assert(ident.Obj != nil, "ident.Obj is nil:"+ident.Name, __func__)
 	return ident.Obj.Kind == ast.Pkg
 }
 

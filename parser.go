@@ -771,7 +771,7 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 			lhs = false
 		}
 
-		var y = p.parseBinaryExpr(false, oprec + 1)
+		var y = p.parseBinaryExpr(false, oprec+1)
 		var binaryExpr = &ast.BinaryExpr{}
 		binaryExpr.X = x
 		binaryExpr.Y = y
@@ -1272,7 +1272,7 @@ func (p *parser) parseFuncType() ast.Expr {
 	var params = sig.Params
 	var results = sig.Results
 	ft := &ast.FuncType{
-		Params: params,
+		Params:  params,
 		Results: results,
 	}
 	return ft
@@ -1402,8 +1402,8 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 	return f
 }
 
-func readSource(filename string) ([]uint8) {
-	buf , _ := os.ReadFile(filename)
+func readSource(filename string) []uint8 {
+	buf, _ := os.ReadFile(filename)
 	return buf
 }
 
