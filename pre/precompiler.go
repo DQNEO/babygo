@@ -2642,6 +2642,8 @@ func generateCode(pkg *PkgContainer) {
 		}
 		emitGlobalVariable(pkg, spec.Names[0], t, val)
 	}
+
+	// Assign global vars dynamically
 	printf("\n")
 	printf(".text\n")
 	printf(".global %s.__initGlobals\n", pkg.name)
