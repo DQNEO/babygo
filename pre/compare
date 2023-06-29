@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -e
+readonly THIS_DIR=$(dirname $0)
+diff -u ${THIS_DIR}/precompiler.go main.go
