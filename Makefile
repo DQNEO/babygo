@@ -1,5 +1,5 @@
-# Run this on Linux
-tmp = /tmp/bbg
+# Run this on a docker container
+tmp = /tmpfs/bbg
 
 .PHONY: all
 all: test
