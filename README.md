@@ -47,7 +47,7 @@ $ ./docker-run
 
 ```terminal
 # Build babygo
-$ go build -o babygo *.go
+$ go build -o babygo
 
 # Compile the hello world program by babygo
 $ ./babygo example/hello.go
@@ -65,7 +65,7 @@ hello world!
 
 ```terminal
 # Build babygo (1st generation)
-$ go build -o babygo *.go
+$ go build -o babygo
 
 # Build babygo by babygo (2nd generation)
 $ rm /tmp/*.s
