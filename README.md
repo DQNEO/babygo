@@ -6,8 +6,8 @@ Babygo is a small and simple go compiler. (Smallest and simplest in the world, I
 It is made from scratch and can compile itself.
 
 * No dependency to any libraries. Standard libraries and calling of system calls are home made.
-* Lexer, parser and code generator are hand written.
-* Emit assemble code which resutls in a single static binary.
+* Lexer, parser and code generator are handwritten.
+* Emit assemble code which results in a single static binary.
 
 It depends only on `as` as an assembler and `ld` as a linker.
 
