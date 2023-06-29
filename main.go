@@ -695,32 +695,37 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 // ABI of stack layout in function call
 //
 // string:
-//   str.ptr
-//   str.len
-// slice:
-//   slc.ptr
-//   slc.len
-//   slc.cap
 //
-// ABI of function call
+//	str.ptr
+//	str.len
+//
+// slice:
+//
+//	slc.ptr
+//	slc.len
+//	slc.cap
+//
+// # ABI of function call
 //
 // call f(i1 int, i2 int) (r1 int, r2 int)
-//   -- stack top
-//   i1
-//   i2
-//   r1
-//   r2
+//
+//	-- stack top
+//	i1
+//	i2
+//	r1
+//	r2
 //
 // call f(i int, s string, slc []T) int
-//   -- stack top
-//   i
-//   s.ptr
-//   s.len
-//   slc.ptr
-//   slc.len
-//   slc.cap
-//   r
-//   --
+//
+//	-- stack top
+//	i
+//	s.ptr
+//	s.len
+//	slc.ptr
+//	slc.len
+//	slc.cap
+//	r
+//	--
 func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 	emitComment(2, "[emitFuncall] %T(...)\n", fun)
 	var funcType *ast.FuncType
@@ -1415,10 +1420,12 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 
 // targetType is the type of someone who receives the expr value.
 // There are various forms:
-//   Assignment:       x = expr
-//   Function call:    x(expr)
-//   Return:           return expr
-//   CompositeLiteral: T{key:expr}
+//
+//	Assignment:       x = expr
+//	Function call:    x(expr)
+//	Return:           return expr
+//	CompositeLiteral: T{key:expr}
+//
 // targetType is used when:
 //   - the expr is nil
 //   - the target type is interface and expr is not.
@@ -1670,7 +1677,7 @@ func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
 	}
 }
 
-//@TODO handle larger types than int
+// @TODO handle larger types than int
 func emitCompExpr(inst string) {
 	printf("  popq %%rcx # right\n")
 	printf("  popq %%rax # left\n")

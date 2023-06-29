@@ -57,7 +57,7 @@ func concate(x string, y string) string {
 }
 
 func main() {
-	multiVars(1,2, 3)
+	multiVars(1, 2, 3)
 	slice(nil)
 	slice([]byte{'a', 'b', 'c'})
 	arg1(1)
