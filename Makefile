@@ -6,7 +6,7 @@ all: test
 
 # test all
 .PHONY: test
-test: $(tmp) test0 selfhost compare-test
+test: $(tmp) test0 test1 test2 selfhost compare-test
 
 $(tmp):
 	mkdir -p $(tmp)
@@ -62,15 +62,15 @@ compare-test: $(tmp)/pre-test.d $(tmp)/bbg-test.d $(tmp)/bbg-bbg-test.d $(tmp)/p
 
 .PHONY: test0
 test0: $(tmp)/pre-test t/expected.txt
-	./test.sh $<
+	./test.sh $< $(tmp)
 
 .PHONY: test1
 test1: $(tmp)/bbg-test t/expected.txt
-	./test.sh $<
+	./test.sh $< $(tmp)
 
 .PHONY: test2
 test2: $(tmp)/bbg-bbg-test t/expected.txt
-	./test.sh $<
+	./test.sh $< $(tmp)
 
 $(tmp)/bbg-bbg-bbg.d: $(tmp)/bbg-bbg
 	./compile $< $(@) *.go

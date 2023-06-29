@@ -1,8 +1,9 @@
 #!/bin/bash
 set -u
-program=$1
+readonly program=$1
+readonly tmpdir=$2
 export FOO=bar
-${program} myargs 1>/tmp/actual.1 2> /tmp/actual.2
+${program} myargs 1> ${tmpdir}/actual.1 2> ${tmpdir}/actual.2
 if [[ $? -eq 0 ]]; then
   :
 else
@@ -13,7 +14,7 @@ else
   exit $exit_status
 fi
 
-diff -u t/expected.txt /tmp/actual.1
+diff -u t/expected.txt ${tmpdir}/actual.1
 if [[ $? -ne 0 ]]; then
   echo FAILED
   exit 1
