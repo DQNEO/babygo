@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eux
 exe_file=$1
 work_dir=$2
 
