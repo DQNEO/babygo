@@ -15,7 +15,7 @@ docker run -it --rm \
     --cap-add=SYS_PTRACE\
     --security-opt='seccomp=unconfined'\
     --env GOPATH=/root/go \
-    --tmpfs=/tmp/tmpfs:rw,size=500m,mode=1777\
+    --tmpfs=/tmpfs:rw,exec,size=500m,mode=1777 \
     --tmpfs=/root/go/src/github.com/DQNEO/babygo/tmp:rw,size=500m,mode=1777\
      dqneo/ubuntu-compiler-go $cmd
 
