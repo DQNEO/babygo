@@ -4438,11 +4438,6 @@ func main() {
 	if workdir == "" {
 		workdir = "/tmp"
 	}
-	initAsm, err := os.Create(workdir + "/a.s")
-	if err != nil {
-		panic(err)
-	}
-	fout = initAsm
 	logf("Build start\n")
 
 	var inputFiles []string
@@ -4487,7 +4482,6 @@ func main() {
 		buildPackage(_pkg, universe)
 		pgkAsm.Close()
 	}
-	initAsm.Close()
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
