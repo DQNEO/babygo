@@ -4449,6 +4449,10 @@ func main() {
 		panic("I am panic version " + panicVersion)
 	}
 
+	buildAll(os.Args[1:])
+}
+
+func buildAll(args []string) {
 	workdir := os.Getenv("WORKDIR")
 	if workdir == "" {
 		workdir = "/tmp"
@@ -4456,7 +4460,7 @@ func main() {
 	logf("Build start\n")
 
 	var inputFiles []string
-	for _, arg := range os.Args[1:] {
+	for _, arg := range args {
 		switch arg {
 		case "-DF":
 			debugFrontEnd = true
