@@ -16,7 +16,7 @@ It is composed of only a few files.
 * main.go - the main compiler
 * parser.go - parser
 * scanner.go - scanner(or lexer)
-* src/ - internal packages
+* src/ - standard packages
 * lib/ - libraries
 
 # Design
