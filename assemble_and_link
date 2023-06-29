@@ -3,14 +3,10 @@ set -eux
 exe_file=$1
 work_dir=$2
 
-cd $work_dir
-
-for f in *.s
+for f in ${work_dir}/*.s
 do
-  b=$(basename $f .s)
-  as -o $b.o $b.s
+  o=${f%\.s}.o
+  as -o $o $f
 done
 
-ld *.o
-
-mv a.out $exe_file
+ld -o ${exe_file} ${work_dir}/*.o
