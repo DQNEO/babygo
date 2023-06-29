@@ -11,10 +11,10 @@ pre.mac: pre/*.go lib/*/*
 bbg.mac: *.go lib/*/* src/*/*
 	go build -o bbg.mac .
 
-$(tmp)/pre-test.d: ./pre.mac t/*.go src/*/* lib/*/*
+$(tmp)/pre-test.d:  pre.mac t/*.go src/*/* lib/*/*
 	./compile $< $@ t/*.go
 
-$(tmp)/bbg-test.d: ./bbg.mac t/*.go src/*/* lib/*/*
+$(tmp)/bbg-test.d: bbg.mac t/*.go src/*/* lib/*/*
 	./compile $< $@ t/*.go
 
 
