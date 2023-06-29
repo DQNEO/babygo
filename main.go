@@ -2675,16 +2675,6 @@ func generateCode(pkg *PkgContainer) {
 	emitDynamicTypes(typesMap)
 	printf("\n")
 
-	for _, file := range pkg.files {
-		if strings.HasSuffix(file, ".s") {
-			printf("# === static assembly %s ====\n", file)
-			asmContents, err := os.ReadFile(file)
-			if err != nil {
-				panic(err)
-			}
-			printf("%s", string(asmContents))
-		}
-	}
 }
 
 func emitDynamicTypes(mapDtypes map[string]*dtypeEntry) {
@@ -4166,10 +4156,15 @@ func createUniverse() *ast.Scope {
 // --- builder ---
 var currentPkg *PkgContainer
 
+type PackageToBuild struct {
+	path  string
+	name  string
+	files []string
+}
+
 type PkgContainer struct {
 	path           string
 	name           string
-	files          []string
 	astFiles       []*ast.File
 	vars           []*ast.ValueSpec
 	funcs          []*Func
@@ -4370,13 +4365,16 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 	return f
 }
 
-// compile compiles go files of a package into an assembly file
-func compile(universe *ast.Scope, _pkg *PkgContainer, gofiles []string, outFilePath string) {
-	asmFile, err := os.Create(outFilePath)
+// compile compiles go files of a package into an assembly file, and copy input assembly files into it.
+func compile(universe *ast.Scope, path string, name string, gofiles []string, asmfiles []string, outFilePath string) {
+	_pkg := &PkgContainer{name: name, path: path}
+	currentPkg = _pkg
+
+	outAsmFile, err := os.Create(outFilePath)
 	if err != nil {
 		panic(err)
 	}
-	fout = asmFile
+	fout = outAsmFile
 
 	typesMap = make(map[string]*dtypeEntry)
 	typeId = 1
@@ -4385,9 +4383,6 @@ func compile(universe *ast.Scope, _pkg *PkgContainer, gofiles []string, outFileP
 	fset := &token.FileSet{}
 	pkgScope := ast.NewScope(universe)
 	for _, file := range gofiles {
-		if strings.HasSuffix(file, ".s") {
-			continue
-		}
 		logf("Parsing file: %s\n", file)
 		astFile := parseFile(fset, file)
 		_pkg.name = astFile.Name.Name
@@ -4425,7 +4420,18 @@ func compile(universe *ast.Scope, _pkg *PkgContainer, gofiles []string, outFileP
 	logf("Walking package: %s\n", _pkg.name)
 	walk(_pkg)
 	generateCode(_pkg)
-	asmFile.Close()
+
+	// append static asm files
+	for _, file := range asmfiles {
+		fmt.Fprintf(outAsmFile, "# === static assembly %s ====\n", file)
+		asmContents, err := os.ReadFile(file)
+		if err != nil {
+			panic(err)
+		}
+		outAsmFile.Write(asmContents)
+	}
+
+	outAsmFile.Close()
 	fout = nil
 }
 
@@ -4479,29 +4485,39 @@ func buildAll(args []string) {
 	}
 
 	paths := collectAllPackages(inputFiles)
-	var packagesToBuild []*PkgContainer
+	var packagesToBuild []*PackageToBuild
 	for _, _path := range paths {
 		files := collectSourceFiles(getPackageDir(_path))
-		packagesToBuild = append(packagesToBuild, &PkgContainer{
+		packagesToBuild = append(packagesToBuild, &PackageToBuild{
 			name:  path.Base(_path),
 			path:  _path,
 			files: files,
 		})
 	}
 
-	packagesToBuild = append(packagesToBuild, &PkgContainer{
+	packagesToBuild = append(packagesToBuild, &PackageToBuild{
 		name:  "main",
+		path:  "main",
 		files: inputFiles,
 	})
 
 	var universe = createUniverse()
 	for _, _pkg := range packagesToBuild {
-		currentPkg = _pkg
 		if _pkg.name == "" {
 			panic("empty pkg name")
 		}
 		outFilePath := fmt.Sprintf("%s/%s", workdir, _pkg.name+".s")
-		compile(universe, _pkg, _pkg.files, outFilePath)
+		var gofiles []string
+		var asmfiles []string
+		for _, f := range _pkg.files {
+			if strings.HasSuffix(f, ".go") {
+				gofiles = append(gofiles, f)
+			} else if strings.HasSuffix(f, ".s") {
+				asmfiles = append(asmfiles, f)
+			}
+
+		}
+		compile(universe, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
 	}
 }
 
