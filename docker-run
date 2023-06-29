@@ -9,18 +9,15 @@ else
   cmd="$@"
 fi
 
-docker run \
-    -it\
-    --rm\
-    --cap-add=SYS_PTRACE\
-    --security-opt='seccomp=unconfined'\
+docker run -it --rm \
     -w /root/go/src/github.com/DQNEO/babygo\
     -v `pwd`:/root/go/src/github.com/DQNEO/babygo\
-    --env PATH=/usr/lib/go-1.17/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\
+    --cap-add=SYS_PTRACE\
+    --security-opt='seccomp=unconfined'\
     --env GOPATH=/root/go \
     --tmpfs=/tmp/tmpfs:rw,size=500m,mode=1777\
     --tmpfs=/root/go/src/github.com/DQNEO/babygo/tmp:rw,size=500m,mode=1777\
-     dqneo/ubuntu-build-essential:go $cmd
+     dqneo/ubuntu-compiler-go $cmd
 
 # Change prompt in the container
 # export PS1='docker:\W $ '

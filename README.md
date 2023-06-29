@@ -34,10 +34,10 @@ This is purely my design :)
 
 It supports x86-64 Linux only.
 
-If you are not using Linux, you can use [a dedicated docker image](https://hub.docker.com/r/dqneo/ubuntu-build-essential/tags) for this project.
+If you are not using Linux, you can use [a dedicated docker image](https://hub.docker.com/r/dqneo/ubuntu-compiler-go) for this project.
 
 ```termiinal
-$ docker pull dqneo/ubuntu-build-essential:go
+$ docker pull dqneo/ubuntu-compiler-go
 $ ./docker-run
 ```
 
