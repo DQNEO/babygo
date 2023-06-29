@@ -4374,7 +4374,13 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 	return f
 }
 
-func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
+func buildPackage(_pkg *PkgContainer, outFilePath string, universe *ast.Scope) {
+	asmFile, err := os.Create(outFilePath)
+	if err != nil {
+		panic(err)
+	}
+	fout = asmFile
+
 	typesMap = make(map[string]*dtypeEntry)
 	typeId = 1
 
@@ -4422,6 +4428,8 @@ func buildPackage(_pkg *PkgContainer, universe *ast.Scope) {
 	logf("Walking package: %s\n", _pkg.name)
 	walk(_pkg)
 	generateCode(_pkg)
+	asmFile.Close()
+	fout = nil
 }
 
 // --- main ---
@@ -4491,13 +4499,9 @@ func main() {
 		if _pkg.name == "" {
 			panic("empty pkg name")
 		}
-		pgkAsm, err := os.Create(fmt.Sprintf("%s/%s.s", workdir, _pkg.name))
-		if err != nil {
-			panic(err)
-		}
-		fout = pgkAsm
-		buildPackage(_pkg, universe)
-		pgkAsm.Close()
+		asmFileName := _pkg.name + ".s"
+		asmFilePath := fmt.Sprintf("%s/%s", workdir, asmFileName)
+		buildPackage(_pkg, asmFilePath, universe)
 	}
 }
 
