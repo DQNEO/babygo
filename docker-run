@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Usage:
 #    ./docker-run   enter into container with bash
 #    ./docker-run <command> run a command in the container

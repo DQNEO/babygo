@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -u
 readonly program=$1
 readonly tmpdir=$2
