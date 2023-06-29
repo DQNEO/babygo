@@ -16,6 +16,8 @@ import (
 	//"fmt"
 )
 
+const ThrowFormat = "%T"
+
 var ProgName string = "babygo"
 
 var __func__ = "__func__"
@@ -2641,6 +2643,8 @@ func generateCode(pkg *PkgContainer) {
 		}
 		emitGlobalVariable(pkg, spec.Names[0], t, val)
 	}
+
+	// Assign global vars dynamically
 	printf("\n")
 	printf(".text\n")
 	printf(".global %s.__initGlobals\n", pkg.name)
@@ -4348,6 +4352,8 @@ func collectSourceFiles(pkgDir string) []string {
 	return files
 }
 
+const parserImportsOnly = 2 // parser.ImportsOnly
+
 func parseImports(fset *token.FileSet, filename string) *ast.File {
 	f, err := ParseFile(fset, filename, nil, parserImportsOnly)
 	if err != nil {
@@ -4627,5 +4633,5 @@ func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
 }
 
 func throw(x interface{}) {
-	panic(fmt.Sprintf("%T", x))
+	panic(fmt.Sprintf(ThrowFormat, x))
 }

@@ -17,14 +17,13 @@ import (
 	//"fmt"
 )
 
-var ProgName string = "pre"
-
-// tweak to reduce diff with main.go
-const parserImportsOnly = parser.ImportsOnly
-
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode parser.Mode) (*ast.File, error) {
 	return parser.ParseFile(fset, filename, src, mode)
 }
+
+const ThrowFormat = "%#v"
+
+var ProgName string = "babygo"
 
 var __func__ = "__func__"
 
@@ -4358,6 +4357,8 @@ func collectSourceFiles(pkgDir string) []string {
 	return files
 }
 
+const parserImportsOnly = 2 // parser.ImportsOnly
+
 func parseImports(fset *token.FileSet, filename string) *ast.File {
 	f, err := ParseFile(fset, filename, nil, parserImportsOnly)
 	if err != nil {
@@ -4637,5 +4638,5 @@ func setMetaTypeSwitchStmt(s *ast.TypeSwitchStmt, meta *MetaTypeSwitchStmt) {
 }
 
 func throw(x interface{}) {
-	panic(fmt.Sprintf("%#v", x))
+	panic(fmt.Sprintf(ThrowFormat, x))
 }

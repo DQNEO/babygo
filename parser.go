@@ -1,11 +1,12 @@
 package main
 
 import (
+	"os"
+
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
-	"os"
 )
 
 func (p *parser) init(src []uint8) {
@@ -1406,8 +1407,6 @@ func readSource(filename string) []uint8 {
 	buf, _ := os.ReadFile(filename)
 	return buf
 }
-
-const parserImportsOnly = 1
 
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8) (*ast.File, *ParserError) {
 	logf("[ParseFile] Start file %s\n", filename)
