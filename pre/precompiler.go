@@ -4375,7 +4375,8 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 	return f
 }
 
-func buildPackage(_pkg *PkgContainer, outFilePath string, universe *ast.Scope) {
+// compile compiles go files of a package into an assembly file
+func compile(universe *ast.Scope, _pkg *PkgContainer, gofiles []string, outFilePath string) {
 	asmFile, err := os.Create(outFilePath)
 	if err != nil {
 		panic(err)
@@ -4388,7 +4389,7 @@ func buildPackage(_pkg *PkgContainer, outFilePath string, universe *ast.Scope) {
 	logf("Building package : %s\n", _pkg.path)
 	fset := &token.FileSet{}
 	pkgScope := ast.NewScope(universe)
-	for _, file := range _pkg.files {
+	for _, file := range gofiles {
 		if strings.HasSuffix(file, ".s") {
 			continue
 		}
@@ -4504,9 +4505,8 @@ func buildAll(args []string) {
 		if _pkg.name == "" {
 			panic("empty pkg name")
 		}
-		asmFileName := _pkg.name + ".s"
-		asmFilePath := fmt.Sprintf("%s/%s", workdir, asmFileName)
-		buildPackage(_pkg, asmFilePath, universe)
+		outFilePath := fmt.Sprintf("%s/%s", workdir, _pkg.name+".s")
+		compile(universe, _pkg, _pkg.files, outFilePath)
 	}
 }
 
