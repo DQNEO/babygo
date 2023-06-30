@@ -1886,10 +1886,10 @@ func emitOkAssignment(s *ast.AssignStmt) {
 	}
 }
 
+// multi-values expr
+// a, b (, c...) = expr
 func emitTupleAssignment(s *ast.AssignStmt) {
 	rhs0 := s.Rhs[0]
-	// multi-values expr
-	// a, b, c = f()
 	emitExpr(rhs0, nil) // @TODO interface conversion
 	callExpr := rhs0.(*ast.CallExpr)
 	returnTypes := getCallResultTypes(callExpr)
@@ -2398,10 +2398,10 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.AssignStmt:
 		meta := mapMeta[unsafe.Pointer(s)].(*MetaAssignStmt)
 		switch meta.kind {
-		case "ok":
-			emitOkAssignment(s)
 		case "single": // lhs = expr | lhs += expr
 			emitSingleAssign(meta.lhs[0], meta.rhs[0])
+		case "ok": // a, b = expr
+			emitOkAssignment(s)
 		case "tuple": // a, b (, c...) = expr
 			emitTupleAssignment(s)
 		default:
@@ -3423,77 +3423,14 @@ func walkAssignStmt(s *ast.AssignStmt) {
 	stok := s.Tok.String()
 	var knd string
 	switch stok {
-	case ":=":
+	case "=", ":=":
 		if IsOkSyntax(s) {
 			knd = "ok"
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 				knd = "single"
 				lhs0 := s.Lhs[0]
-				ident, isIdent := lhs0.(*ast.Ident)
-				if isIdent && ident.Name == "_" {
-					panic(" _ is not supported yet")
-				}
-			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
-				knd = "tuple"
-			} else {
-				panic("TBI")
-			}
-		}
-
-		rhs0 := s.Rhs[0]
-		walkExpr(rhs0)
-		var isMultiValuedContext bool
-		if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
-			isMultiValuedContext = true
-		}
-
-		if isMultiValuedContext {
-			// Declare local variables
-
-			// a, b, c := rhs0
-			// infer type
-			var types []*Type
-			switch rhs := rhs0.(type) {
-			case *ast.CallExpr:
-				types = getCallResultTypes(rhs)
-			case *ast.TypeAssertExpr: // v, ok := x.(T)
-				typ0 := getTypeOfExpr(rhs0)
-				types = []*Type{typ0, tBool}
-			case *ast.IndexExpr: // v, ok := m[k]
-				typ0 := getTypeOfExpr(rhs0)
-				types = []*Type{typ0, tBool}
-			default:
-				throw(rhs0)
-			}
-			for i, lhs := range s.Lhs {
-				obj := lhs.(*ast.Ident).Obj
-				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, types[i]))
-			}
-		} else {
-			for i, lhs := range s.Lhs {
-				obj := lhs.(*ast.Ident).Obj
-				rhs := s.Rhs[i]
-				walkExpr(rhs)
-				rhsType := getTypeOfExpr(s.Rhs[i])
-				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, rhsType))
-			}
-		}
-
-		mapMeta[unsafe.Pointer(s)] = &MetaAssignStmt{
-			kind: knd,
-			lhs:  s.Lhs,
-			rhs:  s.Rhs,
-		}
-	case "=":
-		if IsOkSyntax(s) {
-			knd = "ok"
-		} else {
-			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
-				knd = "single"
-				lhs0 := s.Lhs[0]
-				ident, isIdent := lhs0.(*ast.Ident)
-				if isIdent && ident.Name == "_" {
+				if isBlankIdentifier(lhs0) {
 					panic(" _ is not supported yet")
 				}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
@@ -3510,6 +3447,38 @@ func walkAssignStmt(s *ast.AssignStmt) {
 			kind: knd,
 			lhs:  s.Lhs,
 			rhs:  s.Rhs,
+		}
+
+		if stok == ":=" {
+			// Declare local variables
+			if len(s.Lhs) > 1 && len(s.Rhs) == 1 { // a, b, c := rhs0
+				// infer type
+				var types []*Type
+				rhs0 := s.Rhs[0]
+				switch rhs := rhs0.(type) {
+				case *ast.CallExpr:
+					types = getCallResultTypes(rhs)
+				case *ast.TypeAssertExpr: // v, ok := x.(T)
+					typ0 := getTypeOfExpr(rhs0)
+					types = []*Type{typ0, tBool}
+				case *ast.IndexExpr: // v, ok := m[k]
+					typ0 := getTypeOfExpr(rhs0)
+					types = []*Type{typ0, tBool}
+				default:
+					throw(rhs0)
+				}
+				for i, lhs := range s.Lhs {
+					obj := lhs.(*ast.Ident).Obj
+					typ := types[i]
+					setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				}
+			} else { // a, b, c := x, y, z
+				for i, lhs := range s.Lhs {
+					obj := lhs.(*ast.Ident).Obj
+					typ := getTypeOfExpr(s.Rhs[i]) // use rhs type
+					setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				}
+			}
 		}
 	case "+=", "-=":
 		var op token.Token
@@ -3536,7 +3505,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 }
 
 type MetaAssignStmt struct {
-	kind string // "ok", "binop", "single", "tuple"
+	kind string // "ok", "single", "tuple"
 	lhs  []ast.Expr
 	rhs  []ast.Expr
 }

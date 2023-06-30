@@ -1806,7 +1806,7 @@ func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 	emitStore(vr.Typ, true, false)
 }
 
-func emitAssign(lhs ast.Expr, rhs ast.Expr) {
+func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
@@ -1843,7 +1843,7 @@ func emitDeclStmt(s *ast.DeclStmt) {
 		} else if len(valSpec.Values) == 1 {
 			// assignment
 			rhs := valSpec.Values[0]
-			emitAssign(lhs, rhs)
+			emitSingleAssign(lhs, rhs)
 		} else {
 			panic("TBI")
 		}
@@ -1851,100 +1851,76 @@ func emitDeclStmt(s *ast.DeclStmt) {
 		throw(declSpec)
 	}
 }
-func emitAssignStmt(s *ast.AssignStmt) {
-	switch s.Tok.String() {
-	case "=", ":=":
-		rhs0 := s.Rhs[0]
-		_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
-		indexExpr, isIndexExpr := rhs0.(*ast.IndexExpr)
-		var isOKSytax bool
-		if len(s.Lhs) == 2 && isTypeAssertion {
-			isOKSytax = true
-		}
-		if len(s.Lhs) == 2 && isIndexExpr && kind(getTypeOfExpr(indexExpr.X)) == T_MAP {
-			isOKSytax = true
-		}
-		if isOKSytax {
-			emitComment(2, "Assignment: emitAssignWithOK rhs\n")
-			ctx := &evalContext{
-				okContext: true,
-			}
-			emitExprIfc(rhs0, ctx) // {push data}, {push bool}
-			lhsOK := s.Lhs[1]
-			if isBlankIdentifier(lhsOK) {
-				emitPop(T_BOOL)
-			} else {
-				emitComment(2, "Assignment: ok variable\n")
-				emitAddr(lhsOK)
-				emitStore(getTypeOfExpr(lhsOK), false, false)
-			}
 
-			lhsMain := s.Lhs[0]
-			if isBlankIdentifier(lhsMain) {
-				emitPop(kind(getTypeOfExpr(rhs0)))
-			} else {
-				emitAddr(lhsMain)
-				emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
-				emitStore(getTypeOfExpr(lhsMain), false, false)
-			}
-		} else {
-			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
-				// 1 to 1 assignment
-				// x = e
-				lhs0 := s.Lhs[0]
-				ident, isIdent := lhs0.(*ast.Ident)
-				if isIdent && ident.Name == "_" {
-					panic(" _ is not supported yet")
-				}
-				emitAssign(lhs0, rhs0)
-			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
-				// multi-values expr
-				// a, b, c = f()
-				emitExpr(rhs0, nil) // @TODO interface conversion
-				callExpr := rhs0.(*ast.CallExpr)
-				returnTypes := getCallResultTypes(callExpr)
-				printf("# len lhs=%d\n", len(s.Lhs))
-				printf("# returnTypes=%d\n", len(returnTypes))
-				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
-				length := len(returnTypes)
-				for i := 0; i < length; i++ {
-					lhs := s.Lhs[i]
-					rhsType := returnTypes[i]
-					if isBlankIdentifier(lhs) {
-						emitPop(kind(rhsType))
-					} else {
-						switch kind(rhsType) {
-						case T_UINT8:
-							// repush stack top
-							printf("  movzbq (%%rsp), %%rax # load uint8\n")
-							printf("  addq $%d, %%rsp # free returnvars area\n", 1)
-							printf("  pushq %%rax\n")
-						}
-						emitAddr(lhs)
-						emitStore(getTypeOfExpr(lhs), false, false)
-					}
-				}
+func IsOkSyntax(s *ast.AssignStmt) bool {
+	rhs0 := s.Rhs[0]
+	_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
+	indexExpr, isIndexExpr := rhs0.(*ast.IndexExpr)
+	if len(s.Lhs) == 2 && isTypeAssertion {
+		return true
+	}
+	if len(s.Lhs) == 2 && isIndexExpr && kind(getTypeOfExpr(indexExpr.X)) == T_MAP {
+		return true
+	}
+	return false
+}
 
-			}
-		}
-	case "+=":
-		binaryExpr := &ast.BinaryExpr{
-			X:  s.Lhs[0],
-			Op: token.ADD,
-			Y:  s.Rhs[0],
-		}
-		emitAssign(s.Lhs[0], binaryExpr)
-	case "-=":
-		binaryExpr := &ast.BinaryExpr{
-			X:  s.Lhs[0],
-			Op: token.SUB,
-			Y:  s.Rhs[0],
-		}
-		emitAssign(s.Lhs[0], binaryExpr)
-	default:
-		panic("TBI: assignment of " + s.Tok.String())
+func emitOkAssignment(s *ast.AssignStmt) {
+	rhs0 := s.Rhs[0]
+	emitComment(2, "Assignment: emitAssignWithOK rhs\n")
+	ctx := &evalContext{
+		okContext: true,
+	}
+	emitExprIfc(rhs0, ctx) // {push data}, {push bool}
+	lhsOK := s.Lhs[1]
+	if isBlankIdentifier(lhsOK) {
+		emitPop(T_BOOL)
+	} else {
+		emitComment(2, "Assignment: ok variable\n")
+		emitAddr(lhsOK)
+		emitStore(getTypeOfExpr(lhsOK), false, false)
+	}
+
+	lhsMain := s.Lhs[0]
+	if isBlankIdentifier(lhsMain) {
+		emitPop(kind(getTypeOfExpr(rhs0)))
+	} else {
+		emitAddr(lhsMain)
+		emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
+		emitStore(getTypeOfExpr(lhsMain), false, false)
 	}
 }
+
+// multi-values expr
+// a, b (, c...) = expr
+func emitTupleAssignment(s *ast.AssignStmt) {
+	rhs0 := s.Rhs[0]
+	emitExpr(rhs0, nil) // @TODO interface conversion
+	callExpr := rhs0.(*ast.CallExpr)
+	returnTypes := getCallResultTypes(callExpr)
+	printf("# len lhs=%d\n", len(s.Lhs))
+	printf("# returnTypes=%d\n", len(returnTypes))
+	assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
+	length := len(returnTypes)
+	for i := 0; i < length; i++ {
+		lhs := s.Lhs[i]
+		rhsType := returnTypes[i]
+		if isBlankIdentifier(lhs) {
+			emitPop(kind(rhsType))
+		} else {
+			switch kind(rhsType) {
+			case T_UINT8:
+				// repush stack top
+				printf("  movzbq (%%rsp), %%rax # load uint8\n")
+				printf("  addq $%d, %%rsp # free returnvars area\n", 1)
+				printf("  pushq %%rax\n")
+			}
+			emitAddr(lhs)
+			emitStore(getTypeOfExpr(lhs), false, false)
+		}
+	}
+}
+
 func emitIfStmt(s *ast.IfStmt) {
 	emitComment(2, "if\n")
 
@@ -2425,7 +2401,17 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.DeclStmt:
 		emitDeclStmt(s)
 	case *ast.AssignStmt:
-		emitAssignStmt(s)
+		meta := mapMeta[unsafe.Pointer(s)].(*MetaAssignStmt)
+		switch meta.kind {
+		case "single": // lhs = expr | lhs += expr
+			emitSingleAssign(meta.lhs[0], meta.rhs[0])
+		case "ok": // a, b = expr
+			emitOkAssignment(s)
+		case "tuple": // a, b (, c...) = expr
+			emitTupleAssignment(s)
+		default:
+			panic("TBI")
+		}
 	case *ast.ReturnStmt:
 		meta := getMetaReturnStmt(s)
 		emitReturnStmt(meta)
@@ -2667,7 +2653,7 @@ func generateCode(pkg *PkgContainer) {
 		switch typeKind {
 		case T_POINTER, T_MAP, T_INTERFACE:
 			printf("# init global %s:\n", name.Name)
-			emitAssign(name, val)
+			emitSingleAssign(name, val)
 		}
 	}
 	printf("  ret\n")
@@ -3439,48 +3425,94 @@ func walkDeclStmt(s *ast.DeclStmt) {
 }
 func walkAssignStmt(s *ast.AssignStmt) {
 	walkExpr(s.Lhs[0])
-	if s.Tok.String() == ":=" {
-		rhs0 := s.Rhs[0]
-		walkExpr(rhs0)
-		var isMultiValuedContext bool
-		if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
-			isMultiValuedContext = true
+	stok := s.Tok.String()
+	var knd string
+	switch stok {
+	case "=", ":=":
+		if IsOkSyntax(s) {
+			knd = "ok"
+		} else {
+			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
+				knd = "single"
+				lhs0 := s.Lhs[0]
+				if isBlankIdentifier(lhs0) {
+					panic(" _ is not supported yet")
+				}
+			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
+				knd = "tuple"
+			} else {
+				panic("TBI")
+			}
 		}
 
-		if isMultiValuedContext {
-			// a, b, c := rhs0
-			// infer type
-			var types []*Type
-			switch rhs := rhs0.(type) {
-			case *ast.CallExpr:
-				types = getCallResultTypes(rhs)
-			case *ast.TypeAssertExpr: // v, ok := x.(T)
-				typ0 := getTypeOfExpr(rhs0)
-				types = []*Type{typ0, tBool}
-			case *ast.IndexExpr: // v, ok := m[k]
-				typ0 := getTypeOfExpr(rhs0)
-				types = []*Type{typ0, tBool}
-			default:
-				throw(rhs0)
-			}
-			for i, lhs := range s.Lhs {
-				obj := lhs.(*ast.Ident).Obj
-				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, types[i]))
-			}
-		} else {
-			for i, lhs := range s.Lhs {
-				obj := lhs.(*ast.Ident).Obj
-				rhs := s.Rhs[i]
-				walkExpr(rhs)
-				rhsType := getTypeOfExpr(s.Rhs[i])
-				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, rhsType))
-			}
-		}
-	} else {
 		for _, rhs := range s.Rhs {
 			walkExpr(rhs)
 		}
+		mapMeta[unsafe.Pointer(s)] = &MetaAssignStmt{
+			kind: knd,
+			lhs:  s.Lhs,
+			rhs:  s.Rhs,
+		}
+
+		if stok == ":=" {
+			// Declare local variables
+			if len(s.Lhs) > 1 && len(s.Rhs) == 1 { // a, b, c := rhs0
+				// infer type
+				var types []*Type
+				rhs0 := s.Rhs[0]
+				switch rhs := rhs0.(type) {
+				case *ast.CallExpr:
+					types = getCallResultTypes(rhs)
+				case *ast.TypeAssertExpr: // v, ok := x.(T)
+					typ0 := getTypeOfExpr(rhs0)
+					types = []*Type{typ0, tBool}
+				case *ast.IndexExpr: // v, ok := m[k]
+					typ0 := getTypeOfExpr(rhs0)
+					types = []*Type{typ0, tBool}
+				default:
+					throw(rhs0)
+				}
+				for i, lhs := range s.Lhs {
+					obj := lhs.(*ast.Ident).Obj
+					typ := types[i]
+					setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				}
+			} else { // a, b, c := x, y, z
+				for i, lhs := range s.Lhs {
+					obj := lhs.(*ast.Ident).Obj
+					typ := getTypeOfExpr(s.Rhs[i]) // use rhs type
+					setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				}
+			}
+		}
+	case "+=", "-=":
+		var op token.Token
+		switch stok {
+		case "+=":
+			op = token.ADD
+		case "-=":
+			op = token.SUB
+		}
+		walkExpr(s.Rhs[0])
+		binaryExpr := &ast.BinaryExpr{
+			X:  s.Lhs[0],
+			Op: op,
+			Y:  s.Rhs[0],
+		}
+		mapMeta[unsafe.Pointer(s)] = &MetaAssignStmt{
+			kind: "single",
+			lhs:  s.Lhs,
+			rhs:  []ast.Expr{binaryExpr},
+		}
+	default:
+		panic("TBI")
 	}
+}
+
+type MetaAssignStmt struct {
+	kind string // "ok", "single", "tuple"
+	lhs  []ast.Expr
+	rhs  []ast.Expr
 }
 
 func walkReturnStmt(s *ast.ReturnStmt) {
