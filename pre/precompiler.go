@@ -4160,7 +4160,6 @@ type PackageToBuild struct {
 type PkgContainer struct {
 	path           string
 	name           string
-	files          []string
 	astFiles       []*ast.File
 	vars           []*ast.ValueSpec
 	funcs          []*Func
