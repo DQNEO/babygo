@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eux
+set -eu
 exe_file=$1
 work_dir=$2
 
