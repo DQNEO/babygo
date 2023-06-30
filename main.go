@@ -1802,6 +1802,11 @@ func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 }
 
 func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
+	if isBlankIdentifier(lhs) {
+		emitExpr(rhs, nil)
+		emitPop(kind(getTypeOfExpr(rhs)))
+		return
+	}
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
@@ -1847,48 +1852,34 @@ func emitDeclStmt(s *ast.DeclStmt) {
 	}
 }
 
-func IsOkSyntax(s *ast.AssignStmt) bool {
-	rhs0 := s.Rhs[0]
-	_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
-	indexExpr, isIndexExpr := rhs0.(*ast.IndexExpr)
-	if len(s.Lhs) == 2 && isTypeAssertion {
-		return true
-	}
-	if len(s.Lhs) == 2 && isIndexExpr && kind(getTypeOfExpr(indexExpr.X)) == T_MAP {
-		return true
-	}
-	return false
-}
-
 func emitOkAssignment(s *ast.AssignStmt) {
 	rhs0 := s.Rhs[0]
 	emitComment(2, "Assignment: emitAssignWithOK rhs\n")
 	ctx := &evalContext{
 		okContext: true,
 	}
-	emitExprIfc(rhs0, ctx) // {push data}, {push bool}
-	lhsOK := s.Lhs[1]
-	if isBlankIdentifier(lhsOK) {
-		emitPop(T_BOOL)
-	} else {
-		emitComment(2, "Assignment: ok variable\n")
-		emitAddr(lhsOK)
-		emitStore(getTypeOfExpr(lhsOK), false, false)
-	}
 
-	lhsMain := s.Lhs[0]
-	if isBlankIdentifier(lhsMain) {
-		emitPop(kind(getTypeOfExpr(rhs0)))
-	} else {
-		emitAddr(lhsMain)
-		emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
-		emitStore(getTypeOfExpr(lhsMain), false, false)
+	// ABI of stack layout after evaluating rhs0
+	//	-- stack top
+	//	bool
+	//	data
+	emitExprIfc(rhs0, ctx)
+	rhsTypes := []*Type{getTypeOfExpr(rhs0), tBool}
+	for i := 1; i >= 0; i-- {
+		if isBlankIdentifier(s.Lhs[i]) {
+			emitPop(kind(rhsTypes[i]))
+		} else {
+			emitComment(2, "Assignment: ok syntax %d\n", i)
+			emitAddr(s.Lhs[i])
+			emitStore(getTypeOfExpr(s.Lhs[i]), false, false)
+		}
+
 	}
 }
 
-// multi-values expr
-// a, b (, c...) = expr
-func emitTupleAssignment(s *ast.AssignStmt) {
+// assigns multi-values of a funcall
+// a, b (, c...) = f()
+func emitFuncallAssignment(s *ast.AssignStmt) {
 	rhs0 := s.Rhs[0]
 	emitExpr(rhs0, nil) // @TODO interface conversion
 	callExpr := rhs0.(*ast.CallExpr)
@@ -2402,8 +2393,8 @@ func emitStmt(stmt ast.Stmt) {
 			emitSingleAssign(meta.lhs[0], meta.rhs[0])
 		case "ok": // a, b = expr
 			emitOkAssignment(s)
-		case "tuple": // a, b (, c...) = expr
-			emitTupleAssignment(s)
+		case "tuple": // a, b (, c...) = f()
+			emitFuncallAssignment(s)
 		default:
 			panic("TBI")
 		}
@@ -3418,6 +3409,20 @@ func walkDeclStmt(s *ast.DeclStmt) {
 		}
 	}
 }
+
+func IsOkSyntax(s *ast.AssignStmt) bool {
+	rhs0 := s.Rhs[0]
+	_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
+	indexExpr, isIndexExpr := rhs0.(*ast.IndexExpr)
+	if len(s.Lhs) == 2 && isTypeAssertion {
+		return true
+	}
+	if len(s.Lhs) == 2 && isIndexExpr && kind(getTypeOfExpr(indexExpr.X)) == T_MAP {
+		return true
+	}
+	return false
+}
+
 func walkAssignStmt(s *ast.AssignStmt) {
 	walkExpr(s.Lhs[0])
 	stok := s.Tok.String()
@@ -3429,10 +3434,6 @@ func walkAssignStmt(s *ast.AssignStmt) {
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 				knd = "single"
-				lhs0 := s.Lhs[0]
-				if isBlankIdentifier(lhs0) {
-					panic(" _ is not supported yet")
-				}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
 				knd = "tuple"
 			} else {

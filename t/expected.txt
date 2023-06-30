@@ -1,3 +1,7 @@
+is int
+is not string
+x=1
+blank ok
  0 & 0 = 0
  1 & 0 = 0
  240 & 15 = 0

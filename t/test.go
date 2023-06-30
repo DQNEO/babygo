@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/DQNEO/babygo/lib/token"
 	"os"
 	"reflect"
 	"syscall"
 	"unsafe"
+
+	"github.com/DQNEO/babygo/lib/token"
 
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
@@ -14,6 +15,25 @@ import (
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/strings"
 )
+
+func testBlankAssign() {
+	var x int = 1
+	_ = x
+	var ifc interface{} = x
+	_, _ = ifc.(int)
+
+	_, ok := ifc.(int)
+	if ok {
+		fmt.Printf("is int\n")
+	}
+	_, ok = ifc.(string)
+	if !ok {
+		fmt.Printf("is not string\n")
+	}
+	x, _ = ifc.(int)
+	fmt.Printf("x=%d\n", x)
+	fmt.Printf("blank ok\n")
+}
 
 func testBitWiseAnd() {
 	var a int
@@ -265,6 +285,13 @@ func testMyMap() {
 		fmt.Printf("mp.bb is nil\n")
 	}
 
+	v9, _ := mp.Get("a")
+	_, ok9 := mp.Get("a")
+	v9, _ = mp.Get("a")
+	_, ok9 = mp.Get("a")
+	_, _ = mp.Get("a")
+	_ = v9
+	_ = ok9
 	mp.Delete("a")
 	fmt.Printf("mp.Len=%d\n", mp.Len()) // => 1
 
@@ -2307,6 +2334,7 @@ func testMisc() {
 }
 
 func main() {
+	testBlankAssign()
 	testBitWiseAnd()
 	testBitWiseOr()
 	testPrint()
