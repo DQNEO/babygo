@@ -2672,7 +2672,6 @@ func generateCode(pkg *PkgContainer) {
 
 	emitDynamicTypes(typesMap)
 	printf("\n")
-
 }
 
 func emitDynamicTypes(mapDtypes map[string]*dtypeEntry) {

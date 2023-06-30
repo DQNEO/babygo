@@ -43,6 +43,11 @@ func printf(format string, a ...interface{}) {
 	fmt.Fprintf(fout, format, a...)
 }
 
+func logf2(format string, a ...interface{}) {
+	f := "# " + format
+	fmt.Fprintf(os.Stderr, f, a...)
+}
+
 var debugFrontEnd bool
 
 func logf(format string, a ...interface{}) {
