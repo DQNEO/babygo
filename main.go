@@ -657,16 +657,15 @@ func emitCallQ(fn interface{}, totalParamSize int, resultList *ast.FieldList) {
 }
 
 // callee
-func emitReturnStmt(s *ast.ReturnStmt) {
-	meta := getMetaReturnStmt(s)
+func emitReturnStmt(meta *MetaReturnStmt) {
 	fnc := meta.Fnc
-	if len(fnc.Retvars) != len(s.Results) {
+	if len(fnc.Retvars) != len(meta.Results) {
 		panic("length of return and func type do not match")
 	}
 
-	_len := len(s.Results)
+	_len := len(meta.Results)
 	for i := 0; i < _len; i++ {
-		emitAssignToVar(fnc.Retvars[i], s.Results[i])
+		emitAssignToVar(fnc.Retvars[i], meta.Results[i])
 	}
 	printf("  leave\n")
 	printf("  ret\n")
@@ -2423,7 +2422,8 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.AssignStmt:
 		emitAssignStmt(s)
 	case *ast.ReturnStmt:
-		emitReturnStmt(s)
+		meta := getMetaReturnStmt(s)
+		emitReturnStmt(meta)
 	case *ast.IfStmt:
 		emitIfStmt(s)
 	case *ast.ForStmt:
@@ -3479,12 +3479,13 @@ func walkAssignStmt(s *ast.AssignStmt) {
 }
 
 func walkReturnStmt(s *ast.ReturnStmt) {
-	setMetaReturnStmt(s, &MetaReturnStmt{
-		Fnc: currentFunc,
-	})
 	for _, r := range s.Results {
 		walkExpr(r)
 	}
+	setMetaReturnStmt(s, &MetaReturnStmt{
+		Fnc:     currentFunc,
+		Results: s.Results,
+	})
 }
 func walkIfStmt(s *ast.IfStmt) {
 	if s.Init != nil {
@@ -4554,7 +4555,8 @@ func setVariable(obj *ast.Object, vr *Variable) {
 var mapMeta = make(map[unsafe.Pointer]interface{})
 
 type MetaReturnStmt struct {
-	Fnc *Func
+	Fnc     *Func
+	Results []ast.Expr
 }
 
 type MetaForRange struct {
