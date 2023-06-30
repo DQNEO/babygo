@@ -2400,10 +2400,8 @@ func emitStmt(stmt ast.Stmt) {
 		switch meta.kind {
 		case "ok":
 			emitOkAssignment(s)
-		case "binop": // lhs += expr
-			emitSingleAssign(meta.lhs, meta.rhs)
-		case "single": // lhs = expr
-			emitSingleAssign(s.Lhs[0], s.Rhs[0])
+		case "single": // lhs = expr | lhs += expr
+			emitSingleAssign(meta.lhs[0], meta.rhs[0])
 		case "tuple": // a, b (, c...) = expr
 			emitTupleAssignment(s)
 		default:
@@ -3484,6 +3482,8 @@ func walkAssignStmt(s *ast.AssignStmt) {
 
 		mapMeta[unsafe.Pointer(s)] = &MetaAssignStmt{
 			kind: knd,
+			lhs:  s.Lhs,
+			rhs:  s.Rhs,
 		}
 	case "=":
 		if IsOkSyntax(s) {
@@ -3508,30 +3508,27 @@ func walkAssignStmt(s *ast.AssignStmt) {
 		}
 		mapMeta[unsafe.Pointer(s)] = &MetaAssignStmt{
 			kind: knd,
+			lhs:  s.Lhs,
+			rhs:  s.Rhs,
 		}
-	case "+=":
+	case "+=", "-=":
+		var op token.Token
+		switch stok {
+		case "+=":
+			op = token.ADD
+		case "-=":
+			op = token.SUB
+		}
 		walkExpr(s.Rhs[0])
 		binaryExpr := &ast.BinaryExpr{
 			X:  s.Lhs[0],
-			Op: token.ADD,
+			Op: op,
 			Y:  s.Rhs[0],
 		}
 		mapMeta[unsafe.Pointer(s)] = &MetaAssignStmt{
-			kind: "binop",
-			lhs:  s.Lhs[0],
-			rhs:  binaryExpr,
-		}
-	case "-=":
-		walkExpr(s.Rhs[0])
-		binaryExpr := &ast.BinaryExpr{
-			X:  s.Lhs[0],
-			Op: token.SUB,
-			Y:  s.Rhs[0],
-		}
-		mapMeta[unsafe.Pointer(s)] = &MetaAssignStmt{
-			kind: "binop",
-			lhs:  s.Lhs[0],
-			rhs:  binaryExpr,
+			kind: "single",
+			lhs:  s.Lhs,
+			rhs:  []ast.Expr{binaryExpr},
 		}
 	default:
 		panic("TBI")
@@ -3540,8 +3537,8 @@ func walkAssignStmt(s *ast.AssignStmt) {
 
 type MetaAssignStmt struct {
 	kind string // "ok", "binop", "single", "tuple"
-	lhs  ast.Expr
-	rhs  ast.Expr
+	lhs  []ast.Expr
+	rhs  []ast.Expr
 }
 
 func walkReturnStmt(s *ast.ReturnStmt) {
