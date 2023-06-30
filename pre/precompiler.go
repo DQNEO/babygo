@@ -2389,16 +2389,16 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	}
 	printf("%s:\n", labelEnd)
 }
-func emitBranchStmt(s *ast.BranchStmt) {
-	meta := getMetaBranchStmt(s)
+
+func emitBranchStmt(meta *MetaBranchStmt) {
 	containerFor := meta.containerForStmt
-	switch s.Tok.String() {
-	case "continue":
+	switch meta.ContinueOrBreak {
+	case 1: // continue
 		printf("jmp %s # continue\n", containerFor.LabelPost)
-	case "break":
+	case 2: // break
 		printf("jmp %s # break\n", containerFor.LabelExit)
 	default:
-		throw(s.Tok)
+		throw(meta.ContinueOrBreak)
 	}
 }
 
@@ -2444,7 +2444,8 @@ func emitStmt(stmt ast.Stmt) {
 	case *ast.TypeSwitchStmt:
 		emitTypeSwitchStmt(s)
 	case *ast.BranchStmt:
-		emitBranchStmt(s)
+		meta := getMetaBranchStmt(s)
+		emitBranchStmt(meta)
 	case *ast.GoStmt:
 		emitGoStmt(s)
 	default:
@@ -3653,8 +3654,19 @@ func walkCaseClause(s *ast.CaseClause) {
 }
 func walkBranchStmt(s *ast.BranchStmt) {
 	assert(currentFor != nil, "break or continue should be in for body", __func__)
+	var continueOrBreak int
+	switch s.Tok.String() {
+	case "continue":
+		continueOrBreak = 1
+	case "break":
+		continueOrBreak = 2
+	default:
+		panic("Unexpected token")
+	}
+
 	setMetaBranchStmt(s, &MetaBranchStmt{
 		containerForStmt: currentFor,
+		ContinueOrBreak:  continueOrBreak,
 	})
 }
 
@@ -4574,6 +4586,7 @@ type MetaForStmt struct {
 
 type MetaBranchStmt struct {
 	containerForStmt *MetaForStmt
+	ContinueOrBreak  int // 1: continue, 2:break
 }
 
 type MetaTypeSwitchStmt struct {
