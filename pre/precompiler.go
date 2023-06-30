@@ -1016,7 +1016,7 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 // 1 or 2 values
 func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
 	if kind(getTypeOfExpr(e.X)) == T_MAP {
-		emitMapGet(e, ctx)
+		emitMapGet(e)
 	} else {
 		emitAddr(e)
 		emitLoadAndPush(getTypeOfExpr(e))
@@ -1338,9 +1338,10 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 }
 
 // 1 or 2 values
-func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
-	// MAP GET
+func emitMapGet(e *ast.IndexExpr) {
+	okContext := needsOK[unsafe.Pointer(e)]
 	valueType := getTypeOfExpr(e)
+
 	emitComment(2, "MAP GET for map[string]string\n")
 	// emit addr of map element
 	mp := e.X
@@ -1375,8 +1376,6 @@ func emitMapGet(e *ast.IndexExpr, ctx *evalContext) {
 	labelElse := fmt.Sprintf(".L.not_found.%d", labelid)
 	printf("  jne %s # jmp if false\n", labelElse)
 
-	okContext := ctx != nil && ctx.okContext
-
 	// if matched
 	emitLoadAndPush(valueType)
 	if okContext {
@@ -1410,7 +1409,7 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
 	printf("  jne %s # jmp if false\n", labelElse)
 
-	okContext := ctx != nil && ctx.okContext
+	okContext := needsOK[unsafe.Pointer(e)]
 	// if matched
 	emitLoadAndPush(e2t(e.Type)) // load dynamic data
 	if okContext {
@@ -1860,14 +1859,18 @@ func emitDeclStmt(s *ast.DeclStmt) {
 func emitOkAssignment(s *ast.AssignStmt) {
 	rhs0 := s.Rhs[0]
 	emitComment(2, "Assignment: emitAssignWithOK rhs\n")
-	ctx := &evalContext{
-		okContext: true,
-	}
 
 	// ABI of stack layout after evaluating rhs0
 	//	-- stack top
 	//	bool
 	//	data
+	var lhs0Type *Type
+	if !isBlankIdentifier(s.Lhs[0]) {
+		lhs0Type = getTypeOfExpr(s.Lhs[0])
+	}
+	ctx := &evalContext{
+		_type: lhs0Type,
+	}
 	emitExprIfc(rhs0, ctx)
 	rhsTypes := []*Type{getTypeOfExpr(rhs0), tBool}
 	for i := 1; i >= 0; i-- {
@@ -3387,7 +3390,7 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 }
 
 func walkExprStmt(s *ast.ExprStmt) {
-	walkExpr(s.X)
+	walkExpr(s.X, nil)
 }
 func walkDeclStmt(s *ast.DeclStmt) {
 	genDecl := s.Decl.(*ast.GenDecl)
@@ -3410,7 +3413,7 @@ func walkDeclStmt(s *ast.DeclStmt) {
 		obj := spec.Names[0].Obj
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
 		for _, v := range spec.Values {
-			walkExpr(v)
+			walkExpr(v, nil)
 		}
 	}
 }
@@ -3429,13 +3432,14 @@ func IsOkSyntax(s *ast.AssignStmt) bool {
 }
 
 func walkAssignStmt(s *ast.AssignStmt) {
-	walkExpr(s.Lhs[0])
+	walkExpr(s.Lhs[0], nil)
 	stok := s.Tok.String()
 	var knd string
 	switch stok {
 	case "=", ":=":
 		if IsOkSyntax(s) {
 			knd = "ok"
+			walkExpr(s.Rhs[0], &evalContext{okContext: true})
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 				knd = "single"
@@ -3444,11 +3448,11 @@ func walkAssignStmt(s *ast.AssignStmt) {
 			} else {
 				panic("TBI")
 			}
+			for _, rhs := range s.Rhs {
+				walkExpr(rhs, nil)
+			}
 		}
 
-		for _, rhs := range s.Rhs {
-			walkExpr(rhs)
-		}
 		mapMeta[unsafe.Pointer(s)] = &MetaAssignStmt{
 			kind: knd,
 			lhs:  s.Lhs,
@@ -3494,7 +3498,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 		case "-=":
 			op = token.SUB
 		}
-		walkExpr(s.Rhs[0])
+		walkExpr(s.Rhs[0], nil)
 		binaryExpr := &ast.BinaryExpr{
 			X:  s.Lhs[0],
 			Op: op,
@@ -3518,7 +3522,7 @@ type MetaAssignStmt struct {
 
 func walkReturnStmt(s *ast.ReturnStmt) {
 	for _, r := range s.Results {
-		walkExpr(r)
+		walkExpr(r, nil)
 	}
 	setMetaReturnStmt(s, &MetaReturnStmt{
 		Fnc:     currentFunc,
@@ -3529,7 +3533,7 @@ func walkIfStmt(s *ast.IfStmt) {
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
-	walkExpr(s.Cond)
+	walkExpr(s.Cond, nil)
 	walkStmt(s.Body)
 	if s.Else != nil {
 		walkStmt(s.Else)
@@ -3551,7 +3555,7 @@ func walkForStmt(s *ast.ForStmt) {
 		walkStmt(s.Init)
 	}
 	if s.Cond != nil {
-		walkExpr(s.Cond)
+		walkExpr(s.Cond, nil)
 	}
 	if s.Post != nil {
 		walkStmt(s.Post)
@@ -3569,7 +3573,7 @@ func walkRangeStmt(s *ast.RangeStmt) {
 	}
 	currentFor = meta
 	setMetaForStmt(s, meta)
-	walkExpr(s.X)
+	walkExpr(s.X, nil)
 	walkStmt(s.Body)
 
 	collectionType := getUnderlyingType(getTypeOfExpr(s.X))
@@ -3609,14 +3613,14 @@ func walkRangeStmt(s *ast.RangeStmt) {
 	currentFor = meta.Outer
 }
 func walkIncDecStmt(s *ast.IncDecStmt) {
-	walkExpr(s.X)
+	walkExpr(s.X, nil)
 }
 func walkSwitchStmt(s *ast.SwitchStmt) {
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
 	if s.Tag != nil {
-		walkExpr(s.Tag)
+		walkExpr(s.Tag, nil)
 	}
 	walkStmt(s.Body)
 }
@@ -3628,7 +3632,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	case *ast.ExprStmt:
 		typeAssertExpr := assign.X.(*ast.TypeAssertExpr)
 		typeSwitch.Subject = typeAssertExpr.X
-		walkExpr(typeAssertExpr.X)
+		walkExpr(typeAssertExpr.X, nil)
 	case *ast.AssignStmt:
 		lhs := assign.Lhs[0]
 		assignIdent = lhs.(*ast.Ident)
@@ -3636,7 +3640,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		// ident will be a new local variable in each case clause
 		typeAssertExpr := assign.Rhs[0].(*ast.TypeAssertExpr)
 		typeSwitch.Subject = typeAssertExpr.X
-		walkExpr(typeAssertExpr.X)
+		walkExpr(typeAssertExpr.X, nil)
 	default:
 		throw(s.Assign)
 	}
@@ -3680,7 +3684,7 @@ func isNil(e ast.Expr) bool {
 
 func walkCaseClause(s *ast.CaseClause) {
 	for _, e := range s.List {
-		walkExpr(e)
+		walkExpr(e, nil)
 	}
 	for _, stmt := range s.Body {
 		walkStmt(stmt)
@@ -3705,7 +3709,7 @@ func walkBranchStmt(s *ast.BranchStmt) {
 }
 
 func walkGoStmt(s *ast.GoStmt) {
-	walkExpr(s.Call)
+	walkExpr(s.Call, nil)
 }
 
 func walkStmt(stmt ast.Stmt) {
@@ -3747,10 +3751,10 @@ func walkIdent(e *ast.Ident) {
 	// what to do ?
 }
 func walkSelectorExpr(e *ast.SelectorExpr) {
-	walkExpr(e.X)
+	walkExpr(e.X, nil)
 }
 func walkCallExpr(e *ast.CallExpr) {
-	walkExpr(e.Fun)
+	walkExpr(e.Fun, nil)
 	// Replace __func__ ident by a string literal
 	for i, arg := range e.Args {
 		ident, ok := arg.(*ast.Ident)
@@ -3764,11 +3768,11 @@ func walkCallExpr(e *ast.CallExpr) {
 				e.Args[i] = arg
 			}
 		}
-		walkExpr(arg)
+		walkExpr(arg, nil)
 	}
 }
-func walkParenExpr(e *ast.ParenExpr) {
-	walkExpr(e.X)
+func walkParenExpr(e *ast.ParenExpr, ctx *evalContext) {
+	walkExpr(e.X, ctx)
 }
 func walkBasicLit(e *ast.BasicLit) {
 	switch e.Kind.String() {
@@ -3782,31 +3786,35 @@ func walkBasicLit(e *ast.BasicLit) {
 }
 func walkCompositeLit(e *ast.CompositeLit) {
 	for _, v := range e.Elts {
-		walkExpr(v)
+		walkExpr(v, nil)
 	}
 }
 func walkUnaryExpr(e *ast.UnaryExpr) {
-	walkExpr(e.X)
+	walkExpr(e.X, nil)
 }
 func walkBinaryExpr(e *ast.BinaryExpr) {
-	walkExpr(e.X) // left
-	walkExpr(e.Y) // right
+	walkExpr(e.X, nil) // left
+	walkExpr(e.Y, nil) // right
 }
-func walkIndexExpr(e *ast.IndexExpr) {
-	walkExpr(e.Index)
-	walkExpr(e.X)
+
+func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
+	if ctx != nil && ctx.okContext {
+		needsOK[unsafe.Pointer(e)] = true
+	}
+	walkExpr(e.Index, nil)
+	walkExpr(e.X, nil)
 }
 func walkSliceExpr(e *ast.SliceExpr) {
 	if e.Low != nil {
-		walkExpr(e.Low)
+		walkExpr(e.Low, nil)
 	}
 	if e.High != nil {
-		walkExpr(e.High)
+		walkExpr(e.High, nil)
 	}
 	if e.Max != nil {
-		walkExpr(e.Max)
+		walkExpr(e.Max, nil)
 	}
-	walkExpr(e.X)
+	walkExpr(e.X, nil)
 }
 
 // []T(e)
@@ -3819,19 +3827,26 @@ func walkMapType(e *ast.MapType) {
 	// do nothing
 }
 func walkStarExpr(e *ast.StarExpr) {
-	walkExpr(e.X)
+	walkExpr(e.X, nil)
 }
 func walkKeyValueExpr(e *ast.KeyValueExpr) {
-	walkExpr(e.Key)
-	walkExpr(e.Value)
+	walkExpr(e.Key, nil)
+	walkExpr(e.Value, nil)
 }
 func walkInterfaceType(e *ast.InterfaceType) {
 	// interface{}(e)  conversion. Nothing to do.
 }
-func walkTypeAssertExpr(e *ast.TypeAssertExpr) {
-	walkExpr(e.X)
+
+func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
+	if ctx != nil && ctx.okContext {
+		needsOK[unsafe.Pointer(e)] = true
+	}
+	walkExpr(e.X, nil)
 }
-func walkExpr(expr ast.Expr) {
+
+var needsOK = make(map[unsafe.Pointer]bool)
+
+func walkExpr(expr ast.Expr, ctx *evalContext) {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		walkIdent(e)
@@ -3840,7 +3855,7 @@ func walkExpr(expr ast.Expr) {
 	case *ast.CallExpr:
 		walkCallExpr(e)
 	case *ast.ParenExpr:
-		walkParenExpr(e)
+		walkParenExpr(e, ctx)
 	case *ast.BasicLit:
 		walkBasicLit(e)
 	case *ast.CompositeLit:
@@ -3850,7 +3865,7 @@ func walkExpr(expr ast.Expr) {
 	case *ast.BinaryExpr:
 		walkBinaryExpr(e)
 	case *ast.IndexExpr:
-		walkIndexExpr(e)
+		walkIndexExpr(e, ctx)
 	case *ast.ArrayType:
 		walkArrayType(e) // []T(e)
 	case *ast.MapType:
@@ -3864,7 +3879,7 @@ func walkExpr(expr ast.Expr) {
 	case *ast.InterfaceType:
 		walkInterfaceType(e)
 	case *ast.TypeAssertExpr:
-		walkTypeAssertExpr(e)
+		walkTypeAssertExpr(e, ctx)
 	default:
 		throw(expr)
 	}
@@ -3963,7 +3978,7 @@ func walk(pkg *PkgContainer) {
 
 	for _, constSpec := range constSpecs {
 		for _, v := range constSpec.Values {
-			walkExpr(v)
+			walkExpr(v, nil)
 		}
 	}
 
@@ -3985,7 +4000,7 @@ func walk(pkg *PkgContainer) {
 		ExportedQualifiedIdents[string(newQI(pkg.name, nameIdent.Name))] = nameIdent
 		for _, v := range varSpec.Values {
 			// mainly to collect string literals
-			walkExpr(v)
+			walkExpr(v, nil)
 		}
 	}
 
