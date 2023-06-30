@@ -2637,16 +2637,10 @@ func generateCode(pkg *PkgContainer) {
 		if len(spec.Values) > 0 {
 			val = spec.Values[0]
 		}
-		var t *Type
-		if spec.Type != nil {
-			t = e2t(spec.Type)
-		} else {
-			t = getTypeOfExpr(val)
-		}
-		if t == nil {
+		if spec.Type == nil {
 			panic("type cannot be nil for global variable: " + spec.Names[0].Name)
 		}
-		emitGlobalVariable(pkg, spec.Names[0], t, val)
+		emitGlobalVariable(pkg, spec.Names[0], e2t(spec.Type), val)
 	}
 
 	// Assign global vars dynamically
@@ -2659,10 +2653,7 @@ func generateCode(pkg *PkgContainer) {
 			continue
 		}
 		val := spec.Values[0]
-		var t *Type
-		if spec.Type != nil {
-			t = e2t(spec.Type)
-		}
+		t := e2t(spec.Type)
 		name := spec.Names[0]
 		typeKind := kind(t)
 		switch typeKind {
