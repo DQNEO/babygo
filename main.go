@@ -4130,6 +4130,7 @@ func walk(pkg *PkgContainer) {
 			}
 			pkg.funcs = append(pkg.funcs, fnc)
 		}
+		currentFunc = nil
 	}
 }
 
