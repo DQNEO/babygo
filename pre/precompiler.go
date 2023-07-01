@@ -55,7 +55,7 @@ func logf(format string, a ...interface{}) {
 		return
 	}
 	f := "# " + format
-	fmt.Fprintf(fout, f, a...)
+	fmt.Fprintf(os.Stderr, f, a...)
 }
 
 var debugCodeGen bool
@@ -214,7 +214,7 @@ func emitListHeadAddr(list ast.Expr) {
 	case T_ARRAY:
 		emitAddr(list) // array head
 	case T_SLICE:
-		emitExpr(list, nil)
+		emitExpr(list, nil) // <-- type of nil is not set in walk function
 		emitPopSlice()
 		printf("  pushq %%rax # slice.ptr\n")
 	case T_STRING:
@@ -338,8 +338,7 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 			emitExpr(arg0, nil)
 		default:
 			if to.Obj.Kind == ast.Typ {
-				ctx := &evalContext{_type: toType}
-				emitExpr(arg0, ctx)
+				emitExpr(arg0, nil)
 			} else {
 				throw(to.Obj)
 			}
@@ -477,11 +476,14 @@ func emitStructLiteral(e *ast.CompositeLit) {
 		// push lhs address
 		emitPushStackTop(tUintptr, 0, "address of struct heaad")
 		emitAddConst(fieldOffset, "address of struct field")
-		// push rhs value
-		ctx := &evalContext{
-			_type: fieldType,
+		// attach type to nil : STRUCT{Key:nil}
+		eIdent, isIdent := kvExpr.Value.(*ast.Ident)
+		if isIdent {
+			exprTypeMeta[unsafe.Pointer(eIdent)] = fieldType
 		}
-		emitExpr(kvExpr.Value, ctx)
+
+		// push rhs value
+		emitExpr(kvExpr.Value, nil)
 		mayEmitConvertTooIfc(kvExpr.Value, fieldType)
 
 		// assign
@@ -499,10 +501,7 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 		emitPushStackTop(tUintptr, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		// push rhs value
-		ctx := &evalContext{
-			_type: elmType,
-		}
-		emitExpr(elm, ctx)
+		emitExpr(elm, nil)
 		mayEmitConvertTooIfc(elm, elmType)
 
 		// assign
@@ -579,8 +578,13 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		// Add nil as a variadic arg
 		param := params[len(args)]
 		elp := param.Type.(*ast.Ellipsis)
+		newIdentNil := &ast.Ident{
+			Obj:  gNil,
+			Name: "nil",
+		}
+		exprTypeMeta[unsafe.Pointer(newIdentNil)] = e2t(elp)
 		args = append(args, &Arg{
-			e:         eNil,
+			e:         newIdentNil,
 			paramType: e2t(elp),
 		})
 	}
@@ -615,10 +619,12 @@ func emitCall(fn interface{}, args []*Arg, resultList *ast.FieldList) {
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for _, arg := range args {
 		paramType := arg.paramType
-		ctx := &evalContext{
-			_type: paramType,
+
+		eIdent, isIdent := arg.e.(*ast.Ident)
+		if isIdent {
+			exprTypeMeta[unsafe.Pointer(eIdent)] = paramType
 		}
-		emitExpr(arg.e, ctx)
+		emitExpr(arg.e, nil)
 		mayEmitConvertTooIfc(arg.e, paramType)
 		emitPop(kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", arg.offset)
@@ -668,14 +674,14 @@ func emitCallQ(fn interface{}, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(meta *MetaReturnStmt) {
-	fnc := meta.Fnc
-	if len(fnc.Retvars) != len(meta.Results) {
+	funcDef := meta.Fnc
+	if len(funcDef.Retvars) != len(meta.Results) {
 		panic("length of return and func type do not match")
 	}
 
 	_len := len(meta.Results)
 	for i := 0; i < _len; i++ {
-		emitAssignToVar(fnc.Retvars[i], meta.Results[i])
+		emitAssignToVar(funcDef.Retvars[i], meta.Results[i])
 	}
 	printf("  leave\n")
 	printf("  ret\n")
@@ -992,6 +998,7 @@ type evalContext struct {
 
 // 1 value
 func emitIdent(e *ast.Ident, ctx *evalContext) {
+	logf2("emitIdent ident=%s\n", e.Name)
 	assert(e.Obj != nil, " ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
 	case gTrue: // true constant
@@ -999,8 +1006,13 @@ func emitIdent(e *ast.Ident, ctx *evalContext) {
 	case gFalse: // false constant
 		emitFalse()
 	case gNil:
-		assert(ctx._type != nil, "context of nil is not passed", __func__)
-		emitNil(ctx._type)
+		//assert(ctx._type != nil, "context of nil is not passed", __func__)
+		metaType, ok := exprTypeMeta[unsafe.Pointer(e)]
+		if !ok {
+			//gofmt.Fprintf(os.Stderr, "exprTypeMeta=%v\n", exprTypeMeta)
+			panic("type of nil is not set in walk functions. pkg=" + currentPkg.name)
+		}
+		emitNil(metaType)
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
@@ -1276,6 +1288,11 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 	if e.Low != nil {
 		low = e.Low
 	} else {
+		eZeroInt := &ast.BasicLit{
+			Value: "0",
+			Kind:  token.INT,
+		}
+		// @TODO attach int type to eZeroInt
 		low = eZeroInt
 	}
 
@@ -1456,6 +1473,7 @@ func isUniverseNil(expr ast.Expr) bool {
 //   - the expr is nil
 //   - the target type is interface and expr is not.
 func emitExpr(expr ast.Expr, ctx *evalContext) {
+	ctx = nil
 	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
 	case *ast.ParenExpr:
@@ -1686,20 +1704,23 @@ func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
 	if kind(getTypeOfExpr(left)) == T_STRING {
 		emitCompStrings(left, right)
 	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
-		var t = getTypeOfExpr(left)
+		//var t = getTypeOfExpr(left)
 		ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)
-		emitExpr(left, nil) // left
-		ctx := &evalContext{_type: t}
-		emitExpr(right, ctx) // right
+		//@TODO: confirm nil comparison with interfaces
+		emitExpr(left, nil)  // left
+		emitExpr(right, nil) // right
 		emitCallFF(ff)
 	} else {
-		var t = getTypeOfExpr(left)
-		emitExpr(left, nil) // left
-		ctx := &evalContext{_type: t}
-		emitExpr(right, ctx) // right
+		// Assuming pointer-like types (pointer, map)
+		//var t = getTypeOfExpr(left)
+		emitExpr(left, nil)  // left
+		emitExpr(right, nil) // right
 		emitCompExpr("sete")
 	}
+
+	//@TODO: implement nil comparison with slices
+
 }
 
 // @TODO handle larger types than int
@@ -1812,10 +1833,8 @@ func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitVariableAddr(vr)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
-	ctx := &evalContext{
-		_type: vr.Typ,
-	}
-	emitExpr(rhs, ctx)
+
+	emitExpr(rhs, nil)
 	mayEmitConvertTooIfc(rhs, vr.Typ)
 	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
 	emitStore(vr.Typ, true, false)
@@ -1830,10 +1849,7 @@ func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
-	ctx := &evalContext{
-		_type: getTypeOfExpr(lhs),
-	}
-	emitExpr(rhs, ctx)
+	emitExpr(rhs, nil)
 	mayEmitConvertTooIfc(rhs, getTypeOfExpr(lhs))
 	emitStore(getTypeOfExpr(lhs), true, false)
 }
@@ -1885,10 +1901,7 @@ func emitOkAssignment(s *ast.AssignStmt) {
 	if !isBlankIdentifier(s.Lhs[0]) {
 		lhs0Type = getTypeOfExpr(s.Lhs[0])
 	}
-	ctx := &evalContext{
-		_type: lhs0Type,
-	}
-	emitExpr(rhs0, ctx)
+	emitExpr(rhs0, nil)
 	mayEmitConvertTooIfc(rhs0, lhs0Type)
 	rhsTypes := []*Type{getTypeOfExpr(rhs0), tBool}
 	for i := 1; i >= 0; i-- {
@@ -2475,7 +2488,7 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("# emitFuncDecl\n")
-
+	logf2("# emitFuncDecl pkg=%s, fnc.name=%s\n", pkgName, fnc.Name)
 	var symbol string
 	if fnc.Method != nil {
 		symbol = getMethodSymbol(fnc.Method)
@@ -3430,8 +3443,9 @@ func walkDeclStmt(s *ast.DeclStmt) {
 		t := e2t(spec.Type)
 		obj := spec.Names[0].Obj
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
-		for _, v := range spec.Values {
-			walkExpr(v, nil)
+		if len(spec.Values) > 0 {
+			ctx := &evalContext{_type: t}
+			walkExpr(spec.Values[0], ctx)
 		}
 	}
 }
@@ -3461,13 +3475,25 @@ func walkAssignStmt(s *ast.AssignStmt) {
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 				knd = "single"
+				switch stok {
+				case "=":
+					var ctx *evalContext
+					if !isBlankIdentifier(s.Lhs[0]) {
+						ctx = &evalContext{
+							_type: getTypeOfExpr(s.Lhs[0]),
+						}
+					}
+					walkExpr(s.Rhs[0], ctx)
+				case ":=":
+					walkExpr(s.Rhs[0], nil) // FIXME
+				}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
 				knd = "tuple"
+				for _, rhs := range s.Rhs {
+					walkExpr(rhs, nil) // FIXME
+				}
 			} else {
 				panic("TBI")
-			}
-			for _, rhs := range s.Rhs {
-				walkExpr(rhs, nil)
 			}
 		}
 
@@ -3539,11 +3565,22 @@ type MetaAssignStmt struct {
 }
 
 func walkReturnStmt(s *ast.ReturnStmt) {
-	for _, r := range s.Results {
-		walkExpr(r, nil)
+	funcDef := currentFunc
+	if len(funcDef.Retvars) != len(s.Results) {
+		panic("length of return and func type do not match")
+	}
+
+	_len := len(funcDef.Retvars)
+	for i := 0; i < _len; i++ {
+		expr := s.Results[i]
+		retTyp := funcDef.Retvars[i].Typ
+		ctx := &evalContext{
+			_type: retTyp,
+		}
+		walkExpr(expr, ctx)
 	}
 	setMetaReturnStmt(s, &MetaReturnStmt{
-		Fnc:     currentFunc,
+		Fnc:     funcDef,
 		Results: s.Results,
 	})
 }
@@ -3766,6 +3803,12 @@ func walkStmt(stmt ast.Stmt) {
 }
 
 func walkIdent(e *ast.Ident, ctx *evalContext) {
+	logfncname := "(toplevel)"
+	if currentFunc != nil {
+		logfncname = currentFunc.Name
+	}
+	logf2("walkIdent: pkg=%s func=%s, ident=%s\n", currentPkg.name, logfncname, e.Name)
+	_ = logfncname
 	// what to do ?
 	if e.Name == "_" {
 		// blank identifier
@@ -3776,9 +3819,16 @@ func walkIdent(e *ast.Ident, ctx *evalContext) {
 	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
 	case gNil:
-		//assert(ctx._type != nil, "context of nil is not passed", __func__)
+		assert(ctx != nil, "ctx of nil is not passed", __func__)
+		assert(ctx._type != nil, "ctx._type of nil is not passed", __func__)
 		// TODO: attach type
 		//emitNil(ctx._type)
+		//		typMeta := exprTypeMeta[]
+		if ctx._type == tTODO {
+			// Mostly Composite literal ?
+		} else {
+			exprTypeMeta[unsafe.Pointer(e)] = ctx._type
+		}
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
@@ -3811,7 +3861,16 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 	}
 }
 
-func walkCallExpr(e *ast.CallExpr, ctx *evalContext) {
+func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
+	if isType(e.Fun) {
+		//logf2("walkCallExpr: is Conversion\n")
+		ctx := &evalContext{
+			_type: e2t(e.Fun),
+		}
+		walkExpr(e.Args[0], ctx)
+		return
+	}
+	// function call
 	walkExpr(e.Fun, nil)
 	// Replace __func__ ident by a string literal
 	for i, arg := range e.Args {
@@ -3826,6 +3885,8 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) {
 				e.Args[i] = arg
 			}
 		}
+		// getting func param def is super hard
+		ctx := &evalContext{_type: tTODO}
 		walkExpr(arg, ctx)
 	}
 }
@@ -3843,17 +3904,28 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) {
 		panic("Unexpected literal kind:" + e.Kind.String())
 	}
 }
-func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
+func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) {
 	for _, v := range e.Elts {
-		walkExpr(v, ctx)
+		walkExpr(v, nil)
 	}
 }
+
 func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
 	walkExpr(e.X, nil)
 }
-func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
-	walkExpr(e.X, nil) // left
-	walkExpr(e.Y, nil) // right
+func walkBinaryExpr(e *ast.BinaryExpr, _ctx *evalContext) {
+	var xCtx *evalContext
+	var yCtx *evalContext
+	if isNil(e.X) {
+		// Y should be typed
+		xCtx = &evalContext{_type: getTypeOfExpr(e.Y)}
+	}
+	if isNil(e.Y) {
+		// Y should be typed
+		yCtx = &evalContext{_type: getTypeOfExpr(e.X)}
+	}
+	walkExpr(e.X, xCtx) // left
+	walkExpr(e.Y, yCtx) // right
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
@@ -3894,7 +3966,7 @@ func walkMapType(e *ast.MapType) {
 func walkStarExpr(e *ast.StarExpr, ctx *evalContext) {
 	walkExpr(e.X, nil)
 }
-func walkKeyValueExpr(e *ast.KeyValueExpr, ctx *evalContext) {
+func walkKeyValueExpr(e *ast.KeyValueExpr, _ctx *evalContext) {
 	// @TODO:
 	// MYSTRUCT{key:value}
 	// key is not an expression in struct literals.
@@ -3912,7 +3984,8 @@ func walkKeyValueExpr(e *ast.KeyValueExpr, ctx *evalContext) {
 	// s := []bool{key: true} // => [false true]
 
 	//walkExpr(e.Key, nil)
-	walkExpr(e.Value, nil)
+	ctx := &evalContext{_type: tTODO}
+	walkExpr(e.Value, ctx)
 }
 func walkInterfaceType(e *ast.InterfaceType) {
 	// interface{}(e)  conversion. Nothing to do.
@@ -4145,16 +4218,6 @@ var gNil = &ast.Object{
 	Name: "nil",
 }
 
-var eNil = &ast.Ident{
-	Obj:  gNil,
-	Name: "nil",
-}
-
-var eZeroInt = &ast.BasicLit{
-	Value: "0",
-	Kind:  token.INT,
-}
-
 var gTrue = &ast.Object{
 	Kind: ast.Con,
 	Name: "true",
@@ -4286,6 +4349,11 @@ var tEface *Type = &Type{
 	E: &ast.InterfaceType{},
 }
 
+var tTODO *Type = &Type{
+	E: &ast.Ident{
+		Name: "@TODO",
+	},
+}
 var generalSlice ast.Expr = &ast.Ident{}
 
 func createUniverse() *ast.Scope {
@@ -4687,6 +4755,9 @@ func setVariable(obj *ast.Object, vr *Variable) {
 }
 
 // --- AST meta data ---
+// map of expr to type
+var exprTypeMeta = make(map[unsafe.Pointer]*Type)
+
 var mapMeta = make(map[unsafe.Pointer]interface{})
 
 type MetaIndexExpr struct {
