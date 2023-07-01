@@ -1015,8 +1015,9 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 
 // 1 or 2 values
 func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
-	if kind(getTypeOfExpr(e.X)) == T_MAP {
-		emitMapGet(e)
+	meta := mapMeta[unsafe.Pointer(e)].(*MetaIndexExpr)
+	if meta.IsMap {
+		emitMapGet(e, meta.NeedsOK)
 	} else {
 		emitAddr(e)
 		emitLoadAndPush(getTypeOfExpr(e))
@@ -1338,8 +1339,7 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 }
 
 // 1 or 2 values
-func emitMapGet(e *ast.IndexExpr) {
-	okContext := needsOK[unsafe.Pointer(e)]
+func emitMapGet(e *ast.IndexExpr, okContext bool) {
 	valueType := getTypeOfExpr(e)
 
 	emitComment(2, "MAP GET for map[string]string\n")
@@ -1397,6 +1397,7 @@ func emitMapGet(e *ast.IndexExpr) {
 
 // 1 or 2 values
 func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
+	meta := mapMeta[unsafe.Pointer(e)].(*MetaTypeAssertExpr)
 	emitExpr(e.X, nil)
 	emitDtypeLabelAddr(e2t(e.Type))
 	emitCompareDtypes()
@@ -1409,7 +1410,7 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
 	printf("  jne %s # jmp if false\n", labelElse)
 
-	okContext := needsOK[unsafe.Pointer(e)]
+	okContext := meta.NeedsOK
 	// if matched
 	emitLoadAndPush(e2t(e.Type)) // load dynamic data
 	if okContext {
@@ -3798,12 +3799,18 @@ func walkBinaryExpr(e *ast.BinaryExpr) {
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
-	if ctx != nil && ctx.okContext {
-		needsOK[unsafe.Pointer(e)] = true
+	meta := &MetaIndexExpr{}
+	if kind(getTypeOfExpr(e.X)) == T_MAP {
+		meta.IsMap = true
+		if ctx != nil && ctx.okContext {
+			meta.NeedsOK = true
+		}
 	}
 	walkExpr(e.Index, nil)
 	walkExpr(e.X, nil)
+	mapMeta[unsafe.Pointer(e)] = meta
 }
+
 func walkSliceExpr(e *ast.SliceExpr) {
 	if e.Low != nil {
 		walkExpr(e.Low, nil)
@@ -3838,13 +3845,13 @@ func walkInterfaceType(e *ast.InterfaceType) {
 }
 
 func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
+	meta := &MetaTypeAssertExpr{}
 	if ctx != nil && ctx.okContext {
-		needsOK[unsafe.Pointer(e)] = true
+		meta.NeedsOK = true
 	}
 	walkExpr(e.X, nil)
+	mapMeta[unsafe.Pointer(e)] = meta
 }
-
-var needsOK = make(map[unsafe.Pointer]bool)
 
 func walkExpr(expr ast.Expr, ctx *evalContext) {
 	switch e := expr.(type) {
@@ -4606,6 +4613,15 @@ func setVariable(obj *ast.Object, vr *Variable) {
 
 // --- AST meta data ---
 var mapMeta = make(map[unsafe.Pointer]interface{})
+
+type MetaIndexExpr struct {
+	IsMap   bool // mp[k]
+	NeedsOK bool // when map, is it ok syntax ?
+}
+
+type MetaTypeAssertExpr struct {
+	NeedsOK bool
+}
 
 type MetaReturnStmt struct {
 	Fnc     *Func
