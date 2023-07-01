@@ -663,14 +663,14 @@ func emitCallQ(fn interface{}, totalParamSize int, resultList *ast.FieldList) {
 
 // callee
 func emitReturnStmt(meta *MetaReturnStmt) {
-	fnc := meta.Fnc
-	if len(fnc.Retvars) != len(meta.Results) {
+	funcDef := meta.Fnc
+	if len(funcDef.Retvars) != len(meta.Results) {
 		panic("length of return and func type do not match")
 	}
 
 	_len := len(meta.Results)
 	for i := 0; i < _len; i++ {
-		emitAssignToVar(fnc.Retvars[i], meta.Results[i])
+		emitAssignToVar(funcDef.Retvars[i], meta.Results[i])
 	}
 	printf("  leave\n")
 	printf("  ret\n")
@@ -3456,13 +3456,14 @@ func walkAssignStmt(s *ast.AssignStmt) {
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 				knd = "single"
+				walkExpr(s.Rhs[0], nil) // FIXME
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
 				knd = "tuple"
+				for _, rhs := range s.Rhs {
+					walkExpr(rhs, nil) // FIXME
+				}
 			} else {
 				panic("TBI")
-			}
-			for _, rhs := range s.Rhs {
-				walkExpr(rhs, nil)
 			}
 		}
 
@@ -3534,11 +3535,22 @@ type MetaAssignStmt struct {
 }
 
 func walkReturnStmt(s *ast.ReturnStmt) {
-	for _, r := range s.Results {
-		walkExpr(r, nil)
+	funcDef := currentFunc
+	if len(funcDef.Retvars) != len(s.Results) {
+		panic("length of return and func type do not match")
+	}
+
+	_len := len(funcDef.Retvars)
+	for i := 0; i < _len; i++ {
+		expr := s.Results[i]
+		retTyp := funcDef.Retvars[i].Typ
+		ctx := &evalContext{
+			_type: retTyp,
+		}
+		walkExpr(expr, ctx)
 	}
 	setMetaReturnStmt(s, &MetaReturnStmt{
-		Fnc:     currentFunc,
+		Fnc:     funcDef,
 		Results: s.Results,
 	})
 }
@@ -3761,6 +3773,12 @@ func walkStmt(stmt ast.Stmt) {
 }
 
 func walkIdent(e *ast.Ident, ctx *evalContext) {
+	logfncname := "(toplevel)"
+	if currentFunc != nil {
+		logfncname = currentFunc.Name
+	}
+	logf2("walkIdent: pkg=%s func=%s, ident=%s\n", currentPkg.name, logfncname, e.Name)
+	_ = logfncname
 	// what to do ?
 	if e.Name == "_" {
 		// blank identifier
@@ -3771,7 +3789,8 @@ func walkIdent(e *ast.Ident, ctx *evalContext) {
 	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
 	case gNil:
-		//assert(ctx._type != nil, "context of nil is not passed", __func__)
+		//assert(ctx != nil, "ctx of nil is not passed", __func__)
+		//assert(ctx._type != nil, "ctx._type of nil is not passed", __func__)
 		// TODO: attach type
 		//emitNil(ctx._type)
 	default:
@@ -3807,6 +3826,14 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 }
 
 func walkCallExpr(e *ast.CallExpr, ctx *evalContext) {
+	if isType(e.Fun) {
+		//logf2("walkCallExpr: is Conversion\n")
+		ctx := &evalContext{
+			_type: e2t(e.Fun),
+		}
+		walkExpr(e.Args[0], ctx)
+		return
+	}
 	walkExpr(e.Fun, nil)
 	// Replace __func__ ident by a string literal
 	for i, arg := range e.Args {
@@ -3846,9 +3873,19 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
 func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
 	walkExpr(e.X, nil)
 }
-func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
-	walkExpr(e.X, nil) // left
-	walkExpr(e.Y, nil) // right
+func walkBinaryExpr(e *ast.BinaryExpr, _ctx *evalContext) {
+	var xCtx *evalContext
+	var yCtx *evalContext
+	if isNil(e.X) {
+		// Y should be typed
+		xCtx = &evalContext{_type: getTypeOfExpr(e.Y)}
+	}
+	if isNil(e.Y) {
+		// Y should be typed
+		yCtx = &evalContext{_type: getTypeOfExpr(e.X)}
+	}
+	walkExpr(e.X, xCtx) // left
+	walkExpr(e.Y, yCtx) // right
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
