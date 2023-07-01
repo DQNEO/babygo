@@ -462,32 +462,52 @@ func emitCallMalloc(size int) {
 	emitCallFF(ff)
 }
 
+type MetaStructLiteralElement struct {
+	field     *ast.Field
+	fieldType *Type
+	value     ast.Expr
+}
+
 func emitStructLiteral(e *ast.CompositeLit) {
 	// allocate heap area with zero value
 	emitComment(2, "emitStructLiteral\n")
 	structType := e2t(e.Type)
-	emitZeroValue(structType) // push address of the new storage
+
+	var metaElms []*MetaStructLiteralElement
 	for _, elm := range e.Elts {
 		kvExpr := elm.(*ast.KeyValueExpr)
 		fieldName := kvExpr.Key.(*ast.Ident)
 		field := lookupStructField(getUnderlyingStructType(structType), fieldName.Name)
 		fieldType := e2t(field.Type)
-		fieldOffset := getStructFieldOffset(field)
-		// push lhs address
-		emitPushStackTop(tUintptr, 0, "address of struct heaad")
-		emitAddConst(fieldOffset, "address of struct field")
+
+		metaElm := &MetaStructLiteralElement{
+			field:     field,
+			fieldType: fieldType,
+			value:     kvExpr.Value,
+		}
 		// attach type to nil : STRUCT{Key:nil}
 		eIdent, isIdent := kvExpr.Value.(*ast.Ident)
 		if isIdent {
 			exprTypeMeta[unsafe.Pointer(eIdent)] = fieldType
 		}
+		metaElms = append(metaElms, metaElm)
+	}
+
+	emitZeroValue(structType) // push address of the new storage
+
+	for _, metaElm := range metaElms {
+		// push lhs address
+		emitPushStackTop(tUintptr, 0, "address of struct heaad")
+
+		fieldOffset := getStructFieldOffset(metaElm.field)
+		emitAddConst(fieldOffset, "address of struct field")
 
 		// push rhs value
-		emitExpr(kvExpr.Value)
-		mayEmitConvertTooIfc(kvExpr.Value, fieldType)
+		emitExpr(metaElm.value)
+		mayEmitConvertTooIfc(metaElm.value, metaElm.fieldType)
 
 		// assign
-		emitStore(fieldType, true, false)
+		emitStore(metaElm.fieldType, true, false)
 	}
 }
 
@@ -578,13 +598,13 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		// Add nil as a variadic arg
 		param := params[len(args)]
 		elp := param.Type.(*ast.Ellipsis)
-		newIdentNil := &ast.Ident{
+		iNil := &ast.Ident{
 			Obj:  gNil,
 			Name: "nil",
 		}
-		exprTypeMeta[unsafe.Pointer(newIdentNil)] = e2t(elp)
+		exprTypeMeta[unsafe.Pointer(iNil)] = e2t(elp)
 		args = append(args, &Arg{
-			e:         newIdentNil,
+			e:         iNil,
 			paramType: e2t(elp),
 		})
 	}
@@ -1005,13 +1025,13 @@ func emitIdent(e *ast.Ident) {
 		emitTrue()
 	case gFalse: // false constant
 		emitFalse()
-	case gNil:
-		//assert(ctx._type != nil, "context of nil is not passed", __func__)
+	case gNil: // zero value
 		metaType, ok := exprTypeMeta[unsafe.Pointer(e)]
 		if !ok {
 			//gofmt.Fprintf(os.Stderr, "exprTypeMeta=%v\n", exprTypeMeta)
 			panic("type of nil is not set in walk functions. pkg=" + currentPkg.name)
 		}
+		// nil must be always typed
 		emitNil(metaType)
 	default:
 		switch e.Obj.Kind {
