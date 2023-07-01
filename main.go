@@ -983,7 +983,7 @@ func emitNil(targetType *Type) {
 func emitNamedConst(ident *ast.Ident, ctx *evalContext) {
 	valSpec := ident.Obj.Decl.(*ast.ValueSpec)
 	lit := valSpec.Values[0].(*ast.BasicLit)
-	emitExpr(lit, ctx)
+	emitExpr(lit, nil)
 }
 
 type evalContext struct {
@@ -1014,7 +1014,7 @@ func emitIdent(e *ast.Ident, ctx *evalContext) {
 			emitAddr(e)
 			emitLoadAndPush(getTypeOfExpr(e))
 		case ast.Con:
-			emitNamedConst(e, ctx)
+			emitNamedConst(e, nil)
 		case ast.Fun:
 			emitAddr(e)
 		default:
@@ -1049,7 +1049,7 @@ func emitSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 		if ident.Obj.Kind == ast.Fun {
 			emitFuncAddr(qi)
 		} else {
-			emitExpr(ident, ctx)
+			emitExpr(ident, nil)
 		}
 	} else {
 		// strct.field
@@ -1073,7 +1073,7 @@ func emitCallExpr(e *ast.CallExpr, ctx *evalContext) {
 
 // multi values (e)
 func emitParenExpr(e *ast.ParenExpr, ctx *evalContext) {
-	emitExpr(e.X, ctx)
+	emitExpr(e.X, nil)
 }
 
 // 1 value
