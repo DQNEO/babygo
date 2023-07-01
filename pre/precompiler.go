@@ -481,7 +481,9 @@ func emitStructLiteral(e *ast.CompositeLit) {
 		ctx := &evalContext{
 			_type: fieldType,
 		}
-		emitExprIfc(kvExpr.Value, ctx)
+		emitExpr(kvExpr.Value, ctx)
+		mayEmitConvertTooIfc(kvExpr.Value, fieldType)
+
 		// assign
 		emitStore(fieldType, true, false)
 	}
@@ -500,7 +502,9 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 		ctx := &evalContext{
 			_type: elmType,
 		}
-		emitExprIfc(elm, ctx)
+		emitExpr(elm, ctx)
+		mayEmitConvertTooIfc(elm, elmType)
+
 		// assign
 		emitStore(elmType, true, false)
 	}
@@ -614,7 +618,8 @@ func emitCall(fn interface{}, args []*Arg, resultList *ast.FieldList) {
 		ctx := &evalContext{
 			_type: paramType,
 		}
-		emitExprIfc(arg.e, ctx)
+		emitExpr(arg.e, ctx)
+		mayEmitConvertTooIfc(arg.e, paramType)
 		emitPop(kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", arg.offset)
 		printf("  pushq %%rsi # place to save\n")
@@ -986,7 +991,7 @@ type evalContext struct {
 }
 
 // 1 value
-func emitIdent(e *ast.Ident, ctx *evalContext) bool {
+func emitIdent(e *ast.Ident, ctx *evalContext) {
 	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
 	case gTrue: // true constant
@@ -996,7 +1001,6 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 	case gNil:
 		assert(ctx._type != nil, "context of nil is not passed", __func__)
 		emitNil(ctx._type)
-		return true
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
@@ -1010,7 +1014,6 @@ func emitIdent(e *ast.Ident, ctx *evalContext) bool {
 			panic("Unexpected ident kind:" + e.Obj.Kind.String())
 		}
 	}
-	return false
 }
 
 // 1 or 2 values
@@ -1429,6 +1432,18 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 	printf("  %s:\n", labelEnd)
 }
 
+func isUniverseNil(expr ast.Expr) bool {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		assert(e.Obj != nil, " ident.Obj should not be nil:"+e.Name, __func__)
+		return e.Obj == gNil
+	case *ast.ParenExpr:
+		return isUniverseNil(e.X)
+	default:
+		return false
+	}
+}
+
 // targetType is the type of someone who receives the expr value.
 // There are various forms:
 //
@@ -1440,11 +1455,11 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 // targetType is used when:
 //   - the expr is nil
 //   - the target type is interface and expr is not.
-func emitExpr(expr ast.Expr, ctx *evalContext) bool {
+func emitExpr(expr ast.Expr, ctx *evalContext) {
 	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
 	case *ast.Ident:
-		return emitIdent(e, ctx) // 1 value
+		emitIdent(e, ctx) // 1 value
 	case *ast.IndexExpr:
 		emitIndexExpr(e, ctx) // 1 or 2 values
 	case *ast.StarExpr:
@@ -1470,7 +1485,6 @@ func emitExpr(expr ast.Expr, ctx *evalContext) bool {
 	default:
 		throw(expr)
 	}
-	return false
 }
 
 // convert stack top value to interface
@@ -1484,9 +1498,9 @@ func emitConvertToInterface(fromType *Type) {
 	emitDtypeLabelAddr(fromType)
 }
 
-func emitExprIfc(expr ast.Expr, ctx *evalContext) {
-	isNilObj := emitExpr(expr, ctx)
-	if !isNilObj && ctx != nil && ctx._type != nil && isInterface(ctx._type) && !isInterface(getTypeOfExpr(expr)) {
+func mayEmitConvertTooIfc(expr ast.Expr, ctxType *Type) {
+	isNilObj := isUniverseNil(expr)
+	if !isNilObj && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExpr(expr)) {
 		emitConvertToInterface(getTypeOfExpr(expr))
 	}
 }
@@ -1801,7 +1815,8 @@ func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 	ctx := &evalContext{
 		_type: vr.Typ,
 	}
-	emitExprIfc(rhs, ctx)
+	emitExpr(rhs, ctx)
+	mayEmitConvertTooIfc(rhs, vr.Typ)
 	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
 	emitStore(vr.Typ, true, false)
 }
@@ -1818,7 +1833,8 @@ func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
 	ctx := &evalContext{
 		_type: getTypeOfExpr(lhs),
 	}
-	emitExprIfc(rhs, ctx)
+	emitExpr(rhs, ctx)
+	mayEmitConvertTooIfc(rhs, getTypeOfExpr(lhs))
 	emitStore(getTypeOfExpr(lhs), true, false)
 }
 
@@ -1872,7 +1888,8 @@ func emitOkAssignment(s *ast.AssignStmt) {
 	ctx := &evalContext{
 		_type: lhs0Type,
 	}
-	emitExprIfc(rhs0, ctx)
+	emitExpr(rhs0, ctx)
+	mayEmitConvertTooIfc(rhs0, lhs0Type)
 	rhsTypes := []*Type{getTypeOfExpr(rhs0), tBool}
 	for i := 1; i >= 0; i-- {
 		if isBlankIdentifier(s.Lhs[i]) {
