@@ -987,7 +987,7 @@ type evalContext struct {
 
 // 1 value
 func emitIdent(e *ast.Ident, ctx *evalContext) {
-	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
+	assert(e.Obj != nil, " ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
 	case gTrue: // true constant
 		emitTrue()
@@ -1006,7 +1006,7 @@ func emitIdent(e *ast.Ident, ctx *evalContext) {
 		case ast.Fun:
 			emitAddr(e)
 		default:
-			panic("Unexpected ident kind:" + e.Obj.Kind.String())
+			panic("Unexpected ident kind:" + e.Obj.Kind.String() + " name=" + e.Name)
 		}
 	}
 }
@@ -3760,13 +3760,53 @@ func walkStmt(stmt ast.Stmt) {
 	}
 }
 
-func walkIdent(e *ast.Ident) {
+func walkIdent(e *ast.Ident, ctx *evalContext) {
 	// what to do ?
+	if e.Name == "_" {
+		// blank identifier
+		// e.Obj is nil in this case.
+		// @TODO do something
+		return
+	}
+	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
+	switch e.Obj {
+	case gNil:
+		//assert(ctx._type != nil, "context of nil is not passed", __func__)
+		// TODO: attach type
+		//emitNil(ctx._type)
+	default:
+		switch e.Obj.Kind {
+		case ast.Var:
+		case ast.Con:
+			// TODO: attach type
+		case ast.Fun:
+		case ast.Typ:
+			// int(expr)
+			// TODO: this should be avoided in advance
+		default: // ast.Pkg
+			panic("Unexpected ident kind:" + e.Obj.Kind.String() + " name:" + e.Name)
+		}
+
+	}
 }
-func walkSelectorExpr(e *ast.SelectorExpr) {
-	walkExpr(e.X, nil)
+
+func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
+	if isQI(e) {
+		// pkg.ident
+		qi := selector2QI(e)
+		ident := lookupForeignIdent(qi)
+		if ident.Obj.Kind == ast.Fun {
+			// what to do ?
+		} else {
+			walkExpr(ident, ctx)
+		}
+	} else {
+		// expr.field
+		walkExpr(e.X, ctx)
+	}
 }
-func walkCallExpr(e *ast.CallExpr) {
+
+func walkCallExpr(e *ast.CallExpr, ctx *evalContext) {
 	walkExpr(e.Fun, nil)
 	// Replace __func__ ident by a string literal
 	for i, arg := range e.Args {
@@ -3781,13 +3821,14 @@ func walkCallExpr(e *ast.CallExpr) {
 				e.Args[i] = arg
 			}
 		}
-		walkExpr(arg, nil)
+		walkExpr(arg, ctx)
 	}
 }
 func walkParenExpr(e *ast.ParenExpr, ctx *evalContext) {
 	walkExpr(e.X, ctx)
 }
-func walkBasicLit(e *ast.BasicLit) {
+
+func walkBasicLit(e *ast.BasicLit, ctx *evalContext) {
 	switch e.Kind.String() {
 	case "INT":
 	case "CHAR":
@@ -3797,15 +3838,15 @@ func walkBasicLit(e *ast.BasicLit) {
 		panic("Unexpected literal kind:" + e.Kind.String())
 	}
 }
-func walkCompositeLit(e *ast.CompositeLit) {
+func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
 	for _, v := range e.Elts {
-		walkExpr(v, nil)
+		walkExpr(v, ctx)
 	}
 }
-func walkUnaryExpr(e *ast.UnaryExpr) {
+func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
 	walkExpr(e.X, nil)
 }
-func walkBinaryExpr(e *ast.BinaryExpr) {
+func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 	walkExpr(e.X, nil) // left
 	walkExpr(e.Y, nil) // right
 }
@@ -3818,12 +3859,12 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
 			meta.NeedsOK = true
 		}
 	}
-	walkExpr(e.Index, nil)
+	walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	walkExpr(e.X, nil)
 	mapMeta[unsafe.Pointer(e)] = meta
 }
 
-func walkSliceExpr(e *ast.SliceExpr) {
+func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 	if e.Low != nil {
 		walkExpr(e.Low, nil)
 	}
@@ -3845,11 +3886,27 @@ func walkMapType(e *ast.MapType) {
 	// first argument of builtin func
 	// do nothing
 }
-func walkStarExpr(e *ast.StarExpr) {
+func walkStarExpr(e *ast.StarExpr, ctx *evalContext) {
 	walkExpr(e.X, nil)
 }
-func walkKeyValueExpr(e *ast.KeyValueExpr) {
-	walkExpr(e.Key, nil)
+func walkKeyValueExpr(e *ast.KeyValueExpr, ctx *evalContext) {
+	// @TODO:
+	// MYSTRUCT{key:value}
+	// key is not an expression in struct literals.
+	// In map, array or slice types, key can be an expression.
+	// // map
+	// expr := "hello"
+	// a := map[string]int{expr: 0}
+	// fmt.Println(a) // => map[hello:0]
+
+	//const key = 1
+	//s := []bool{key: true}
+	//fmt.Println(s) // => map[hello:0]
+
+	// const key = 1
+	// s := []bool{key: true} // => [false true]
+
+	//walkExpr(e.Key, nil)
 	walkExpr(e.Value, nil)
 }
 func walkInterfaceType(e *ast.InterfaceType) {
@@ -3870,27 +3927,27 @@ func walkExpr(expr ast.Expr, ctx *evalContext) {
 	case *ast.ParenExpr:
 		walkParenExpr(e, ctx)
 	case *ast.BasicLit:
-		walkBasicLit(e)
+		walkBasicLit(e, ctx)
 	case *ast.KeyValueExpr:
-		walkKeyValueExpr(e)
+		walkKeyValueExpr(e, ctx)
 	case *ast.CompositeLit:
-		walkCompositeLit(e)
+		walkCompositeLit(e, ctx)
 	case *ast.Ident:
-		walkIdent(e)
+		walkIdent(e, ctx)
 	case *ast.SelectorExpr:
-		walkSelectorExpr(e)
+		walkSelectorExpr(e, ctx)
 	case *ast.CallExpr:
-		walkCallExpr(e)
+		walkCallExpr(e, ctx)
 	case *ast.IndexExpr:
 		walkIndexExpr(e, ctx)
 	case *ast.SliceExpr:
-		walkSliceExpr(e)
+		walkSliceExpr(e, ctx)
 	case *ast.StarExpr:
-		walkStarExpr(e)
+		walkStarExpr(e, ctx)
 	case *ast.UnaryExpr:
-		walkUnaryExpr(e)
+		walkUnaryExpr(e, ctx)
 	case *ast.BinaryExpr:
-		walkBinaryExpr(e)
+		walkBinaryExpr(e, ctx)
 	case *ast.TypeAssertExpr:
 		walkTypeAssertExpr(e, ctx)
 	case *ast.ArrayType: // type
