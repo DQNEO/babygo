@@ -214,11 +214,11 @@ func emitListHeadAddr(list ast.Expr) {
 	case T_ARRAY:
 		emitAddr(list) // array head
 	case T_SLICE:
-		emitExpr(list, nil) // <-- type of nil is not set in walk function
+		emitExpr(list)
 		emitPopSlice()
 		printf("  pushq %%rax # slice.ptr\n")
 	case T_STRING:
-		emitExpr(list, nil)
+		emitExpr(list)
 		emitPopString()
 		printf("  pushq %%rax # string.ptr\n")
 	default:
@@ -250,11 +250,11 @@ func emitAddr(expr ast.Expr) {
 			emitAddrForMapSet(e)
 		} else {
 			elmType := getTypeOfExpr(e)
-			emitExpr(e.Index, nil) // index number
+			emitExpr(e.Index) // index number
 			emitListElementAddr(list, elmType)
 		}
 	case *ast.StarExpr:
-		emitExpr(e.X, nil)
+		emitExpr(e.X)
 	case *ast.SelectorExpr:
 		if isQI(e) { // pkg.SomeType
 			ident := lookupForeignIdent(selector2QI(e))
@@ -268,7 +268,7 @@ func emitAddr(expr ast.Expr) {
 				emitAddr(e.X)
 			case *ast.StarExpr: // ptr.field
 				structTypeLiteral = getUnderlyingStructType(e2t(typ.X))
-				emitExpr(e.X, nil)
+				emitExpr(e.X)
 			default:
 				unexpectedKind(kind(typeOfX))
 			}
@@ -282,7 +282,7 @@ func emitAddr(expr ast.Expr) {
 		switch knd {
 		case T_STRUCT:
 			// result of evaluation of a struct literal is its address
-			emitExpr(e, nil)
+			emitExpr(e)
 		default:
 			unexpectedKind(knd)
 		}
@@ -325,20 +325,20 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		case gString: // string(e)
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
-				emitExpr(arg0, nil) // slice
+				emitExpr(arg0) // slice
 				emitPopSlice()
 				printf("  pushq %%rcx # str len\n")
 				printf("  pushq %%rax # str ptr\n")
 			case T_STRING: // string(string)
-				emitExpr(arg0, nil)
+				emitExpr(arg0)
 			default:
 				unexpectedKind(kind(getTypeOfExpr(arg0)))
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
-			emitExpr(arg0, nil)
+			emitExpr(arg0)
 		default:
 			if to.Obj.Kind == ast.Typ {
-				emitExpr(arg0, nil)
+				emitExpr(arg0)
 			} else {
 				throw(to.Obj)
 			}
@@ -356,7 +356,7 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		}
 		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice", __func__)
 		emitComment(2, "Conversion of string => slice \n")
-		emitExpr(arg0, nil)
+		emitExpr(arg0)
 		emitPopString()
 		printf("  pushq %%rcx # cap\n")
 		printf("  pushq %%rcx # len\n")
@@ -364,9 +364,9 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 	case *ast.ParenExpr: // (T)(arg0)
 		emitConversion(e2t(to.X), arg0)
 	case *ast.StarExpr: // (*T)(arg0)
-		emitExpr(arg0, nil)
+		emitExpr(arg0)
 	case *ast.InterfaceType:
-		emitExpr(arg0, nil)
+		emitExpr(arg0)
 		if isInterface(getTypeOfExpr(arg0)) {
 			// do nothing
 		} else {
@@ -407,13 +407,13 @@ func emitLen(arg ast.Expr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
 		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
-		emitExpr(arrayType.Len, nil)
+		emitExpr(arrayType.Len)
 	case T_SLICE:
-		emitExpr(arg, nil)
+		emitExpr(arg)
 		emitPopSlice()
 		printf("  pushq %%rcx # len\n")
 	case T_STRING:
-		emitExpr(arg, nil)
+		emitExpr(arg)
 		emitPopString()
 		printf("  pushq %%rcx # len\n")
 	case T_MAP:
@@ -442,9 +442,9 @@ func emitCap(arg ast.Expr) {
 	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
 		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
-		emitExpr(arrayType.Len, nil)
+		emitExpr(arrayType.Len)
 	case T_SLICE:
-		emitExpr(arg, nil)
+		emitExpr(arg)
 		emitPopSlice()
 		printf("  pushq %%rdx # cap\n")
 	case T_STRING:
@@ -483,7 +483,7 @@ func emitStructLiteral(e *ast.CompositeLit) {
 		}
 
 		// push rhs value
-		emitExpr(kvExpr.Value, nil)
+		emitExpr(kvExpr.Value)
 		mayEmitConvertTooIfc(kvExpr.Value, fieldType)
 
 		// assign
@@ -501,7 +501,7 @@ func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
 		emitPushStackTop(tUintptr, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		// push rhs value
-		emitExpr(elm, nil)
+		emitExpr(elm)
 		mayEmitConvertTooIfc(elm, elmType)
 
 		// assign
@@ -624,7 +624,7 @@ func emitCall(fn interface{}, args []*Arg, resultList *ast.FieldList) {
 		if isIdent {
 			exprTypeMeta[unsafe.Pointer(eIdent)] = paramType
 		}
-		emitExpr(arg.e, nil)
+		emitExpr(arg.e)
 		mayEmitConvertTooIfc(arg.e, paramType)
 		emitPop(kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", arg.offset)
@@ -661,7 +661,7 @@ func emitCallQ(fn interface{}, totalParamSize int, resultList *ast.FieldList) {
 		symbol := f
 		printf("  callq %s\n", symbol)
 	case *ast.Ident:
-		emitExpr(f, nil)
+		emitExpr(f)
 		printf("  popq %%rax\n")
 		printf("  callq *%%rax\n")
 	default:
@@ -985,10 +985,10 @@ func emitNil(targetType *Type) {
 	}
 }
 
-func emitNamedConst(ident *ast.Ident, ctx *evalContext) {
+func emitNamedConst(ident *ast.Ident) {
 	valSpec := ident.Obj.Decl.(*ast.ValueSpec)
 	lit := valSpec.Values[0].(*ast.BasicLit)
-	emitExpr(lit, nil)
+	emitExpr(lit)
 }
 
 type evalContext struct {
@@ -997,7 +997,7 @@ type evalContext struct {
 }
 
 // 1 value
-func emitIdent(e *ast.Ident, ctx *evalContext) {
+func emitIdent(e *ast.Ident) {
 	logf2("emitIdent ident=%s\n", e.Name)
 	assert(e.Obj != nil, " ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
@@ -1019,7 +1019,7 @@ func emitIdent(e *ast.Ident, ctx *evalContext) {
 			emitAddr(e)
 			emitLoadAndPush(getTypeOfExpr(e))
 		case ast.Con:
-			emitNamedConst(e, nil)
+			emitNamedConst(e)
 		case ast.Fun:
 			emitAddr(e)
 		default:
@@ -1029,7 +1029,7 @@ func emitIdent(e *ast.Ident, ctx *evalContext) {
 }
 
 // 1 or 2 values
-func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
+func emitIndexExpr(e *ast.IndexExpr) {
 	meta := mapMeta[unsafe.Pointer(e)].(*MetaIndexExpr)
 	if meta.IsMap {
 		emitMapGet(e, meta.NeedsOK)
@@ -1040,13 +1040,13 @@ func emitIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
 }
 
 // 1 value
-func emitStarExpr(e *ast.StarExpr, ctx *evalContext) {
+func emitStarExpr(e *ast.StarExpr) {
 	emitAddr(e)
 	emitLoadAndPush(getTypeOfExpr(e))
 }
 
 // 1 value X.Sel
-func emitSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
+func emitSelectorExpr(e *ast.SelectorExpr) {
 	// pkg.Ident or strct.field
 	if isQI(e) {
 		qi := selector2QI(e)
@@ -1054,7 +1054,7 @@ func emitSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 		if ident.Obj.Kind == ast.Fun {
 			emitFuncAddr(qi)
 		} else {
-			emitExpr(ident, nil)
+			emitExpr(ident)
 		}
 	} else {
 		// strct.field
@@ -1064,7 +1064,7 @@ func emitSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 }
 
 // multi values Fun(Args)
-func emitCallExpr(e *ast.CallExpr, ctx *evalContext) {
+func emitCallExpr(e *ast.CallExpr) {
 	var fun = e.Fun
 	// check if it's a conversion
 	if isType(fun) {
@@ -1077,12 +1077,12 @@ func emitCallExpr(e *ast.CallExpr, ctx *evalContext) {
 }
 
 // multi values (e)
-func emitParenExpr(e *ast.ParenExpr, ctx *evalContext) {
-	emitExpr(e.X, nil)
+func emitParenExpr(e *ast.ParenExpr) {
+	emitExpr(e.X)
 }
 
 // 1 value
-func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
+func emitBasicLit(e *ast.BasicLit) {
 	switch e.Kind.String() {
 	case "CHAR":
 		var val = e.Value
@@ -1121,19 +1121,19 @@ func emitBasicLit(e *ast.BasicLit, ctx *evalContext) {
 }
 
 // 1 value
-func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
+func emitUnaryExpr(e *ast.UnaryExpr) {
 	switch e.Op.String() {
 	case "+":
-		emitExpr(e.X, nil)
+		emitExpr(e.X)
 	case "-":
-		emitExpr(e.X, nil)
+		emitExpr(e.X)
 		printf("  popq %%rax # e.X\n")
 		printf("  imulq $-1, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "&":
 		emitAddr(e.X)
 	case "!":
-		emitExpr(e.X, nil)
+		emitExpr(e.X)
 		emitInvertBoolValue()
 	default:
 		throw(e.Op)
@@ -1141,20 +1141,20 @@ func emitUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
 }
 
 // 1 value
-func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
+func emitBinaryExpr(e *ast.BinaryExpr) {
 	switch e.Op.String() {
 	case "&&":
 		labelid++
 		labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
 		labelExit := fmt.Sprintf(".L.%d.exit", labelid)
-		emitExpr(e.X, nil) // left
+		emitExpr(e.X) // left
 		emitPopBool("left")
 		printf("  cmpq $1, %%rax\n")
 		// exit with false if left is false
 		printf("  jne %s\n", labelExitWithFalse)
 
 		// if left is true, then eval right and exit
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.Y) // right
 		printf("  jmp %s\n", labelExit)
 
 		printf("  %s:\n", labelExitWithFalse)
@@ -1164,14 +1164,14 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		labelid++
 		labelExitWithTrue := fmt.Sprintf(".L.%d.true", labelid)
 		labelExit := fmt.Sprintf(".L.%d.exit", labelid)
-		emitExpr(e.X, nil) // left
+		emitExpr(e.X) // left
 		emitPopBool("left")
 		printf("  cmpq $1, %%rax\n")
 		// exit with true if left is true
 		printf("  je %s\n", labelExitWithTrue)
 
 		// if left is false, then eval right and exit
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.Y) // right
 		printf("  jmp %s\n", labelExit)
 
 		printf("  %s:\n", labelExitWithTrue)
@@ -1181,30 +1181,30 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
 			emitCatStrings(e.X, e.Y)
 		} else {
-			emitExpr(e.X, nil) // left
-			emitExpr(e.Y, nil) // right
+			emitExpr(e.X) // left
+			emitExpr(e.Y) // right
 			printf("  popq %%rcx # right\n")
 			printf("  popq %%rax # left\n")
 			printf("  addq %%rcx, %%rax\n")
 			printf("  pushq %%rax\n")
 		}
 	case "-":
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.X) // left
+		emitExpr(e.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  subq %%rcx, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "*":
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.X) // left
+		emitExpr(e.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  imulq %%rcx, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "%":
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.X) // left
+		emitExpr(e.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  movq $0, %%rdx # init %%rdx\n")
@@ -1212,8 +1212,8 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		printf("  movq %%rdx, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "/":
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.X) // left
+		emitExpr(e.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  movq $0, %%rdx # init %%rdx\n")
@@ -1225,28 +1225,28 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 		emitBinaryExprComparison(e.X, e.Y)
 		emitInvertBoolValue()
 	case "<":
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.X) // left
+		emitExpr(e.Y) // right
 		emitCompExpr("setl")
 	case "<=":
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.X) // left
+		emitExpr(e.Y) // right
 		emitCompExpr("setle")
 	case ">":
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.X) // left
+		emitExpr(e.Y) // right
 		emitCompExpr("setg")
 	case ">=":
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.X) // left
+		emitExpr(e.Y) // right
 		emitCompExpr("setge")
 	case "|":
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.X) // left
+		emitExpr(e.Y) // right
 		emitBitWiseOr()
 	case "&":
-		emitExpr(e.X, nil) // left
-		emitExpr(e.Y, nil) // right
+		emitExpr(e.X) // left
+		emitExpr(e.Y) // right
 		emitBitWiseAnd()
 	default:
 		panic(e.Op.String())
@@ -1254,7 +1254,7 @@ func emitBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) {
 }
 
 // 1 value
-func emitCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
+func emitCompositeLit(e *ast.CompositeLit) {
 	// slice , array, map or struct
 	ut := getUnderlyingType(getTypeOfExpr(e))
 	switch kind(ut) {
@@ -1278,7 +1278,7 @@ func emitCompositeLit(e *ast.CompositeLit, ctx *evalContext) {
 }
 
 // 1 value list[low:high]
-func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
+func emitSliceExpr(e *ast.SliceExpr) {
 	list := e.X
 	listType := getTypeOfExpr(list)
 
@@ -1301,7 +1301,7 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 		if e.Max == nil {
 			// new cap = cap(operand) - low
 			emitCap(e.X)
-			emitExpr(low, nil)
+			emitExpr(low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # orig_cap\n")
 			printf("  subq %%rcx, %%rax # orig_cap - low\n")
@@ -1309,27 +1309,27 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 
 			// new len = high - low
 			if e.High != nil {
-				emitExpr(e.High, nil)
+				emitExpr(e.High)
 			} else {
 				// high = len(orig)
 				emitLen(e.X)
 			}
-			emitExpr(low, nil)
+			emitExpr(low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # high\n")
 			printf("  subq %%rcx, %%rax # high - low\n")
 			printf("  pushq %%rax # new len\n")
 		} else {
 			// new cap = max - low
-			emitExpr(e.Max, nil)
-			emitExpr(low, nil)
+			emitExpr(e.Max)
+			emitExpr(low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # max\n")
 			printf("  subq %%rcx, %%rax # new cap = max - low\n")
 			printf("  pushq %%rax # new cap\n")
 			// new len = high - low
-			emitExpr(e.High, nil)
-			emitExpr(low, nil)
+			emitExpr(e.High)
+			emitExpr(low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # high\n")
 			printf("  subq %%rcx, %%rax # new len = high - low\n")
@@ -1338,12 +1338,12 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 	case T_STRING:
 		// new len = high - low
 		if e.High != nil {
-			emitExpr(e.High, nil)
+			emitExpr(e.High)
 		} else {
 			// high = len(orig)
 			emitLen(e.X)
 		}
-		emitExpr(low, nil)
+		emitExpr(low)
 		printf("  popq %%rcx # low\n")
 		printf("  popq %%rax # high\n")
 		printf("  subq %%rcx, %%rax # high - low\n")
@@ -1353,7 +1353,7 @@ func emitSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 		unexpectedKind(kind(listType))
 	}
 
-	emitExpr(low, nil) // index number
+	emitExpr(low) // index number
 	elmType := getElementTypeOfCollectionType(listType)
 	emitListElementAddr(list, elmType)
 }
@@ -1416,9 +1416,9 @@ func emitMapGet(e *ast.IndexExpr, okContext bool) {
 }
 
 // 1 or 2 values
-func emitTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
+func emitTypeAssertExpr(e *ast.TypeAssertExpr) {
 	meta := mapMeta[unsafe.Pointer(e)].(*MetaTypeAssertExpr)
-	emitExpr(e.X, nil)
+	emitExpr(e.X)
 	emitDtypeLabelAddr(e2t(e.Type))
 	emitCompareDtypes()
 
@@ -1472,34 +1472,33 @@ func isUniverseNil(expr ast.Expr) bool {
 // targetType is used when:
 //   - the expr is nil
 //   - the target type is interface and expr is not.
-func emitExpr(expr ast.Expr, ctx *evalContext) {
-	ctx = nil
+func emitExpr(expr ast.Expr) {
 	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
 	case *ast.ParenExpr:
-		emitParenExpr(e, ctx) // multi values (e)
+		emitParenExpr(e) // multi values (e)
 	case *ast.BasicLit:
-		emitBasicLit(e, ctx) // 1 value
+		emitBasicLit(e) // 1 value
 	case *ast.CompositeLit:
-		emitCompositeLit(e, ctx) // 1 value
+		emitCompositeLit(e) // 1 value
 	case *ast.Ident:
-		emitIdent(e, ctx) // 1 value
+		emitIdent(e) // 1 value
 	case *ast.SelectorExpr:
-		emitSelectorExpr(e, ctx) // 1 value X.Sel
+		emitSelectorExpr(e) // 1 value X.Sel
 	case *ast.CallExpr:
-		emitCallExpr(e, ctx) // multi values Fun(Args)
+		emitCallExpr(e) // multi values Fun(Args)
 	case *ast.IndexExpr:
-		emitIndexExpr(e, ctx) // 1 or 2 values
+		emitIndexExpr(e) // 1 or 2 values
 	case *ast.SliceExpr:
-		emitSliceExpr(e, ctx) // 1 value list[low:high]
+		emitSliceExpr(e) // 1 value list[low:high]
 	case *ast.StarExpr:
-		emitStarExpr(e, ctx) // 1 value
+		emitStarExpr(e) // 1 value
 	case *ast.UnaryExpr:
-		emitUnaryExpr(e, ctx) // 1 value
+		emitUnaryExpr(e) // 1 value
 	case *ast.BinaryExpr:
-		emitBinaryExpr(e, ctx) // 1 value
+		emitBinaryExpr(e) // 1 value
 	case *ast.TypeAssertExpr:
-		emitTypeAssertExpr(e, ctx) // 1 or 2 values
+		emitTypeAssertExpr(e) // 1 or 2 values
 	default:
 		throw(expr)
 	}
@@ -1708,14 +1707,14 @@ func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
 		ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)
 		//@TODO: confirm nil comparison with interfaces
-		emitExpr(left, nil)  // left
-		emitExpr(right, nil) // right
+		emitExpr(left)  // left
+		emitExpr(right) // right
 		emitCallFF(ff)
 	} else {
 		// Assuming pointer-like types (pointer, map)
 		//var t = getTypeOfExpr(left)
-		emitExpr(left, nil)  // left
-		emitExpr(right, nil) // right
+		emitExpr(left)  // left
+		emitExpr(right) // right
 		emitCompExpr("sete")
 	}
 
@@ -1834,7 +1833,7 @@ func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 	emitVariableAddr(vr)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 
-	emitExpr(rhs, nil)
+	emitExpr(rhs)
 	mayEmitConvertTooIfc(rhs, vr.Typ)
 	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
 	emitStore(vr.Typ, true, false)
@@ -1842,14 +1841,14 @@ func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 
 func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
 	if isBlankIdentifier(lhs) {
-		emitExpr(rhs, nil)
+		emitExpr(rhs)
 		emitPop(kind(getTypeOfExpr(rhs)))
 		return
 	}
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
-	emitExpr(rhs, nil)
+	emitExpr(rhs)
 	mayEmitConvertTooIfc(rhs, getTypeOfExpr(lhs))
 	emitStore(getTypeOfExpr(lhs), true, false)
 }
@@ -1860,7 +1859,7 @@ func emitBlockStmt(s *ast.BlockStmt) {
 	}
 }
 func emitExprStmt(s *ast.ExprStmt) {
-	emitExpr(s.X, nil)
+	emitExpr(s.X)
 }
 func emitDeclStmt(s *ast.DeclStmt) {
 	genDecl := s.Decl.(*ast.GenDecl)
@@ -1901,7 +1900,7 @@ func emitOkAssignment(s *ast.AssignStmt) {
 	if !isBlankIdentifier(s.Lhs[0]) {
 		lhs0Type = getTypeOfExpr(s.Lhs[0])
 	}
-	emitExpr(rhs0, nil)
+	emitExpr(rhs0)
 	mayEmitConvertTooIfc(rhs0, lhs0Type)
 	rhsTypes := []*Type{getTypeOfExpr(rhs0), tBool}
 	for i := 1; i >= 0; i-- {
@@ -1920,7 +1919,7 @@ func emitOkAssignment(s *ast.AssignStmt) {
 // a, b (, c...) = f()
 func emitFuncallAssignment(s *ast.AssignStmt) {
 	rhs0 := s.Rhs[0]
-	emitExpr(rhs0, nil) // @TODO interface conversion
+	emitExpr(rhs0) // @TODO interface conversion
 	callExpr := rhs0.(*ast.CallExpr)
 	returnTypes := getCallResultTypes(callExpr)
 	printf("# len lhs=%d\n", len(s.Lhs))
@@ -1953,7 +1952,7 @@ func emitIfStmt(s *ast.IfStmt) {
 	labelEndif := fmt.Sprintf(".L.endif.%d", labelid)
 	labelElse := fmt.Sprintf(".L.else.%d", labelid)
 
-	emitExpr(s.Cond, nil)
+	emitExpr(s.Cond)
 	emitPopBool("if condition")
 	printf("  cmpq $1, %%rax\n")
 	if s.Else != nil {
@@ -1985,7 +1984,7 @@ func emitForStmt(meta *MetaForStmt) {
 
 	printf("  %s:\n", labelCond)
 	if meta.Cond != nil {
-		emitExpr(meta.Cond, nil)
+		emitExpr(meta.Cond)
 		emitPopBool("for condition")
 		printf("  cmpq $1, %%rax\n")
 		printf("  jne %s # jmp if false\n", labelExit)
@@ -2213,7 +2212,7 @@ func emitIncDecStmt(s *ast.IncDecStmt) {
 		panic("Unexpected Tok=" + s.Tok.String())
 	}
 	emitAddr(s.X)
-	emitExpr(s.X, nil)
+	emitExpr(s.X)
 	emitAddConst(addValue, "rhs ++ or --")
 	emitStore(getTypeOfExpr(s.X), true, false)
 }
@@ -2226,7 +2225,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	if s.Tag == nil {
 		panic("Omitted tag is not supported yet")
 	}
-	emitExpr(s.Tag, nil)
+	emitExpr(s.Tag)
 	condType := getTypeOfExpr(s.Tag)
 	cases := s.Body.List
 	var labels = make([]string, len(cases), len(cases))
@@ -2249,7 +2248,7 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 				emitAllocReturnVarsAreaFF(ff)
 
 				emitPushStackTop(condType, SizeOfInt, "switch expr")
-				emitExpr(e, nil)
+				emitExpr(e)
 
 				emitCallFF(ff)
 			case T_INTERFACE:
@@ -2258,12 +2257,12 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 				emitAllocReturnVarsAreaFF(ff)
 
 				emitPushStackTop(condType, SizeOfInt, "switch expr")
-				emitExpr(e, nil)
+				emitExpr(e)
 
 				emitCallFF(ff)
 			case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 				emitPushStackTop(condType, 0, "switch expr")
-				emitExpr(e, nil)
+				emitExpr(e)
 				emitCompExpr("sete")
 			default:
 				unexpectedKind(kind(condType))
@@ -2303,7 +2302,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 
 	// subjectVariable = subject
 	emitVariableAddr(meta.SubjectVariable)
-	emitExpr(meta.Subject, nil)
+	emitExpr(meta.Subject)
 	emitStore(tEface, true, false)
 
 	cases := s.Body.List
@@ -2404,7 +2403,7 @@ func emitBranchStmt(meta *MetaBranchStmt) {
 
 func emitGoStmt(s *ast.GoStmt) {
 	emitCallMalloc(SizeOfPtr) // area := new(func())
-	emitExpr(s.Call.Fun, nil)
+	emitExpr(s.Call.Fun)
 	printf("  popq %%rax # func addr\n")
 	printf("  popq %%rcx # malloced area\n")
 	printf("  movq %%rax, (%%rcx) # malloced area\n") // *area = fn
