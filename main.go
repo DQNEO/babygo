@@ -1453,28 +1453,28 @@ func isUniverseNil(expr ast.Expr) bool {
 func emitExpr(expr ast.Expr, ctx *evalContext) {
 	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
-	case *ast.Ident:
-		emitIdent(e, ctx) // 1 value
-	case *ast.IndexExpr:
-		emitIndexExpr(e, ctx) // 1 or 2 values
-	case *ast.StarExpr:
-		emitStarExpr(e, ctx) // 1 value
-	case *ast.SelectorExpr:
-		emitSelectorExpr(e, ctx) // 1 value X.Sel
-	case *ast.CallExpr:
-		emitCallExpr(e, ctx) // multi values Fun(Args)
 	case *ast.ParenExpr:
 		emitParenExpr(e, ctx) // multi values (e)
 	case *ast.BasicLit:
 		emitBasicLit(e, ctx) // 1 value
+	case *ast.CompositeLit:
+		emitCompositeLit(e, ctx) // 1 value
+	case *ast.Ident:
+		emitIdent(e, ctx) // 1 value
+	case *ast.SelectorExpr:
+		emitSelectorExpr(e, ctx) // 1 value X.Sel
+	case *ast.CallExpr:
+		emitCallExpr(e, ctx) // multi values Fun(Args)
+	case *ast.IndexExpr:
+		emitIndexExpr(e, ctx) // 1 or 2 values
+	case *ast.SliceExpr:
+		emitSliceExpr(e, ctx) // 1 value list[low:high]
+	case *ast.StarExpr:
+		emitStarExpr(e, ctx) // 1 value
 	case *ast.UnaryExpr:
 		emitUnaryExpr(e, ctx) // 1 value
 	case *ast.BinaryExpr:
 		emitBinaryExpr(e, ctx) // 1 value
-	case *ast.CompositeLit:
-		emitCompositeLit(e, ctx) // 1 value
-	case *ast.SliceExpr:
-		emitSliceExpr(e, ctx) // 1 value list[low:high]
 	case *ast.TypeAssertExpr:
 		emitTypeAssertExpr(e, ctx) // 1 or 2 values
 	default:
@@ -3867,38 +3867,38 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
 
 func walkExpr(expr ast.Expr, ctx *evalContext) {
 	switch e := expr.(type) {
+	case *ast.ParenExpr:
+		walkParenExpr(e, ctx)
+	case *ast.BasicLit:
+		walkBasicLit(e)
+	case *ast.KeyValueExpr:
+		walkKeyValueExpr(e)
+	case *ast.CompositeLit:
+		walkCompositeLit(e)
 	case *ast.Ident:
 		walkIdent(e)
 	case *ast.SelectorExpr:
 		walkSelectorExpr(e)
 	case *ast.CallExpr:
 		walkCallExpr(e)
-	case *ast.ParenExpr:
-		walkParenExpr(e, ctx)
-	case *ast.BasicLit:
-		walkBasicLit(e)
-	case *ast.CompositeLit:
-		walkCompositeLit(e)
-	case *ast.UnaryExpr:
-		walkUnaryExpr(e)
-	case *ast.BinaryExpr:
-		walkBinaryExpr(e)
 	case *ast.IndexExpr:
 		walkIndexExpr(e, ctx)
-	case *ast.ArrayType:
-		walkArrayType(e) // []T(e)
-	case *ast.MapType:
-		walkMapType(e)
 	case *ast.SliceExpr:
 		walkSliceExpr(e)
 	case *ast.StarExpr:
 		walkStarExpr(e)
-	case *ast.KeyValueExpr:
-		walkKeyValueExpr(e)
-	case *ast.InterfaceType:
-		walkInterfaceType(e)
+	case *ast.UnaryExpr:
+		walkUnaryExpr(e)
+	case *ast.BinaryExpr:
+		walkBinaryExpr(e)
 	case *ast.TypeAssertExpr:
 		walkTypeAssertExpr(e, ctx)
+	case *ast.ArrayType: // type
+		walkArrayType(e) // []T(e)
+	case *ast.MapType: // type
+		walkMapType(e)
+	case *ast.InterfaceType: // type
+		walkInterfaceType(e)
 	default:
 		throw(expr)
 	}
