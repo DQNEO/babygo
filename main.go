@@ -463,33 +463,12 @@ type MetaStructLiteralElement struct {
 	value     ast.Expr
 }
 
-func emitStructLiteral(e *ast.CompositeLit) {
+func emitStructLiteral(meta *MetaCompositLiteral) {
 	// allocate heap area with zero value
 	emitComment(2, "emitStructLiteral\n")
-	structType := e2t(e.Type)
-
-	var metaElms []*MetaStructLiteralElement
-	for _, elm := range e.Elts {
-		kvExpr := elm.(*ast.KeyValueExpr)
-		fieldName := kvExpr.Key.(*ast.Ident)
-		field := lookupStructField(getUnderlyingStructType(structType), fieldName.Name)
-		fieldType := e2t(field.Type)
-
-		metaElm := &MetaStructLiteralElement{
-			field:     field,
-			fieldType: fieldType,
-			value:     kvExpr.Value,
-		}
-		// attach type to nil : STRUCT{Key:nil}
-		eIdent, isIdent := kvExpr.Value.(*ast.Ident)
-		if isIdent {
-			exprTypeMeta[unsafe.Pointer(eIdent)] = fieldType
-		}
-		metaElms = append(metaElms, metaElm)
-	}
-
+	structType := meta.typ
 	emitZeroValue(structType) // push address of the new storage
-
+	metaElms := meta.strctEements
 	for _, metaElm := range metaElms {
 		// push lhs address
 		emitPushStackTop(tUintptr, 0, "address of struct heaad")
@@ -585,6 +564,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 			Type: sliceType,
 			Elts: variadicArgs,
 		}
+		walkCompositeLit(vargsSliceWrapper, nil) // @TODO move to walk stages
 		args = append(args, &Arg{
 			e:         vargsSliceWrapper,
 			paramType: e2t(sliceType),
@@ -1272,14 +1252,15 @@ func emitBinaryExpr(e *ast.BinaryExpr) {
 func emitCompositeLit(e *ast.CompositeLit) {
 	// slice , array, map or struct
 	ut := getUnderlyingType(getTypeOfExpr(e))
-	switch kind(ut) {
-	case T_STRUCT:
-		emitStructLiteral(e)
-	case T_ARRAY:
+	meta := mapMeta[unsafe.Pointer(e)].(*MetaCompositLiteral)
+	switch meta.kind {
+	case "struct":
+		emitStructLiteral(meta)
+	case "array":
 		arrayType := ut.E.(*ast.ArrayType)
 		arrayLen := evalInt(arrayType.Len)
 		emitArrayLiteral(arrayType, arrayLen, e.Elts)
-	case T_SLICE:
+	case "slice":
 		arrayType := ut.E.(*ast.ArrayType)
 		length := len(e.Elts)
 		emitArrayLiteral(arrayType, length, e.Elts)
@@ -3918,9 +3899,58 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) {
 		panic("Unexpected literal kind:" + e.Kind.String())
 	}
 }
+
+type MetaCompositLiteral struct {
+	kind         string                      // "struct", "array", "slice" // @TODO "map"
+	typ          *Type                       // type of the composite
+	strctEements []*MetaStructLiteralElement // for "struct"
+}
+
 func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) {
-	for _, v := range e.Elts {
-		walkExpr(v, nil)
+	ut := getUnderlyingType(getTypeOfExpr(e))
+	var knd string
+	switch kind(ut) {
+	case T_STRUCT:
+		knd = "struct"
+	case T_ARRAY:
+		knd = "array"
+	case T_SLICE:
+		knd = "slice"
+	default:
+		unexpectedKind(kind(e2t(e.Type)))
+	}
+	meta := &MetaCompositLiteral{
+		kind: knd,
+		typ:  getTypeOfExpr(e),
+	}
+	mapMeta[unsafe.Pointer(e)] = meta
+
+	switch kind(ut) {
+	case T_STRUCT:
+		structType := meta.typ
+		var metaElms []*MetaStructLiteralElement
+		for _, elm := range e.Elts {
+			kvExpr := elm.(*ast.KeyValueExpr)
+			fieldName := kvExpr.Key.(*ast.Ident)
+			field := lookupStructField(getUnderlyingStructType(structType), fieldName.Name)
+			fieldType := e2t(field.Type)
+			ctx := &evalContext{_type: fieldType}
+			// attach type to nil : STRUCT{Key:nil}
+			walkExpr(kvExpr.Value, ctx)
+
+			metaElm := &MetaStructLiteralElement{
+				field:     field,
+				fieldType: fieldType,
+				value:     kvExpr.Value,
+			}
+
+			metaElms = append(metaElms, metaElm)
+		}
+		meta.strctEements = metaElms
+	default:
+		for _, v := range e.Elts {
+			walkExpr(v, nil)
+		}
 	}
 }
 
@@ -3981,9 +4011,9 @@ func walkStarExpr(e *ast.StarExpr, ctx *evalContext) {
 	walkExpr(e.X, nil)
 }
 func walkKeyValueExpr(e *ast.KeyValueExpr, _ctx *evalContext) {
-	// @TODO:
 	// MYSTRUCT{key:value}
 	// key is not an expression in struct literals.
+	// Actually struct case is handled in walkCompositeLit().
 	// In map, array or slice types, key can be an expression.
 	// // map
 	// expr := "hello"
