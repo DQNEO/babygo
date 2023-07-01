@@ -1,5 +1,5 @@
 # Run this on a docker container
-tmp = /tmpfs/bbg
+tmp ?= /tmp/bbg
 
 .PHONY: all
 all: test
