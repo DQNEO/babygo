@@ -13,10 +13,9 @@ jobs:
           path: src/github.com/${{ github.repository }} # The repo is cloned into  /home/runner/work/babygo/babygo/src/github.com/DQNEO/babygo
 
       - name: Set up Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
-          go-version: 1.20
-        id: go
+          go-version: "1.20"
 
       - name: Test
         run: GOPATH=${{ github.workspace }}  make -C ${{ github.workspace }}/src/github.com/DQNEO/babygo test
