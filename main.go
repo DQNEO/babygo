@@ -972,7 +972,7 @@ func emitNil(targetType *Type) {
 func emitNamedConst(ident *ast.Ident, ctx *evalContext) {
 	valSpec := ident.Obj.Decl.(*ast.ValueSpec)
 	lit := valSpec.Values[0].(*ast.BasicLit)
-	emitExprIfc(lit, ctx)
+	emitExpr(lit, ctx)
 }
 
 type evalContext struct {
@@ -1672,13 +1672,13 @@ func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
 		emitAllocReturnVarsAreaFF(ff)
 		emitExpr(left, nil) // left
 		ctx := &evalContext{_type: t}
-		emitExprIfc(right, ctx) // right
+		emitExpr(right, ctx) // right
 		emitCallFF(ff)
 	} else {
 		var t = getTypeOfExpr(left)
 		emitExpr(left, nil) // left
 		ctx := &evalContext{_type: t}
-		emitExprIfc(right, ctx) // right
+		emitExpr(right, ctx) // right
 		emitCompExpr("sete")
 	}
 }
