@@ -642,7 +642,7 @@ func emitCall(fn interface{}, args []*Arg, resultList *ast.FieldList) {
 }
 
 func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
-	emitAllocReturnVarsArea(getTotalFieldsSize(ff.decl.Type.Results))
+	emitAllocReturnVarsArea(getTotalFieldsSize(ff.funcType.Results))
 }
 
 func getTotalFieldsSize(flist *ast.FieldList) int {
@@ -657,8 +657,8 @@ func getTotalFieldsSize(flist *ast.FieldList) int {
 }
 
 func emitCallFF(ff *ForeignFunc) {
-	totalParamSize := getTotalFieldsSize(ff.decl.Type.Params)
-	emitCallQ(ff.symbol, totalParamSize, ff.decl.Type.Results)
+	totalParamSize := getTotalFieldsSize(ff.funcType.Params)
+	emitCallQ(ff.symbol, totalParamSize, ff.funcType.Results)
 }
 
 func emitCallQ(fn interface{}, totalParamSize int, resultList *ast.FieldList) {
@@ -2822,7 +2822,7 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 				case *ast.SelectorExpr:
 					assert(isQI(r), "expect QI", __func__)
 					ff := lookupForeignFunc(selector2QI(r))
-					return fieldList2Types(ff.decl.Type.Results)
+					return fieldList2Types(ff.funcType.Results)
 				}
 			case *ast.ValueSpec: // var v func(T1)T2
 				return fieldList2Types(dcl.Type.(*ast.FuncType).Results)
@@ -2870,7 +2870,7 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 		}
 		if isQI(fn) { // pkg.Sel()
 			ff := lookupForeignFunc(selector2QI(fn))
-			return fieldList2Types(ff.decl.Type.Results)
+			return fieldList2Types(ff.funcType.Results)
 		} else { // obj.method()
 			rcvType := getTypeOfExpr(fn.X)
 			method := lookupMethod(rcvType, fn.Sel)
@@ -3915,7 +3915,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 			case *ast.SelectorExpr:
 				assert(isQI(r), "expect QI", __func__)
 				ff := lookupForeignFunc(selector2QI(r))
-				funcType = ff.decl.Type
+				funcType = ff.funcType
 				funcVal = meta.fun
 			default:
 				throw(r)
@@ -3929,7 +3929,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 			qi := selector2QI(fn)
 			funcVal = string(qi)
 			ff := lookupForeignFunc(qi)
-			funcType = ff.decl.Type
+			funcType = ff.funcType
 		} else {
 			// method call
 			receiver = fn.X
@@ -4200,8 +4200,8 @@ func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
 }
 
 type ForeignFunc struct {
-	symbol string
-	decl   *ast.FuncDecl
+	symbol   string
+	funcType *ast.FuncType
 }
 
 func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
@@ -4209,8 +4209,8 @@ func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 	assert(ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
 	decl := ident.Obj.Decl.(*ast.FuncDecl)
 	return &ForeignFunc{
-		symbol: string(qi),
-		decl:   decl,
+		symbol:   string(qi),
+		funcType: decl.Type,
 	}
 }
 
@@ -4880,17 +4880,14 @@ func buildAll(args []string) {
 		if _pkg.name == "" {
 			panic("empty pkg name")
 		}
-		var asmbasename []byte
+		var asmBasename []byte
 		for _, ch := range []byte(_pkg.path) {
-			var _ch byte
 			if ch == '/' {
-				_ch = '@'
-			} else {
-				_ch = ch
+				ch = '@'
 			}
-			asmbasename = append(asmbasename, _ch)
+			asmBasename = append(asmBasename, ch)
 		}
-		outFilePath := fmt.Sprintf("%s/%s", workdir, string(asmbasename)+".s")
+		outFilePath := fmt.Sprintf("%s/%s", workdir, string(asmBasename)+".s")
 		var gofiles []string
 		var asmfiles []string
 		for _, f := range _pkg.files {
