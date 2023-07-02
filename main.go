@@ -4870,13 +4870,22 @@ func buildAll(args []string) {
 		path:  "main",
 		files: inputFiles,
 	})
-
 	var universe = createUniverse()
 	for _, _pkg := range packagesToBuild {
 		if _pkg.name == "" {
 			panic("empty pkg name")
 		}
-		outFilePath := fmt.Sprintf("%s/%s", workdir, _pkg.name+".s")
+		var asmbasename []byte
+		for _, ch := range []byte(_pkg.path) {
+			var _ch byte
+			if ch == '/' {
+				_ch = '@'
+			} else {
+				_ch = ch
+			}
+			asmbasename = append(asmbasename, _ch)
+		}
+		outFilePath := fmt.Sprintf("%s/%s", workdir, string(asmbasename)+".s")
 		var gofiles []string
 		var asmfiles []string
 		for _, f := range _pkg.files {
