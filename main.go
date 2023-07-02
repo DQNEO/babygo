@@ -485,12 +485,13 @@ func emitStructLiteral(meta *MetaCompositLiteral) {
 	}
 }
 
-func emitArrayLiteral(arrayType *ast.ArrayType, arrayLen int, elts []ast.Expr) {
-	elmType := e2t(arrayType.Elt)
+func emitArrayLiteral(meta *MetaCompositLiteral) {
+	elmType := meta.elmType
 	elmSize := getSizeOfType(elmType)
-	memSize := elmSize * arrayLen
+	memSize := elmSize * meta.len
+
 	emitCallMalloc(memSize) // push
-	for i, elm := range elts {
+	for i, elm := range meta.elms {
 		// push lhs address
 		emitPushStackTop(tUintptr, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
@@ -1251,22 +1252,17 @@ func emitBinaryExpr(e *ast.BinaryExpr) {
 // 1 value
 func emitCompositeLit(e *ast.CompositeLit) {
 	// slice , array, map or struct
-	ut := getUnderlyingType(getTypeOfExpr(e))
 	meta := mapMeta[unsafe.Pointer(e)].(*MetaCompositLiteral)
 	switch meta.kind {
 	case "struct":
 		emitStructLiteral(meta)
 	case "array":
-		arrayType := ut.E.(*ast.ArrayType)
-		arrayLen := evalInt(arrayType.Len)
-		emitArrayLiteral(arrayType, arrayLen, e.Elts)
+		emitArrayLiteral(meta)
 	case "slice":
-		arrayType := ut.E.(*ast.ArrayType)
-		length := len(e.Elts)
-		emitArrayLiteral(arrayType, length, e.Elts)
+		emitArrayLiteral(meta)
 		emitPopAddress("malloc")
-		printf("  pushq $%d # slice.cap\n", length)
-		printf("  pushq $%d # slice.len\n", length)
+		printf("  pushq $%d # slice.cap\n", meta.len)
+		printf("  pushq $%d # slice.len\n", meta.len)
 		printf("  pushq %%rax # slice.ptr\n")
 	default:
 		unexpectedKind(kind(e2t(e.Type)))
@@ -3901,9 +3897,17 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) {
 }
 
 type MetaCompositLiteral struct {
-	kind         string                      // "struct", "array", "slice" // @TODO "map"
+	kind string // "struct", "array", "slice" // @TODO "map"
+
+	// for struct
 	typ          *Type                       // type of the composite
 	strctEements []*MetaStructLiteralElement // for "struct"
+
+	// for array or slice
+	arrayType *ast.ArrayType
+	len       int
+	elms      []ast.Expr
+	elmType   *Type
 }
 
 func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) {
@@ -3947,9 +3951,23 @@ func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) {
 			metaElms = append(metaElms, metaElm)
 		}
 		meta.strctEements = metaElms
-	default:
+	case T_ARRAY:
+		meta.arrayType = ut.E.(*ast.ArrayType)
+		meta.len = evalInt(meta.arrayType.Len)
+		meta.elmType = e2t(meta.arrayType.Elt)
+		meta.elms = e.Elts
+		ctx := &evalContext{_type: meta.elmType}
 		for _, v := range e.Elts {
-			walkExpr(v, nil)
+			walkExpr(v, ctx)
+		}
+	case T_SLICE:
+		meta.arrayType = ut.E.(*ast.ArrayType)
+		meta.len = len(e.Elts)
+		meta.elmType = e2t(meta.arrayType.Elt)
+		meta.elms = e.Elts
+		ctx := &evalContext{_type: meta.elmType}
+		for _, v := range e.Elts {
+			walkExpr(v, ctx)
 		}
 	}
 }
@@ -4028,9 +4046,9 @@ func walkKeyValueExpr(e *ast.KeyValueExpr, _ctx *evalContext) {
 	// s := []bool{key: true} // => [false true]
 
 	//walkExpr(e.Key, nil)
-	ctx := &evalContext{_type: tTODO}
-	walkExpr(e.Value, ctx)
+	panic("TBI")
 }
+
 func walkInterfaceType(e *ast.InterfaceType) {
 	// interface{}(e)  conversion. Nothing to do.
 }
