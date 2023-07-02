@@ -27,7 +27,7 @@ func main() {
 
 func main() {
 	var conf loader.Config
-	conf.CreateFromFilenames("main", "t/test.go", "t/another.go")
+	conf.CreateFromFilenames("main", "../../t/test.go", "../../t/another.go")
 	prog, err := conf.Load()
 	if err != nil {
 		panic(err)
