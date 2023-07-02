@@ -710,6 +710,149 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 	}
 }
 
+func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr) {
+	switch obj {
+	case gLen:
+		emitLen(eArgs[0])
+		return
+	case gCap:
+		emitCap(eArgs[0])
+		return
+	case gNew:
+		typeArg := e2t(eArgs[0])
+		// size to malloc
+		size := getSizeOfType(typeArg)
+		emitCallMalloc(size)
+		return
+	case gMake:
+		typeArg := e2t(eArgs[0])
+		switch kind(typeArg) {
+		case T_MAP:
+			mapType := getUnderlyingType(typeArg).E.(*ast.MapType)
+			valueSize := newNumberLiteral(getSizeOfType(e2t(mapType.Value)))
+			// A new, empty map value is made using the built-in function make,
+			// which takes the map type and an optional capacity hint as arguments:
+			length := newNumberLiteral(0)
+			args := []*Arg{
+				&Arg{
+					e:         length,
+					paramType: tUintptr,
+				},
+				&Arg{
+					e:         valueSize,
+					paramType: tUintptr,
+				},
+			}
+			resultList := &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Type: tUintptr.E,
+					},
+				},
+			}
+			emitCall("runtime.makeMap", args, resultList)
+			return
+		case T_SLICE:
+			// make([]T, ...)
+			arrayType := getUnderlyingType(typeArg).E.(*ast.ArrayType)
+			elmSize := getSizeOfType(e2t(arrayType.Elt))
+			numlit := newNumberLiteral(elmSize)
+			args := []*Arg{
+				// elmSize
+				&Arg{
+					e:         numlit,
+					paramType: tInt,
+				},
+				// len
+				&Arg{
+					e:         eArgs[1],
+					paramType: tInt,
+				},
+				// cap
+				&Arg{
+					e:         eArgs[2],
+					paramType: tInt,
+				},
+			}
+
+			resultList := &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Type: generalSlice,
+					},
+				},
+			}
+			emitCall("runtime.makeSlice", args, resultList)
+			return
+		default:
+			throw(typeArg)
+		}
+	case gAppend:
+		sliceArg := eArgs[0]
+		elemArg := eArgs[1]
+		elmType := getElementTypeOfCollectionType(getTypeOfExpr(sliceArg))
+		elmSize := getSizeOfType(elmType)
+		args := []*Arg{
+			// slice
+			&Arg{
+				e:         sliceArg,
+				paramType: e2t(generalSlice),
+			},
+			// elm
+			&Arg{
+				e:         elemArg,
+				paramType: elmType,
+			},
+		}
+
+		var symbol string
+		switch elmSize {
+		case 1:
+			symbol = "runtime.append1"
+		case 8:
+			symbol = "runtime.append8"
+		case 16:
+			symbol = "runtime.append16"
+		case 24:
+			symbol = "runtime.append24"
+		default:
+			throw(elmSize)
+		}
+		resultList := &ast.FieldList{
+			List: []*ast.Field{
+				&ast.Field{
+					Type: generalSlice,
+				},
+			},
+		}
+		emitCall(symbol, args, resultList)
+		return
+	case gPanic:
+		funcVal := "runtime.panic"
+		_args := []*Arg{&Arg{
+			e:         eArgs[0],
+			paramType: tEface,
+		}}
+		emitCall(funcVal, _args, nil)
+		return
+	case gDelete:
+		funcVal := "runtime.deleteMap"
+		_args := []*Arg{
+			&Arg{
+				e:         eArgs[0],
+				paramType: getTypeOfExpr(eArgs[0]),
+			},
+			&Arg{
+				e:         eArgs[1],
+				paramType: tEface,
+			},
+		}
+		emitCall(funcVal, _args, nil)
+		return
+	}
+
+}
+
 // ABI of stack layout in function call
 //
 // string:
@@ -744,154 +887,21 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 //	slc.cap
 //	r
 //	--
-func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
-	emitComment(2, "[emitFuncall] %T(...)\n", fun)
+func emitFuncall(meta *MetaCallExpr) {
+	eArgs := meta.args
+	emitComment(2, "[emitFuncall] %T(...)\n", meta.fun)
 	var funcType *ast.FuncType
 	var funcVal interface{}
 	var receiver ast.Expr
-	switch fn := fun.(type) {
+
+	// check if it's a builtin func
+	if meta.builtin != nil {
+		emitBuiltinFunCall(meta.builtin, eArgs)
+		return
+	}
+
+	switch fn := meta.fun.(type) {
 	case *ast.Ident:
-		// check if it's a builtin func
-		switch fn.Obj {
-		case gLen:
-			emitLen(eArgs[0])
-			return
-		case gCap:
-			emitCap(eArgs[0])
-			return
-		case gNew:
-			typeArg := e2t(eArgs[0])
-			// size to malloc
-			size := getSizeOfType(typeArg)
-			emitCallMalloc(size)
-			return
-		case gMake:
-			typeArg := e2t(eArgs[0])
-			switch kind(typeArg) {
-			case T_MAP:
-				mapType := getUnderlyingType(typeArg).E.(*ast.MapType)
-				valueSize := newNumberLiteral(getSizeOfType(e2t(mapType.Value)))
-				// A new, empty map value is made using the built-in function make,
-				// which takes the map type and an optional capacity hint as arguments:
-				length := newNumberLiteral(0)
-				args := []*Arg{
-					&Arg{
-						e:         length,
-						paramType: tUintptr,
-					},
-					&Arg{
-						e:         valueSize,
-						paramType: tUintptr,
-					},
-				}
-				resultList := &ast.FieldList{
-					List: []*ast.Field{
-						&ast.Field{
-							Type: tUintptr.E,
-						},
-					},
-				}
-				emitCall("runtime.makeMap", args, resultList)
-				return
-			case T_SLICE:
-				// make([]T, ...)
-				arrayType := getUnderlyingType(typeArg).E.(*ast.ArrayType)
-				elmSize := getSizeOfType(e2t(arrayType.Elt))
-				numlit := newNumberLiteral(elmSize)
-				args := []*Arg{
-					// elmSize
-					&Arg{
-						e:         numlit,
-						paramType: tInt,
-					},
-					// len
-					&Arg{
-						e:         eArgs[1],
-						paramType: tInt,
-					},
-					// cap
-					&Arg{
-						e:         eArgs[2],
-						paramType: tInt,
-					},
-				}
-
-				resultList := &ast.FieldList{
-					List: []*ast.Field{
-						&ast.Field{
-							Type: generalSlice,
-						},
-					},
-				}
-				emitCall("runtime.makeSlice", args, resultList)
-				return
-			default:
-				throw(typeArg)
-			}
-		case gAppend:
-			sliceArg := eArgs[0]
-			elemArg := eArgs[1]
-			elmType := getElementTypeOfCollectionType(getTypeOfExpr(sliceArg))
-			elmSize := getSizeOfType(elmType)
-			args := []*Arg{
-				// slice
-				&Arg{
-					e:         sliceArg,
-					paramType: e2t(generalSlice),
-				},
-				// elm
-				&Arg{
-					e:         elemArg,
-					paramType: elmType,
-				},
-			}
-
-			var symbol string
-			switch elmSize {
-			case 1:
-				symbol = "runtime.append1"
-			case 8:
-				symbol = "runtime.append8"
-			case 16:
-				symbol = "runtime.append16"
-			case 24:
-				symbol = "runtime.append24"
-			default:
-				throw(elmSize)
-			}
-			resultList := &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Type: generalSlice,
-					},
-				},
-			}
-			emitCall(symbol, args, resultList)
-			return
-		case gPanic:
-			funcVal = "runtime.panic"
-			_args := []*Arg{&Arg{
-				e:         eArgs[0],
-				paramType: tEface,
-			}}
-			emitCall(funcVal, _args, nil)
-			return
-		case gDelete:
-			funcVal = "runtime.deleteMap"
-			_args := []*Arg{
-				&Arg{
-					e:         eArgs[0],
-					paramType: getTypeOfExpr(eArgs[0]),
-				},
-				&Arg{
-					e:         eArgs[1],
-					paramType: tEface,
-				},
-			}
-			emitCall(funcVal, _args, nil)
-			return
-		}
-
 		if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
 			fn.Name = "makeSlice"
 		}
@@ -908,7 +918,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 			funcType = dcl.Type
 		case *ast.ValueSpec: // var f func()
 			funcType = dcl.Type.(*ast.FuncType)
-			funcVal = fun
+			funcVal = meta.fun
 		case *ast.AssignStmt: // f := staticF
 			assert(fn.Obj.Data != nil, "funcvalue should be a variable:"+fn.Name, __func__)
 			rhs := dcl.Rhs[0]
@@ -917,7 +927,7 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 				assert(isQI(r), "expect QI", __func__)
 				ff := lookupForeignFunc(selector2QI(r))
 				funcType = ff.decl.Type
-				funcVal = fun
+				funcVal = meta.fun
 			default:
 				throw(r)
 			}
@@ -962,10 +972,10 @@ func emitFuncall(fun ast.Expr, eArgs []ast.Expr, hasEllissis bool) {
 	case *ast.ParenExpr:
 		panic("[astParenExpr] TBI ")
 	default:
-		throw(fun)
+		throw(meta.fun)
 	}
 
-	args := prepareArgs(funcType, receiver, eArgs, hasEllissis)
+	args := prepareArgs(funcType, receiver, eArgs, meta.hasEllipsis)
 	emitCall(funcVal, args, funcType.Results)
 }
 
@@ -1061,14 +1071,14 @@ func emitSelectorExpr(e *ast.SelectorExpr) {
 
 // multi values Fun(Args)
 func emitCallExpr(e *ast.CallExpr) {
-	var fun = e.Fun
+	meta := mapMeta[unsafe.Pointer(e)].(*MetaCallExpr)
 	// check if it's a conversion
-	if isType(fun) {
+	if meta.isConversion {
 		emitComment(2, "[emitCallExpr] Conversion\n")
-		emitConversion(e2t(fun), e.Args[0])
+		emitConversion(meta.toType, meta.arg)
 	} else {
 		emitComment(2, "[emitCallExpr] Funcall\n")
-		emitFuncall(fun, e.Args, e.Ellipsis != token.NoPos)
+		emitFuncall(meta)
 	}
 }
 
@@ -3852,17 +3862,45 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 	}
 }
 
+type MetaCallExpr struct {
+	isConversion bool
+
+	// For Conversion
+	toType *Type
+	arg    ast.Expr
+
+	// For funcall
+	fun         ast.Expr
+	hasEllipsis bool
+	args        []ast.Expr
+
+	builtin *ast.Object
+}
+
 func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
+	meta := &MetaCallExpr{}
+	mapMeta[unsafe.Pointer(e)] = meta
 	if isType(e.Fun) {
+		meta.isConversion = true
+		meta.toType = e2t(e.Fun)
+		assert(len(e.Args) == 1, "convert must take only 1 argument", __func__)
 		//logf2("walkCallExpr: is Conversion\n")
+		meta.arg = e.Args[0]
 		ctx := &evalContext{
 			_type: e2t(e.Fun),
 		}
-		walkExpr(e.Args[0], ctx)
+		walkExpr(meta.arg, ctx)
 		return
 	}
+
+	meta.isConversion = false
+	meta.fun = e.Fun
+	meta.hasEllipsis = e.Ellipsis != token.NoPos
+	meta.args = e.Args
+
 	// function call
 	walkExpr(e.Fun, nil)
+
 	// Replace __func__ ident by a string literal
 	for i, arg := range e.Args {
 		ident, ok := arg.(*ast.Ident)
@@ -3876,9 +3914,18 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 				e.Args[i] = arg
 			}
 		}
+
 		// getting func param def is super hard
 		ctx := &evalContext{_type: tTODO}
 		walkExpr(arg, ctx)
+	}
+
+	identFun, isIdent := meta.fun.(*ast.Ident)
+	if isIdent {
+		switch identFun.Obj {
+		case gLen, gCap, gNew, gMake, gAppend, gPanic, gDelete:
+			meta.builtin = identFun.Obj
+		}
 	}
 }
 func walkParenExpr(e *ast.ParenExpr, ctx *evalContext) {
