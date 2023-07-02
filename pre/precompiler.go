@@ -1822,12 +1822,7 @@ func emitOkAssignment(s *ast.AssignStmt) {
 	//	-- stack top
 	//	bool
 	//	data
-	var lhs0Type *Type
-	if !isBlankIdentifier(s.Lhs[0]) {
-		lhs0Type = getTypeOfExpr(s.Lhs[0])
-	}
 	emitExpr(rhs0)
-	mayEmitConvertTooIfc(rhs0, lhs0Type)
 	rhsTypes := []*Type{getTypeOfExpr(rhs0), tBool}
 	for i := 1; i >= 0; i-- {
 		if isBlankIdentifier(s.Lhs[i]) {
@@ -4220,15 +4215,16 @@ func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 }
 
 // Purpose of walk:
-// Global:
-// - collect methods
 // - collect string literals
+// - collect method declarations
 // - collect global variables
-// - determine struct size and field offset
-// Local:
-// - collect string literals
 // - collect local variables and set offset
+// - determine struct size and field offset
 // - determine types of variable declarations
+// - attach type to universe nil
+// - transmit ok sytanx context
+// - (hope) attach type to untyped constants
+// - (hope) transmit the need of interface conversion
 func walk(pkg *PkgContainer) {
 	var typeSpecs []*ast.TypeSpec
 	var funcDecls []*ast.FuncDecl
