@@ -905,18 +905,6 @@ func emitFuncall(meta *MetaCallExpr) {
 	emitCall(meta.funcVal, meta.metaArgs, meta.funcType.Results)
 }
 
-func emitNil(targetType *Type) {
-	if targetType == nil {
-		panic("Type is required to emit nil")
-	}
-	switch kind(targetType) {
-	case T_SLICE, T_POINTER, T_INTERFACE, T_MAP:
-		emitZeroValue(targetType)
-	default:
-		unexpectedKind(kind(targetType))
-	}
-}
-
 func emitNamedConst(ident *ast.Ident) {
 	valSpec := ident.Obj.Decl.(*ast.ValueSpec)
 	lit := valSpec.Values[0].(*ast.BasicLit)
@@ -939,12 +927,17 @@ func emitIdent(e *ast.Ident) {
 		emitFalse()
 	case gNil: // zero value
 		metaType, ok := exprTypeMeta[unsafe.Pointer(e)]
-		if !ok {
+		if !ok || metaType == nil {
 			//gofmt.Fprintf(os.Stderr, "exprTypeMeta=%v\n", exprTypeMeta)
-			panic("type of nil is not set in walk functions. pkg=" + currentPkg.name)
+			panic("untyped nil is not allowed. Probably the type is not set in walk phase. pkg=" + currentPkg.name)
 		}
-		// nil must be always typed
-		emitNil(metaType)
+		// emit zero value of the type
+		switch kind(metaType) {
+		case T_SLICE, T_POINTER, T_INTERFACE, T_MAP:
+			emitZeroValue(metaType)
+		default:
+			unexpectedKind(kind(metaType))
+		}
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
