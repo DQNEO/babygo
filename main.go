@@ -543,10 +543,15 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 				variadicArgs = make([]ast.Expr, 0, 20)
 			}
 		}
+
 		if variadicElmType != nil && !expandElipsis {
+			// walk of eArg will be done later in walkCompositeLit
 			variadicArgs = append(variadicArgs, eArg)
 			continue
 		}
+
+		ctx := &evalContext{_type: tTODO}
+		walkExpr(eArg, ctx)
 
 		paramType := e2t(param.Type)
 		arg := &Arg{
@@ -565,7 +570,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 			Type: sliceType,
 			Elts: variadicArgs,
 		}
-		walkCompositeLit(vargsSliceWrapper, nil) // @TODO move to walk stages
+		walkCompositeLit(vargsSliceWrapper, nil)
 		args = append(args, &Arg{
 			e:         vargsSliceWrapper,
 			paramType: e2t(sliceType),
@@ -3832,7 +3837,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 	walkExpr(e.Fun, nil)
 
 	// Replace __func__ ident by a string literal
-	for i, arg := range e.Args {
+	for i, arg := range meta.args {
 		ident, ok := arg.(*ast.Ident)
 		if ok {
 			if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
@@ -3845,9 +3850,6 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 			}
 		}
 
-		// getting func param def is super hard
-		ctx := &evalContext{_type: tTODO}
-		walkExpr(arg, ctx)
 	}
 
 	identFun, isIdent := meta.fun.(*ast.Ident)
@@ -3855,6 +3857,10 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 		switch identFun.Obj {
 		case gLen, gCap, gNew, gMake, gAppend, gPanic, gDelete:
 			meta.builtin = identFun.Obj
+			for _, arg := range meta.args {
+				ctx := &evalContext{_type: tTODO}
+				walkExpr(arg, ctx)
+			}
 			return
 		}
 	}
