@@ -550,10 +550,8 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 			continue
 		}
 
-		ctx := &evalContext{_type: tTODO}
-		walkExpr(eArg, ctx)
-
 		paramType := e2t(param.Type)
+
 		arg := &Arg{
 			e:         eArg,
 			paramType: paramType,
@@ -570,7 +568,6 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 			Type: sliceType,
 			Elts: variadicArgs,
 		}
-		walkCompositeLit(vargsSliceWrapper, nil)
 		args = append(args, &Arg{
 			e:         vargsSliceWrapper,
 			paramType: e2t(sliceType),
@@ -579,6 +576,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		// Add nil as a variadic arg
 		param := params[len(args)]
 		elp := param.Type.(*ast.Ellipsis)
+		paramType := e2t(elp)
 		iNil := &ast.Ident{
 			Obj:  gNil,
 			Name: "nil",
@@ -586,8 +584,14 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		//		exprTypeMeta[unsafe.Pointer(iNil)] = e2t(elp)
 		args = append(args, &Arg{
 			e:         iNil,
-			paramType: e2t(elp),
+			paramType: paramType,
 		})
+	}
+
+	for _, arg := range args {
+		eArg := arg.e
+		ctx := &evalContext{_type: arg.paramType}
+		walkExpr(eArg, ctx)
 	}
 
 	if receiver != nil { // method call
@@ -601,13 +605,6 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 			receiverAndArgs = append(receiverAndArgs, arg)
 		}
 		return receiverAndArgs
-	}
-
-	for _, arg := range args {
-		eIdent, isIdent := arg.e.(*ast.Ident)
-		if isIdent {
-			exprTypeMeta[unsafe.Pointer(eIdent)] = arg.paramType
-		}
 	}
 
 	return args
@@ -3751,11 +3748,8 @@ func walkIdent(e *ast.Ident, ctx *evalContext) {
 	case gNil:
 		assert(ctx != nil, "ctx of nil is not passed", __func__)
 		assert(ctx._type != nil, "ctx._type of nil is not passed", __func__)
-		// TODO: attach type
-		//emitNil(ctx._type)
-		//		typMeta := exprTypeMeta[]
 		if ctx._type == tTODO {
-			// Mostly Composite literal ?
+			// only for builtin funcall arguments
 		} else {
 			exprTypeMeta[unsafe.Pointer(e)] = ctx._type
 		}
@@ -3855,12 +3849,39 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 	identFun, isIdent := meta.fun.(*ast.Ident)
 	if isIdent {
 		switch identFun.Obj {
-		case gLen, gCap, gNew, gMake, gAppend, gPanic, gDelete:
+		case gLen, gCap:
 			meta.builtin = identFun.Obj
-			for _, arg := range meta.args {
-				ctx := &evalContext{_type: tTODO}
+			walkExpr(meta.args[0], nil)
+			return
+		case gNew:
+			meta.builtin = identFun.Obj
+			return
+		case gMake:
+			meta.builtin = identFun.Obj
+			for _, arg := range meta.args[1:] {
+				ctx := &evalContext{_type: tInt}
 				walkExpr(arg, ctx)
 			}
+			return
+		case gAppend:
+			meta.builtin = identFun.Obj
+			walkExpr(meta.args[0], nil)
+			for _, arg := range meta.args[1:] {
+				ctx := &evalContext{_type: tTODO} // @TODO attach type of slice element
+				walkExpr(arg, ctx)
+			}
+			return
+		case gPanic:
+			meta.builtin = identFun.Obj
+			for _, arg := range meta.args {
+				ctx := &evalContext{_type: tEface}
+				walkExpr(arg, ctx)
+			}
+			return
+		case gDelete:
+			meta.builtin = identFun.Obj
+			ctx := &evalContext{_type: tTODO}
+			walkExpr(meta.args[1], ctx) // @TODO attach type of the map element
 			return
 		}
 	}
@@ -3953,7 +3974,6 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 	meta.funcVal = funcVal
 
 	meta.metaArgs = prepareArgs(meta.funcType, meta.receiver, meta.args, meta.hasEllipsis)
-
 }
 
 func walkParenExpr(e *ast.ParenExpr, ctx *evalContext) {
