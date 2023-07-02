@@ -902,15 +902,21 @@ func emitFuncall(meta *MetaCallExpr) {
 
 	switch fn := meta.fun.(type) {
 	case *ast.Ident:
-		if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
-			fn.Name = "makeSlice"
-		}
 		// general function call
 		funcVal = getPackageSymbol(currentPkg.name, fn.Name)
-		if currentPkg.name == "os" && fn.Name == "runtime_args" {
-			funcVal = "runtime.runtime_args"
-		} else if currentPkg.name == "os" && fn.Name == "runtime_getenv" {
-			funcVal = "runtime.runtime_getenv"
+		switch currentPkg.name {
+		case "os":
+			switch fn.Name {
+			case "runtime_args":
+				funcVal = getPackageSymbol("runtime", "runtime_args")
+			case "runtime_getenv":
+				funcVal = getPackageSymbol("runtime", "runtime_getenv")
+			}
+		case "runtime":
+			if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
+				fn.Name = "makeSlice"
+				funcVal = getPackageSymbol("runtime", fn.Name)
+			}
 		}
 
 		switch dcl := fn.Obj.Decl.(type) {
