@@ -4580,7 +4580,7 @@ func findFilesInDir(dir string) []string {
 }
 
 func isStdLib(pth string) bool {
-	return !strings.Contains(pth, "/")
+	return !strings.Contains(pth, ".")
 }
 
 func getImportPathsFromFile(file string) []string {
