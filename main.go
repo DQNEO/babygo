@@ -975,13 +975,11 @@ func emitFuncall(meta *MetaCallExpr) {
 				}
 			}
 		}
-	case *ast.ParenExpr:
-		panic("[astParenExpr] TBI ")
 	default:
 		throw(meta.fun)
 	}
 
-	args := prepareArgs(funcType, receiver, eArgs, meta.hasEllipsis)
+	args := prepareArgs(funcType, receiver, meta.args, meta.hasEllipsis)
 	emitCall(funcVal, args, funcType.Results)
 }
 
