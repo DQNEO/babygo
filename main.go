@@ -1817,12 +1817,7 @@ func emitOkAssignment(s *ast.AssignStmt) {
 	//	-- stack top
 	//	bool
 	//	data
-	var lhs0Type *Type
-	if !isBlankIdentifier(s.Lhs[0]) {
-		lhs0Type = getTypeOfExpr(s.Lhs[0])
-	}
 	emitExpr(rhs0)
-	mayEmitConvertTooIfc(rhs0, lhs0Type)
 	rhsTypes := []*Type{getTypeOfExpr(rhs0), tBool}
 	for i := 1; i >= 0; i-- {
 		if isBlankIdentifier(s.Lhs[i]) {
