@@ -578,7 +578,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 			Obj:  gNil,
 			Name: "nil",
 		}
-		exprTypeMeta[unsafe.Pointer(iNil)] = e2t(elp)
+		//		exprTypeMeta[unsafe.Pointer(iNil)] = e2t(elp)
 		args = append(args, &Arg{
 			e:         iNil,
 			paramType: e2t(elp),
@@ -596,6 +596,13 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 			receiverAndArgs = append(receiverAndArgs, arg)
 		}
 		return receiverAndArgs
+	}
+
+	for _, arg := range args {
+		eIdent, isIdent := arg.e.(*ast.Ident)
+		if isIdent {
+			exprTypeMeta[unsafe.Pointer(eIdent)] = arg.paramType
+		}
 	}
 
 	return args
@@ -616,10 +623,6 @@ func emitCall(fn interface{}, args []*Arg, resultList *ast.FieldList) {
 	for _, arg := range args {
 		paramType := arg.paramType
 
-		eIdent, isIdent := arg.e.(*ast.Ident)
-		if isIdent {
-			exprTypeMeta[unsafe.Pointer(eIdent)] = paramType
-		}
 		emitExpr(arg.e)
 		mayEmitConvertTooIfc(arg.e, paramType)
 		emitPop(kind(paramType))
@@ -888,99 +891,16 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr) {
 //	r
 //	--
 func emitFuncall(meta *MetaCallExpr) {
-	eArgs := meta.args
-	emitComment(2, "[emitFuncall] %T(...)\n", meta.fun)
-	var funcType *ast.FuncType
-	var funcVal interface{}
-	var receiver ast.Expr
 
+	emitComment(2, "[emitFuncall] %T(...)\n", meta.fun)
 	// check if it's a builtin func
 	if meta.builtin != nil {
-		emitBuiltinFunCall(meta.builtin, eArgs)
+		emitBuiltinFunCall(meta.builtin, meta.args)
 		return
 	}
 
-	switch fn := meta.fun.(type) {
-	case *ast.Ident:
-		// general function call
-		funcVal = getPackageSymbol(currentPkg.name, fn.Name)
-		switch currentPkg.name {
-		case "os":
-			switch fn.Name {
-			case "runtime_args":
-				funcVal = getPackageSymbol("runtime", "runtime_args")
-			case "runtime_getenv":
-				funcVal = getPackageSymbol("runtime", "runtime_getenv")
-			}
-		case "runtime":
-			if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
-				fn.Name = "makeSlice"
-				funcVal = getPackageSymbol("runtime", fn.Name)
-			}
-		}
-
-		switch dcl := fn.Obj.Decl.(type) {
-		case *ast.FuncDecl:
-			funcType = dcl.Type
-		case *ast.ValueSpec: // var f func()
-			funcType = dcl.Type.(*ast.FuncType)
-			funcVal = meta.fun
-		case *ast.AssignStmt: // f := staticF
-			assert(fn.Obj.Data != nil, "funcvalue should be a variable:"+fn.Name, __func__)
-			rhs := dcl.Rhs[0]
-			switch r := rhs.(type) {
-			case *ast.SelectorExpr:
-				assert(isQI(r), "expect QI", __func__)
-				ff := lookupForeignFunc(selector2QI(r))
-				funcType = ff.decl.Type
-				funcVal = meta.fun
-			default:
-				throw(r)
-			}
-		default:
-			throw(dcl)
-		}
-	case *ast.SelectorExpr:
-		if isQI(fn) {
-			// pkg.Sel()
-			qi := selector2QI(fn)
-			funcVal = string(qi)
-			ff := lookupForeignFunc(qi)
-			funcType = ff.decl.Type
-		} else {
-			// method call
-			receiver = fn.X
-			receiverType := getTypeOfExpr(receiver)
-			method := lookupMethod(receiverType, fn.Sel)
-			funcType = method.FuncType
-			funcVal = getMethodSymbol(method)
-
-			if kind(receiverType) == T_POINTER {
-				if method.IsPtrMethod {
-					// p.mp() => as it is
-				} else {
-					// p.mv()
-					panic("TBI")
-				}
-			} else {
-				if method.IsPtrMethod {
-					// v.mp() => (&v).mp()
-					// @TODO we should check addressable
-					receiver = &ast.UnaryExpr{
-						Op: token.AND,
-						X:  receiver,
-					}
-				} else {
-					// v.mv() => as it is
-				}
-			}
-		}
-	default:
-		throw(meta.fun)
-	}
-
-	args := prepareArgs(funcType, receiver, meta.args, meta.hasEllipsis)
-	emitCall(funcVal, args, funcType.Results)
+	args := prepareArgs(meta.funcType, meta.receiver, meta.args, meta.hasEllipsis)
+	emitCall(meta.funcVal, args, meta.funcType.Results)
 }
 
 func emitNil(targetType *Type) {
@@ -3879,6 +3799,11 @@ type MetaCallExpr struct {
 	args        []ast.Expr
 
 	builtin *ast.Object
+
+	// general funcall
+	funcType *ast.FuncType
+	funcVal  interface{}
+	receiver ast.Expr
 }
 
 func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
@@ -3929,9 +3854,98 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 		switch identFun.Obj {
 		case gLen, gCap, gNew, gMake, gAppend, gPanic, gDelete:
 			meta.builtin = identFun.Obj
+			return
 		}
 	}
+
+	var funcType *ast.FuncType
+	var funcVal interface{}
+	var receiver ast.Expr
+
+	switch fn := meta.fun.(type) {
+	case *ast.Ident:
+		// general function call
+		funcVal = getPackageSymbol(currentPkg.name, fn.Name)
+		switch currentPkg.name {
+		case "os":
+			switch fn.Name {
+			case "runtime_args":
+				funcVal = getPackageSymbol("runtime", "runtime_args")
+			case "runtime_getenv":
+				funcVal = getPackageSymbol("runtime", "runtime_getenv")
+			}
+		case "runtime":
+			if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
+				fn.Name = "makeSlice"
+				funcVal = getPackageSymbol("runtime", fn.Name)
+			}
+		}
+
+		switch dcl := fn.Obj.Decl.(type) {
+		case *ast.FuncDecl:
+			funcType = dcl.Type
+		case *ast.ValueSpec: // var f func()
+			funcType = dcl.Type.(*ast.FuncType)
+			funcVal = meta.fun
+		case *ast.AssignStmt: // f := staticF
+			assert(fn.Obj.Data != nil, "funcvalue should be a variable:"+fn.Name, __func__)
+			rhs := dcl.Rhs[0]
+			switch r := rhs.(type) {
+			case *ast.SelectorExpr:
+				assert(isQI(r), "expect QI", __func__)
+				ff := lookupForeignFunc(selector2QI(r))
+				funcType = ff.decl.Type
+				funcVal = meta.fun
+			default:
+				throw(r)
+			}
+		default:
+			throw(dcl)
+		}
+	case *ast.SelectorExpr:
+		if isQI(fn) {
+			// pkg.Sel()
+			qi := selector2QI(fn)
+			funcVal = string(qi)
+			ff := lookupForeignFunc(qi)
+			funcType = ff.decl.Type
+		} else {
+			// method call
+			receiver = fn.X
+			receiverType := getTypeOfExpr(receiver)
+			method := lookupMethod(receiverType, fn.Sel)
+			funcType = method.FuncType
+			funcVal = getMethodSymbol(method)
+
+			if kind(receiverType) == T_POINTER {
+				if method.IsPtrMethod {
+					// p.mp() => as it is
+				} else {
+					// p.mv()
+					panic("TBI")
+				}
+			} else {
+				if method.IsPtrMethod {
+					// v.mp() => (&v).mp()
+					// @TODO we should check addressable
+					receiver = &ast.UnaryExpr{
+						Op: token.AND,
+						X:  receiver,
+					}
+				} else {
+					// v.mv() => as it is
+				}
+			}
+		}
+	default:
+		throw(meta.fun)
+	}
+
+	meta.funcType = funcType
+	meta.receiver = receiver
+	meta.funcVal = funcVal
 }
+
 func walkParenExpr(e *ast.ParenExpr, ctx *evalContext) {
 	walkExpr(e.X, ctx)
 }
