@@ -4215,15 +4215,16 @@ func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 }
 
 // Purpose of walk:
-// Global:
-// - collect methods
 // - collect string literals
+// - collect method declarations
 // - collect global variables
-// - determine struct size and field offset
-// Local:
-// - collect string literals
 // - collect local variables and set offset
+// - determine struct size and field offset
 // - determine types of variable declarations
+// - attach type to universe nil
+// - transmit ok sytanx context
+// - (hope) attach type to untyped constants
+// - (hope) transmit the need of interface conversion
 func walk(pkg *PkgContainer) {
 	var typeSpecs []*ast.TypeSpec
 	var funcDecls []*ast.FuncDecl
