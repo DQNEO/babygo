@@ -899,8 +899,8 @@ func emitFuncall(meta *MetaCallExpr) {
 		return
 	}
 
-	args := prepareArgs(meta.funcType, meta.receiver, meta.args, meta.hasEllipsis)
-	emitCall(meta.funcVal, args, meta.funcType.Results)
+	//	args := prepareArgs(meta.funcType, meta.receiver, meta.args, meta.hasEllipsis)
+	emitCall(meta.funcVal, meta.metaArgs, meta.funcType.Results)
 }
 
 func emitNil(targetType *Type) {
@@ -3804,6 +3804,7 @@ type MetaCallExpr struct {
 	funcType *ast.FuncType
 	funcVal  interface{}
 	receiver ast.Expr
+	metaArgs []*Arg
 }
 
 func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
@@ -3944,6 +3945,9 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 	meta.funcType = funcType
 	meta.receiver = receiver
 	meta.funcVal = funcVal
+
+	meta.metaArgs = prepareArgs(meta.funcType, meta.receiver, meta.args, meta.hasEllipsis)
+
 }
 
 func walkParenExpr(e *ast.ParenExpr, ctx *evalContext) {
