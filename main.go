@@ -2930,7 +2930,15 @@ func serializeType(t *Type) string {
 			}
 		}
 	case *ast.StructType:
-		return "struct"
+		r := "struct{"
+		if e.Fields != nil {
+			for _, field := range e.Fields.List {
+				name := field.Names[0].Name
+				typ := e2t(field.Type)
+				r += fmt.Sprintf("%s %s;", name, serializeType(typ))
+			}
+		}
+		return r + "}"
 	case *ast.ArrayType:
 		if e.Len == nil {
 			if e.Elt == nil {
@@ -2945,12 +2953,14 @@ func serializeType(t *Type) string {
 	case *ast.Ellipsis: // x ...T
 		panic("TBD: Ellipsis")
 	case *ast.InterfaceType:
-		return "interface"
+		return "interface{}" // @TODO list methods
 	case *ast.MapType:
 		return "map[" + serializeType(e2t(e.Key)) + "]" + serializeType(e2t(e.Value))
 	case *ast.SelectorExpr:
 		qi := selector2QI(e)
 		return string(qi)
+	case *ast.FuncType:
+		return "func"
 	default:
 		throw(t)
 	}
@@ -4370,8 +4380,9 @@ func walk(pkg *PkgContainer) {
 		currentFunc = nil
 	}
 
+	printf("# Package types:\n")
 	for _, typ := range exportedTpyes {
-		printf("# type %s %s [%s]\n", serializeType(typ), serializeType(getUnderlyingType(typ)), string(kind(typ)))
+		printf("# type %s %s\n", serializeType(typ), serializeType(getUnderlyingType(typ)))
 	}
 }
 
