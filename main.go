@@ -1445,7 +1445,6 @@ func mayEmitConvertTooIfc(expr ast.Expr, ctxType *Type) {
 
 type dtypeEntry struct {
 	id         int
-	pkgname    string
 	serialized string
 	label      string
 }
@@ -1454,8 +1453,8 @@ var typeId int
 var typesMap map[string]*dtypeEntry
 
 // "**[1][]*int" => "dtype.8"
-func getDtypeLabel(pkg *PkgContainer, serializedType string) string {
-	s := pkg.name + ":" + serializedType
+func getDtypeLabel(serializedType string) string {
+	s := serializedType
 	ent, ok := typesMap[s]
 	if ok {
 		return ent.label
@@ -1463,9 +1462,8 @@ func getDtypeLabel(pkg *PkgContainer, serializedType string) string {
 		id := typeId
 		ent = &dtypeEntry{
 			id:         id,
-			pkgname:    pkg.name,
 			serialized: serializedType,
-			label:      pkg.name + "." + "dtype." + strconv.Itoa(id),
+			label:      "." + "dtype." + strconv.Itoa(id),
 		}
 		typesMap[s] = ent
 		typeId++
@@ -1526,7 +1524,7 @@ func emitCompareDtypes() {
 
 func emitDtypeLabelAddr(t *Type) {
 	serializedType := serializeType(t)
-	dtypeLabel := getDtypeLabel(currentPkg, serializedType)
+	dtypeLabel := getDtypeLabel(serializedType)
 	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, serializedType)
 	printf("  pushq %%rax           # dtype label address\n")
 }
@@ -2624,9 +2622,9 @@ func emitDynamicTypes(mapDtypes map[string]*dtypeEntry) {
 
 		printf("%s: # %s\n", ent.label, key)
 		printf("  .quad %d\n", id)
-		printf("  .quad .%s.S.dtype.%d\n", ent.pkgname, id)
+		printf("  .quad .S.dtype.%d\n", id)
 		printf("  .quad %d\n", len(ent.serialized))
-		printf(".%s.S.dtype.%d:\n", ent.pkgname, id)
+		printf(".S.dtype.%d:\n", id)
 		printf("  .string \"%s\"\n", ent.serialized)
 	}
 	printf("\n")
@@ -2897,7 +2895,9 @@ func serializeType(t *Type) string {
 	if t.E == generalSlice {
 		panic("TBD: generalSlice")
 	}
-
+	if t.Name != "" {
+		return t.PkgName + "." + t.Name
+	}
 	switch e := t.E.(type) {
 	case *ast.Ident:
 		if e.Obj == nil {
@@ -4256,8 +4256,15 @@ func walk(pkg *PkgContainer) {
 	}
 
 	for _, typeSpec := range typeSpecs {
+		//@TODO check serializeType()'s *ast.Ident case
 		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
-		t := e2t(typeSpec.Type)
+		eType := &ast.Ident{
+			Obj: &ast.Object{
+				Kind: ast.Typ,
+				Decl: typeSpec,
+			},
+		}
+		t := e2t(eType)
 		t.PkgName = pkg.name
 		t.Name = typeSpec.Name.Name
 		exportedTpyes = append(exportedTpyes, t)
@@ -4364,7 +4371,7 @@ func walk(pkg *PkgContainer) {
 	}
 
 	for _, typ := range exportedTpyes {
-		printf("# type %s.%s %s %s\n", typ.PkgName, typ.Name, string(kind(typ)), serializeType(typ))
+		printf("# type %s %s [%s]\n", serializeType(typ), serializeType(getUnderlyingType(typ)), string(kind(typ)))
 	}
 }
 
