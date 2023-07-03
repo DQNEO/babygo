@@ -13,6 +13,10 @@ import (
 	"golang.org/x/tools/go/loader"
 )
 
+func main() {
+	handsOn()
+}
+
 const sourceCode = `package main
 
 import "fmt"
@@ -25,7 +29,7 @@ func main() {
         fmt.Println("Hello, world")
 }`
 
-func main() {
+func main3() {
 	var conf loader.Config
 	conf.CreateFromFilenames("main", "../../t/test.go", "../../t/another.go")
 	prog, err := conf.Load()
@@ -99,24 +103,75 @@ func main2() {
 	fmt.Printf("object2 :  %s\n", object2)
 }
 
-func example() {
-	//parser.ParseFile()
-	config := types.Config{}
-	info := types.Info{
-		Types:      make(map[ast.Expr]types.TypeAndValue),
-		Instances:  nil,
-		Defs:       nil,
-		Uses:       nil,
-		Implicits:  nil,
-		Selections: nil,
-		Scopes:     nil,
-		InitOrder:  nil,
+const code = `package main
+
+import "fmt"
+
+func main() {
+	var ifc interface{} =  100
+	v, ok := ifc.(int)
+	fmt.Println(v, ok)
+	ifc, ifc = ifc.(int)
+
+}
+
+`
+
+func handsOn() {
+	fset := token.NewFileSet()
+
+	conf := types.Config{
+		Importer: importer.Default(),
+		Error: func(err error) {
+			fmt.Printf("ERROR: %#v\n", err)
+		},
 	}
-	pkg, err := config.Check("github.com/DQNEO/babygo/src/unsafe", nil, nil, &info)
+
+	f, err := parser.ParseFile(fset, "code", code, parser.ParseComments)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	fmt.Printf("pkg=%#v\n", pkg)
-	fmt.Printf("pkg.scope=%#v\n", pkg.Scope())
-	fmt.Printf("info=%#v\n", info)
+
+	// Info.ObjectOfやInfo.TypeOfのspecに書いてあるPreconditionを読んで初期化が必要なフィールドを把握しておく
+	info := &types.Info{
+		Types: map[ast.Expr]types.TypeAndValue{},
+		Defs:  map[*ast.Ident]types.Object{},
+		// Uses:  map[*ast.Ident]types.Object{},
+	}
+
+	_, err = conf.Check("p", fset, []*ast.File{f}, info)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ast.Inspect(f, func(node ast.Node) bool {
+		if expr, ok := node.(ast.Expr); ok {
+			typeAndValue, ok := info.Types[expr]
+			if ok {
+				typ := typeAndValue.Type
+				val := typeAndValue.Value
+				fmt.Printf("[%s] typeAndValue = expr=%s\n", fset.Position(node.Pos()), expr)
+				fmt.Printf("      type of expr=%T\n", expr)
+				fmt.Printf("      type of type=%T  %s\n", typ, typ)
+				fmt.Printf("      type of val=%T %s\n", val, val)
+			}
+		}
+		switch e := node.(type) {
+		case *ast.Ident:
+			ident := e
+			fmt.Printf("[%s] ident found %s\n", fset.Position(ident.Pos()), ident)
+			obj := info.ObjectOf(ident)
+			if obj == nil {
+				return true
+			}
+			typ := obj.Type()
+			fmt.Printf("    types obj=%s, object.Type=%s\n", obj, typ)
+
+			typeAndValue, ok := info.Types[ident]
+			if ok {
+				fmt.Printf("    typeAndValue %v\n", typeAndValue)
+			}
+		}
+		return true
+	})
 }
