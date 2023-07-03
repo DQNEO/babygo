@@ -923,7 +923,7 @@ type evalContext struct {
 
 // 1 value
 func emitIdent(e *ast.Ident) {
-	logf2("emitIdent ident=%s\n", e.Name)
+	//logf2("emitIdent ident=%s\n", e.Name)
 	assert(e.Obj != nil, " ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
 	case gTrue: // true constant
@@ -2408,7 +2408,7 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("# emitFuncDecl\n")
-	logf2("# emitFuncDecl pkg=%s, fnc.name=%s\n", pkgName, fnc.Name)
+	//logf2("# emitFuncDecl pkg=%s, fnc.name=%s\n", pkgName, fnc.Name)
 	var symbol string
 	if fnc.Method != nil {
 		symbol = getMethodSymbol(fnc.Method)
@@ -2639,7 +2639,9 @@ func emitDynamicTypes(mapDtypes map[string]*dtypeEntry) {
 
 // --- type ---
 type Type struct {
-	E ast.Expr // original
+	E       ast.Expr // original
+	PkgName string
+	Name    string
 }
 
 type TypeKind string
@@ -3727,7 +3729,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) {
 	if currentFunc != nil {
 		logfncname = currentFunc.Name
 	}
-	logf2("walkIdent: pkg=%s func=%s, ident=%s\n", currentPkg.name, logfncname, e.Name)
+	//logf2("walkIdent: pkg=%s func=%s, ident=%s\n", currentPkg.name, logfncname, e.Name)
 	_ = logfncname
 	// what to do ?
 	if e.Name == "_" {
@@ -4231,6 +4233,7 @@ func walk(pkg *PkgContainer) {
 	var varSpecs []*ast.ValueSpec
 	var constSpecs []*ast.ValueSpec
 
+	var exportedTpyes []*Type
 	// grouping declarations by type
 	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
@@ -4260,6 +4263,9 @@ func walk(pkg *PkgContainer) {
 	for _, typeSpec := range typeSpecs {
 		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
 		t := e2t(typeSpec.Type)
+		t.PkgName = pkg.name
+		t.Name = typeSpec.Name.Name
+		exportedTpyes = append(exportedTpyes, t)
 		switch kind(t) {
 		case T_STRUCT:
 			structType := getUnderlyingType(t)
@@ -4360,6 +4366,10 @@ func walk(pkg *PkgContainer) {
 			pkg.funcs = append(pkg.funcs, fnc)
 		}
 		currentFunc = nil
+	}
+
+	for _, typ := range exportedTpyes {
+		printf("# type %s.%s %s %s\n", typ.PkgName, typ.Name, string(kind(typ)), serializeType(typ))
 	}
 }
 
