@@ -2271,7 +2271,7 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		if typeSwitchCaseClose.Variable != nil {
 			setVariable(meta.AssignIdent.Obj, typeSwitchCaseClose.Variable)
 		}
-		printf("%s:\n", labels[i])
+		printf("  %s:\n", labels[i])
 
 		cc := typeSwitchCaseClose.Orig
 		var _isNil bool
@@ -2305,16 +2305,16 @@ func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 		}
 		printf("  jmp %s\n", labelEnd)
 	}
-	printf("%s:\n", labelEnd)
+	printf("  %s:\n", labelEnd)
 }
 
 func emitBranchStmt(meta *MetaBranchStmt) {
 	containerFor := meta.containerForStmt
 	switch meta.ContinueOrBreak {
 	case 1: // continue
-		printf("jmp %s # continue\n", containerFor.LabelPost)
+		printf("  jmp %s # continue\n", containerFor.LabelPost)
 	case 2: // break
-		printf("jmp %s # break\n", containerFor.LabelExit)
+		printf("  jmp %s # break\n", containerFor.LabelExit)
 	default:
 		throw(meta.ContinueOrBreak)
 	}
@@ -2406,13 +2406,14 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("\n")
-	printf("# Func\n")
 	//logf2("# emitFuncDecl pkg=%s, fnc.name=%s\n", pkgName, fnc.Name)
 	var symbol string
 	if fnc.Method != nil {
 		symbol = getMethodSymbol(fnc.Method)
+		printf("# Method %s\n", symbol)
 	} else {
 		symbol = getPackageSymbol(pkgName, fnc.Name)
+		printf("# Function %s\n", symbol)
 	}
 	printf(".global %s\n", symbol)
 	printf("%s: # args %d, locals %d\n", symbol, fnc.Argsarea, fnc.Localarea)
