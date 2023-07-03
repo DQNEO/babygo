@@ -669,7 +669,7 @@ func emitCallQ(fn interface{}, totalParamSize int, resultList *ast.FieldList) {
 		throw(fn)
 	}
 	emitFreeParametersArea(totalParamSize)
-	printf("#  totalReturnSize=%d\n", getTotalFieldsSize(resultList))
+	printf("  #  totalReturnSize=%d\n", getTotalFieldsSize(resultList))
 	emitFreeAndPushReturnedValue(resultList)
 }
 
@@ -1494,15 +1494,15 @@ func emitCompareDtypes() {
 
 	printf("  jmp %s # jump to end\n", labelCmp)
 
-	printf("%s:\n", labelTrue)
+	printf("  %s:\n", labelTrue)
 	printf("  pushq $1\n")
 	printf("  jmp %s # jump to end\n", labelEnd)
 
-	printf("%s:\n", labelFalse)
+	printf("  %s:\n", labelFalse)
 	printf("  pushq $0\n")
 	printf("  jmp %s # jump to end\n", labelEnd)
 
-	printf("%s:\n", labelCmp)
+	printf("  %s:\n", labelCmp)
 	emitAllocReturnVarsArea(SizeOfInt) // for bool
 
 	// push len, push ptr
@@ -1519,7 +1519,7 @@ func emitCompareDtypes() {
 
 	printf("  callq %s\n", "runtime.cmpstrings")
 	emitFreeParametersArea(16 * 2)
-	printf("%s:\n", labelEnd)
+	printf("  %s:\n", labelEnd)
 }
 
 func emitDtypeLabelAddr(t *Type) {
@@ -1836,8 +1836,8 @@ func emitFuncallAssignment(s *ast.AssignStmt) {
 	emitExpr(rhs0) // @TODO interface conversion
 	callExpr := rhs0.(*ast.CallExpr)
 	returnTypes := getCallResultTypes(callExpr)
-	printf("# len lhs=%d\n", len(s.Lhs))
-	printf("# returnTypes=%d\n", len(returnTypes))
+	printf("  # len lhs=%d\n", len(s.Lhs))
+	printf("  # returnTypes=%d\n", len(returnTypes))
 	assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
 	length := len(returnTypes)
 	for i := 0; i < length; i++ {
@@ -2201,13 +2201,13 @@ func emitSwitchStmt(s *ast.SwitchStmt) {
 	emitRevertStackTop(condType)
 	for i, c := range cases {
 		cc := c.(*ast.CaseClause)
-		printf("%s:\n", labels[i])
+		printf("  %s:\n", labels[i])
 		for _, _s := range cc.Body {
 			emitStmt(_s)
 		}
 		printf("  jmp %s\n", labelEnd)
 	}
-	printf("%s:\n", labelEnd)
+	printf("  %s:\n", labelEnd)
 }
 func emitTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	meta := getMetaTypeSwitchStmt(s)
@@ -2400,7 +2400,8 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 }
 
 func emitFuncDecl(pkgName string, fnc *Func) {
-	printf("# emitFuncDecl\n")
+	printf("\n")
+	printf("# Func\n")
 	//logf2("# emitFuncDecl pkg=%s, fnc.name=%s\n", pkgName, fnc.Name)
 	var symbol string
 	if fnc.Method != nil {
@@ -2556,14 +2557,14 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 }
 
 func generateCode(pkg *PkgContainer) {
-	printf("#===================== generateCode %s =====================\n", pkg.name)
+	printf("#--- string literals\n")
 	printf(".data\n")
 	for _, con := range pkg.stringLiterals {
-		emitComment(0, "string literals\n")
 		printf("%s:\n", con.sl.label)
 		printf("  .string %s\n", con.sl.value)
 	}
 
+	printf("#--- global vars (static values)\n")
 	for _, spec := range pkg.vars {
 		var val ast.Expr
 		if len(spec.Values) > 0 {
@@ -2575,8 +2576,8 @@ func generateCode(pkg *PkgContainer) {
 		emitGlobalVariable(pkg, spec.Names[0], e2t(spec.Type), val)
 	}
 
-	// Assign global vars dynamically
 	printf("\n")
+	printf("#--- global vars (dynamic value setting)\n")
 	printf(".text\n")
 	printf(".global %s.__initGlobals\n", pkg.name)
 	printf("%s.__initGlobals:\n", pkg.name)
@@ -2622,9 +2623,9 @@ func emitDynamicTypes(mapDtypes map[string]*dtypeEntry) {
 
 		printf("%s: # %s\n", ent.label, key)
 		printf("  .quad %d\n", id)
-		printf("  .quad .S.dtype.%d\n", id)
+		printf("  .quad .string.dtype.%d\n", id)
 		printf("  .quad %d\n", len(ent.serialized))
-		printf(".S.dtype.%d:\n", id)
+		printf(".string.dtype.%d:\n", id)
 		printf("  .string \"%s\"\n", ent.serialized)
 	}
 	printf("\n")
@@ -3228,7 +3229,7 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		}
 	}
 
-	label := fmt.Sprintf(".%s.S%d", currentPkg.name, currentPkg.stringIndex)
+	label := fmt.Sprintf(".string_%d", currentPkg.stringIndex)
 	currentPkg.stringIndex++
 
 	sl := &sliteral{
@@ -4816,6 +4817,8 @@ func compile(universe *ast.Scope, path string, name string, gofiles []string, as
 		}
 	}
 	logf("Walking package: %s\n", _pkg.name)
+	printf("#=== Package %s\n", _pkg.path)
+	printf("#--- walk \n")
 	walk(_pkg)
 	generateCode(_pkg)
 
