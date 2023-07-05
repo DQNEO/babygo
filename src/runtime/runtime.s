@@ -78,7 +78,7 @@ runtime.clone:
   cmpq $0, %rax # rax is pid for parent, 0 for child
   je .L.child # jump if child
 
-  RET # return if parent
+  ret # return if parent
 
 .L.child:
   movq %rsi , %rsp # start from new stack
