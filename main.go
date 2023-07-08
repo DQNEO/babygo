@@ -4854,7 +4854,7 @@ func main() {
 	}
 
 	if os.Args[1] == "version" {
-		fmt.Printf("babygo version 0.0.2  linux/amd64\n")
+		fmt.Printf("babygo version 0.0.5  linux/amd64\n")
 		return
 	} else if os.Args[1] == "help" {
 		showHelp()
