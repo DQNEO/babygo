@@ -71,7 +71,7 @@ func futexsleep(addr uintptr, val int) {
 }
 
 func mstart1() {
-	Write(2, []byte("hello, I am a cloned thread in mstart1\n"))
+	//Write(2, []byte("hello, I am a cloned thread in mstart1\n"))
 	futexsleep(futexp, 0)
 	exitThread()
 }
