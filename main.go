@@ -18,6 +18,8 @@ import (
 
 const ThrowFormat = "%T"
 
+const Version = "0.0.6"
+
 var ProgName string = "babygo"
 
 var __func__ = "__func__"
@@ -4854,7 +4856,7 @@ func main() {
 	}
 
 	if os.Args[1] == "version" {
-		fmt.Printf("babygo version 0.0.5  linux/amd64\n")
+		fmt.Printf("babygo version %s  linux/amd64\n", Version)
 		return
 	} else if os.Args[1] == "help" {
 		showHelp()

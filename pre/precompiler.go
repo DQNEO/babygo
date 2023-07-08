@@ -21,7 +21,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode parse
 	return parser.ParseFile(fset, filename, src, mode)
 }
 
-const ThrowFormat = "%#v"
+const Version = "0.0.6"
 
 var ProgName string = "babygo"
 
@@ -4859,7 +4859,7 @@ func main() {
 	}
 
 	if os.Args[1] == "version" {
-		fmt.Printf("babygo version 0.0.2  linux/amd64\n")
+		fmt.Printf("babygo version %s  linux/amd64\n", Version)
 		return
 	} else if os.Args[1] == "help" {
 		showHelp()
