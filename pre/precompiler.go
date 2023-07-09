@@ -17,6 +17,8 @@ import (
 	//"fmt"
 )
 
+const ThrowFormat = "%T"
+
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode parser.Mode) (*ast.File, error) {
 	return parser.ParseFile(fset, filename, src, mode)
 }
