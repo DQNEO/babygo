@@ -16,9 +16,9 @@ import (
 	"github.com/DQNEO/babygo/lib/fmt"
 )
 
-const ThrowFormat = "%T"
+const ThrowFormat string = "%T"
 
-const Version = "0.0.6"
+const Version string = "0.0.6"
 
 var ProgName string = "babygo"
 

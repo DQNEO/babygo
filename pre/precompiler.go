@@ -17,13 +17,13 @@ import (
 	//"fmt"
 )
 
-const ThrowFormat = "%T"
+const ThrowFormat string = "%T"
 
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode parser.Mode) (*ast.File, error) {
 	return parser.ParseFile(fset, filename, src, mode)
 }
 
-const Version = "0.0.6"
+const Version string = "0.0.6"
 
 var ProgName string = "babygo"
 
