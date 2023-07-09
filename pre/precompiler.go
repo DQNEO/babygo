@@ -23,7 +23,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode parse
 	return parser.ParseFile(fset, filename, src, mode)
 }
 
-const Version string = "0.0.6"
+const Version string = "0.0.7"
 
 var ProgName string = "babygo"
 
