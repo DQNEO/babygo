@@ -508,7 +508,7 @@ func emitArrayLiteral(meta *MetaCompositLiteral) {
 
 func emitInvertBoolValue() {
 	emitPopBool("")
-	printf("  xor $1, %%rax\n")
+	printf("  xorq $1, %%rax\n")
 	printf("  pushq %%rax\n")
 }
 
