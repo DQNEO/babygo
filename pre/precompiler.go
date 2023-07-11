@@ -1350,6 +1350,8 @@ func emitMapGet(e *ast.IndexExpr, okContext bool) {
 // 1 or 2 values
 func emitTypeAssertExpr(e *ast.TypeAssertExpr) {
 	meta := mapMeta[unsafe.Pointer(e)].(*MetaTypeAssertExpr)
+	okContext := meta.NeedsOK
+
 	emitExpr(e.X)
 	emitDtypeLabelAddr(e2t(e.Type))
 	emitCompareDtypes()
@@ -1362,7 +1364,6 @@ func emitTypeAssertExpr(e *ast.TypeAssertExpr) {
 	labelElse := fmt.Sprintf(".L.unmatch.%d", labelid)
 	printf("  jne %s # jmp if false\n", labelElse)
 
-	okContext := meta.NeedsOK
 	// if matched
 	emitLoadAndPush(e2t(e.Type)) // load dynamic data
 	if okContext {
@@ -1818,21 +1819,22 @@ func emitDeclStmt(meta *MetaVarDecl) {
 // a, b = OkExpr
 func emitOkAssignment(meta *MetaTupleAssign) {
 	rhs0 := meta.rhs
-	emitComment(2, "Assignment: emitAssignWithOK rhs\n")
+	rhsTypes := meta.rhsTypes
 
 	// ABI of stack layout after evaluating rhs0
 	//	-- stack top
 	//	bool
 	//	data
 	emitExpr(rhs0)
-	rhsTypes := []*Type{getTypeOfExpr(rhs0), tBool}
 	for i := 1; i >= 0; i-- {
-		if isBlankIdentifier(meta.lhs[i]) {
-			emitPop(kind(rhsTypes[i]))
+		lhs := meta.lhs[i]
+		rhsType := rhsTypes[i]
+		if isBlankIdentifier(lhs) {
+			emitPop(kind(rhsType))
 		} else {
-			emitComment(2, "Assignment: ok syntax %d\n", i)
-			emitAddr(meta.lhs[i])
-			emitStore(getTypeOfExpr(meta.lhs[i]), false, false)
+			// @TODO interface conversion
+			emitAddr(lhs)
+			emitStore(getTypeOfExpr(lhs), false, false)
 		}
 
 	}
@@ -1842,16 +1844,12 @@ func emitOkAssignment(meta *MetaTupleAssign) {
 // a, b (, c...) = f()
 func emitFuncallAssignment(meta *MetaTupleAssign) {
 	rhs0 := meta.rhs
-	emitExpr(rhs0) // @TODO interface conversion
-	callExpr := rhs0.(*ast.CallExpr)
-	returnTypes := getCallResultTypes(callExpr)
-	printf("  # len lhs=%d\n", len(meta.lhs))
-	printf("  # returnTypes=%d\n", len(returnTypes))
-	assert(len(returnTypes) == len(meta.lhs), fmt.Sprintf("length unmatches %d <=> %d", len(meta.lhs), len(returnTypes)), __func__)
-	length := len(returnTypes)
-	for i := 0; i < length; i++ {
+	rhsTypes := meta.rhsTypes
+
+	emitExpr(rhs0)
+	for i := 0; i < len(rhsTypes); i++ {
 		lhs := meta.lhs[i]
-		rhsType := returnTypes[i]
+		rhsType := rhsTypes[i]
 		if isBlankIdentifier(lhs) {
 			emitPop(kind(rhsType))
 		} else {
@@ -1862,6 +1860,7 @@ func emitFuncallAssignment(meta *MetaTupleAssign) {
 				printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 				printf("  pushq %%rax\n")
 			}
+			// @TODO interface conversion
 			emitAddr(lhs)
 			emitStore(getTypeOfExpr(lhs), false, false)
 		}
@@ -3419,10 +3418,13 @@ func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
 		if IsOkSyntax(s) {
 			knd = "ok"
 			walkExpr(s.Rhs[0], &evalContext{okContext: true})
+			rhsTypes := []*Type{getTypeOfExpr(s.Rhs[0]), tBool}
+
 			mt = &MetaAssignStmt{kind: knd,
 				tuple: &MetaTupleAssign{
-					lhs: s.Lhs,
-					rhs: s.Rhs[0],
+					lhs:      s.Lhs,
+					rhs:      s.Rhs[0],
+					rhsTypes: rhsTypes,
 				}}
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
@@ -3449,11 +3451,16 @@ func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
 				for _, rhs := range s.Rhs {
 					walkExpr(rhs, nil) // FIXME
 				}
+				callExpr := s.Rhs[0].(*ast.CallExpr)
+				returnTypes := getCallResultTypes(callExpr)
+				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
+
 				mt = &MetaAssignStmt{
 					kind: knd,
 					tuple: &MetaTupleAssign{
-						lhs: s.Lhs,
-						rhs: s.Rhs[0],
+						lhs:      s.Lhs,
+						rhs:      s.Rhs[0],
+						rhsTypes: returnTypes,
 					},
 				}
 			} else {
@@ -3525,8 +3532,9 @@ type MetaSingleAssign struct {
 }
 
 type MetaTupleAssign struct {
-	lhs []ast.Expr
-	rhs ast.Expr
+	lhs      []ast.Expr
+	rhs      ast.Expr
+	rhsTypes []*Type
 }
 
 type MetaVarDecl struct {
