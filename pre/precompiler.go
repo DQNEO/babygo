@@ -396,6 +396,10 @@ func emitZeroValue(t *Type) {
 		printf("  pushq $0 # %s zero value (number)\n", string(kind(t)))
 	case T_UINTPTR, T_POINTER, T_MAP, T_FUNC:
 		printf("  pushq $0 # %s zero value (nil pointer)\n", string(kind(t)))
+	case T_ARRAY:
+		size := getSizeOfType(t)
+		emitComment(2, "zero value of an array. size=%d (allocating on heap)\n", size)
+		emitCallMalloc(size)
 	case T_STRUCT:
 		structSize := getSizeOfType(t)
 		emitComment(2, "zero value of a struct. size=%d (allocating on heap)\n", structSize)
@@ -1765,6 +1769,16 @@ func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 	emitStore(vr.Typ, true, false)
 }
 
+func emitAssignZeroValue(lhs ast.Expr, lhsType *Type) {
+	emitComment(2, "emitAssignZeroValue\n")
+	emitComment(2, "lhs addresss\n")
+	emitAddr(lhs)
+	emitComment(2, "emitZeroValue\n")
+	emitZeroValue(lhsType)
+	emitStore(lhsType, true, false)
+
+}
+
 func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
 	//	lhs := metaSingle.lhs
 	//	rhs := metaSingle.rhs
@@ -1792,30 +1806,12 @@ func emitExprStmt(s *MetaExprStmt) {
 }
 
 // local decl stmt
-func emitDeclStmt(s *ast.DeclStmt) {
-	genDecl := s.Decl.(*ast.GenDecl)
-	declSpec := genDecl.Specs[0]
-	switch spec := declSpec.(type) {
-	case *ast.ValueSpec:
-		valSpec := spec
-		t := e2t(valSpec.Type)
-		lhs := valSpec.Names[0]
-		if len(valSpec.Values) == 0 {
-			emitComment(2, "lhs addresss\n")
-			emitAddr(lhs)
-			emitComment(2, "emitZeroValue\n")
-			emitZeroValue(t)
-			emitComment(2, "Assignment: zero value\n")
-			emitStore(t, true, false)
-		} else if len(valSpec.Values) == 1 {
-			// assignment
-			rhs := valSpec.Values[0]
-			emitSingleAssign(lhs, rhs)
-		} else {
-			panic("TBI")
-		}
-	default:
-		throw(declSpec)
+func emitDeclStmt(meta *MetaVarDecl) {
+	if meta.single.rhs == nil {
+		// Assign zero value to LHS
+		emitAssignZeroValue(meta.single.lhs, meta.lhsType)
+	} else {
+		emitSingleAssign(meta.single.lhs, meta.single.rhs)
 	}
 }
 
@@ -1872,25 +1868,25 @@ func emitFuncallAssignment(meta *MetaTupleAssign) {
 	}
 }
 
-func emitIfStmt(s *ast.IfStmt) {
+func emitIfStmt(meta *MetaIfStmt) {
 	emitComment(2, "if\n")
 
 	labelid++
 	labelEndif := fmt.Sprintf(".L.endif.%d", labelid)
 	labelElse := fmt.Sprintf(".L.else.%d", labelid)
 
-	emitExpr(s.Cond)
+	emitExpr(meta.Cond)
 	emitPopBool("if condition")
 	printf("  cmpq $1, %%rax\n")
-	if s.Else != nil {
+	if meta.Else != nil {
 		printf("  jne %s # jmp if false\n", labelElse)
-		emitStmt(s.Body) // then
+		emitBlockStmt(meta.Body) // then
 		printf("  jmp %s\n", labelEndif)
 		printf("  %s:\n", labelElse)
-		emitStmt(s.Else) // then
+		emitStmt(meta.Else) // then
 	} else {
 		printf("  jne %s # jmp if false\n", labelEndif)
-		emitStmt(s.Body) // then
+		emitBlockStmt(meta.Body) // then
 	}
 	printf("  %s:\n", labelEndif)
 	emitComment(2, "end if\n")
@@ -1916,7 +1912,7 @@ func emitForStmt(meta *MetaForStmt) {
 		printf("  cmpq $1, %%rax\n")
 		printf("  jne %s # jmp if false\n", labelExit)
 	}
-	emitStmt(meta.Body)
+	emitBlockStmt(meta.Body)
 	printf("  %s:\n", labelPost) // used for "continue"
 	if meta.Post != nil {
 		emitStmt(meta.Post)
@@ -2019,7 +2015,7 @@ func emitRangeMap(meta *MetaForStmt) {
 
 	// Body
 	emitComment(2, "ForRange Body\n")
-	emitStmt(meta.Body)
+	emitBlockStmt(meta.Body)
 
 	// Post statement
 	// item = item.next
@@ -2102,7 +2098,7 @@ func emitRangeStmt(meta *MetaForStmt) {
 
 	// Body
 	emitComment(2, "ForRange Body\n")
-	emitStmt(meta.Body)
+	emitBlockStmt(meta.Body)
 
 	// Post statement: Increment indexvar and go next
 	emitComment(2, "ForRange Post statement\n")
@@ -2352,7 +2348,8 @@ func emitStmt(stmt ast.Stmt) {
 		meta := mapMeta[unsafe.Pointer(s)].(*MetaExprStmt)
 		emitExprStmt(meta)
 	case *ast.DeclStmt:
-		emitDeclStmt(s)
+		meta := mapMeta[unsafe.Pointer(s)].(*MetaVarDecl)
+		emitDeclStmt(meta)
 	case *ast.AssignStmt:
 		meta := mapMeta[unsafe.Pointer(s)].(*MetaAssignStmt)
 		switch meta.kind {
@@ -2366,15 +2363,16 @@ func emitStmt(stmt ast.Stmt) {
 			panic("TBI")
 		}
 	case *ast.ReturnStmt:
-		meta := getMetaReturnStmt(s)
+		meta := mapMeta[unsafe.Pointer(s)].(*MetaReturnStmt)
 		emitReturnStmt(meta)
 	case *ast.IfStmt:
-		emitIfStmt(s)
+		meta := mapMeta[unsafe.Pointer(s)].(*MetaIfStmt)
+		emitIfStmt(meta)
 	case *ast.ForStmt:
-		meta := getMetaForStmt(s)
+		meta := mapMeta[unsafe.Pointer(s)].(*MetaForStmt)
 		emitForStmt(meta)
 	case *ast.RangeStmt:
-		meta := getMetaForStmt(s)
+		meta := mapMeta[unsafe.Pointer(s)].(*MetaForStmt)
 		emitRangeStmt(meta)
 	case *ast.IncDecStmt:
 		emitIncDecStmt(s)
@@ -3368,31 +3366,47 @@ func walkExprStmt(s *ast.ExprStmt) *MetaExprStmt {
 	walkExpr(s.X, nil)
 	return &MetaExprStmt{X: s.X}
 }
-func walkDeclStmt(s *ast.DeclStmt) {
+
+func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 	genDecl := s.Decl.(*ast.GenDecl)
 	declSpec := genDecl.Specs[0]
 	switch spec := declSpec.(type) {
 	case *ast.ValueSpec:
 		if spec.Type == nil { // var x = e
+			// infer lhs type from rhs
 			if len(spec.Values) == 0 {
 				panic("invalid syntax")
 			}
-			// infer type from rhs
 			val := spec.Values[0]
 			typ := getTypeOfExpr(val)
 			if typ == nil || typ.E == nil {
 				panic("rhs should have a type")
 			}
-			spec.Type = typ.E
+			spec.Type = typ.E // set lhs type
 		}
 		t := e2t(spec.Type)
-		obj := spec.Names[0].Obj
+		lhsIdent := spec.Names[0]
+		obj := lhsIdent.Obj
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
+		var rhs ast.Expr
 		if len(spec.Values) > 0 {
+			rhs = spec.Values[0]
 			ctx := &evalContext{_type: t}
-			walkExpr(spec.Values[0], ctx)
+			walkExpr(rhs, ctx)
 		}
+		single := &MetaSingleAssign{
+			lhs: lhsIdent,
+			rhs: rhs,
+		}
+		return &MetaVarDecl{
+			single:  single,
+			lhsType: t,
+		}
+	default:
+		// @TODO type, const, etc
 	}
+
+	panic("TBI")
 }
 
 func IsOkSyntax(s *ast.AssignStmt) bool {
@@ -3520,12 +3534,17 @@ func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
 
 type MetaSingleAssign struct {
 	lhs ast.Expr
-	rhs ast.Expr
+	rhs ast.Expr // rhs can be nil
 }
 
 type MetaTupleAssign struct {
 	lhs []ast.Expr
 	rhs ast.Expr
+}
+
+type MetaVarDecl struct {
+	single  *MetaSingleAssign
+	lhsType *Type
 }
 
 type MetaAssignStmt struct {
@@ -3534,7 +3553,7 @@ type MetaAssignStmt struct {
 	tuple  *MetaTupleAssign // "ok" or "funcall"
 }
 
-func walkReturnStmt(s *ast.ReturnStmt) {
+func walkReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
 	funcDef := currentFunc
 	if len(funcDef.Retvars) != len(s.Results) {
 		panic("length of return and func type do not match")
@@ -3549,19 +3568,33 @@ func walkReturnStmt(s *ast.ReturnStmt) {
 		}
 		walkExpr(expr, ctx)
 	}
-	setMetaReturnStmt(s, &MetaReturnStmt{
+	return &MetaReturnStmt{
 		Fnc:     funcDef,
 		Results: s.Results,
-	})
+	}
 }
-func walkIfStmt(s *ast.IfStmt) {
+
+type MetaIfStmt struct {
+	Init ast.Stmt
+	Cond ast.Expr
+	Body *MetaBlockStmt
+	Else ast.Stmt
+}
+
+func walkIfStmt(s *ast.IfStmt) *MetaIfStmt {
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
 	walkExpr(s.Cond, nil)
-	walkStmt(s.Body)
+	mtBlock := walkBlockStmt(s.Body)
 	if s.Else != nil {
 		walkStmt(s.Else)
+	}
+	return &MetaIfStmt{
+		Init: s.Init,
+		Cond: s.Cond,
+		Body: mtBlock,
+		Else: s.Else,
 	}
 }
 
@@ -3574,12 +3607,12 @@ func walkBlockStmt(s *ast.BlockStmt) *MetaBlockStmt {
 	return mt
 }
 
-func walkForStmt(s *ast.ForStmt) {
+func walkForStmt(s *ast.ForStmt) *MetaForStmt {
 	meta := &MetaForStmt{
 		Outer: currentFor,
 	}
 	currentFor = meta
-	setMetaForStmt(s, meta)
+
 	if s.Init != nil {
 		walkStmt(s.Init)
 	}
@@ -3589,21 +3622,21 @@ func walkForStmt(s *ast.ForStmt) {
 	if s.Post != nil {
 		walkStmt(s.Post)
 	}
-	walkStmt(s.Body)
+	mtBlock := walkBlockStmt(s.Body)
 	meta.Init = s.Init
 	meta.Cond = s.Cond
-	meta.Body = s.Body
+	meta.Body = mtBlock
 	meta.Post = s.Post
 	currentFor = meta.Outer
+	return meta
 }
-func walkRangeStmt(s *ast.RangeStmt) {
+func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 	meta := &MetaForStmt{
 		Outer: currentFor,
 	}
 	currentFor = meta
-	setMetaForStmt(s, meta)
 	walkExpr(s.X, nil)
-	walkStmt(s.Body)
+	mtBlock := walkBlockStmt(s.Body)
 
 	collectionType := getUnderlyingType(getTypeOfExpr(s.X))
 	keyType := getKeyTypeOfCollectionType(collectionType)
@@ -3638,9 +3671,11 @@ func walkRangeStmt(s *ast.RangeStmt) {
 		valueIdent := s.Value.(*ast.Ident)
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
-	meta.Body = s.Body
+	meta.Body = mtBlock
 	currentFor = meta.Outer
+	return meta
 }
+
 func walkIncDecStmt(s *ast.IncDecStmt) {
 	walkExpr(s.X, nil)
 }
@@ -3760,19 +3795,29 @@ func walkStmt(stmt ast.Stmt) {
 		mapMeta[unsafe.Pointer(s)] = mt
 		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.DeclStmt:
-		walkDeclStmt(s)
+		mt := walkDeclStmt(s)
+		mapMeta[unsafe.Pointer(s)] = mt
+		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.AssignStmt:
 		mt := walkAssignStmt(s)
 		mapMeta[unsafe.Pointer(s)] = mt
 		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.ReturnStmt:
-		walkReturnStmt(s)
+		mt := walkReturnStmt(s)
+		mapMeta[unsafe.Pointer(s)] = mt
+		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.IfStmt:
-		walkIfStmt(s)
+		mt := walkIfStmt(s)
+		mapMeta[unsafe.Pointer(s)] = mt
+		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.ForStmt:
-		walkForStmt(s)
+		mt := walkForStmt(s)
+		mapMeta[unsafe.Pointer(s)] = mt
+		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.RangeStmt:
-		walkRangeStmt(s)
+		mt := walkRangeStmt(s)
+		mapMeta[unsafe.Pointer(s)] = mt
+		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.IncDecStmt:
 		walkIncDecStmt(s)
 	case *ast.SwitchStmt:
@@ -5035,7 +5080,7 @@ type MetaForStmt struct {
 	ForRange  *MetaForRange
 	Init      ast.Stmt
 	Cond      ast.Expr
-	Body      ast.Stmt
+	Body      *MetaBlockStmt
 	Post      ast.Stmt
 }
 
@@ -5088,14 +5133,6 @@ func getStructFieldOffset(field *ast.Field) int {
 
 func setStructFieldOffset(field *ast.Field, offset int) {
 	mapMeta[unsafe.Pointer(field)] = offset
-}
-
-func getMetaReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
-	return mapMeta[unsafe.Pointer(s)].(*MetaReturnStmt)
-}
-
-func setMetaReturnStmt(s *ast.ReturnStmt, meta *MetaReturnStmt) {
-	mapMeta[unsafe.Pointer(s)] = meta
 }
 
 func getMetaForStmt(stmt ast.Stmt) *MetaForStmt {
