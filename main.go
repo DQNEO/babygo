@@ -1761,6 +1761,8 @@ func emitAssignToVar(vr *Variable, rhs ast.Expr) {
 }
 
 func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
+	//	lhs := metaSingle.lhs
+	//	rhs := metaSingle.rhs
 	if isBlankIdentifier(lhs) {
 		emitExpr(rhs)
 		emitPop(kind(getTypeOfExpr(rhs)))
@@ -1782,6 +1784,8 @@ func emitBlockStmt(s *ast.BlockStmt) {
 func emitExprStmt(s *ast.ExprStmt) {
 	emitExpr(s.X)
 }
+
+// local decl stmt
 func emitDeclStmt(s *ast.DeclStmt) {
 	genDecl := s.Decl.(*ast.GenDecl)
 	declSpec := genDecl.Specs[0]
@@ -1810,8 +1814,8 @@ func emitDeclStmt(s *ast.DeclStmt) {
 }
 
 // a, b = OkExpr
-func emitOkAssignment(s *ast.AssignStmt) {
-	rhs0 := s.Rhs[0]
+func emitOkAssignment(meta *MetaTupleAssign) {
+	rhs0 := meta.rhs
 	emitComment(2, "Assignment: emitAssignWithOK rhs\n")
 
 	// ABI of stack layout after evaluating rhs0
@@ -1821,12 +1825,12 @@ func emitOkAssignment(s *ast.AssignStmt) {
 	emitExpr(rhs0)
 	rhsTypes := []*Type{getTypeOfExpr(rhs0), tBool}
 	for i := 1; i >= 0; i-- {
-		if isBlankIdentifier(s.Lhs[i]) {
+		if isBlankIdentifier(meta.lhs[i]) {
 			emitPop(kind(rhsTypes[i]))
 		} else {
 			emitComment(2, "Assignment: ok syntax %d\n", i)
-			emitAddr(s.Lhs[i])
-			emitStore(getTypeOfExpr(s.Lhs[i]), false, false)
+			emitAddr(meta.lhs[i])
+			emitStore(getTypeOfExpr(meta.lhs[i]), false, false)
 		}
 
 	}
@@ -1834,17 +1838,17 @@ func emitOkAssignment(s *ast.AssignStmt) {
 
 // assigns multi-values of a funcall
 // a, b (, c...) = f()
-func emitFuncallAssignment(s *ast.AssignStmt) {
-	rhs0 := s.Rhs[0]
+func emitFuncallAssignment(meta *MetaTupleAssign) {
+	rhs0 := meta.rhs
 	emitExpr(rhs0) // @TODO interface conversion
 	callExpr := rhs0.(*ast.CallExpr)
 	returnTypes := getCallResultTypes(callExpr)
-	printf("  # len lhs=%d\n", len(s.Lhs))
+	printf("  # len lhs=%d\n", len(meta.lhs))
 	printf("  # returnTypes=%d\n", len(returnTypes))
-	assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
+	assert(len(returnTypes) == len(meta.lhs), fmt.Sprintf("length unmatches %d <=> %d", len(meta.lhs), len(returnTypes)), __func__)
 	length := len(returnTypes)
 	for i := 0; i < length; i++ {
-		lhs := s.Lhs[i]
+		lhs := meta.lhs[i]
 		rhsType := returnTypes[i]
 		if isBlankIdentifier(lhs) {
 			emitPop(kind(rhsType))
@@ -2345,11 +2349,11 @@ func emitStmt(stmt ast.Stmt) {
 		meta := mapMeta[unsafe.Pointer(s)].(*MetaAssignStmt)
 		switch meta.kind {
 		case "single": // lhs = expr | lhs += expr
-			emitSingleAssign(meta.lhs[0], meta.rhs[0])
+			emitSingleAssign(meta.single.lhs, meta.single.rhs)
 		case "ok": // a, b = OkExpr
-			emitOkAssignment(s)
-		case "tuple": // a, b (, c...) = f()
-			emitFuncallAssignment(s)
+			emitOkAssignment(meta.tuple)
+		case "funcall": // a, b (, c...) = f()
+			emitFuncallAssignment(meta.tuple)
 		default:
 			panic("TBI")
 		}
@@ -3405,6 +3409,11 @@ func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
 		if IsOkSyntax(s) {
 			knd = "ok"
 			walkExpr(s.Rhs[0], &evalContext{okContext: true})
+			mt = &MetaAssignStmt{kind: knd,
+				tuple: &MetaTupleAssign{
+					lhs: s.Lhs,
+					rhs: s.Rhs[0],
+				}}
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 				knd = "single"
@@ -3420,20 +3429,26 @@ func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
 				case ":=":
 					walkExpr(s.Rhs[0], nil) // FIXME
 				}
+				mt = &MetaAssignStmt{kind: knd,
+					single: &MetaSingleAssign{
+						lhs: s.Lhs[0],
+						rhs: s.Rhs[0],
+					}}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
-				knd = "tuple"
+				knd = "funcall"
 				for _, rhs := range s.Rhs {
 					walkExpr(rhs, nil) // FIXME
+				}
+				mt = &MetaAssignStmt{
+					kind: knd,
+					tuple: &MetaTupleAssign{
+						lhs: s.Lhs,
+						rhs: s.Rhs[0],
+					},
 				}
 			} else {
 				panic("TBI")
 			}
-		}
-
-		mt = &MetaAssignStmt{
-			kind: knd,
-			lhs:  s.Lhs,
-			rhs:  s.Rhs,
 		}
 
 		if stok == ":=" {
@@ -3483,8 +3498,10 @@ func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
 		}
 		mt = &MetaAssignStmt{
 			kind: "single",
-			lhs:  s.Lhs,
-			rhs:  []ast.Expr{binaryExpr},
+			single: &MetaSingleAssign{
+				lhs: s.Lhs[0],
+				rhs: binaryExpr,
+			},
 		}
 	default:
 		panic("TBI")
@@ -3492,10 +3509,20 @@ func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
 	return mt
 }
 
+type MetaSingleAssign struct {
+	lhs ast.Expr
+	rhs ast.Expr
+}
+
+type MetaTupleAssign struct {
+	lhs []ast.Expr
+	rhs ast.Expr
+}
+
 type MetaAssignStmt struct {
-	kind string // "ok", "single", "tuple"
-	lhs  []ast.Expr
-	rhs  []ast.Expr
+	kind   string //"single", "ok", "funcall"
+	single *MetaSingleAssign
+	tuple  *MetaTupleAssign // "ok" or "funcall"
 }
 
 func walkReturnStmt(s *ast.ReturnStmt) {
