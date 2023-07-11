@@ -1809,6 +1809,7 @@ func emitDeclStmt(s *ast.DeclStmt) {
 	}
 }
 
+// a, b = OkExpr
 func emitOkAssignment(s *ast.AssignStmt) {
 	rhs0 := s.Rhs[0]
 	emitComment(2, "Assignment: emitAssignWithOK rhs\n")
@@ -2345,7 +2346,7 @@ func emitStmt(stmt ast.Stmt) {
 		switch meta.kind {
 		case "single": // lhs = expr | lhs += expr
 			emitSingleAssign(meta.lhs[0], meta.rhs[0])
-		case "ok": // a, b = expr
+		case "ok": // a, b = OkExpr
 			emitOkAssignment(s)
 		case "tuple": // a, b (, c...) = f()
 			emitFuncallAssignment(s)
@@ -3394,7 +3395,8 @@ func IsOkSyntax(s *ast.AssignStmt) bool {
 	return false
 }
 
-func walkAssignStmt(s *ast.AssignStmt) {
+func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
+	var mt *MetaAssignStmt
 	walkExpr(s.Lhs[0], nil)
 	stok := s.Tok.String()
 	var knd string
@@ -3428,7 +3430,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 			}
 		}
 
-		mapMeta[unsafe.Pointer(s)] = &MetaAssignStmt{
+		mt = &MetaAssignStmt{
 			kind: knd,
 			lhs:  s.Lhs,
 			rhs:  s.Rhs,
@@ -3479,7 +3481,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 			Op: op,
 			Y:  s.Rhs[0],
 		}
-		mapMeta[unsafe.Pointer(s)] = &MetaAssignStmt{
+		mt = &MetaAssignStmt{
 			kind: "single",
 			lhs:  s.Lhs,
 			rhs:  []ast.Expr{binaryExpr},
@@ -3487,6 +3489,7 @@ func walkAssignStmt(s *ast.AssignStmt) {
 	default:
 		panic("TBI")
 	}
+	return mt
 }
 
 type MetaAssignStmt struct {
@@ -3705,7 +3708,9 @@ func walkStmt(stmt ast.Stmt) {
 	case *ast.DeclStmt:
 		walkDeclStmt(s)
 	case *ast.AssignStmt:
-		walkAssignStmt(s)
+		mt := walkAssignStmt(s)
+		mapMeta[unsafe.Pointer(s)] = mt
+		assert(mt != nil, "walkAssignStmt should not return nil", __func__)
 	case *ast.ReturnStmt:
 		walkReturnStmt(s)
 	case *ast.IfStmt:
