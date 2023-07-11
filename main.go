@@ -2119,21 +2119,7 @@ func emitRangeStmt(meta *MetaForStmt) {
 
 	printf("  %s:\n", labelExit)
 }
-func emitIncDecStmt(s *ast.IncDecStmt) {
-	var addValue int
-	switch s.Tok.String() {
-	case "++":
-		addValue = 1
-	case "--":
-		addValue = -1
-	default:
-		panic("Unexpected Tok=" + s.Tok.String())
-	}
-	emitAddr(s.X)
-	emitExpr(s.X)
-	emitAddConst(addValue, "rhs ++ or --")
-	emitStore(getTypeOfExpr(s.X), true, false)
-}
+
 func emitSwitchStmt(s *ast.SwitchStmt) {
 	labelid++
 	labelEnd := fmt.Sprintf(".L.switch.%d.exit", labelid)
@@ -2370,7 +2356,8 @@ func emitStmt(stmt ast.Stmt) {
 		meta := mapMeta[unsafe.Pointer(s)].(*MetaForStmt)
 		emitRangeStmt(meta)
 	case *ast.IncDecStmt:
-		emitIncDecStmt(s)
+		meta := mapMeta[unsafe.Pointer(s)].(*MetaSingleAssign)
+		emitSingleAssign(meta.lhs, meta.rhs)
 	case *ast.SwitchStmt:
 		emitSwitchStmt(s)
 	case *ast.TypeSwitchStmt:
@@ -3671,9 +3658,29 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 	return meta
 }
 
-func walkIncDecStmt(s *ast.IncDecStmt) {
+func walkIncDecStmt(s *ast.IncDecStmt) *MetaSingleAssign {
 	walkExpr(s.X, nil)
+	var binop token.Token
+	switch s.Tok.String() {
+	case "++":
+		binop = token.ADD
+	case "--":
+		binop = token.SUB
+	default:
+		panic("Unexpected Tok=" + s.Tok.String())
+	}
+	exprOne := &ast.BasicLit{Kind: token.INT, Value: "1"} // @TODO should we walk this ?
+	newRhs := &ast.BinaryExpr{
+		X:  s.X,
+		Y:  exprOne,
+		Op: binop,
+	}
+	return &MetaSingleAssign{
+		lhs: s.X,
+		rhs: newRhs,
+	}
 }
+
 func walkSwitchStmt(s *ast.SwitchStmt) {
 	if s.Init != nil {
 		walkStmt(s.Init)
@@ -3814,7 +3821,9 @@ func walkStmt(stmt ast.Stmt) {
 		mapMeta[unsafe.Pointer(s)] = mt
 		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.IncDecStmt:
-		walkIncDecStmt(s)
+		mt := walkIncDecStmt(s)
+		mapMeta[unsafe.Pointer(s)] = mt
+		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.SwitchStmt:
 		walkSwitchStmt(s)
 	case *ast.TypeSwitchStmt:
