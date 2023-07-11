@@ -1781,12 +1781,13 @@ func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
 	emitStore(getTypeOfExpr(lhs), true, false)
 }
 
-func emitBlockStmt(s *ast.BlockStmt) {
+func emitBlockStmt(s *MetaBlockStmt) {
 	for _, s := range s.List {
 		emitStmt(s)
 	}
 }
-func emitExprStmt(s *ast.ExprStmt) {
+
+func emitExprStmt(s *MetaExprStmt) {
 	emitExpr(s.X)
 }
 
@@ -2345,9 +2346,11 @@ func emitStmt(stmt ast.Stmt) {
 	emitComment(2, "== Statement %T ==\n", stmt)
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
-		emitBlockStmt(s)
+		meta := mapMeta[unsafe.Pointer(s)].(*MetaBlockStmt)
+		emitBlockStmt(meta)
 	case *ast.ExprStmt:
-		emitExprStmt(s)
+		meta := mapMeta[unsafe.Pointer(s)].(*MetaExprStmt)
+		emitExprStmt(meta)
 	case *ast.DeclStmt:
 		emitDeclStmt(s)
 	case *ast.AssignStmt:
@@ -3361,8 +3364,9 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	return method
 }
 
-func walkExprStmt(s *ast.ExprStmt) {
+func walkExprStmt(s *ast.ExprStmt) *MetaExprStmt {
 	walkExpr(s.X, nil)
+	return &MetaExprStmt{X: s.X}
 }
 func walkDeclStmt(s *ast.DeclStmt) {
 	genDecl := s.Decl.(*ast.GenDecl)
@@ -3560,10 +3564,14 @@ func walkIfStmt(s *ast.IfStmt) {
 		walkStmt(s.Else)
 	}
 }
-func walkBlockStmt(s *ast.BlockStmt) {
+
+func walkBlockStmt(s *ast.BlockStmt) *MetaBlockStmt {
+	mt := &MetaBlockStmt{}
 	for _, stmt := range s.List {
 		walkStmt(stmt)
+		mt.List = append(mt.List, stmt)
 	}
+	return mt
 }
 
 func walkForStmt(s *ast.ForStmt) {
@@ -3733,22 +3741,34 @@ func walkGoStmt(s *ast.GoStmt) {
 	walkExpr(s.Call, nil)
 }
 
+type MetaBlockStmt struct {
+	List []ast.Stmt
+}
+
+type MetaExprStmt struct {
+	X ast.Expr
+}
+
 func walkStmt(stmt ast.Stmt) {
 	switch s := stmt.(type) {
+	case *ast.BlockStmt:
+		mt := walkBlockStmt(s)
+		mapMeta[unsafe.Pointer(s)] = mt
+		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.ExprStmt:
-		walkExprStmt(s)
+		mt := walkExprStmt(s)
+		mapMeta[unsafe.Pointer(s)] = mt
+		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.DeclStmt:
 		walkDeclStmt(s)
 	case *ast.AssignStmt:
 		mt := walkAssignStmt(s)
 		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "walkAssignStmt should not return nil", __func__)
+		assert(mt != nil, "meta should not be nil", __func__)
 	case *ast.ReturnStmt:
 		walkReturnStmt(s)
 	case *ast.IfStmt:
 		walkIfStmt(s)
-	case *ast.BlockStmt:
-		walkBlockStmt(s)
 	case *ast.ForStmt:
 		walkForStmt(s)
 	case *ast.RangeStmt:
