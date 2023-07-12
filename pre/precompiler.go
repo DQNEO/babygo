@@ -1798,7 +1798,7 @@ func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
 
 func emitBlockStmt(s *MetaBlockStmt) {
 	for _, s := range s.List {
-		emitStmtMeta(s)
+		emitStmt(s)
 	}
 }
 
@@ -1882,7 +1882,7 @@ func emitIfStmt(meta *MetaIfStmt) {
 		emitBlockStmt(meta.Body) // then
 		printf("  jmp %s\n", labelEndif)
 		printf("  %s:\n", labelElse)
-		emitStmtMeta(meta.Else) // then
+		emitStmt(meta.Else) // then
 	} else {
 		printf("  jne %s # jmp if false\n", labelEndif)
 		emitBlockStmt(meta.Body) // then
@@ -1901,7 +1901,7 @@ func emitForStmt(meta *MetaForStmt) {
 	meta.LabelExit = labelExit
 
 	if meta.Init != nil {
-		emitStmtMeta(meta.Init)
+		emitStmt(meta.Init)
 	}
 
 	printf("  %s:\n", labelCond)
@@ -1914,7 +1914,7 @@ func emitForStmt(meta *MetaForStmt) {
 	emitBlockStmt(meta.Body)
 	printf("  %s:\n", labelPost) // used for "continue"
 	if meta.Post != nil {
-		emitStmtMeta(meta.Post)
+		emitStmt(meta.Post)
 	}
 	printf("  jmp %s\n", labelCond)
 	printf("  %s:\n", labelExit)
@@ -2191,7 +2191,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 	for i, cc := range s.cases {
 		printf("  %s:\n", labels[i])
 		for _, _s := range cc.Body {
-			emitStmtMeta(_s)
+			emitStmt(_s)
 		}
 		printf("  jmp %s\n", labelEnd)
 	}
@@ -2282,7 +2282,7 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 				}
 			}
 
-			emitStmtMeta(_s)
+			emitStmt(_s)
 		}
 		printf("  jmp %s\n", labelEnd)
 	}
@@ -2315,7 +2315,7 @@ func emitGoStmt(m *MetaGoStmt) {
 	printf("  callq runtime.mstart0\n")
 }
 
-func emitStmtMeta(mtstmt MetaStmt) {
+func emitStmt(mtstmt MetaStmt) {
 	switch meta := mtstmt.(type) {
 	case *MetaBlockStmt:
 		emitBlockStmt(meta)
@@ -2398,7 +2398,7 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 		printf("  subq $%d, %%rsp # local area\n", -fnc.Localarea)
 	}
 	for _, m := range fnc.Stmts {
-		emitStmtMeta(m)
+		emitStmt(m)
 	}
 	printf("  leave\n")
 	printf("  ret\n")
