@@ -1798,7 +1798,7 @@ func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
 
 func emitBlockStmt(s *MetaBlockStmt) {
 	for _, s := range s.List {
-		emitStmt(s)
+		emitStmtMeta(s)
 	}
 }
 
@@ -1882,7 +1882,7 @@ func emitIfStmt(meta *MetaIfStmt) {
 		emitBlockStmt(meta.Body) // then
 		printf("  jmp %s\n", labelEndif)
 		printf("  %s:\n", labelElse)
-		emitStmt(meta.Else) // then
+		emitStmtMeta(meta.Else) // then
 	} else {
 		printf("  jne %s # jmp if false\n", labelEndif)
 		emitBlockStmt(meta.Body) // then
@@ -1901,7 +1901,7 @@ func emitForStmt(meta *MetaForStmt) {
 	meta.LabelExit = labelExit
 
 	if meta.Init != nil {
-		emitStmt(meta.Init)
+		emitStmtMeta(meta.Init)
 	}
 
 	printf("  %s:\n", labelCond)
@@ -1914,7 +1914,7 @@ func emitForStmt(meta *MetaForStmt) {
 	emitBlockStmt(meta.Body)
 	printf("  %s:\n", labelPost) // used for "continue"
 	if meta.Post != nil {
-		emitStmt(meta.Post)
+		emitStmtMeta(meta.Post)
 	}
 	printf("  jmp %s\n", labelCond)
 	printf("  %s:\n", labelExit)
@@ -2131,7 +2131,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 	}
 	emitExpr(s.Tag)
 	condType := getTypeOfExpr(s.Tag)
-	cases := s.Cases
+	cases := s.cases
 	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
 	emitComment(2, "Start comparison with cases\n")
@@ -2188,10 +2188,10 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 	}
 
 	emitRevertStackTop(condType)
-	for i, cc := range cases {
+	for i, cc := range s.cases {
 		printf("  %s:\n", labels[i])
 		for _, _s := range cc.Body {
-			emitStmt(_s)
+			emitStmtMeta(_s)
 		}
 		printf("  jmp %s\n", labelEnd)
 	}
@@ -2212,21 +2212,20 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 	var defaultLabel string
 	emitComment(2, "Start comparison with cases\n")
 	for i, c := range meta.Cases {
-		cc := c.Orig
 		labelid++
 		labelCase := ".L.case." + strconv.Itoa(labelid)
 		labels[i] = labelCase
-		if len(cc.List) == 0 {
+		if len(c.List) == 0 {
 			defaultLabel = labelCase
 			continue
 		}
-		for _, e := range cc.List {
+		for _, e := range c.List {
 			emitVariableAddr(meta.SubjectVariable)
 			emitPopAddress("type switch subject")
 			printf("  movq (%%rax), %%rax # dtype label addr\n")
 			printf("  pushq %%rax # dtype label addr\n")
 
-			if isNil(cc.List[0]) { // case nil:
+			if isNil(c.List[0]) { // case nil:
 				printf("  pushq $0 # nil\n")
 			} else { // case T:
 				emitDtypeLabelAddr(e2t(e))
@@ -2256,14 +2255,13 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 		}
 		printf("  %s:\n", labels[i])
 
-		cc := c.Orig
 		var _isNil bool
-		for _, typ := range cc.List {
+		for _, typ := range c.List {
 			if isNil(typ) {
 				_isNil = true
 			}
 		}
-		for _, _s := range cc.Body {
+		for _, _s := range c.Body {
 			if c.Variable != nil {
 				// do assignment
 				if _isNil {
@@ -2284,7 +2282,7 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 				}
 			}
 
-			emitStmt(_s)
+			emitStmtMeta(_s)
 		}
 		printf("  jmp %s\n", labelEnd)
 	}
@@ -2303,9 +2301,9 @@ func emitBranchStmt(meta *MetaBranchStmt) {
 	}
 }
 
-func emitGoStmt(s *ast.GoStmt) {
+func emitGoStmt(m *MetaGoStmt) {
 	emitCallMalloc(SizeOfPtr) // area := new(func())
-	emitExpr(s.Call.Fun)
+	emitExpr(m.call.Fun)
 	printf("  popq %%rax # func addr\n")
 	printf("  popq %%rcx # malloced area\n")
 	printf("  movq %%rax, (%%rcx) # malloced area\n") // *area = fn
@@ -2317,62 +2315,44 @@ func emitGoStmt(s *ast.GoStmt) {
 	printf("  callq runtime.mstart0\n")
 }
 
-func emitStmt(stmt ast.Stmt) {
-	emitComment(2, "== Statement %T ==\n", stmt)
-	switch s := stmt.(type) {
-	case *ast.BlockStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaBlockStmt)
+func emitStmtMeta(mtstmt MetaStmt) {
+	switch meta := mtstmt.(type) {
+	case *MetaBlockStmt:
 		emitBlockStmt(meta)
-	case *ast.ExprStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaExprStmt)
+	case *MetaExprStmt:
 		emitExprStmt(meta)
-	case *ast.DeclStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaVarDecl)
+	case *MetaVarDecl:
 		emitDeclStmt(meta)
-	case *ast.AssignStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaAssignStmt)
-		switch meta.kind {
-		case "single": // lhs = expr | lhs += expr
-			emitSingleAssign(meta.single.lhs, meta.single.rhs)
-		case "ok": // a, b = OkExpr
-			emitOkAssignment(meta.tuple)
-		case "funcall": // a, b (, c...) = f()
-			emitFuncallAssignment(meta.tuple)
-		default:
-			panic("TBI")
-		}
-	case *ast.ReturnStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaReturnStmt)
-		emitReturnStmt(meta)
-	case *ast.IfStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaIfStmt)
-		emitIfStmt(meta)
-	case *ast.ForStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaForStmt)
-		emitForStmt(meta)
-	case *ast.RangeStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaForStmt)
-		if meta.ForRange.IsMap {
-			emitRangeMap(meta)
-		} else {
-			emitRangeStmt(meta)
-		}
-	case *ast.IncDecStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaSingleAssign)
+	case *MetaSingleAssign:
 		emitSingleAssign(meta.lhs, meta.rhs)
-	case *ast.SwitchStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaSwitchStmt)
+	case *MetaOkAssignStmt:
+		emitOkAssignment(meta.tuple)
+	case *MetaFuncallAssignStmt:
+		emitFuncallAssignment(meta.tuple)
+	case *MetaReturnStmt:
+		emitReturnStmt(meta)
+	case *MetaIfStmt:
+		emitIfStmt(meta)
+	case *MetaForStmt:
+		if meta.ForRange != nil {
+			if meta.ForRange.IsMap {
+				emitRangeMap(meta)
+			} else {
+				emitRangeStmt(meta)
+			}
+		} else {
+			emitForStmt(meta)
+		}
+	case *MetaSwitchStmt:
 		emitSwitchStmt(meta)
-	case *ast.TypeSwitchStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaTypeSwitchStmt)
+	case *MetaTypeSwitchStmt:
 		emitTypeSwitchStmt(meta)
-	case *ast.BranchStmt:
-		meta := mapMeta[unsafe.Pointer(s)].(*MetaBranchStmt)
+	case *MetaBranchStmt:
 		emitBranchStmt(meta)
-	case *ast.GoStmt:
-		emitGoStmt(s)
+	case *MetaGoStmt:
+		emitGoStmt(meta)
 	default:
-		throw(stmt)
+		panic(fmt.Sprintf("unknown type:%T", mtstmt))
 	}
 }
 
@@ -2417,8 +2397,8 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	if fnc.Localarea != 0 {
 		printf("  subq $%d, %%rsp # local area\n", -fnc.Localarea)
 	}
-	for _, stmt := range fnc.Stmts {
-		emitStmt(stmt)
+	for _, m := range fnc.Stmts {
+		emitStmtMeta(m)
 	}
 	printf("  leave\n")
 	printf("  ret\n")
@@ -3408,27 +3388,25 @@ func IsOkSyntax(s *ast.AssignStmt) bool {
 	return false
 }
 
-func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
-	var mt *MetaAssignStmt
+func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
+	var mt MetaStmt
 	walkExpr(s.Lhs[0], nil)
 	stok := s.Tok.String()
-	var knd string
 	switch stok {
 	case "=", ":=":
 		if IsOkSyntax(s) {
-			knd = "ok"
 			walkExpr(s.Rhs[0], &evalContext{okContext: true})
 			rhsTypes := []*Type{getTypeOfExpr(s.Rhs[0]), tBool}
 
-			mt = &MetaAssignStmt{kind: knd,
+			mt = &MetaOkAssignStmt{
 				tuple: &MetaTupleAssign{
 					lhs:      s.Lhs,
 					rhs:      s.Rhs[0],
 					rhsTypes: rhsTypes,
-				}}
+				},
+			}
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
-				knd = "single"
 				switch stok {
 				case "=":
 					var ctx *evalContext
@@ -3441,13 +3419,11 @@ func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
 				case ":=":
 					walkExpr(s.Rhs[0], nil) // FIXME
 				}
-				mt = &MetaAssignStmt{kind: knd,
-					single: &MetaSingleAssign{
-						lhs: s.Lhs[0],
-						rhs: s.Rhs[0],
-					}}
+				mt = &MetaSingleAssign{
+					lhs: s.Lhs[0],
+					rhs: s.Rhs[0],
+				}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
-				knd = "funcall"
 				for _, rhs := range s.Rhs {
 					walkExpr(rhs, nil) // FIXME
 				}
@@ -3455,8 +3431,7 @@ func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
 				returnTypes := getCallResultTypes(callExpr)
 				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
 
-				mt = &MetaAssignStmt{
-					kind: knd,
+				mt = &MetaFuncallAssignStmt{
 					tuple: &MetaTupleAssign{
 						lhs:      s.Lhs,
 						rhs:      s.Rhs[0],
@@ -3513,12 +3488,9 @@ func walkAssignStmt(s *ast.AssignStmt) *MetaAssignStmt {
 			Op: op,
 			Y:  s.Rhs[0],
 		}
-		mt = &MetaAssignStmt{
-			kind: "single",
-			single: &MetaSingleAssign{
-				lhs: s.Lhs[0],
-				rhs: binaryExpr,
-			},
+		mt = &MetaSingleAssign{
+			lhs: s.Lhs[0],
+			rhs: binaryExpr,
 		}
 	default:
 		panic("TBI")
@@ -3542,7 +3514,14 @@ type MetaVarDecl struct {
 	lhsType *Type
 }
 
-type MetaAssignStmt struct {
+type MetaOkAssignStmt struct {
+	tuple *MetaTupleAssign
+}
+type MetaFuncallAssignStmt struct {
+	tuple *MetaTupleAssign
+}
+
+type _MetaAssignStmt struct {
 	kind   string //"single", "ok", "funcall"
 	single *MetaSingleAssign
 	tuple  *MetaTupleAssign // "ok" or "funcall"
@@ -3570,34 +3549,36 @@ func walkReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
 }
 
 type MetaIfStmt struct {
-	Init ast.Stmt
+	Init MetaStmt
 	Cond ast.Expr
 	Body *MetaBlockStmt
-	Else ast.Stmt
+	Else MetaStmt
 }
 
 func walkIfStmt(s *ast.IfStmt) *MetaIfStmt {
+	var mInit MetaStmt
+	var mElse MetaStmt
 	if s.Init != nil {
-		walkStmt(s.Init)
+		mInit = walkStmt(s.Init)
 	}
 	walkExpr(s.Cond, nil)
 	mtBlock := walkBlockStmt(s.Body)
 	if s.Else != nil {
-		walkStmt(s.Else)
+		mElse = walkStmt(s.Else)
 	}
 	return &MetaIfStmt{
-		Init: s.Init,
+		Init: mInit,
 		Cond: s.Cond,
 		Body: mtBlock,
-		Else: s.Else,
+		Else: mElse,
 	}
 }
 
 func walkBlockStmt(s *ast.BlockStmt) *MetaBlockStmt {
 	mt := &MetaBlockStmt{}
 	for _, stmt := range s.List {
-		walkStmt(stmt)
-		mt.List = append(mt.List, stmt)
+		meta := walkStmt(stmt)
+		mt.List = append(mt.List, meta)
 	}
 	return mt
 }
@@ -3609,19 +3590,17 @@ func walkForStmt(s *ast.ForStmt) *MetaForStmt {
 	currentFor = meta
 
 	if s.Init != nil {
-		walkStmt(s.Init)
+		meta.Init = walkStmt(s.Init)
 	}
 	if s.Cond != nil {
 		walkExpr(s.Cond, nil)
 	}
 	if s.Post != nil {
-		walkStmt(s.Post)
+		meta.Post = walkStmt(s.Post)
 	}
 	mtBlock := walkBlockStmt(s.Body)
-	meta.Init = s.Init
 	meta.Cond = s.Cond
 	meta.Body = mtBlock
-	meta.Post = s.Post
 	currentFor = meta.Outer
 	return meta
 }
@@ -3695,25 +3674,25 @@ func walkIncDecStmt(s *ast.IncDecStmt) *MetaSingleAssign {
 }
 
 func walkSwitchStmt(s *ast.SwitchStmt) *MetaSwitchStmt {
+	meta := &MetaSwitchStmt{}
 	if s.Init != nil {
-		walkStmt(s.Init)
+		meta.Init = walkStmt(s.Init)
 	}
 	if s.Tag != nil {
 		walkExpr(s.Tag, nil)
+		meta.Tag = s.Tag
 	}
-	var cases []*ast.CaseClause
+	var cases []*MetaCaseClause
 	for _, _case := range s.Body.List {
 		cc := _case.(*ast.CaseClause)
-		walkCaseClause(cc)
-		cases = append(cases, cc)
+		_cc := walkCaseClause(cc)
+		cases = append(cases, _cc)
 	}
+	meta.cases = cases
 
-	return &MetaSwitchStmt{
-		Init:  s.Init,
-		Tag:   s.Tag,
-		Cases: cases,
-	}
+	return meta
 }
+
 func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	typeSwitch := &MetaTypeSwitchStmt{}
 	var assignIdent *ast.Ident
@@ -3739,9 +3718,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	var cases []*MetaTypeSwitchCaseClose
 	for _, _case := range s.Body.List {
 		cc := _case.(*ast.CaseClause)
-		tscc := &MetaTypeSwitchCaseClose{
-			Orig: cc,
-		}
+		tscc := &MetaTypeSwitchCaseClose{}
 		cases = append(cases, tscc)
 
 		if assignIdent != nil && len(cc.List) > 0 {
@@ -3757,10 +3734,13 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 			tscc.VariableType = varType
 			setVariable(assignIdent.Obj, vr)
 		}
-
+		var body []MetaStmt
 		for _, stmt := range cc.Body {
-			walkStmt(stmt)
+			m := walkStmt(stmt)
+			body = append(body, m)
 		}
+		tscc.Body = body
+		tscc.List = cc.List
 		if assignIdent != nil {
 			setVariable(assignIdent.Obj, nil)
 		}
@@ -3777,12 +3757,18 @@ func isNil(e ast.Expr) bool {
 	return ident.Obj == gNil
 }
 
-func walkCaseClause(s *ast.CaseClause) {
+func walkCaseClause(s *ast.CaseClause) *MetaCaseClause {
 	for _, e := range s.List {
 		walkExpr(e, nil)
 	}
+	var body []MetaStmt
 	for _, stmt := range s.Body {
-		walkStmt(stmt)
+		metaStmt := walkStmt(stmt)
+		body = append(body, metaStmt)
+	}
+	return &MetaCaseClause{
+		List: s.List,
+		Body: body,
 	}
 }
 
@@ -3804,73 +3790,62 @@ func walkBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
 	}
 }
 
-func walkGoStmt(s *ast.GoStmt) {
+type MetaGoStmt struct {
+	call *ast.CallExpr
+}
+
+func walkGoStmt(s *ast.GoStmt) *MetaGoStmt {
 	walkExpr(s.Call, nil)
+	return &MetaGoStmt{
+		call: s.Call,
+	}
 }
 
 type MetaBlockStmt struct {
-	List []ast.Stmt
+	List []MetaStmt
 }
 
 type MetaExprStmt struct {
 	X ast.Expr
 }
 
-func walkStmt(stmt ast.Stmt) {
+type MetaStmt interface{}
+
+func walkStmt(stmt ast.Stmt) MetaStmt {
+	var mt MetaStmt
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
-		mt := walkBlockStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkBlockStmt(s)
 	case *ast.ExprStmt:
-		mt := walkExprStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkExprStmt(s)
 	case *ast.DeclStmt:
-		mt := walkDeclStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkDeclStmt(s)
 	case *ast.AssignStmt:
-		mt := walkAssignStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkAssignStmt(s)
 	case *ast.ReturnStmt:
-		mt := walkReturnStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkReturnStmt(s)
 	case *ast.IfStmt:
-		mt := walkIfStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkIfStmt(s)
 	case *ast.ForStmt:
-		mt := walkForStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkForStmt(s)
 	case *ast.RangeStmt:
-		mt := walkRangeStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkRangeStmt(s)
 	case *ast.IncDecStmt:
-		mt := walkIncDecStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkIncDecStmt(s)
 	case *ast.SwitchStmt:
-		mt := walkSwitchStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkSwitchStmt(s)
 	case *ast.TypeSwitchStmt:
-		mt := walkTypeSwitchStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkTypeSwitchStmt(s)
 	case *ast.BranchStmt:
-		mt := walkBranchStmt(s)
-		mapMeta[unsafe.Pointer(s)] = mt
-		assert(mt != nil, "meta should not be nil", __func__)
+		mt = walkBranchStmt(s)
 	case *ast.GoStmt:
-		walkGoStmt(s)
+		mt = walkGoStmt(s)
 	default:
 		throw(stmt)
 	}
+
+	assert(mt != nil, "meta should not be nil", __func__)
+	return mt
 }
 
 func walkIdent(e *ast.Ident, ctx *evalContext) {
@@ -4511,10 +4486,12 @@ func walk(pkg *PkgContainer) {
 		}
 
 		if funcDecl.Body != nil {
-			fnc.Stmts = funcDecl.Body.List
-			for _, stmt := range fnc.Stmts {
-				walkStmt(stmt)
+			var ms []MetaStmt
+			for _, stmt := range funcDecl.Body.List {
+				m := walkStmt(stmt)
+				ms = append(ms, m)
 			}
+			fnc.Stmts = ms
 
 			if funcDecl.Recv != nil { // is Method
 				fnc.Method = newMethod(pkg.name, funcDecl)
@@ -5116,10 +5093,10 @@ type MetaForStmt struct {
 	LabelExit string // for break
 	Outer     *MetaForStmt
 	ForRange  *MetaForRange
-	Init      ast.Stmt
+	Init      MetaStmt
 	Cond      ast.Expr
 	Body      *MetaBlockStmt
-	Post      ast.Stmt
+	Post      MetaStmt
 }
 
 type MetaBranchStmt struct {
@@ -5127,10 +5104,15 @@ type MetaBranchStmt struct {
 	ContinueOrBreak  int // 1: continue, 2:break
 }
 
+type MetaCaseClause struct {
+	List []ast.Expr
+	Body []MetaStmt
+}
+
 type MetaSwitchStmt struct {
-	Init  ast.Stmt
+	Init  MetaStmt
 	Tag   ast.Expr
-	Cases []*ast.CaseClause
+	cases []*MetaCaseClause
 }
 
 type MetaTypeSwitchStmt struct {
@@ -5138,16 +5120,19 @@ type MetaTypeSwitchStmt struct {
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
+	cases           []*MetaCaseClause
 }
 
 type MetaTypeSwitchCaseClose struct {
 	Variable     *Variable
 	VariableType *Type
-	Orig         *ast.CaseClause
+	List         []ast.Expr
+	Body         []MetaStmt
 }
+
 type Func struct {
 	Name      string
-	Stmts     []ast.Stmt
+	Stmts     []MetaStmt
 	Localarea int
 	Argsarea  int
 	LocalVars []*Variable
