@@ -3848,7 +3848,7 @@ func walkStmt(stmt ast.Stmt) MetaStmt {
 	return mt
 }
 
-func walkIdent(e *ast.Ident, ctx *evalContext) {
+func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 	logfncname := "(toplevel)"
 	if currentFunc != nil {
 		logfncname = currentFunc.Name
@@ -3860,7 +3860,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) {
 		// blank identifier
 		// e.Obj is nil in this case.
 		// @TODO do something
-		return
+		return &MetaIdent{e: e}
 	}
 	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
@@ -3886,9 +3886,10 @@ func walkIdent(e *ast.Ident, ctx *evalContext) {
 		}
 
 	}
+	return &MetaIdent{e: e}
 }
 
-func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
+func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 	if isQI(e) {
 		// pkg.ident
 		qi := selector2QI(e)
@@ -3902,6 +3903,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) {
 		// expr.field
 		walkExpr(e.X, ctx)
 	}
+	return &MetaSelectorExpr{e: e}
 }
 
 type MetaCallExpr struct {
@@ -3925,7 +3927,7 @@ type MetaCallExpr struct {
 	metaArgs []*Arg
 }
 
-func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
+func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 	meta := &MetaCallExpr{}
 	mapMeta[unsafe.Pointer(e)] = meta
 	if isType(e.Fun) {
@@ -3938,7 +3940,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 			_type: e2t(e.Fun),
 		}
 		walkExpr(meta.arg, ctx)
-		return
+		return meta
 	}
 
 	meta.isConversion = false
@@ -3971,17 +3973,17 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 		case gLen, gCap:
 			meta.builtin = identFun.Obj
 			walkExpr(meta.args[0], nil)
-			return
+			return meta
 		case gNew:
 			meta.builtin = identFun.Obj
-			return
+			return meta
 		case gMake:
 			meta.builtin = identFun.Obj
 			for _, arg := range meta.args[1:] {
 				ctx := &evalContext{_type: tInt}
 				walkExpr(arg, ctx)
 			}
-			return
+			return meta
 		case gAppend:
 			meta.builtin = identFun.Obj
 			walkExpr(meta.args[0], nil)
@@ -3989,19 +3991,19 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 				ctx := &evalContext{_type: tTODO} // @TODO attach type of slice element
 				walkExpr(arg, ctx)
 			}
-			return
+			return meta
 		case gPanic:
 			meta.builtin = identFun.Obj
 			for _, arg := range meta.args {
 				ctx := &evalContext{_type: tEface}
 				walkExpr(arg, ctx)
 			}
-			return
+			return meta
 		case gDelete:
 			meta.builtin = identFun.Obj
 			ctx := &evalContext{_type: tTODO}
 			walkExpr(meta.args[1], ctx) // @TODO attach type of the map element
-			return
+			return meta
 		}
 	}
 
@@ -4093,13 +4095,14 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) {
 	meta.funcVal = funcVal
 
 	meta.metaArgs = prepareArgs(meta.funcType, meta.receiver, meta.args, meta.hasEllipsis)
+	return meta
 }
 
-func walkParenExpr(e *ast.ParenExpr, ctx *evalContext) {
-	walkExpr(e.X, ctx)
+func walkParenExpr(e *ast.ParenExpr, ctx *evalContext) MetaExpr {
+	return walkExpr(e.X, ctx)
 }
 
-func walkBasicLit(e *ast.BasicLit, ctx *evalContext) {
+func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 	switch e.Kind.String() {
 	case "INT":
 	case "CHAR":
@@ -4108,6 +4111,7 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) {
 	default:
 		panic("Unexpected literal kind:" + e.Kind.String())
 	}
+	return &MetaBasicLit{e: e}
 }
 
 type MetaCompositLiteral struct {
@@ -4124,7 +4128,7 @@ type MetaCompositLiteral struct {
 	elmType   *Type
 }
 
-func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) {
+func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiteral {
 	ut := getUnderlyingType(getTypeOfExpr(e))
 	var knd string
 	switch kind(ut) {
@@ -4184,12 +4188,15 @@ func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) {
 			walkExpr(v, ctx)
 		}
 	}
+	return meta
 }
 
-func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) {
+func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
 	walkExpr(e.X, nil)
+	return &MetaUnaryExpr{e: e}
 }
-func walkBinaryExpr(e *ast.BinaryExpr, _ctx *evalContext) {
+
+func walkBinaryExpr(e *ast.BinaryExpr, _ctx *evalContext) *MetaBinaryExpr {
 	var xCtx *evalContext
 	var yCtx *evalContext
 	if isNil(e.X) {
@@ -4202,9 +4209,10 @@ func walkBinaryExpr(e *ast.BinaryExpr, _ctx *evalContext) {
 	}
 	walkExpr(e.X, xCtx) // left
 	walkExpr(e.Y, yCtx) // right
+	return &MetaBinaryExpr{e: e}
 }
 
-func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
+func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 	meta := &MetaIndexExpr{}
 	if kind(getTypeOfExpr(e.X)) == T_MAP {
 		meta.IsMap = true
@@ -4215,9 +4223,10 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) {
 	walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	walkExpr(e.X, nil)
 	mapMeta[unsafe.Pointer(e)] = meta
+	return meta
 }
 
-func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
+func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) *MetaSliceExpr {
 	if e.Low != nil {
 		walkExpr(e.Low, nil)
 	}
@@ -4228,6 +4237,7 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) {
 		walkExpr(e.Max, nil)
 	}
 	walkExpr(e.X, nil)
+	return &MetaSliceExpr{e: e}
 }
 
 // []T(e)
@@ -4239,8 +4249,9 @@ func walkMapType(e *ast.MapType) {
 	// first argument of builtin func
 	// do nothing
 }
-func walkStarExpr(e *ast.StarExpr, ctx *evalContext) {
+func walkStarExpr(e *ast.StarExpr, ctx *evalContext) *MetaStarExpr {
 	walkExpr(e.X, nil)
+	return &MetaStarExpr{e: e}
 }
 func walkKeyValueExpr(e *ast.KeyValueExpr, _ctx *evalContext) {
 	// MYSTRUCT{key:value}
@@ -4267,43 +4278,80 @@ func walkInterfaceType(e *ast.InterfaceType) {
 	// interface{}(e)  conversion. Nothing to do.
 }
 
-func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) {
+func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssertExpr {
 	meta := &MetaTypeAssertExpr{}
 	if ctx != nil && ctx.okContext {
 		meta.NeedsOK = true
 	}
 	walkExpr(e.X, nil)
 	mapMeta[unsafe.Pointer(e)] = meta
+	return meta
 }
 
-func walkExpr(expr ast.Expr, ctx *evalContext) {
+type MetaExpr interface{}
+type MetaBasicLit struct {
+	e ast.Expr
+}
+type MetaIdent struct {
+	e ast.Expr
+}
+type MetaSelectorExpr struct {
+	e ast.Expr
+}
+type MetaSliceExpr struct {
+	e ast.Expr
+}
+type MetaStarExpr struct {
+	e ast.Expr
+}
+type MetaUnaryExpr struct {
+	e ast.Expr
+}
+type MetaBinaryExpr struct {
+	e ast.Expr
+}
+
+func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 	switch e := expr.(type) {
 	case *ast.ParenExpr:
-		walkParenExpr(e, ctx)
+		mt := walkParenExpr(e, ctx)
+		return mt
 	case *ast.BasicLit:
-		walkBasicLit(e, ctx)
+		mt := walkBasicLit(e, ctx)
+		return mt
 	case *ast.KeyValueExpr:
 		walkKeyValueExpr(e, ctx)
+		return nil
 	case *ast.CompositeLit:
-		walkCompositeLit(e, ctx)
+		mt := walkCompositeLit(e, ctx)
+		return mt
 	case *ast.Ident:
-		walkIdent(e, ctx)
+		mt := walkIdent(e, ctx)
+		return mt
 	case *ast.SelectorExpr:
-		walkSelectorExpr(e, ctx)
+		mt := walkSelectorExpr(e, ctx)
+		return mt
 	case *ast.CallExpr:
-		walkCallExpr(e, ctx)
+		mt := walkCallExpr(e, ctx)
+		return mt
 	case *ast.IndexExpr:
-		walkIndexExpr(e, ctx)
+		mt := walkIndexExpr(e, ctx)
+		return mt
 	case *ast.SliceExpr:
-		walkSliceExpr(e, ctx)
+		mt := walkSliceExpr(e, ctx)
+		return mt
 	case *ast.StarExpr:
-		walkStarExpr(e, ctx)
+		mt := walkStarExpr(e, ctx)
+		return mt
 	case *ast.UnaryExpr:
-		walkUnaryExpr(e, ctx)
+		mt := walkUnaryExpr(e, ctx)
+		return mt
 	case *ast.BinaryExpr:
-		walkBinaryExpr(e, ctx)
+		mt := walkBinaryExpr(e, ctx)
+		return mt
 	case *ast.TypeAssertExpr:
-		walkTypeAssertExpr(e, ctx)
+		mt := walkTypeAssertExpr(e, ctx)
+		return mt
 	case *ast.ArrayType: // type
 		walkArrayType(e) // []T(e)
 	case *ast.MapType: // type
@@ -4313,6 +4361,7 @@ func walkExpr(expr ast.Expr, ctx *evalContext) {
 	default:
 		throw(expr)
 	}
+	panic("TBI")
 }
 
 var ExportedQualifiedIdents = make(map[string]*ast.Ident)
