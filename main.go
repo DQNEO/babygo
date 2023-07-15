@@ -404,25 +404,25 @@ func emitZeroValue(t *Type) {
 	}
 }
 
-func emitLen(arg ast.Expr) {
-	switch kind(getTypeOfExpr(arg)) {
+func emitLen(arg MetaExpr) {
+	switch kind(getTypeOfExprMeta(arg)) {
 	case T_ARRAY:
-		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
+		arrayType := getTypeOfExprMeta(arg).E.(*ast.ArrayType)
 		emitExpr(arrayType.Len)
 	case T_SLICE:
-		emitExpr(arg)
+		emitExprMeta(arg)
 		emitPopSlice()
 		printf("  pushq %%rcx # len\n")
 	case T_STRING:
-		emitExpr(arg)
+		emitExprMeta(arg)
 		emitPopString()
 		printf("  pushq %%rcx # len\n")
 	case T_MAP:
 		args := []*Arg{
 			// len
 			&Arg{
-				e:         arg,
-				paramType: getTypeOfExpr(arg),
+				meta:      arg,
+				paramType: getTypeOfExprMeta(arg),
 			},
 		}
 		resultList := &ast.FieldList{
@@ -435,23 +435,23 @@ func emitLen(arg ast.Expr) {
 		emitCall("runtime.lenMap", args, resultList)
 
 	default:
-		unexpectedKind(kind(getTypeOfExpr(arg)))
+		unexpectedKind(kind(getTypeOfExprMeta(arg)))
 	}
 }
 
-func emitCap(arg ast.Expr) {
-	switch kind(getTypeOfExpr(arg)) {
+func emitCap(arg MetaExpr) {
+	switch kind(getTypeOfExprMeta(arg)) {
 	case T_ARRAY:
-		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
+		arrayType := getTypeOfExprMeta(arg).E.(*ast.ArrayType)
 		emitExpr(arrayType.Len)
 	case T_SLICE:
-		emitExpr(arg)
+		emitExprMeta(arg)
 		emitPopSlice()
 		printf("  pushq %%rdx # cap\n")
 	case T_STRING:
 		panic("cap() cannot accept string type")
 	default:
-		unexpectedKind(kind(getTypeOfExpr(arg)))
+		unexpectedKind(kind(getTypeOfExprMeta(arg)))
 	}
 }
 
@@ -726,13 +726,13 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 	}
 }
 
-func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr) {
+func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, arg0 MetaExpr) {
 	switch obj {
 	case gLen:
-		emitLen(eArgs[0])
+		emitLen(arg0)
 		return
 	case gCap:
-		emitCap(eArgs[0])
+		emitCap(arg0)
 		return
 	case gNew:
 		typeArg := e2t(eArgs[0])
@@ -908,7 +908,7 @@ func emitFuncall(meta *MetaCallExpr) {
 	emitComment(2, "[emitFuncall] %T(...)\n", meta.fun)
 	// check if it's a builtin func
 	if meta.builtin != nil {
-		emitBuiltinFunCall(meta.builtin, meta.args)
+		emitBuiltinFunCall(meta.builtin, meta.args, meta.arg0)
 		return
 	}
 
@@ -1192,7 +1192,7 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 	case T_SLICE, T_ARRAY:
 		if meta.Max == nil {
 			// new cap = cap(operand) - low
-			emitCap(e.X)
+			emitCap(meta.X)
 			emitExprMeta(meta.Low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # orig_cap\n")
@@ -1204,7 +1204,7 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 				emitExprMeta(meta.High)
 			} else {
 				// high = len(orig)
-				emitLen(e.X)
+				emitLen(meta.X)
 			}
 			emitExprMeta(meta.Low)
 			printf("  popq %%rcx # low\n")
@@ -1233,7 +1233,7 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 			emitExprMeta(meta.High)
 		} else {
 			// high = len(orig)
-			emitLen(e.X)
+			emitLen(meta.X)
 		}
 		emitExprMeta(meta.Low)
 		printf("  popq %%rcx # low\n")
@@ -2065,7 +2065,7 @@ func emitRangeStmt(meta *MetaForStmt) {
 	emitComment(2, "  assign length to lenvar\n")
 	// lenvar = len(s.X)
 	emitVariableAddr(meta.ForRange.LenVar)
-	emitLen(meta.ForRange.X)
+	emitLen(meta.ForRange.metaX)
 	emitStore(tInt, true, false)
 
 	emitComment(2, "  assign 0 to indexvar\n")
@@ -4007,7 +4007,8 @@ type MetaCallExpr struct {
 
 	// For Conversion
 	toType *Type
-	arg0   MetaExpr
+
+	arg0 MetaExpr // For conversion, len, cap
 
 	// For funcall
 	fun         ast.Expr
@@ -4068,7 +4069,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 		switch identFun.Obj {
 		case gLen, gCap:
 			meta.builtin = identFun.Obj
-			walkExpr(meta.args[0], nil)
+			meta.arg0 = walkExpr(meta.args[0], nil)
 			return meta
 		case gNew:
 			meta.builtin = identFun.Obj
