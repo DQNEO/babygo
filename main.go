@@ -3985,6 +3985,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 }
 
 type MetaCallExpr struct {
+	e            *ast.CallExpr
 	isConversion bool
 
 	// For Conversion
@@ -4006,8 +4007,9 @@ type MetaCallExpr struct {
 }
 
 func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
-	meta := &MetaCallExpr{}
-	mapCallExpr[unsafe.Pointer(e)] = meta
+	meta := &MetaCallExpr{
+		e: e,
+	}
 	if isType(e.Fun) {
 		meta.isConversion = true
 		meta.toType = e2t(e.Fun)
@@ -4215,6 +4217,7 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 }
 
 type MetaCompositLiteral struct {
+	e    *ast.CompositeLit
 	kind string // "struct", "array", "slice" // @TODO "map"
 
 	// for struct
@@ -4243,6 +4246,7 @@ func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiter
 		unexpectedKind(kind(e2t(e.Type)))
 	}
 	meta := &MetaCompositLiteral{
+		e:    e,
 		kind: knd,
 		typ:  getTypeOfExpr(e),
 	}
