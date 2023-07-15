@@ -1030,7 +1030,8 @@ func emitBasicLit(mt *MetaBasicLit) {
 }
 
 // 1 value
-func emitUnaryExpr(e *ast.UnaryExpr) {
+func emitUnaryExpr(meta *MetaUnaryExpr) {
+	e := meta.e
 	switch e.Op.String() {
 	case "+":
 		emitExpr(e.X)
@@ -1050,7 +1051,8 @@ func emitUnaryExpr(e *ast.UnaryExpr) {
 }
 
 // 1 value
-func emitBinaryExpr(e *ast.BinaryExpr) {
+func emitBinaryExpr(meta *MetaBinaryExpr) {
+	e := meta.e
 	switch e.Op.String() {
 	case "&&":
 		labelid++
@@ -1387,11 +1389,11 @@ func emitExpr(expr ast.Expr) {
 		if !ok {
 			panic("mapBasicLit not found:" + e.Value)
 		}
-		assert(mt != nil, "mapBasicLit should not be nil:"+e.Value, __func__)
+		assert(mt != nil, "map meta entry not found", __func__)
 		emitBasicLit(mt) // 1 value
 	case *ast.CompositeLit:
 		mt := mapCompositLit[unsafe.Pointer(e)]
-		assert(mt != nil, "MetaCompositLiteral should not be nil", __func__)
+		assert(mt != nil, "map meta entry not found", __func__)
 		emitCompositeLit(mt) // 1 value
 	case *ast.Ident:
 		emitIdent(e) // 1 value
@@ -1407,12 +1409,17 @@ func emitExpr(expr ast.Expr) {
 	case *ast.StarExpr:
 		emitStarExpr(e) // 1 value
 	case *ast.UnaryExpr:
-		emitUnaryExpr(e) // 1 value
+		logf2("Emitting unary expr:" + e.Op.String() + "\n")
+		mt := mapUnaryExpr[unsafe.Pointer(e)]
+		assert(mt != nil, "mapUnaryExpr: map meta entry not found", __func__)
+		emitUnaryExpr(mt) // 1 value
 	case *ast.BinaryExpr:
-		emitBinaryExpr(e) // 1 value
+		mt := mapBinaryExpr[unsafe.Pointer(e)]
+		assert(mt != nil, "mapBinaryExpr: map meta entry not found", __func__)
+		emitBinaryExpr(mt) // 1 value
 	case *ast.TypeAssertExpr:
 		mt := mapTypeAssertExpr[unsafe.Pointer(e)]
-		assert(mt != nil, "mapTypeAssertExpr should not be nil", __func__)
+		assert(mt != nil, "mapTypeAssertExpr: map meta entry not found", __func__)
 		emitTypeAssertExpr(mt) // 1 or 2 values
 	default:
 		throw(expr)
@@ -3480,12 +3487,12 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		case "-=":
 			op = token.SUB
 		}
-		walkExpr(s.Rhs[0], nil)
 		binaryExpr := &ast.BinaryExpr{
 			X:  s.Lhs[0],
 			Op: op,
 			Y:  s.Rhs[0],
 		}
+		walkExpr(binaryExpr, nil)
 		return &MetaSingleAssign{
 			lhs: s.Lhs[0],
 			rhs: binaryExpr,
@@ -4087,6 +4094,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 						Op: token.AND,
 						X:  receiver,
 					}
+					walkExpr(receiver, nil)
 				} else {
 					// v.mv() => as it is
 				}
@@ -4412,9 +4420,11 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return mt
 	case *ast.UnaryExpr:
 		mt := walkUnaryExpr(e, ctx)
+		mapUnaryExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.BinaryExpr:
 		mt := walkBinaryExpr(e, ctx)
+		mapBinaryExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.TypeAssertExpr:
 		mt := walkTypeAssertExpr(e, ctx)
