@@ -1802,19 +1802,19 @@ func emitAssignZeroValue(lhs ast.Expr, lhsType *Type) {
 
 }
 
-func emitSingleAssign(lhs ast.Expr, rhs ast.Expr) {
+func emitSingleAssign(lhs ast.Expr, rhs MetaExpr) {
 	//	lhs := metaSingle.lhs
 	//	rhs := metaSingle.rhs
 	if isBlankIdentifier(lhs) {
-		emitExpr(rhs)
-		emitPop(kind(getTypeOfExpr(rhs)))
+		emitExprMeta(rhs)
+		emitPop(kind(getTypeOfExprMeta(rhs)))
 		return
 	}
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
-	emitExpr(rhs)
-	mayEmitConvertTooIfc(rhs, getTypeOfExpr(lhs))
+	emitExprMeta(rhs)
+	mayEmitConvertTooIfcMeta(rhs, getTypeOfExpr(lhs))
 	emitStore(getTypeOfExpr(lhs), true, false)
 }
 
@@ -1830,11 +1830,11 @@ func emitExprStmt(s *MetaExprStmt) {
 
 // local decl stmt
 func emitDeclStmt(meta *MetaVarDecl) {
-	if meta.single.rhs == nil {
+	if meta.single.rhsMeta == nil {
 		// Assign zero value to LHS
 		emitAssignZeroValue(meta.single.lhs, meta.lhsType)
 	} else {
-		emitSingleAssign(meta.single.lhs, meta.single.rhs)
+		emitSingleAssign(meta.single.lhs, meta.single.rhsMeta)
 	}
 }
 
@@ -2346,7 +2346,7 @@ func emitStmt(mtstmt MetaStmt) {
 	case *MetaVarDecl:
 		emitDeclStmt(meta)
 	case *MetaSingleAssign:
-		emitSingleAssign(meta.lhs, meta.rhs)
+		emitSingleAssign(meta.lhs, meta.rhsMeta)
 	case *MetaOkAssignStmt:
 		emitOkAssignment(meta.tuple)
 	case *MetaFuncallAssignStmt:
@@ -2593,7 +2593,7 @@ func generateCode(pkg *PkgContainer) {
 		switch typeKind {
 		case T_POINTER, T_MAP, T_INTERFACE:
 			printf("# init global %s:\n", vr.name.Name)
-			emitSingleAssign(vr.name, vr.val)
+			emitSingleAssign(vr.name, vr.metaVal)
 		}
 	}
 	printf("  ret\n")
@@ -3389,15 +3389,15 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 		lhsIdent := spec.Names[0]
 		obj := lhsIdent.Obj
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
-		var rhs ast.Expr
+		var rhsMeta MetaExpr
 		if len(spec.Values) > 0 {
-			rhs = spec.Values[0]
+			rhs := spec.Values[0]
 			ctx := &evalContext{_type: t}
-			walkExpr(rhs, ctx)
+			rhsMeta = walkExpr(rhs, ctx)
 		}
 		single := &MetaSingleAssign{
-			lhs: lhsIdent,
-			rhs: rhs,
+			lhs:     lhsIdent,
+			rhsMeta: rhsMeta,
 		}
 		return &MetaVarDecl{
 			single:  single,
@@ -3450,13 +3450,13 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 						_type: getTypeOfExpr(s.Lhs[0]),
 					}
 				}
-				walkExpr(s.Rhs[0], ctx)
+				rhsMeta := walkExpr(s.Rhs[0], ctx)
 				for _, lhs := range s.Lhs {
 					walkExpr(lhs, nil)
 				}
 				mt = &MetaSingleAssign{
-					lhs: s.Lhs[0],
-					rhs: s.Rhs[0],
+					lhs:     s.Lhs[0],
+					rhsMeta: rhsMeta,
 				}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
 				rhsMeta := walkExpr(s.Rhs[0], nil)
@@ -3493,10 +3493,10 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			}
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
-				walkExpr(s.Rhs[0], nil) // FIXME
+				rhsMeta := walkExpr(s.Rhs[0], nil) // FIXME
 				mt = &MetaSingleAssign{
-					lhs: s.Lhs[0],
-					rhs: s.Rhs[0],
+					lhs:     s.Lhs[0],
+					rhsMeta: rhsMeta,
 				}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
 				rhsMeta := walkExpr(s.Rhs[0], nil)
@@ -3561,10 +3561,10 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			Op: op,
 			Y:  s.Rhs[0],
 		}
-		walkExpr(binaryExpr, nil)
+		rhsMeta := walkExpr(binaryExpr, nil)
 		return &MetaSingleAssign{
-			lhs: s.Lhs[0],
-			rhs: binaryExpr,
+			lhs:     s.Lhs[0],
+			rhsMeta: rhsMeta,
 		}
 	default:
 		panic("TBI")
@@ -3574,7 +3574,8 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 
 type MetaSingleAssign struct {
 	lhs ast.Expr
-	rhs ast.Expr // rhs can be nil
+	//rhs ast.Expr // rhs can be nil
+	rhsMeta MetaExpr // can be nil
 }
 
 type MetaTupleAssign struct {
@@ -3593,12 +3594,6 @@ type MetaOkAssignStmt struct {
 }
 type MetaFuncallAssignStmt struct {
 	tuple *MetaTupleAssign
-}
-
-type _MetaAssignStmt struct {
-	kind   string //"single", "ok", "funcall"
-	single *MetaSingleAssign
-	tuple  *MetaTupleAssign // "ok" or "funcall"
 }
 
 func walkReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
@@ -3745,10 +3740,10 @@ func walkIncDecStmt(s *ast.IncDecStmt) *MetaSingleAssign {
 		Y:  exprOne,
 		Op: binop,
 	}
-	walkExpr(newRhs, nil)
+	rhsMeta := walkExpr(newRhs, nil)
 	return &MetaSingleAssign{
-		lhs: s.X,
-		rhs: newRhs,
+		lhs:     s.X,
+		rhsMeta: rhsMeta,
 	}
 }
 
