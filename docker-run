@@ -10,6 +10,7 @@ else
 fi
 
 docker run -it --rm \
+    --name bbg \
     -w /root/go/src/github.com/DQNEO/babygo\
     -v `pwd`:/root/go/src/github.com/DQNEO/babygo\
     --cap-add=SYS_PTRACE\
