@@ -1179,7 +1179,8 @@ func emitCompositeLit(meta *MetaCompositLiteral) {
 }
 
 // 1 value list[low:high]
-func emitSliceExpr(e *ast.SliceExpr) {
+func emitSliceExpr(meta *MetaSliceExpr) {
+	e := meta.e
 	list := e.X
 	listType := getTypeOfExpr(list)
 
@@ -1397,7 +1398,9 @@ func emitExpr(expr ast.Expr) {
 		meta := mapIndexExpr[unsafe.Pointer(e)]
 		emitIndexExpr(meta) // 1 or 2 values
 	case *ast.SliceExpr:
-		emitSliceExpr(e) // 1 value list[low:high]
+		mt := mapSliceExpr[unsafe.Pointer(e)]
+		assert(mt != nil, "map meta entry not found", __func__)
+		emitSliceExpr(mt) // 1 value list[low:high]
 	case *ast.StarExpr:
 		meta := mapStarExpr[unsafe.Pointer(e)]
 		assert(meta != nil, "mapStarExpr: map meta entry not found", __func__)
@@ -4408,6 +4411,7 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return mt
 	case *ast.SliceExpr:
 		mt := walkSliceExpr(e, ctx)
+		mapSliceExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.StarExpr:
 		mt := walkStarExpr(e, ctx)
