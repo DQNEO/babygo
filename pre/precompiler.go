@@ -2650,16 +2650,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			if isVariable {
 				return variable.Typ
 			}
-			switch dcl := e.Obj.Decl.(type) {
-			case *ast.ValueSpec:
-				return e2t(dcl.Type)
-			case *ast.Field:
-				return e2t(dcl.Type)
-			case *ast.AssignStmt: // var lhs = rhs | lhs := rhs
-				return getTypeOfExpr(dcl.Rhs[0])
-			default:
-				panic("Unknown type")
-			}
+			panic("Variable is not set")
 		case ast.Con:
 			switch e.Obj {
 			case gTrue, gFalse:
