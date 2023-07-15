@@ -1822,7 +1822,7 @@ func emitBlockStmt(s *MetaBlockStmt) {
 }
 
 func emitExprStmt(s *MetaExprStmt) {
-	emitExpr(s.X)
+	emitExprMeta(s.X)
 }
 
 // local decl stmt
@@ -1837,14 +1837,14 @@ func emitDeclStmt(meta *MetaVarDecl) {
 
 // a, b = OkExpr
 func emitOkAssignment(meta *MetaTupleAssign) {
-	rhs0 := meta.rhs
+	rhs0 := meta.rhsMeta
 	rhsTypes := meta.rhsTypes
 
 	// ABI of stack layout after evaluating rhs0
 	//	-- stack top
 	//	bool
 	//	data
-	emitExpr(rhs0)
+	emitExprMeta(rhs0)
 	for i := 1; i >= 0; i-- {
 		lhs := meta.lhs[i]
 		rhsType := rhsTypes[i]
@@ -1862,10 +1862,10 @@ func emitOkAssignment(meta *MetaTupleAssign) {
 // assigns multi-values of a funcall
 // a, b (, c...) = f()
 func emitFuncallAssignment(meta *MetaTupleAssign) {
-	rhs0 := meta.rhs
+	rhs0 := meta.rhsMeta
 	rhsTypes := meta.rhsTypes
 
-	emitExpr(rhs0)
+	emitExprMeta(rhs0)
 	for i := 0; i < len(rhsTypes); i++ {
 		lhs := meta.lhs[i]
 		rhsType := rhsTypes[i]
@@ -3366,8 +3366,8 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 }
 
 func walkExprStmt(s *ast.ExprStmt) *MetaExprStmt {
-	walkExpr(s.X, nil)
-	return &MetaExprStmt{X: s.X}
+	m := walkExpr(s.X, nil)
+	return &MetaExprStmt{X: m}
 }
 
 func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
@@ -3433,7 +3433,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 	switch stok {
 	case "=":
 		if IsOkSyntax(s) {
-			walkExpr(s.Rhs[0], &evalContext{okContext: true})
+			rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
 			rhsTypes := []*Type{getTypeOfExpr(s.Rhs[0]), tBool}
 
 			for _, lhs := range s.Lhs {
@@ -3442,7 +3442,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			mt = &MetaOkAssignStmt{
 				tuple: &MetaTupleAssign{
 					lhs:      s.Lhs,
-					rhs:      s.Rhs[0],
+					rhsMeta:  rhsMeta,
 					rhsTypes: rhsTypes,
 				},
 			}
@@ -3463,9 +3463,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 					rhs: s.Rhs[0],
 				}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
-				for _, rhs := range s.Rhs {
-					walkExpr(rhs, nil) // FIXME
-				}
+				rhsMeta := walkExpr(s.Rhs[0], nil)
 				callExpr := s.Rhs[0].(*ast.CallExpr)
 				returnTypes := getCallResultTypes(callExpr)
 				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
@@ -3476,7 +3474,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				mt = &MetaFuncallAssignStmt{
 					tuple: &MetaTupleAssign{
 						lhs:      s.Lhs,
-						rhs:      s.Rhs[0],
+						rhsMeta:  rhsMeta,
 						rhsTypes: returnTypes,
 					},
 				}
@@ -3487,13 +3485,13 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		return mt
 	case ":=":
 		if IsOkSyntax(s) {
-			walkExpr(s.Rhs[0], &evalContext{okContext: true})
+			rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
 			rhsTypes := []*Type{getTypeOfExpr(s.Rhs[0]), tBool}
 
 			mt = &MetaOkAssignStmt{
 				tuple: &MetaTupleAssign{
 					lhs:      s.Lhs,
-					rhs:      s.Rhs[0],
+					rhsMeta:  rhsMeta,
 					rhsTypes: rhsTypes,
 				},
 			}
@@ -3505,9 +3503,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 					rhs: s.Rhs[0],
 				}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
-				for _, rhs := range s.Rhs {
-					walkExpr(rhs, nil) // FIXME
-				}
+				rhsMeta := walkExpr(s.Rhs[0], nil)
 				callExpr := s.Rhs[0].(*ast.CallExpr)
 				returnTypes := getCallResultTypes(callExpr)
 				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
@@ -3515,7 +3511,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				mt = &MetaFuncallAssignStmt{
 					tuple: &MetaTupleAssign{
 						lhs:      s.Lhs,
-						rhs:      s.Rhs[0],
+						rhsMeta:  rhsMeta,
 						rhsTypes: returnTypes,
 					},
 				}
@@ -3587,7 +3583,7 @@ type MetaSingleAssign struct {
 
 type MetaTupleAssign struct {
 	lhs      []ast.Expr
-	rhs      ast.Expr
+	rhsMeta  MetaExpr
 	rhsTypes []*Type
 }
 
@@ -3893,7 +3889,7 @@ type MetaBlockStmt struct {
 }
 
 type MetaExprStmt struct {
-	X ast.Expr
+	X MetaExpr
 }
 
 type MetaStmt interface{}
