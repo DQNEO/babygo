@@ -945,9 +945,7 @@ func emitIdent(meta *MetaIdent) {
 			emitAddr(e)
 			emitLoadAndPush(getTypeOfExpr(e))
 		case ast.Con:
-			valSpec := e.Obj.Decl.(*ast.ValueSpec)
-			lit := valSpec.Values[0].(*ast.BasicLit)
-			emitExpr(lit)
+			emitExpr(meta.conLiteral)
 		case ast.Fun:
 			emitAddr(e)
 		default:
@@ -1030,16 +1028,16 @@ func emitUnaryExpr(meta *MetaUnaryExpr) {
 	e := meta.e
 	switch e.Op.String() {
 	case "+":
-		emitExpr(e.X)
+		emitExprMeta(meta.X)
 	case "-":
-		emitExpr(e.X)
+		emitExprMeta(meta.X)
 		printf("  popq %%rax # e.X\n")
 		printf("  imulq $-1, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "&":
 		emitAddr(e.X)
 	case "!":
-		emitExpr(e.X)
+		emitExprMeta(meta.X)
 		emitInvertBoolValue()
 	default:
 		throw(e.Op)
@@ -1308,7 +1306,7 @@ func emitMapGet(e *ast.IndexExpr, okContext bool) {
 func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 	okContext := meta.NeedsOK
 	e := meta.e
-	emitExpr(e.X)
+	emitExprMeta(meta.X)
 	emitDtypeLabelAddr(e2t(e.Type))
 	emitCompareDtypes()
 
@@ -1341,7 +1339,7 @@ func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 func isUniverseNilMeta(meta MetaExpr) bool {
 	switch e := meta.(type) {
 	case *MetaIdent:
-		return e.IsUniverseNil
+		return e.kind == "nil"
 	default:
 		return false
 	}
@@ -3959,14 +3957,25 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		} else {
 			exprTypeMeta[unsafe.Pointer(e)] = ctx._type
 		}
-		meta.IsUniverseNil = true
+		meta.kind = "nil"
+	case gTrue:
+		meta.kind = "true"
+	case gFalse:
+		meta.kind = "false"
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
+			meta.kind = "var"
 		case ast.Con:
+			meta.kind = "con"
 			// TODO: attach type
+			valSpec := e.Obj.Decl.(*ast.ValueSpec)
+			lit := valSpec.Values[0].(*ast.BasicLit)
+			meta.conLiteral = lit
 		case ast.Fun:
+			meta.kind = "fun"
 		case ast.Typ:
+			meta.kind = "typ"
 			// int(expr)
 			// TODO: this should be avoided in advance
 		default: // ast.Pkg
@@ -4436,9 +4445,10 @@ type MetaBasicLit struct {
 }
 
 type MetaIdent struct {
-	e             *ast.Ident
-	Name          string
-	IsUniverseNil bool
+	e          *ast.Ident
+	kind       string // "nil|true|false|var|con|fun|typ"
+	Name       string
+	conLiteral *ast.BasicLit
 }
 
 type MetaSelectorExpr struct {
@@ -4658,7 +4668,7 @@ func walk(pkg *PkgContainer) {
 
 	for _, constSpec := range constSpecs {
 		for _, v := range constSpec.Values {
-			walkExpr(v, nil)
+			walkExpr(v, nil) // @TODO: store meta
 		}
 	}
 
