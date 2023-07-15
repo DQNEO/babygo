@@ -3390,10 +3390,63 @@ func IsOkSyntax(s *ast.AssignStmt) bool {
 
 func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 	var mt MetaStmt
-	walkExpr(s.Lhs[0], nil)
 	stok := s.Tok.String()
 	switch stok {
-	case "=", ":=":
+	case "=":
+		if IsOkSyntax(s) {
+			walkExpr(s.Rhs[0], &evalContext{okContext: true})
+			rhsTypes := []*Type{getTypeOfExpr(s.Rhs[0]), tBool}
+
+			for _, lhs := range s.Lhs {
+				walkExpr(lhs, nil)
+			}
+			mt = &MetaOkAssignStmt{
+				tuple: &MetaTupleAssign{
+					lhs:      s.Lhs,
+					rhs:      s.Rhs[0],
+					rhsTypes: rhsTypes,
+				},
+			}
+		} else {
+			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
+				var ctx *evalContext
+				if !isBlankIdentifier(s.Lhs[0]) {
+					ctx = &evalContext{
+						_type: getTypeOfExpr(s.Lhs[0]),
+					}
+				}
+				walkExpr(s.Rhs[0], ctx)
+				for _, lhs := range s.Lhs {
+					walkExpr(lhs, nil)
+				}
+				mt = &MetaSingleAssign{
+					lhs: s.Lhs[0],
+					rhs: s.Rhs[0],
+				}
+			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
+				for _, rhs := range s.Rhs {
+					walkExpr(rhs, nil) // FIXME
+				}
+				callExpr := s.Rhs[0].(*ast.CallExpr)
+				returnTypes := getCallResultTypes(callExpr)
+				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
+				for _, lhs := range s.Lhs {
+					walkExpr(lhs, nil)
+				}
+
+				mt = &MetaFuncallAssignStmt{
+					tuple: &MetaTupleAssign{
+						lhs:      s.Lhs,
+						rhs:      s.Rhs[0],
+						rhsTypes: returnTypes,
+					},
+				}
+			} else {
+				panic("TBI")
+			}
+		}
+		return mt
+	case ":=":
 		if IsOkSyntax(s) {
 			walkExpr(s.Rhs[0], &evalContext{okContext: true})
 			rhsTypes := []*Type{getTypeOfExpr(s.Rhs[0]), tBool}
@@ -3407,18 +3460,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			}
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
-				switch stok {
-				case "=":
-					var ctx *evalContext
-					if !isBlankIdentifier(s.Lhs[0]) {
-						ctx = &evalContext{
-							_type: getTypeOfExpr(s.Lhs[0]),
-						}
-					}
-					walkExpr(s.Rhs[0], ctx)
-				case ":=":
-					walkExpr(s.Rhs[0], nil) // FIXME
-				}
+				walkExpr(s.Rhs[0], nil) // FIXME
 				mt = &MetaSingleAssign{
 					lhs: s.Lhs[0],
 					rhs: s.Rhs[0],
@@ -3443,37 +3485,38 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			}
 		}
 
-		if stok == ":=" {
-			// Declare local variables
-			if len(s.Lhs) > 1 && len(s.Rhs) == 1 { // a, b, c := rhs0
-				// infer type
-				var types []*Type
-				rhs0 := s.Rhs[0]
-				switch rhs := rhs0.(type) {
-				case *ast.CallExpr:
-					types = getCallResultTypes(rhs)
-				case *ast.TypeAssertExpr: // v, ok := x.(T)
-					typ0 := getTypeOfExpr(rhs0)
-					types = []*Type{typ0, tBool}
-				case *ast.IndexExpr: // v, ok := m[k]
-					typ0 := getTypeOfExpr(rhs0)
-					types = []*Type{typ0, tBool}
-				default:
-					throw(rhs0)
-				}
-				for i, lhs := range s.Lhs {
-					obj := lhs.(*ast.Ident).Obj
-					typ := types[i]
-					setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
-				}
-			} else { // a, b, c := x, y, z
-				for i, lhs := range s.Lhs {
-					obj := lhs.(*ast.Ident).Obj
-					typ := getTypeOfExpr(s.Rhs[i]) // use rhs type
-					setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
-				}
+		// Declare local variables
+		if len(s.Lhs) > 1 && len(s.Rhs) == 1 { // a, b, c := rhs0
+			// infer type
+			var types []*Type
+			rhs0 := s.Rhs[0]
+			switch rhs := rhs0.(type) {
+			case *ast.CallExpr:
+				types = getCallResultTypes(rhs)
+			case *ast.TypeAssertExpr: // v, ok := x.(T)
+				typ0 := getTypeOfExpr(rhs0)
+				types = []*Type{typ0, tBool}
+			case *ast.IndexExpr: // v, ok := m[k]
+				typ0 := getTypeOfExpr(rhs0)
+				types = []*Type{typ0, tBool}
+			default:
+				throw(rhs0)
+			}
+			for i, lhs := range s.Lhs {
+				obj := lhs.(*ast.Ident).Obj
+				typ := types[i]
+				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				walkExpr(lhs, nil)
+			}
+		} else { // a, b, c := x, y, z
+			for i, lhs := range s.Lhs {
+				obj := lhs.(*ast.Ident).Obj
+				typ := getTypeOfExpr(s.Rhs[i]) // use rhs type
+				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				walkExpr(lhs, nil)
 			}
 		}
+		return mt
 	case "+=", "-=":
 		var op token.Token
 		switch stok {
@@ -3488,14 +3531,14 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			Op: op,
 			Y:  s.Rhs[0],
 		}
-		mt = &MetaSingleAssign{
+		return &MetaSingleAssign{
 			lhs: s.Lhs[0],
 			rhs: binaryExpr,
 		}
 	default:
 		panic("TBI")
 	}
-	return mt
+	return nil
 }
 
 type MetaSingleAssign struct {
