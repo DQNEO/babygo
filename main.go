@@ -1185,55 +1185,40 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 	list := e.X
 	listType := getTypeOfExpr(list)
 
-	// For convenience, any of the indices may be omitted.
-	// A missing low index defaults to zero;
-	var low ast.Expr
-	if e.Low != nil {
-		low = e.Low
-	} else {
-		eZeroInt := &ast.BasicLit{
-			Value: "0",
-			Kind:  token.INT,
-		}
-		walkExpr(eZeroInt, nil)
-		// @TODO attach int type to eZeroInt
-		low = eZeroInt
-	}
-
 	switch kind(listType) {
 	case T_SLICE, T_ARRAY:
-		if e.Max == nil {
+		if meta.Max == nil {
 			// new cap = cap(operand) - low
 			emitCap(e.X)
-			emitExpr(low)
+			emitExprMeta(meta.Low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # orig_cap\n")
 			printf("  subq %%rcx, %%rax # orig_cap - low\n")
 			printf("  pushq %%rax # new cap\n")
 
 			// new len = high - low
-			if e.High != nil {
-				emitExpr(e.High)
+			if meta.High != nil {
+				emitExprMeta(meta.High)
 			} else {
 				// high = len(orig)
 				emitLen(e.X)
 			}
-			emitExpr(low)
+			emitExprMeta(meta.Low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # high\n")
 			printf("  subq %%rcx, %%rax # high - low\n")
 			printf("  pushq %%rax # new len\n")
 		} else {
 			// new cap = max - low
-			emitExpr(e.Max)
-			emitExpr(low)
+			emitExprMeta(meta.Max)
+			emitExprMeta(meta.Low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # max\n")
 			printf("  subq %%rcx, %%rax # new cap = max - low\n")
 			printf("  pushq %%rax # new cap\n")
 			// new len = high - low
-			emitExpr(e.High)
-			emitExpr(low)
+			emitExprMeta(meta.High)
+			emitExprMeta(meta.Low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # high\n")
 			printf("  subq %%rcx, %%rax # new len = high - low\n")
@@ -1241,13 +1226,13 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 		}
 	case T_STRING:
 		// new len = high - low
-		if e.High != nil {
-			emitExpr(e.High)
+		if meta.High != nil {
+			emitExprMeta(meta.High)
 		} else {
 			// high = len(orig)
 			emitLen(e.X)
 		}
-		emitExpr(low)
+		emitExprMeta(meta.Low)
 		printf("  popq %%rcx # low\n")
 		printf("  popq %%rax # high\n")
 		printf("  subq %%rcx, %%rax # high - low\n")
@@ -1257,7 +1242,7 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 		unexpectedKind(kind(listType))
 	}
 
-	emitExpr(low) // index number
+	emitExprMeta(meta.Low) // index number
 	elmType := getElementTypeOfCollectionType(listType)
 	emitListElementAddr(list, elmType)
 }
@@ -1391,7 +1376,7 @@ func emitExprMeta(meta MetaExpr) {
 	case *MetaTypeAssertExpr:
 		emitTypeAssertExpr(m) // can be tuple
 	default:
-		throw(meta)
+		panic(fmt.Sprintf("meta type:%T", meta))
 	}
 }
 
@@ -4269,7 +4254,10 @@ func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
 }
 
 func walkBinaryExpr(e *ast.BinaryExpr, _ctx *evalContext) *MetaBinaryExpr {
-	meta := &MetaBinaryExpr{e: e}
+	meta := &MetaBinaryExpr{
+		e:  e,
+		Op: e.Op.String(),
+	}
 	var xCtx *evalContext
 	var yCtx *evalContext
 	if isNil(e.X) {
@@ -4303,9 +4291,20 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 
 func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) *MetaSliceExpr {
 	meta := &MetaSliceExpr{e: e}
+
+	// For convenience, any of the indices may be omitted.
+
+	// A missing low index defaults to zero;
 	if e.Low != nil {
 		meta.Low = walkExpr(e.Low, nil)
+	} else {
+		eZeroInt := &ast.BasicLit{
+			Value: "0",
+			Kind:  token.INT,
+		}
+		meta.Low = walkExpr(eZeroInt, nil)
 	}
+
 	if e.High != nil {
 		meta.High = walkExpr(e.High, nil)
 	}
@@ -4403,9 +4402,10 @@ type MetaUnaryExpr struct {
 	X MetaExpr
 }
 type MetaBinaryExpr struct {
-	e *ast.BinaryExpr
-	X MetaExpr
-	Y MetaExpr
+	e  *ast.BinaryExpr
+	Op string
+	X  MetaExpr
+	Y  MetaExpr
 }
 
 var mapBasicLit = make(map[unsafe.Pointer]*MetaBasicLit)
