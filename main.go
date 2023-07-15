@@ -956,13 +956,12 @@ func emitIdent(e *ast.Ident) {
 }
 
 // 1 or 2 values
-func emitIndexExpr(e *ast.IndexExpr) {
-	meta := mapMeta[unsafe.Pointer(e)].(*MetaIndexExpr)
+func emitIndexExpr(meta *MetaIndexExpr) {
 	if meta.IsMap {
-		emitMapGet(e, meta.NeedsOK)
+		emitMapGet(meta.e, meta.NeedsOK)
 	} else {
-		emitAddr(e)
-		emitLoadAndPush(getTypeOfExpr(e))
+		emitAddr(meta.e)
+		emitLoadAndPush(getTypeOfExpr(meta.e))
 	}
 }
 
@@ -992,7 +991,7 @@ func emitSelectorExpr(e *ast.SelectorExpr) {
 
 // multi values Fun(Args)
 func emitCallExpr(e *ast.CallExpr) {
-	meta := mapMeta[unsafe.Pointer(e)].(*MetaCallExpr)
+	meta := mapCallExpr[unsafe.Pointer(e)]
 	// check if it's a conversion
 	if meta.isConversion {
 		emitComment(2, "[emitCallExpr] Conversion\n")
@@ -1318,7 +1317,7 @@ func emitMapGet(e *ast.IndexExpr, okContext bool) {
 
 // 1 or 2 values
 func emitTypeAssertExpr(e *ast.TypeAssertExpr) {
-	meta := mapMeta[unsafe.Pointer(e)].(*MetaTypeAssertExpr)
+	meta := mapTypeAssertExpr[unsafe.Pointer(e)]
 	okContext := meta.NeedsOK
 
 	emitExpr(e.X)
@@ -1387,7 +1386,7 @@ func emitExpr(expr ast.Expr) {
 		assert(mt != nil, "mapBasicLit should not be nil:"+e.Value, __func__)
 		emitBasicLit(mt) // 1 value
 	case *ast.CompositeLit:
-		mt := mapMeta[unsafe.Pointer(e)].(*MetaCompositLiteral)
+		mt := mapCompositLit[unsafe.Pointer(e)]
 		assert(mt != nil, "MetaCompositLiteral should not be nil", __func__)
 		emitCompositeLit(mt) // 1 value
 	case *ast.Ident:
@@ -1397,7 +1396,8 @@ func emitExpr(expr ast.Expr) {
 	case *ast.CallExpr:
 		emitCallExpr(e) // multi values Fun(Args)
 	case *ast.IndexExpr:
-		emitIndexExpr(e) // 1 or 2 values
+		meta := mapIndexExpr[unsafe.Pointer(e)]
+		emitIndexExpr(meta) // 1 or 2 values
 	case *ast.SliceExpr:
 		emitSliceExpr(e) // 1 value list[low:high]
 	case *ast.StarExpr:
@@ -3929,7 +3929,7 @@ type MetaCallExpr struct {
 
 func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 	meta := &MetaCallExpr{}
-	mapMeta[unsafe.Pointer(e)] = meta
+	mapCallExpr[unsafe.Pointer(e)] = meta
 	if isType(e.Fun) {
 		meta.isConversion = true
 		meta.toType = e2t(e.Fun)
@@ -4166,7 +4166,7 @@ func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiter
 		kind: knd,
 		typ:  getTypeOfExpr(e),
 	}
-	mapMeta[unsafe.Pointer(e)] = meta
+	mapCompositLit[unsafe.Pointer(e)] = meta
 
 	switch kind(ut) {
 	case T_STRUCT:
@@ -4237,7 +4237,9 @@ func walkBinaryExpr(e *ast.BinaryExpr, _ctx *evalContext) *MetaBinaryExpr {
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
-	meta := &MetaIndexExpr{}
+	meta := &MetaIndexExpr{
+		e: e,
+	}
 	if kind(getTypeOfExpr(e.X)) == T_MAP {
 		meta.IsMap = true
 		if ctx != nil && ctx.okContext {
@@ -4246,7 +4248,6 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 	}
 	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	meta.X = walkExpr(e.X, nil)
-	mapMeta[unsafe.Pointer(e)] = meta
 	return meta
 }
 
@@ -4314,7 +4315,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssert
 		meta.NeedsOK = true
 	}
 	meta.X = walkExpr(e.X, nil)
-	mapMeta[unsafe.Pointer(e)] = meta
+	mapTypeAssertExpr[unsafe.Pointer(e)] = meta
 	return meta
 }
 
@@ -4396,6 +4397,7 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return mt
 	case *ast.IndexExpr:
 		mt := walkIndexExpr(e, ctx)
+		mapIndexExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.SliceExpr:
 		mt := walkSliceExpr(e, ctx)
@@ -5186,7 +5188,6 @@ func setVariable(obj *ast.Object, vr *Variable) {
 // map of expr to type
 var exprTypeMeta = make(map[unsafe.Pointer]*Type)
 
-var mapMeta = make(map[unsafe.Pointer]interface{})
 var mapFieldOffset = make(map[unsafe.Pointer]int)
 
 type MetaIndexExpr struct {
@@ -5194,6 +5195,7 @@ type MetaIndexExpr struct {
 	NeedsOK bool // when map, is it ok syntax ?
 	Index   MetaExpr
 	X       MetaExpr
+	e       *ast.IndexExpr
 }
 
 type MetaTypeAssertExpr struct {
