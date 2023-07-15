@@ -922,7 +922,8 @@ type evalContext struct {
 }
 
 // 1 value
-func emitIdent(e *ast.Ident) {
+func emitIdent(meta *MetaIdent) {
+	e := meta.e
 	//logf2("emitIdent ident=%s\n", e.Name)
 	assert(e.Obj != nil, " ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
@@ -977,7 +978,8 @@ func emitStarExpr(meta *MetaStarExpr) {
 }
 
 // 1 value X.Sel
-func emitSelectorExpr(e *ast.SelectorExpr) {
+func emitSelectorExpr(meta *MetaSelectorExpr) {
+	e := meta.e
 	// pkg.Ident or strct.field
 	if isQI(e) {
 		qi := selector2QI(e)
@@ -995,8 +997,7 @@ func emitSelectorExpr(e *ast.SelectorExpr) {
 }
 
 // multi values Fun(Args)
-func emitCallExpr(e *ast.CallExpr) {
-	meta := mapCallExpr[unsafe.Pointer(e)]
+func emitCallExpr(meta *MetaCallExpr) {
 	// check if it's a conversion
 	if meta.isConversion {
 		emitComment(2, "[emitCallExpr] Conversion\n")
@@ -1394,11 +1395,17 @@ func emitExpr(expr ast.Expr) {
 		assert(mt != nil, "map meta entry not found", __func__)
 		emitCompositeLit(mt) // 1 value
 	case *ast.Ident:
-		emitIdent(e) // 1 value
+		mt := mapIdent[unsafe.Pointer(e)]
+		assert(mt != nil, "mapIdent meta entry not found: ident="+e.Name, __func__)
+		emitIdent(mt) // 1 value
 	case *ast.SelectorExpr:
-		emitSelectorExpr(e) // 1 value X.Sel
+		mt := mapSelectorExpr[unsafe.Pointer(e)]
+		assert(mt != nil, "map meta entry not found", __func__)
+		emitSelectorExpr(mt) // 1 value X.Sel
 	case *ast.CallExpr:
-		emitCallExpr(e) // multi values Fun(Args)
+		mt := mapCallExpr[unsafe.Pointer(e)]
+		assert(mt != nil, "map meta entry not found", __func__)
+		emitCallExpr(mt) // multi values Fun(Args)
 	case *ast.IndexExpr:
 		meta := mapIndexExpr[unsafe.Pointer(e)]
 		emitIndexExpr(meta) // 1 or 2 values
@@ -4016,8 +4023,9 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 			return meta
 		case gDelete:
 			meta.builtin = identFun.Obj
-			ctx := &evalContext{_type: tTODO}
-			walkExpr(meta.args[1], ctx) // @TODO attach type of the map element
+			for _, arg := range meta.args {
+				walkExpr(arg, nil)
+			}
 			return meta
 		}
 	}
@@ -4403,12 +4411,15 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return mt
 	case *ast.Ident:
 		mt := walkIdent(e, ctx)
+		mapIdent[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.SelectorExpr:
 		mt := walkSelectorExpr(e, ctx)
+		mapSelectorExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.CallExpr:
 		mt := walkCallExpr(e, ctx)
+		mapCallExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.IndexExpr:
 		mt := walkIndexExpr(e, ctx)
