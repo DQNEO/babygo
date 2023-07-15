@@ -1059,14 +1059,14 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		labelid++
 		labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
 		labelExit := fmt.Sprintf(".L.%d.exit", labelid)
-		emitExpr(e.X) // left
+		emitExprMeta(meta.X) // left
 		emitPopBool("left")
 		printf("  cmpq $1, %%rax\n")
 		// exit with false if left is false
 		printf("  jne %s\n", labelExitWithFalse)
 
 		// if left is true, then eval right and exit
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.Y) // right
 		printf("  jmp %s\n", labelExit)
 
 		printf("  %s:\n", labelExitWithFalse)
@@ -1076,14 +1076,14 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		labelid++
 		labelExitWithTrue := fmt.Sprintf(".L.%d.true", labelid)
 		labelExit := fmt.Sprintf(".L.%d.exit", labelid)
-		emitExpr(e.X) // left
+		emitExprMeta(meta.X) // left
 		emitPopBool("left")
 		printf("  cmpq $1, %%rax\n")
 		// exit with true if left is true
 		printf("  je %s\n", labelExitWithTrue)
 
 		// if left is false, then eval right and exit
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.Y) // right
 		printf("  jmp %s\n", labelExit)
 
 		printf("  %s:\n", labelExitWithTrue)
@@ -1093,30 +1093,30 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		if kind(getTypeOfExpr(e.X)) == T_STRING {
 			emitCatStrings(e.X, e.Y)
 		} else {
-			emitExpr(e.X) // left
-			emitExpr(e.Y) // right
+			emitExprMeta(meta.X) // left
+			emitExprMeta(meta.Y) // right
 			printf("  popq %%rcx # right\n")
 			printf("  popq %%rax # left\n")
 			printf("  addq %%rcx, %%rax\n")
 			printf("  pushq %%rax\n")
 		}
 	case "-":
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.X) // left
+		emitExprMeta(meta.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  subq %%rcx, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "*":
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.X) // left
+		emitExprMeta(meta.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  imulq %%rcx, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "%":
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.X) // left
+		emitExprMeta(meta.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  movq $0, %%rdx # init %%rdx\n")
@@ -1124,8 +1124,8 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		printf("  movq %%rdx, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "/":
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.X) // left
+		emitExprMeta(meta.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  movq $0, %%rdx # init %%rdx\n")
@@ -1137,28 +1137,28 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		emitBinaryExprComparison(e.X, e.Y)
 		emitInvertBoolValue()
 	case "<":
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.X) // left
+		emitExprMeta(meta.Y) // right
 		emitCompExpr("setl")
 	case "<=":
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.X) // left
+		emitExprMeta(meta.Y) // right
 		emitCompExpr("setle")
 	case ">":
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.X) // left
+		emitExprMeta(meta.Y) // right
 		emitCompExpr("setg")
 	case ">=":
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.X) // left
+		emitExprMeta(meta.Y) // right
 		emitCompExpr("setge")
 	case "|":
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.X) // left
+		emitExprMeta(meta.Y) // right
 		emitBitWiseOr()
 	case "&":
-		emitExpr(e.X) // left
-		emitExpr(e.Y) // right
+		emitExprMeta(meta.X) // left
+		emitExprMeta(meta.Y) // right
 		emitBitWiseAnd()
 	default:
 		panic(e.Op.String())
