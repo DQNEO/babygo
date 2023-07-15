@@ -1220,6 +1220,7 @@ func emitSliceExpr(e *ast.SliceExpr) {
 			Value: "0",
 			Kind:  token.INT,
 		}
+		walkExpr(eZeroInt, nil)
 		// @TODO attach int type to eZeroInt
 		low = eZeroInt
 	}
@@ -1407,6 +1408,11 @@ func emitExpr(expr ast.Expr) {
 	case *ast.ParenExpr:
 		emitParenExpr(e) // multi values (e)
 	case *ast.BasicLit:
+		mt, ok := mapBasicLit[unsafe.Pointer(e)]
+		if !ok {
+			panic("mapBasicLit not found:" + e.Value)
+		}
+		assert(mt != nil, "mapBasicLit should not be nil:"+e.Value, __func__)
 		emitBasicLit(e) // 1 value
 	case *ast.CompositeLit:
 		emitCompositeLit(e) // 1 value
@@ -1541,6 +1547,7 @@ func newNumberLiteral(x int) *ast.BasicLit {
 		Kind:  token.INT,
 		Value: strconv.Itoa(x),
 	}
+	walkExpr(e, nil)
 	return e
 }
 
@@ -2373,7 +2380,7 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("\n")
-	//logf2("# emitFuncDecl pkg=%s, fnc.name=%s\n", pkgName, fnc.Name)
+	logf2("# emitFuncDecl pkg=%s, fnc.name=%s\n", pkgName, fnc.Name)
 	var symbol string
 	if fnc.Method != nil {
 		symbol = getMethodSymbol(fnc.Method)
@@ -3327,6 +3334,8 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 				panic("rhs should have a type")
 			}
 			spec.Type = typ.E // set lhs type
+		} else {
+			walkExpr(spec.Type, nil)
 		}
 		t := e2t(spec.Type)
 		lhsIdent := spec.Names[0]
@@ -3635,6 +3644,7 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 	collectionType := getUnderlyingType(getTypeOfExpr(s.X))
 	keyType := getKeyTypeOfCollectionType(collectionType)
 	elmType := getElementTypeOfCollectionType(collectionType)
+	walkExpr(tInt.E, nil)
 	switch kind(collectionType) {
 	case T_SLICE, T_ARRAY:
 		meta.ForRange = &MetaForRange{
@@ -3674,7 +3684,6 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 }
 
 func walkIncDecStmt(s *ast.IncDecStmt) *MetaSingleAssign {
-	walkExpr(s.X, nil)
 	var binop token.Token
 	switch s.Tok.String() {
 	case "++":
@@ -3690,6 +3699,7 @@ func walkIncDecStmt(s *ast.IncDecStmt) *MetaSingleAssign {
 		Y:  exprOne,
 		Op: binop,
 	}
+	walkExpr(newRhs, nil)
 	return &MetaSingleAssign{
 		lhs: s.X,
 		rhs: newRhs,
@@ -3980,20 +3990,20 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 	walkExpr(e.Fun, nil)
 
 	// Replace __func__ ident by a string literal
-	for i, arg := range meta.args {
-		ident, ok := arg.(*ast.Ident)
-		if ok {
-			if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
-				basicLit := &ast.BasicLit{
-					Kind:  token.STRING,
-					Value: "\"" + currentFunc.Name + "\"",
-				}
-				arg = basicLit
-				e.Args[i] = arg
-			}
-		}
-
-	}
+	//for i, arg := range meta.args {
+	//	ident, ok := arg.(*ast.Ident)
+	//	if ok {
+	//		if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
+	//			basicLit := &ast.BasicLit{
+	//				Kind:  token.STRING,
+	//				Value: "\"" + currentFunc.Name + "\"",
+	//			}
+	//			arg = basicLit
+	//			e.Args[i] = arg
+	//		}
+	//	}
+	//
+	//}
 
 	identFun, isIdent := meta.fun.(*ast.Ident)
 	if isIdent {
@@ -4126,10 +4136,6 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 	return meta
 }
 
-func walkParenExpr(e *ast.ParenExpr, ctx *evalContext) MetaExpr {
-	return walkExpr(e.X, ctx)
-}
-
 func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 	switch e.Kind.String() {
 	case "INT":
@@ -4161,6 +4167,7 @@ type MetaCompositLiteral struct {
 }
 
 func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiteral {
+	walkExpr(e.Type, nil) // a[len("foo")]{...} // "foo" should be walked
 	ut := getUnderlyingType(getTypeOfExpr(e))
 	var knd string
 	switch kind(ut) {
@@ -4276,10 +4283,13 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) *MetaSliceExpr {
 	return meta
 }
 
-// []T(e)
+// [N]T(e)
 func walkArrayType(e *ast.ArrayType) {
-	// first argument of builtin func
-	// do nothing
+	// BasicLit in N should be walked
+	// e.g. A[5], A[len("foo")]
+	if e.Len != nil {
+		walkExpr(e.Len, nil)
+	}
 }
 func walkMapType(e *ast.MapType) {
 	// first argument of builtin func
@@ -4363,13 +4373,16 @@ type MetaBinaryExpr struct {
 	Y MetaExpr
 }
 
+var mapBasicLit = make(map[unsafe.Pointer]*MetaBasicLit)
+
 func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 	switch e := expr.(type) {
 	case *ast.ParenExpr:
-		mt := walkParenExpr(e, ctx)
+		mt := walkExpr(e.X, ctx)
 		return mt
 	case *ast.BasicLit:
 		mt := walkBasicLit(e, ctx)
+		mapBasicLit[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.KeyValueExpr:
 		walkKeyValueExpr(e, ctx)
@@ -4406,12 +4419,17 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return mt
 	case *ast.ArrayType: // type
 		walkArrayType(e) // []T(e)
+		return nil
 	case *ast.MapType: // type
 		walkMapType(e)
+		return nil
 	case *ast.InterfaceType: // type
 		walkInterfaceType(e)
+		return nil
+	case *ast.FuncType:
+		return nil // @TODO walk
 	default:
-		throw(expr)
+		panic(fmt.Sprintf("unknown type %T", expr))
 	}
 	panic("TBI")
 }
@@ -4459,7 +4477,7 @@ func walk(pkg *PkgContainer) {
 	var constSpecs []*ast.ValueSpec
 
 	var exportedTpyes []*Type
-	// grouping declarations by type
+	logf2("grouping declarations by type\n")
 	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
@@ -4485,6 +4503,7 @@ func walk(pkg *PkgContainer) {
 		}
 	}
 
+	logf2("checking typeSpecs...\n")
 	for _, typeSpec := range typeSpecs {
 		//@TODO check serializeType()'s *ast.Ident case
 		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
@@ -4506,6 +4525,8 @@ func walk(pkg *PkgContainer) {
 		ExportedQualifiedIdents[string(newQI(pkg.name, typeSpec.Name.Name))] = typeSpec.Name
 	}
 
+	logf2("checking funcDecls...\n")
+
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil { // non-method function
@@ -4519,12 +4540,15 @@ func walk(pkg *PkgContainer) {
 		}
 	}
 
+	logf2("walking constSpecs...\n")
+
 	for _, constSpec := range constSpecs {
 		for _, v := range constSpec.Values {
 			walkExpr(v, nil)
 		}
 	}
 
+	logf2("walking varSpecs...\n")
 	for _, varSpec := range varSpecs {
 		nameIdent := varSpec.Names[0]
 		assert(nameIdent.Obj.Kind == ast.Var, "should be Var", __func__)
@@ -4536,6 +4560,8 @@ func walk(pkg *PkgContainer) {
 				panic("variable type is not determined : " + nameIdent.Name)
 			}
 			varSpec.Type = t.E
+		} else {
+			walkExpr(varSpec.Type, nil)
 		}
 		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		setVariable(nameIdent.Obj, variable)
@@ -4547,7 +4573,10 @@ func walk(pkg *PkgContainer) {
 		}
 	}
 
+	logf2("walking funcDecls in detail ...\n")
+
 	for _, funcDecl := range funcDecls {
+		logf2("walking funcDecl \"%s\" \n", funcDecl.Name.Name)
 		fnc := &Func{
 			Name:      funcDecl.Name.Name,
 			FuncType:  funcDecl.Type,

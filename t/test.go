@@ -589,9 +589,16 @@ func testStrings() {
 	}
 }
 
+func XXX() {
+	a := [3]int{10, 20, 30}
+	var s []int
+	s = a[1:2]
+	writeln(len(s))
+}
+
 // https://golang.org/ref/spec#Slice_expressions
 func testSliceExpr() {
-	a := [5]int{1, 2, 3, 4, 5}
+	a := [5]int{1, 2, 3, 4, 10}
 	var s []int
 	s = a[1:4]
 	for _, elm := range s {
@@ -679,13 +686,14 @@ func testExpandSlice() {
 	takeStringVaargs("foo", "bar", "buz")
 }
 
-var gArrayForFullSlice [3]int
+var gArrayForFullSlice [4]int
 
 func testFullSlice() {
-	gArrayForFullSlice = [3]int{
+	gArrayForFullSlice = [4]int{
 		2,
 		4,
 		6,
+		0,
 	}
 
 	for _, i := range gArrayForFullSlice {
