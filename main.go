@@ -966,9 +966,9 @@ func emitIndexExpr(meta *MetaIndexExpr) {
 }
 
 // 1 value
-func emitStarExpr(e *ast.StarExpr) {
-	emitAddr(e)
-	emitLoadAndPush(getTypeOfExpr(e))
+func emitStarExpr(meta *MetaStarExpr) {
+	emitAddr(meta.e)
+	emitLoadAndPush(getTypeOfExpr(meta.e))
 }
 
 // 1 value X.Sel
@@ -1380,10 +1380,7 @@ func emitExpr(expr ast.Expr) {
 	case *ast.ParenExpr:
 		emitExpr(e.X) // multi values (e)
 	case *ast.BasicLit:
-		mt, ok := mapBasicLit[unsafe.Pointer(e)]
-		if !ok {
-			panic("mapBasicLit not found:" + e.Value)
-		}
+		mt := mapBasicLit[unsafe.Pointer(e)]
 		assert(mt != nil, "map meta entry not found", __func__)
 		emitBasicLit(mt) // 1 value
 	case *ast.CompositeLit:
@@ -1402,9 +1399,10 @@ func emitExpr(expr ast.Expr) {
 	case *ast.SliceExpr:
 		emitSliceExpr(e) // 1 value list[low:high]
 	case *ast.StarExpr:
-		emitStarExpr(e) // 1 value
+		meta := mapStarExpr[unsafe.Pointer(e)]
+		assert(meta != nil, "mapStarExpr: map meta entry not found", __func__)
+		emitStarExpr(meta) // 1 value
 	case *ast.UnaryExpr:
-		logf2("Emitting unary expr:" + e.Op.String() + "\n")
 		mt := mapUnaryExpr[unsafe.Pointer(e)]
 		assert(mt != nil, "mapUnaryExpr: map meta entry not found", __func__)
 		emitUnaryExpr(mt) // 1 value
@@ -2788,6 +2786,7 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 				starExpr := &ast.StarExpr{
 					X: e.Args[0],
 				}
+				walkExpr(starExpr, nil)
 				return []*Type{e2t(starExpr)}
 			case gMake:
 				return []*Type{e2t(e.Args[0])}
@@ -4412,6 +4411,7 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return mt
 	case *ast.StarExpr:
 		mt := walkStarExpr(e, ctx)
+		mapStarExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.UnaryExpr:
 		mt := walkUnaryExpr(e, ctx)
