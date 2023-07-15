@@ -2431,10 +2431,10 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("  ret\n")
 }
 
-func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Expr) {
+func emitGlobalVariable(pkg *PkgContainer, name string, t *Type, val ast.Expr) {
 	typeKind := kind(t)
-	printf(".global %s.%s\n", pkg.name, name.Name)
-	printf("%s.%s: # T %s\n", pkg.name, name.Name, string(typeKind))
+	printf(".global %s.%s\n", pkg.name, name)
+	printf("%s.%s: # T %s\n", pkg.name, name, string(typeKind))
 	switch typeKind {
 	case T_STRING:
 		switch vl := val.(type) {
@@ -2578,15 +2578,11 @@ func generateCode(pkg *PkgContainer) {
 	}
 
 	printf("#--- global vars (static values)\n")
-	for _, spec := range pkg.vars {
-		var val ast.Expr
-		if len(spec.Values) > 0 {
-			val = spec.Values[0]
+	for _, vr := range pkg.vars {
+		if vr.typ == nil {
+			panic("type cannot be nil for global variable: " + vr.name.Name)
 		}
-		if spec.Type == nil {
-			panic("type cannot be nil for global variable: " + spec.Names[0].Name)
-		}
-		emitGlobalVariable(pkg, spec.Names[0], e2t(spec.Type), val)
+		emitGlobalVariable(pkg, vr.name.Name, vr.typ, vr.val)
 	}
 
 	printf("\n")
@@ -2594,18 +2590,15 @@ func generateCode(pkg *PkgContainer) {
 	printf(".text\n")
 	printf(".global %s.__initGlobals\n", pkg.name)
 	printf("%s.__initGlobals:\n", pkg.name)
-	for _, spec := range pkg.vars {
-		if len(spec.Values) == 0 {
+	for _, vr := range pkg.vars {
+		if vr.val == nil {
 			continue
 		}
-		val := spec.Values[0]
-		t := e2t(spec.Type)
-		name := spec.Names[0]
-		typeKind := kind(t)
+		typeKind := kind(vr.typ)
 		switch typeKind {
 		case T_POINTER, T_MAP, T_INTERFACE:
-			printf("# init global %s:\n", name.Name)
-			emitSingleAssign(name, val)
+			printf("# init global %s:\n", vr.name.Name)
+			emitSingleAssign(vr.name, vr.val)
 		}
 	}
 	printf("  ret\n")
@@ -4692,25 +4685,38 @@ func walk(pkg *PkgContainer) {
 	for _, varSpec := range varSpecs {
 		nameIdent := varSpec.Names[0]
 		assert(nameIdent.Obj.Kind == ast.Var, "should be Var", __func__)
+		var t *Type
 		if varSpec.Type == nil {
 			// Infer type
 			val := varSpec.Values[0]
-			t := getTypeOfExpr(val)
+			t = getTypeOfExpr(val)
 			if t == nil {
 				panic("variable type is not determined : " + nameIdent.Name)
 			}
 			varSpec.Type = t.E
 		} else {
 			walkExpr(varSpec.Type, nil)
+			t = e2t(varSpec.Type)
 		}
 		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
 		setVariable(nameIdent.Obj, variable)
-		pkg.vars = append(pkg.vars, varSpec)
-		ExportedQualifiedIdents[string(newQI(pkg.name, nameIdent.Name))] = nameIdent
-		for _, v := range varSpec.Values {
-			// mainly to collect string literals
-			walkExpr(v, nil)
+		var val ast.Expr
+		var metaVal MetaExpr
+		if len(varSpec.Values) > 0 {
+			val = varSpec.Values[0]
+			// collect string literals
+			metaVal = walkExpr(val, nil)
 		}
+
+		pkgVar := &packageVar{
+			spec:    varSpec,
+			name:    nameIdent,
+			val:     val,
+			metaVal: metaVal,
+			typ:     t,
+		}
+		pkg.vars = append(pkg.vars, pkgVar)
+		ExportedQualifiedIdents[string(newQI(pkg.name, nameIdent.Name))] = nameIdent
 	}
 
 	logf2("walking funcDecls in detail ...\n")
@@ -4951,11 +4957,19 @@ type PackageToBuild struct {
 	files []string
 }
 
+type packageVar struct {
+	spec    *ast.ValueSpec
+	name    *ast.Ident
+	val     ast.Expr // can be nil
+	metaVal MetaExpr // can be nil
+	typ     *Type    // cannot be nil
+}
+
 type PkgContainer struct {
 	path           string
 	name           string
 	astFiles       []*ast.File
-	vars           []*ast.ValueSpec
+	vars           []*packageVar
 	funcs          []*Func
 	stringLiterals []*sliteral
 	stringIndex    int
