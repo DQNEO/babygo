@@ -1370,6 +1370,36 @@ func isUniverseNil(expr ast.Expr) bool {
 	}
 }
 
+func emitExprMeta(meta MetaExpr) {
+	emitComment(2, "[emitExprMeta] meta=%T\n", meta)
+	switch m := meta.(type) {
+	case *MetaBasicLit:
+		emitBasicLit(m)
+	case *MetaCompositLiteral:
+		emitCompositeLit(m)
+	case *MetaIdent:
+		emitIdent(m)
+	case *MetaSelectorExpr:
+		emitSelectorExpr(m)
+	case *MetaCallExpr:
+		emitCallExpr(m) // can be tuple
+	case *MetaIndexExpr:
+		emitIndexExpr(m) // can be tuple
+	case *MetaSliceExpr:
+		emitSliceExpr(m)
+	case *MetaStarExpr:
+		emitStarExpr(m)
+	case *MetaUnaryExpr:
+		emitUnaryExpr(m)
+	case *MetaBinaryExpr:
+		emitBinaryExpr(m)
+	case *MetaTypeAssertExpr:
+		emitTypeAssertExpr(m) // can be tuple
+	default:
+		throw(meta)
+	}
+}
+
 // targetType is the type of someone who receives the expr value.
 // There are various forms:
 //
@@ -2124,7 +2154,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 	if s.Tag == nil {
 		panic("Omitted tag is not supported yet")
 	}
-	emitExpr(s.Tag)
+	emitExprMeta(s.TagMeta)
 	condType := getTypeOfExpr(s.Tag)
 	cases := s.cases
 	var labels = make([]string, len(cases), len(cases))
@@ -2134,11 +2164,11 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 		labelid++
 		labelCase := fmt.Sprintf(".L.case.%d", labelid)
 		labels[i] = labelCase
-		if len(cc.List) == 0 {
+		if len(cc.ListMeta) == 0 {
 			defaultLabel = labelCase
 			continue
 		}
-		for _, e := range cc.List {
+		for _, m := range cc.ListMeta {
 			assert(getSizeOfType(condType) <= 8 || kind(condType) == T_STRING, "should be one register size or string", __func__)
 			switch kind(condType) {
 			case T_STRING:
@@ -2146,7 +2176,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 				emitAllocReturnVarsAreaFF(ff)
 
 				emitPushStackTop(condType, SizeOfInt, "switch expr")
-				emitExpr(e)
+				emitExprMeta(m)
 
 				emitCallFF(ff)
 			case T_INTERFACE:
@@ -2155,12 +2185,12 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 				emitAllocReturnVarsAreaFF(ff)
 
 				emitPushStackTop(condType, SizeOfInt, "switch expr")
-				emitExpr(e)
+				emitExprMeta(m)
 
 				emitCallFF(ff)
 			case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 				emitPushStackTop(condType, 0, "switch expr")
-				emitExpr(e)
+				emitExprMeta(m)
 				emitCompExpr("sete")
 			default:
 				unexpectedKind(kind(condType))
@@ -3696,7 +3726,7 @@ func walkSwitchStmt(s *ast.SwitchStmt) *MetaSwitchStmt {
 		meta.Init = walkStmt(s.Init)
 	}
 	if s.Tag != nil {
-		walkExpr(s.Tag, nil)
+		meta.TagMeta = walkExpr(s.Tag, nil)
 		meta.Tag = s.Tag
 	}
 	var cases []*MetaCaseClause
@@ -3775,8 +3805,10 @@ func isNil(e ast.Expr) bool {
 }
 
 func walkCaseClause(s *ast.CaseClause) *MetaCaseClause {
+	var listMeta []MetaExpr
 	for _, e := range s.List {
-		walkExpr(e, nil)
+		m := walkExpr(e, nil)
+		listMeta = append(listMeta, m)
 	}
 	var body []MetaStmt
 	for _, stmt := range s.Body {
@@ -3784,8 +3816,8 @@ func walkCaseClause(s *ast.CaseClause) *MetaCaseClause {
 		body = append(body, metaStmt)
 	}
 	return &MetaCaseClause{
-		List: s.List,
-		Body: body,
+		ListMeta: listMeta,
+		Body:     body,
 	}
 }
 
@@ -5270,14 +5302,15 @@ type MetaBranchStmt struct {
 }
 
 type MetaCaseClause struct {
-	List []ast.Expr
-	Body []MetaStmt
+	ListMeta []MetaExpr
+	Body     []MetaStmt
 }
 
 type MetaSwitchStmt struct {
-	Init  MetaStmt
-	Tag   ast.Expr
-	cases []*MetaCaseClause
+	Init    MetaStmt
+	Tag     ast.Expr
+	cases   []*MetaCaseClause
+	TagMeta MetaExpr
 }
 
 type MetaTypeSwitchStmt struct {
