@@ -3653,7 +3653,6 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 	}
 	currentFor = meta
 	walkExpr(s.X, nil)
-	mtBlock := walkBlockStmt(s.Body)
 
 	collectionType := getUnderlyingType(getTypeOfExpr(s.X))
 	keyType := getKeyTypeOfCollectionType(collectionType)
@@ -3688,6 +3687,7 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 		valueIdent := s.Value.(*ast.Ident)
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
+	mtBlock := walkBlockStmt(s.Body)
 	meta.Body = mtBlock
 	currentFor = meta.Outer
 	return meta
@@ -3766,7 +3766,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 
 		if assignIdent != nil && len(cc.List) > 0 {
 			var varType *Type
-			if isNil(cc.List[0]) {
+			if len(cc.List) == 0 || isNil(cc.List[0]) {
 				varType = getTypeOfExpr(typeSwitch.Subject)
 			} else {
 				varType = e2t(cc.List[0])
