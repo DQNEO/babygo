@@ -5149,6 +5149,7 @@ func setVariable(obj *ast.Object, vr *Variable) {
 var exprTypeMeta = make(map[unsafe.Pointer]*Type)
 
 var mapMeta = make(map[unsafe.Pointer]interface{})
+var mapFieldOffset = make(map[unsafe.Pointer]int)
 
 type MetaIndexExpr struct {
 	IsMap   bool // mp[k]
@@ -5249,11 +5250,11 @@ type Variable struct {
 }
 
 func getStructFieldOffset(field *ast.Field) int {
-	return mapMeta[unsafe.Pointer(field)].(int)
+	return mapFieldOffset[unsafe.Pointer(field)]
 }
 
 func setStructFieldOffset(field *ast.Field, offset int) {
-	mapMeta[unsafe.Pointer(field)] = offset
+	mapFieldOffset[unsafe.Pointer(field)] = offset
 }
 
 func throw(x interface{}) {
