@@ -502,13 +502,13 @@ func emitArrayLiteral(meta *MetaCompositLiteral) {
 	memSize := elmSize * meta.len
 
 	emitCallMalloc(memSize) // push
-	for i, elm := range meta.elms {
+	for i, elm := range meta.metaElms {
 		// push lhs address
 		emitPushStackTop(tUintptr, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		// push rhs value
-		emitExpr(elm)
-		mayEmitConvertTooIfc(elm, elmType)
+		emitExprMeta(elm)
+		mayEmitConvertTooIfcMeta(elm, elmType)
 
 		// assign
 		emitStore(elmType, true, false)
@@ -1789,7 +1789,7 @@ func isBlankIdentifier(e ast.Expr) bool {
 func emitAssignToVar(vr *Variable, rhs MetaExpr) {
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitVariableAddr(vr)
-	emitComment(2, "Assignment: emitExpr(rhs)\n")
+	emitComment(2, "Assignment: emitExprMeta(rhs)\n")
 
 	emitExprMeta(rhs)
 	mayEmitConvertTooIfcMeta(rhs, vr.Typ)
@@ -4258,8 +4258,8 @@ type MetaCompositLiteral struct {
 	// for array or slice
 	arrayType *ast.ArrayType
 	len       int
-	elms      []ast.Expr
 	elmType   *Type
+	metaElms  []MetaExpr
 }
 
 func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiteral {
@@ -4308,20 +4308,24 @@ func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiter
 		meta.arrayType = ut.E.(*ast.ArrayType)
 		meta.len = evalInt(meta.arrayType.Len)
 		meta.elmType = e2t(meta.arrayType.Elt)
-		meta.elms = e.Elts
 		ctx := &evalContext{_type: meta.elmType}
+		var ms []MetaExpr
 		for _, v := range e.Elts {
-			walkExpr(v, ctx)
+			m := walkExpr(v, ctx)
+			ms = append(ms, m)
 		}
+		meta.metaElms = ms
 	case T_SLICE:
 		meta.arrayType = ut.E.(*ast.ArrayType)
 		meta.len = len(e.Elts)
 		meta.elmType = e2t(meta.arrayType.Elt)
-		meta.elms = e.Elts
 		ctx := &evalContext{_type: meta.elmType}
+		var ms []MetaExpr
 		for _, v := range e.Elts {
-			walkExpr(v, ctx)
+			m := walkExpr(v, ctx)
+			ms = append(ms, m)
 		}
+		meta.metaElms = ms
 	}
 	return meta
 }
