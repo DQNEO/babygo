@@ -1440,8 +1440,7 @@ func emitConvertToInterface(fromType *Type) {
 }
 
 func mayEmitConvertTooIfc(expr ast.Expr, ctxType *Type) {
-	isNilObj := isUniverseNil(expr)
-	if !isNilObj && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExpr(expr)) {
+	if !isUniverseNil(expr) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExpr(expr)) {
 		emitConvertToInterface(getTypeOfExpr(expr))
 	}
 }
