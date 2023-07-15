@@ -916,12 +916,6 @@ func emitFuncall(meta *MetaCallExpr) {
 	emitCall(meta.funcVal, meta.metaArgs, meta.funcType.Results)
 }
 
-func emitNamedConst(ident *ast.Ident) {
-	valSpec := ident.Obj.Decl.(*ast.ValueSpec)
-	lit := valSpec.Values[0].(*ast.BasicLit)
-	emitExpr(lit)
-}
-
 type evalContext struct {
 	okContext bool
 	_type     *Type
@@ -955,7 +949,9 @@ func emitIdent(e *ast.Ident) {
 			emitAddr(e)
 			emitLoadAndPush(getTypeOfExpr(e))
 		case ast.Con:
-			emitNamedConst(e)
+			valSpec := e.Obj.Decl.(*ast.ValueSpec)
+			lit := valSpec.Values[0].(*ast.BasicLit)
+			emitExpr(lit)
 		case ast.Fun:
 			emitAddr(e)
 		default:
@@ -2640,12 +2636,6 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		assert(e.Obj != nil, "Obj is nil in ident '"+e.Name+"'", __func__)
 		switch e.Obj.Kind {
 		case ast.Var:
-			// injected type is the 1st priority
-			// this use case happens in type switch with short decl var
-			// switch ident := x.(type) {
-			// case T:
-			//    y := ident // <= type of ident cannot be associated directly with ident
-			//
 			variable, isVariable := e.Obj.Data.(*Variable)
 			if isVariable {
 				return variable.Typ
@@ -3625,13 +3615,13 @@ func walkForStmt(s *ast.ForStmt) *MetaForStmt {
 		meta.Init = walkStmt(s.Init)
 	}
 	if s.Cond != nil {
-		walkExpr(s.Cond, nil)
+		meta.Cond = s.Cond
+		meta.CondMeta = walkExpr(s.Cond, nil)
 	}
 	if s.Post != nil {
 		meta.Post = walkStmt(s.Post)
 	}
 	mtBlock := walkBlockStmt(s.Body)
-	meta.Cond = s.Cond
 	meta.Body = mtBlock
 	currentFor = meta.Outer
 	return meta
@@ -3641,7 +3631,7 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 		Outer: currentFor,
 	}
 	currentFor = meta
-	walkExpr(s.X, nil)
+	metaX := walkExpr(s.X, nil)
 
 	collectionType := getUnderlyingType(getTypeOfExpr(s.X))
 	keyType := getKeyTypeOfCollectionType(collectionType)
@@ -3652,6 +3642,7 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 			IsMap:    false,
 			LenVar:   registerLocalVariable(currentFunc, ".range.len", tInt),
 			Indexvar: registerLocalVariable(currentFunc, ".range.index", tInt),
+			metaX:    metaX,
 			X:        s.X,
 			Key:      s.Key,
 			Value:    s.Value,
@@ -3661,6 +3652,7 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 			IsMap:   true,
 			MapVar:  registerLocalVariable(currentFunc, ".range.map", tUintptr),
 			ItemVar: registerLocalVariable(currentFunc, ".range.item", tUintptr),
+			metaX:   metaX,
 			X:       s.X,
 			Key:     s.Key,
 			Value:   s.Value,
@@ -4224,11 +4216,13 @@ func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiter
 }
 
 func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
-	walkExpr(e.X, nil)
-	return &MetaUnaryExpr{e: e}
+	meta := &MetaUnaryExpr{e: e}
+	meta.X = walkExpr(e.X, nil)
+	return meta
 }
 
 func walkBinaryExpr(e *ast.BinaryExpr, _ctx *evalContext) *MetaBinaryExpr {
+	meta := &MetaBinaryExpr{e: e}
 	var xCtx *evalContext
 	var yCtx *evalContext
 	if isNil(e.X) {
@@ -4239,9 +4233,10 @@ func walkBinaryExpr(e *ast.BinaryExpr, _ctx *evalContext) *MetaBinaryExpr {
 		// Y should be typed
 		yCtx = &evalContext{_type: getTypeOfExpr(e.X)}
 	}
-	walkExpr(e.X, xCtx) // left
-	walkExpr(e.Y, yCtx) // right
-	return &MetaBinaryExpr{e: e}
+
+	meta.X = walkExpr(e.X, xCtx) // left
+	meta.Y = walkExpr(e.Y, yCtx) // right
+	return meta
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
@@ -4252,24 +4247,25 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 			meta.NeedsOK = true
 		}
 	}
-	walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
-	walkExpr(e.X, nil)
+	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
+	meta.X = walkExpr(e.X, nil)
 	mapMeta[unsafe.Pointer(e)] = meta
 	return meta
 }
 
 func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) *MetaSliceExpr {
+	meta := &MetaSliceExpr{e: e}
 	if e.Low != nil {
-		walkExpr(e.Low, nil)
+		meta.Low = walkExpr(e.Low, nil)
 	}
 	if e.High != nil {
-		walkExpr(e.High, nil)
+		meta.High = walkExpr(e.High, nil)
 	}
 	if e.Max != nil {
-		walkExpr(e.Max, nil)
+		meta.Max = walkExpr(e.Max, nil)
 	}
-	walkExpr(e.X, nil)
-	return &MetaSliceExpr{e: e}
+	meta.X = walkExpr(e.X, nil)
+	return meta
 }
 
 // []T(e)
@@ -4282,9 +4278,11 @@ func walkMapType(e *ast.MapType) {
 	// do nothing
 }
 func walkStarExpr(e *ast.StarExpr, ctx *evalContext) *MetaStarExpr {
-	walkExpr(e.X, nil)
-	return &MetaStarExpr{e: e}
+	meta := &MetaStarExpr{e: e}
+	meta.X = walkExpr(e.X, nil)
+	return meta
 }
+
 func walkKeyValueExpr(e *ast.KeyValueExpr, _ctx *evalContext) {
 	// MYSTRUCT{key:value}
 	// key is not an expression in struct literals.
@@ -4315,32 +4313,40 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssert
 	if ctx != nil && ctx.okContext {
 		meta.NeedsOK = true
 	}
-	walkExpr(e.X, nil)
+	meta.X = walkExpr(e.X, nil)
 	mapMeta[unsafe.Pointer(e)] = meta
 	return meta
 }
 
 type MetaExpr interface{}
 type MetaBasicLit struct {
-	e ast.Expr
+	e *ast.BasicLit
 }
 type MetaIdent struct {
-	e ast.Expr
+	e *ast.Ident
 }
 type MetaSelectorExpr struct {
-	e ast.Expr
+	e *ast.SelectorExpr
 }
 type MetaSliceExpr struct {
-	e ast.Expr
+	e    *ast.SliceExpr
+	Low  MetaExpr
+	High MetaExpr
+	Max  MetaExpr
+	X    MetaExpr
 }
 type MetaStarExpr struct {
-	e ast.Expr
+	e *ast.StarExpr
+	X MetaExpr
 }
 type MetaUnaryExpr struct {
-	e ast.Expr
+	e *ast.UnaryExpr
+	X MetaExpr
 }
 type MetaBinaryExpr struct {
-	e ast.Expr
+	e *ast.BinaryExpr
+	X MetaExpr
+	Y MetaExpr
 }
 
 func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
@@ -5147,10 +5153,13 @@ var mapMeta = make(map[unsafe.Pointer]interface{})
 type MetaIndexExpr struct {
 	IsMap   bool // mp[k]
 	NeedsOK bool // when map, is it ok syntax ?
+	Index   MetaExpr
+	X       MetaExpr
 }
 
 type MetaTypeAssertExpr struct {
 	NeedsOK bool
+	X       MetaExpr
 }
 
 type MetaReturnStmt struct {
@@ -5167,6 +5176,7 @@ type MetaForRange struct {
 	X        ast.Expr
 	Key      ast.Expr
 	Value    ast.Expr
+	metaX    MetaExpr
 }
 
 type MetaForStmt struct {
@@ -5176,6 +5186,7 @@ type MetaForStmt struct {
 	ForRange  *MetaForRange
 	Init      MetaStmt
 	Cond      ast.Expr
+	CondMeta  MetaExpr
 	Body      *MetaBlockStmt
 	Post      MetaStmt
 }
