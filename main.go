@@ -1003,11 +1003,6 @@ func emitCallExpr(e *ast.CallExpr) {
 	}
 }
 
-// multi values (e)
-func emitParenExpr(e *ast.ParenExpr) {
-	emitExpr(e.X)
-}
-
 // 1 value
 func emitBasicLit(mt *MetaBasicLit) {
 	switch mt.Kind {
@@ -1164,9 +1159,8 @@ func emitBinaryExpr(e *ast.BinaryExpr) {
 }
 
 // 1 value
-func emitCompositeLit(e *ast.CompositeLit) {
+func emitCompositeLit(meta *MetaCompositLiteral) {
 	// slice , array, map or struct
-	meta := mapMeta[unsafe.Pointer(e)].(*MetaCompositLiteral)
 	switch meta.kind {
 	case "struct":
 		emitStructLiteral(meta)
@@ -1179,7 +1173,7 @@ func emitCompositeLit(e *ast.CompositeLit) {
 		printf("  pushq $%d # slice.len\n", meta.len)
 		printf("  pushq %%rax # slice.ptr\n")
 	default:
-		unexpectedKind(kind(e2t(e.Type)))
+		panic(meta.kind)
 	}
 }
 
@@ -1384,7 +1378,7 @@ func emitExpr(expr ast.Expr) {
 	emitComment(2, "[emitExpr] dtype=%T\n", expr)
 	switch e := expr.(type) {
 	case *ast.ParenExpr:
-		emitParenExpr(e) // multi values (e)
+		emitExpr(e.X) // multi values (e)
 	case *ast.BasicLit:
 		mt, ok := mapBasicLit[unsafe.Pointer(e)]
 		if !ok {
@@ -1393,7 +1387,9 @@ func emitExpr(expr ast.Expr) {
 		assert(mt != nil, "mapBasicLit should not be nil:"+e.Value, __func__)
 		emitBasicLit(mt) // 1 value
 	case *ast.CompositeLit:
-		emitCompositeLit(e) // 1 value
+		mt := mapMeta[unsafe.Pointer(e)].(*MetaCompositLiteral)
+		assert(mt != nil, "MetaCompositLiteral should not be nil", __func__)
+		emitCompositeLit(mt) // 1 value
 	case *ast.Ident:
 		emitIdent(e) // 1 value
 	case *ast.SelectorExpr:
