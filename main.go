@@ -2647,6 +2647,50 @@ const T_POINTER TypeKind = "T_POINTER"
 const T_MAP TypeKind = "T_MAP"
 
 // types of an expr in single value context
+func getTypeOfExprMeta(meta MetaExpr) *Type {
+	switch m := meta.(type) {
+	case *MetaIdent:
+		return getTypeOfExpr(m.e)
+	case *MetaBasicLit:
+		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
+		// depending on whether it is a boolean, rune, integer, floating-point, complex, or string constant.
+		switch m.Kind {
+		case "STRING":
+			return tString
+		case "INT":
+			return tInt
+		case "CHAR":
+			return tInt32
+		default:
+			panic(m.Kind)
+		}
+	case *MetaUnaryExpr:
+		return getTypeOfExpr(m.e)
+	case *MetaBinaryExpr:
+		switch m.Op {
+		case "==", "!=", "<", ">", "<=", ">=":
+			return tBool
+		default:
+			return getTypeOfExpr(m.e)
+		}
+	case *MetaIndexExpr:
+		return getTypeOfExpr(m.e)
+	case *MetaCallExpr: // funcall or conversion
+		return getTypeOfExpr(m.e)
+	case *MetaSliceExpr:
+		return getTypeOfExpr(m.e)
+	case *MetaStarExpr:
+		return getTypeOfExpr(m.e)
+	case *MetaSelectorExpr:
+		return getTypeOfExpr(m.e)
+	case *MetaCompositLiteral:
+		return getTypeOfExpr(m.e)
+	case *MetaTypeAssertExpr:
+		return getTypeOfExpr(m.e)
+	}
+	panic("bad type\n")
+}
+
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
