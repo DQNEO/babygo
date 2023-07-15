@@ -531,6 +531,7 @@ func emitFalse() {
 
 type Arg struct {
 	e         ast.Expr
+	meta      MetaExpr
 	paramType *Type // expected type
 }
 
@@ -635,9 +636,13 @@ func emitCall(fn interface{}, args []*Arg, resultList *ast.FieldList) {
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for i, arg := range args {
 		paramType := arg.paramType
-
-		emitExpr(arg.e)
-		mayEmitConvertTooIfc(arg.e, paramType)
+		if arg.e == nil {
+			emitExprMeta(arg.meta)
+			mayEmitConvertTooIfcMeta(arg.meta, paramType)
+		} else {
+			emitExpr(arg.e)
+			mayEmitConvertTooIfc(arg.e, paramType)
+		}
 		emitPop(kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 		printf("  pushq %%rsi # place to save\n")
@@ -1130,9 +1135,9 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		printf("  divq %%rcx\n")
 		printf("  pushq %%rax\n")
 	case "==":
-		emitBinaryExprComparison(e.X, e.Y)
+		emitBinaryExprComparison(meta.X, meta.Y)
 	case "!=":
-		emitBinaryExprComparison(e.X, e.Y)
+		emitBinaryExprComparison(meta.X, meta.Y)
 		emitInvertBoolValue()
 	case "<":
 		emitExprMeta(meta.X) // left
@@ -1631,14 +1636,14 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 	emitCall("runtime.catstrings", args, resultList)
 }
 
-func emitCompStrings(left ast.Expr, right ast.Expr) {
+func emitCompStrings(left MetaExpr, right MetaExpr) {
 	args := []*Arg{
 		&Arg{
-			e:         left,
+			meta:      left,
 			paramType: tString,
 		},
 		&Arg{
-			e:         right,
+			meta:      right,
 			paramType: tString,
 		},
 	}
@@ -1652,22 +1657,22 @@ func emitCompStrings(left ast.Expr, right ast.Expr) {
 	emitCall("runtime.cmpstrings", args, resultList)
 }
 
-func emitBinaryExprComparison(left ast.Expr, right ast.Expr) {
-	if kind(getTypeOfExpr(left)) == T_STRING {
+func emitBinaryExprComparison(left MetaExpr, right MetaExpr) {
+	if kind(getTypeOfExprMeta(left)) == T_STRING {
 		emitCompStrings(left, right)
-	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
+	} else if kind(getTypeOfExprMeta(left)) == T_INTERFACE {
 		//var t = getTypeOfExpr(left)
 		ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)
 		//@TODO: confirm nil comparison with interfaces
-		emitExpr(left)  // left
-		emitExpr(right) // right
+		emitExprMeta(left)  // left
+		emitExprMeta(right) // right
 		emitCallFF(ff)
 	} else {
 		// Assuming pointer-like types (pointer, map)
 		//var t = getTypeOfExpr(left)
-		emitExpr(left)  // left
-		emitExpr(right) // right
+		emitExprMeta(left)  // left
+		emitExprMeta(right) // right
 		emitCompExpr("sete")
 	}
 
