@@ -692,13 +692,13 @@ func emitCallQ(fn interface{}, totalParamSize int, resultList *ast.FieldList) {
 // callee
 func emitReturnStmt(meta *MetaReturnStmt) {
 	funcDef := meta.Fnc
-	if len(funcDef.Retvars) != len(meta.Results) {
+	if len(funcDef.Retvars) != len(meta.MetaResults) {
 		panic("length of return and func type do not match")
 	}
 
-	_len := len(meta.Results)
+	_len := len(meta.MetaResults)
 	for i := 0; i < _len; i++ {
-		emitAssignToVar(funcDef.Retvars[i], meta.Results[i])
+		emitAssignToVar(funcDef.Retvars[i], meta.MetaResults[i])
 	}
 	printf("  leave\n")
 	printf("  ret\n")
@@ -1786,13 +1786,13 @@ func isBlankIdentifier(e ast.Expr) bool {
 	return ident.Name == "_"
 }
 
-func emitAssignToVar(vr *Variable, rhs ast.Expr) {
+func emitAssignToVar(vr *Variable, rhs MetaExpr) {
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitVariableAddr(vr)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 
-	emitExpr(rhs)
-	mayEmitConvertTooIfc(rhs, vr.Typ)
+	emitExprMeta(rhs)
+	mayEmitConvertTooIfcMeta(rhs, vr.Typ)
 	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
 	emitStore(vr.Typ, true, false)
 }
@@ -1966,7 +1966,7 @@ func emitRangeMap(meta *MetaForStmt) {
 	emitComment(2, "ForRange map Initialization\n")
 
 	// _mp = EXPR
-	emitAssignToVar(meta.ForRange.MapVar, meta.ForRange.X)
+	emitAssignToVar(meta.ForRange.MapVar, meta.ForRange.metaX)
 
 	//  if _mp == nil then exit
 	emitVariable(meta.ForRange.MapVar) // value of _mp
@@ -3620,17 +3620,19 @@ func walkReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
 	}
 
 	_len := len(funcDef.Retvars)
+	var results []MetaExpr
 	for i := 0; i < _len; i++ {
 		expr := s.Results[i]
 		retTyp := funcDef.Retvars[i].Typ
 		ctx := &evalContext{
 			_type: retTyp,
 		}
-		walkExpr(expr, ctx)
+		m := walkExpr(expr, ctx)
+		results = append(results, m)
 	}
 	return &MetaReturnStmt{
-		Fnc:     funcDef,
-		Results: s.Results,
+		Fnc:         funcDef,
+		MetaResults: results,
 	}
 }
 
@@ -5342,8 +5344,8 @@ type MetaTypeAssertExpr struct {
 }
 
 type MetaReturnStmt struct {
-	Fnc     *Func
-	Results []ast.Expr
+	Fnc         *Func
+	MetaResults []MetaExpr
 }
 
 type MetaForRange struct {
