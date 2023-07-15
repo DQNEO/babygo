@@ -1316,10 +1316,9 @@ func emitMapGet(e *ast.IndexExpr, okContext bool) {
 }
 
 // 1 or 2 values
-func emitTypeAssertExpr(e *ast.TypeAssertExpr) {
-	meta := mapTypeAssertExpr[unsafe.Pointer(e)]
+func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 	okContext := meta.NeedsOK
-
+	e := meta.e
 	emitExpr(e.X)
 	emitDtypeLabelAddr(e2t(e.Type))
 	emitCompareDtypes()
@@ -1407,7 +1406,9 @@ func emitExpr(expr ast.Expr) {
 	case *ast.BinaryExpr:
 		emitBinaryExpr(e) // 1 value
 	case *ast.TypeAssertExpr:
-		emitTypeAssertExpr(e) // 1 or 2 values
+		mt := mapTypeAssertExpr[unsafe.Pointer(e)]
+		assert(mt != nil, "mapTypeAssertExpr should not be nil", __func__)
+		emitTypeAssertExpr(mt) // 1 or 2 values
 	default:
 		throw(expr)
 	}
@@ -4166,7 +4167,6 @@ func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiter
 		kind: knd,
 		typ:  getTypeOfExpr(e),
 	}
-	mapCompositLit[unsafe.Pointer(e)] = meta
 
 	switch kind(ut) {
 	case T_STRUCT:
@@ -4310,12 +4310,11 @@ func walkInterfaceType(e *ast.InterfaceType) {
 }
 
 func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssertExpr {
-	meta := &MetaTypeAssertExpr{}
+	meta := &MetaTypeAssertExpr{e: e}
 	if ctx != nil && ctx.okContext {
 		meta.NeedsOK = true
 	}
 	meta.X = walkExpr(e.X, nil)
-	mapTypeAssertExpr[unsafe.Pointer(e)] = meta
 	return meta
 }
 
@@ -4385,6 +4384,7 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return nil
 	case *ast.CompositeLit:
 		mt := walkCompositeLit(e, ctx)
+		mapCompositLit[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.Ident:
 		mt := walkIdent(e, ctx)
@@ -4413,6 +4413,7 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return mt
 	case *ast.TypeAssertExpr:
 		mt := walkTypeAssertExpr(e, ctx)
+		mapTypeAssertExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.ArrayType: // type
 		walkArrayType(e) // []T(e)
@@ -5201,6 +5202,7 @@ type MetaIndexExpr struct {
 type MetaTypeAssertExpr struct {
 	NeedsOK bool
 	X       MetaExpr
+	e       *ast.TypeAssertExpr
 }
 
 type MetaReturnStmt struct {
