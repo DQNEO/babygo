@@ -950,7 +950,7 @@ func emitIdent(meta *MetaIdent) {
 			emitAddr(e)
 			emitLoadAndPush(getTypeOfExpr(e))
 		case ast.Con:
-			emitExpr(meta.conLiteral)
+			emitExprMeta(meta.conLiteral)
 		case ast.Fun:
 			emitAddr(e)
 		default:
@@ -1812,7 +1812,7 @@ func emitSingleAssign(lhs ast.Expr, rhs MetaExpr) {
 	}
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
-	emitComment(2, "Assignment: emitExpr(rhs)\n")
+	emitComment(2, "Assignment: emitExprMeta(rhs)\n")
 	emitExprMeta(rhs)
 	mayEmitConvertTooIfcMeta(rhs, getTypeOfExpr(lhs))
 	emitStore(getTypeOfExpr(lhs), true, false)
@@ -1896,7 +1896,7 @@ func emitIfStmt(meta *MetaIfStmt) {
 	labelEndif := fmt.Sprintf(".L.endif.%d", labelid)
 	labelElse := fmt.Sprintf(".L.else.%d", labelid)
 
-	emitExpr(meta.Cond)
+	emitExprMeta(meta.CondMeta)
 	emitPopBool("if condition")
 	printf("  cmpq $1, %%rax\n")
 	if meta.Else != nil {
@@ -3620,28 +3620,31 @@ func walkReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
 }
 
 type MetaIfStmt struct {
-	Init MetaStmt
-	Cond ast.Expr
-	Body *MetaBlockStmt
-	Else MetaStmt
+	Init     MetaStmt
+	CondMeta MetaExpr
+	Body     *MetaBlockStmt
+	Else     MetaStmt
 }
 
 func walkIfStmt(s *ast.IfStmt) *MetaIfStmt {
 	var mInit MetaStmt
 	var mElse MetaStmt
+	var condMeta MetaExpr
 	if s.Init != nil {
 		mInit = walkStmt(s.Init)
 	}
-	walkExpr(s.Cond, nil)
+	if s.Cond != nil {
+		condMeta = walkExpr(s.Cond, nil)
+	}
 	mtBlock := walkBlockStmt(s.Body)
 	if s.Else != nil {
 		mElse = walkStmt(s.Else)
 	}
 	return &MetaIfStmt{
-		Init: mInit,
-		Cond: s.Cond,
-		Body: mtBlock,
-		Else: mElse,
+		Init:     mInit,
+		CondMeta: condMeta,
+		Body:     mtBlock,
+		Else:     mElse,
 	}
 }
 
@@ -3965,7 +3968,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 			// TODO: attach type
 			valSpec := e.Obj.Decl.(*ast.ValueSpec)
 			lit := valSpec.Values[0].(*ast.BasicLit)
-			meta.conLiteral = lit
+			meta.conLiteral = walkBasicLit(lit, nil)
 		case ast.Fun:
 			meta.kind = "fun"
 		case ast.Typ:
@@ -4446,7 +4449,7 @@ type MetaIdent struct {
 	e          *ast.Ident
 	kind       string // "nil|true|false|var|con|fun|typ"
 	Name       string
-	conLiteral *ast.BasicLit
+	conLiteral MetaExpr
 }
 
 type MetaSelectorExpr struct {
