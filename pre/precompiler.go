@@ -1932,8 +1932,8 @@ func emitForStmt(meta *MetaForStmt) {
 	}
 
 	printf("  %s:\n", labelCond)
-	if meta.Cond != nil {
-		emitExpr(meta.Cond)
+	if meta.CondMeta != nil {
+		emitExprMeta(meta.CondMeta)
 		emitPopBool("for condition")
 		printf("  cmpq $1, %%rax\n")
 		printf("  jne %s # jmp if false\n", labelExit)
@@ -2231,7 +2231,7 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 
 	// subjectVariable = subject
 	emitVariableAddr(meta.SubjectVariable)
-	emitExpr(meta.Subject)
+	emitExprMeta(meta.SubjectMeta)
 	emitStore(tEface, true, false)
 
 	cases := s.Cases
@@ -2330,7 +2330,7 @@ func emitBranchStmt(meta *MetaBranchStmt) {
 
 func emitGoStmt(m *MetaGoStmt) {
 	emitCallMalloc(SizeOfPtr) // area := new(func())
-	emitExpr(m.call.Fun)
+	emitExprMeta(m.fun)
 	printf("  popq %%rax # func addr\n")
 	printf("  popq %%rcx # malloced area\n")
 	printf("  movq %%rax, (%%rcx) # malloced area\n") // *area = fn
@@ -3669,7 +3669,6 @@ func walkForStmt(s *ast.ForStmt) *MetaForStmt {
 		meta.Init = walkStmt(s.Init)
 	}
 	if s.Cond != nil {
-		meta.Cond = s.Cond
 		meta.CondMeta = walkExpr(s.Cond, nil)
 	}
 	if s.Post != nil {
@@ -3779,7 +3778,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	case *ast.ExprStmt:
 		typeAssertExpr := assign.X.(*ast.TypeAssertExpr)
 		typeSwitch.Subject = typeAssertExpr.X
-		walkExpr(typeAssertExpr.X, nil)
+		typeSwitch.SubjectMeta = walkExpr(typeAssertExpr.X, nil)
 	case *ast.AssignStmt:
 		lhs := assign.Lhs[0]
 		assignIdent = lhs.(*ast.Ident)
@@ -3787,7 +3786,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 		// ident will be a new local variable in each case clause
 		typeAssertExpr := assign.Rhs[0].(*ast.TypeAssertExpr)
 		typeSwitch.Subject = typeAssertExpr.X
-		walkExpr(typeAssertExpr.X, nil)
+		typeSwitch.SubjectMeta = walkExpr(typeAssertExpr.X, nil)
 	default:
 		throw(s.Assign)
 	}
@@ -3872,13 +3871,13 @@ func walkBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
 }
 
 type MetaGoStmt struct {
-	call *ast.CallExpr
+	fun MetaExpr
 }
 
 func walkGoStmt(s *ast.GoStmt) *MetaGoStmt {
-	walkExpr(s.Call, nil)
+	fun := walkExpr(s.Call.Fun, nil)
 	return &MetaGoStmt{
-		call: s.Call,
+		fun: fun,
 	}
 }
 
@@ -5379,7 +5378,6 @@ type MetaForStmt struct {
 	Outer     *MetaForStmt
 	ForRange  *MetaForRange
 	Init      MetaStmt
-	Cond      ast.Expr
 	CondMeta  MetaExpr
 	Body      *MetaBlockStmt
 	Post      MetaStmt
@@ -5404,6 +5402,7 @@ type MetaSwitchStmt struct {
 
 type MetaTypeSwitchStmt struct {
 	Subject         ast.Expr
+	SubjectMeta     MetaExpr
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
