@@ -223,6 +223,67 @@ func emitListHeadAddr(list ast.Expr) {
 	}
 }
 
+func emitAddrMeta(expr MetaExpr) {
+	emitComment(2, "[emitAddrMeta] %T\n", expr)
+	switch m := expr.(type) {
+	case *MetaIdent:
+		switch m.kind {
+		case "var":
+			vr := m.e.Obj.Data.(*Variable)
+			emitVariableAddr(vr)
+		case "fun":
+			qi := newQI(currentPkg.name, m.e.Obj.Name)
+			emitFuncAddr(qi)
+		default:
+			panic("Unexpected kind")
+		}
+	case *MetaIndexExpr:
+		list := m.e.X
+		if kind(getTypeOfExpr(list)) == T_MAP {
+			emitAddrForMapSet(m.e)
+		} else {
+			elmType := getTypeOfExprMeta(m)
+			emitExprMeta(m.Index) // index number
+			emitListElementAddr(list, elmType)
+		}
+	case *MetaStarExpr:
+		emitExprMeta(m.X)
+	case *MetaSelectorExpr:
+		if isQI(m.e) { // pkg.SomeType
+			ident := lookupForeignIdent(selector2QI(m.e))
+			emitAddr(ident)
+		} else { // (e).field
+			typeOfX := getUnderlyingType(getTypeOfExpr(m.e.X))
+			var structTypeLiteral *ast.StructType
+			switch typ := typeOfX.E.(type) {
+			case *ast.StructType: // strct.field
+				structTypeLiteral = typ
+				emitAddrMeta(m.X)
+			case *ast.StarExpr: // ptr.field
+				structTypeLiteral = getUnderlyingStructType(e2t(typ.X))
+				emitExprMeta(m.X)
+			default:
+				unexpectedKind(kind(typeOfX))
+			}
+
+			field := lookupStructField(structTypeLiteral, m.e.Sel.Name)
+			offset := getStructFieldOffset(field)
+			emitAddConst(offset, "struct head address + struct.field offset")
+		}
+	case *MetaCompositLiteral:
+		knd := kind(getTypeOfExprMeta(m))
+		switch knd {
+		case T_STRUCT:
+			// result of evaluation of a struct literal is its address
+			emitExprMeta(m)
+		default:
+			unexpectedKind(knd)
+		}
+	default:
+		throw(expr)
+	}
+}
+
 func emitAddr(expr ast.Expr) {
 	emitComment(2, "[emitAddr] %T\n", expr)
 	switch e := expr.(type) {
@@ -947,8 +1008,8 @@ func emitIdent(meta *MetaIdent) {
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
-			emitAddr(e)
-			emitLoadAndPush(getTypeOfExpr(e))
+			emitAddrMeta(meta)
+			emitLoadAndPush(getTypeOfExprMeta(meta))
 		case ast.Con:
 			emitExprMeta(meta.conLiteral)
 		case ast.Fun:
@@ -3942,6 +4003,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		// blank identifier
 		// e.Obj is nil in this case.
 		// @TODO do something
+		meta.kind = "blank"
 		return meta
 	}
 	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
@@ -4448,7 +4510,7 @@ type MetaBasicLit struct {
 
 type MetaIdent struct {
 	e          *ast.Ident
-	kind       string // "nil|true|false|var|con|fun|typ"
+	kind       string // "blank|nil|true|false|var|con|fun|typ"
 	Name       string
 	conLiteral MetaExpr
 }
