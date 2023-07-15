@@ -1014,31 +1014,14 @@ func emitParenExpr(e *ast.ParenExpr) {
 }
 
 // 1 value
-func emitBasicLit(e *ast.BasicLit) {
-	switch e.Kind.String() {
+func emitBasicLit(mt *MetaBasicLit) {
+	switch mt.Kind {
 	case "CHAR":
-		var val = e.Value
-		var char = val[1]
-		if val[1] == '\\' {
-			switch val[2] {
-			case '\'':
-				char = '\''
-			case 'n':
-				char = '\n'
-			case '\\':
-				char = '\\'
-			case 't':
-				char = '\t'
-			case 'r':
-				char = '\r'
-			}
-		}
-		printf("  pushq $%d # convert char literal to int\n", int(char))
+		printf("  pushq $%d # convert char literal to int\n", mt.charValue)
 	case "INT":
-		ival := strconv.Atoi(e.Value)
-		printf("  pushq $%d # number literal\n", ival)
+		printf("  pushq $%d # number literal\n", mt.intValue)
 	case "STRING":
-		sl := getStringLiteral(e)
+		sl := mt.stringLiteral
 		if sl.strlen == 0 {
 			// zero value
 			emitZeroValue(tString)
@@ -1048,7 +1031,7 @@ func emitBasicLit(e *ast.BasicLit) {
 			printf("  pushq %%rax # str ptr\n")
 		}
 	default:
-		panic("Unexpected literal kind:" + e.Kind.String())
+		panic("Unexpected literal kind:" + mt.Kind)
 	}
 }
 
@@ -1413,7 +1396,7 @@ func emitExpr(expr ast.Expr) {
 			panic("mapBasicLit not found:" + e.Value)
 		}
 		assert(mt != nil, "mapBasicLit should not be nil:"+e.Value, __func__)
-		emitBasicLit(e) // 1 value
+		emitBasicLit(mt) // 1 value
 	case *ast.CompositeLit:
 		emitCompositeLit(e) // 1 value
 	case *ast.Ident:
@@ -2415,7 +2398,13 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 			printf("  .quad 0\n")
 			printf("  .quad 0\n")
 		case *ast.BasicLit:
-			sl := getStringLiteral(vl)
+			e := vl
+			mt, ok := mapBasicLit[unsafe.Pointer(e)]
+			if !ok {
+				panic("mapBasicLit not found:" + e.Value)
+			}
+			assert(mt != nil, "mapBasicLit should not be nil:"+e.Value, __func__)
+			sl := mt.stringLiteral
 			printf("  .quad %s\n", sl.label)
 			printf("  .quad %d\n", sl.strlen)
 		default:
@@ -2539,9 +2528,9 @@ func emitGlobalVariable(pkg *PkgContainer, name *ast.Ident, t *Type, val ast.Exp
 func generateCode(pkg *PkgContainer) {
 	printf("#--- string literals\n")
 	printf(".data\n")
-	for _, con := range pkg.stringLiterals {
-		printf("%s:\n", con.sl.label)
-		printf("  .string %s\n", con.sl.value)
+	for _, sl := range pkg.stringLiterals {
+		printf("%s:\n", sl.label)
+		printf("  .string %s\n", sl.value)
 	}
 
 	printf("#--- global vars (static values)\n")
@@ -3140,11 +3129,6 @@ type sliteral struct {
 	value  string // raw value
 }
 
-type stringLiteralsContainer struct {
-	lit *ast.BasicLit
-	sl  *sliteral
-}
-
 func registerParamVariable(fnc *Func, name string, t *Type) *Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := getSizeOfType(t)
@@ -3172,17 +3156,7 @@ func registerLocalVariable(fnc *Func, name string, t *Type) *Variable {
 var currentFor *MetaForStmt
 var currentFunc *Func
 
-func getStringLiteral(lit *ast.BasicLit) *sliteral {
-	for _, container := range currentPkg.stringLiterals {
-		if container.lit == lit {
-			return container.sl
-		}
-	}
-
-	panic("string literal not found:" + lit.Value)
-}
-
-func registerStringLiteral(lit *ast.BasicLit) {
+func registerStringLiteral(lit *ast.BasicLit) *sliteral {
 	if currentPkg.name == "" {
 		panic("no pkgName")
 	}
@@ -3202,11 +3176,8 @@ func registerStringLiteral(lit *ast.BasicLit) {
 		strlen: strlen - 2,
 		value:  lit.Value,
 	}
-	cont := &stringLiteralsContainer{
-		sl:  sl,
-		lit: lit,
-	}
-	currentPkg.stringLiterals = append(currentPkg.stringLiterals, cont)
+	currentPkg.stringLiterals = append(currentPkg.stringLiterals, sl)
+	return sl
 }
 
 func newGlobalVariable(pkgName string, name string, t *Type) *Variable {
@@ -4137,19 +4108,39 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 }
 
 func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
-	switch e.Kind.String() {
-	case "INT":
-	case "CHAR":
-	case "STRING":
-		registerStringLiteral(e)
-	default:
-		panic("Unexpected literal kind:" + e.Kind.String())
-	}
-	return &MetaBasicLit{
+	mt := &MetaBasicLit{
 		e:     e,
 		Kind:  e.Kind.String(),
 		Value: e.Value,
 	}
+
+	switch e.Kind.String() {
+	case "CHAR":
+		var val = e.Value
+		var char = val[1]
+		if val[1] == '\\' {
+			switch val[2] {
+			case '\'':
+				char = '\''
+			case 'n':
+				char = '\n'
+			case '\\':
+				char = '\\'
+			case 't':
+				char = '\t'
+			case 'r':
+				char = '\r'
+			}
+		}
+		mt.charValue = int(char)
+	case "INT":
+		mt.intValue = strconv.Atoi(mt.Value)
+	case "STRING":
+		mt.stringLiteral = registerStringLiteral(e)
+	default:
+		panic("Unexpected literal kind:" + e.Kind.String())
+	}
+	return mt
 }
 
 type MetaCompositLiteral struct {
@@ -4338,9 +4329,12 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssert
 
 type MetaExpr interface{}
 type MetaBasicLit struct {
-	e     *ast.BasicLit
-	Kind  string
-	Value string
+	e             *ast.BasicLit
+	Kind          string
+	Value         string
+	charValue     int
+	intValue      int
+	stringLiteral *sliteral
 }
 
 type MetaIdent struct {
@@ -4817,7 +4811,7 @@ type PkgContainer struct {
 	astFiles       []*ast.File
 	vars           []*ast.ValueSpec
 	funcs          []*Func
-	stringLiterals []*stringLiteralsContainer
+	stringLiterals []*sliteral
 	stringIndex    int
 	Decls          []ast.Decl
 }
