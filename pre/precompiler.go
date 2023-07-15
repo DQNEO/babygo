@@ -471,7 +471,7 @@ func emitCallMalloc(size int) {
 type MetaStructLiteralElement struct {
 	field     *ast.Field
 	fieldType *Type
-	value     ast.Expr
+	ValueMeta MetaExpr
 }
 
 func emitStructLiteral(meta *MetaCompositLiteral) {
@@ -488,8 +488,8 @@ func emitStructLiteral(meta *MetaCompositLiteral) {
 		emitAddConst(fieldOffset, "address of struct field")
 
 		// push rhs value
-		emitExpr(metaElm.value)
-		mayEmitConvertTooIfc(metaElm.value, metaElm.fieldType)
+		emitExprMeta(metaElm.ValueMeta)
+		mayEmitConvertTooIfcMeta(metaElm.ValueMeta, metaElm.fieldType)
 
 		// assign
 		emitStore(metaElm.fieldType, true, false)
@@ -1343,6 +1343,14 @@ func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 	printf("  %s:\n", labelEnd)
 }
 
+func isUniverseNilMeta(meta MetaExpr) bool {
+	switch e := meta.(type) {
+	case *MetaIdent:
+		return e.IsUniverseNil
+	default:
+		return false
+	}
+}
 func isUniverseNil(expr ast.Expr) bool {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -1458,6 +1466,12 @@ func emitConvertToInterface(fromType *Type) {
 	emitStore(fromType, false, true) // heap addr pushed
 	// push dtype label's address
 	emitDtypeLabelAddr(fromType)
+}
+
+func mayEmitConvertTooIfcMeta(meta MetaExpr, ctxType *Type) {
+	if !isUniverseNilMeta(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExprMeta(meta)) {
+		emitConvertToInterface(getTypeOfExprMeta(meta))
+	}
 }
 
 func mayEmitConvertTooIfc(expr ast.Expr, ctxType *Type) {
@@ -3954,6 +3968,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		} else {
 			exprTypeMeta[unsafe.Pointer(e)] = ctx._type
 		}
+		meta.IsUniverseNil = true
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
@@ -4266,12 +4281,12 @@ func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiter
 			fieldType := e2t(field.Type)
 			ctx := &evalContext{_type: fieldType}
 			// attach type to nil : STRUCT{Key:nil}
-			walkExpr(kvExpr.Value, ctx)
+			valueMeta := walkExpr(kvExpr.Value, ctx)
 
 			metaElm := &MetaStructLiteralElement{
 				field:     field,
 				fieldType: fieldType,
-				value:     kvExpr.Value,
+				ValueMeta: valueMeta,
 			}
 
 			metaElms = append(metaElms, metaElm)
@@ -4430,8 +4445,9 @@ type MetaBasicLit struct {
 }
 
 type MetaIdent struct {
-	e    *ast.Ident
-	Name string
+	e             *ast.Ident
+	Name          string
+	IsUniverseNil bool
 }
 
 type MetaSelectorExpr struct {

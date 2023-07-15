@@ -314,28 +314,28 @@ func isType(expr ast.Expr) bool {
 }
 
 // explicit conversion T(e)
-func emitConversion(toType *Type, arg0 ast.Expr) {
+func emitConversion(toType *Type, arg0 MetaExpr) {
 	emitComment(2, "[emitConversion]\n")
 	switch to := toType.E.(type) {
 	case *ast.Ident:
 		switch to.Obj {
 		case gString: // string(e)
-			switch kind(getTypeOfExpr(arg0)) {
+			switch kind(getTypeOfExprMeta(arg0)) {
 			case T_SLICE: // string(slice)
-				emitExpr(arg0) // slice
+				emitExprMeta(arg0) // slice
 				emitPopSlice()
 				printf("  pushq %%rcx # str len\n")
 				printf("  pushq %%rax # str ptr\n")
 			case T_STRING: // string(string)
-				emitExpr(arg0)
+				emitExprMeta(arg0)
 			default:
-				unexpectedKind(kind(getTypeOfExpr(arg0)))
+				unexpectedKind(kind(getTypeOfExprMeta(arg0)))
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
-			emitExpr(arg0)
+			emitExprMeta(arg0)
 		default:
 			if to.Obj.Kind == ast.Typ {
-				emitExpr(arg0)
+				emitExprMeta(arg0)
 			} else {
 				throw(to.Obj)
 			}
@@ -351,9 +351,9 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 		if arrayType.Len != nil {
 			throw(to)
 		}
-		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice", __func__)
+		assert(kind(getTypeOfExprMeta(arg0)) == T_STRING, "source type should be slice", __func__)
 		emitComment(2, "Conversion of string => slice \n")
-		emitExpr(arg0)
+		emitExprMeta(arg0)
 		emitPopString()
 		printf("  pushq %%rcx # cap\n")
 		printf("  pushq %%rcx # len\n")
@@ -361,14 +361,14 @@ func emitConversion(toType *Type, arg0 ast.Expr) {
 	case *ast.ParenExpr: // (T)(arg0)
 		emitConversion(e2t(to.X), arg0)
 	case *ast.StarExpr: // (*T)(arg0)
-		emitExpr(arg0)
+		emitExprMeta(arg0)
 	case *ast.InterfaceType:
-		emitExpr(arg0)
-		if isInterface(getTypeOfExpr(arg0)) {
+		emitExprMeta(arg0)
+		if isInterface(getTypeOfExprMeta(arg0)) {
 			// do nothing
 		} else {
 			// Convert dynamic value to interface
-			emitConvertToInterface(getTypeOfExpr(arg0))
+			emitConvertToInterface(getTypeOfExprMeta(arg0))
 		}
 	default:
 		throw(to)
@@ -466,7 +466,7 @@ func emitCallMalloc(size int) {
 type MetaStructLiteralElement struct {
 	field     *ast.Field
 	fieldType *Type
-	value     ast.Expr
+	ValueMeta MetaExpr
 }
 
 func emitStructLiteral(meta *MetaCompositLiteral) {
@@ -483,8 +483,8 @@ func emitStructLiteral(meta *MetaCompositLiteral) {
 		emitAddConst(fieldOffset, "address of struct field")
 
 		// push rhs value
-		emitExpr(metaElm.value)
-		mayEmitConvertTooIfc(metaElm.value, metaElm.fieldType)
+		emitExprMeta(metaElm.ValueMeta)
+		mayEmitConvertTooIfcMeta(metaElm.ValueMeta, metaElm.fieldType)
 
 		// assign
 		emitStore(metaElm.fieldType, true, false)
@@ -996,7 +996,7 @@ func emitCallExpr(meta *MetaCallExpr) {
 	// check if it's a conversion
 	if meta.isConversion {
 		emitComment(2, "[emitCallExpr] Conversion\n")
-		emitConversion(meta.toType, meta.arg)
+		emitConversion(meta.toType, meta.arg0)
 	} else {
 		emitComment(2, "[emitCallExpr] Funcall\n")
 		emitFuncall(meta)
@@ -1338,6 +1338,14 @@ func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 	printf("  %s:\n", labelEnd)
 }
 
+func isUniverseNilMeta(meta MetaExpr) bool {
+	switch e := meta.(type) {
+	case *MetaIdent:
+		return e.IsUniverseNil
+	default:
+		return false
+	}
+}
 func isUniverseNil(expr ast.Expr) bool {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -1453,6 +1461,12 @@ func emitConvertToInterface(fromType *Type) {
 	emitStore(fromType, false, true) // heap addr pushed
 	// push dtype label's address
 	emitDtypeLabelAddr(fromType)
+}
+
+func mayEmitConvertTooIfcMeta(meta MetaExpr, ctxType *Type) {
+	if !isUniverseNilMeta(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExprMeta(meta)) {
+		emitConvertToInterface(getTypeOfExprMeta(meta))
+	}
 }
 
 func mayEmitConvertTooIfc(expr ast.Expr, ctxType *Type) {
@@ -3949,6 +3963,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		} else {
 			exprTypeMeta[unsafe.Pointer(e)] = ctx._type
 		}
+		meta.IsUniverseNil = true
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
@@ -3990,7 +4005,7 @@ type MetaCallExpr struct {
 
 	// For Conversion
 	toType *Type
-	arg    ast.Expr
+	arg0   MetaExpr
 
 	// For funcall
 	fun         ast.Expr
@@ -4015,11 +4030,10 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 		meta.toType = e2t(e.Fun)
 		assert(len(e.Args) == 1, "convert must take only 1 argument", __func__)
 		//logf2("walkCallExpr: is Conversion\n")
-		meta.arg = e.Args[0]
 		ctx := &evalContext{
 			_type: e2t(e.Fun),
 		}
-		walkExpr(meta.arg, ctx)
+		meta.arg0 = walkExpr(e.Args[0], ctx)
 		return meta
 	}
 
@@ -4262,12 +4276,12 @@ func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiter
 			fieldType := e2t(field.Type)
 			ctx := &evalContext{_type: fieldType}
 			// attach type to nil : STRUCT{Key:nil}
-			walkExpr(kvExpr.Value, ctx)
+			valueMeta := walkExpr(kvExpr.Value, ctx)
 
 			metaElm := &MetaStructLiteralElement{
 				field:     field,
 				fieldType: fieldType,
-				value:     kvExpr.Value,
+				ValueMeta: valueMeta,
 			}
 
 			metaElms = append(metaElms, metaElm)
@@ -4426,8 +4440,9 @@ type MetaBasicLit struct {
 }
 
 type MetaIdent struct {
-	e    *ast.Ident
-	Name string
+	e             *ast.Ident
+	Name          string
+	IsUniverseNil bool
 }
 
 type MetaSelectorExpr struct {
