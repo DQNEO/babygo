@@ -527,7 +527,6 @@ func emitFalse() {
 type Arg struct {
 	e         ast.Expr
 	paramType *Type // expected type
-	offset    int
 }
 
 func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, expandElipsis bool) []*Arg {
@@ -621,20 +620,21 @@ func emitCall(fn interface{}, args []*Arg, resultList *ast.FieldList) {
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 
 	var totalParamSize int
+	var offsets []int
 	for _, arg := range args {
-		arg.offset = totalParamSize
+		offsets = append(offsets, totalParamSize)
 		totalParamSize += getSizeOfType(arg.paramType)
 	}
 
 	emitAllocReturnVarsArea(getTotalFieldsSize(resultList))
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
-	for _, arg := range args {
+	for i, arg := range args {
 		paramType := arg.paramType
 
 		emitExpr(arg.e)
 		mayEmitConvertTooIfc(arg.e, paramType)
 		emitPop(kind(paramType))
-		printf("  leaq %d(%%rsp), %%rsi # place to save\n", arg.offset)
+		printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 		printf("  pushq %%rsi # place to save\n")
 		emitRegiToMem(paramType)
 	}
@@ -1607,12 +1607,10 @@ func emitCompStrings(left ast.Expr, right ast.Expr) {
 		&Arg{
 			e:         left,
 			paramType: tString,
-			offset:    0,
 		},
 		&Arg{
 			e:         right,
 			paramType: tString,
-			offset:    0,
 		},
 	}
 	resultList := &ast.FieldList{
