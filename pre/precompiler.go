@@ -1381,7 +1381,7 @@ func emitExprMeta(meta MetaExpr) {
 	case *MetaTypeAssertExpr:
 		emitTypeAssertExpr(m) // can be tuple
 	default:
-		throw(meta)
+		panic(fmt.Sprintf("meta type:%T", meta))
 	}
 }
 
@@ -2652,6 +2652,50 @@ const T_POINTER TypeKind = "T_POINTER"
 const T_MAP TypeKind = "T_MAP"
 
 // types of an expr in single value context
+func getTypeOfExprMeta(meta MetaExpr) *Type {
+	switch m := meta.(type) {
+	case *MetaIdent:
+		return getTypeOfExpr(m.e)
+	case *MetaBasicLit:
+		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
+		// depending on whether it is a boolean, rune, integer, floating-point, complex, or string constant.
+		switch m.Kind {
+		case "STRING":
+			return tString
+		case "INT":
+			return tInt
+		case "CHAR":
+			return tInt32
+		default:
+			panic(m.Kind)
+		}
+	case *MetaUnaryExpr:
+		return getTypeOfExpr(m.e)
+	case *MetaBinaryExpr:
+		switch m.Op {
+		case "==", "!=", "<", ">", "<=", ">=":
+			return tBool
+		default:
+			return getTypeOfExpr(m.e)
+		}
+	case *MetaIndexExpr:
+		return getTypeOfExpr(m.e)
+	case *MetaCallExpr: // funcall or conversion
+		return getTypeOfExpr(m.e)
+	case *MetaSliceExpr:
+		return getTypeOfExpr(m.e)
+	case *MetaStarExpr:
+		return getTypeOfExpr(m.e)
+	case *MetaSelectorExpr:
+		return getTypeOfExpr(m.e)
+	case *MetaCompositLiteral:
+		return getTypeOfExpr(m.e)
+	case *MetaTypeAssertExpr:
+		return getTypeOfExpr(m.e)
+	}
+	panic("bad type\n")
+}
+
 func getTypeOfExpr(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -3946,6 +3990,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 }
 
 type MetaCallExpr struct {
+	e            *ast.CallExpr
 	isConversion bool
 
 	// For Conversion
@@ -3967,8 +4012,9 @@ type MetaCallExpr struct {
 }
 
 func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
-	meta := &MetaCallExpr{}
-	mapCallExpr[unsafe.Pointer(e)] = meta
+	meta := &MetaCallExpr{
+		e: e,
+	}
 	if isType(e.Fun) {
 		meta.isConversion = true
 		meta.toType = e2t(e.Fun)
@@ -4176,6 +4222,7 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 }
 
 type MetaCompositLiteral struct {
+	e    *ast.CompositeLit
 	kind string // "struct", "array", "slice" // @TODO "map"
 
 	// for struct
@@ -4204,6 +4251,7 @@ func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiter
 		unexpectedKind(kind(e2t(e.Type)))
 	}
 	meta := &MetaCompositLiteral{
+		e:    e,
 		kind: knd,
 		typ:  getTypeOfExpr(e),
 	}
