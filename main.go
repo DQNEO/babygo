@@ -3867,6 +3867,10 @@ func walkStmt(stmt ast.Stmt) MetaStmt {
 }
 
 func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
+	meta := &MetaIdent{
+		e:    e,
+		Name: e.Name,
+	}
 	logfncname := "(toplevel)"
 	if currentFunc != nil {
 		logfncname = currentFunc.Name
@@ -3878,7 +3882,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		// blank identifier
 		// e.Obj is nil in this case.
 		// @TODO do something
-		return &MetaIdent{e: e}
+		return meta
 	}
 	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
@@ -3904,10 +3908,11 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		}
 
 	}
-	return &MetaIdent{e: e}
+	return meta
 }
 
 func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
+	meta := &MetaSelectorExpr{e: e}
 	if isQI(e) {
 		// pkg.ident
 		qi := selector2QI(e)
@@ -3919,9 +3924,9 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 		}
 	} else {
 		// expr.field
-		walkExpr(e.X, ctx)
+		meta.X = walkExpr(e.X, ctx)
 	}
-	return &MetaSelectorExpr{e: e}
+	return meta
 }
 
 type MetaCallExpr struct {
@@ -4129,7 +4134,11 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 	default:
 		panic("Unexpected literal kind:" + e.Kind.String())
 	}
-	return &MetaBasicLit{e: e}
+	return &MetaBasicLit{
+		e:     e,
+		Kind:  e.Kind.String(),
+		Value: e.Value,
+	}
 }
 
 type MetaCompositLiteral struct {
@@ -4314,13 +4323,19 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssert
 
 type MetaExpr interface{}
 type MetaBasicLit struct {
-	e *ast.BasicLit
+	e     *ast.BasicLit
+	Kind  string
+	Value string
 }
+
 type MetaIdent struct {
-	e *ast.Ident
+	e    *ast.Ident
+	Name string
 }
+
 type MetaSelectorExpr struct {
 	e *ast.SelectorExpr
+	X MetaExpr
 }
 type MetaSliceExpr struct {
 	e    *ast.SliceExpr
