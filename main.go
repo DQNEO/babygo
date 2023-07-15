@@ -1025,15 +1025,15 @@ func emitIndexExpr(meta *MetaIndexExpr) {
 	if meta.IsMap {
 		emitMapGet(meta.e, meta.NeedsOK)
 	} else {
-		emitAddr(meta.e)
-		emitLoadAndPush(getTypeOfExpr(meta.e))
+		emitAddrMeta(meta)
+		emitLoadAndPush(getTypeOfExprMeta(meta))
 	}
 }
 
 // 1 value
 func emitStarExpr(meta *MetaStarExpr) {
-	emitAddr(meta.e)
-	emitLoadAndPush(getTypeOfExpr(meta.e))
+	emitAddrMeta(meta)
+	emitLoadAndPush(getTypeOfExprMeta(meta))
 }
 
 // 1 value X.Sel
@@ -1050,8 +1050,8 @@ func emitSelectorExpr(meta *MetaSelectorExpr) {
 		}
 	} else {
 		// strct.field
-		emitAddr(e)
-		emitLoadAndPush(getTypeOfExpr(e))
+		emitAddrMeta(meta)
+		emitLoadAndPush(getTypeOfExprMeta(meta))
 	}
 }
 
@@ -1101,7 +1101,7 @@ func emitUnaryExpr(meta *MetaUnaryExpr) {
 		printf("  imulq $-1, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "&":
-		emitAddr(e.X)
+		emitAddrMeta(meta.X)
 	case "!":
 		emitExprMeta(meta.X)
 		emitInvertBoolValue()
