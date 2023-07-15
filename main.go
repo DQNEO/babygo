@@ -4359,6 +4359,16 @@ type MetaBinaryExpr struct {
 }
 
 var mapBasicLit = make(map[unsafe.Pointer]*MetaBasicLit)
+var mapCompositLit = make(map[unsafe.Pointer]*MetaCompositLiteral)
+var mapIdent = make(map[unsafe.Pointer]*MetaIdent)
+var mapSelectorExpr = make(map[unsafe.Pointer]*MetaSelectorExpr)
+var mapCallExpr = make(map[unsafe.Pointer]*MetaCallExpr)
+var mapIndexExpr = make(map[unsafe.Pointer]*MetaIndexExpr)
+var mapSliceExpr = make(map[unsafe.Pointer]*MetaSliceExpr)
+var mapStarExpr = make(map[unsafe.Pointer]*MetaStarExpr)
+var mapUnaryExpr = make(map[unsafe.Pointer]*MetaUnaryExpr)
+var mapBinaryExpr = make(map[unsafe.Pointer]*MetaBinaryExpr)
+var mapTypeAssertExpr = make(map[unsafe.Pointer]*MetaTypeAssertExpr)
 
 func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 	switch e := expr.(type) {
