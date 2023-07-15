@@ -3761,7 +3761,7 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 
 		if assignIdent != nil && len(cc.List) > 0 {
 			var varType *Type
-			if isNil(cc.List[0]) {
+			if len(cc.List) == 0 || isNil(cc.List[0]) {
 				varType = getTypeOfExpr(typeSwitch.Subject)
 			} else {
 				varType = e2t(cc.List[0])
