@@ -2178,7 +2178,7 @@ func emitTypeSwitchStmt(meta *MetaTypeSwitchStmt) {
 
 	// subjectVariable = subject
 	emitVariableAddr(meta.SubjectVariable)
-	emitExpr(meta.SubjectMeta)
+	emitExpr(meta.Subject)
 	emitStore(tEface, true, false)
 
 	cases := meta.Cases
@@ -3739,19 +3739,18 @@ func walkSwitchStmt(s *ast.SwitchStmt) *MetaSwitchStmt {
 func walkTypeSwitchStmt(meta *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	typeSwitch := &MetaTypeSwitchStmt{}
 	var assignIdent *ast.Ident
+
 	switch assign := meta.Assign.(type) {
 	case *ast.ExprStmt:
 		typeAssertExpr := assign.X.(*ast.TypeAssertExpr)
-		typeSwitch.Subject = typeAssertExpr.X
-		typeSwitch.SubjectMeta = walkExpr(typeAssertExpr.X, nil)
+		typeSwitch.Subject = walkExpr(typeAssertExpr.X, nil)
 	case *ast.AssignStmt:
 		lhs := assign.Lhs[0]
 		assignIdent = lhs.(*ast.Ident)
 		typeSwitch.AssignIdent = assignIdent
 		// ident will be a new local variable in each case clause
 		typeAssertExpr := assign.Rhs[0].(*ast.TypeAssertExpr)
-		typeSwitch.Subject = typeAssertExpr.X
-		typeSwitch.SubjectMeta = walkExpr(typeAssertExpr.X, nil)
+		typeSwitch.Subject = walkExpr(typeAssertExpr.X, nil)
 	default:
 		throw(meta.Assign)
 	}
@@ -3767,7 +3766,7 @@ func walkTypeSwitchStmt(meta *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 		if assignIdent != nil && len(cc.List) > 0 {
 			var varType *Type
 			if isNil(cc.List[0]) {
-				varType = getTypeOfExpr(typeSwitch.Subject)
+				varType = getTypeOfExprMeta(typeSwitch.Subject)
 			} else {
 				varType = e2t(cc.List[0])
 			}
@@ -3908,8 +3907,7 @@ type MetaSwitchStmt struct {
 }
 
 type MetaTypeSwitchStmt struct {
-	Subject         ast.Expr
-	SubjectMeta     MetaExpr
+	Subject         MetaExpr
 	SubjectVariable *Variable
 	AssignIdent     *ast.Ident
 	Cases           []*MetaTypeSwitchCaseClose
