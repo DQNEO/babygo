@@ -656,7 +656,6 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		}
 
 		paramType := e2t(param.Type)
-
 		arg := &Arg{
 			e:         eArg,
 			paramType: paramType,
@@ -694,16 +693,17 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 	}
 
 	for _, arg := range args {
-		eArg := arg.e
 		ctx := &evalContext{_type: arg.paramType}
-		walkExpr(eArg, ctx)
+		arg.meta = walkExpr(arg.e, ctx)
 	}
 
 	if receiver != nil { // method call
+		meta := walkExpr(receiver, nil)
 		var receiverAndArgs []*Arg = []*Arg{
 			&Arg{
 				e:         receiver,
 				paramType: getTypeOfExpr(receiver),
+				meta:      meta,
 			},
 		}
 		for _, arg := range args {
@@ -4336,7 +4336,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 						Op: token.AND,
 						X:  receiver,
 					}
-					walkExpr(receiver, nil)
+					//walkExpr(receiver, nil)
 				} else {
 					// v.mv() => as it is
 				}
