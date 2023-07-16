@@ -273,7 +273,7 @@ func emitAddr(expr MetaExpr) {
 				panic("Unexpected foreign ident kind:" + ident.Obj.Kind.String())
 			}
 		} else { // (e).field
-			typeOfX := getUnderlyingType(getTypeOfExpr(m.e.X))
+			typeOfX := getUnderlyingType(getTypeOfExprMeta(m.X))
 			var structTypeLiteral *ast.StructType
 			switch typ := typeOfX.E.(type) {
 			case *ast.StructType: // strct.field
@@ -619,7 +619,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 		var receiverAndArgs []*Arg = []*Arg{
 			&Arg{
 				e:         receiver,
-				paramType: getTypeOfExpr(receiver),
+				paramType: getTypeOfExprMeta(meta),
 				meta:      meta,
 			},
 		}
@@ -886,7 +886,7 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 
 		_args := []*Arg{
 			&Arg{
 				meta:      arg0,
-				paramType: getTypeOfExpr(eArgs[0]),
+				paramType: getTypeOfExprMeta(arg0),
 			},
 			&Arg{
 				meta:      arg1,
@@ -2108,7 +2108,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 		panic("Omitted tag is not supported yet")
 	}
 	emitExpr(s.TagMeta)
-	condType := getTypeOfExpr(s.Tag)
+	condType := getTypeOfExprMeta(s.TagMeta)
 	cases := s.cases
 	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
@@ -3370,10 +3370,10 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 func IsOkSyntax(s *ast.AssignStmt) bool {
 	rhs0 := s.Rhs[0]
 	_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
-	indexExpr, isIndexExpr := rhs0.(*ast.IndexExpr)
 	if len(s.Lhs) == 2 && isTypeAssertion {
 		return true
 	}
+	indexExpr, isIndexExpr := rhs0.(*ast.IndexExpr)
 	if len(s.Lhs) == 2 && isIndexExpr && kind(getTypeOfExpr(indexExpr.X)) == T_MAP {
 		return true
 	}
