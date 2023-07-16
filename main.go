@@ -2169,8 +2169,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 	}
 	printf("  %s:\n", labelEnd)
 }
-func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
-	meta := s
+func emitTypeSwitchStmt(meta *MetaTypeSwitchStmt) {
 	labelid++
 	labelEnd := fmt.Sprintf(".L.typeswitch.%d.exit", labelid)
 
@@ -2179,7 +2178,7 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 	emitExpr(meta.SubjectMeta)
 	emitStore(tEface, true, false)
 
-	cases := s.Cases
+	cases := meta.Cases
 	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
 	emitComment(2, "Start comparison with cases\n")
@@ -3734,10 +3733,10 @@ func walkSwitchStmt(s *ast.SwitchStmt) *MetaSwitchStmt {
 	return meta
 }
 
-func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
+func walkTypeSwitchStmt(meta *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	typeSwitch := &MetaTypeSwitchStmt{}
 	var assignIdent *ast.Ident
-	switch assign := s.Assign.(type) {
+	switch assign := meta.Assign.(type) {
 	case *ast.ExprStmt:
 		typeAssertExpr := assign.X.(*ast.TypeAssertExpr)
 		typeSwitch.Subject = typeAssertExpr.X
@@ -3751,20 +3750,20 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 		typeSwitch.Subject = typeAssertExpr.X
 		typeSwitch.SubjectMeta = walkExpr(typeAssertExpr.X, nil)
 	default:
-		throw(s.Assign)
+		throw(meta.Assign)
 	}
 
 	typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", tEface)
 
 	var cases []*MetaTypeSwitchCaseClose
-	for _, _case := range s.Body.List {
+	for _, _case := range meta.Body.List {
 		cc := _case.(*ast.CaseClause)
 		tscc := &MetaTypeSwitchCaseClose{}
 		cases = append(cases, tscc)
 
 		if assignIdent != nil && len(cc.List) > 0 {
 			var varType *Type
-			if len(cc.List) == 0 || isNil(cc.List[0]) {
+			if isNil(cc.List[0]) {
 				varType = getTypeOfExpr(typeSwitch.Subject)
 			} else {
 				varType = e2t(cc.List[0])
