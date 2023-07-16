@@ -1861,7 +1861,7 @@ func isBlankIdentifier(e ast.Expr) bool {
 }
 
 func emitAssignToVar(vr *Variable, rhs MetaExpr) {
-	emitComment(2, "Assignment: emitAddr(lhs)\n")
+	emitComment(2, "Assignment: emitVariableAddr(lhs)\n")
 	emitVariableAddr(vr)
 	emitComment(2, "Assignment: emitExprMeta(rhs)\n")
 
@@ -2364,7 +2364,7 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 				if _isNil {
 					// @TODO: assign nil to the AssignIdent of interface type
 				} else {
-					emitAddr(meta.AssignIdent) // push lhs
+					emitVariableAddr(c.Variable) // push lhs
 
 					// push rhs
 					emitVariableAddr(meta.SubjectVariable)
