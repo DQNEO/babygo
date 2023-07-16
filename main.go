@@ -752,7 +752,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 	}
 }
 
-func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 MetaExpr, arg1 MetaExpr, arg2 MetaExpr) {
+func emitBuiltinFunCall(obj *ast.Object, typeArg0 *Type, arg0 MetaExpr, arg1 MetaExpr, arg2 MetaExpr) {
 	switch obj {
 	case gLen:
 		emitLen(arg0)
@@ -933,7 +933,7 @@ func emitFuncall(meta *MetaCallExpr) {
 	emitComment(2, "[emitFuncall] %T(...)\n", meta.fun)
 	// check if it's a builtin func
 	if meta.builtin != nil {
-		emitBuiltinFunCall(meta.builtin, meta.args, meta.typeArg0, meta.arg0, meta.arg1, meta.arg2)
+		emitBuiltinFunCall(meta.builtin, meta.typeArg0, meta.arg0, meta.arg1, meta.arg2)
 		return
 	}
 
@@ -1915,7 +1915,7 @@ func emitRangeMap(meta *MetaForStmt) {
 	emitComment(2, "ForRange map Initialization\n")
 
 	// _mp = EXPR
-	emitAssignToVar(meta.ForRange.MapVar, meta.ForRange.metaX)
+	emitAssignToVar(meta.ForRange.MapVar, meta.ForRange.X)
 
 	//  if _mp == nil then exit
 	emitVariable(meta.ForRange.MapVar) // value of _mp
@@ -1945,7 +1945,7 @@ func emitRangeMap(meta *MetaForStmt) {
 	emitComment(2, "assign key value to variables\n")
 
 	// assign key
-	keyMeta := meta.ForRange.keyMeta
+	keyMeta := meta.ForRange.Key
 	if keyMeta != nil {
 		if !isBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta) // lhs
@@ -1966,7 +1966,7 @@ func emitRangeMap(meta *MetaForStmt) {
 	}
 
 	// assign value
-	valueMeta := meta.ForRange.valueMeta
+	valueMeta := meta.ForRange.Value
 	if valueMeta != nil {
 		if !isBlankIdentifierMeta(valueMeta) {
 			emitAddr(valueMeta) // lhs
@@ -2017,7 +2017,7 @@ func emitRangeStmt(meta *MetaForStmt) {
 	emitComment(2, "  assign length to lenvar\n")
 	// lenvar = len(s.X)
 	emitVariableAddr(meta.ForRange.LenVar)
-	emitLen(meta.ForRange.metaX)
+	emitLen(meta.ForRange.X)
 	emitStore(tInt, true, false)
 
 	emitComment(2, "  assign 0 to indexvar\n")
@@ -2027,7 +2027,7 @@ func emitRangeStmt(meta *MetaForStmt) {
 	emitStore(tInt, true, false)
 
 	// init key variable with 0
-	keyMeta := meta.ForRange.keyMeta
+	keyMeta := meta.ForRange.Key
 	if keyMeta != nil {
 		if !isBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta) // lhs
@@ -2054,12 +2054,12 @@ func emitRangeStmt(meta *MetaForStmt) {
 	printf("  jne %s # jmp if false\n", labelExit)
 
 	emitComment(2, "assign list[indexvar] value variables\n")
-	elemType := getTypeOfExprMeta(meta.ForRange.valueMeta)
-	emitAddr(meta.ForRange.valueMeta) // lhs
+	elemType := getTypeOfExprMeta(meta.ForRange.Value)
+	emitAddr(meta.ForRange.Value) // lhs
 
 	emitVariableAddr(meta.ForRange.Indexvar)
 	emitLoadAndPush(tInt) // index value
-	emitListElementAddr(meta.ForRange.metaX, elemType)
+	emitListElementAddr(meta.ForRange.X, elemType)
 
 	emitLoadAndPush(elemType)
 	emitStore(elemType, true, false)
@@ -3657,20 +3657,14 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 			IsMap:    false,
 			LenVar:   registerLocalVariable(currentFunc, ".range.len", tInt),
 			Indexvar: registerLocalVariable(currentFunc, ".range.index", tInt),
-			metaX:    metaX,
-			X:        s.X,
-			Key:      s.Key,
-			Value:    s.Value,
+			X:        metaX,
 		}
 	case T_MAP:
 		meta.ForRange = &MetaForRange{
 			IsMap:   true,
 			MapVar:  registerLocalVariable(currentFunc, ".range.map", tUintptr),
 			ItemVar: registerLocalVariable(currentFunc, ".range.item", tUintptr),
-			metaX:   metaX,
-			X:       s.X,
-			Key:     s.Key,
-			Value:   s.Value,
+			X:       metaX,
 		}
 	default:
 		throw(collectionType)
@@ -3684,10 +3678,10 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
 	if s.Key != nil {
-		meta.ForRange.keyMeta = walkExpr(s.Key, nil)
+		meta.ForRange.Key = walkExpr(s.Key, nil)
 	}
 	if s.Value != nil {
-		meta.ForRange.valueMeta = walkExpr(s.Value, nil)
+		meta.ForRange.Value = walkExpr(s.Value, nil)
 	}
 
 	mtBlock := walkBlockStmt(s.Body)
@@ -3866,17 +3860,14 @@ type MetaReturnStmt struct {
 }
 
 type MetaForRange struct {
-	IsMap     bool
-	LenVar    *Variable
-	Indexvar  *Variable
-	MapVar    *Variable // map
-	ItemVar   *Variable // map element
-	X         ast.Expr
-	Key       ast.Expr
-	Value     ast.Expr
-	metaX     MetaExpr
-	keyMeta   MetaExpr
-	valueMeta MetaExpr
+	IsMap    bool
+	LenVar   *Variable
+	Indexvar *Variable
+	MapVar   *Variable // map
+	ItemVar  *Variable // map element
+	X        MetaExpr
+	Key      MetaExpr
+	Value    MetaExpr
 }
 
 type MetaForStmt struct {
@@ -4036,7 +4027,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 	return meta
 }
 
-func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
+func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	meta := &MetaCallExpr{
 		e: e,
 	}
@@ -4249,7 +4240,7 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 	return mt
 }
 
-func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiteral {
+func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLiteral {
 	walkExpr(e.Type, nil) // a[len("foo")]{...} // "foo" should be walked
 	ut := getUnderlyingType(getTypeOfExpr(e))
 	var knd string
@@ -4323,7 +4314,7 @@ func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
 	return meta
 }
 
-func walkBinaryExpr(e *ast.BinaryExpr, _ctx *evalContext) *MetaBinaryExpr {
+func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 	meta := &MetaBinaryExpr{
 		e:  e,
 		Op: e.Op.String(),
@@ -4403,7 +4394,7 @@ func walkStarExpr(e *ast.StarExpr, ctx *evalContext) *MetaStarExpr {
 	return meta
 }
 
-func walkKeyValueExpr(e *ast.KeyValueExpr, _ctx *evalContext) {
+func walkKeyValueExpr(e *ast.KeyValueExpr, ctx *evalContext) {
 	// MYSTRUCT{key:value}
 	// key is not an expression in struct literals.
 	// Actually struct case is handled in walkCompositeLit().
@@ -4504,7 +4495,10 @@ type MetaCallExpr struct {
 	// For Conversion
 	toType *Type
 
-	arg0 MetaExpr // For conversion, len, cap
+	arg0     MetaExpr // For conversion, len, cap
+	typeArg0 *Type
+	arg1     MetaExpr
+	arg2     MetaExpr
 
 	// For funcall
 	fun         ast.Expr
@@ -4518,9 +4512,6 @@ type MetaCallExpr struct {
 	funcVal  *FuncValue
 	receiver ast.Expr
 	metaArgs []*Arg
-	typeArg0 *Type
-	arg1     MetaExpr
-	arg2     MetaExpr
 }
 
 type MetaIndexExpr struct {
@@ -4983,11 +4974,6 @@ var tEface *Type = &Type{
 	E: &ast.InterfaceType{},
 }
 
-var tTODO *Type = &Type{
-	E: &ast.Ident{
-		Name: "@TODO",
-	},
-}
 var generalSlice ast.Expr = &ast.Ident{}
 
 func createUniverse() *ast.Scope {
