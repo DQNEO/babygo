@@ -547,7 +547,7 @@ type MetaArg struct {
 	paramType *Type // expected type
 }
 
-func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, expandElipsis bool) []*MetaArg {
+func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, expandElipsis bool) []*MetaArg {
 	if funcType == nil {
 		panic("no funcType")
 	}
@@ -622,11 +622,10 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 	}
 
 	if receiver != nil { // method call
-		meta := walkExpr(receiver, nil)
 		var receiverAndArgs []*MetaArg = []*MetaArg{
 			&MetaArg{
-				paramType: getTypeOfExprMeta(meta),
-				meta:      meta,
+				paramType: getTypeOfExprMeta(receiver),
+				meta:      receiver,
 			},
 		}
 		for _, arg := range metaArgs {
@@ -3645,7 +3644,7 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForContainer {
 	currentFor = meta
 	metaX := walkExpr(s.X, nil)
 
-	collectionType := getUnderlyingType(getTypeOfExpr(s.X))
+	collectionType := getUnderlyingType(getTypeOfExprMeta(metaX))
 	keyType := getKeyTypeOfCollectionType(collectionType)
 	elmType := getElementTypeOfCollectionType(collectionType)
 	walkExpr(tInt.E, nil)
@@ -4164,7 +4163,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	var funcType *ast.FuncType
 	var funcVal *FuncValue
 	var receiver ast.Expr
-
+	var receiverMeta MetaExpr
 	switch fn := meta.fun.(type) {
 	case *ast.Ident:
 		// general function call
@@ -4218,7 +4217,8 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 		} else {
 			// method call
 			receiver = fn.X
-			receiverType := getTypeOfExpr(receiver)
+			receiverMeta = walkExpr(receiver, nil)
+			receiverType := getTypeOfExprMeta(receiverMeta)
 			method := lookupMethod(receiverType, fn.Sel)
 			funcType = method.FuncType
 			funcVal = NewFuncValueFromSymbol(getMethodSymbol(method))
@@ -4234,11 +4234,15 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 				if method.IsPtrMethod {
 					// v.mp() => (&v).mp()
 					// @TODO we should check addressable
-					receiver = &ast.UnaryExpr{
+					rcvr := &ast.UnaryExpr{
 						Op: token.AND,
 						X:  receiver,
 					}
-					//walkExpr(receiver, nil)
+					receiver = rcvr
+					receiverMeta = &MetaUnaryExpr{
+						e: rcvr,
+						X: receiverMeta,
+					}
 				} else {
 					// v.mv() => as it is
 				}
@@ -4249,9 +4253,8 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	}
 
 	meta.funcType = funcType
-	meta.receiver = receiver
 	meta.funcVal = funcVal
-	meta.metaArgs = prepareArgs(meta.funcType, meta.receiver, meta.args, meta.hasEllipsis)
+	meta.metaArgs = prepareArgs(meta.funcType, receiverMeta, meta.args, meta.hasEllipsis)
 	return meta
 }
 
@@ -4562,7 +4565,7 @@ type MetaCallExpr struct {
 	// general funcall
 	funcType *ast.FuncType
 	funcVal  *FuncValue
-	receiver ast.Expr
+	//receiver ast.Expr
 	metaArgs []*MetaArg
 }
 
