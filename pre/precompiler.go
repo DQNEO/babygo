@@ -950,8 +950,7 @@ type evalContext struct {
 
 // 1 value
 func emitIdent(meta *MetaIdent) {
-	//e := meta.e
-	//logf2("emitIdent ident=%s\n", e.Name)
+	logf2("emitIdent ident=%s\n", meta.Name)
 	switch meta.kind {
 	case "true": // true constant
 		emitTrue()
@@ -2610,7 +2609,11 @@ const T_MAP TypeKind = "T_MAP"
 func getTypeOfExprMeta(meta MetaExpr) *Type {
 	switch m := meta.(type) {
 	case *MetaIdent:
-		return getTypeOfExpr(m.e)
+		if m.kind == "var" {
+			return m.typ
+		} else {
+			return getTypeOfExpr(m.e)
+		}
 	case *MetaBasicLit:
 		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
 		// depending on whether it is a boolean, rune, integer, floating-point, complex, or string constant.
@@ -2642,7 +2645,23 @@ func getTypeOfExprMeta(meta MetaExpr) *Type {
 	case *MetaStarExpr:
 		return getTypeOfExpr(m.e)
 	case *MetaSelectorExpr:
-		return getTypeOfExpr(m.e)
+		e := m.e
+		if isQI(e) { // pkg.SomeType
+			ident := lookupForeignIdent(selector2QI(e))
+			return getTypeOfExpr(ident)
+		} else { // (e).field
+			ut := getUnderlyingType(getTypeOfExprMeta(m.X))
+			var structTypeLiteral *ast.StructType
+			switch typ := ut.E.(type) {
+			case *ast.StructType: // strct.field
+				structTypeLiteral = typ
+			case *ast.StarExpr: // ptr.field
+				structType := e2t(typ.X)
+				structTypeLiteral = getUnderlyingStructType(structType)
+			}
+			field := lookupStructField(structTypeLiteral, e.Sel.Name)
+			return e2t(field.Type)
+		}
 	case *MetaCompositLiteral:
 		return getTypeOfExpr(m.e)
 	case *MetaTypeAssertExpr:
@@ -2661,7 +2680,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 			if isVariable {
 				return variable.Typ
 			}
-			panic("Variable is not set")
+			panic("Variable is not set for ident:" + e.Name)
 		case ast.Con:
 			switch e.Obj {
 			case gTrue, gFalse:
@@ -4007,6 +4026,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 				panic("ident.Obj.Data should not be nil: name=" + meta.Name)
 			}
 			meta.variable = e.Obj.Data.(*Variable)
+			meta.typ = meta.variable.Typ
 		case ast.Con:
 			meta.kind = "con"
 			// TODO: attach type
@@ -4457,12 +4477,14 @@ type MetaBasicLit struct {
 }
 
 type MetaIdent struct {
-	e          *ast.Ident
-	kind       string // "blank|nil|true|false|var|con|fun|typ"
-	Name       string
-	typ        *Type
-	variable   *Variable // for "var"
-	conLiteral MetaExpr  // for "con"
+	e    *ast.Ident
+	kind string // "blank|nil|true|false|var|con|fun|typ"
+	Name string
+	typ  *Type // for "nil", "var"
+
+	variable *Variable // for "var"
+
+	conLiteral MetaExpr // for "con"
 }
 
 type MetaSelectorExpr struct {
