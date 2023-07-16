@@ -2381,28 +2381,30 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("  ret\n")
 }
 
-func emitGlobalVariable(pkg *PkgContainer, name string, t *Type, val ast.Expr) {
-	typeKind := kind(t)
+func emitGlobalVariable(pkg *PkgContainer, vr *packageVar) {
+	name := vr.name.Name
+	t := vr.typ
+	typeKind := kind(vr.typ)
+	val := vr.val
 	printf(".global %s.%s\n", pkg.name, name)
 	printf("%s.%s: # T %s\n", pkg.name, name, string(typeKind))
+
+	metaVal := vr.metaVal
+	_ = metaVal
 	switch typeKind {
 	case T_STRING:
-		switch vl := val.(type) {
-		case nil:
+		if metaVal == nil {
+			// no value
 			printf("  .quad 0\n")
 			printf("  .quad 0\n")
-		case *ast.BasicLit:
-			e := vl
-			mt, ok := mapBasicLit[unsafe.Pointer(e)]
+		} else {
+			lit, ok := metaVal.(*MetaBasicLit)
 			if !ok {
-				panic("mapBasicLit not found:" + e.Value)
+				panic("only BasicLit is supported")
 			}
-			assert(mt != nil, "mapBasicLit should not be nil:"+e.Value, __func__)
-			sl := mt.stringLiteral
+			sl := lit.stringLiteral
 			printf("  .quad %s\n", sl.label)
 			printf("  .quad %d\n", sl.strlen)
-		default:
-			panic("Unsupported global string value")
 		}
 	case T_BOOL:
 		switch vl := val.(type) {
@@ -2532,7 +2534,7 @@ func generateCode(pkg *PkgContainer) {
 		if vr.typ == nil {
 			panic("type cannot be nil for global variable: " + vr.name.Name)
 		}
-		emitGlobalVariable(pkg, vr.name.Name, vr.typ, vr.val)
+		emitGlobalVariable(pkg, vr)
 	}
 
 	printf("\n")
@@ -4465,8 +4467,6 @@ type MetaBinaryExpr struct {
 	Y  MetaExpr
 }
 
-var mapBasicLit = make(map[unsafe.Pointer]*MetaBasicLit)
-
 // ctx type is the type of someone who receives the expr value.
 // There are various forms:
 //
@@ -4485,7 +4485,6 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return mt
 	case *ast.BasicLit:
 		mt := walkBasicLit(e, ctx)
-		mapBasicLit[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.KeyValueExpr:
 		walkKeyValueExpr(e, ctx)
@@ -4682,7 +4681,7 @@ func walk(pkg *PkgContainer) {
 			spec:    varSpec,
 			name:    nameIdent,
 			val:     val,
-			metaVal: metaVal,
+			metaVal: metaVal, // can be nil
 			metaVar: metaVar,
 			typ:     t,
 		}
