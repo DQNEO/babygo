@@ -231,16 +231,15 @@ func emitListHeadAddr(list MetaExpr) {
 	}
 }
 
-func emitAddr(expr MetaExpr) {
-	emitComment(2, "[emitAddr] %T\n", expr)
-	switch m := expr.(type) {
+func emitAddr(meta MetaExpr) {
+	emitComment(2, "[emitAddr] %T\n", meta)
+	switch m := meta.(type) {
 	case *MetaIdent:
 		switch m.kind {
 		case "var":
-			vr := m.e.Obj.Data.(*Variable)
-			emitVariableAddr(vr)
+			emitVariableAddr(m.variable)
 		case "fun":
-			qi := newQI(currentPkg.name, m.e.Obj.Name)
+			qi := newQI(currentPkg.name, m.Name)
 			emitFuncAddr(qi)
 		default:
 			panic("Unexpected kind")
@@ -298,7 +297,7 @@ func emitAddr(expr MetaExpr) {
 			unexpectedKind(knd)
 		}
 	default:
-		throw(expr)
+		throw(meta)
 	}
 }
 
@@ -951,15 +950,14 @@ type evalContext struct {
 
 // 1 value
 func emitIdent(meta *MetaIdent) {
-	e := meta.e
+	//e := meta.e
 	//logf2("emitIdent ident=%s\n", e.Name)
-	assert(e.Obj != nil, " ident.Obj should not be nil:"+e.Name, __func__)
-	switch e.Obj {
-	case gTrue: // true constant
+	switch meta.kind {
+	case "true": // true constant
 		emitTrue()
-	case gFalse: // false constant
+	case "false": // false constant
 		emitFalse()
-	case gNil: // zero value
+	case "nil": // zero value
 		metaType := meta.typ
 		if metaType == nil {
 			//gofmt.Fprintf(os.Stderr, "exprTypeMeta=%v\n", exprTypeMeta)
@@ -972,18 +970,15 @@ func emitIdent(meta *MetaIdent) {
 		default:
 			unexpectedKind(kind(metaType))
 		}
+	case "var":
+		emitAddr(meta)
+		emitLoadAndPush(getTypeOfExprMeta(meta))
+	case "con":
+		emitExpr(meta.conLiteral)
+	case "fun":
+		emitAddr(meta)
 	default:
-		switch e.Obj.Kind {
-		case ast.Var:
-			emitAddr(meta)
-			emitLoadAndPush(getTypeOfExprMeta(meta))
-		case ast.Con:
-			emitExpr(meta.conLiteral)
-		case ast.Fun:
-			emitAddr(meta)
-		default:
-			panic("Unexpected ident kind:" + e.Obj.Kind.String() + " name=" + e.Name)
-		}
+		panic("Unexpected ident kind:" + meta.kind + " name=" + meta.Name)
 	}
 }
 
@@ -1043,11 +1038,11 @@ func emitCallExpr(meta *MetaCallExpr) {
 func emitBasicLit(mt *MetaBasicLit) {
 	switch mt.Kind {
 	case "CHAR":
-		printf("  pushq $%d # convert char literal to int\n", mt.charValue)
+		printf("  pushq $%d # convert char literal to int\n", mt.charVal)
 	case "INT":
-		printf("  pushq $%d # number literal\n", mt.intValue)
+		printf("  pushq $%d # number literal\n", mt.intVal)
 	case "STRING":
-		sl := mt.stringLiteral
+		sl := mt.strVal
 		if sl.strlen == 0 {
 			// zero value
 			emitZeroValue(tString)
@@ -2400,7 +2395,7 @@ func emitGlobalVariable(pkg *PkgContainer, vr *packageVar) {
 			if !ok {
 				panic("only BasicLit is supported")
 			}
-			sl := lit.stringLiteral
+			sl := lit.strVal
 			printf("  .quad %s\n", sl.label)
 			printf("  .quad %d\n", sl.strlen)
 		}
@@ -3705,11 +3700,11 @@ func walkSwitchStmt(s *ast.SwitchStmt) *MetaSwitchStmt {
 	return meta
 }
 
-func walkTypeSwitchStmt(meta *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
+func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	typeSwitch := &MetaTypeSwitchStmt{}
 	var assignIdent *ast.Ident
 
-	switch assign := meta.Assign.(type) {
+	switch assign := e.Assign.(type) {
 	case *ast.ExprStmt:
 		typeAssertExpr := assign.X.(*ast.TypeAssertExpr)
 		typeSwitch.Subject = walkExpr(typeAssertExpr.X, nil)
@@ -3721,29 +3716,39 @@ func walkTypeSwitchStmt(meta *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 		typeAssertExpr := assign.Rhs[0].(*ast.TypeAssertExpr)
 		typeSwitch.Subject = walkExpr(typeAssertExpr.X, nil)
 	default:
-		throw(meta.Assign)
+		throw(e.Assign)
 	}
 
 	typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", tEface)
 
 	var cases []*MetaTypeSwitchCaseClose
-	for _, _case := range meta.Body.List {
+	for _, _case := range e.Body.List {
 		cc := _case.(*ast.CaseClause)
 		tscc := &MetaTypeSwitchCaseClose{}
 		cases = append(cases, tscc)
 
-		if assignIdent != nil && len(cc.List) > 0 {
-			var varType *Type
-			if isNil(cc.List[0]) {
-				varType = getTypeOfExprMeta(typeSwitch.Subject)
+		if assignIdent != nil {
+			if len(cc.List) > 0 {
+				var varType *Type
+				if isNil(cc.List[0]) {
+					varType = getTypeOfExprMeta(typeSwitch.Subject)
+				} else {
+					varType = e2t(cc.List[0])
+				}
+				// inject a variable of that type
+				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
+				tscc.Variable = vr
+				tscc.VariableType = varType
+				setVariable(assignIdent.Obj, vr)
 			} else {
-				varType = e2t(cc.List[0])
+				// default clause
+				// inject a variable of subject type
+				varType := getTypeOfExprMeta(typeSwitch.Subject)
+				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
+				tscc.Variable = vr
+				tscc.VariableType = varType
+				setVariable(assignIdent.Obj, vr)
 			}
-			// inject a variable of that type
-			vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
-			tscc.Variable = vr
-			tscc.VariableType = varType
-			setVariable(assignIdent.Obj, vr)
 		}
 		var body []MetaStmt
 		for _, stmt := range cc.Body {
@@ -4000,6 +4005,10 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		switch e.Obj.Kind {
 		case ast.Var:
 			meta.kind = "var"
+			if e.Obj.Data == nil {
+				panic("ident.Obj.Data should not be nil: name=" + meta.Name)
+			}
+			meta.variable = e.Obj.Data.(*Variable)
 		case ast.Con:
 			meta.kind = "con"
 			// TODO: attach type
@@ -4080,6 +4089,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 
 	identFun, isIdent := meta.fun.(*ast.Ident)
 	if isIdent {
+		logf2("  fun=%s\n", identFun.Name)
 		switch identFun.Obj {
 		case gLen, gCap:
 			meta.builtin = identFun.Obj
@@ -4217,7 +4227,6 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 
 func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 	mt := &MetaBasicLit{
-		e:     e,
 		Kind:  e.Kind.String(),
 		Value: e.Value,
 	}
@@ -4240,11 +4249,11 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 				char = '\r'
 			}
 		}
-		mt.charValue = int(char)
+		mt.charVal = int(char)
 	case "INT":
-		mt.intValue = strconv.Atoi(mt.Value)
+		mt.intVal = strconv.Atoi(mt.Value)
 	case "STRING":
-		mt.stringLiteral = registerStringLiteral(e)
+		mt.strVal = registerStringLiteral(e)
 	default:
 		panic("Unexpected literal kind:" + e.Kind.String())
 	}
@@ -4442,20 +4451,20 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssert
 type MetaExpr interface{}
 
 type MetaBasicLit struct {
-	e             *ast.BasicLit
-	Kind          string
-	Value         string
-	charValue     int
-	intValue      int
-	stringLiteral *sliteral
+	Kind    string
+	Value   string
+	charVal int
+	intVal  int
+	strVal  *sliteral
 }
 
 type MetaIdent struct {
 	e          *ast.Ident
 	kind       string // "blank|nil|true|false|var|con|fun|typ"
 	Name       string
-	conLiteral MetaExpr
 	typ        *Type
+	variable   *Variable // for "var"
+	conLiteral MetaExpr  // for "con"
 }
 
 type MetaSelectorExpr struct {
