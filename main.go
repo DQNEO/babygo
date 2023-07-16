@@ -271,9 +271,20 @@ func emitAddrMeta(expr MetaExpr) {
 	case *MetaStarExpr:
 		emitExprMeta(m.X)
 	case *MetaSelectorExpr:
-		if isQI(m.e) { // pkg.SomeType
-			ident := lookupForeignIdent(selector2QI(m.e))
-			emitAddr(ident)
+		if isQI(m.e) { // pkg.Var|pkg.Const
+			qi := selector2QI(m.e)
+			ident := lookupForeignIdent(qi)
+			switch ident.Obj.Kind {
+			case ast.Var:
+				printf("  leaq %s(%%rip), %%rax # external global variable \n", string(qi))
+				printf("  pushq %%rax # variable address\n")
+			case ast.Fun:
+				emitFuncAddr(qi)
+			case ast.Con:
+				panic("TBI")
+			default:
+				panic("Unexpected foreign ident kind:" + ident.Obj.Kind.String())
+			}
 		} else { // (e).field
 			typeOfX := getUnderlyingType(getTypeOfExpr(m.e.X))
 			var structTypeLiteral *ast.StructType
