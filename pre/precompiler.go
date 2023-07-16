@@ -2609,9 +2609,12 @@ const T_MAP TypeKind = "T_MAP"
 func getTypeOfExprMeta(meta MetaExpr) *Type {
 	switch m := meta.(type) {
 	case *MetaIdent:
-		if m.kind == "var" {
+		switch m.kind {
+		case "var", "nil":
 			return m.typ
-		} else {
+		case "con":
+			return getTypeOfExprMeta(m.conLiteral)
+		default:
 			return getTypeOfExpr(m.e)
 		}
 	case *MetaBasicLit:
@@ -2725,10 +2728,6 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 				X: t.E,
 			}
 			return e2t(starExpr)
-		case "range":
-			listType := getTypeOfExpr(e.X)
-			elmType := getElementTypeOfCollectionType(listType)
-			return elmType
 		default:
 			panic(e.Op.String())
 		}
@@ -4484,7 +4483,7 @@ type MetaIdent struct {
 
 	variable *Variable // for "var"
 
-	conLiteral MetaExpr // for "con"
+	conLiteral *MetaBasicLit // for "con"
 }
 
 type MetaSelectorExpr struct {
