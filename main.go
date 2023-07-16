@@ -851,7 +851,7 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 
 		emitCallMalloc(size)
 		return
 	case gMake:
-		typeArg := e2t(eArgs[0])
+		typeArg := typeArg0
 		switch kind(typeArg) {
 		case T_MAP:
 			mapType := getUnderlyingType(typeArg).E.(*ast.MapType)
@@ -956,7 +956,7 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 
 	case gPanic:
 		funcVal := "runtime.panic"
 		_args := []*Arg{&Arg{
-			e:         eArgs[0],
+			meta:      arg0,
 			paramType: tEface,
 		}}
 		emitCallDirect(funcVal, _args, nil)
@@ -4254,6 +4254,8 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 			return meta
 		case gMake:
 			meta.builtin = identFun.Obj
+			walkExpr(meta.args[0], nil)
+			meta.typeArg0 = e2t(meta.args[0])
 			for _, arg := range meta.args[1:] {
 				ctx := &evalContext{_type: tInt}
 				walkExpr(arg, ctx)
@@ -4269,10 +4271,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 			return meta
 		case gPanic:
 			meta.builtin = identFun.Obj
-			for _, arg := range meta.args {
-				ctx := &evalContext{_type: tEface}
-				walkExpr(arg, ctx)
-			}
+			meta.arg0 = walkExpr(meta.args[0], nil)
 			return meta
 		case gDelete:
 			meta.builtin = identFun.Obj
