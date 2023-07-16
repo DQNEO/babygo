@@ -215,6 +215,24 @@ func emitVariableAddr(variable *Variable) {
 	printf("  pushq %%rax # variable address\n")
 }
 
+func emitListHeadAddrMeta(list MetaExpr) {
+	t := getTypeOfExprMeta(list)
+	switch kind(t) {
+	case T_ARRAY:
+		emitAddrMeta(list) // array head
+	case T_SLICE:
+		emitExprMeta(list)
+		emitPopSlice()
+		printf("  pushq %%rax # slice.ptr\n")
+	case T_STRING:
+		emitExprMeta(list)
+		emitPopString()
+		printf("  pushq %%rax # string.ptr\n")
+	default:
+		unexpectedKind(kind(t))
+	}
+}
+
 func emitListHeadAddr(list ast.Expr) {
 	t := getTypeOfExpr(list)
 	switch kind(t) {
@@ -248,13 +266,12 @@ func emitAddrMeta(expr MetaExpr) {
 			panic("Unexpected kind")
 		}
 	case *MetaIndexExpr:
-		list := m.e.X
-		if kind(getTypeOfExpr(list)) == T_MAP {
+		if kind(getTypeOfExprMeta(m.X)) == T_MAP {
 			emitAddrForMapSet(m.e)
 		} else {
 			elmType := getTypeOfExprMeta(m)
 			emitExprMeta(m.Index) // index number
-			emitListElementAddr(list, elmType)
+			emitListElementAddrMeta(m.X, elmType)
 		}
 	case *MetaStarExpr:
 		emitExprMeta(m.X)
@@ -1255,9 +1272,8 @@ func emitCompositeLit(meta *MetaCompositLiteral) {
 
 // 1 value list[low:high]
 func emitSliceExpr(meta *MetaSliceExpr) {
-	e := meta.e
-	list := e.X
-	listType := getTypeOfExpr(list)
+	list := meta.X
+	listType := getTypeOfExprMeta(list)
 
 	switch kind(listType) {
 	case T_SLICE, T_ARRAY:
@@ -1318,7 +1334,7 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 
 	emitExprMeta(meta.Low) // index number
 	elmType := getElementTypeOfCollectionType(listType)
-	emitListElementAddr(list, elmType)
+	emitListElementAddrMeta(list, elmType)
 }
 
 // 1 or 2 values
@@ -1673,6 +1689,16 @@ func emitAddrForMapSet(indexExpr *ast.IndexExpr) {
 
 func emitListElementAddr(list ast.Expr, elmType *Type) {
 	emitListHeadAddr(list)
+	emitPopAddress("list head")
+	printf("  popq %%rcx # index id\n")
+	printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(elmType))
+	printf("  imulq %%rdx, %%rcx\n")
+	printf("  addq %%rcx, %%rax\n")
+	printf("  pushq %%rax # addr of element\n")
+}
+
+func emitListElementAddrMeta(list MetaExpr, elmType *Type) {
+	emitListHeadAddrMeta(list)
 	emitPopAddress("list head")
 	printf("  popq %%rcx # index id\n")
 	printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(elmType))
@@ -2184,7 +2210,7 @@ func emitRangeStmt(meta *MetaForStmt) {
 
 	emitVariableAddr(meta.ForRange.Indexvar)
 	emitLoadAndPush(tInt) // index value
-	emitListElementAddr(meta.ForRange.X, elemType)
+	emitListElementAddrMeta(meta.ForRange.metaX, elemType)
 
 	emitLoadAndPush(elemType)
 	emitStore(elemType, true, false)
