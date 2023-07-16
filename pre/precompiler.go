@@ -962,8 +962,8 @@ func emitIdent(meta *MetaIdent) {
 	case gFalse: // false constant
 		emitFalse()
 	case gNil: // zero value
-		metaType, ok := exprTypeMeta[unsafe.Pointer(e)]
-		if !ok || metaType == nil {
+		metaType := meta.typ
+		if metaType == nil {
 			//gofmt.Fprintf(os.Stderr, "exprTypeMeta=%v\n", exprTypeMeta)
 			panic("untyped nil is not allowed. Probably the type is not set in walk phase. pkg=" + currentPkg.name)
 		}
@@ -3930,11 +3930,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 	case gNil:
 		assert(ctx != nil, "ctx of nil is not passed", __func__)
 		assert(ctx._type != nil, "ctx._type of nil is not passed", __func__)
-		if ctx._type == tTODO {
-			// only for builtin funcall arguments
-		} else {
-			exprTypeMeta[unsafe.Pointer(e)] = ctx._type
-		}
+		meta.typ = ctx._type
 		meta.kind = "nil"
 	case gTrue:
 		meta.kind = "true"
@@ -4439,6 +4435,7 @@ type MetaIdent struct {
 	kind       string // "blank|nil|true|false|var|con|fun|typ"
 	Name       string
 	conLiteral MetaExpr
+	typ        *Type
 }
 
 type MetaSelectorExpr struct {
@@ -5301,9 +5298,6 @@ func setVariable(obj *ast.Object, vr *Variable) {
 }
 
 // --- AST meta data ---
-// map of expr to type
-var exprTypeMeta = make(map[unsafe.Pointer]*Type)
-
 var mapFieldOffset = make(map[unsafe.Pointer]int)
 
 type MetaIndexExpr struct {
