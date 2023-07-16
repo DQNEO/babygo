@@ -1376,12 +1376,11 @@ func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 }
 
 func isUniverseNil(meta MetaExpr) bool {
-	switch e := meta.(type) {
-	case *MetaIdent:
-		return e.kind == "nil"
-	default:
+	m, ok := meta.(*MetaIdent)
+	if !ok {
 		return false
 	}
+	return m.isUniverseNil()
 }
 
 func emitExpr(meta MetaExpr) {
@@ -3899,6 +3898,10 @@ func walkStmt(stmt ast.Stmt) MetaStmt {
 
 	assert(mt != nil, "meta should not be nil", __func__)
 	return mt
+}
+
+func (m *MetaIdent) isUniverseNil() bool {
+	return m.kind == "nil"
 }
 
 func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
