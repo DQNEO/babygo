@@ -3345,31 +3345,35 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 	declSpec := genDecl.Specs[0]
 	switch spec := declSpec.(type) {
 	case *ast.ValueSpec:
-		if spec.Type == nil { // var x = e
+		var rhsMeta MetaExpr
+		var t *Type
+		if spec.Type != nil { // var x = e
+			walkExpr(spec.Type, nil)
+			t = e2t(spec.Type)
+			if len(spec.Values) > 0 {
+				rhs := spec.Values[0]
+				ctx := &evalContext{_type: t}
+				rhsMeta = walkExpr(rhs, ctx)
+			}
+		} else {
 			// infer lhs type from rhs
 			if len(spec.Values) == 0 {
 				panic("invalid syntax")
 			}
-			val := spec.Values[0]
-			typ := getTypeOfExpr(val)
-			if typ == nil || typ.E == nil {
+
+			rhs := spec.Values[0]
+			rhsMeta = walkExpr(rhs, nil)
+			t = getTypeOfExprMeta(rhsMeta)
+			if t == nil {
 				panic("rhs should have a type")
 			}
-			spec.Type = typ.E // set lhs type
-		} else {
-			walkExpr(spec.Type, nil)
 		}
-		t := e2t(spec.Type)
+		spec.Type = t.E // set lhs type
+
 		lhsIdent := spec.Names[0]
 		obj := lhsIdent.Obj
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
 		lhsMeta := walkIdent(lhsIdent, nil)
-		var rhsMeta MetaExpr
-		if len(spec.Values) > 0 {
-			rhs := spec.Values[0]
-			ctx := &evalContext{_type: t}
-			rhsMeta = walkExpr(rhs, ctx)
-		}
 		single := &MetaSingleAssign{
 			Lhs: lhsMeta,
 			Rhs: rhsMeta,
