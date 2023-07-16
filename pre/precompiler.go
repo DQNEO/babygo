@@ -2244,10 +2244,10 @@ func emitTypeSwitchStmt(meta *MetaTypeSwitchStmt) {
 				printf("  popq %%rax # ifc.dtype\n")
 				printf("  popq %%rcx # ifc.data\n")
 				printf("  pushq %%rcx # ifc.data\n")
-				emitLoadAndPush(c.VariableType)
+				emitLoadAndPush(c.Variable.Typ)
 
 				// assign
-				emitStore(c.VariableType, true, false)
+				emitStore(c.Variable.Typ, true, false)
 			}
 		}
 
@@ -3738,7 +3738,6 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 				// inject a variable of that type
 				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
 				tscc.Variable = vr
-				tscc.VariableType = varType
 				setVariable(assignIdent.Obj, vr)
 			} else {
 				// default clause
@@ -3746,7 +3745,6 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 				varType := getTypeOfExprMeta(typeSwitch.Subject)
 				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
 				tscc.Variable = vr
-				tscc.VariableType = varType
 				setVariable(assignIdent.Obj, vr)
 			}
 		}
@@ -3920,10 +3918,10 @@ type MetaTypeSwitchStmt struct {
 }
 
 type MetaTypeSwitchCaseClose struct {
-	Variable     *Variable
-	VariableType *Type
-	types        []*Type
-	Body         []MetaStmt
+	Variable *Variable
+	//VariableType *Type
+	types []*Type
+	Body  []MetaStmt
 }
 
 type MetaGoStmt struct {
