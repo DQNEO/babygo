@@ -1073,7 +1073,7 @@ func emitIdent(meta *MetaIdent) {
 // 1 or 2 values
 func emitIndexExpr(meta *MetaIndexExpr) {
 	if meta.IsMap {
-		emitMapGet(meta.e, meta.NeedsOK)
+		emitMapGet(meta, meta.NeedsOK)
 	} else {
 		emitAddrMeta(meta)
 		emitLoadAndPush(getTypeOfExprMeta(meta))
@@ -1366,21 +1366,21 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 }
 
 // 1 or 2 values
-func emitMapGet(e *ast.IndexExpr, okContext bool) {
-	valueType := getTypeOfExpr(e)
+func emitMapGet(m *MetaIndexExpr, okContext bool) {
+	valueType := getTypeOfExprMeta(m)
 
 	emitComment(2, "MAP GET for map[string]string\n")
 	// emit addr of map element
-	mp := e.X
-	key := e.Index
+	mp := m.X
+	key := m.Index
 
 	args := []*Arg{
 		&Arg{
-			e:         mp,
+			meta:      mp,
 			paramType: tUintptr,
 		},
 		&Arg{
-			e:         key,
+			meta:      key,
 			paramType: tEface,
 		},
 	}
