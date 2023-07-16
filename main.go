@@ -69,6 +69,11 @@ func emitComment(indent int, format string, a ...interface{}) {
 	printf(format2, a...)
 }
 
+func emitConstInt(expr ast.Expr) {
+	i := evalInt(expr)
+	printf("  pushq $%d # const number literal\n", i)
+}
+
 func evalInt(expr ast.Expr) int {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
@@ -469,7 +474,7 @@ func emitLen(arg MetaExpr) {
 	switch kind(getTypeOfExprMeta(arg)) {
 	case T_ARRAY:
 		arrayType := getTypeOfExprMeta(arg).E.(*ast.ArrayType)
-		emitExpr(arrayType.Len)
+		emitConstInt(arrayType.Len)
 	case T_SLICE:
 		emitExprMeta(arg)
 		emitPopSlice()
@@ -504,7 +509,7 @@ func emitCap(arg MetaExpr) {
 	switch kind(getTypeOfExprMeta(arg)) {
 	case T_ARRAY:
 		arrayType := getTypeOfExprMeta(arg).E.(*ast.ArrayType)
-		emitExpr(arrayType.Len)
+		emitConstInt(arrayType.Len)
 	case T_SLICE:
 		emitExprMeta(arg)
 		emitPopSlice()
@@ -1834,6 +1839,14 @@ func emitRegiToMem(t *Type) {
 	}
 }
 
+func isBlankIdentifierMeta(m MetaExpr) bool {
+	ident, isIdent := m.(*MetaIdent)
+	if !isIdent {
+		return false
+	}
+	return ident.kind == "blank"
+}
+
 func isBlankIdentifier(e ast.Expr) bool {
 	ident, isIdent := e.(*ast.Ident)
 	if !isIdent {
@@ -2052,11 +2065,10 @@ func emitRangeMap(meta *MetaForStmt) {
 	emitComment(2, "assign key value to variables\n")
 
 	// assign key
-	Key := meta.ForRange.Key
-	if Key != nil {
-		keyIdent := Key.(*ast.Ident)
-		if keyIdent.Name != "_" {
-			emitAddr(Key) // lhs
+	keyMeta := meta.ForRange.keyMeta
+	if keyMeta != nil {
+		if !isBlankIdentifierMeta(keyMeta) {
+			emitAddrMeta(keyMeta) // lhs
 			// emit value of item.key
 			//type item struct {
 			//	next  *item
@@ -2068,17 +2080,16 @@ func emitRangeMap(meta *MetaForStmt) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 16(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(getTypeOfExpr(Key)) // load dynamic data
-			emitStore(getTypeOfExpr(Key), true, false)
+			emitLoadAndPush(getTypeOfExprMeta(keyMeta)) // load dynamic data
+			emitStore(getTypeOfExprMeta(keyMeta), true, false)
 		}
 	}
 
 	// assign value
-	Value := meta.ForRange.Value
-	if Value != nil {
-		valueIdent := Value.(*ast.Ident)
-		if valueIdent.Name != "_" {
-			emitAddr(Value) // lhs
+	valueMeta := meta.ForRange.valueMeta
+	if valueMeta != nil {
+		if !isBlankIdentifierMeta(valueMeta) {
+			emitAddrMeta(valueMeta) // lhs
 			// emit value of item
 			//type item struct {
 			//	next  *item
@@ -2090,8 +2101,8 @@ func emitRangeMap(meta *MetaForStmt) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 24(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(getTypeOfExpr(Value)) // load dynamic data
-			emitStore(getTypeOfExpr(Value), true, false)
+			emitLoadAndPush(getTypeOfExprMeta(valueMeta)) // load dynamic data
+			emitStore(getTypeOfExprMeta(valueMeta), true, false)
 		}
 	}
 
@@ -2136,11 +2147,10 @@ func emitRangeStmt(meta *MetaForStmt) {
 	emitStore(tInt, true, false)
 
 	// init key variable with 0
-	Key := meta.ForRange.Key
-	if Key != nil {
-		keyIdent := Key.(*ast.Ident)
-		if keyIdent.Name != "_" {
-			emitAddr(Key) // lhs
+	keyMeta := meta.ForRange.keyMeta
+	if keyMeta != nil {
+		if !isBlankIdentifierMeta(keyMeta) {
+			emitAddrMeta(keyMeta) // lhs
 			emitZeroValue(tInt)
 			emitStore(tInt, true, false)
 		}
@@ -2164,8 +2174,8 @@ func emitRangeStmt(meta *MetaForStmt) {
 	printf("  jne %s # jmp if false\n", labelExit)
 
 	emitComment(2, "assign list[indexvar] value variables\n")
-	elemType := getTypeOfExpr(meta.ForRange.Value)
-	emitAddr(meta.ForRange.Value) // lhs
+	elemType := getTypeOfExprMeta(meta.ForRange.valueMeta)
+	emitAddrMeta(meta.ForRange.valueMeta) // lhs
 
 	emitVariableAddr(meta.ForRange.Indexvar)
 	emitLoadAndPush(tInt) // index value
@@ -2188,10 +2198,9 @@ func emitRangeStmt(meta *MetaForStmt) {
 	emitStore(tInt, true, false)
 
 	// incr key variable
-	if Key != nil {
-		keyIdent := Key.(*ast.Ident)
-		if keyIdent.Name != "_" {
-			emitAddr(Key)                            // lhs
+	if keyMeta != nil {
+		if !isBlankIdentifierMeta(keyMeta) {
+			emitAddrMeta(keyMeta)                    // lhs
 			emitVariableAddr(meta.ForRange.Indexvar) // rhs
 			emitLoadAndPush(tInt)
 			emitStore(tInt, true, false)
@@ -3781,6 +3790,13 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 		valueIdent := s.Value.(*ast.Ident)
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
+	if s.Key != nil {
+		meta.ForRange.keyMeta = walkExpr(s.Key, nil)
+	}
+	if s.Value != nil {
+		meta.ForRange.valueMeta = walkExpr(s.Value, nil)
+	}
+
 	mtBlock := walkBlockStmt(s.Body)
 	meta.Body = mtBlock
 	currentFor = meta.Outer
@@ -5422,15 +5438,17 @@ type MetaReturnStmt struct {
 }
 
 type MetaForRange struct {
-	IsMap    bool
-	LenVar   *Variable
-	Indexvar *Variable
-	MapVar   *Variable // map
-	ItemVar  *Variable // map element
-	X        ast.Expr
-	Key      ast.Expr
-	Value    ast.Expr
-	metaX    MetaExpr
+	IsMap     bool
+	LenVar    *Variable
+	Indexvar  *Variable
+	MapVar    *Variable // map
+	ItemVar   *Variable // map element
+	X         ast.Expr
+	Key       ast.Expr
+	Value     ast.Expr
+	metaX     MetaExpr
+	keyMeta   MetaExpr
+	valueMeta MetaExpr
 }
 
 type MetaForStmt struct {
