@@ -1870,7 +1870,7 @@ func emitIfStmt(meta *MetaIfStmt) {
 	emitComment(2, "end if\n")
 }
 
-func emitForStmt(meta *MetaForStmt) {
+func emitForStmt(meta *MetaForContainer) {
 	labelid++
 	labelCond := fmt.Sprintf(".L.for.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.for.post.%d", labelid)
@@ -1879,27 +1879,27 @@ func emitForStmt(meta *MetaForStmt) {
 	meta.LabelPost = labelPost
 	meta.LabelExit = labelExit
 
-	if meta.Init != nil {
-		emitStmt(meta.Init)
+	if meta.ForStmt.Init != nil {
+		emitStmt(meta.ForStmt.Init)
 	}
 
 	printf("  %s:\n", labelCond)
-	if meta.CondMeta != nil {
-		emitExpr(meta.CondMeta)
+	if meta.ForStmt.Cond != nil {
+		emitExpr(meta.ForStmt.Cond)
 		emitPopBool("for condition")
 		printf("  cmpq $1, %%rax\n")
 		printf("  jne %s # jmp if false\n", labelExit)
 	}
 	emitBlockStmt(meta.Body)
 	printf("  %s:\n", labelPost) // used for "continue"
-	if meta.Post != nil {
-		emitStmt(meta.Post)
+	if meta.ForStmt.Post != nil {
+		emitStmt(meta.ForStmt.Post)
 	}
 	printf("  jmp %s\n", labelCond)
 	printf("  %s:\n", labelExit)
 }
 
-func emitRangeMap(meta *MetaForStmt) {
+func emitRangeMap(meta *MetaForContainer) {
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -1915,32 +1915,32 @@ func emitRangeMap(meta *MetaForStmt) {
 	//    ...
 	//  }
 
-	emitComment(2, "ForRange map Initialization\n")
+	emitComment(2, "ForRangeStmt map Initialization\n")
 
 	// _mp = EXPR
-	emitAssignToVar(meta.ForRange.MapVar, meta.ForRange.X)
+	emitAssignToVar(meta.ForRangeStmt.MapVar, meta.ForRangeStmt.X)
 
 	//  if _mp == nil then exit
-	emitVariable(meta.ForRange.MapVar) // value of _mp
+	emitVariable(meta.ForRangeStmt.MapVar) // value of _mp
 	printf("  popq %%rax\n")
 	printf("  cmpq $0, %%rax\n")
 	printf("  je %s # exit if nil\n", labelExit)
 
 	// item = mp.first
-	emitVariableAddr(meta.ForRange.ItemVar)
-	emitVariable(meta.ForRange.MapVar) // value of _mp
-	emitLoadAndPush(tUintptr)          // value of _mp.first
-	emitStore(tUintptr, true, false)   // assign
+	emitVariableAddr(meta.ForRangeStmt.ItemVar)
+	emitVariable(meta.ForRangeStmt.MapVar) // value of _mp
+	emitLoadAndPush(tUintptr)              // value of _mp.first
+	emitStore(tUintptr, true, false)       // assign
 
 	// Condition
 	// if item != nil; then
 	//   execute body
 	// else
 	//   exit
-	emitComment(2, "ForRange Condition\n")
+	emitComment(2, "ForRangeStmt Condition\n")
 	printf("  %s:\n", labelCond)
 
-	emitVariable(meta.ForRange.ItemVar)
+	emitVariable(meta.ForRangeStmt.ItemVar)
 	printf("  popq %%rax\n")
 	printf("  cmpq $0, %%rax\n")
 	printf("  je %s # exit if nil\n", labelExit)
@@ -1948,7 +1948,7 @@ func emitRangeMap(meta *MetaForStmt) {
 	emitComment(2, "assign key value to variables\n")
 
 	// assign key
-	keyMeta := meta.ForRange.Key
+	keyMeta := meta.ForRangeStmt.Key
 	if keyMeta != nil {
 		if !isBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta) // lhs
@@ -1959,7 +1959,7 @@ func emitRangeMap(meta *MetaForStmt) {
 			//  key_data uintptr <-- this
 			//	value uintptr
 			//}
-			emitVariable(meta.ForRange.ItemVar)
+			emitVariable(meta.ForRangeStmt.ItemVar)
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 16(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
@@ -1969,7 +1969,7 @@ func emitRangeMap(meta *MetaForStmt) {
 	}
 
 	// assign value
-	valueMeta := meta.ForRange.Value
+	valueMeta := meta.ForRangeStmt.Value
 	if valueMeta != nil {
 		if !isBlankIdentifierMeta(valueMeta) {
 			emitAddr(valueMeta) // lhs
@@ -1980,7 +1980,7 @@ func emitRangeMap(meta *MetaForStmt) {
 			//  key_data uintptr
 			//	value uintptr  <-- this
 			//}
-			emitVariable(meta.ForRange.ItemVar)
+			emitVariable(meta.ForRangeStmt.ItemVar)
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 24(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
@@ -1990,16 +1990,16 @@ func emitRangeMap(meta *MetaForStmt) {
 	}
 
 	// Body
-	emitComment(2, "ForRange Body\n")
+	emitComment(2, "ForRangeStmt Body\n")
 	emitBlockStmt(meta.Body)
 
 	// Post statement
 	// item = item.next
-	emitComment(2, "ForRange Post statement\n")
-	printf("  %s:\n", labelPost)            // used for "continue"
-	emitVariableAddr(meta.ForRange.ItemVar) // lhs
-	emitVariable(meta.ForRange.ItemVar)     // item
-	emitLoadAndPush(tUintptr)               // item.next
+	emitComment(2, "ForRangeStmt Post statement\n")
+	printf("  %s:\n", labelPost)                // used for "continue"
+	emitVariableAddr(meta.ForRangeStmt.ItemVar) // lhs
+	emitVariable(meta.ForRangeStmt.ItemVar)     // item
+	emitLoadAndPush(tUintptr)                   // item.next
 	emitStore(tUintptr, true, false)
 
 	printf("  jmp %s\n", labelCond)
@@ -2007,7 +2007,7 @@ func emitRangeMap(meta *MetaForStmt) {
 	printf("  %s:\n", labelExit)
 }
 
-func emitRangeStmt(meta *MetaForStmt) {
+func emitRangeStmt(meta *MetaForContainer) {
 	labelid++
 	labelCond := fmt.Sprintf(".L.range.cond.%d", labelid)
 	labelPost := fmt.Sprintf(".L.range.post.%d", labelid)
@@ -2016,21 +2016,21 @@ func emitRangeStmt(meta *MetaForStmt) {
 	meta.LabelPost = labelPost
 	meta.LabelExit = labelExit
 	// initialization: store len(rangeexpr)
-	emitComment(2, "ForRange Initialization\n")
+	emitComment(2, "ForRangeStmt Initialization\n")
 	emitComment(2, "  assign length to lenvar\n")
 	// lenvar = len(s.X)
-	emitVariableAddr(meta.ForRange.LenVar)
-	emitLen(meta.ForRange.X)
+	emitVariableAddr(meta.ForRangeStmt.LenVar)
+	emitLen(meta.ForRangeStmt.X)
 	emitStore(tInt, true, false)
 
 	emitComment(2, "  assign 0 to indexvar\n")
 	// indexvar = 0
-	emitVariableAddr(meta.ForRange.Indexvar)
+	emitVariableAddr(meta.ForRangeStmt.Indexvar)
 	emitZeroValue(tInt)
 	emitStore(tInt, true, false)
 
 	// init key variable with 0
-	keyMeta := meta.ForRange.Key
+	keyMeta := meta.ForRangeStmt.Key
 	if keyMeta != nil {
 		if !isBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta) // lhs
@@ -2044,12 +2044,12 @@ func emitRangeStmt(meta *MetaForStmt) {
 	//   execute body
 	// else
 	//   exit
-	emitComment(2, "ForRange Condition\n")
+	emitComment(2, "ForRangeStmt Condition\n")
 	printf("  %s:\n", labelCond)
 
-	emitVariableAddr(meta.ForRange.Indexvar)
+	emitVariableAddr(meta.ForRangeStmt.Indexvar)
 	emitLoadAndPush(tInt)
-	emitVariableAddr(meta.ForRange.LenVar)
+	emitVariableAddr(meta.ForRangeStmt.LenVar)
 	emitLoadAndPush(tInt)
 	emitCompExpr("setl")
 	emitPopBool(" indexvar < lenvar")
@@ -2057,25 +2057,25 @@ func emitRangeStmt(meta *MetaForStmt) {
 	printf("  jne %s # jmp if false\n", labelExit)
 
 	emitComment(2, "assign list[indexvar] value variables\n")
-	elemType := getTypeOfExprMeta(meta.ForRange.Value)
-	emitAddr(meta.ForRange.Value) // lhs
+	elemType := getTypeOfExprMeta(meta.ForRangeStmt.Value)
+	emitAddr(meta.ForRangeStmt.Value) // lhs
 
-	emitVariableAddr(meta.ForRange.Indexvar)
+	emitVariableAddr(meta.ForRangeStmt.Indexvar)
 	emitLoadAndPush(tInt) // index value
-	emitListElementAddr(meta.ForRange.X, elemType)
+	emitListElementAddr(meta.ForRangeStmt.X, elemType)
 
 	emitLoadAndPush(elemType)
 	emitStore(elemType, true, false)
 
 	// Body
-	emitComment(2, "ForRange Body\n")
+	emitComment(2, "ForRangeStmt Body\n")
 	emitBlockStmt(meta.Body)
 
 	// Post statement: Increment indexvar and go next
-	emitComment(2, "ForRange Post statement\n")
-	printf("  %s:\n", labelPost)             // used for "continue"
-	emitVariableAddr(meta.ForRange.Indexvar) // lhs
-	emitVariableAddr(meta.ForRange.Indexvar) // rhs
+	emitComment(2, "ForRangeStmt Post statement\n")
+	printf("  %s:\n", labelPost)                 // used for "continue"
+	emitVariableAddr(meta.ForRangeStmt.Indexvar) // lhs
+	emitVariableAddr(meta.ForRangeStmt.Indexvar) // rhs
 	emitLoadAndPush(tInt)
 	emitAddConst(1, "indexvar value ++")
 	emitStore(tInt, true, false)
@@ -2083,8 +2083,8 @@ func emitRangeStmt(meta *MetaForStmt) {
 	// incr key variable
 	if keyMeta != nil {
 		if !isBlankIdentifierMeta(keyMeta) {
-			emitAddr(keyMeta)                        // lhs
-			emitVariableAddr(meta.ForRange.Indexvar) // rhs
+			emitAddr(keyMeta)                            // lhs
+			emitVariableAddr(meta.ForRangeStmt.Indexvar) // rhs
 			emitLoadAndPush(tInt)
 			emitStore(tInt, true, false)
 		}
@@ -2308,9 +2308,9 @@ func emitStmt(mtstmt MetaStmt) {
 		emitReturnStmt(meta)
 	case *MetaIfStmt:
 		emitIfStmt(meta)
-	case *MetaForStmt:
-		if meta.ForRange != nil {
-			if meta.ForRange.IsMap {
+	case *MetaForContainer:
+		if meta.ForRangeStmt != nil {
+			if meta.ForRangeStmt.IsMap {
 				emitRangeMap(meta)
 			} else {
 				emitRangeStmt(meta)
@@ -3185,7 +3185,7 @@ func registerLocalVariable(fnc *Func, name string, t *Type) *Variable {
 	return vr
 }
 
-var currentFor *MetaForStmt
+var currentFor *MetaForContainer
 var currentFunc *Func
 
 func registerStringLiteral(lit *ast.BasicLit) *sliteral {
@@ -3592,28 +3592,28 @@ func walkBlockStmt(s *ast.BlockStmt) *MetaBlockStmt {
 	return mt
 }
 
-func walkForStmt(s *ast.ForStmt) *MetaForStmt {
-	meta := &MetaForStmt{
-		Outer: currentFor,
+func walkForStmt(s *ast.ForStmt) *MetaForContainer {
+	meta := &MetaForContainer{
+		Outer:   currentFor,
+		ForStmt: &MetaForForStmt{},
 	}
 	currentFor = meta
 
 	if s.Init != nil {
-		meta.Init = walkStmt(s.Init)
+		meta.ForStmt.Init = walkStmt(s.Init)
 	}
 	if s.Cond != nil {
-		meta.CondMeta = walkExpr(s.Cond, nil)
+		meta.ForStmt.Cond = walkExpr(s.Cond, nil)
 	}
 	if s.Post != nil {
-		meta.Post = walkStmt(s.Post)
+		meta.ForStmt.Post = walkStmt(s.Post)
 	}
-	mtBlock := walkBlockStmt(s.Body)
-	meta.Body = mtBlock
+	meta.Body = walkBlockStmt(s.Body)
 	currentFor = meta.Outer
 	return meta
 }
-func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
-	meta := &MetaForStmt{
+func walkRangeStmt(s *ast.RangeStmt) *MetaForContainer {
+	meta := &MetaForContainer{
 		Outer: currentFor,
 	}
 	currentFor = meta
@@ -3625,14 +3625,14 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 	walkExpr(tInt.E, nil)
 	switch kind(collectionType) {
 	case T_SLICE, T_ARRAY:
-		meta.ForRange = &MetaForRange{
+		meta.ForRangeStmt = &MetaForRangeStmt{
 			IsMap:    false,
 			LenVar:   registerLocalVariable(currentFunc, ".range.len", tInt),
 			Indexvar: registerLocalVariable(currentFunc, ".range.index", tInt),
 			X:        metaX,
 		}
 	case T_MAP:
-		meta.ForRange = &MetaForRange{
+		meta.ForRangeStmt = &MetaForRangeStmt{
 			IsMap:   true,
 			MapVar:  registerLocalVariable(currentFunc, ".range.map", tUintptr),
 			ItemVar: registerLocalVariable(currentFunc, ".range.item", tUintptr),
@@ -3650,10 +3650,10 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForStmt {
 		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
 	if s.Key != nil {
-		meta.ForRange.Key = walkExpr(s.Key, nil)
+		meta.ForRangeStmt.Key = walkExpr(s.Key, nil)
 	}
 	if s.Value != nil {
-		meta.ForRange.Value = walkExpr(s.Value, nil)
+		meta.ForRangeStmt.Value = walkExpr(s.Value, nil)
 	}
 
 	mtBlock := walkBlockStmt(s.Body)
@@ -3863,18 +3863,23 @@ type MetaIfStmt struct {
 	Else     MetaStmt
 }
 
-type MetaForStmt struct {
+type MetaForContainer struct {
 	LabelPost string // for continue
 	LabelExit string // for break
-	Outer     *MetaForStmt
-	ForRange  *MetaForRange
-	Init      MetaStmt
-	CondMeta  MetaExpr
+	Outer     *MetaForContainer
 	Body      *MetaBlockStmt
-	Post      MetaStmt
+
+	ForRangeStmt *MetaForRangeStmt
+	ForStmt      *MetaForForStmt
 }
 
-type MetaForRange struct {
+type MetaForForStmt struct {
+	Init MetaStmt
+	Cond MetaExpr
+	Post MetaStmt
+}
+
+type MetaForRangeStmt struct {
 	IsMap    bool
 	LenVar   *Variable
 	Indexvar *Variable
@@ -3886,7 +3891,7 @@ type MetaForRange struct {
 }
 
 type MetaBranchStmt struct {
-	containerForStmt *MetaForStmt
+	containerForStmt *MetaForContainer
 	ContinueOrBreak  int // 1: continue, 2:break
 }
 
