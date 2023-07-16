@@ -4476,44 +4476,32 @@ type MetaBinaryExpr struct {
 func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 	switch e := expr.(type) {
 	case *ast.ParenExpr:
-		mt := walkExpr(e.X, ctx)
-		return mt
+		return walkExpr(e.X, ctx)
 	case *ast.BasicLit:
-		mt := walkBasicLit(e, ctx)
-		return mt
+		return walkBasicLit(e, ctx)
 	case *ast.KeyValueExpr:
 		walkKeyValueExpr(e, ctx)
 		return nil
 	case *ast.CompositeLit:
-		mt := walkCompositeLit(e, ctx)
-		return mt
+		return walkCompositeLit(e, ctx)
 	case *ast.Ident:
-		mt := walkIdent(e, ctx)
-		return mt
+		return walkIdent(e, ctx)
 	case *ast.SelectorExpr:
-		mt := walkSelectorExpr(e, ctx)
-		return mt
+		return walkSelectorExpr(e, ctx)
 	case *ast.CallExpr:
-		mt := walkCallExpr(e, ctx)
-		return mt
+		return walkCallExpr(e, ctx)
 	case *ast.IndexExpr:
-		mt := walkIndexExpr(e, ctx)
-		return mt
+		return walkIndexExpr(e, ctx)
 	case *ast.SliceExpr:
-		mt := walkSliceExpr(e, ctx)
-		return mt
+		return walkSliceExpr(e, ctx)
 	case *ast.StarExpr:
-		mt := walkStarExpr(e, ctx)
-		return mt
+		return walkStarExpr(e, ctx)
 	case *ast.UnaryExpr:
-		mt := walkUnaryExpr(e, ctx)
-		return mt
+		return walkUnaryExpr(e, ctx)
 	case *ast.BinaryExpr:
-		mt := walkBinaryExpr(e, ctx)
-		return mt
+		return walkBinaryExpr(e, ctx)
 	case *ast.TypeAssertExpr:
-		mt := walkTypeAssertExpr(e, ctx)
-		return mt
+		return walkTypeAssertExpr(e, ctx)
 	case *ast.ArrayType: // type
 		walkArrayType(e) // []T(e)
 		return nil
