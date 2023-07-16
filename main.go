@@ -3645,37 +3645,38 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			}
 		}
 
-		// Declare local variables
-		if len(s.Lhs) > 1 && len(s.Rhs) == 1 { // a, b, c := rhs0
+		var lhsTypes []*Type
+		// Infer lhsTypes by rhs
+		if len(s.Lhs) > 1 && len(s.Rhs) == 1 { // a, b, c := EXPR
 			// infer type
-			var types []*Type
 			rhs0 := s.Rhs[0]
 			switch rhs := rhs0.(type) {
 			case *ast.CallExpr:
-				types = getCallResultTypes(rhs)
+				lhsTypes = getCallResultTypes(rhs)
 			case *ast.TypeAssertExpr: // v, ok := x.(T)
 				typ0 := getTypeOfExpr(rhs0)
-				types = []*Type{typ0, tBool}
+				lhsTypes = []*Type{typ0, tBool}
 			case *ast.IndexExpr: // v, ok := m[k]
 				typ0 := getTypeOfExpr(rhs0)
-				types = []*Type{typ0, tBool}
+				lhsTypes = []*Type{typ0, tBool}
 			default:
 				throw(rhs0)
 			}
-			for i, lhs := range s.Lhs {
-				obj := lhs.(*ast.Ident).Obj
-				typ := types[i]
-				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
-				walkExpr(lhs, nil)
-			}
 		} else { // a, b, c := x, y, z
-			for i, lhs := range s.Lhs {
-				obj := lhs.(*ast.Ident).Obj
-				typ := getTypeOfExpr(s.Rhs[i]) // use rhs type
-				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
-				walkExpr(lhs, nil)
+			for _, rhs := range s.Rhs {
+				typ := getTypeOfExpr(rhs) // use rhs type
+				lhsTypes = append(lhsTypes, typ)
 			}
 		}
+		var lhsMetas []MetaExpr
+		for i, lhs := range s.Lhs {
+			typ := lhsTypes[i]
+			obj := lhs.(*ast.Ident).Obj
+			setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+			lm := walkExpr(lhs, nil)
+			lhsMetas = append(lhsMetas, lm)
+		}
+		_ = lhsMetas
 		return mt
 	case "+=", "-=":
 		var op token.Token
