@@ -729,10 +729,11 @@ func emitCall(fv *FuncValue, args []*Arg, resultList *ast.FieldList) {
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for i, arg := range args {
 		paramType := arg.paramType
-		if arg.e == nil {
+		if arg.meta != nil {
 			emitExprMeta(arg.meta)
 			mayEmitConvertTooIfcMeta(arg.meta, paramType)
 		} else {
+			panic("arg.meta should not be nil")
 			emitExpr(arg.e)
 			mayEmitConvertTooIfc(arg.e, paramType)
 		}
