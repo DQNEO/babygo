@@ -2101,8 +2101,8 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 	if s.Tag == nil {
 		panic("Omitted tag is not supported yet")
 	}
-	emitExpr(s.TagMeta)
-	condType := getTypeOfExprMeta(s.TagMeta)
+	emitExpr(s.Tag)
+	condType := getTypeOfExprMeta(s.Tag)
 	cases := s.cases
 	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
@@ -3721,8 +3721,7 @@ func walkSwitchStmt(s *ast.SwitchStmt) *MetaSwitchStmt {
 		meta.Init = walkStmt(s.Init)
 	}
 	if s.Tag != nil {
-		meta.TagMeta = walkExpr(s.Tag, nil)
-		meta.Tag = s.Tag
+		meta.Tag = walkExpr(s.Tag, nil)
 	}
 	var cases []*MetaCaseClause
 	for _, _case := range s.Body.List {
@@ -3901,10 +3900,9 @@ type MetaCaseClause struct {
 }
 
 type MetaSwitchStmt struct {
-	Init    MetaStmt
-	Tag     ast.Expr
-	cases   []*MetaCaseClause
-	TagMeta MetaExpr
+	Init  MetaStmt
+	cases []*MetaCaseClause
+	Tag   MetaExpr
 }
 
 type MetaTypeSwitchStmt struct {
