@@ -837,7 +837,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 	}
 }
 
-func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 MetaExpr, arg1 MetaExpr) {
+func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 MetaExpr, arg1 MetaExpr, arg2 MetaExpr) {
 	switch obj {
 	case gLen:
 		emitLen(arg0)
@@ -861,11 +861,11 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 
 			length := newNumberLiteral(0)
 			args := []*Arg{
 				&Arg{
-					e:         length,
+					meta:      length,
 					paramType: tUintptr,
 				},
 				&Arg{
-					e:         valueSize,
+					meta:      valueSize,
 					paramType: tUintptr,
 				},
 			}
@@ -886,17 +886,17 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 
 			args := []*Arg{
 				// elmSize
 				&Arg{
-					e:         numlit,
+					meta:      numlit,
 					paramType: tInt,
 				},
 				// len
 				&Arg{
-					e:         eArgs[1],
+					meta:      arg1,
 					paramType: tInt,
 				},
 				// cap
 				&Arg{
-					e:         eArgs[2],
+					meta:      arg2,
 					paramType: tInt,
 				},
 			}
@@ -1018,7 +1018,7 @@ func emitFuncall(meta *MetaCallExpr) {
 	emitComment(2, "[emitFuncall] %T(...)\n", meta.fun)
 	// check if it's a builtin func
 	if meta.builtin != nil {
-		emitBuiltinFunCall(meta.builtin, meta.args, meta.typeArg0, meta.arg0, meta.arg1)
+		emitBuiltinFunCall(meta.builtin, meta.args, meta.typeArg0, meta.arg0, meta.arg1, meta.arg2)
 		return
 	}
 
@@ -1678,13 +1678,12 @@ func emitDtypeLabelAddr(t *Type) {
 	printf("  pushq %%rax           # dtype label address\n")
 }
 
-func newNumberLiteral(x int) *ast.BasicLit {
+func newNumberLiteral(x int) *MetaBasicLit {
 	e := &ast.BasicLit{
 		Kind:  token.INT,
 		Value: strconv.Itoa(x),
 	}
-	walkExpr(e, nil)
-	return e
+	return walkBasicLit(e, nil)
 }
 
 func emitAddrForMapSetMeta(indexExpr *MetaIndexExpr) {
@@ -4199,6 +4198,7 @@ type MetaCallExpr struct {
 	metaArgs []*Arg
 	typeArg0 *Type
 	arg1     MetaExpr
+	arg2     MetaExpr
 }
 
 func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
@@ -4257,9 +4257,14 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 			meta.builtin = identFun.Obj
 			walkExpr(meta.args[0], nil)
 			meta.typeArg0 = e2t(meta.args[0])
-			for _, arg := range meta.args[1:] {
-				ctx := &evalContext{_type: tInt}
-				walkExpr(arg, ctx)
+
+			ctx := &evalContext{_type: tInt}
+			if len(meta.args) > 1 {
+				meta.arg1 = walkExpr(meta.args[1], ctx)
+			}
+
+			if len(meta.args) > 2 {
+				meta.arg2 = walkExpr(meta.args[2], ctx)
 			}
 			return meta
 		case gAppend:
