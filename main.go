@@ -210,17 +210,17 @@ func emitVariableAddr(variable *Variable) {
 	printf("  pushq %%rax # variable address\n")
 }
 
-func emitListHeadAddrMeta(list MetaExpr) {
+func emitListHeadAddr(list MetaExpr) {
 	t := getTypeOfExprMeta(list)
 	switch kind(t) {
 	case T_ARRAY:
-		emitAddrMeta(list) // array head
+		emitAddr(list) // array head
 	case T_SLICE:
-		emitExprMeta(list)
+		emitExpr(list)
 		emitPopSlice()
 		printf("  pushq %%rax # slice.ptr\n")
 	case T_STRING:
-		emitExprMeta(list)
+		emitExpr(list)
 		emitPopString()
 		printf("  pushq %%rax # string.ptr\n")
 	default:
@@ -228,8 +228,8 @@ func emitListHeadAddrMeta(list MetaExpr) {
 	}
 }
 
-func emitAddrMeta(expr MetaExpr) {
-	emitComment(2, "[emitAddrMeta] %T\n", expr)
+func emitAddr(expr MetaExpr) {
+	emitComment(2, "[emitAddr] %T\n", expr)
 	switch m := expr.(type) {
 	case *MetaIdent:
 		switch m.kind {
@@ -244,14 +244,14 @@ func emitAddrMeta(expr MetaExpr) {
 		}
 	case *MetaIndexExpr:
 		if kind(getTypeOfExprMeta(m.X)) == T_MAP {
-			emitAddrForMapSetMeta(m)
+			emitAddrForMapSet(m)
 		} else {
 			elmType := getTypeOfExprMeta(m)
-			emitExprMeta(m.Index) // index number
-			emitListElementAddrMeta(m.X, elmType)
+			emitExpr(m.Index) // index number
+			emitListElementAddr(m.X, elmType)
 		}
 	case *MetaStarExpr:
-		emitExprMeta(m.X)
+		emitExpr(m.X)
 	case *MetaSelectorExpr:
 		if isQI(m.e) { // pkg.Var|pkg.Const
 			qi := selector2QI(m.e)
@@ -273,10 +273,10 @@ func emitAddrMeta(expr MetaExpr) {
 			switch typ := typeOfX.E.(type) {
 			case *ast.StructType: // strct.field
 				structTypeLiteral = typ
-				emitAddrMeta(m.X)
+				emitAddr(m.X)
 			case *ast.StarExpr: // ptr.field
 				structTypeLiteral = getUnderlyingStructType(e2t(typ.X))
-				emitExprMeta(m.X)
+				emitExpr(m.X)
 			default:
 				unexpectedKind(kind(typeOfX))
 			}
@@ -290,7 +290,7 @@ func emitAddrMeta(expr MetaExpr) {
 		switch knd {
 		case T_STRUCT:
 			// result of evaluation of a struct literal is its address
-			emitExprMeta(m)
+			emitExpr(m)
 		default:
 			unexpectedKind(knd)
 		}
@@ -333,20 +333,20 @@ func emitConversion(toType *Type, arg0 MetaExpr) {
 		case gString: // string(e)
 			switch kind(getTypeOfExprMeta(arg0)) {
 			case T_SLICE: // string(slice)
-				emitExprMeta(arg0) // slice
+				emitExpr(arg0) // slice
 				emitPopSlice()
 				printf("  pushq %%rcx # str len\n")
 				printf("  pushq %%rax # str ptr\n")
 			case T_STRING: // string(string)
-				emitExprMeta(arg0)
+				emitExpr(arg0)
 			default:
 				unexpectedKind(kind(getTypeOfExprMeta(arg0)))
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
-			emitExprMeta(arg0)
+			emitExpr(arg0)
 		default:
 			if to.Obj.Kind == ast.Typ {
-				emitExprMeta(arg0)
+				emitExpr(arg0)
 			} else {
 				throw(to.Obj)
 			}
@@ -364,7 +364,7 @@ func emitConversion(toType *Type, arg0 MetaExpr) {
 		}
 		assert(kind(getTypeOfExprMeta(arg0)) == T_STRING, "source type should be slice", __func__)
 		emitComment(2, "Conversion of string => slice \n")
-		emitExprMeta(arg0)
+		emitExpr(arg0)
 		emitPopString()
 		printf("  pushq %%rcx # cap\n")
 		printf("  pushq %%rcx # len\n")
@@ -372,9 +372,9 @@ func emitConversion(toType *Type, arg0 MetaExpr) {
 	case *ast.ParenExpr: // (T)(arg0)
 		emitConversion(e2t(to.X), arg0)
 	case *ast.StarExpr: // (*T)(arg0)
-		emitExprMeta(arg0)
+		emitExpr(arg0)
 	case *ast.InterfaceType:
-		emitExprMeta(arg0)
+		emitExpr(arg0)
 		if isInterface(getTypeOfExprMeta(arg0)) {
 			// do nothing
 		} else {
@@ -421,11 +421,11 @@ func emitLen(arg MetaExpr) {
 		arrayType := getTypeOfExprMeta(arg).E.(*ast.ArrayType)
 		emitConstInt(arrayType.Len)
 	case T_SLICE:
-		emitExprMeta(arg)
+		emitExpr(arg)
 		emitPopSlice()
 		printf("  pushq %%rcx # len\n")
 	case T_STRING:
-		emitExprMeta(arg)
+		emitExpr(arg)
 		emitPopString()
 		printf("  pushq %%rcx # len\n")
 	case T_MAP:
@@ -456,7 +456,7 @@ func emitCap(arg MetaExpr) {
 		arrayType := getTypeOfExprMeta(arg).E.(*ast.ArrayType)
 		emitConstInt(arrayType.Len)
 	case T_SLICE:
-		emitExprMeta(arg)
+		emitExpr(arg)
 		emitPopSlice()
 		printf("  pushq %%rdx # cap\n")
 	case T_STRING:
@@ -494,8 +494,8 @@ func emitStructLiteral(meta *MetaCompositLiteral) {
 		emitAddConst(fieldOffset, "address of struct field")
 
 		// push rhs value
-		emitExprMeta(metaElm.ValueMeta)
-		mayEmitConvertTooIfcMeta(metaElm.ValueMeta, metaElm.fieldType)
+		emitExpr(metaElm.ValueMeta)
+		mayEmitConvertTooIfc(metaElm.ValueMeta, metaElm.fieldType)
 
 		// assign
 		emitStore(metaElm.fieldType, true, false)
@@ -513,8 +513,8 @@ func emitArrayLiteral(meta *MetaCompositLiteral) {
 		emitPushStackTop(tUintptr, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		// push rhs value
-		emitExprMeta(elm)
-		mayEmitConvertTooIfcMeta(elm, elmType)
+		emitExpr(elm)
+		mayEmitConvertTooIfc(elm, elmType)
 
 		// assign
 		emitStore(elmType, true, false)
@@ -649,8 +649,8 @@ func emitCall(fv *FuncValue, args []*Arg, resultList *ast.FieldList) {
 		if arg.meta == nil {
 			panic("arg.meta should not be nil")
 		}
-		emitExprMeta(arg.meta)
-		mayEmitConvertTooIfcMeta(arg.meta, paramType)
+		emitExpr(arg.meta)
+		mayEmitConvertTooIfc(arg.meta, paramType)
 		emitPop(kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 		printf("  pushq %%rsi # place to save\n")
@@ -700,7 +700,7 @@ func emitCallQ(fv *FuncValue, totalParamSize int, resultList *ast.FieldList) {
 		}
 		printf("  callq %s\n", fv.symbol)
 	} else {
-		emitExprMeta(fv.expr)
+		emitExpr(fv.expr)
 		printf("  popq %%rax\n")
 		printf("  callq *%%rax\n")
 	}
@@ -972,12 +972,12 @@ func emitIdent(meta *MetaIdent) {
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
-			emitAddrMeta(meta)
+			emitAddr(meta)
 			emitLoadAndPush(getTypeOfExprMeta(meta))
 		case ast.Con:
-			emitExprMeta(meta.conLiteral)
+			emitExpr(meta.conLiteral)
 		case ast.Fun:
-			emitAddrMeta(meta)
+			emitAddr(meta)
 		default:
 			panic("Unexpected ident kind:" + e.Obj.Kind.String() + " name=" + e.Name)
 		}
@@ -989,14 +989,14 @@ func emitIndexExpr(meta *MetaIndexExpr) {
 	if meta.IsMap {
 		emitMapGet(meta, meta.NeedsOK)
 	} else {
-		emitAddrMeta(meta)
+		emitAddr(meta)
 		emitLoadAndPush(getTypeOfExprMeta(meta))
 	}
 }
 
 // 1 value
 func emitStarExpr(meta *MetaStarExpr) {
-	emitAddrMeta(meta)
+	emitAddr(meta)
 	emitLoadAndPush(getTypeOfExprMeta(meta))
 }
 
@@ -1012,14 +1012,14 @@ func emitSelectorExpr(meta *MetaSelectorExpr) {
 			emitFuncAddr(qi)
 		case ast.Var:
 			m := walkIdent(ident, nil)
-			emitExprMeta(m)
+			emitExpr(m)
 		case ast.Con:
 			m := walkIdent(ident, nil)
-			emitExprMeta(m)
+			emitExpr(m)
 		}
 	} else {
 		// strct.field
-		emitAddrMeta(meta)
+		emitAddr(meta)
 		emitLoadAndPush(getTypeOfExprMeta(meta))
 	}
 }
@@ -1063,16 +1063,16 @@ func emitUnaryExpr(meta *MetaUnaryExpr) {
 	e := meta.e
 	switch e.Op.String() {
 	case "+":
-		emitExprMeta(meta.X)
+		emitExpr(meta.X)
 	case "-":
-		emitExprMeta(meta.X)
+		emitExpr(meta.X)
 		printf("  popq %%rax # e.X\n")
 		printf("  imulq $-1, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "&":
-		emitAddrMeta(meta.X)
+		emitAddr(meta.X)
 	case "!":
-		emitExprMeta(meta.X)
+		emitExpr(meta.X)
 		emitInvertBoolValue()
 	default:
 		throw(e.Op)
@@ -1087,14 +1087,14 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		labelid++
 		labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
 		labelExit := fmt.Sprintf(".L.%d.exit", labelid)
-		emitExprMeta(meta.X) // left
+		emitExpr(meta.X) // left
 		emitPopBool("left")
 		printf("  cmpq $1, %%rax\n")
 		// exit with false if left is false
 		printf("  jne %s\n", labelExitWithFalse)
 
 		// if left is true, then eval right and exit
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.Y) // right
 		printf("  jmp %s\n", labelExit)
 
 		printf("  %s:\n", labelExitWithFalse)
@@ -1104,14 +1104,14 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		labelid++
 		labelExitWithTrue := fmt.Sprintf(".L.%d.true", labelid)
 		labelExit := fmt.Sprintf(".L.%d.exit", labelid)
-		emitExprMeta(meta.X) // left
+		emitExpr(meta.X) // left
 		emitPopBool("left")
 		printf("  cmpq $1, %%rax\n")
 		// exit with true if left is true
 		printf("  je %s\n", labelExitWithTrue)
 
 		// if left is false, then eval right and exit
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.Y) // right
 		printf("  jmp %s\n", labelExit)
 
 		printf("  %s:\n", labelExitWithTrue)
@@ -1121,30 +1121,30 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		if kind(getTypeOfExprMeta(meta.X)) == T_STRING {
 			emitCatStrings(meta.X, meta.Y)
 		} else {
-			emitExprMeta(meta.X) // left
-			emitExprMeta(meta.Y) // right
+			emitExpr(meta.X) // left
+			emitExpr(meta.Y) // right
 			printf("  popq %%rcx # right\n")
 			printf("  popq %%rax # left\n")
 			printf("  addq %%rcx, %%rax\n")
 			printf("  pushq %%rax\n")
 		}
 	case "-":
-		emitExprMeta(meta.X) // left
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.X) // left
+		emitExpr(meta.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  subq %%rcx, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "*":
-		emitExprMeta(meta.X) // left
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.X) // left
+		emitExpr(meta.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  imulq %%rcx, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "%":
-		emitExprMeta(meta.X) // left
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.X) // left
+		emitExpr(meta.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  movq $0, %%rdx # init %%rdx\n")
@@ -1152,8 +1152,8 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		printf("  movq %%rdx, %%rax\n")
 		printf("  pushq %%rax\n")
 	case "/":
-		emitExprMeta(meta.X) // left
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.X) // left
+		emitExpr(meta.Y) // right
 		printf("  popq %%rcx # right\n")
 		printf("  popq %%rax # left\n")
 		printf("  movq $0, %%rdx # init %%rdx\n")
@@ -1165,28 +1165,28 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		emitBinaryExprComparison(meta.X, meta.Y)
 		emitInvertBoolValue()
 	case "<":
-		emitExprMeta(meta.X) // left
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.X) // left
+		emitExpr(meta.Y) // right
 		emitCompExpr("setl")
 	case "<=":
-		emitExprMeta(meta.X) // left
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.X) // left
+		emitExpr(meta.Y) // right
 		emitCompExpr("setle")
 	case ">":
-		emitExprMeta(meta.X) // left
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.X) // left
+		emitExpr(meta.Y) // right
 		emitCompExpr("setg")
 	case ">=":
-		emitExprMeta(meta.X) // left
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.X) // left
+		emitExpr(meta.Y) // right
 		emitCompExpr("setge")
 	case "|":
-		emitExprMeta(meta.X) // left
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.X) // left
+		emitExpr(meta.Y) // right
 		emitBitWiseOr()
 	case "&":
-		emitExprMeta(meta.X) // left
-		emitExprMeta(meta.Y) // right
+		emitExpr(meta.X) // left
+		emitExpr(meta.Y) // right
 		emitBitWiseAnd()
 	default:
 		panic(e.Op.String())
@@ -1222,7 +1222,7 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 		if meta.Max == nil {
 			// new cap = cap(operand) - low
 			emitCap(meta.X)
-			emitExprMeta(meta.Low)
+			emitExpr(meta.Low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # orig_cap\n")
 			printf("  subq %%rcx, %%rax # orig_cap - low\n")
@@ -1230,27 +1230,27 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 
 			// new len = high - low
 			if meta.High != nil {
-				emitExprMeta(meta.High)
+				emitExpr(meta.High)
 			} else {
 				// high = len(orig)
 				emitLen(meta.X)
 			}
-			emitExprMeta(meta.Low)
+			emitExpr(meta.Low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # high\n")
 			printf("  subq %%rcx, %%rax # high - low\n")
 			printf("  pushq %%rax # new len\n")
 		} else {
 			// new cap = max - low
-			emitExprMeta(meta.Max)
-			emitExprMeta(meta.Low)
+			emitExpr(meta.Max)
+			emitExpr(meta.Low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # max\n")
 			printf("  subq %%rcx, %%rax # new cap = max - low\n")
 			printf("  pushq %%rax # new cap\n")
 			// new len = high - low
-			emitExprMeta(meta.High)
-			emitExprMeta(meta.Low)
+			emitExpr(meta.High)
+			emitExpr(meta.Low)
 			printf("  popq %%rcx # low\n")
 			printf("  popq %%rax # high\n")
 			printf("  subq %%rcx, %%rax # new len = high - low\n")
@@ -1259,12 +1259,12 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 	case T_STRING:
 		// new len = high - low
 		if meta.High != nil {
-			emitExprMeta(meta.High)
+			emitExpr(meta.High)
 		} else {
 			// high = len(orig)
 			emitLen(meta.X)
 		}
-		emitExprMeta(meta.Low)
+		emitExpr(meta.Low)
 		printf("  popq %%rcx # low\n")
 		printf("  popq %%rax # high\n")
 		printf("  subq %%rcx, %%rax # high - low\n")
@@ -1274,9 +1274,9 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 		unexpectedKind(kind(listType))
 	}
 
-	emitExprMeta(meta.Low) // index number
+	emitExpr(meta.Low) // index number
 	elmType := getElementTypeOfCollectionType(listType)
-	emitListElementAddrMeta(list, elmType)
+	emitListElementAddr(list, elmType)
 }
 
 // 1 or 2 values
@@ -1340,7 +1340,7 @@ func emitMapGet(m *MetaIndexExpr, okContext bool) {
 func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 	okContext := meta.NeedsOK
 	e := meta.e
-	emitExprMeta(meta.X)
+	emitExpr(meta.X)
 	emitDtypeLabelAddr(e2t(e.Type))
 	emitCompareDtypes()
 
@@ -1370,7 +1370,7 @@ func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 	printf("  %s:\n", labelEnd)
 }
 
-func isUniverseNilMeta(meta MetaExpr) bool {
+func isUniverseNil(meta MetaExpr) bool {
 	switch e := meta.(type) {
 	case *MetaIdent:
 		return e.kind == "nil"
@@ -1378,20 +1378,9 @@ func isUniverseNilMeta(meta MetaExpr) bool {
 		return false
 	}
 }
-func isUniverseNil(expr ast.Expr) bool {
-	switch e := expr.(type) {
-	case *ast.Ident:
-		assert(e.Obj != nil, " ident.Obj should not be nil:"+e.Name, __func__)
-		return e.Obj == gNil
-	case *ast.ParenExpr:
-		return isUniverseNil(e.X)
-	default:
-		return false
-	}
-}
 
-func emitExprMeta(meta MetaExpr) {
-	emitComment(2, "[emitExprMeta] meta=%T\n", meta)
+func emitExpr(meta MetaExpr) {
+	emitComment(2, "[emitExpr] meta=%T\n", meta)
 	switch m := meta.(type) {
 	case *MetaBasicLit:
 		emitBasicLit(m)
@@ -1431,8 +1420,8 @@ func emitConvertToInterface(fromType *Type) {
 	emitDtypeLabelAddr(fromType)
 }
 
-func mayEmitConvertTooIfcMeta(meta MetaExpr, ctxType *Type) {
-	if !isUniverseNilMeta(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExprMeta(meta)) {
+func mayEmitConvertTooIfc(meta MetaExpr, ctxType *Type) {
+	if !isUniverseNil(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExprMeta(meta)) {
 		emitConvertToInterface(getTypeOfExprMeta(meta))
 	}
 }
@@ -1531,7 +1520,7 @@ func newNumberLiteral(x int) *MetaBasicLit {
 	return walkBasicLit(e, nil)
 }
 
-func emitAddrForMapSetMeta(indexExpr *MetaIndexExpr) {
+func emitAddrForMapSet(indexExpr *MetaIndexExpr) {
 	// alloc heap for map value
 	//size := getSizeOfType(elmType)
 	emitComment(2, "[emitAddrForMapSet]\n")
@@ -1558,35 +1547,8 @@ func emitAddrForMapSetMeta(indexExpr *MetaIndexExpr) {
 	emitCallDirect("runtime.getAddrForMapSet", args, resultList)
 }
 
-func emitAddrForMapSet(indexExpr *ast.IndexExpr) {
-	// alloc heap for map value
-	//size := getSizeOfType(elmType)
-	emitComment(2, "[emitAddrForMapSet]\n")
-	mp := indexExpr.X
-	key := indexExpr.Index
-
-	args := []*Arg{
-		&Arg{
-			e:         mp,
-			paramType: tUintptr,
-		},
-		&Arg{
-			e:         key,
-			paramType: tEface,
-		},
-	}
-	resultList := &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type: tUintptr.E,
-			},
-		},
-	}
-	emitCallDirect("runtime.getAddrForMapSet", args, resultList)
-}
-
-func emitListElementAddrMeta(list MetaExpr, elmType *Type) {
-	emitListHeadAddrMeta(list)
+func emitListElementAddr(list MetaExpr, elmType *Type) {
+	emitListHeadAddr(list)
 	emitPopAddress("list head")
 	printf("  popq %%rcx # index id\n")
 	printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(elmType))
@@ -1645,14 +1607,14 @@ func emitBinaryExprComparison(left MetaExpr, right MetaExpr) {
 		ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)
 		//@TODO: confirm nil comparison with interfaces
-		emitExprMeta(left)  // left
-		emitExprMeta(right) // right
+		emitExpr(left)  // left
+		emitExpr(right) // right
 		emitCallFF(ff)
 	} else {
 		// Assuming pointer-like types (pointer, map)
 		//var t = getTypeOfExpr(left)
-		emitExprMeta(left)  // left
-		emitExprMeta(right) // right
+		emitExpr(left)  // left
+		emitExpr(right) // right
 		emitCompExpr("sete")
 	}
 
@@ -1777,10 +1739,10 @@ func isBlankIdentifier(e ast.Expr) bool {
 func emitAssignToVar(vr *Variable, rhs MetaExpr) {
 	emitComment(2, "Assignment: emitVariableAddr(lhs)\n")
 	emitVariableAddr(vr)
-	emitComment(2, "Assignment: emitExprMeta(rhs)\n")
+	emitComment(2, "Assignment: emitExpr(rhs)\n")
 
-	emitExprMeta(rhs)
-	mayEmitConvertTooIfcMeta(rhs, vr.Typ)
+	emitExpr(rhs)
+	mayEmitConvertTooIfc(rhs, vr.Typ)
 	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
 	emitStore(vr.Typ, true, false)
 }
@@ -1788,7 +1750,7 @@ func emitAssignToVar(vr *Variable, rhs MetaExpr) {
 func emitAssignZeroValue(lhs MetaExpr, lhsType *Type) {
 	emitComment(2, "emitAssignZeroValue\n")
 	emitComment(2, "lhs addresss\n")
-	emitAddrMeta(lhs)
+	emitAddr(lhs)
 	emitComment(2, "emitZeroValue\n")
 	emitZeroValue(lhsType)
 	emitStore(lhsType, true, false)
@@ -1799,15 +1761,15 @@ func emitSingleAssign(lhs MetaExpr, rhs MetaExpr) {
 	//	lhs := metaSingle.lhs
 	//	rhs := metaSingle.rhs
 	if isBlankIdentifierMeta(lhs) {
-		emitExprMeta(rhs)
+		emitExpr(rhs)
 		emitPop(kind(getTypeOfExprMeta(rhs)))
 		return
 	}
-	emitComment(2, "Assignment: emitAddrMeta(lhs)\n")
-	emitAddrMeta(lhs)
-	emitComment(2, "Assignment: emitExprMeta(rhs)\n")
-	emitExprMeta(rhs)
-	mayEmitConvertTooIfcMeta(rhs, getTypeOfExprMeta(lhs))
+	emitComment(2, "Assignment: emitAddr(lhs)\n")
+	emitAddr(lhs)
+	emitComment(2, "Assignment: emitExpr(rhs)\n")
+	emitExpr(rhs)
+	mayEmitConvertTooIfc(rhs, getTypeOfExprMeta(lhs))
 	emitStore(getTypeOfExprMeta(lhs), true, false)
 }
 
@@ -1818,7 +1780,7 @@ func emitBlockStmt(s *MetaBlockStmt) {
 }
 
 func emitExprStmt(s *MetaExprStmt) {
-	emitExprMeta(s.X)
+	emitExpr(s.X)
 }
 
 // local decl stmt
@@ -1840,7 +1802,7 @@ func emitOkAssignment(meta *MetaTupleAssign) {
 	//	-- stack top
 	//	bool
 	//	data
-	emitExprMeta(rhs0)
+	emitExpr(rhs0)
 	for i := 1; i >= 0; i-- {
 		lhsMeta := meta.lhsMetas[i]
 		rhsType := rhsTypes[i]
@@ -1848,7 +1810,7 @@ func emitOkAssignment(meta *MetaTupleAssign) {
 			emitPop(kind(rhsType))
 		} else {
 			// @TODO interface conversion
-			emitAddrMeta(lhsMeta)
+			emitAddr(lhsMeta)
 			emitStore(getTypeOfExprMeta(lhsMeta), false, false)
 		}
 
@@ -1861,7 +1823,7 @@ func emitFuncallAssignment(meta *MetaTupleAssign) {
 	rhs0 := meta.rhsMeta
 	rhsTypes := meta.rhsTypes
 
-	emitExprMeta(rhs0)
+	emitExpr(rhs0)
 	for i := 0; i < len(rhsTypes); i++ {
 		lhsMeta := meta.lhsMetas[i]
 		rhsType := rhsTypes[i]
@@ -1876,7 +1838,7 @@ func emitFuncallAssignment(meta *MetaTupleAssign) {
 				printf("  pushq %%rax\n")
 			}
 			// @TODO interface conversion
-			emitAddrMeta(lhsMeta)
+			emitAddr(lhsMeta)
 			emitStore(getTypeOfExprMeta(lhsMeta), false, false)
 		}
 	}
@@ -1889,7 +1851,7 @@ func emitIfStmt(meta *MetaIfStmt) {
 	labelEndif := fmt.Sprintf(".L.endif.%d", labelid)
 	labelElse := fmt.Sprintf(".L.else.%d", labelid)
 
-	emitExprMeta(meta.CondMeta)
+	emitExpr(meta.CondMeta)
 	emitPopBool("if condition")
 	printf("  cmpq $1, %%rax\n")
 	if meta.Else != nil {
@@ -1921,7 +1883,7 @@ func emitForStmt(meta *MetaForStmt) {
 
 	printf("  %s:\n", labelCond)
 	if meta.CondMeta != nil {
-		emitExprMeta(meta.CondMeta)
+		emitExpr(meta.CondMeta)
 		emitPopBool("for condition")
 		printf("  cmpq $1, %%rax\n")
 		printf("  jne %s # jmp if false\n", labelExit)
@@ -1987,7 +1949,7 @@ func emitRangeMap(meta *MetaForStmt) {
 	keyMeta := meta.ForRange.keyMeta
 	if keyMeta != nil {
 		if !isBlankIdentifierMeta(keyMeta) {
-			emitAddrMeta(keyMeta) // lhs
+			emitAddr(keyMeta) // lhs
 			// emit value of item.key
 			//type item struct {
 			//	next  *item
@@ -2008,7 +1970,7 @@ func emitRangeMap(meta *MetaForStmt) {
 	valueMeta := meta.ForRange.valueMeta
 	if valueMeta != nil {
 		if !isBlankIdentifierMeta(valueMeta) {
-			emitAddrMeta(valueMeta) // lhs
+			emitAddr(valueMeta) // lhs
 			// emit value of item
 			//type item struct {
 			//	next  *item
@@ -2069,7 +2031,7 @@ func emitRangeStmt(meta *MetaForStmt) {
 	keyMeta := meta.ForRange.keyMeta
 	if keyMeta != nil {
 		if !isBlankIdentifierMeta(keyMeta) {
-			emitAddrMeta(keyMeta) // lhs
+			emitAddr(keyMeta) // lhs
 			emitZeroValue(tInt)
 			emitStore(tInt, true, false)
 		}
@@ -2094,11 +2056,11 @@ func emitRangeStmt(meta *MetaForStmt) {
 
 	emitComment(2, "assign list[indexvar] value variables\n")
 	elemType := getTypeOfExprMeta(meta.ForRange.valueMeta)
-	emitAddrMeta(meta.ForRange.valueMeta) // lhs
+	emitAddr(meta.ForRange.valueMeta) // lhs
 
 	emitVariableAddr(meta.ForRange.Indexvar)
 	emitLoadAndPush(tInt) // index value
-	emitListElementAddrMeta(meta.ForRange.metaX, elemType)
+	emitListElementAddr(meta.ForRange.metaX, elemType)
 
 	emitLoadAndPush(elemType)
 	emitStore(elemType, true, false)
@@ -2119,7 +2081,7 @@ func emitRangeStmt(meta *MetaForStmt) {
 	// incr key variable
 	if keyMeta != nil {
 		if !isBlankIdentifierMeta(keyMeta) {
-			emitAddrMeta(keyMeta)                    // lhs
+			emitAddr(keyMeta)                        // lhs
 			emitVariableAddr(meta.ForRange.Indexvar) // rhs
 			emitLoadAndPush(tInt)
 			emitStore(tInt, true, false)
@@ -2140,7 +2102,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 	if s.Tag == nil {
 		panic("Omitted tag is not supported yet")
 	}
-	emitExprMeta(s.TagMeta)
+	emitExpr(s.TagMeta)
 	condType := getTypeOfExpr(s.Tag)
 	cases := s.cases
 	var labels = make([]string, len(cases), len(cases))
@@ -2162,7 +2124,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 				emitAllocReturnVarsAreaFF(ff)
 
 				emitPushStackTop(condType, SizeOfInt, "switch expr")
-				emitExprMeta(m)
+				emitExpr(m)
 
 				emitCallFF(ff)
 			case T_INTERFACE:
@@ -2171,12 +2133,12 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 				emitAllocReturnVarsAreaFF(ff)
 
 				emitPushStackTop(condType, SizeOfInt, "switch expr")
-				emitExprMeta(m)
+				emitExpr(m)
 
 				emitCallFF(ff)
 			case T_INT, T_UINT8, T_UINT16, T_UINTPTR, T_POINTER:
 				emitPushStackTop(condType, 0, "switch expr")
-				emitExprMeta(m)
+				emitExpr(m)
 				emitCompExpr("sete")
 			default:
 				unexpectedKind(kind(condType))
@@ -2215,7 +2177,7 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 
 	// subjectVariable = subject
 	emitVariableAddr(meta.SubjectVariable)
-	emitExprMeta(meta.SubjectMeta)
+	emitExpr(meta.SubjectMeta)
 	emitStore(tEface, true, false)
 
 	cases := s.Cases
@@ -2314,7 +2276,7 @@ func emitBranchStmt(meta *MetaBranchStmt) {
 
 func emitGoStmt(m *MetaGoStmt) {
 	emitCallMalloc(SizeOfPtr) // area := new(func())
-	emitExprMeta(m.fun)
+	emitExpr(m.fun)
 	printf("  popq %%rax # func addr\n")
 	printf("  popq %%rcx # malloced area\n")
 	printf("  movq %%rax, (%%rcx) # malloced area\n") // *area = fn
