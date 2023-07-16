@@ -3412,7 +3412,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 	case "=":
 		if IsOkSyntax(s) {
 			rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
-			rhsTypes := []*Type{getTypeOfExpr(s.Rhs[0]), tBool}
+			rhsTypes := []*Type{getTypeOfExprMeta(rhsMeta), tBool}
 			var lhsMetas []MetaExpr
 			for _, lhs := range s.Lhs {
 				lm := walkExpr(lhs, nil)
@@ -3427,18 +3427,18 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			}
 		} else {
 			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
-				var ctx *evalContext
-				if !isBlankIdentifier(s.Lhs[0]) {
-					ctx = &evalContext{
-						_type: getTypeOfExpr(s.Lhs[0]),
-					}
-				}
-				rhsMeta := walkExpr(s.Rhs[0], ctx)
 				var lhsMetas []MetaExpr
 				for _, lhs := range s.Lhs {
 					lm := walkExpr(lhs, nil)
 					lhsMetas = append(lhsMetas, lm)
 				}
+				var ctx *evalContext
+				if !isBlankIdentifierMeta(lhsMetas[0]) {
+					ctx = &evalContext{
+						_type: getTypeOfExprMeta(lhsMetas[0]),
+					}
+				}
+				rhsMeta := walkExpr(s.Rhs[0], ctx)
 				mt = &MetaSingleAssign{
 					Lhs: lhsMetas[0],
 					Rhs: rhsMeta,
@@ -3470,7 +3470,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 
 		if IsOkSyntax(s) {
 			rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
-			rhsTypes := []*Type{getTypeOfExpr(s.Rhs[0]), tBool}
+			rhsTypes := []*Type{getTypeOfExprMeta(rhsMeta), tBool}
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
 			lhsTypes := rhsTypes
@@ -3518,7 +3518,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			return mt
 		} else if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 			rhsMeta := walkExpr(s.Rhs[0], nil) // FIXME
-			rhsType := getTypeOfExpr(s.Rhs[0])
+			rhsType := getTypeOfExprMeta(rhsMeta)
 			lhsTypes := []*Type{rhsType}
 			var lhsMetas []MetaExpr
 			for i, lhs := range s.Lhs {
