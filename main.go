@@ -1093,10 +1093,15 @@ func emitSelectorExpr(meta *MetaSelectorExpr) {
 	if isQI(e) {
 		qi := selector2QI(e)
 		ident := lookupForeignIdent(qi)
-		if ident.Obj.Kind == ast.Fun {
+		switch ident.Obj.Kind {
+		case ast.Fun:
 			emitFuncAddr(qi)
-		} else {
-			emitExpr(ident)
+		case ast.Var:
+			m := walkIdent(ident, nil)
+			emitExprMeta(m)
+		case ast.Con:
+			m := walkIdent(ident, nil)
+			emitExprMeta(m)
 		}
 	} else {
 		// strct.field
