@@ -2222,7 +2222,7 @@ func emitTypeSwitchStmt(meta *MetaTypeSwitchStmt) {
 	for i, c := range meta.Cases {
 		// Injecting variable and type to the subject
 		if c.Variable != nil {
-			setVariable(meta.AssignIdent, c.Variable)
+			setVariable(meta.assignObj, c.Variable)
 		}
 		printf("  %s:\n", labels[i])
 
@@ -2236,7 +2236,7 @@ func emitTypeSwitchStmt(meta *MetaTypeSwitchStmt) {
 		if c.Variable != nil {
 			// do assignment
 			if _isNil {
-				// @TODO: assign nil to the AssignIdent of interface type
+				// @TODO: assign nil to the assignObj of interface type
 			} else {
 				emitVariableAddr(c.Variable) // push lhs
 
@@ -3535,30 +3535,6 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 	return nil
 }
 
-type MetaSingleAssign struct {
-	lhsMeta MetaExpr
-	//rhs ast.Expr // rhs can be nil
-	rhsMeta MetaExpr // can be nil
-}
-
-type MetaTupleAssign struct {
-	lhsMetas []MetaExpr
-	rhsMeta  MetaExpr
-	rhsTypes []*Type
-}
-
-type MetaVarDecl struct {
-	single  *MetaSingleAssign
-	lhsType *Type
-}
-
-type MetaOkAssignStmt struct {
-	tuple *MetaTupleAssign
-}
-type MetaFuncallAssignStmt struct {
-	tuple *MetaTupleAssign
-}
-
 func walkReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
 	funcDef := currentFunc
 	if len(funcDef.Retvars) != len(s.Results) {
@@ -3580,13 +3556,6 @@ func walkReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
 		Fnc:         funcDef,
 		MetaResults: results,
 	}
-}
-
-type MetaIfStmt struct {
-	Init     MetaStmt
-	CondMeta MetaExpr
-	Body     *MetaBlockStmt
-	Else     MetaStmt
 }
 
 func walkIfStmt(s *ast.IfStmt) *MetaIfStmt {
@@ -3744,7 +3713,7 @@ func walkTypeSwitchStmt(meta *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	case *ast.AssignStmt:
 		lhs := assign.Lhs[0]
 		assignIdent = lhs.(*ast.Ident)
-		typeSwitch.AssignIdent = assignIdent.Obj
+		typeSwitch.assignObj = assignIdent.Obj
 		// ident will be a new local variable in each case clause
 		typeAssertExpr := assign.Rhs[0].(*ast.TypeAssertExpr)
 		typeSwitch.Subject = walkExpr(typeAssertExpr.X, nil)
@@ -3856,8 +3825,27 @@ type MetaExprStmt struct {
 	X MetaExpr
 }
 
-type MetaGoStmt struct {
-	fun MetaExpr
+type MetaVarDecl struct {
+	single  *MetaSingleAssign
+	lhsType *Type
+}
+
+type MetaSingleAssign struct {
+	lhsMeta MetaExpr
+	rhsMeta MetaExpr // can be nil
+}
+
+type MetaTupleAssign struct {
+	lhsMetas []MetaExpr
+	rhsMeta  MetaExpr
+	rhsTypes []*Type
+}
+
+type MetaOkAssignStmt struct {
+	tuple *MetaTupleAssign
+}
+type MetaFuncallAssignStmt struct {
+	tuple *MetaTupleAssign
 }
 
 type MetaReturnStmt struct {
@@ -3865,15 +3853,11 @@ type MetaReturnStmt struct {
 	MetaResults []MetaExpr
 }
 
-type MetaForRange struct {
-	IsMap    bool
-	LenVar   *Variable
-	Indexvar *Variable
-	MapVar   *Variable // map
-	ItemVar  *Variable // map element
-	X        MetaExpr
-	Key      MetaExpr
-	Value    MetaExpr
+type MetaIfStmt struct {
+	Init     MetaStmt
+	CondMeta MetaExpr
+	Body     *MetaBlockStmt
+	Else     MetaStmt
 }
 
 type MetaForStmt struct {
@@ -3887,14 +3871,20 @@ type MetaForStmt struct {
 	Post      MetaStmt
 }
 
+type MetaForRange struct {
+	IsMap    bool
+	LenVar   *Variable
+	Indexvar *Variable
+	MapVar   *Variable // map
+	ItemVar  *Variable // map element
+	X        MetaExpr
+	Key      MetaExpr
+	Value    MetaExpr
+}
+
 type MetaBranchStmt struct {
 	containerForStmt *MetaForStmt
 	ContinueOrBreak  int // 1: continue, 2:break
-}
-
-type MetaCaseClause struct {
-	ListMeta []MetaExpr
-	Body     []MetaStmt
 }
 
 type MetaSwitchStmt struct {
@@ -3903,10 +3893,15 @@ type MetaSwitchStmt struct {
 	Tag   MetaExpr
 }
 
+type MetaCaseClause struct {
+	ListMeta []MetaExpr
+	Body     []MetaStmt
+}
+
 type MetaTypeSwitchStmt struct {
 	Subject         MetaExpr
 	SubjectVariable *Variable
-	AssignIdent     *ast.Object
+	assignObj       *ast.Object
 	Cases           []*MetaTypeSwitchCaseClose
 	cases           []*MetaCaseClause
 }
@@ -3916,6 +3911,10 @@ type MetaTypeSwitchCaseClose struct {
 	VariableType *Type
 	types        []*Type
 	Body         []MetaStmt
+}
+
+type MetaGoStmt struct {
+	fun MetaExpr
 }
 
 func walkStmt(stmt ast.Stmt) MetaStmt {
@@ -3929,6 +3928,8 @@ func walkStmt(stmt ast.Stmt) MetaStmt {
 		mt = walkDeclStmt(s)
 	case *ast.AssignStmt:
 		mt = walkAssignStmt(s)
+	case *ast.IncDecStmt:
+		mt = walkIncDecStmt(s)
 	case *ast.ReturnStmt:
 		mt = walkReturnStmt(s)
 	case *ast.IfStmt:
@@ -3937,14 +3938,12 @@ func walkStmt(stmt ast.Stmt) MetaStmt {
 		mt = walkForStmt(s)
 	case *ast.RangeStmt:
 		mt = walkRangeStmt(s)
-	case *ast.IncDecStmt:
-		mt = walkIncDecStmt(s)
+	case *ast.BranchStmt:
+		mt = walkBranchStmt(s)
 	case *ast.SwitchStmt:
 		mt = walkSwitchStmt(s)
 	case *ast.TypeSwitchStmt:
 		mt = walkTypeSwitchStmt(s)
-	case *ast.BranchStmt:
-		mt = walkBranchStmt(s)
 	case *ast.GoStmt:
 		mt = walkGoStmt(s)
 	default:
