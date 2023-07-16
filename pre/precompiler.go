@@ -531,7 +531,7 @@ func emitLen(arg MetaExpr) {
 				},
 			},
 		}
-		emitCall("runtime.lenMap", args, resultList)
+		emitCallDirect("runtime.lenMap", args, resultList)
 
 	default:
 		unexpectedKind(kind(getTypeOfExprMeta(arg)))
@@ -715,8 +715,12 @@ func prepareArgs(funcType *ast.FuncType, receiver ast.Expr, eArgs []ast.Expr, ex
 	return args
 }
 
+func emitCallDirect(symbol string, args []*Arg, resultList *ast.FieldList) {
+	emitCall(NewFuncValueFromSymbol(symbol), args, resultList)
+}
+
 // see "ABI of stack layout" in the emitFuncall comment
-func emitCall(fn interface{}, args []*Arg, resultList *ast.FieldList) {
+func emitCall(fv *FuncValue, args []*Arg, resultList *ast.FieldList) {
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 
 	var totalParamSize int
@@ -743,7 +747,7 @@ func emitCall(fn interface{}, args []*Arg, resultList *ast.FieldList) {
 		emitRegiToMem(paramType)
 	}
 
-	emitCallQ(fn, totalParamSize, resultList)
+	emitCallQ(fv, totalParamSize, resultList)
 }
 
 func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
@@ -763,21 +767,34 @@ func getTotalFieldsSize(flist *ast.FieldList) int {
 
 func emitCallFF(ff *ForeignFunc) {
 	totalParamSize := getTotalFieldsSize(ff.funcType.Params)
-	emitCallQ(ff.symbol, totalParamSize, ff.funcType.Results)
+	emitCallQ(NewFuncValueFromSymbol(ff.symbol), totalParamSize, ff.funcType.Results)
 }
 
-func emitCallQ(fn interface{}, totalParamSize int, resultList *ast.FieldList) {
-	switch f := fn.(type) {
-	case string:
-		symbol := f
-		printf("  callq %s\n", symbol)
-	case *ast.Ident:
-		emitExpr(f)
+func NewFuncValueFromSymbol(symbol string) *FuncValue {
+	return &FuncValue{
+		isDirect: true,
+		symbol:   symbol,
+	}
+}
+
+type FuncValue struct {
+	isDirect bool     // direct or indirect
+	symbol   string   // for direct call
+	expr     MetaExpr // for indirect call
+}
+
+func emitCallQ(fv *FuncValue, totalParamSize int, resultList *ast.FieldList) {
+	if fv.isDirect {
+		if fv.symbol == "" {
+			panic("callq target must not be empty")
+		}
+		printf("  callq %s\n", fv.symbol)
+	} else {
+		emitExprMeta(fv.expr)
 		printf("  popq %%rax\n")
 		printf("  callq *%%rax\n")
-	default:
-		throw(fn)
 	}
+
 	emitFreeParametersArea(totalParamSize)
 	printf("  #  totalReturnSize=%d\n", getTotalFieldsSize(resultList))
 	emitFreeAndPushReturnedValue(resultList)
@@ -865,7 +882,7 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, arg0 MetaExpr) {
 					},
 				},
 			}
-			emitCall("runtime.makeMap", args, resultList)
+			emitCallDirect("runtime.makeMap", args, resultList)
 			return
 		case T_SLICE:
 			// make([]T, ...)
@@ -897,7 +914,7 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, arg0 MetaExpr) {
 					},
 				},
 			}
-			emitCall("runtime.makeSlice", args, resultList)
+			emitCallDirect("runtime.makeSlice", args, resultList)
 			return
 		default:
 			throw(typeArg)
@@ -940,7 +957,7 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, arg0 MetaExpr) {
 				},
 			},
 		}
-		emitCall(symbol, args, resultList)
+		emitCallDirect(symbol, args, resultList)
 		return
 	case gPanic:
 		funcVal := "runtime.panic"
@@ -948,7 +965,7 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, arg0 MetaExpr) {
 			e:         eArgs[0],
 			paramType: tEface,
 		}}
-		emitCall(funcVal, _args, nil)
+		emitCallDirect(funcVal, _args, nil)
 		return
 	case gDelete:
 		funcVal := "runtime.deleteMap"
@@ -962,7 +979,7 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, arg0 MetaExpr) {
 				paramType: tEface,
 			},
 		}
-		emitCall(funcVal, _args, nil)
+		emitCallDirect(funcVal, _args, nil)
 		return
 	}
 
@@ -1377,7 +1394,7 @@ func emitMapGet(e *ast.IndexExpr, okContext bool) {
 			},
 		},
 	}
-	emitCall("runtime.getAddrForMapGet", args, resultList)
+	emitCallDirect("runtime.getAddrForMapGet", args, resultList)
 	// return values = [ptr, bool(stack top)]
 	emitPopBool("map get:  ok value")
 	printf("  cmpq $1, %%rax\n")
@@ -1695,7 +1712,7 @@ func emitAddrForMapSet(indexExpr *ast.IndexExpr) {
 			},
 		},
 	}
-	emitCall("runtime.getAddrForMapSet", args, resultList)
+	emitCallDirect("runtime.getAddrForMapSet", args, resultList)
 }
 
 func emitListElementAddr(list ast.Expr, elmType *Type) {
@@ -1736,7 +1753,7 @@ func emitCatStrings(left ast.Expr, right ast.Expr) {
 			},
 		},
 	}
-	emitCall("runtime.catstrings", args, resultList)
+	emitCallDirect("runtime.catstrings", args, resultList)
 }
 
 func emitCompStrings(left MetaExpr, right MetaExpr) {
@@ -1757,7 +1774,7 @@ func emitCompStrings(left MetaExpr, right MetaExpr) {
 			},
 		},
 	}
-	emitCall("runtime.cmpstrings", args, resultList)
+	emitCallDirect("runtime.cmpstrings", args, resultList)
 }
 
 func emitBinaryExprComparison(left MetaExpr, right MetaExpr) {
@@ -4139,7 +4156,7 @@ type MetaCallExpr struct {
 
 	// general funcall
 	funcType *ast.FuncType
-	funcVal  interface{}
+	funcVal  *FuncValue
 	receiver ast.Expr
 	metaArgs []*Arg
 }
@@ -4166,7 +4183,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 	meta.args = e.Args
 
 	// function call
-	walkExpr(e.Fun, nil)
+	metaFun := walkExpr(e.Fun, nil)
 
 	// Replace __func__ ident by a string literal
 	//for i, arg := range meta.args {
@@ -4226,43 +4243,46 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 	}
 
 	var funcType *ast.FuncType
-	var funcVal interface{}
+	var funcVal *FuncValue
 	var receiver ast.Expr
 
 	switch fn := meta.fun.(type) {
 	case *ast.Ident:
 		// general function call
-		funcVal = getPackageSymbol(currentPkg.name, fn.Name)
+		symbol := getPackageSymbol(currentPkg.name, fn.Name)
 		switch currentPkg.name {
 		case "os":
 			switch fn.Name {
 			case "runtime_args":
-				funcVal = getPackageSymbol("runtime", "runtime_args")
+				symbol = getPackageSymbol("runtime", "runtime_args")
 			case "runtime_getenv":
-				funcVal = getPackageSymbol("runtime", "runtime_getenv")
+				symbol = getPackageSymbol("runtime", "runtime_getenv")
 			}
 		case "runtime":
 			if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
 				fn.Name = "makeSlice"
-				funcVal = getPackageSymbol("runtime", fn.Name)
+				symbol = getPackageSymbol("runtime", fn.Name)
 			}
 		}
-
+		funcVal = NewFuncValueFromSymbol(symbol)
 		switch dcl := fn.Obj.Decl.(type) {
 		case *ast.FuncDecl:
 			funcType = dcl.Type
 		case *ast.ValueSpec: // var f func()
 			funcType = dcl.Type.(*ast.FuncType)
-			funcVal = meta.fun
+			funcVal = &FuncValue{
+				expr: metaFun,
+			}
 		case *ast.AssignStmt: // f := staticF
 			assert(fn.Obj.Data != nil, "funcvalue should be a variable:"+fn.Name, __func__)
 			rhs := dcl.Rhs[0]
 			switch r := rhs.(type) {
 			case *ast.SelectorExpr:
 				assert(isQI(r), "expect QI", __func__)
-				ff := lookupForeignFunc(selector2QI(r))
+				qi := selector2QI(r)
+				ff := lookupForeignFunc(qi)
 				funcType = ff.funcType
-				funcVal = meta.fun
+				funcVal = NewFuncValueFromSymbol(string(qi))
 			default:
 				throw(r)
 			}
@@ -4273,7 +4293,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 		if isQI(fn) {
 			// pkg.Sel()
 			qi := selector2QI(fn)
-			funcVal = string(qi)
+			funcVal = NewFuncValueFromSymbol(string(qi))
 			ff := lookupForeignFunc(qi)
 			funcType = ff.funcType
 		} else {
@@ -4282,7 +4302,7 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 			receiverType := getTypeOfExpr(receiver)
 			method := lookupMethod(receiverType, fn.Sel)
 			funcType = method.FuncType
-			funcVal = getMethodSymbol(method)
+			funcVal = NewFuncValueFromSymbol(getMethodSymbol(method))
 
 			if kind(receiverType) == T_POINTER {
 				if method.IsPtrMethod {
@@ -4312,7 +4332,6 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 	meta.funcType = funcType
 	meta.receiver = receiver
 	meta.funcVal = funcVal
-
 	meta.metaArgs = prepareArgs(meta.funcType, meta.receiver, meta.args, meta.hasEllipsis)
 	return meta
 }
