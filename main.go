@@ -914,19 +914,19 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 
 			throw(typeArg)
 		}
 	case gAppend:
-		sliceArg := eArgs[0]
-		elemArg := eArgs[1]
-		elmType := getElementTypeOfCollectionType(getTypeOfExpr(sliceArg))
+		sliceArg := arg0
+		elemArg := arg1
+		elmType := getElementTypeOfCollectionType(getTypeOfExprMeta(sliceArg))
 		elmSize := getSizeOfType(elmType)
 		args := []*Arg{
 			// slice
 			&Arg{
-				e:         sliceArg,
+				meta:      sliceArg,
 				paramType: e2t(generalSlice),
 			},
 			// elm
 			&Arg{
-				e:         elemArg,
+				meta:      elemArg,
 				paramType: elmType,
 			},
 		}
@@ -4264,11 +4264,8 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 			return meta
 		case gAppend:
 			meta.builtin = identFun.Obj
-			walkExpr(meta.args[0], nil)
-			for _, arg := range meta.args[1:] {
-				ctx := &evalContext{_type: tTODO} // @TODO attach type of slice element
-				walkExpr(arg, ctx)
-			}
+			meta.arg0 = walkExpr(meta.args[0], nil)
+			meta.arg1 = walkExpr(meta.args[1], nil)
 			return meta
 		case gPanic:
 			meta.builtin = identFun.Obj
