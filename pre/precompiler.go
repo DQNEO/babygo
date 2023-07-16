@@ -1930,30 +1930,30 @@ func emitAssignToVar(vr *Variable, rhs MetaExpr) {
 	emitStore(vr.Typ, true, false)
 }
 
-func emitAssignZeroValue(lhs ast.Expr, lhsType *Type) {
+func emitAssignZeroValue(lhs MetaExpr, lhsType *Type) {
 	emitComment(2, "emitAssignZeroValue\n")
 	emitComment(2, "lhs addresss\n")
-	emitAddr(lhs)
+	emitAddrMeta(lhs)
 	emitComment(2, "emitZeroValue\n")
 	emitZeroValue(lhsType)
 	emitStore(lhsType, true, false)
 
 }
 
-func emitSingleAssign(lhs ast.Expr, rhs MetaExpr) {
+func emitSingleAssign(lhs MetaExpr, rhs MetaExpr) {
 	//	lhs := metaSingle.lhs
 	//	rhs := metaSingle.rhs
-	if isBlankIdentifier(lhs) {
+	if isBlankIdentifierMeta(lhs) {
 		emitExprMeta(rhs)
 		emitPop(kind(getTypeOfExprMeta(rhs)))
 		return
 	}
-	emitComment(2, "Assignment: emitAddr(lhs)\n")
-	emitAddr(lhs)
+	emitComment(2, "Assignment: emitAddrMeta(lhs)\n")
+	emitAddrMeta(lhs)
 	emitComment(2, "Assignment: emitExprMeta(rhs)\n")
 	emitExprMeta(rhs)
-	mayEmitConvertTooIfcMeta(rhs, getTypeOfExpr(lhs))
-	emitStore(getTypeOfExpr(lhs), true, false)
+	mayEmitConvertTooIfcMeta(rhs, getTypeOfExprMeta(lhs))
+	emitStore(getTypeOfExprMeta(lhs), true, false)
 }
 
 func emitBlockStmt(s *MetaBlockStmt) {
@@ -1970,9 +1970,9 @@ func emitExprStmt(s *MetaExprStmt) {
 func emitDeclStmt(meta *MetaVarDecl) {
 	if meta.single.rhsMeta == nil {
 		// Assign zero value to LHS
-		emitAssignZeroValue(meta.single.lhs, meta.lhsType)
+		emitAssignZeroValue(meta.single.lhsMeta, meta.lhsType)
 	} else {
-		emitSingleAssign(meta.single.lhs, meta.single.rhsMeta)
+		emitSingleAssign(meta.single.lhsMeta, meta.single.rhsMeta)
 	}
 }
 
@@ -1987,14 +1987,14 @@ func emitOkAssignment(meta *MetaTupleAssign) {
 	//	data
 	emitExprMeta(rhs0)
 	for i := 1; i >= 0; i-- {
-		lhs := meta.lhs[i]
+		lhsMeta := meta.lhsMetas[i]
 		rhsType := rhsTypes[i]
-		if isBlankIdentifier(lhs) {
+		if isBlankIdentifierMeta(lhsMeta) {
 			emitPop(kind(rhsType))
 		} else {
 			// @TODO interface conversion
-			emitAddr(lhs)
-			emitStore(getTypeOfExpr(lhs), false, false)
+			emitAddrMeta(lhsMeta)
+			emitStore(getTypeOfExprMeta(lhsMeta), false, false)
 		}
 
 	}
@@ -2008,9 +2008,9 @@ func emitFuncallAssignment(meta *MetaTupleAssign) {
 
 	emitExprMeta(rhs0)
 	for i := 0; i < len(rhsTypes); i++ {
-		lhs := meta.lhs[i]
+		lhsMeta := meta.lhsMetas[i]
 		rhsType := rhsTypes[i]
-		if isBlankIdentifier(lhs) {
+		if isBlankIdentifierMeta(lhsMeta) {
 			emitPop(kind(rhsType))
 		} else {
 			switch kind(rhsType) {
@@ -2021,8 +2021,8 @@ func emitFuncallAssignment(meta *MetaTupleAssign) {
 				printf("  pushq %%rax\n")
 			}
 			// @TODO interface conversion
-			emitAddr(lhs)
-			emitStore(getTypeOfExpr(lhs), false, false)
+			emitAddrMeta(lhsMeta)
+			emitStore(getTypeOfExprMeta(lhsMeta), false, false)
 		}
 	}
 }
@@ -2480,7 +2480,7 @@ func emitStmt(mtstmt MetaStmt) {
 	case *MetaVarDecl:
 		emitDeclStmt(meta)
 	case *MetaSingleAssign:
-		emitSingleAssign(meta.lhs, meta.rhsMeta)
+		emitSingleAssign(meta.lhsMeta, meta.rhsMeta)
 	case *MetaOkAssignStmt:
 		emitOkAssignment(meta.tuple)
 	case *MetaFuncallAssignStmt:
@@ -2727,7 +2727,7 @@ func generateCode(pkg *PkgContainer) {
 		switch typeKind {
 		case T_POINTER, T_MAP, T_INTERFACE:
 			printf("# init global %s:\n", vr.name.Name)
-			emitSingleAssign(vr.name, vr.metaVal)
+			emitSingleAssign(vr.metaVar, vr.metaVal)
 		}
 	}
 	printf("  ret\n")
@@ -3523,6 +3523,7 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 		lhsIdent := spec.Names[0]
 		obj := lhsIdent.Obj
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
+		lhsMeta := walkIdent(lhsIdent, nil)
 		var rhsMeta MetaExpr
 		if len(spec.Values) > 0 {
 			rhs := spec.Values[0]
@@ -3530,7 +3531,7 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 			rhsMeta = walkExpr(rhs, ctx)
 		}
 		single := &MetaSingleAssign{
-			lhs:     lhsIdent,
+			lhsMeta: lhsMeta,
 			rhsMeta: rhsMeta,
 		}
 		return &MetaVarDecl{
@@ -3565,13 +3566,14 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		if IsOkSyntax(s) {
 			rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
 			rhsTypes := []*Type{getTypeOfExpr(s.Rhs[0]), tBool}
-
+			var lhsMetas []MetaExpr
 			for _, lhs := range s.Lhs {
-				walkExpr(lhs, nil)
+				lm := walkExpr(lhs, nil)
+				lhsMetas = append(lhsMetas, lm)
 			}
 			mt = &MetaOkAssignStmt{
 				tuple: &MetaTupleAssign{
-					lhs:      s.Lhs,
+					lhsMetas: lhsMetas,
 					rhsMeta:  rhsMeta,
 					rhsTypes: rhsTypes,
 				},
@@ -3585,11 +3587,13 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 					}
 				}
 				rhsMeta := walkExpr(s.Rhs[0], ctx)
+				var lhsMetas []MetaExpr
 				for _, lhs := range s.Lhs {
-					walkExpr(lhs, nil)
+					lm := walkExpr(lhs, nil)
+					lhsMetas = append(lhsMetas, lm)
 				}
 				mt = &MetaSingleAssign{
-					lhs:     s.Lhs[0],
+					lhsMeta: lhsMetas[0],
 					rhsMeta: rhsMeta,
 				}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
@@ -3597,13 +3601,15 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				callExpr := s.Rhs[0].(*ast.CallExpr)
 				returnTypes := getCallResultTypes(callExpr)
 				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
+				var lhsMetas []MetaExpr
 				for _, lhs := range s.Lhs {
-					walkExpr(lhs, nil)
+					lm := walkExpr(lhs, nil)
+					lhsMetas = append(lhsMetas, lm)
 				}
 
 				mt = &MetaFuncallAssignStmt{
 					tuple: &MetaTupleAssign{
-						lhs:      s.Lhs,
+						lhsMetas: lhsMetas,
 						rhsMeta:  rhsMeta,
 						rhsTypes: returnTypes,
 					},
@@ -3629,15 +3635,15 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				lm := walkExpr(lhs, nil)
 				lhsMetas = append(lhsMetas, lm)
 			}
-			_ = lhsMetas
 
 			mt = &MetaOkAssignStmt{
 				tuple: &MetaTupleAssign{
-					lhs:      s.Lhs,
+					lhsMetas: lhsMetas,
 					rhsMeta:  rhsMeta,
 					rhsTypes: rhsTypes,
 				},
 			}
+			return mt
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 			rhsMeta := walkExpr(s.Rhs[0], nil)
 			callExpr := s.Rhs[0].(*ast.CallExpr)
@@ -3657,11 +3663,12 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 
 			mt = &MetaFuncallAssignStmt{
 				tuple: &MetaTupleAssign{
-					lhs:      s.Lhs,
+					lhsMetas: lhsMetas,
 					rhsMeta:  rhsMeta,
 					rhsTypes: rhsTypes,
 				},
 			}
+			return mt
 		} else if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 			rhsMeta := walkExpr(s.Rhs[0], nil) // FIXME
 			rhsType := getTypeOfExpr(s.Rhs[0])
@@ -3674,12 +3681,12 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				lm := walkExpr(lhs, nil)
 				lhsMetas = append(lhsMetas, lm)
 			}
-			_ = lhsMetas
 
 			mt = &MetaSingleAssign{
-				lhs:     s.Lhs[0],
+				lhsMeta: lhsMetas[0],
 				rhsMeta: rhsMeta,
 			}
+			return mt
 		} else {
 			panic("TBI")
 		}
@@ -3699,8 +3706,9 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			Y:  s.Rhs[0],
 		}
 		rhsMeta := walkExpr(binaryExpr, nil)
+		lhsMeta := walkExpr(s.Lhs[0], nil)
 		return &MetaSingleAssign{
-			lhs:     s.Lhs[0],
+			lhsMeta: lhsMeta,
 			rhsMeta: rhsMeta,
 		}
 	default:
@@ -3710,13 +3718,13 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 }
 
 type MetaSingleAssign struct {
-	lhs ast.Expr
+	lhsMeta MetaExpr
 	//rhs ast.Expr // rhs can be nil
 	rhsMeta MetaExpr // can be nil
 }
 
 type MetaTupleAssign struct {
-	lhs      []ast.Expr
+	lhsMetas []MetaExpr
 	rhsMeta  MetaExpr
 	rhsTypes []*Type
 }
@@ -3880,15 +3888,16 @@ func walkIncDecStmt(s *ast.IncDecStmt) *MetaSingleAssign {
 	default:
 		panic("Unexpected Tok=" + s.Tok.String())
 	}
-	exprOne := &ast.BasicLit{Kind: token.INT, Value: "1"} // @TODO should we walk this ?
+	exprOne := &ast.BasicLit{Kind: token.INT, Value: "1"}
 	newRhs := &ast.BinaryExpr{
 		X:  s.X,
 		Y:  exprOne,
 		Op: binop,
 	}
 	rhsMeta := walkExpr(newRhs, nil)
+	lhsMeta := walkExpr(s.X, nil)
 	return &MetaSingleAssign{
-		lhs:     s.X,
+		lhsMeta: lhsMeta,
 		rhsMeta: rhsMeta,
 	}
 }
@@ -4847,12 +4856,13 @@ func walk(pkg *PkgContainer) {
 			// collect string literals
 			metaVal = walkExpr(val, nil)
 		}
-
+		metaVar := walkIdent(nameIdent, nil)
 		pkgVar := &packageVar{
 			spec:    varSpec,
 			name:    nameIdent,
 			val:     val,
 			metaVal: metaVal,
+			metaVar: metaVar,
 			typ:     t,
 		}
 		pkg.vars = append(pkg.vars, pkgVar)
@@ -5103,6 +5113,7 @@ type packageVar struct {
 	val     ast.Expr // can be nil
 	metaVal MetaExpr // can be nil
 	typ     *Type    // cannot be nil
+	metaVar *MetaIdent
 }
 
 type PkgContainer struct {
