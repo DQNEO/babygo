@@ -3609,9 +3609,22 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		}
 		return mt
 	case ":=":
+
 		if IsOkSyntax(s) {
 			rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
 			rhsTypes := []*Type{getTypeOfExpr(s.Rhs[0]), tBool}
+			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
+
+			lhsTypes := rhsTypes
+			var lhsMetas []MetaExpr
+			for i, lhs := range s.Lhs {
+				typ := lhsTypes[i]
+				obj := lhs.(*ast.Ident).Obj
+				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				lm := walkExpr(lhs, nil)
+				lhsMetas = append(lhsMetas, lm)
+			}
+			_ = lhsMetas
 
 			mt = &MetaOkAssignStmt{
 				tuple: &MetaTupleAssign{
@@ -3620,64 +3633,53 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 					rhsTypes: rhsTypes,
 				},
 			}
+		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
+			rhsMeta := walkExpr(s.Rhs[0], nil)
+			callExpr := s.Rhs[0].(*ast.CallExpr)
+			rhsTypes := getCallResultTypes(callExpr)
+			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
+
+			lhsTypes := rhsTypes
+			var lhsMetas []MetaExpr
+			for i, lhs := range s.Lhs {
+				typ := lhsTypes[i]
+				obj := lhs.(*ast.Ident).Obj
+				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				lm := walkExpr(lhs, nil)
+				lhsMetas = append(lhsMetas, lm)
+			}
+			_ = lhsMetas
+
+			mt = &MetaFuncallAssignStmt{
+				tuple: &MetaTupleAssign{
+					lhs:      s.Lhs,
+					rhsMeta:  rhsMeta,
+					rhsTypes: rhsTypes,
+				},
+			}
+		} else if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
+			rhsMeta := walkExpr(s.Rhs[0], nil) // FIXME
+			rhsType := getTypeOfExpr(s.Rhs[0])
+			lhsTypes := []*Type{rhsType}
+			var lhsMetas []MetaExpr
+			for i, lhs := range s.Lhs {
+				typ := lhsTypes[i]
+				obj := lhs.(*ast.Ident).Obj
+				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				lm := walkExpr(lhs, nil)
+				lhsMetas = append(lhsMetas, lm)
+			}
+			_ = lhsMetas
+
+			mt = &MetaSingleAssign{
+				lhs:     s.Lhs[0],
+				rhsMeta: rhsMeta,
+			}
 		} else {
-			if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
-				rhsMeta := walkExpr(s.Rhs[0], nil) // FIXME
-				mt = &MetaSingleAssign{
-					lhs:     s.Lhs[0],
-					rhsMeta: rhsMeta,
-				}
-			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
-				rhsMeta := walkExpr(s.Rhs[0], nil)
-				callExpr := s.Rhs[0].(*ast.CallExpr)
-				returnTypes := getCallResultTypes(callExpr)
-				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
-
-				mt = &MetaFuncallAssignStmt{
-					tuple: &MetaTupleAssign{
-						lhs:      s.Lhs,
-						rhsMeta:  rhsMeta,
-						rhsTypes: returnTypes,
-					},
-				}
-			} else {
-				panic("TBI")
-			}
+			panic("TBI")
 		}
-
-		var lhsTypes []*Type
-		// Infer lhsTypes by rhs
-		if len(s.Lhs) > 1 && len(s.Rhs) == 1 { // a, b, c := EXPR
-			// infer type
-			rhs0 := s.Rhs[0]
-			switch rhs := rhs0.(type) {
-			case *ast.CallExpr:
-				lhsTypes = getCallResultTypes(rhs)
-			case *ast.TypeAssertExpr: // v, ok := x.(T)
-				typ0 := getTypeOfExpr(rhs0)
-				lhsTypes = []*Type{typ0, tBool}
-			case *ast.IndexExpr: // v, ok := m[k]
-				typ0 := getTypeOfExpr(rhs0)
-				lhsTypes = []*Type{typ0, tBool}
-			default:
-				throw(rhs0)
-			}
-		} else { // a, b, c := x, y, z
-			for _, rhs := range s.Rhs {
-				typ := getTypeOfExpr(rhs) // use rhs type
-				lhsTypes = append(lhsTypes, typ)
-			}
-		}
-		var lhsMetas []MetaExpr
-		for i, lhs := range s.Lhs {
-			typ := lhsTypes[i]
-			obj := lhs.(*ast.Ident).Obj
-			setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
-			lm := walkExpr(lhs, nil)
-			lhsMetas = append(lhsMetas, lm)
-		}
-		_ = lhsMetas
 		return mt
+
 	case "+=", "-=":
 		var op token.Token
 		switch stok {
