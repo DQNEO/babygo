@@ -3842,16 +3842,14 @@ func walkBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
 	}
 }
 
-type MetaGoStmt struct {
-	fun MetaExpr
-}
-
 func walkGoStmt(s *ast.GoStmt) *MetaGoStmt {
 	fun := walkExpr(s.Call.Fun, nil)
 	return &MetaGoStmt{
 		fun: fun,
 	}
 }
+
+type MetaStmt interface{}
 
 type MetaBlockStmt struct {
 	List []MetaStmt
@@ -3861,7 +3859,72 @@ type MetaExprStmt struct {
 	X MetaExpr
 }
 
-type MetaStmt interface{}
+type MetaGoStmt struct {
+	fun MetaExpr
+}
+
+type MetaReturnStmt struct {
+	Fnc         *Func
+	MetaResults []MetaExpr
+}
+
+type MetaForRange struct {
+	IsMap     bool
+	LenVar    *Variable
+	Indexvar  *Variable
+	MapVar    *Variable // map
+	ItemVar   *Variable // map element
+	X         ast.Expr
+	Key       ast.Expr
+	Value     ast.Expr
+	metaX     MetaExpr
+	keyMeta   MetaExpr
+	valueMeta MetaExpr
+}
+
+type MetaForStmt struct {
+	LabelPost string // for continue
+	LabelExit string // for break
+	Outer     *MetaForStmt
+	ForRange  *MetaForRange
+	Init      MetaStmt
+	CondMeta  MetaExpr
+	Body      *MetaBlockStmt
+	Post      MetaStmt
+}
+
+type MetaBranchStmt struct {
+	containerForStmt *MetaForStmt
+	ContinueOrBreak  int // 1: continue, 2:break
+}
+
+type MetaCaseClause struct {
+	ListMeta []MetaExpr
+	Body     []MetaStmt
+}
+
+type MetaSwitchStmt struct {
+	Init    MetaStmt
+	Tag     ast.Expr
+	cases   []*MetaCaseClause
+	TagMeta MetaExpr
+}
+
+type MetaTypeSwitchStmt struct {
+	Subject         ast.Expr
+	SubjectMeta     MetaExpr
+	SubjectVariable *Variable
+	AssignIdent     *ast.Ident
+	Cases           []*MetaTypeSwitchCaseClose
+	cases           []*MetaCaseClause
+}
+
+type MetaTypeSwitchCaseClose struct {
+	Variable     *Variable
+	VariableType *Type
+	List         []ast.Expr
+	Body         []MetaStmt
+}
 
 func walkStmt(stmt ast.Stmt) MetaStmt {
 	var mt MetaStmt
@@ -3974,32 +4037,6 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 		meta.X = walkExpr(e.X, ctx)
 	}
 	return meta
-}
-
-type MetaCallExpr struct {
-	e            *ast.CallExpr
-	isConversion bool
-
-	// For Conversion
-	toType *Type
-
-	arg0 MetaExpr // For conversion, len, cap
-
-	// For funcall
-	fun         ast.Expr
-	hasEllipsis bool
-	args        []ast.Expr
-
-	builtin *ast.Object
-
-	// general funcall
-	funcType *ast.FuncType
-	funcVal  *FuncValue
-	receiver ast.Expr
-	metaArgs []*Arg
-	typeArg0 *Type
-	arg1     MetaExpr
-	arg2     MetaExpr
 }
 
 func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
@@ -4215,21 +4252,6 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 	return mt
 }
 
-type MetaCompositLiteral struct {
-	e    *ast.CompositeLit
-	kind string // "struct", "array", "slice" // @TODO "map"
-
-	// for struct
-	typ          *Type                       // type of the composite
-	strctEements []*MetaStructLiteralElement // for "struct"
-
-	// for array or slice
-	arrayType *ast.ArrayType
-	len       int
-	elmType   *Type
-	metaElms  []MetaExpr
-}
-
 func walkCompositeLit(e *ast.CompositeLit, _ctx *evalContext) *MetaCompositLiteral {
 	walkExpr(e.Type, nil) // a[len("foo")]{...} // "foo" should be walked
 	ut := getUnderlyingType(getTypeOfExpr(e))
@@ -4419,6 +4441,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssert
 }
 
 type MetaExpr interface{}
+
 type MetaBasicLit struct {
 	e             *ast.BasicLit
 	Kind          string
@@ -4460,6 +4483,61 @@ type MetaBinaryExpr struct {
 	Op string
 	X  MetaExpr
 	Y  MetaExpr
+}
+
+type MetaCompositLiteral struct {
+	e    *ast.CompositeLit
+	kind string // "struct", "array", "slice" // @TODO "map"
+
+	// for struct
+	typ          *Type                       // type of the composite
+	strctEements []*MetaStructLiteralElement // for "struct"
+
+	// for array or slice
+	arrayType *ast.ArrayType
+	len       int
+	elmType   *Type
+	metaElms  []MetaExpr
+}
+
+type MetaCallExpr struct {
+	e            *ast.CallExpr
+	isConversion bool
+
+	// For Conversion
+	toType *Type
+
+	arg0 MetaExpr // For conversion, len, cap
+
+	// For funcall
+	fun         ast.Expr
+	hasEllipsis bool
+	args        []ast.Expr
+
+	builtin *ast.Object
+
+	// general funcall
+	funcType *ast.FuncType
+	funcVal  *FuncValue
+	receiver ast.Expr
+	metaArgs []*Arg
+	typeArg0 *Type
+	arg1     MetaExpr
+	arg2     MetaExpr
+}
+
+type MetaIndexExpr struct {
+	IsMap   bool // mp[k]
+	NeedsOK bool // when map, is it ok syntax ?
+	Index   MetaExpr
+	X       MetaExpr
+	e       *ast.IndexExpr
+}
+
+type MetaTypeAssertExpr struct {
+	NeedsOK bool
+	X       MetaExpr
+	e       *ast.TypeAssertExpr
 }
 
 // ctx type is the type of someone who receives the expr value.
@@ -4541,6 +4619,41 @@ func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 	return &ForeignFunc{
 		symbol:   string(qi),
 		funcType: decl.Type,
+	}
+}
+
+type Func struct {
+	Name      string
+	Stmts     []MetaStmt
+	Localarea int
+	Argsarea  int
+	LocalVars []*Variable
+	Params    []*Variable
+	Retvars   []*Variable
+	FuncType  *ast.FuncType
+	Method    *Method
+}
+type Method struct {
+	PkgName      string
+	RcvNamedType *ast.Ident
+	IsPtrMethod  bool
+	Name         string
+	FuncType     *ast.FuncType
+}
+type Variable struct {
+	Name         string
+	IsGlobal     bool
+	GlobalSymbol string
+	LocalOffset  int
+	Typ          *Type
+}
+
+func setVariable(obj *ast.Object, vr *Variable) {
+	assert(obj.Kind == ast.Var, "obj is not  ast.Var", __func__)
+	if vr == nil {
+		obj.Data = nil
+	} else {
+		obj.Data = vr
 	}
 }
 
@@ -5286,120 +5399,8 @@ func buildAll(args []string) {
 	}
 }
 
-func setVariable(obj *ast.Object, vr *Variable) {
-	assert(obj.Kind == ast.Var, "obj is not  ast.Var", __func__)
-	if vr == nil {
-		obj.Data = nil
-	} else {
-		obj.Data = vr
-	}
-}
-
 // --- AST meta data ---
 var mapFieldOffset = make(map[unsafe.Pointer]int)
-
-type MetaIndexExpr struct {
-	IsMap   bool // mp[k]
-	NeedsOK bool // when map, is it ok syntax ?
-	Index   MetaExpr
-	X       MetaExpr
-	e       *ast.IndexExpr
-}
-
-type MetaTypeAssertExpr struct {
-	NeedsOK bool
-	X       MetaExpr
-	e       *ast.TypeAssertExpr
-}
-
-type MetaReturnStmt struct {
-	Fnc         *Func
-	MetaResults []MetaExpr
-}
-
-type MetaForRange struct {
-	IsMap     bool
-	LenVar    *Variable
-	Indexvar  *Variable
-	MapVar    *Variable // map
-	ItemVar   *Variable // map element
-	X         ast.Expr
-	Key       ast.Expr
-	Value     ast.Expr
-	metaX     MetaExpr
-	keyMeta   MetaExpr
-	valueMeta MetaExpr
-}
-
-type MetaForStmt struct {
-	LabelPost string // for continue
-	LabelExit string // for break
-	Outer     *MetaForStmt
-	ForRange  *MetaForRange
-	Init      MetaStmt
-	CondMeta  MetaExpr
-	Body      *MetaBlockStmt
-	Post      MetaStmt
-}
-
-type MetaBranchStmt struct {
-	containerForStmt *MetaForStmt
-	ContinueOrBreak  int // 1: continue, 2:break
-}
-
-type MetaCaseClause struct {
-	ListMeta []MetaExpr
-	Body     []MetaStmt
-}
-
-type MetaSwitchStmt struct {
-	Init    MetaStmt
-	Tag     ast.Expr
-	cases   []*MetaCaseClause
-	TagMeta MetaExpr
-}
-
-type MetaTypeSwitchStmt struct {
-	Subject         ast.Expr
-	SubjectMeta     MetaExpr
-	SubjectVariable *Variable
-	AssignIdent     *ast.Ident
-	Cases           []*MetaTypeSwitchCaseClose
-	cases           []*MetaCaseClause
-}
-
-type MetaTypeSwitchCaseClose struct {
-	Variable     *Variable
-	VariableType *Type
-	List         []ast.Expr
-	Body         []MetaStmt
-}
-
-type Func struct {
-	Name      string
-	Stmts     []MetaStmt
-	Localarea int
-	Argsarea  int
-	LocalVars []*Variable
-	Params    []*Variable
-	Retvars   []*Variable
-	FuncType  *ast.FuncType
-	Method    *Method
-}
-type Method struct {
-	PkgName      string
-	RcvNamedType *ast.Ident
-	IsPtrMethod  bool
-	Name         string
-	FuncType     *ast.FuncType
-}
-type Variable struct {
-	Name         string
-	IsGlobal     bool
-	GlobalSymbol string
-	LocalOffset  int
-	Typ          *Type
-}
 
 func getStructFieldOffset(field *ast.Field) int {
 	return mapFieldOffset[unsafe.Pointer(field)]
