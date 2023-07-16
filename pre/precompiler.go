@@ -2190,20 +2190,20 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 		labelid++
 		labelCase := ".L.case." + strconv.Itoa(labelid)
 		labels[i] = labelCase
-		if len(c.List) == 0 {
+		if len(c.types) == 0 {
 			defaultLabel = labelCase
 			continue
 		}
-		for _, e := range c.List {
+		for _, t := range c.types {
 			emitVariableAddr(meta.SubjectVariable)
 			emitPopAddress("type switch subject")
 			printf("  movq (%%rax), %%rax # dtype label addr\n")
 			printf("  pushq %%rax # dtype label addr\n")
 
-			if isNil(c.List[0]) { // case nil:
+			if t == nil { // case nil:
 				printf("  pushq $0 # nil\n")
-			} else { // case T:
-				emitDtypeLabelAddr(e2t(e))
+			} else { // case T:s
+				emitDtypeLabelAddr(t)
 			}
 			emitCompareDtypes()
 			emitPopBool(" of switch-case comparison")
@@ -2231,8 +2231,8 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 		printf("  %s:\n", labels[i])
 
 		var _isNil bool
-		for _, typ := range c.List {
-			if isNil(typ) {
+		for _, typ := range c.types {
+			if typ == nil {
 				_isNil = true
 			}
 		}
@@ -3785,7 +3785,15 @@ func walkTypeSwitchStmt(s *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 			body = append(body, m)
 		}
 		tscc.Body = body
-		tscc.List = cc.List
+		var types []*Type
+		for _, e := range cc.List {
+			var typ *Type
+			if !isNil(e) {
+				typ = e2t(e)
+			}
+			types = append(types, typ) // universe nil can be appended
+		}
+		tscc.types = types
 		if assignIdent != nil {
 			setVariable(assignIdent.Obj, nil)
 		}
@@ -3914,7 +3922,7 @@ type MetaTypeSwitchStmt struct {
 type MetaTypeSwitchCaseClose struct {
 	Variable     *Variable
 	VariableType *Type
-	List         []ast.Expr
+	types        []*Type
 	Body         []MetaStmt
 }
 
