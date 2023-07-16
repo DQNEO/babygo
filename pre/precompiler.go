@@ -4501,16 +4501,6 @@ type MetaBinaryExpr struct {
 }
 
 var mapBasicLit = make(map[unsafe.Pointer]*MetaBasicLit)
-var mapCompositLit = make(map[unsafe.Pointer]*MetaCompositLiteral)
-var mapIdent = make(map[unsafe.Pointer]*MetaIdent)
-var mapSelectorExpr = make(map[unsafe.Pointer]*MetaSelectorExpr)
-var mapCallExpr = make(map[unsafe.Pointer]*MetaCallExpr)
-var mapIndexExpr = make(map[unsafe.Pointer]*MetaIndexExpr)
-var mapSliceExpr = make(map[unsafe.Pointer]*MetaSliceExpr)
-var mapStarExpr = make(map[unsafe.Pointer]*MetaStarExpr)
-var mapUnaryExpr = make(map[unsafe.Pointer]*MetaUnaryExpr)
-var mapBinaryExpr = make(map[unsafe.Pointer]*MetaBinaryExpr)
-var mapTypeAssertExpr = make(map[unsafe.Pointer]*MetaTypeAssertExpr)
 
 // ctx type is the type of someone who receives the expr value.
 // There are various forms:
@@ -4537,43 +4527,33 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return nil
 	case *ast.CompositeLit:
 		mt := walkCompositeLit(e, ctx)
-		mapCompositLit[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.Ident:
 		mt := walkIdent(e, ctx)
-		mapIdent[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.SelectorExpr:
 		mt := walkSelectorExpr(e, ctx)
-		mapSelectorExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.CallExpr:
 		mt := walkCallExpr(e, ctx)
-		mapCallExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.IndexExpr:
 		mt := walkIndexExpr(e, ctx)
-		mapIndexExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.SliceExpr:
 		mt := walkSliceExpr(e, ctx)
-		mapSliceExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.StarExpr:
 		mt := walkStarExpr(e, ctx)
-		mapStarExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.UnaryExpr:
 		mt := walkUnaryExpr(e, ctx)
-		mapUnaryExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.BinaryExpr:
 		mt := walkBinaryExpr(e, ctx)
-		mapBinaryExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.TypeAssertExpr:
 		mt := walkTypeAssertExpr(e, ctx)
-		mapTypeAssertExpr[unsafe.Pointer(e)] = mt
 		return mt
 	case *ast.ArrayType: // type
 		walkArrayType(e) // []T(e)
