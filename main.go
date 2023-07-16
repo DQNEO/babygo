@@ -4292,7 +4292,8 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 
 func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLiteral {
 	walkExpr(e.Type, nil) // a[len("foo")]{...} // "foo" should be walked
-	ut := getUnderlyingType(getTypeOfExpr(e))
+	typ := e2t(e.Type)
+	ut := getUnderlyingType(typ)
 	var knd string
 	switch kind(ut) {
 	case T_STRUCT:
@@ -4302,12 +4303,12 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLitera
 	case T_SLICE:
 		knd = "slice"
 	default:
-		unexpectedKind(kind(e2t(e.Type)))
+		unexpectedKind(kind(typ))
 	}
 	meta := &MetaCompositLiteral{
 		e:    e,
 		kind: knd,
-		typ:  getTypeOfExpr(e),
+		typ:  typ,
 	}
 
 	switch kind(ut) {
@@ -4369,20 +4370,20 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 		e:  e,
 		Op: e.Op.String(),
 	}
-	var xCtx *evalContext
-	var yCtx *evalContext
 	if isNil(e.X) {
 		// Y should be typed
-		xCtx = &evalContext{_type: getTypeOfExpr(e.Y)}
-	}
-	if isNil(e.Y) {
-		// Y should be typed
-		yCtx = &evalContext{_type: getTypeOfExpr(e.X)}
-	}
+		meta.Y = walkExpr(e.Y, nil) // right
+		xCtx := &evalContext{_type: getTypeOfExprMeta(meta.Y)}
 
-	meta.X = walkExpr(e.X, xCtx) // left
-	meta.Y = walkExpr(e.Y, yCtx) // right
-	return meta
+		meta.X = walkExpr(e.X, xCtx) // left
+		return meta
+	} else {
+		// X should be typed
+		meta.X = walkExpr(e.X, nil) // left
+		yCtx := &evalContext{_type: getTypeOfExprMeta(meta.X)}
+		meta.Y = walkExpr(e.Y, yCtx) // right
+		return meta
+	}
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
