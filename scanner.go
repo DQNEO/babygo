@@ -160,7 +160,7 @@ func (s *scanner) Scan() *TokenContainer {
 			insertSemi = true
 			lit = s.scanString()
 			tok = "STRING"
-		case '\'': // single quote
+		case '\'': // Single quote
 			insertSemi = true
 			lit = s.scanChar()
 			tok = "CHAR"

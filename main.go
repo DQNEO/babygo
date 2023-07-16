@@ -713,13 +713,13 @@ func emitCallQ(fv *FuncValue, totalParamSize int, resultList *ast.FieldList) {
 // callee
 func emitReturnStmt(meta *MetaReturnStmt) {
 	funcDef := meta.Fnc
-	if len(funcDef.Retvars) != len(meta.MetaResults) {
+	if len(funcDef.Retvars) != len(meta.Results) {
 		panic("length of return and func type do not match")
 	}
 
-	_len := len(meta.MetaResults)
+	_len := len(meta.Results)
 	for i := 0; i < _len; i++ {
-		emitAssignToVar(funcDef.Retvars[i], meta.MetaResults[i])
+		emitAssignToVar(funcDef.Retvars[i], meta.Results[i])
 	}
 	printf("  leave\n")
 	printf("  ret\n")
@@ -1390,9 +1390,9 @@ func emitExpr(meta MetaExpr) {
 	case *MetaSelectorExpr:
 		emitSelectorExpr(m)
 	case *MetaCallExpr:
-		emitCallExpr(m) // can be tuple
+		emitCallExpr(m) // can be Tuple
 	case *MetaIndexExpr:
-		emitIndexExpr(m) // can be tuple
+		emitIndexExpr(m) // can be Tuple
 	case *MetaSliceExpr:
 		emitSliceExpr(m)
 	case *MetaStarExpr:
@@ -1402,7 +1402,7 @@ func emitExpr(meta MetaExpr) {
 	case *MetaBinaryExpr:
 		emitBinaryExpr(m)
 	case *MetaTypeAssertExpr:
-		emitTypeAssertExpr(m) // can be tuple
+		emitTypeAssertExpr(m) // can be Tuple
 	default:
 		panic(fmt.Sprintf("meta type:%T", meta))
 	}
@@ -1784,18 +1784,18 @@ func emitExprStmt(s *MetaExprStmt) {
 
 // local decl stmt
 func emitDeclStmt(meta *MetaVarDecl) {
-	if meta.single.rhsMeta == nil {
+	if meta.Single.Rhs == nil {
 		// Assign zero value to LHS
-		emitAssignZeroValue(meta.single.lhsMeta, meta.lhsType)
+		emitAssignZeroValue(meta.Single.Lhs, meta.LhsType)
 	} else {
-		emitSingleAssign(meta.single.lhsMeta, meta.single.rhsMeta)
+		emitSingleAssign(meta.Single.Lhs, meta.Single.Rhs)
 	}
 }
 
 // a, b = OkExpr
 func emitOkAssignment(meta *MetaTupleAssign) {
-	rhs0 := meta.rhsMeta
-	rhsTypes := meta.rhsTypes
+	rhs0 := meta.Rhs
+	rhsTypes := meta.RhsTypes
 
 	// ABI of stack layout after evaluating rhs0
 	//	-- stack top
@@ -1803,7 +1803,7 @@ func emitOkAssignment(meta *MetaTupleAssign) {
 	//	data
 	emitExpr(rhs0)
 	for i := 1; i >= 0; i-- {
-		lhsMeta := meta.lhsMetas[i]
+		lhsMeta := meta.Lhss[i]
 		rhsType := rhsTypes[i]
 		if isBlankIdentifierMeta(lhsMeta) {
 			emitPop(kind(rhsType))
@@ -1819,12 +1819,12 @@ func emitOkAssignment(meta *MetaTupleAssign) {
 // assigns multi-values of a funcall
 // a, b (, c...) = f()
 func emitFuncallAssignment(meta *MetaTupleAssign) {
-	rhs0 := meta.rhsMeta
-	rhsTypes := meta.rhsTypes
+	rhs0 := meta.Rhs
+	rhsTypes := meta.RhsTypes
 
 	emitExpr(rhs0)
 	for i := 0; i < len(rhsTypes); i++ {
-		lhsMeta := meta.lhsMetas[i]
+		lhsMeta := meta.Lhss[i]
 		rhsType := rhsTypes[i]
 		if isBlankIdentifierMeta(lhsMeta) {
 			emitPop(kind(rhsType))
@@ -1850,7 +1850,7 @@ func emitIfStmt(meta *MetaIfStmt) {
 	labelEndif := fmt.Sprintf(".L.endif.%d", labelid)
 	labelElse := fmt.Sprintf(".L.else.%d", labelid)
 
-	emitExpr(meta.CondMeta)
+	emitExpr(meta.Cond)
 	emitPopBool("if condition")
 	printf("  cmpq $1, %%rax\n")
 	if meta.Else != nil {
@@ -2296,11 +2296,11 @@ func emitStmt(mtstmt MetaStmt) {
 	case *MetaVarDecl:
 		emitDeclStmt(meta)
 	case *MetaSingleAssign:
-		emitSingleAssign(meta.lhsMeta, meta.rhsMeta)
+		emitSingleAssign(meta.Lhs, meta.Rhs)
 	case *MetaOkAssignStmt:
-		emitOkAssignment(meta.tuple)
+		emitOkAssignment(meta.Tuple)
 	case *MetaFuncallAssignStmt:
-		emitFuncallAssignment(meta.tuple)
+		emitFuncallAssignment(meta.Tuple)
 	case *MetaReturnStmt:
 		emitReturnStmt(meta)
 	case *MetaIfStmt:
@@ -2608,7 +2608,7 @@ const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
 const T_MAP TypeKind = "T_MAP"
 
-// types of an expr in single value context
+// types of an expr in Single value context
 func getTypeOfExprMeta(meta MetaExpr) *Type {
 	switch m := meta.(type) {
 	case *MetaIdent:
@@ -2727,7 +2727,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		return getElementTypeOfCollectionType(getTypeOfExpr(list))
 	case *ast.CallExpr: // funcall or conversion
 		types := getCallResultTypes(e)
-		assert(len(types) == 1, "single value is expected", __func__)
+		assert(len(types) == 1, "Single value is expected", __func__)
 		return types[0]
 	case *ast.SliceExpr:
 		underlyingCollectionType := getTypeOfExpr(e.X)
@@ -3349,12 +3349,12 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 			rhsMeta = walkExpr(rhs, ctx)
 		}
 		single := &MetaSingleAssign{
-			lhsMeta: lhsMeta,
-			rhsMeta: rhsMeta,
+			Lhs: lhsMeta,
+			Rhs: rhsMeta,
 		}
 		return &MetaVarDecl{
-			single:  single,
-			lhsType: t,
+			Single:  single,
+			LhsType: t,
 		}
 	default:
 		// @TODO type, const, etc
@@ -3390,10 +3390,10 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 			mt = &MetaOkAssignStmt{
-				tuple: &MetaTupleAssign{
-					lhsMetas: lhsMetas,
-					rhsMeta:  rhsMeta,
-					rhsTypes: rhsTypes,
+				Tuple: &MetaTupleAssign{
+					Lhss:     lhsMetas,
+					Rhs:      rhsMeta,
+					RhsTypes: rhsTypes,
 				},
 			}
 		} else {
@@ -3411,8 +3411,8 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 					lhsMetas = append(lhsMetas, lm)
 				}
 				mt = &MetaSingleAssign{
-					lhsMeta: lhsMetas[0],
-					rhsMeta: rhsMeta,
+					Lhs: lhsMetas[0],
+					Rhs: rhsMeta,
 				}
 			} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
 				rhsMeta := walkExpr(s.Rhs[0], nil)
@@ -3426,10 +3426,10 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				}
 
 				mt = &MetaFuncallAssignStmt{
-					tuple: &MetaTupleAssign{
-						lhsMetas: lhsMetas,
-						rhsMeta:  rhsMeta,
-						rhsTypes: returnTypes,
+					Tuple: &MetaTupleAssign{
+						Lhss:     lhsMetas,
+						Rhs:      rhsMeta,
+						RhsTypes: returnTypes,
 					},
 				}
 			} else {
@@ -3455,10 +3455,10 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			}
 
 			mt = &MetaOkAssignStmt{
-				tuple: &MetaTupleAssign{
-					lhsMetas: lhsMetas,
-					rhsMeta:  rhsMeta,
-					rhsTypes: rhsTypes,
+				Tuple: &MetaTupleAssign{
+					Lhss:     lhsMetas,
+					Rhs:      rhsMeta,
+					RhsTypes: rhsTypes,
 				},
 			}
 			return mt
@@ -3480,10 +3480,10 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			_ = lhsMetas
 
 			mt = &MetaFuncallAssignStmt{
-				tuple: &MetaTupleAssign{
-					lhsMetas: lhsMetas,
-					rhsMeta:  rhsMeta,
-					rhsTypes: rhsTypes,
+				Tuple: &MetaTupleAssign{
+					Lhss:     lhsMetas,
+					Rhs:      rhsMeta,
+					RhsTypes: rhsTypes,
 				},
 			}
 			return mt
@@ -3501,8 +3501,8 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			}
 
 			mt = &MetaSingleAssign{
-				lhsMeta: lhsMetas[0],
-				rhsMeta: rhsMeta,
+				Lhs: lhsMetas[0],
+				Rhs: rhsMeta,
 			}
 			return mt
 		} else {
@@ -3526,8 +3526,8 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		rhsMeta := walkExpr(binaryExpr, nil)
 		lhsMeta := walkExpr(s.Lhs[0], nil)
 		return &MetaSingleAssign{
-			lhsMeta: lhsMeta,
-			rhsMeta: rhsMeta,
+			Lhs: lhsMeta,
+			Rhs: rhsMeta,
 		}
 	default:
 		panic("TBI")
@@ -3553,8 +3553,8 @@ func walkReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
 		results = append(results, m)
 	}
 	return &MetaReturnStmt{
-		Fnc:         funcDef,
-		MetaResults: results,
+		Fnc:     funcDef,
+		Results: results,
 	}
 }
 
@@ -3573,10 +3573,10 @@ func walkIfStmt(s *ast.IfStmt) *MetaIfStmt {
 		mElse = walkStmt(s.Else)
 	}
 	return &MetaIfStmt{
-		Init:     mInit,
-		CondMeta: condMeta,
-		Body:     mtBlock,
-		Else:     mElse,
+		Init: mInit,
+		Cond: condMeta,
+		Body: mtBlock,
+		Else: mElse,
 	}
 }
 
@@ -3678,8 +3678,8 @@ func walkIncDecStmt(s *ast.IncDecStmt) *MetaSingleAssign {
 	rhsMeta := walkExpr(newRhs, nil)
 	lhsMeta := walkExpr(s.X, nil)
 	return &MetaSingleAssign{
-		lhsMeta: lhsMeta,
-		rhsMeta: rhsMeta,
+		Lhs: lhsMeta,
+		Rhs: rhsMeta,
 	}
 }
 
@@ -3826,38 +3826,38 @@ type MetaExprStmt struct {
 }
 
 type MetaVarDecl struct {
-	single  *MetaSingleAssign
-	lhsType *Type
+	Single  *MetaSingleAssign
+	LhsType *Type
 }
 
 type MetaSingleAssign struct {
-	lhsMeta MetaExpr
-	rhsMeta MetaExpr // can be nil
+	Lhs MetaExpr
+	Rhs MetaExpr // can be nil
 }
 
 type MetaTupleAssign struct {
-	lhsMetas []MetaExpr
-	rhsMeta  MetaExpr
-	rhsTypes []*Type
+	Lhss     []MetaExpr
+	Rhs      MetaExpr
+	RhsTypes []*Type
 }
 
 type MetaOkAssignStmt struct {
-	tuple *MetaTupleAssign
+	Tuple *MetaTupleAssign
 }
 type MetaFuncallAssignStmt struct {
-	tuple *MetaTupleAssign
+	Tuple *MetaTupleAssign
 }
 
 type MetaReturnStmt struct {
-	Fnc         *Func
-	MetaResults []MetaExpr
+	Fnc     *Func
+	Results []MetaExpr
 }
 
 type MetaIfStmt struct {
-	Init     MetaStmt
-	CondMeta MetaExpr
-	Body     *MetaBlockStmt
-	Else     MetaStmt
+	Init MetaStmt
+	Cond MetaExpr
+	Body *MetaBlockStmt
+	Else MetaStmt
 }
 
 type MetaForContainer struct {
