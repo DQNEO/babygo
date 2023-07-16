@@ -262,7 +262,7 @@ func emitAddrMeta(expr MetaExpr) {
 		}
 	case *MetaIndexExpr:
 		if kind(getTypeOfExprMeta(m.X)) == T_MAP {
-			emitAddrForMapSet(m.e)
+			emitAddrForMapSetMeta(m)
 		} else {
 			elmType := getTypeOfExprMeta(m)
 			emitExprMeta(m.Index) // index number
@@ -1686,6 +1686,33 @@ func newNumberLiteral(x int) *ast.BasicLit {
 	}
 	walkExpr(e, nil)
 	return e
+}
+
+func emitAddrForMapSetMeta(indexExpr *MetaIndexExpr) {
+	// alloc heap for map value
+	//size := getSizeOfType(elmType)
+	emitComment(2, "[emitAddrForMapSet]\n")
+	mp := indexExpr.X
+	key := indexExpr.Index
+
+	args := []*Arg{
+		&Arg{
+			meta:      mp,
+			paramType: tUintptr,
+		},
+		&Arg{
+			meta:      key,
+			paramType: tEface,
+		},
+	}
+	resultList := &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type: tUintptr.E,
+			},
+		},
+	}
+	emitCallDirect("runtime.getAddrForMapSet", args, resultList)
 }
 
 func emitAddrForMapSet(indexExpr *ast.IndexExpr) {
