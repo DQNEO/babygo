@@ -14,14 +14,12 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 
 	"github.com/DQNEO/babygo/lib/fmt"
-	//"fmt"
+	//gofmt "fmt"
 )
 
-const ThrowFormat string = "%T"
+var ParseFile = parser.ParseFile
 
-func ParseFile(fset *token.FileSet, filename string, src interface{}, mode parser.Mode) (*ast.File, error) {
-	return parser.ParseFile(fset, filename, src, mode)
-}
+const ThrowFormat string = "%T"
 
 const Version string = "0.0.7"
 

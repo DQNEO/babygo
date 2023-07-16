@@ -1,7 +1,6 @@
 package main
 
 import (
-	//gofmt "fmt"
 	"os"
 	"unsafe"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 
 	"github.com/DQNEO/babygo/lib/fmt"
+	//gofmt "fmt"
 )
 
 const ThrowFormat string = "%T"
