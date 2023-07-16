@@ -2233,27 +2233,28 @@ func emitTypeSwitchStmt(s *MetaTypeSwitchStmt) {
 				_isNil = true
 			}
 		}
-		for _, _s := range c.Body {
-			if c.Variable != nil {
-				// do assignment
-				if _isNil {
-					// @TODO: assign nil to the AssignIdent of interface type
-				} else {
-					emitVariableAddr(c.Variable) // push lhs
 
-					// push rhs
-					emitVariableAddr(meta.SubjectVariable)
-					emitLoadAndPush(tEface)
-					printf("  popq %%rax # ifc.dtype\n")
-					printf("  popq %%rcx # ifc.data\n")
-					printf("  pushq %%rcx # ifc.data\n")
-					emitLoadAndPush(c.VariableType)
+		if c.Variable != nil {
+			// do assignment
+			if _isNil {
+				// @TODO: assign nil to the AssignIdent of interface type
+			} else {
+				emitVariableAddr(c.Variable) // push lhs
 
-					// assign
-					emitStore(c.VariableType, true, false)
-				}
+				// push rhs
+				emitVariableAddr(meta.SubjectVariable)
+				emitLoadAndPush(tEface)
+				printf("  popq %%rax # ifc.dtype\n")
+				printf("  popq %%rcx # ifc.data\n")
+				printf("  pushq %%rcx # ifc.data\n")
+				emitLoadAndPush(c.VariableType)
+
+				// assign
+				emitStore(c.VariableType, true, false)
 			}
+		}
 
+		for _, _s := range c.Body {
 			emitStmt(_s)
 		}
 		printf("  jmp %s\n", labelEnd)
