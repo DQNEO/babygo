@@ -2540,7 +2540,7 @@ func generateCode(pkg *PkgContainer) {
 	printf(".global %s.__initGlobals\n", pkg.name)
 	printf("%s.__initGlobals:\n", pkg.name)
 	for _, vr := range pkg.vars {
-		if vr.val == nil {
+		if vr.metaVal == nil {
 			continue
 		}
 		typeKind := kind(vr.typ)
@@ -3344,9 +3344,10 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 	declSpec := genDecl.Specs[0]
 	switch spec := declSpec.(type) {
 	case *ast.ValueSpec:
+		lhsIdent := spec.Names[0]
 		var rhsMeta MetaExpr
 		var t *Type
-		if spec.Type != nil { // var x = e
+		if spec.Type != nil { // var x T = e
 			walkExpr(spec.Type, nil)
 			t = e2t(spec.Type)
 			if len(spec.Values) > 0 {
@@ -3354,8 +3355,7 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 				ctx := &evalContext{_type: t}
 				rhsMeta = walkExpr(rhs, ctx)
 			}
-		} else {
-			// infer lhs type from rhs
+		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {
 				panic("invalid syntax")
 			}
@@ -3369,7 +3369,6 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 		}
 		spec.Type = t.E // set lhs type
 
-		lhsIdent := spec.Names[0]
 		obj := lhsIdent.Obj
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
 		lhsMeta := walkIdent(lhsIdent, nil)
@@ -4788,42 +4787,52 @@ func walk(pkg *PkgContainer) {
 	}
 
 	logf2("walking varSpecs...\n")
-	for _, varSpec := range varSpecs {
-		nameIdent := varSpec.Names[0]
-		assert(nameIdent.Obj.Kind == ast.Var, "should be Var", __func__)
+	for _, spec := range varSpecs {
+		lhsIdent := spec.Names[0]
+		assert(lhsIdent.Obj.Kind == ast.Var, "should be Var", __func__)
+		var rhsMeta MetaExpr
 		var t *Type
-		if varSpec.Type == nil {
-			// Infer type
-			val := varSpec.Values[0]
-			t = getTypeOfExpr(val)
-			if t == nil {
-				panic("variable type is not determined : " + nameIdent.Name)
+		if spec.Type != nil { // var x T = e
+			walkExpr(spec.Type, nil)
+			t = e2t(spec.Type)
+			if len(spec.Values) > 0 {
+				rhs := spec.Values[0]
+				ctx := &evalContext{_type: t}
+				rhsMeta = walkExpr(rhs, ctx)
 			}
-			varSpec.Type = t.E
-		} else {
-			walkExpr(varSpec.Type, nil)
-			t = e2t(varSpec.Type)
+		} else { // var x = e  infer lhs type from rhs
+			if len(spec.Values) == 0 {
+				panic("invalid syntax")
+			}
+
+			rhs := spec.Values[0]
+			rhsMeta = walkExpr(rhs, nil)
+			t = getTypeOfExprMeta(rhsMeta)
+			if t == nil {
+				panic("variable type is not determined : " + lhsIdent.Name)
+			}
 		}
-		variable := newGlobalVariable(pkg.name, nameIdent.Obj.Name, e2t(varSpec.Type))
-		setVariable(nameIdent.Obj, variable)
-		var val ast.Expr
-		var metaVal MetaExpr
-		if len(varSpec.Values) > 0 {
-			val = varSpec.Values[0]
+		spec.Type = t.E
+
+		variable := newGlobalVariable(pkg.name, lhsIdent.Obj.Name, t)
+		setVariable(lhsIdent.Obj, variable)
+		metaVar := walkIdent(lhsIdent, nil)
+
+		var rhs ast.Expr
+		if len(spec.Values) > 0 {
+			rhs = spec.Values[0]
 			// collect string literals
-			metaVal = walkExpr(val, nil)
 		}
-		metaVar := walkIdent(nameIdent, nil)
 		pkgVar := &packageVar{
-			spec:    varSpec,
-			name:    nameIdent,
-			val:     val,
-			metaVal: metaVal, // can be nil
+			spec:    spec,
+			name:    lhsIdent,
+			val:     rhs,
+			metaVal: rhsMeta, // can be nil
 			metaVar: metaVar,
 			typ:     t,
 		}
 		pkg.vars = append(pkg.vars, pkgVar)
-		ExportedQualifiedIdents[string(newQI(pkg.name, nameIdent.Name))] = nameIdent
+		ExportedQualifiedIdents[string(newQI(pkg.name, lhsIdent.Name))] = lhsIdent
 	}
 
 	logf2("walking funcDecls in detail ...\n")
