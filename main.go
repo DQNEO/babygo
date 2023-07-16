@@ -228,24 +228,6 @@ func emitListHeadAddrMeta(list MetaExpr) {
 	}
 }
 
-func emitListHeadAddr(list ast.Expr) {
-	t := getTypeOfExpr(list)
-	switch kind(t) {
-	case T_ARRAY:
-		emitAddr(list) // array head
-	case T_SLICE:
-		emitExpr(list)
-		emitPopSlice()
-		printf("  pushq %%rax # slice.ptr\n")
-	case T_STRING:
-		emitExpr(list)
-		emitPopString()
-		printf("  pushq %%rax # string.ptr\n")
-	default:
-		unexpectedKind(kind(t))
-	}
-}
-
 func emitAddrMeta(expr MetaExpr) {
 	emitComment(2, "[emitAddrMeta] %T\n", expr)
 	switch m := expr.(type) {
@@ -309,71 +291,6 @@ func emitAddrMeta(expr MetaExpr) {
 		case T_STRUCT:
 			// result of evaluation of a struct literal is its address
 			emitExprMeta(m)
-		default:
-			unexpectedKind(knd)
-		}
-	default:
-		throw(expr)
-	}
-}
-
-func emitAddr(expr ast.Expr) {
-	emitComment(2, "[emitAddr] %T\n", expr)
-	switch e := expr.(type) {
-	case *ast.Ident:
-		if e.Obj == nil {
-			panic("ident.Obj is nil: " + e.Name)
-		}
-		switch e.Obj.Kind {
-		case ast.Var:
-			assert(e.Obj.Data != nil, "Obj.Data is nil: "+e.Name, __func__)
-			vr := e.Obj.Data.(*Variable)
-			emitVariableAddr(vr)
-		case ast.Fun:
-			qi := newQI(currentPkg.name, e.Obj.Name)
-			emitFuncAddr(qi)
-		default:
-			panic("Unexpected kind")
-		}
-	case *ast.IndexExpr:
-		list := e.X
-		if kind(getTypeOfExpr(list)) == T_MAP {
-			emitAddrForMapSet(e)
-		} else {
-			elmType := getTypeOfExpr(e)
-			emitExpr(e.Index) // index number
-			emitListElementAddr(list, elmType)
-		}
-	case *ast.StarExpr:
-		emitExpr(e.X)
-	case *ast.SelectorExpr:
-		if isQI(e) { // pkg.SomeType
-			ident := lookupForeignIdent(selector2QI(e))
-			emitAddr(ident)
-		} else { // (e).field
-			typeOfX := getUnderlyingType(getTypeOfExpr(e.X))
-			var structTypeLiteral *ast.StructType
-			switch typ := typeOfX.E.(type) {
-			case *ast.StructType: // strct.field
-				structTypeLiteral = typ
-				emitAddr(e.X)
-			case *ast.StarExpr: // ptr.field
-				structTypeLiteral = getUnderlyingStructType(e2t(typ.X))
-				emitExpr(e.X)
-			default:
-				unexpectedKind(kind(typeOfX))
-			}
-
-			field := lookupStructField(structTypeLiteral, e.Sel.Name)
-			offset := getStructFieldOffset(field)
-			emitAddConst(offset, "struct head address + struct.field offset")
-		}
-	case *ast.CompositeLit:
-		knd := kind(getTypeOfExpr(e))
-		switch knd {
-		case T_STRUCT:
-			// result of evaluation of a struct literal is its address
-			emitExpr(e)
 		default:
 			unexpectedKind(knd)
 		}
@@ -1060,7 +977,7 @@ func emitIdent(meta *MetaIdent) {
 		case ast.Con:
 			emitExprMeta(meta.conLiteral)
 		case ast.Fun:
-			emitAddr(e)
+			emitAddrMeta(meta)
 		default:
 			panic("Unexpected ident kind:" + e.Obj.Kind.String() + " name=" + e.Name)
 		}
@@ -1503,70 +1420,6 @@ func emitExprMeta(meta MetaExpr) {
 	}
 }
 
-// targetType is the type of someone who receives the expr value.
-// There are various forms:
-//
-//	Assignment:       x = expr
-//	Function call:    x(expr)
-//	Return:           return expr
-//	CompositeLiteral: T{key:expr}
-//
-// targetType is used when:
-//   - the expr is nil
-//   - the target type is interface and expr is not.
-func emitExpr(expr ast.Expr) {
-	emitComment(2, "[emitExpr] dtype=%T\n", expr)
-	switch e := expr.(type) {
-	case *ast.ParenExpr:
-		emitExpr(e.X) // multi values (e)
-	case *ast.BasicLit:
-		mt := mapBasicLit[unsafe.Pointer(e)]
-		assert(mt != nil, "map meta entry not found", __func__)
-		emitBasicLit(mt) // 1 value
-	case *ast.CompositeLit:
-		mt := mapCompositLit[unsafe.Pointer(e)]
-		assert(mt != nil, "map meta entry not found", __func__)
-		emitCompositeLit(mt) // 1 value
-	case *ast.Ident:
-		mt := mapIdent[unsafe.Pointer(e)]
-		assert(mt != nil, "mapIdent meta entry not found: ident="+e.Name, __func__)
-		emitIdent(mt) // 1 value
-	case *ast.SelectorExpr:
-		mt := mapSelectorExpr[unsafe.Pointer(e)]
-		assert(mt != nil, "map meta entry not found", __func__)
-		emitSelectorExpr(mt) // 1 value X.Sel
-	case *ast.CallExpr:
-		mt := mapCallExpr[unsafe.Pointer(e)]
-		assert(mt != nil, "map meta entry not found", __func__)
-		emitCallExpr(mt) // multi values Fun(Args)
-	case *ast.IndexExpr:
-		meta := mapIndexExpr[unsafe.Pointer(e)]
-		emitIndexExpr(meta) // 1 or 2 values
-	case *ast.SliceExpr:
-		mt := mapSliceExpr[unsafe.Pointer(e)]
-		assert(mt != nil, "map meta entry not found", __func__)
-		emitSliceExpr(mt) // 1 value list[low:high]
-	case *ast.StarExpr:
-		meta := mapStarExpr[unsafe.Pointer(e)]
-		assert(meta != nil, "mapStarExpr: map meta entry not found", __func__)
-		emitStarExpr(meta) // 1 value
-	case *ast.UnaryExpr:
-		mt := mapUnaryExpr[unsafe.Pointer(e)]
-		assert(mt != nil, "mapUnaryExpr: map meta entry not found", __func__)
-		emitUnaryExpr(mt) // 1 value
-	case *ast.BinaryExpr:
-		mt := mapBinaryExpr[unsafe.Pointer(e)]
-		assert(mt != nil, "mapBinaryExpr: map meta entry not found", __func__)
-		emitBinaryExpr(mt) // 1 value
-	case *ast.TypeAssertExpr:
-		mt := mapTypeAssertExpr[unsafe.Pointer(e)]
-		assert(mt != nil, "mapTypeAssertExpr: map meta entry not found", __func__)
-		emitTypeAssertExpr(mt) // 1 or 2 values
-	default:
-		throw(expr)
-	}
-}
-
 // convert stack top value to interface
 func emitConvertToInterface(fromType *Type) {
 	emitComment(2, "ConversionToInterface\n")
@@ -1581,12 +1434,6 @@ func emitConvertToInterface(fromType *Type) {
 func mayEmitConvertTooIfcMeta(meta MetaExpr, ctxType *Type) {
 	if !isUniverseNilMeta(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExprMeta(meta)) {
 		emitConvertToInterface(getTypeOfExprMeta(meta))
-	}
-}
-
-func mayEmitConvertTooIfc(expr ast.Expr, ctxType *Type) {
-	if !isUniverseNil(expr) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExpr(expr)) {
-		emitConvertToInterface(getTypeOfExpr(expr))
 	}
 }
 
@@ -1736,16 +1583,6 @@ func emitAddrForMapSet(indexExpr *ast.IndexExpr) {
 		},
 	}
 	emitCallDirect("runtime.getAddrForMapSet", args, resultList)
-}
-
-func emitListElementAddr(list ast.Expr, elmType *Type) {
-	emitListHeadAddr(list)
-	emitPopAddress("list head")
-	printf("  popq %%rcx # index id\n")
-	printf("  movq $%d, %%rdx # elm size\n", getSizeOfType(elmType))
-	printf("  imulq %%rdx, %%rcx\n")
-	printf("  addq %%rcx, %%rax\n")
-	printf("  pushq %%rax # addr of element\n")
 }
 
 func emitListElementAddrMeta(list MetaExpr, elmType *Type) {
@@ -4670,6 +4507,17 @@ var mapUnaryExpr = make(map[unsafe.Pointer]*MetaUnaryExpr)
 var mapBinaryExpr = make(map[unsafe.Pointer]*MetaBinaryExpr)
 var mapTypeAssertExpr = make(map[unsafe.Pointer]*MetaTypeAssertExpr)
 
+// ctx type is the type of someone who receives the expr value.
+// There are various forms:
+//
+//	Assignment:       x = expr
+//	Function call:    x(expr)
+//	Return:           return expr
+//	CompositeLiteral: T{key:expr}
+//
+// targetType is used when:
+//   - the expr is nil
+//   - the target type is interface and expr is not.
 func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 	switch e := expr.(type) {
 	case *ast.ParenExpr:
