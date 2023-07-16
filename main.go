@@ -837,7 +837,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 	}
 }
 
-func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, arg0 MetaExpr) {
+func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 MetaExpr) {
 	switch obj {
 	case gLen:
 		emitLen(arg0)
@@ -846,9 +846,8 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, arg0 MetaExpr) {
 		emitCap(arg0)
 		return
 	case gNew:
-		typeArg := e2t(eArgs[0])
 		// size to malloc
-		size := getSizeOfType(typeArg)
+		size := getSizeOfType(typeArg0)
 		emitCallMalloc(size)
 		return
 	case gMake:
@@ -1019,7 +1018,7 @@ func emitFuncall(meta *MetaCallExpr) {
 	emitComment(2, "[emitFuncall] %T(...)\n", meta.fun)
 	// check if it's a builtin func
 	if meta.builtin != nil {
-		emitBuiltinFunCall(meta.builtin, meta.args, meta.arg0)
+		emitBuiltinFunCall(meta.builtin, meta.args, meta.typeArg0, meta.arg0)
 		return
 	}
 
@@ -4198,6 +4197,7 @@ type MetaCallExpr struct {
 	funcVal  *FuncValue
 	receiver ast.Expr
 	metaArgs []*Arg
+	typeArg0 *Type
 }
 
 func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
@@ -4249,6 +4249,8 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 			return meta
 		case gNew:
 			meta.builtin = identFun.Obj
+			walkExpr(meta.args[0], nil)
+			meta.typeArg0 = e2t(meta.args[0])
 			return meta
 		case gMake:
 			meta.builtin = identFun.Obj
