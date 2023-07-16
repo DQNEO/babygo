@@ -837,7 +837,7 @@ func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
 	}
 }
 
-func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 MetaExpr) {
+func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 MetaExpr, arg1 MetaExpr) {
 	switch obj {
 	case gLen:
 		emitLen(arg0)
@@ -965,11 +965,11 @@ func emitBuiltinFunCall(obj *ast.Object, eArgs []ast.Expr, typeArg0 *Type, arg0 
 		funcVal := "runtime.deleteMap"
 		_args := []*Arg{
 			&Arg{
-				e:         eArgs[0],
+				meta:      arg0,
 				paramType: getTypeOfExpr(eArgs[0]),
 			},
 			&Arg{
-				e:         eArgs[1],
+				meta:      arg1,
 				paramType: tEface,
 			},
 		}
@@ -1018,7 +1018,7 @@ func emitFuncall(meta *MetaCallExpr) {
 	emitComment(2, "[emitFuncall] %T(...)\n", meta.fun)
 	// check if it's a builtin func
 	if meta.builtin != nil {
-		emitBuiltinFunCall(meta.builtin, meta.args, meta.typeArg0, meta.arg0)
+		emitBuiltinFunCall(meta.builtin, meta.args, meta.typeArg0, meta.arg0, meta.arg1)
 		return
 	}
 
@@ -4198,6 +4198,7 @@ type MetaCallExpr struct {
 	receiver ast.Expr
 	metaArgs []*Arg
 	typeArg0 *Type
+	arg1     MetaExpr
 }
 
 func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
@@ -4275,9 +4276,8 @@ func walkCallExpr(e *ast.CallExpr, _ctx *evalContext) *MetaCallExpr {
 			return meta
 		case gDelete:
 			meta.builtin = identFun.Obj
-			for _, arg := range meta.args {
-				walkExpr(arg, nil)
-			}
+			meta.arg0 = walkExpr(meta.args[0], nil)
+			meta.arg1 = walkExpr(meta.args[1], nil)
 			return meta
 		}
 	}
