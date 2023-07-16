@@ -4386,14 +4386,14 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 	meta := &MetaIndexExpr{
 		e: e,
 	}
-	if kind(getTypeOfExpr(e.X)) == T_MAP {
+	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
+	meta.X = walkExpr(e.X, nil)
+	if kind(getTypeOfExprMeta(meta.X)) == T_MAP {
 		meta.IsMap = true
 		if ctx != nil && ctx.okContext {
 			meta.NeedsOK = true
 		}
 	}
-	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
-	meta.X = walkExpr(e.X, nil)
 	return meta
 }
 
