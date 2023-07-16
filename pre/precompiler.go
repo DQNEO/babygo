@@ -1209,8 +1209,8 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		emitTrue()
 		printf("  %s:\n", labelExit)
 	case "+":
-		if kind(getTypeOfExpr(e.X)) == T_STRING {
-			emitCatStrings(e.X, e.Y)
+		if kind(getTypeOfExprMeta(meta.X)) == T_STRING {
+			emitCatStrings(meta.X, meta.Y)
 		} else {
 			emitExprMeta(meta.X) // left
 			emitExprMeta(meta.Y) // right
@@ -1740,14 +1740,14 @@ func emitListElementAddrMeta(list MetaExpr, elmType *Type) {
 	printf("  pushq %%rax # addr of element\n")
 }
 
-func emitCatStrings(left ast.Expr, right ast.Expr) {
+func emitCatStrings(left MetaExpr, right MetaExpr) {
 	args := []*Arg{
 		&Arg{
-			e:         left,
+			meta:      left,
 			paramType: tString,
 		},
 		&Arg{
-			e:         right,
+			meta:      right,
 			paramType: tString,
 		},
 	}
