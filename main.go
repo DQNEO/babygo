@@ -2222,7 +2222,7 @@ func emitTypeSwitchStmt(meta *MetaTypeSwitchStmt) {
 	for i, c := range meta.Cases {
 		// Injecting variable and type to the subject
 		if c.Variable != nil {
-			setVariable(meta.AssignIdent.Obj, c.Variable)
+			setVariable(meta.AssignIdent, c.Variable)
 		}
 		printf("  %s:\n", labels[i])
 
@@ -3744,7 +3744,7 @@ func walkTypeSwitchStmt(meta *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	case *ast.AssignStmt:
 		lhs := assign.Lhs[0]
 		assignIdent = lhs.(*ast.Ident)
-		typeSwitch.AssignIdent = assignIdent
+		typeSwitch.AssignIdent = assignIdent.Obj
 		// ident will be a new local variable in each case clause
 		typeAssertExpr := assign.Rhs[0].(*ast.TypeAssertExpr)
 		typeSwitch.Subject = walkExpr(typeAssertExpr.X, nil)
@@ -3906,7 +3906,7 @@ type MetaSwitchStmt struct {
 type MetaTypeSwitchStmt struct {
 	Subject         MetaExpr
 	SubjectVariable *Variable
-	AssignIdent     *ast.Ident
+	AssignIdent     *ast.Object
 	Cases           []*MetaTypeSwitchCaseClose
 	cases           []*MetaCaseClause
 }
