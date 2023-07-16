@@ -729,14 +729,11 @@ func emitCall(fv *FuncValue, args []*Arg, resultList *ast.FieldList) {
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for i, arg := range args {
 		paramType := arg.paramType
-		if arg.meta != nil {
-			emitExprMeta(arg.meta)
-			mayEmitConvertTooIfcMeta(arg.meta, paramType)
-		} else {
+		if arg.meta == nil {
 			panic("arg.meta should not be nil")
-			emitExpr(arg.e)
-			mayEmitConvertTooIfc(arg.e, paramType)
 		}
+		emitExprMeta(arg.meta)
+		mayEmitConvertTooIfcMeta(arg.meta, paramType)
 		emitPop(kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 		printf("  pushq %%rsi # place to save\n")
