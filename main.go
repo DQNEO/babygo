@@ -2633,12 +2633,7 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 	case *MetaUnaryExpr:
 		return m.typ
 	case *MetaBinaryExpr:
-		switch m.Op {
-		case "==", "!=", "<", ">", "<=", ">=":
-			return tBool
-		default:
-			return getTypeOfExprAst(m.e)
-		}
+		return m.typ
 	case *MetaTypeAssertExpr:
 		return getTypeOfExprAst(m.e)
 	}
@@ -4327,14 +4322,14 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 		xCtx := &evalContext{_type: getTypeOfExpr(meta.Y)}
 
 		meta.X = walkExpr(e.X, xCtx) // left
-		return meta
 	} else {
 		// X should be typed
 		meta.X = walkExpr(e.X, nil) // left
 		yCtx := &evalContext{_type: getTypeOfExpr(meta.X)}
 		meta.Y = walkExpr(e.Y, yCtx) // right
-		return meta
 	}
+	meta.typ = getTypeOfExprAst(e)
+	return meta
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
@@ -4525,10 +4520,11 @@ type MetaUnaryExpr struct {
 	typ *Type
 }
 type MetaBinaryExpr struct {
-	e  *ast.BinaryExpr
-	Op string
-	X  MetaExpr
-	Y  MetaExpr
+	e   *ast.BinaryExpr
+	typ *Type
+	Op  string
+	X   MetaExpr
+	Y   MetaExpr
 }
 
 type MetaTypeAssertExpr struct {
