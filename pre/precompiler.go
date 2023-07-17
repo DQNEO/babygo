@@ -3390,14 +3390,13 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 	panic("TBI")
 }
 
-func IsOkSyntax(s *ast.AssignStmt) bool {
-	rhs0 := s.Rhs[0]
-	_, isTypeAssertion := rhs0.(*ast.TypeAssertExpr)
-	if len(s.Lhs) == 2 && isTypeAssertion {
+func IsOkSyntax(rhs MetaExpr) bool {
+	_, isTypeAssertion := rhs.(*MetaTypeAssertExpr)
+	if isTypeAssertion {
 		return true
 	}
-	indexExpr, isIndexExpr := rhs0.(*ast.IndexExpr)
-	if len(s.Lhs) == 2 && isIndexExpr && kind(getTypeOfExpr(indexExpr.X)) == T_MAP {
+	indexExpr, isIndexExpr := rhs.(*MetaIndexExpr)
+	if isIndexExpr && kind(getTypeOfExprMeta(indexExpr.X)) == T_MAP {
 		return true
 	}
 	return false
@@ -3428,10 +3427,10 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			}
 		} else if len(s.Lhs) == len(s.Rhs) {
 			panic("TBI")
-		} else if len(s.Lhs) >= 1 && len(s.Rhs) == 1 {
+		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 			// Tuple assignment
-			if IsOkSyntax(s) {
-				rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
+			rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
+			if IsOkSyntax(rhsMeta) {
 				rhsTypes := []*Type{getTypeOfExprMeta(rhsMeta), tBool}
 				var lhsMetas []MetaExpr
 				for _, lhs := range s.Lhs {
@@ -3446,7 +3445,6 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 					},
 				}
 			} else {
-				rhsMeta := walkExpr(s.Rhs[0], nil)
 				callExpr := s.Rhs[0].(*ast.CallExpr)
 				returnTypes := getCallResultTypes(callExpr)
 				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
@@ -3491,8 +3489,8 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		} else if len(s.Lhs) == len(s.Rhs) {
 			panic("TBI")
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
-			if IsOkSyntax(s) {
-				rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
+			rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
+			if IsOkSyntax(rhsMeta) {
 				rhsTypes := []*Type{getTypeOfExprMeta(rhsMeta), tBool}
 				assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
@@ -3515,7 +3513,6 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				}
 				return mt
 			} else {
-				rhsMeta := walkExpr(s.Rhs[0], nil)
 				callExpr := s.Rhs[0].(*ast.CallExpr)
 				rhsTypes := getCallResultTypes(callExpr)
 				assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
