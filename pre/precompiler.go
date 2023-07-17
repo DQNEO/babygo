@@ -2638,7 +2638,7 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 	case *MetaBinaryExpr:
 		return m.typ
 	case *MetaTypeAssertExpr:
-		return getTypeOfExprAst(m.e)
+		return m.typ
 	}
 	panic("bad type\n")
 }
@@ -4427,6 +4427,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssert
 		meta.NeedsOK = true
 	}
 	meta.X = walkExpr(e.X, nil)
+	meta.typ = getTypeOfExprAst(e)
 	return meta
 }
 
@@ -4536,6 +4537,7 @@ type MetaTypeAssertExpr struct {
 	NeedsOK bool
 	X       MetaExpr
 	e       *ast.TypeAssertExpr
+	typ     *Type
 }
 
 // ctx type is the type of someone who receives the expr value.
