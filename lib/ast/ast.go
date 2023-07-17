@@ -41,9 +41,13 @@ type FieldList struct {
 }
 
 type Ident struct {
-	Name string
-	Obj  *Object
+	NamePos token.Pos // identifier position
+	Name    string
+	Obj     *Object
 }
+
+func (x *Ident) Pos() token.Pos    { return x.NamePos }
+func (x *TypeSpec) Pos() token.Pos { return x.NamePos }
 
 type Ellipsis struct {
 	Elt Expr
@@ -225,9 +229,10 @@ type ValueSpec struct {
 }
 
 type TypeSpec struct {
-	Name   *Ident
-	Assign bool // isAlias
-	Type   Expr
+	Name    *Ident
+	NamePos token.Pos
+	Assign  bool // isAlias
+	Type    Expr
 }
 
 // Pseudo interface for *ast.Decl
@@ -246,10 +251,16 @@ type FuncDecl struct {
 	Name *Ident
 	Type *FuncType
 	Body *BlockStmt
+	TPos token.Pos
+}
+
+func (x *FuncDecl) Pos() token.Pos {
+	return x.TPos
 }
 
 type File struct {
 	Name       *Ident
+	Package    token.Pos
 	Imports    []*ImportSpec
 	Decls      []Decl
 	Unresolved []*Ident

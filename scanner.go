@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/strconv"
+	"github.com/DQNEO/babygo/lib/token"
 )
 
 type scanner struct {
@@ -11,6 +12,7 @@ type scanner struct {
 	offset     int
 	nextOffset int
 	insertSemi bool
+	File       *token.File
 }
 
 func (s *scanner) next() {
@@ -18,6 +20,9 @@ func (s *scanner) next() {
 		s.offset = s.nextOffset
 		s.ch = s.src[s.offset]
 		s.nextOffset++
+		if s.ch == '\n' {
+			s.File.Lines = append(s.File.Lines, token.Pos(s.File.Base+s.nextOffset))
+		}
 	} else {
 		s.offset = len(s.src)
 		s.ch = 1 //EOF
@@ -26,7 +31,7 @@ func (s *scanner) next() {
 
 var keywords []string
 
-func (s *scanner) Init(src []uint8) {
+func (s *scanner) Init(f *token.File, src []uint8) {
 	// https://golang.org/ref/spec#Keywords
 	keywords = []string{
 		"break", "default", "func", "interface", "select",
@@ -35,7 +40,9 @@ func (s *scanner) Init(src []uint8) {
 		"const", "fallthrough", "if", "range", "type",
 		"continue", "for", "import", "return", "var",
 	}
+	s.File = f
 	s.src = src
+	s.File.Lines = []token.Pos{token.Pos(f.Base)}
 	s.offset = 0
 	s.ch = ' '
 	s.nextOffset = 0
@@ -128,6 +135,8 @@ func (s *scanner) skipWhitespace() {
 
 func (s *scanner) Scan() *TokenContainer {
 	s.skipWhitespace()
+	pos := s.File.Base + s.offset
+
 	var tc = &TokenContainer{}
 	var lit string
 	var tok string
@@ -359,13 +368,14 @@ func (s *scanner) Scan() *TokenContainer {
 			}
 		case 1:
 			tok = "EOF"
+			//			logf("[scanner] EOF @ file=%s line=%d final_offset=%d, Pos=%d\n", s.File.Name, len(s.File.Lines)-1, s.offset, pos)
 		default:
 			panic2(__func__, "unknown char:"+string([]uint8{ch})+":"+strconv.Itoa(int(ch)))
 			tok = "UNKNOWN"
 		}
 	}
 	tc.lit = lit
-	tc.pos = 0
+	tc.pos = pos
 	tc.tok = tok
 	s.insertSemi = insertSemi
 	return tc

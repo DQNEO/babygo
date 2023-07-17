@@ -964,7 +964,7 @@ type evalContext struct {
 
 // 1 value
 func emitIdent(meta *MetaIdent) {
-	logf("emitIdent ident=%s\n", meta.Name)
+	//logf("emitIdent ident=%s\n", meta.Name)
 	switch meta.kind {
 	case "true": // true constant
 		emitTrue()
@@ -2357,7 +2357,7 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("\n")
-	logf("# emitFuncDecl pkg=%s, fnc.name=%s\n", pkgName, fnc.Name)
+	//logf("[package %s][emitFuncDecl], fnc.name=\"%s\"\n", pkgName, fnc.Name)
 	var symbol string
 	if fnc.Method != nil {
 		symbol = getMethodSymbol(fnc.Method)
@@ -3927,6 +3927,7 @@ func isUniverseNil(m *MetaIdent) bool {
 }
 
 func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
+	//	logf("(%s) [walkIdent] Pos=%d ident=\"%s\"\n", currentPkg.name, int(e.Pos()), e.Name)
 	meta := &MetaIdent{
 		e:    e,
 		Name: e.Name,
@@ -4015,6 +4016,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
 	}
+	//meta.typ = getTypeOfExprAst(e)
 	return meta
 }
 
@@ -4060,7 +4062,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 
 	identFun, isIdent := meta.fun.(*ast.Ident)
 	if isIdent {
-		logf("  fun=%s\n", identFun.Name)
+		//logf("  fun=%s\n", identFun.Name)
 		switch identFun.Obj {
 		case gLen, gCap:
 			meta.builtin = identFun.Obj
@@ -4468,8 +4470,9 @@ type MetaIdent struct {
 }
 
 type MetaSelectorExpr struct {
-	e *ast.SelectorExpr
-	X MetaExpr
+	e   *ast.SelectorExpr
+	typ *Type
+	X   MetaExpr
 }
 
 type MetaCallExpr struct {
@@ -4676,7 +4679,7 @@ func walk(pkg *PkgContainer) {
 	var constSpecs []*ast.ValueSpec
 
 	var exportedTpyes []*Type
-	logf("grouping declarations by type\n")
+	//logf("grouping declarations by type\n")
 	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
@@ -4702,7 +4705,7 @@ func walk(pkg *PkgContainer) {
 		}
 	}
 
-	logf("checking typeSpecs...\n")
+	//logf("checking typeSpecs...\n")
 	for _, typeSpec := range typeSpecs {
 		//@TODO check serializeType()'s *ast.Ident case
 		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
@@ -4724,7 +4727,7 @@ func walk(pkg *PkgContainer) {
 		ExportedQualifiedIdents[string(newQI(pkg.name, typeSpec.Name.Name))] = typeSpec.Name
 	}
 
-	logf("checking funcDecls...\n")
+	//logf("checking funcDecls...\n")
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
@@ -4739,7 +4742,7 @@ func walk(pkg *PkgContainer) {
 		}
 	}
 
-	logf("walking constSpecs...\n")
+	//logf("walking constSpecs...\n")
 
 	for _, constSpec := range constSpecs {
 		for _, v := range constSpec.Values {
@@ -4747,7 +4750,7 @@ func walk(pkg *PkgContainer) {
 		}
 	}
 
-	logf("walking varSpecs...\n")
+	//logf("walking varSpecs...\n")
 	for _, spec := range varSpecs {
 		lhsIdent := spec.Names[0]
 		assert(lhsIdent.Obj.Kind == ast.Var, "should be Var", __func__)
@@ -4796,10 +4799,11 @@ func walk(pkg *PkgContainer) {
 		ExportedQualifiedIdents[string(newQI(pkg.name, lhsIdent.Name))] = lhsIdent
 	}
 
-	logf("walking funcDecls in detail ...\n")
-
+	//logf("walking funcDecls in detail ...\n")
 	for _, funcDecl := range funcDecls {
-		logf("walking funcDecl \"%s\" \n", funcDecl.Name.Name)
+		//logf("[walk] (package:%s) (pos:%d) (%s) walking funcDecl \"%s\" \n",
+		//	pkg.name, int(funcDecl.Pos()), pkg.fset.Position(funcDecl.Pos()), funcDecl.Name.Name)
+		//logf("walking funcDecl \"%s\" \n", funcDecl.Name.Name)
 		fnc := &Func{
 			Name:      funcDecl.Name.Name,
 			FuncType:  funcDecl.Type,
@@ -5047,6 +5051,7 @@ type PkgContainer struct {
 	stringLiterals []*sliteral
 	stringIndex    int
 	Decls          []ast.Decl
+	fset           *token.FileSet
 }
 
 func resolveImports(file *ast.File) {
@@ -5242,8 +5247,8 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 }
 
 // compile compiles go files of a package into an assembly file, and copy input assembly files into it.
-func compile(universe *ast.Scope, path string, name string, gofiles []string, asmfiles []string, outFilePath string) {
-	_pkg := &PkgContainer{name: name, path: path}
+func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name string, gofiles []string, asmfiles []string, outFilePath string) {
+	_pkg := &PkgContainer{name: name, path: pkgPath, fset: fset}
 	currentPkg = _pkg
 
 	outAsmFile, err := os.Create(outFilePath)
@@ -5256,11 +5261,11 @@ func compile(universe *ast.Scope, path string, name string, gofiles []string, as
 	typeId = 1
 
 	logff("Building package : %s\n", _pkg.path)
-	fset := &token.FileSet{}
 	pkgScope := ast.NewScope(universe)
 	for _, file := range gofiles {
 		logff("Parsing file: %s\n", file)
 		astFile := parseFile(fset, file)
+		logf("[main]package decl lineno = %s\n", fset.Position(astFile.Package))
 		_pkg.name = astFile.Name.Name
 		_pkg.astFiles = append(_pkg.astFiles, astFile)
 		for name, obj := range astFile.Scope.Objects {
@@ -5378,7 +5383,10 @@ func buildAll(args []string) {
 		path:  "main",
 		files: inputFiles,
 	})
+
 	var universe = createUniverse()
+	fset := token.NewFileSet()
+
 	for _, _pkg := range packagesToBuild {
 		if _pkg.name == "" {
 			panic("empty pkg name")
@@ -5401,8 +5409,14 @@ func buildAll(args []string) {
 			}
 
 		}
-		compile(universe, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
+		compile(universe, fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
 	}
+
+	//fmt.Fprintf(os.Stderr, "### Debugging File Postions\n")
+	//for _, f := range fset.Files {
+	//	fmt.Fprintf(os.Stderr, "fset.File: %s size=%d base=%d, lines=%d\n", f.Name, f.Size, f.Base, len(f.Lines))
+	//	fmt.Fprintf(os.Stderr, "  first line pos=%d,  last line pos=%d\n", int(f.Lines[0]), int(f.Lines[len(f.Lines)-1]))
+	//}
 }
 
 // --- AST meta data ---

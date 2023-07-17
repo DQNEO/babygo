@@ -9,9 +9,12 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
-func (p *parser) init(src []uint8) {
-	var s = p.scanner
-	s.Init(src)
+func (p *parser) init(fset *token.FileSet, filename string, src []uint8) {
+	f := fset.AddFile(filename, -1, len(src))
+	p.fset = fset
+	p.filename = filename
+	p.scanner = &scanner{}
+	p.scanner.Init(f, src)
 	p.next()
 }
 
@@ -23,8 +26,12 @@ type parser struct {
 	scanner    *scanner
 	imports    []*ast.ImportSpec
 	filename   string
+	fset       *token.FileSet
 }
 
+func (p *parser) Pos() token.Pos {
+	return token.Pos(p.tok.pos)
+}
 func (p *parser) openScope() {
 	p.topScope = ast.NewScope(p.topScope)
 }
@@ -40,6 +47,7 @@ func (p *parser) consumeComment() {
 func (p *parser) next0() {
 	var s = p.scanner
 	p.tok = s.Scan()
+	//logf("[parser.next0] pos=%d\n", p.tok.pos)
 }
 
 func (p *parser) next() {
@@ -89,8 +97,10 @@ func (p *parser) parseIdent() *ast.Ident {
 		panic2(__func__, "IDENT expected, but got "+p.tok.tok)
 	}
 	logff(" [%s] ident name = %s\n", __func__, name)
+
 	return &ast.Ident{
-		Name: name,
+		NamePos: p.Pos(),
+		Name:    name,
 	}
 }
 
@@ -1222,7 +1232,9 @@ func (p *parser) parserTypeSpec() *ast.TypeSpec {
 	var ident = p.parseIdent()
 	logff(" decl type %s\n", ident.Name)
 
-	var spec = &ast.TypeSpec{}
+	var spec = &ast.TypeSpec{
+		NamePos: p.Pos(),
+	}
 	spec.Name = ident
 	declare(spec, p.topScope, ast.Typ, ident)
 	if p.tok.tok == "=" {
@@ -1280,6 +1292,7 @@ func (p *parser) parseFuncType() ast.Expr {
 }
 
 func (p *parser) parseFuncDecl() ast.Decl {
+	pos := p.tok.pos
 	p.expect("func", __func__)
 	var scope = ast.NewScope(p.topScope) // function scope
 	var receivers *ast.FieldList
@@ -1310,9 +1323,12 @@ func (p *parser) parseFuncDecl() ast.Decl {
 	}
 	var decl ast.Decl
 
+	//logf("[parser] p.tok.pos=%d\n", p.tok.pos)
+
 	var funcDecl = &ast.FuncDecl{}
 	funcDecl.Recv = receivers
 	funcDecl.Name = ident
+	funcDecl.TPos = token.Pos(pos)
 	funcDecl.Type = &ast.FuncType{}
 	funcDecl.Type.Params = params
 	funcDecl.Type.Results = results
@@ -1416,12 +1432,12 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8
 	}
 
 	text := readSource(filename)
-
 	var p = &parser{}
-	p.filename = filename
-	p.scanner = &scanner{}
-	p.init(text)
-	return p.parseFile(importsOnly), nil
+	packagePos := token.Pos(fset.Base)
+	p.init(fset, filename, text)
+	astFile := p.parseFile(importsOnly)
+	astFile.Package = packagePos
+	return astFile, nil
 }
 
 func isExprIdent(e ast.Expr) bool {
