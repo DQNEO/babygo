@@ -1386,7 +1386,7 @@ func isNil(meta MetaExpr) bool {
 	if !ok {
 		return false
 	}
-	return m.isUniverseNil()
+	return isUniverseNil(m)
 }
 
 func emitExpr(meta MetaExpr) {
@@ -3922,7 +3922,7 @@ func walkStmt(stmt ast.Stmt) MetaStmt {
 	return mt
 }
 
-func (m *MetaIdent) isUniverseNil() bool {
+func isUniverseNil(m *MetaIdent) bool {
 	return m.kind == "nil"
 }
 
