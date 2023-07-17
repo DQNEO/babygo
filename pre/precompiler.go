@@ -2302,10 +2302,12 @@ func emitStmt(mtstmt MetaStmt) {
 		emitDeclStmt(meta)
 	case *MetaSingleAssign:
 		emitSingleAssign(meta.Lhs, meta.Rhs)
-	case *MetaOkAssignStmt:
-		emitOkAssignment(meta.Tuple)
-	case *MetaFuncallAssignStmt:
-		emitFuncallAssignment(meta.Tuple)
+	case *MetaTupleAssign:
+		if meta.isOK {
+			emitOkAssignment(meta)
+		} else {
+			emitFuncallAssignment(meta)
+		}
 	case *MetaReturnStmt:
 		emitReturnStmt(meta)
 	case *MetaIfStmt:
@@ -2807,6 +2809,18 @@ func fieldList2Types(fldlist *ast.FieldList) []*Type {
 		r = append(r, t)
 	}
 	return r
+}
+
+func getTupleTypes(rhsMeta MetaExpr) []*Type {
+	if IsOkSyntax(rhsMeta) {
+		return []*Type{getTypeOfExprMeta(rhsMeta), tBool}
+	} else {
+		rhs, ok := rhsMeta.(*MetaCallExpr)
+		if !ok {
+			panic("is not *MetaCallExpr")
+		}
+		return getCallResultTypes(rhs.e)
+	}
 }
 
 func getCallResultTypes(e *ast.CallExpr) []*Type {
@@ -3403,7 +3417,6 @@ func IsOkSyntax(rhs MetaExpr) bool {
 }
 
 func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
-	var mt MetaStmt
 	stok := s.Tok.String()
 	switch stok {
 	case "=":
@@ -3431,42 +3444,34 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			// Tuple assignment
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &evalContext{maybeOK: maybeOkContext})
-			if len(s.Lhs) == 2 && IsOkSyntax(rhsMeta) {
-				rhsTypes := []*Type{getTypeOfExprMeta(rhsMeta), tBool}
-				var lhsMetas []MetaExpr
-				for _, lhs := range s.Lhs {
-					lm := walkExpr(lhs, nil)
-					lhsMetas = append(lhsMetas, lm)
-				}
-				return &MetaOkAssignStmt{
-					Tuple: &MetaTupleAssign{
-						Lhss:     lhsMetas,
-						Rhs:      rhsMeta,
-						RhsTypes: rhsTypes,
-					},
-				}
-			} else {
-				callExpr := s.Rhs[0].(*ast.CallExpr)
-				returnTypes := getCallResultTypes(callExpr)
-				assert(len(returnTypes) == len(s.Lhs), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(returnTypes)), __func__)
-				var lhsMetas []MetaExpr
-				for _, lhs := range s.Lhs {
-					lm := walkExpr(lhs, nil)
-					lhsMetas = append(lhsMetas, lm)
-				}
+			var isOK bool
+			var rhsTypes []*Type
 
-				return &MetaFuncallAssignStmt{
-					Tuple: &MetaTupleAssign{
-						Lhss:     lhsMetas,
-						Rhs:      rhsMeta,
-						RhsTypes: returnTypes,
-					},
-				}
+			if len(s.Lhs) == 2 && IsOkSyntax(rhsMeta) {
+				isOK = true
+				rhsTypes = getTupleTypes(rhsMeta)
+			} else {
+				isOK = false
+				rhsTypes = getTupleTypes(rhsMeta)
+			}
+
+			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
+
+			var lhsMetas []MetaExpr
+			for _, lhs := range s.Lhs {
+				lm := walkExpr(lhs, nil)
+				lhsMetas = append(lhsMetas, lm)
+			}
+			return &MetaTupleAssign{
+				isOK:     isOK,
+				Lhss:     lhsMetas,
+				Rhs:      rhsMeta,
+				RhsTypes: rhsTypes,
 			}
 		} else {
 			panic("Bad syntax")
 		}
-		return mt
+		panic("Bad syntax")
 	case ":=":
 		if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 			// Single assignment
@@ -3482,69 +3487,51 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 
-			mt = &MetaSingleAssign{
+			return &MetaSingleAssign{
 				Lhs: lhsMetas[0],
 				Rhs: rhsMeta,
 			}
-			return mt
 		} else if len(s.Lhs) == len(s.Rhs) {
 			panic("TBI")
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 			// Tuple assignment
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &evalContext{maybeOK: maybeOkContext})
+			var isOK bool
+			var rhsTypes []*Type
+			var lhsMetas []MetaExpr
+
 			if len(s.Lhs) == 2 && IsOkSyntax(rhsMeta) {
-				rhsTypes := []*Type{getTypeOfExprMeta(rhsMeta), tBool}
-				assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
-
-				lhsTypes := rhsTypes
-				var lhsMetas []MetaExpr
-				for i, lhs := range s.Lhs {
-					typ := lhsTypes[i]
-					obj := lhs.(*ast.Ident).Obj
-					setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
-					lm := walkExpr(lhs, nil)
-					lhsMetas = append(lhsMetas, lm)
-				}
-
-				mt = &MetaOkAssignStmt{
-					Tuple: &MetaTupleAssign{
-						Lhss:     lhsMetas,
-						Rhs:      rhsMeta,
-						RhsTypes: rhsTypes,
-					},
-				}
-				return mt
+				isOK = true
+				rhsTypes = getTupleTypes(rhsMeta)
 			} else {
-				callExpr := s.Rhs[0].(*ast.CallExpr)
-				rhsTypes := getCallResultTypes(callExpr)
-				assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
+				isOK = false
+				rhsTypes = getTupleTypes(rhsMeta)
+			}
 
-				lhsTypes := rhsTypes
-				var lhsMetas []MetaExpr
-				for i, lhs := range s.Lhs {
-					typ := lhsTypes[i]
-					obj := lhs.(*ast.Ident).Obj
-					setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
-					lm := walkExpr(lhs, nil)
-					lhsMetas = append(lhsMetas, lm)
-				}
-				_ = lhsMetas
+			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
-				mt = &MetaFuncallAssignStmt{
-					Tuple: &MetaTupleAssign{
-						Lhss:     lhsMetas,
-						Rhs:      rhsMeta,
-						RhsTypes: rhsTypes,
-					},
-				}
-				return mt
+			lhsTypes := rhsTypes
+			for i, lhs := range s.Lhs {
+				typ := lhsTypes[i]
+				obj := lhs.(*ast.Ident).Obj
+				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+			}
+
+			for _, lhs := range s.Lhs {
+				lm := walkExpr(lhs, nil)
+				lhsMetas = append(lhsMetas, lm)
+			}
+			return &MetaTupleAssign{
+				isOK:     isOK,
+				Lhss:     lhsMetas,
+				Rhs:      rhsMeta,
+				RhsTypes: rhsTypes,
 			}
 		} else {
 			panic("Bad syntax")
 		}
-		return mt
-
+		panic("Bad syntax")
 	case "+=", "-=":
 		var op token.Token
 		switch stok {
@@ -3879,16 +3866,10 @@ type MetaSingleAssign struct {
 }
 
 type MetaTupleAssign struct {
+	isOK     bool // OK or funcall
 	Lhss     []MetaExpr
 	Rhs      MetaExpr
 	RhsTypes []*Type
-}
-
-type MetaOkAssignStmt struct {
-	Tuple *MetaTupleAssign
-}
-type MetaFuncallAssignStmt struct {
-	Tuple *MetaTupleAssign
 }
 
 type MetaReturnStmt struct {
