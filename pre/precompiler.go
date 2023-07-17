@@ -2630,7 +2630,7 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 	case *MetaIndexExpr:
 		return m.typ
 	case *MetaSliceExpr:
-		return getTypeOfExprAst(m.e)
+		return m.typ
 	case *MetaStarExpr:
 		return getTypeOfExprAst(m.e)
 	case *MetaUnaryExpr:
@@ -4374,6 +4374,7 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) *MetaSliceExpr {
 		meta.Max = walkExpr(e.Max, nil)
 	}
 	meta.X = walkExpr(e.X, nil)
+	meta.typ = getTypeOfExprAst(e)
 	return meta
 }
 
@@ -4508,6 +4509,7 @@ type MetaIndexExpr struct {
 
 type MetaSliceExpr struct {
 	e    *ast.SliceExpr
+	typ  *Type
 	Low  MetaExpr
 	High MetaExpr
 	Max  MetaExpr
