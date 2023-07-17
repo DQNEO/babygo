@@ -2618,18 +2618,7 @@ const T_MAP TypeKind = "T_MAP"
 func getTypeOfExpr(meta MetaExpr) *Type {
 	switch m := meta.(type) {
 	case *MetaBasicLit:
-		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
-		// depending on whether it is a boolean, rune, integer, floating-point, complex, or string constant.
-		switch m.Kind {
-		case "STRING":
-			return tString
-		case "INT":
-			return tInt
-		case "CHAR":
-			return tInt32
-		default:
-			panic(m.Kind)
-		}
+		return m.typ
 	case *MetaCompositLit:
 		return getTypeOfExprAst(m.e)
 	case *MetaIdent:
@@ -4235,7 +4224,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 }
 
 func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
-	mt := &MetaBasicLit{
+	m := &MetaBasicLit{
 		Kind:  e.Kind.String(),
 		Value: e.Value,
 	}
@@ -4258,15 +4247,16 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 				char = '\r'
 			}
 		}
-		mt.charVal = int(char)
+		m.charVal = int(char)
 	case "INT":
-		mt.intVal = strconv.Atoi(mt.Value)
+		m.intVal = strconv.Atoi(m.Value)
 	case "STRING":
-		mt.strVal = registerStringLiteral(e)
+		m.strVal = registerStringLiteral(e)
 	default:
 		panic("Unexpected literal kind:" + e.Kind.String())
 	}
-	return mt
+	m.typ = getTypeOfExprAst(e)
+	return m
 }
 
 func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
@@ -4462,6 +4452,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssert
 type MetaExpr interface{}
 
 type MetaBasicLit struct {
+	typ     *Type
 	Kind    string
 	Value   string
 	charVal int
