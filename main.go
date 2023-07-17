@@ -2608,14 +2608,7 @@ const T_MAP TypeKind = "T_MAP"
 func getTypeOfExpr(meta MetaExpr) *Type {
 	switch m := meta.(type) {
 	case *MetaIdent:
-		switch m.kind {
-		case "var", "nil":
-			return m.typ
-		case "con":
-			return getTypeOfExpr(m.conLiteral)
-		default:
-			return getTypeOfExprAst(m.e)
-		}
+		return m.typ
 	case *MetaBasicLit:
 		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
 		// depending on whether it is a boolean, rune, integer, floating-point, complex, or string constant.
@@ -3973,6 +3966,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		// e.Obj is nil in this case.
 		// @TODO do something
 		meta.kind = "blank"
+		meta.typ = nil
 		return meta
 	}
 	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
@@ -3984,8 +3978,10 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		meta.kind = "nil"
 	case gTrue:
 		meta.kind = "true"
+		meta.typ = tBool
 	case gFalse:
 		meta.kind = "false"
+		meta.typ = tBool
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
@@ -4001,12 +3997,24 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 			valSpec := e.Obj.Decl.(*ast.ValueSpec)
 			lit := valSpec.Values[0].(*ast.BasicLit)
 			meta.conLiteral = walkBasicLit(lit, nil)
+			if valSpec.Type != nil {
+				meta.typ = e2t(valSpec.Type)
+			} else {
+				meta.typ = getTypeOfExpr(meta.conLiteral)
+			}
 		case ast.Fun:
 			meta.kind = "fun"
+			switch e.Obj {
+			case gLen, gCap, gNew, gMake, gAppend, gPanic, gDelete:
+				// builtin funcs have no func type
+			default:
+				//logf2("ast.Fun=%s\n", e.Name)
+				meta.typ = e2t(e.Obj.Decl.(*ast.FuncDecl).Type)
+			}
 		case ast.Typ:
+			// this can happen when walking type nodes intentionally
 			meta.kind = "typ"
-			// int(expr)
-			// TODO: this should be avoided in advance
+			meta.typ = e2t(e)
 		default: // ast.Pkg
 			panic("Unexpected ident kind:" + e.Obj.Kind.String() + " name:" + e.Name)
 		}
