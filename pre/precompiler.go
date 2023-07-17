@@ -1732,14 +1732,6 @@ func isBlankIdentifierMeta(m MetaExpr) bool {
 	return ident.kind == "blank"
 }
 
-func isBlankIdentifier(e ast.Expr) bool {
-	ident, isIdent := e.(*ast.Ident)
-	if !isIdent {
-		return false
-	}
-	return ident.Name == "_"
-}
-
 func emitAssignToVar(vr *Variable, rhs MetaExpr) {
 	emitComment(2, "Assignment: emitVariableAddr(lhs)\n")
 	emitVariableAddr(vr)
@@ -3462,7 +3454,6 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		} else {
 			panic("Bad syntax")
 		}
-		panic("Bad syntax")
 	case ":=":
 		if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 			// Single assignment
@@ -3513,7 +3504,6 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		} else {
 			panic("Bad syntax")
 		}
-		panic("Bad syntax")
 	case "+=", "-=":
 		var op token.Token
 		switch stok {
@@ -4608,7 +4598,6 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 	default:
 		panic(fmt.Sprintf("unknown type %T", expr))
 	}
-	panic("TBI")
 }
 
 var ExportedQualifiedIdents = make(map[string]*ast.Ident)
