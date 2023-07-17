@@ -1375,7 +1375,7 @@ func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 	printf("  %s:\n", labelEnd)
 }
 
-func isUniverseNil(meta MetaExpr) bool {
+func isNil(meta MetaExpr) bool {
 	m, ok := meta.(*MetaIdent)
 	if !ok {
 		return false
@@ -1425,7 +1425,7 @@ func emitConvertToInterface(fromType *Type) {
 }
 
 func mayEmitConvertTooIfc(meta MetaExpr, ctxType *Type) {
-	if !isUniverseNil(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExpr(meta)) {
+	if !isNil(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExpr(meta)) {
 		emitConvertToInterface(getTypeOfExpr(meta))
 	}
 }
@@ -3726,7 +3726,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 		if assignIdent != nil {
 			if len(cc.List) > 0 {
 				var varType *Type
-				if isNil(cc.List[0]) {
+				if isNilIdent(cc.List[0]) {
 					varType = getTypeOfExpr(typeSwitch.Subject)
 				} else {
 					varType = e2t(cc.List[0])
@@ -3753,7 +3753,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 		var types []*Type
 		for _, e := range cc.List {
 			var typ *Type
-			if !isNil(e) {
+			if !isNilIdent(e) {
 				typ = e2t(e)
 			}
 			types = append(types, typ) // universe nil can be appended
@@ -3767,7 +3767,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 
 	return typeSwitch
 }
-func isNil(e ast.Expr) bool {
+func isNilIdent(e ast.Expr) bool {
 	ident, ok := e.(*ast.Ident)
 	if !ok {
 		return false
@@ -4333,7 +4333,7 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 		e:  e,
 		Op: e.Op.String(),
 	}
-	if isNil(e.X) {
+	if isNilIdent(e.X) {
 		// Y should be typed
 		meta.Y = walkExpr(e.Y, nil) // right
 		xCtx := &evalContext{_type: getTypeOfExpr(meta.Y)}
