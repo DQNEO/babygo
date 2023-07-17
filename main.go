@@ -2617,31 +2617,15 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 	case *MetaBasicLit:
 		return m.typ
 	case *MetaCompositLit:
-		return getTypeOfExprAst(m.e)
+		return m.typ
 	case *MetaIdent:
 		return m.typ
 	case *MetaSelectorExpr:
-		e := m.e
-		if isQI(e) { // pkg.SomeType
-			ident := lookupForeignIdent(selector2QI(e))
-			return getTypeOfExprAst(ident)
-		} else { // (e).field
-			ut := getUnderlyingType(getTypeOfExpr(m.X))
-			var structTypeLiteral *ast.StructType
-			switch typ := ut.E.(type) {
-			case *ast.StructType: // strct.field
-				structTypeLiteral = typ
-			case *ast.StarExpr: // ptr.field
-				structType := e2t(typ.X)
-				structTypeLiteral = getUnderlyingStructType(structType)
-			}
-			field := lookupStructField(structTypeLiteral, e.Sel.Name)
-			return e2t(field.Type)
-		}
+		return getTypeOfExprAst(m.e)
 	case *MetaCallExpr: // funcall or conversion
 		return getTypeOfExprAst(m.e)
 	case *MetaIndexExpr:
-		return getTypeOfExprAst(m.e)
+		return m.typ
 	case *MetaSliceExpr:
 		return getTypeOfExprAst(m.e)
 	case *MetaStarExpr:
@@ -4365,6 +4349,7 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 			meta.NeedsOK = true
 		}
 	}
+	meta.typ = getTypeOfExprAst(e)
 	return meta
 }
 
@@ -4459,10 +4444,10 @@ type MetaBasicLit struct {
 
 type MetaCompositLit struct {
 	e    *ast.CompositeLit
+	typ  *Type  // type of the composite
 	kind string // "struct", "array", "slice" // @TODO "map"
 
 	// for struct
-	typ          *Type                       // type of the composite
 	strctEements []*MetaStructLiteralElement // for "struct"
 
 	// for array or slice
@@ -4474,9 +4459,9 @@ type MetaCompositLit struct {
 
 type MetaIdent struct {
 	e    *ast.Ident
+	typ  *Type
 	kind string // "blank|nil|true|false|var|con|fun|typ"
 	Name string
-	typ  *Type // for "nil", "var"
 
 	variable *Variable // for "var"
 
@@ -4520,6 +4505,7 @@ type MetaIndexExpr struct {
 	Index   MetaExpr
 	X       MetaExpr
 	e       *ast.IndexExpr
+	typ     *Type
 }
 
 type MetaSliceExpr struct {
