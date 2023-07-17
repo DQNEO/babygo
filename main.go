@@ -284,7 +284,7 @@ func emitAddr(meta MetaExpr) {
 			offset := getStructFieldOffset(field)
 			emitAddConst(offset, "struct head address + struct.field offset")
 		}
-	case *MetaCompositLiteral:
+	case *MetaCompositLit:
 		knd := kind(getTypeOfExpr(m))
 		switch knd {
 		case T_STRUCT:
@@ -479,7 +479,7 @@ type MetaStructLiteralElement struct {
 	ValueMeta MetaExpr
 }
 
-func emitStructLiteral(meta *MetaCompositLiteral) {
+func emitStructLiteral(meta *MetaCompositLit) {
 	// allocate heap area with zero value
 	emitComment(2, "emitStructLiteral\n")
 	structType := meta.typ
@@ -501,7 +501,7 @@ func emitStructLiteral(meta *MetaCompositLiteral) {
 	}
 }
 
-func emitArrayLiteral(meta *MetaCompositLiteral) {
+func emitArrayLiteral(meta *MetaCompositLit) {
 	elmType := meta.elmType
 	elmSize := getSizeOfType(elmType)
 	memSize := elmSize * meta.len
@@ -1203,7 +1203,7 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 }
 
 // 1 value
-func emitCompositeLit(meta *MetaCompositLiteral) {
+func emitCompositeLit(meta *MetaCompositLit) {
 	// slice , array, map or struct
 	switch meta.kind {
 	case "struct":
@@ -1392,7 +1392,7 @@ func emitExpr(meta MetaExpr) {
 	switch m := meta.(type) {
 	case *MetaBasicLit:
 		emitBasicLit(m)
-	case *MetaCompositLiteral:
+	case *MetaCompositLit:
 		emitCompositeLit(m)
 	case *MetaIdent:
 		emitIdent(m)
@@ -2614,8 +2614,6 @@ const T_MAP TypeKind = "T_MAP"
 // types of an expr in Single value context
 func getTypeOfExpr(meta MetaExpr) *Type {
 	switch m := meta.(type) {
-	case *MetaIdent:
-		return m.typ
 	case *MetaBasicLit:
 		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
 		// depending on whether it is a boolean, rune, integer, floating-point, complex, or string constant.
@@ -2629,23 +2627,10 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 		default:
 			panic(m.Kind)
 		}
-	case *MetaUnaryExpr:
+	case *MetaCompositLit:
+		return getTypeOfExprAst(m.e)
+	case *MetaIdent:
 		return m.typ
-	case *MetaBinaryExpr:
-		switch m.Op {
-		case "==", "!=", "<", ">", "<=", ">=":
-			return tBool
-		default:
-			return getTypeOfExprAst(m.e)
-		}
-	case *MetaIndexExpr:
-		return getTypeOfExprAst(m.e)
-	case *MetaCallExpr: // funcall or conversion
-		return getTypeOfExprAst(m.e)
-	case *MetaSliceExpr:
-		return getTypeOfExprAst(m.e)
-	case *MetaStarExpr:
-		return getTypeOfExprAst(m.e)
 	case *MetaSelectorExpr:
 		e := m.e
 		if isQI(e) { // pkg.SomeType
@@ -2664,8 +2649,23 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 			field := lookupStructField(structTypeLiteral, e.Sel.Name)
 			return e2t(field.Type)
 		}
-	case *MetaCompositLiteral:
+	case *MetaCallExpr: // funcall or conversion
 		return getTypeOfExprAst(m.e)
+	case *MetaIndexExpr:
+		return getTypeOfExprAst(m.e)
+	case *MetaSliceExpr:
+		return getTypeOfExprAst(m.e)
+	case *MetaStarExpr:
+		return getTypeOfExprAst(m.e)
+	case *MetaUnaryExpr:
+		return m.typ
+	case *MetaBinaryExpr:
+		switch m.Op {
+		case "==", "!=", "<", ">", "<=", ">=":
+			return tBool
+		default:
+			return getTypeOfExprAst(m.e)
+		}
 	case *MetaTypeAssertExpr:
 		return getTypeOfExprAst(m.e)
 	}
@@ -4266,7 +4266,7 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 	return mt
 }
 
-func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLiteral {
+func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 	walkExpr(e.Type, nil) // a[len("foo")]{...} // "foo" should be walked
 	typ := e2t(e.Type)
 	ut := getUnderlyingType(typ)
@@ -4281,7 +4281,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLitera
 	default:
 		unexpectedKind(kind(typ))
 	}
-	meta := &MetaCompositLiteral{
+	meta := &MetaCompositLit{
 		e:    e,
 		kind: knd,
 		typ:  typ,
@@ -4466,6 +4466,21 @@ type MetaBasicLit struct {
 	strVal  *sliteral
 }
 
+type MetaCompositLit struct {
+	e    *ast.CompositeLit
+	kind string // "struct", "array", "slice" // @TODO "map"
+
+	// for struct
+	typ          *Type                       // type of the composite
+	strctEements []*MetaStructLiteralElement // for "struct"
+
+	// for array or slice
+	arrayType *ast.ArrayType
+	len       int
+	elmType   *Type
+	metaElms  []MetaExpr
+}
+
 type MetaIdent struct {
 	e    *ast.Ident
 	kind string // "blank|nil|true|false|var|con|fun|typ"
@@ -4480,43 +4495,6 @@ type MetaIdent struct {
 type MetaSelectorExpr struct {
 	e *ast.SelectorExpr
 	X MetaExpr
-}
-type MetaSliceExpr struct {
-	e    *ast.SliceExpr
-	Low  MetaExpr
-	High MetaExpr
-	Max  MetaExpr
-	X    MetaExpr
-}
-type MetaStarExpr struct {
-	e *ast.StarExpr
-	X MetaExpr
-}
-type MetaUnaryExpr struct {
-	e   *ast.UnaryExpr
-	X   MetaExpr
-	typ *Type
-}
-type MetaBinaryExpr struct {
-	e  *ast.BinaryExpr
-	Op string
-	X  MetaExpr
-	Y  MetaExpr
-}
-
-type MetaCompositLiteral struct {
-	e    *ast.CompositeLit
-	kind string // "struct", "array", "slice" // @TODO "map"
-
-	// for struct
-	typ          *Type                       // type of the composite
-	strctEements []*MetaStructLiteralElement // for "struct"
-
-	// for array or slice
-	arrayType *ast.ArrayType
-	len       int
-	elmType   *Type
-	metaElms  []MetaExpr
 }
 
 type MetaCallExpr struct {
@@ -4553,6 +4531,29 @@ type MetaIndexExpr struct {
 	e       *ast.IndexExpr
 }
 
+type MetaSliceExpr struct {
+	e    *ast.SliceExpr
+	Low  MetaExpr
+	High MetaExpr
+	Max  MetaExpr
+	X    MetaExpr
+}
+type MetaStarExpr struct {
+	e *ast.StarExpr
+	X MetaExpr
+}
+type MetaUnaryExpr struct {
+	e   *ast.UnaryExpr
+	X   MetaExpr
+	typ *Type
+}
+type MetaBinaryExpr struct {
+	e  *ast.BinaryExpr
+	Op string
+	X  MetaExpr
+	Y  MetaExpr
+}
+
 type MetaTypeAssertExpr struct {
 	NeedsOK bool
 	X       MetaExpr
@@ -4572,13 +4573,8 @@ type MetaTypeAssertExpr struct {
 //   - the target type is interface and expr is not.
 func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 	switch e := expr.(type) {
-	case *ast.ParenExpr:
-		return walkExpr(e.X, ctx)
 	case *ast.BasicLit:
 		return walkBasicLit(e, ctx)
-	case *ast.KeyValueExpr:
-		walkKeyValueExpr(e, ctx)
-		return nil
 	case *ast.CompositeLit:
 		return walkCompositeLit(e, ctx)
 	case *ast.Ident:
@@ -4599,6 +4595,14 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		return walkBinaryExpr(e, ctx)
 	case *ast.TypeAssertExpr:
 		return walkTypeAssertExpr(e, ctx)
+
+	case *ast.ParenExpr:
+		return walkExpr(e.X, ctx)
+	case *ast.KeyValueExpr:
+		walkKeyValueExpr(e, ctx)
+		return nil
+
+	// Each one below is not an expr but a type
 	case *ast.ArrayType: // type
 		walkArrayType(e) // []T(e)
 		return nil
