@@ -622,9 +622,13 @@ func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, ex
 	}
 
 	if receiver != nil { // method call
+		paramType := getTypeOfExpr(receiver)
+		if paramType == nil {
+			panic("[prepaareArgs] param type must not be nil")
+		}
 		var receiverAndArgs []*MetaArg = []*MetaArg{
 			&MetaArg{
-				paramType: getTypeOfExpr(receiver),
+				paramType: paramType,
 				meta:      receiver,
 			},
 		}
@@ -649,6 +653,9 @@ func emitCall(fv *FuncValue, args []*MetaArg, resultList *ast.FieldList) {
 	var offsets []int
 	for _, arg := range args {
 		offsets = append(offsets, totalParamSize)
+		if arg.paramType == nil {
+			panic("paramType must not be nil")
+		}
 		totalParamSize += getSizeOfType(arg.paramType)
 	}
 
@@ -2626,7 +2633,7 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 			panic(m.Kind)
 		}
 	case *MetaUnaryExpr:
-		return getTypeOfExprAst(m.e)
+		return m.typ
 	case *MetaBinaryExpr:
 		switch m.Op {
 		case "==", "!=", "<", ">", "<=", ">=":
@@ -4206,10 +4213,11 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 						Op: token.AND,
 						X:  receiver,
 					}
-					receiver = rcvr
+					eTyp := &ast.StarExpr{X: receiver}
 					receiverMeta = &MetaUnaryExpr{
-						e: rcvr,
-						X: receiverMeta,
+						e:   rcvr,
+						X:   receiverMeta,
+						typ: e2t(eTyp),
 					}
 				} else {
 					// v.mv() => as it is
@@ -4333,6 +4341,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLitera
 func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
 	meta := &MetaUnaryExpr{e: e}
 	meta.X = walkExpr(e.X, nil)
+	meta.typ = getTypeOfExprAst(e)
 	return meta
 }
 
@@ -4487,8 +4496,9 @@ type MetaStarExpr struct {
 	X MetaExpr
 }
 type MetaUnaryExpr struct {
-	e *ast.UnaryExpr
-	X MetaExpr
+	e   *ast.UnaryExpr
+	X   MetaExpr
+	typ *Type
 }
 type MetaBinaryExpr struct {
 	e  *ast.BinaryExpr
