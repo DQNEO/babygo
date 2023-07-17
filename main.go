@@ -3441,17 +3441,8 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			// Tuple assignment
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &evalContext{maybeOK: maybeOkContext})
-			var isOK bool
-			var rhsTypes []*Type
-
-			if len(s.Lhs) == 2 && IsOkSyntax(rhsMeta) {
-				isOK = true
-				rhsTypes = getTupleTypes(rhsMeta)
-			} else {
-				isOK = false
-				rhsTypes = getTupleTypes(rhsMeta)
-			}
-
+			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
+			rhsTypes := getTupleTypes(rhsMeta)
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
 			var lhsMetas []MetaExpr
@@ -3494,18 +3485,8 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			// Tuple assignment
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &evalContext{maybeOK: maybeOkContext})
-			var isOK bool
-			var rhsTypes []*Type
-			var lhsMetas []MetaExpr
-
-			if len(s.Lhs) == 2 && IsOkSyntax(rhsMeta) {
-				isOK = true
-				rhsTypes = getTupleTypes(rhsMeta)
-			} else {
-				isOK = false
-				rhsTypes = getTupleTypes(rhsMeta)
-			}
-
+			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
+			rhsTypes := getTupleTypes(rhsMeta)
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
 			lhsTypes := rhsTypes
@@ -3515,6 +3496,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
 			}
 
+			var lhsMetas []MetaExpr
 			for _, lhs := range s.Lhs {
 				lm := walkExpr(lhs, nil)
 				lhsMetas = append(lhsMetas, lm)
