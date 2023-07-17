@@ -45,11 +45,11 @@ func (p *parser) next0() {
 func (p *parser) next() {
 	p.next0()
 	if p.tok.tok == ";" {
-		logf(" [parser] pointing at : \"%s\" newline (%s)\n", p.tok.tok, strconv.Itoa(p.scanner.offset))
+		logff(" [parser] pointing at : \"%s\" newline (%s)\n", p.tok.tok, strconv.Itoa(p.scanner.offset))
 	} else if p.tok.tok == "IDENT" {
-		logf(" [parser] pointing at: IDENT \"%s\" (%s)\n", p.tok.lit, strconv.Itoa(p.scanner.offset))
+		logff(" [parser] pointing at: IDENT \"%s\" (%s)\n", p.tok.lit, strconv.Itoa(p.scanner.offset))
 	} else {
-		logf(" [parser] pointing at: \"%s\" %s (%s)\n", p.tok.tok, p.tok.lit, strconv.Itoa(p.scanner.offset))
+		logff(" [parser] pointing at: \"%s\" %s (%s)\n", p.tok.tok, p.tok.lit, strconv.Itoa(p.scanner.offset))
 	}
 
 	if p.tok.tok == "COMMENT" {
@@ -64,7 +64,7 @@ func (p *parser) expect(tok string, who string) {
 		var s = fmt.Sprintf("%s expected, but got %s", tok, p.tok.tok)
 		panic2(who, s)
 	}
-	logf(" [%s] consumed \"%s\"\n", who, p.tok.tok)
+	logff(" [%s] consumed \"%s\"\n", who, p.tok.tok)
 	p.next()
 }
 
@@ -72,7 +72,7 @@ func (p *parser) expectSemi(caller string) {
 	if p.tok.tok != ")" && p.tok.tok != "}" {
 		switch p.tok.tok {
 		case ";":
-			logf(" [%s] consumed semicolon %s\n", caller, p.tok.tok)
+			logff(" [%s] consumed semicolon %s\n", caller, p.tok.tok)
 			p.next()
 		default:
 			panic2(caller, "semicolon expected, but got token "+p.tok.tok)
@@ -88,7 +88,7 @@ func (p *parser) parseIdent() *ast.Ident {
 	} else {
 		panic2(__func__, "IDENT expected, but got "+p.tok.tok)
 	}
-	logf(" [%s] ident name = %s\n", __func__, name)
+	logff(" [%s] ident name = %s\n", __func__, name)
 	return &ast.Ident{
 		Name: name,
 	}
@@ -125,22 +125,22 @@ func (p *parser) tryVarType(ellipsisOK bool) ast.Expr {
 }
 
 func (p *parser) parseVarType(ellipsisOK bool) ast.Expr {
-	logf(" [%s] begin\n", __func__)
+	logff(" [%s] begin\n", __func__)
 	var typ = p.tryVarType(ellipsisOK)
 	if typ == nil {
 		panic2(__func__, "nil is not expected")
 	}
-	logf(" [%s] end\n", __func__)
+	logff(" [%s] end\n", __func__)
 	return typ
 }
 
 func (p *parser) tryType() ast.Expr {
-	logf(" [%s] begin\n", __func__)
+	logff(" [%s] begin\n", __func__)
 	var typ = p.tryIdentOrType()
 	if typ != nil {
 		p.resolve(typ)
 	}
-	logf(" [%s] end\n", __func__)
+	logff(" [%s] end\n", __func__)
 	return typ
 }
 
@@ -222,7 +222,7 @@ func (p *parser) parseMaptype() ast.Expr {
 }
 
 func (p *parser) parseTypeName() ast.Expr {
-	logf(" [%s] begin\n", __func__)
+	logff(" [%s] begin\n", __func__)
 	var ident = p.parseIdent()
 	if p.tok.tok == "." {
 		// ident is a package name
@@ -236,12 +236,12 @@ func (p *parser) parseTypeName() ast.Expr {
 		}
 		return (selectorExpr)
 	}
-	logf(" [%s] end\n", __func__)
+	logff(" [%s] end\n", __func__)
 	return (ident)
 }
 
 func (p *parser) tryIdentOrType() ast.Expr {
-	logf(" [%s] begin\n", __func__)
+	logff(" [%s] begin\n", __func__)
 	switch p.tok.tok {
 	case "IDENT":
 		return p.parseTypeName()
@@ -279,7 +279,7 @@ func (p *parser) tryIdentOrType() ast.Expr {
 }
 
 func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Field {
-	logf(" [%s] begin\n", __func__)
+	logff(" [%s] begin\n", __func__)
 	var list []ast.Expr
 	for {
 		var varType = p.parseVarType(ellipsisOK)
@@ -302,7 +302,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 		}
 		var eIdent = list[0]
 		ident := eIdent.(*ast.Ident)
-		logf(" [%s] ident.Name=%s\n", __func__, ident.Name)
+		logff(" [%s] ident.Name=%s\n", __func__, ident.Name)
 		field := &ast.Field{
 			Names: []*ast.Ident{ident},
 			Type:  typ,
@@ -311,7 +311,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 		declareField(field, scope, ast.Var, ident)
 		p.resolve(typ)
 		if p.tok.tok != "," {
-			logf("  end %s\n", __func__)
+			logff("  end %s\n", __func__)
 			return params
 		}
 		p.next()
@@ -330,7 +330,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 			}
 			p.next()
 		}
-		logf("  end %s\n", __func__)
+		logff("  end %s\n", __func__)
 		return params
 	}
 
@@ -343,35 +343,35 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 			Type: typ,
 		}
 	}
-	logf("  end %s\n", __func__)
+	logff("  end %s\n", __func__)
 	return params
 }
 
 func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) *ast.FieldList {
-	logf(" [%s] begin\n", __func__)
+	logff(" [%s] begin\n", __func__)
 	var params []*ast.Field
 	p.expect("(", __func__)
 	if p.tok.tok != ")" {
 		params = p.parseParameterList(scope, ellipsisOk)
 	}
 	p.expect(")", __func__)
-	logf(" [%s] end\n", __func__)
+	logff(" [%s] end\n", __func__)
 	return &ast.FieldList{
 		List: params,
 	}
 }
 
 func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
-	logf(" [%s] begin\n", __func__)
+	logff(" [%s] begin\n", __func__)
 
 	if p.tok.tok == "(" {
 		var r = p.parseParameters(scope, false)
-		logf(" [%s] end\n", __func__)
+		logff(" [%s] end\n", __func__)
 		return r
 	}
 
 	if p.tok.tok == "{" {
-		logf(" [%s] end\n", __func__)
+		logff(" [%s] end\n", __func__)
 		var _r *ast.FieldList = nil
 		return _r
 	}
@@ -382,14 +382,14 @@ func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
 			Type: typ,
 		})
 	}
-	logf(" [%s] end\n", __func__)
+	logff(" [%s] end\n", __func__)
 	return &ast.FieldList{
 		List: list,
 	}
 }
 
 func (p *parser) parseSignature(scope *ast.Scope) *ast.Signature {
-	logf(" [%s] begin\n", __func__)
+	logff(" [%s] begin\n", __func__)
 	var params *ast.FieldList
 	var results *ast.FieldList
 	params = p.parseParameters(scope, true)
@@ -460,7 +460,7 @@ func (p *parser) tryResolve(x ast.Expr, collectUnresolved bool) {
 }
 
 func (p *parser) parseOperand(lhs bool) ast.Expr {
-	logf("   parseOperand lhs=%d %s\n", lhs, __func__)
+	logff("   parseOperand lhs=%d %s\n", lhs, __func__)
 	switch p.tok.tok {
 	case "IDENT":
 		var ident = p.parseIdent()
@@ -475,7 +475,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 			Value: p.tok.lit,
 		}
 		p.next()
-		logf("   end %s\n", __func__)
+		logff("   end %s\n", __func__)
 		return (basicLit)
 	case "(":
 		p.next() // consume "("
@@ -492,7 +492,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 	if typ == nil {
 		panic2(__func__, "# typ should not be nil\n")
 	}
-	logf("   end %s\n", __func__)
+	logff("   end %s\n", __func__)
 
 	return typ
 }
@@ -504,7 +504,7 @@ func (p *parser) parseRhsOrType() ast.Expr {
 
 func (p *parser) parseCallExpr(fn ast.Expr) ast.Expr {
 	p.expect("(", __func__)
-	logf(" [parseCallExpr] p.tok.tok=%s\n", p.tok.tok)
+	logff(" [parseCallExpr] p.tok.tok=%s\n", p.tok.tok)
 	var list []ast.Expr
 	var ellipsis token.Pos
 	for p.tok.tok != ")" {
@@ -537,14 +537,14 @@ func (p *parser) parseCallExpr(fn ast.Expr) ast.Expr {
 var parserExprLev int // < 0: in control clause, >= 0: in expression
 
 func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
-	logf("   begin %s\n", __func__)
+	logff("   begin %s\n", __func__)
 	var x = p.parseOperand(lhs)
 
 	var cnt int
 
 	for {
 		cnt++
-		logf("    [%s] tok=%s\n", __func__, p.tok.tok)
+		logff("    [%s] tok=%s\n", __func__, p.tok.tok)
 		if cnt > 100 {
 			panic2(__func__, "too many iteration")
 		}
@@ -592,12 +592,12 @@ func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
 				return x
 			}
 		default:
-			logf("   end %s\n", __func__)
+			logff("   end %s\n", __func__)
 			return x
 		}
 	}
 
-	logf("   end %s\n", __func__)
+	logff("   end %s\n", __func__)
 	return x
 }
 
@@ -642,7 +642,7 @@ func (p *parser) parseElementList() []ast.Expr {
 }
 
 func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
-	logf("   start %s\n", __func__)
+	logff("   start %s\n", __func__)
 	p.expect("{", __func__)
 	var elts []ast.Expr
 	if p.tok.tok != "}" {
@@ -650,7 +650,7 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 	}
 	p.expect("}", __func__)
 
-	logf("   end %s\n", __func__)
+	logff("   end %s\n", __func__)
 	return (&ast.CompositeLit{
 		Type: typ,
 		Elts: elts,
@@ -754,14 +754,14 @@ func precedence(op string) int {
 }
 
 func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
-	logf("   begin parseBinaryExpr() prec1=%s\n", strconv.Itoa(prec1))
+	logff("   begin parseBinaryExpr() prec1=%s\n", strconv.Itoa(prec1))
 	var x = p.parseUnaryExpr(lhs)
 	var oprec int
 	for {
 		var op = p.tok.tok
 		oprec = precedence(op)
 		if oprec < prec1 {
-			logf("   end parseBinaryExpr() (NonBinary)\n")
+			logff("   end parseBinaryExpr() (NonBinary)\n")
 			return x
 		}
 		p.expect(op, __func__)
@@ -780,14 +780,14 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 		var r = (binaryExpr)
 		x = r
 	}
-	logf("   end parseBinaryExpr()\n")
+	logff("   end parseBinaryExpr()\n")
 	return x
 }
 
 func (p *parser) parseExpr(lhs bool) ast.Expr {
-	logf("   begin p.parseExpr()\n")
+	logff("   begin p.parseExpr()\n")
 	var e = p.parseBinaryExpr(lhs, 1)
-	logf("   end p.parseExpr()\n")
+	logff("   end p.parseExpr()\n")
 	return e
 }
 
@@ -798,7 +798,7 @@ func (p *parser) parseRhs() ast.Expr {
 
 // Extract ast.Expr from ExprStmt. Returns nil if input is nil
 func makeExpr(s ast.Stmt) ast.Expr {
-	logf(" begin %s\n", __func__)
+	logff(" begin %s\n", __func__)
 	if s == nil {
 		var r ast.Expr
 		return r
@@ -816,7 +816,7 @@ func (p *parser) parseGoStmt() ast.Stmt {
 }
 
 func (p *parser) parseForStmt() ast.Stmt {
-	logf(" begin %s\n", __func__)
+	logff(" begin %s\n", __func__)
 	p.expect("for", __func__)
 	p.openScope()
 
@@ -832,7 +832,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 			var assign *ast.AssignStmt
 			assign, isAssign = s2.(*ast.AssignStmt)
 			isRange = isAssign && assign.IsRange
-			logf(" [%s] isRange=true\n", __func__)
+			logff(" [%s] isRange=true\n", __func__)
 		}
 		if !isRange && p.tok.tok == ";" {
 			p.next() // consume ";"
@@ -856,7 +856,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 	var rangeX ast.Expr
 	if isRange {
 		as = s2.(*ast.AssignStmt)
-		logf(" [DEBUG] range as len lhs=%s\n", strconv.Itoa(len(as.Lhs)))
+		logff(" [DEBUG] range as len lhs=%s\n", strconv.Itoa(len(as.Lhs)))
 		var key ast.Expr
 		var value ast.Expr
 		switch len(as.Lhs) {
@@ -878,7 +878,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		rangeStmt.Body = body
 		rangeStmt.Tok = token.Token(as.Tok)
 		p.closeScope()
-		logf(" end %s\n", __func__)
+		logff(" end %s\n", __func__)
 		return rangeStmt
 	}
 	var forStmt = &ast.ForStmt{}
@@ -887,7 +887,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 	forStmt.Post = s3
 	forStmt.Body = body
 	p.closeScope()
-	logf(" end %s\n", __func__)
+	logff(" end %s\n", __func__)
 	return forStmt
 }
 
@@ -921,7 +921,7 @@ func (p *parser) parseIfStmt() ast.Stmt {
 }
 
 func (p *parser) parseCaseClause() *ast.CaseClause {
-	logf(" [%s] start\n", __func__)
+	logff(" [%s] start\n", __func__)
 	var list []ast.Expr
 	if p.tok.tok == "case" {
 		p.next() // consume "case"
@@ -936,7 +936,7 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 	r.Body = body
 	r.List = list
 	p.closeScope()
-	logf(" [%s] end\n", __func__)
+	logff(" [%s] end\n", __func__)
 	return r
 }
 
@@ -999,7 +999,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 }
 
 func (p *parser) parseLhsList() []ast.Expr {
-	logf(" [%s] start\n", __func__)
+	logff(" [%s] start\n", __func__)
 	var list = p.parseExprList(true)
 
 	if p.tok.tok != ":=" {
@@ -1010,12 +1010,12 @@ func (p *parser) parseLhsList() []ast.Expr {
 		}
 	}
 
-	logf(" end %s\n", __func__)
+	logff(" end %s\n", __func__)
 	return list
 }
 
 func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
-	logf(" begin %s\n", __func__)
+	logff(" begin %s\n", __func__)
 	var x = p.parseLhsList()
 	stok := p.tok.tok
 	var isRange = false
@@ -1051,12 +1051,12 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 				declare(as, p.topScope, ast.Var, idnt)
 			}
 		}
-		logf(" parseSimpleStmt end =, := %s\n", __func__)
+		logff(" parseSimpleStmt end =, := %s\n", __func__)
 		return s
 	case ";":
 		var exprStmt = &ast.ExprStmt{}
 		exprStmt.X = x[0]
-		logf(" parseSimpleStmt end ; %s\n", __func__)
+		logff(" parseSimpleStmt end ; %s\n", __func__)
 		return exprStmt
 	}
 
@@ -1070,20 +1070,20 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 	}
 	var exprStmt = &ast.ExprStmt{}
 	exprStmt.X = x[0]
-	logf(" parseSimpleStmt end (final) %s\n", __func__)
+	logff(" parseSimpleStmt end (final) %s\n", __func__)
 	return exprStmt
 }
 
 func (p *parser) parseStmt() ast.Stmt {
-	logf("\n")
-	logf(" = begin %s\n", __func__)
+	logff("\n")
+	logff(" = begin %s\n", __func__)
 	var s ast.Stmt
 	switch p.tok.tok {
 	case "var":
 		s = &ast.DeclStmt{
 			Decl: p.parseDecl("var"),
 		}
-		logf(" = end parseStmt()\n")
+		logff(" = end parseStmt()\n")
 	case "IDENT", "*":
 		s = p.parseSimpleStmt(false)
 		p.expectSemi(__func__)
@@ -1102,12 +1102,12 @@ func (p *parser) parseStmt() ast.Stmt {
 	default:
 		panic2(__func__, "TBI 3:"+p.tok.tok)
 	}
-	logf(" = end parseStmt()\n")
+	logff(" = end parseStmt()\n")
 	return s
 }
 
 func (p *parser) parseExprList(lhs bool) []ast.Expr {
-	logf(" [%s] start\n", __func__)
+	logff(" [%s] start\n", __func__)
 	var list []ast.Expr
 	var e = p.parseExpr(lhs)
 	list = append(list, e)
@@ -1117,7 +1117,7 @@ func (p *parser) parseExprList(lhs bool) []ast.Expr {
 		list = append(list, e)
 	}
 
-	logf(" [%s] end\n", __func__)
+	logff(" [%s] end\n", __func__)
 	return list
 }
 
@@ -1160,9 +1160,9 @@ func (p *parser) parseStmtList() []ast.Stmt {
 func (p *parser) parseBody(scope *ast.Scope) *ast.BlockStmt {
 	p.expect("{", __func__)
 	p.topScope = scope
-	logf(" begin parseStmtList()\n")
+	logff(" begin parseStmtList()\n")
 	var list = p.parseStmtList()
-	logf(" end parseStmtList()\n")
+	logff(" end parseStmtList()\n")
 
 	p.closeScope()
 	p.expect("}", __func__)
@@ -1174,9 +1174,9 @@ func (p *parser) parseBody(scope *ast.Scope) *ast.BlockStmt {
 func (p *parser) parseBlockStmt() *ast.BlockStmt {
 	p.expect("{", __func__)
 	p.openScope()
-	logf(" begin parseStmtList()\n")
+	logff(" begin parseStmtList()\n")
 	var list = p.parseStmtList()
-	logf(" end parseStmtList()\n")
+	logff(" end parseStmtList()\n")
 	p.closeScope()
 	p.expect("}", __func__)
 	var r = &ast.BlockStmt{}
@@ -1217,10 +1217,10 @@ func (p *parser) parseDecl(keyword string) *ast.GenDecl {
 }
 
 func (p *parser) parserTypeSpec() *ast.TypeSpec {
-	logf(" [%s] start\n", __func__)
+	logff(" [%s] start\n", __func__)
 	p.expect("type", __func__)
 	var ident = p.parseIdent()
-	logf(" decl type %s\n", ident.Name)
+	logff(" decl type %s\n", ident.Name)
 
 	var spec = &ast.TypeSpec{}
 	spec.Name = ident
@@ -1238,10 +1238,10 @@ func (p *parser) parserTypeSpec() *ast.TypeSpec {
 }
 
 func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
-	logf(" [parserValueSpec] start\n")
+	logff(" [parserValueSpec] start\n")
 	p.expect(keyword, __func__)
 	var ident = p.parseIdent()
-	logf(" var = %s\n", ident.Name)
+	logff(" var = %s\n", ident.Name)
 	var typ = p.parseType()
 	var value ast.Expr
 	var values []ast.Expr
@@ -1262,7 +1262,7 @@ func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
 		kind = ast.Var
 	}
 	declare(spec, p.topScope, kind, ident)
-	logf(" [parserValueSpec] end\n")
+	logff(" [parserValueSpec] end\n")
 	return spec
 }
 
@@ -1284,28 +1284,28 @@ func (p *parser) parseFuncDecl() ast.Decl {
 	var scope = ast.NewScope(p.topScope) // function scope
 	var receivers *ast.FieldList
 	if p.tok.tok == "(" {
-		logf("  [parserFuncDecl] parsing method")
+		logff("  [parserFuncDecl] parsing method")
 		receivers = p.parseParameters(scope, false)
 	} else {
-		logf("  [parserFuncDecl] parsing function")
+		logff("  [parserFuncDecl] parsing function")
 	}
 	var ident = p.parseIdent() // func name
 	var sig = p.parseSignature(scope)
 	var params = sig.Params
 	var results = sig.Results
 	if results == nil {
-		logf(" [parserFuncDecl] %s sig.results is nil\n", ident.Name)
+		logff(" [parserFuncDecl] %s sig.results is nil\n", ident.Name)
 	} else {
-		logf(" [parserFuncDecl] %s sig.results.List = %s\n", ident.Name, strconv.Itoa(len(sig.Results.List)))
+		logff(" [parserFuncDecl] %s sig.results.List = %s\n", ident.Name, strconv.Itoa(len(sig.Results.List)))
 	}
 	var body *ast.BlockStmt
 	if p.tok.tok == "{" {
-		logf(" begin parseBody()\n")
+		logff(" begin parseBody()\n")
 		body = p.parseBody(scope)
-		logf(" end parseBody()\n")
+		logff(" end parseBody()\n")
 		p.expectSemi(__func__)
 	} else {
-		logf(" no function body\n")
+		logff(" no function body\n")
 		p.expectSemi(__func__)
 	}
 	var decl ast.Decl
@@ -1351,8 +1351,8 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 		}
 	}
 
-	logf("\n")
-	logf(" [parser] Parsing Top level decls\n")
+	logff("\n")
+	logff(" [parser] Parsing Top level decls\n")
 	var decls []ast.Decl
 	var decl ast.Decl
 
@@ -1365,16 +1365,16 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 				Specs: specs,
 			}
 		case "func":
-			logf("\n\n")
+			logff("\n\n")
 			decl = p.parseFuncDecl()
-			//logf(" func decl parsed:%s\n", decl.funcDecl.Name.Name)
+			//logff(" func decl parsed:%s\n", decl.funcDecl.Name.Name)
 		case "type":
 			spec := p.parserTypeSpec()
 			specs := []ast.Spec{spec}
 			decl = &ast.GenDecl{
 				Specs: specs,
 			}
-			logf(" type parsed:%s\n", "")
+			logff(" type parsed:%s\n", "")
 		default:
 			panic2(__func__, "TBI:"+p.tok.tok)
 		}
@@ -1409,7 +1409,7 @@ func readSource(filename string) []uint8 {
 }
 
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8) (*ast.File, *ParserError) {
-	logf("[ParseFile] Start file %s\n", filename)
+	logff("[ParseFile] Start file %s\n", filename)
 	var importsOnly bool
 	if mode == parserImportsOnly {
 		importsOnly = true

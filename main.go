@@ -40,14 +40,16 @@ func printf(format string, a ...interface{}) {
 	fmt.Fprintf(fout, format, a...)
 }
 
-func logf2(format string, a ...interface{}) {
+// General debug log
+func logf(format string, a ...interface{}) {
 	f := "# " + format
 	fmt.Fprintf(os.Stderr, f, a...)
 }
 
 var debugFrontEnd bool
 
-func logf(format string, a ...interface{}) {
+// Log by Frontend components
+func logff(format string, a ...interface{}) {
 	if !debugFrontEnd {
 		return
 	}
@@ -962,7 +964,7 @@ type evalContext struct {
 
 // 1 value
 func emitIdent(meta *MetaIdent) {
-	logf2("emitIdent ident=%s\n", meta.Name)
+	logf("emitIdent ident=%s\n", meta.Name)
 	switch meta.kind {
 	case "true": // true constant
 		emitTrue()
@@ -2355,7 +2357,7 @@ func getPackageSymbol(pkgName string, subsymbol string) string {
 
 func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("\n")
-	logf2("# emitFuncDecl pkg=%s, fnc.name=%s\n", pkgName, fnc.Name)
+	logf("# emitFuncDecl pkg=%s, fnc.name=%s\n", pkgName, fnc.Name)
 	var symbol string
 	if fnc.Method != nil {
 		symbol = getMethodSymbol(fnc.Method)
@@ -3933,7 +3935,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 	if currentFunc != nil {
 		logfncname = currentFunc.Name
 	}
-	//logf2("walkIdent: pkg=%s func=%s, ident=%s\n", currentPkg.name, logfncname, e.Name)
+	//logf("walkIdent: pkg=%s func=%s, ident=%s\n", currentPkg.name, logfncname, e.Name)
 	_ = logfncname
 	// what to do ?
 	if e.Name == "_" {
@@ -3983,7 +3985,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 			case gLen, gCap, gNew, gMake, gAppend, gPanic, gDelete:
 				// builtin funcs have no func type
 			default:
-				//logf2("ast.Fun=%s\n", e.Name)
+				//logf("ast.Fun=%s\n", e.Name)
 				meta.typ = e2t(e.Obj.Decl.(*ast.FuncDecl).Type)
 			}
 		case ast.Typ:
@@ -4024,7 +4026,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 		meta.isConversion = true
 		meta.toType = e2t(e.Fun)
 		assert(len(e.Args) == 1, "convert must take only 1 argument", __func__)
-		//logf2("walkCallExpr: is Conversion\n")
+		//logf("walkCallExpr: is Conversion\n")
 		ctx := &evalContext{
 			_type: e2t(e.Fun),
 		}
@@ -4058,7 +4060,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 
 	identFun, isIdent := meta.fun.(*ast.Ident)
 	if isIdent {
-		logf2("  fun=%s\n", identFun.Name)
+		logf("  fun=%s\n", identFun.Name)
 		switch identFun.Obj {
 		case gLen, gCap:
 			meta.builtin = identFun.Obj
@@ -4674,7 +4676,7 @@ func walk(pkg *PkgContainer) {
 	var constSpecs []*ast.ValueSpec
 
 	var exportedTpyes []*Type
-	logf2("grouping declarations by type\n")
+	logf("grouping declarations by type\n")
 	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
@@ -4700,7 +4702,7 @@ func walk(pkg *PkgContainer) {
 		}
 	}
 
-	logf2("checking typeSpecs...\n")
+	logf("checking typeSpecs...\n")
 	for _, typeSpec := range typeSpecs {
 		//@TODO check serializeType()'s *ast.Ident case
 		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
@@ -4722,7 +4724,7 @@ func walk(pkg *PkgContainer) {
 		ExportedQualifiedIdents[string(newQI(pkg.name, typeSpec.Name.Name))] = typeSpec.Name
 	}
 
-	logf2("checking funcDecls...\n")
+	logf("checking funcDecls...\n")
 
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
@@ -4737,7 +4739,7 @@ func walk(pkg *PkgContainer) {
 		}
 	}
 
-	logf2("walking constSpecs...\n")
+	logf("walking constSpecs...\n")
 
 	for _, constSpec := range constSpecs {
 		for _, v := range constSpec.Values {
@@ -4745,7 +4747,7 @@ func walk(pkg *PkgContainer) {
 		}
 	}
 
-	logf2("walking varSpecs...\n")
+	logf("walking varSpecs...\n")
 	for _, spec := range varSpecs {
 		lhsIdent := spec.Names[0]
 		assert(lhsIdent.Obj.Kind == ast.Var, "should be Var", __func__)
@@ -4794,10 +4796,10 @@ func walk(pkg *PkgContainer) {
 		ExportedQualifiedIdents[string(newQI(pkg.name, lhsIdent.Name))] = lhsIdent
 	}
 
-	logf2("walking funcDecls in detail ...\n")
+	logf("walking funcDecls in detail ...\n")
 
 	for _, funcDecl := range funcDecls {
-		logf2("walking funcDecl \"%s\" \n", funcDecl.Name.Name)
+		logf("walking funcDecl \"%s\" \n", funcDecl.Name.Name)
 		fnc := &Func{
 			Name:      funcDecl.Name.Name,
 			FuncType:  funcDecl.Type,
@@ -5253,11 +5255,11 @@ func compile(universe *ast.Scope, path string, name string, gofiles []string, as
 	typesMap = make(map[string]*dtypeEntry)
 	typeId = 1
 
-	logf("Building package : %s\n", _pkg.path)
+	logff("Building package : %s\n", _pkg.path)
 	fset := &token.FileSet{}
 	pkgScope := ast.NewScope(universe)
 	for _, file := range gofiles {
-		logf("Parsing file: %s\n", file)
+		logff("Parsing file: %s\n", file)
 		astFile := parseFile(fset, file)
 		_pkg.name = astFile.Name.Name
 		_pkg.astFiles = append(_pkg.astFiles, astFile)
@@ -5269,18 +5271,18 @@ func compile(universe *ast.Scope, path string, name string, gofiles []string, as
 		resolveImports(astFile)
 		var unresolved []*ast.Ident
 		for _, ident := range astFile.Unresolved {
-			logf("resolving %s ...", ident.Name)
+			logff("resolving %s ...", ident.Name)
 			obj := pkgScope.Lookup(ident.Name)
 			if obj != nil {
-				logf("  ===> obj found in pkg scope\n")
+				logff("  ===> obj found in pkg scope\n")
 				ident.Obj = obj
 			} else {
 				obj := universe.Lookup(ident.Name)
 				if obj != nil {
-					logf("  ===> obj found in universe scope\n")
+					logff("  ===> obj found in universe scope\n")
 					ident.Obj = obj
 				} else {
-					logf("  ===> NOT FOUND\n")
+					logff("  ===> NOT FOUND\n")
 					// we should allow unresolved for now.
 					// e.g foo in X{foo:bar,}
 					unresolved = append(unresolved, ident)
@@ -5291,7 +5293,7 @@ func compile(universe *ast.Scope, path string, name string, gofiles []string, as
 			_pkg.Decls = append(_pkg.Decls, dcl)
 		}
 	}
-	logf("Walking package: %s\n", _pkg.name)
+	logff("Walking package: %s\n", _pkg.name)
 	printf("#=== Package %s\n", _pkg.path)
 	printf("#--- walk \n")
 	walk(_pkg)
@@ -5346,7 +5348,7 @@ func buildAll(args []string) {
 	if workdir == "" {
 		workdir = "/tmp"
 	}
-	logf("Build start\n")
+	logff("Build start\n")
 
 	var inputFiles []string
 	for _, arg := range args {
