@@ -949,8 +949,8 @@ func emitFuncall(meta *MetaCallExpr) {
 }
 
 type evalContext struct {
-	okContext bool
-	_type     *Type
+	maybeOK bool
+	_type   *Type
 }
 
 // 1 value
@@ -3388,12 +3388,12 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 }
 
 func IsOkSyntax(rhs MetaExpr) bool {
-	_, isTypeAssertion := rhs.(*MetaTypeAssertExpr)
-	if isTypeAssertion {
+	typeAssertion, isTypeAssertion := rhs.(*MetaTypeAssertExpr)
+	if isTypeAssertion && typeAssertion.NeedsOK {
 		return true
 	}
 	indexExpr, isIndexExpr := rhs.(*MetaIndexExpr)
-	if isIndexExpr && kind(getTypeOfExprMeta(indexExpr.X)) == T_MAP {
+	if isIndexExpr && indexExpr.NeedsOK {
 		return true
 	}
 	return false
@@ -3426,8 +3426,9 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			panic("TBI")
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 			// Tuple assignment
-			rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
-			if IsOkSyntax(rhsMeta) {
+			maybeOkContext := len(s.Lhs) == 2
+			rhsMeta := walkExpr(s.Rhs[0], &evalContext{maybeOK: maybeOkContext})
+			if len(s.Lhs) == 2 && IsOkSyntax(rhsMeta) {
 				rhsTypes := []*Type{getTypeOfExprMeta(rhsMeta), tBool}
 				var lhsMetas []MetaExpr
 				for _, lhs := range s.Lhs {
@@ -3486,8 +3487,10 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		} else if len(s.Lhs) == len(s.Rhs) {
 			panic("TBI")
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
-			rhsMeta := walkExpr(s.Rhs[0], &evalContext{okContext: true})
-			if IsOkSyntax(rhsMeta) {
+			// Tuple assignment
+			maybeOkContext := len(s.Lhs) == 2
+			rhsMeta := walkExpr(s.Rhs[0], &evalContext{maybeOK: maybeOkContext})
+			if len(s.Lhs) == 2 && IsOkSyntax(rhsMeta) {
 				rhsTypes := []*Type{getTypeOfExprMeta(rhsMeta), tBool}
 				assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
@@ -4398,7 +4401,7 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 	meta.X = walkExpr(e.X, nil)
 	if kind(getTypeOfExprMeta(meta.X)) == T_MAP {
 		meta.IsMap = true
-		if ctx != nil && ctx.okContext {
+		if ctx != nil && ctx.maybeOK {
 			meta.NeedsOK = true
 		}
 	}
@@ -4476,7 +4479,7 @@ func walkInterfaceType(e *ast.InterfaceType) {
 
 func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssertExpr {
 	meta := &MetaTypeAssertExpr{e: e}
-	if ctx != nil && ctx.okContext {
+	if ctx != nil && ctx.maybeOK {
 		meta.NeedsOK = true
 	}
 	meta.X = walkExpr(e.X, nil)
