@@ -211,7 +211,7 @@ func emitVariableAddr(variable *Variable) {
 }
 
 func emitListHeadAddr(list MetaExpr) {
-	t := getTypeOfExprMeta(list)
+	t := getTypeOfExpr(list)
 	switch kind(t) {
 	case T_ARRAY:
 		emitAddr(list) // array head
@@ -242,10 +242,10 @@ func emitAddr(meta MetaExpr) {
 			panic("Unexpected kind")
 		}
 	case *MetaIndexExpr:
-		if kind(getTypeOfExprMeta(m.X)) == T_MAP {
+		if kind(getTypeOfExpr(m.X)) == T_MAP {
 			emitAddrForMapSet(m)
 		} else {
-			elmType := getTypeOfExprMeta(m)
+			elmType := getTypeOfExpr(m)
 			emitExpr(m.Index) // index number
 			emitListElementAddr(m.X, elmType)
 		}
@@ -267,7 +267,7 @@ func emitAddr(meta MetaExpr) {
 				panic("Unexpected foreign ident kind:" + ident.Obj.Kind.String())
 			}
 		} else { // (e).field
-			typeOfX := getUnderlyingType(getTypeOfExprMeta(m.X))
+			typeOfX := getUnderlyingType(getTypeOfExpr(m.X))
 			var structTypeLiteral *ast.StructType
 			switch typ := typeOfX.E.(type) {
 			case *ast.StructType: // strct.field
@@ -285,7 +285,7 @@ func emitAddr(meta MetaExpr) {
 			emitAddConst(offset, "struct head address + struct.field offset")
 		}
 	case *MetaCompositLiteral:
-		knd := kind(getTypeOfExprMeta(m))
+		knd := kind(getTypeOfExpr(m))
 		switch knd {
 		case T_STRUCT:
 			// result of evaluation of a struct literal is its address
@@ -330,7 +330,7 @@ func emitConversion(toType *Type, arg0 MetaExpr) {
 	case *ast.Ident:
 		switch to.Obj {
 		case gString: // string(e)
-			switch kind(getTypeOfExprMeta(arg0)) {
+			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
 				emitExpr(arg0) // slice
 				emitPopSlice()
@@ -339,7 +339,7 @@ func emitConversion(toType *Type, arg0 MetaExpr) {
 			case T_STRING: // string(string)
 				emitExpr(arg0)
 			default:
-				unexpectedKind(kind(getTypeOfExprMeta(arg0)))
+				unexpectedKind(kind(getTypeOfExpr(arg0)))
 			}
 		case gInt, gUint8, gUint16, gUintptr: // int(e)
 			emitExpr(arg0)
@@ -361,7 +361,7 @@ func emitConversion(toType *Type, arg0 MetaExpr) {
 		if arrayType.Len != nil {
 			throw(to)
 		}
-		assert(kind(getTypeOfExprMeta(arg0)) == T_STRING, "source type should be slice", __func__)
+		assert(kind(getTypeOfExpr(arg0)) == T_STRING, "source type should be slice", __func__)
 		emitComment(2, "Conversion of string => slice \n")
 		emitExpr(arg0)
 		emitPopString()
@@ -374,11 +374,11 @@ func emitConversion(toType *Type, arg0 MetaExpr) {
 		emitExpr(arg0)
 	case *ast.InterfaceType:
 		emitExpr(arg0)
-		if isInterface(getTypeOfExprMeta(arg0)) {
+		if isInterface(getTypeOfExpr(arg0)) {
 			// do nothing
 		} else {
 			// Convert dynamic value to interface
-			emitConvertToInterface(getTypeOfExprMeta(arg0))
+			emitConvertToInterface(getTypeOfExpr(arg0))
 		}
 	default:
 		throw(to)
@@ -415,9 +415,9 @@ func emitZeroValue(t *Type) {
 }
 
 func emitLen(arg MetaExpr) {
-	switch kind(getTypeOfExprMeta(arg)) {
+	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
-		arrayType := getTypeOfExprMeta(arg).E.(*ast.ArrayType)
+		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
 		emitConstInt(arrayType.Len)
 	case T_SLICE:
 		emitExpr(arg)
@@ -432,7 +432,7 @@ func emitLen(arg MetaExpr) {
 			// len
 			&MetaArg{
 				meta:      arg,
-				paramType: getTypeOfExprMeta(arg),
+				paramType: getTypeOfExpr(arg),
 			},
 		}
 		resultList := &ast.FieldList{
@@ -445,14 +445,14 @@ func emitLen(arg MetaExpr) {
 		emitCallDirect("runtime.lenMap", args, resultList)
 
 	default:
-		unexpectedKind(kind(getTypeOfExprMeta(arg)))
+		unexpectedKind(kind(getTypeOfExpr(arg)))
 	}
 }
 
 func emitCap(arg MetaExpr) {
-	switch kind(getTypeOfExprMeta(arg)) {
+	switch kind(getTypeOfExpr(arg)) {
 	case T_ARRAY:
-		arrayType := getTypeOfExprMeta(arg).E.(*ast.ArrayType)
+		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
 		emitConstInt(arrayType.Len)
 	case T_SLICE:
 		emitExpr(arg)
@@ -461,7 +461,7 @@ func emitCap(arg MetaExpr) {
 	case T_STRING:
 		panic("cap() cannot accept string type")
 	default:
-		unexpectedKind(kind(getTypeOfExprMeta(arg)))
+		unexpectedKind(kind(getTypeOfExpr(arg)))
 	}
 }
 
@@ -621,7 +621,7 @@ func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, ex
 	if receiver != nil { // method call
 		var receiverAndArgs []*MetaArg = []*MetaArg{
 			&MetaArg{
-				paramType: getTypeOfExprMeta(receiver),
+				paramType: getTypeOfExpr(receiver),
 				meta:      receiver,
 			},
 		}
@@ -838,7 +838,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *Type, arg0 MetaExpr, arg1 Met
 	case gAppend:
 		sliceArg := arg0
 		elemArg := arg1
-		elmType := getElementTypeOfCollectionType(getTypeOfExprMeta(sliceArg))
+		elmType := getElementTypeOfCollectionType(getTypeOfExpr(sliceArg))
 		elmSize := getSizeOfType(elmType)
 		args := []*MetaArg{
 			// slice
@@ -888,7 +888,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *Type, arg0 MetaExpr, arg1 Met
 		_args := []*MetaArg{
 			&MetaArg{
 				meta:      arg0,
-				paramType: getTypeOfExprMeta(arg0),
+				paramType: getTypeOfExpr(arg0),
 			},
 			&MetaArg{
 				meta:      arg1,
@@ -976,7 +976,7 @@ func emitIdent(meta *MetaIdent) {
 		}
 	case "var":
 		emitAddr(meta)
-		emitLoadAndPush(getTypeOfExprMeta(meta))
+		emitLoadAndPush(getTypeOfExpr(meta))
 	case "con":
 		emitExpr(meta.conLiteral)
 	case "fun":
@@ -992,14 +992,14 @@ func emitIndexExpr(meta *MetaIndexExpr) {
 		emitMapGet(meta, meta.NeedsOK)
 	} else {
 		emitAddr(meta)
-		emitLoadAndPush(getTypeOfExprMeta(meta))
+		emitLoadAndPush(getTypeOfExpr(meta))
 	}
 }
 
 // 1 value
 func emitStarExpr(meta *MetaStarExpr) {
 	emitAddr(meta)
-	emitLoadAndPush(getTypeOfExprMeta(meta))
+	emitLoadAndPush(getTypeOfExpr(meta))
 }
 
 // 1 value X.Sel
@@ -1022,7 +1022,7 @@ func emitSelectorExpr(meta *MetaSelectorExpr) {
 	} else {
 		// strct.field
 		emitAddr(meta)
-		emitLoadAndPush(getTypeOfExprMeta(meta))
+		emitLoadAndPush(getTypeOfExpr(meta))
 	}
 }
 
@@ -1120,7 +1120,7 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		emitTrue()
 		printf("  %s:\n", labelExit)
 	case "+":
-		if kind(getTypeOfExprMeta(meta.X)) == T_STRING {
+		if kind(getTypeOfExpr(meta.X)) == T_STRING {
 			emitCatStrings(meta.X, meta.Y)
 		} else {
 			emitExpr(meta.X) // left
@@ -1217,7 +1217,7 @@ func emitCompositeLit(meta *MetaCompositLiteral) {
 // 1 value list[low:high]
 func emitSliceExpr(meta *MetaSliceExpr) {
 	list := meta.X
-	listType := getTypeOfExprMeta(list)
+	listType := getTypeOfExpr(list)
 
 	switch kind(listType) {
 	case T_SLICE, T_ARRAY:
@@ -1283,7 +1283,7 @@ func emitSliceExpr(meta *MetaSliceExpr) {
 
 // 1 or 2 values
 func emitMapGet(m *MetaIndexExpr, okContext bool) {
-	valueType := getTypeOfExprMeta(m)
+	valueType := getTypeOfExpr(m)
 
 	emitComment(2, "MAP GET for map[string]string\n")
 	// emit addr of map element
@@ -1422,8 +1422,8 @@ func emitConvertToInterface(fromType *Type) {
 }
 
 func mayEmitConvertTooIfc(meta MetaExpr, ctxType *Type) {
-	if !isUniverseNil(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExprMeta(meta)) {
-		emitConvertToInterface(getTypeOfExprMeta(meta))
+	if !isUniverseNil(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExpr(meta)) {
+		emitConvertToInterface(getTypeOfExpr(meta))
 	}
 }
 
@@ -1601,9 +1601,9 @@ func emitCompStrings(left MetaExpr, right MetaExpr) {
 }
 
 func emitBinaryExprComparison(left MetaExpr, right MetaExpr) {
-	if kind(getTypeOfExprMeta(left)) == T_STRING {
+	if kind(getTypeOfExpr(left)) == T_STRING {
 		emitCompStrings(left, right)
-	} else if kind(getTypeOfExprMeta(left)) == T_INTERFACE {
+	} else if kind(getTypeOfExpr(left)) == T_INTERFACE {
 		//var t = getTypeOfExpr(left)
 		ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)
@@ -1744,7 +1744,7 @@ func emitAssignToVar(vr *Variable, rhs MetaExpr) {
 
 	emitExpr(rhs)
 	mayEmitConvertTooIfc(rhs, vr.Typ)
-	emitComment(2, "Assignment: emitStore(getTypeOfExpr(lhs))\n")
+	emitComment(2, "Assignment: emitStore(typeof(lhs))\n")
 	emitStore(vr.Typ, true, false)
 }
 
@@ -1763,15 +1763,15 @@ func emitSingleAssign(lhs MetaExpr, rhs MetaExpr) {
 	//	rhs := metaSingle.rhs
 	if isBlankIdentifierMeta(lhs) {
 		emitExpr(rhs)
-		emitPop(kind(getTypeOfExprMeta(rhs)))
+		emitPop(kind(getTypeOfExpr(rhs)))
 		return
 	}
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs)
-	mayEmitConvertTooIfc(rhs, getTypeOfExprMeta(lhs))
-	emitStore(getTypeOfExprMeta(lhs), true, false)
+	mayEmitConvertTooIfc(rhs, getTypeOfExpr(lhs))
+	emitStore(getTypeOfExpr(lhs), true, false)
 }
 
 func emitBlockStmt(s *MetaBlockStmt) {
@@ -1812,7 +1812,7 @@ func emitOkAssignment(meta *MetaTupleAssign) {
 		} else {
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
-			emitStore(getTypeOfExprMeta(lhsMeta), false, false)
+			emitStore(getTypeOfExpr(lhsMeta), false, false)
 		}
 
 	}
@@ -1840,7 +1840,7 @@ func emitFuncallAssignment(meta *MetaTupleAssign) {
 			}
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
-			emitStore(getTypeOfExprMeta(lhsMeta), false, false)
+			emitStore(getTypeOfExpr(lhsMeta), false, false)
 		}
 	}
 }
@@ -1962,8 +1962,8 @@ func emitRangeMap(meta *MetaForContainer) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 16(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(getTypeOfExprMeta(keyMeta)) // load dynamic data
-			emitStore(getTypeOfExprMeta(keyMeta), true, false)
+			emitLoadAndPush(getTypeOfExpr(keyMeta)) // load dynamic data
+			emitStore(getTypeOfExpr(keyMeta), true, false)
 		}
 	}
 
@@ -1983,8 +1983,8 @@ func emitRangeMap(meta *MetaForContainer) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 24(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(getTypeOfExprMeta(valueMeta)) // load dynamic data
-			emitStore(getTypeOfExprMeta(valueMeta), true, false)
+			emitLoadAndPush(getTypeOfExpr(valueMeta)) // load dynamic data
+			emitStore(getTypeOfExpr(valueMeta), true, false)
 		}
 	}
 
@@ -2056,7 +2056,7 @@ func emitRangeStmt(meta *MetaForContainer) {
 	printf("  jne %s # jmp if false\n", labelExit)
 
 	emitComment(2, "assign list[indexvar] value variables\n")
-	elemType := getTypeOfExprMeta(meta.ForRangeStmt.Value)
+	elemType := getTypeOfExpr(meta.ForRangeStmt.Value)
 	emitAddr(meta.ForRangeStmt.Value) // lhs
 
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
@@ -2104,7 +2104,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 		panic("Omitted tag is not supported yet")
 	}
 	emitExpr(s.Tag)
-	condType := getTypeOfExprMeta(s.Tag)
+	condType := getTypeOfExpr(s.Tag)
 	cases := s.cases
 	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
@@ -2613,16 +2613,16 @@ const T_POINTER TypeKind = "T_POINTER"
 const T_MAP TypeKind = "T_MAP"
 
 // types of an expr in Single value context
-func getTypeOfExprMeta(meta MetaExpr) *Type {
+func getTypeOfExpr(meta MetaExpr) *Type {
 	switch m := meta.(type) {
 	case *MetaIdent:
 		switch m.kind {
 		case "var", "nil":
 			return m.typ
 		case "con":
-			return getTypeOfExprMeta(m.conLiteral)
+			return getTypeOfExpr(m.conLiteral)
 		default:
-			return getTypeOfExpr(m.e)
+			return getTypeOfExprAst(m.e)
 		}
 	case *MetaBasicLit:
 		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
@@ -2638,29 +2638,29 @@ func getTypeOfExprMeta(meta MetaExpr) *Type {
 			panic(m.Kind)
 		}
 	case *MetaUnaryExpr:
-		return getTypeOfExpr(m.e)
+		return getTypeOfExprAst(m.e)
 	case *MetaBinaryExpr:
 		switch m.Op {
 		case "==", "!=", "<", ">", "<=", ">=":
 			return tBool
 		default:
-			return getTypeOfExpr(m.e)
+			return getTypeOfExprAst(m.e)
 		}
 	case *MetaIndexExpr:
-		return getTypeOfExpr(m.e)
+		return getTypeOfExprAst(m.e)
 	case *MetaCallExpr: // funcall or conversion
-		return getTypeOfExpr(m.e)
+		return getTypeOfExprAst(m.e)
 	case *MetaSliceExpr:
-		return getTypeOfExpr(m.e)
+		return getTypeOfExprAst(m.e)
 	case *MetaStarExpr:
-		return getTypeOfExpr(m.e)
+		return getTypeOfExprAst(m.e)
 	case *MetaSelectorExpr:
 		e := m.e
 		if isQI(e) { // pkg.SomeType
 			ident := lookupForeignIdent(selector2QI(e))
-			return getTypeOfExpr(ident)
+			return getTypeOfExprAst(ident)
 		} else { // (e).field
-			ut := getUnderlyingType(getTypeOfExprMeta(m.X))
+			ut := getUnderlyingType(getTypeOfExpr(m.X))
 			var structTypeLiteral *ast.StructType
 			switch typ := ut.E.(type) {
 			case *ast.StructType: // strct.field
@@ -2673,14 +2673,14 @@ func getTypeOfExprMeta(meta MetaExpr) *Type {
 			return e2t(field.Type)
 		}
 	case *MetaCompositLiteral:
-		return getTypeOfExpr(m.e)
+		return getTypeOfExprAst(m.e)
 	case *MetaTypeAssertExpr:
-		return getTypeOfExpr(m.e)
+		return getTypeOfExprAst(m.e)
 	}
 	panic("bad type\n")
 }
 
-func getTypeOfExpr(expr ast.Expr) *Type {
+func getTypeOfExprAst(expr ast.Expr) *Type {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		assert(e.Obj != nil, "Obj is nil in ident '"+e.Name+"'", __func__)
@@ -2724,13 +2724,13 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	case *ast.UnaryExpr:
 		switch e.Op.String() {
 		case "+":
-			return getTypeOfExpr(e.X)
+			return getTypeOfExprAst(e.X)
 		case "-":
-			return getTypeOfExpr(e.X)
+			return getTypeOfExprAst(e.X)
 		case "!":
 			return tBool
 		case "&":
-			t := getTypeOfExpr(e.X)
+			t := getTypeOfExprAst(e.X)
 			starExpr := &ast.StarExpr{
 				X: t.E,
 			}
@@ -2743,17 +2743,17 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		case "==", "!=", "<", ">", "<=", ">=":
 			return tBool
 		default:
-			return getTypeOfExpr(e.X)
+			return getTypeOfExprAst(e.X)
 		}
 	case *ast.IndexExpr:
 		list := e.X
-		return getElementTypeOfCollectionType(getTypeOfExpr(list))
+		return getElementTypeOfCollectionType(getTypeOfExprAst(list))
 	case *ast.CallExpr: // funcall or conversion
 		types := getCallResultTypes(e)
 		assert(len(types) == 1, "Single value is expected", __func__)
 		return types[0]
 	case *ast.SliceExpr:
-		underlyingCollectionType := getTypeOfExpr(e.X)
+		underlyingCollectionType := getTypeOfExprAst(e.X)
 		if kind(underlyingCollectionType) == T_STRING {
 			// str2 = str1[n:m]
 			return tString
@@ -2769,15 +2769,15 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 		}
 		return e2t(r)
 	case *ast.StarExpr:
-		t := getTypeOfExpr(e.X)
+		t := getTypeOfExprAst(e.X)
 		ptrType := t.E.(*ast.StarExpr)
 		return e2t(ptrType.X)
 	case *ast.SelectorExpr:
 		if isQI(e) { // pkg.SomeType
 			ident := lookupForeignIdent(selector2QI(e))
-			return getTypeOfExpr(ident)
+			return getTypeOfExprAst(ident)
 		} else { // (e).field
-			ut := getUnderlyingType(getTypeOfExpr(e.X))
+			ut := getUnderlyingType(getTypeOfExprAst(e.X))
 			var structTypeLiteral *ast.StructType
 			switch typ := ut.E.(type) {
 			case *ast.StructType: // strct.field
@@ -2792,7 +2792,7 @@ func getTypeOfExpr(expr ast.Expr) *Type {
 	case *ast.CompositeLit:
 		return e2t(e.Type)
 	case *ast.ParenExpr:
-		return getTypeOfExpr(e.X)
+		return getTypeOfExprAst(e.X)
 	case *ast.TypeAssertExpr:
 		return e2t(e.Type)
 	}
@@ -2810,7 +2810,7 @@ func fieldList2Types(fldlist *ast.FieldList) []*Type {
 
 func getTupleTypes(rhsMeta MetaExpr) []*Type {
 	if IsOkSyntax(rhsMeta) {
-		return []*Type{getTypeOfExprMeta(rhsMeta), tBool}
+		return []*Type{getTypeOfExpr(rhsMeta), tBool}
 	} else {
 		rhs, ok := rhsMeta.(*MetaCallExpr)
 		if !ok {
@@ -2886,7 +2886,7 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			ff := lookupForeignFunc(selector2QI(fn))
 			return fieldList2Types(ff.funcType.Results)
 		} else { // obj.method()
-			rcvType := getTypeOfExpr(fn.X)
+			rcvType := getTypeOfExprAst(fn.X)
 			method := lookupMethod(rcvType, fn.Sel)
 			return fieldList2Types(method.FuncType.Results)
 		}
@@ -3376,7 +3376,7 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 
 			rhs := spec.Values[0]
 			rhsMeta = walkExpr(rhs, nil)
-			t = getTypeOfExprMeta(rhsMeta)
+			t = getTypeOfExpr(rhsMeta)
 			if t == nil {
 				panic("rhs should have a type")
 			}
@@ -3427,7 +3427,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			var ctx *evalContext
 			if !isBlankIdentifierMeta(lhsMetas[0]) {
 				ctx = &evalContext{
-					_type: getTypeOfExprMeta(lhsMetas[0]),
+					_type: getTypeOfExpr(lhsMetas[0]),
 				}
 			}
 			rhsMeta := walkExpr(s.Rhs[0], ctx)
@@ -3464,7 +3464,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 			// Single assignment
 			rhsMeta := walkExpr(s.Rhs[0], nil) // FIXME
-			rhsType := getTypeOfExprMeta(rhsMeta)
+			rhsType := getTypeOfExpr(rhsMeta)
 			lhsTypes := []*Type{rhsType}
 			var lhsMetas []MetaExpr
 			for i, lhs := range s.Lhs {
@@ -3617,7 +3617,7 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForContainer {
 	currentFor = meta
 	metaX := walkExpr(s.X, nil)
 
-	collectionType := getUnderlyingType(getTypeOfExprMeta(metaX))
+	collectionType := getUnderlyingType(getTypeOfExpr(metaX))
 	keyType := getKeyTypeOfCollectionType(collectionType)
 	elmType := getElementTypeOfCollectionType(collectionType)
 	walkExpr(tInt.E, nil)
@@ -3734,7 +3734,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 			if len(cc.List) > 0 {
 				var varType *Type
 				if isNil(cc.List[0]) {
-					varType = getTypeOfExprMeta(typeSwitch.Subject)
+					varType = getTypeOfExpr(typeSwitch.Subject)
 				} else {
 					varType = e2t(cc.List[0])
 				}
@@ -3745,7 +3745,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 			} else {
 				// default clause
 				// inject a variable of subject type
-				varType := getTypeOfExprMeta(typeSwitch.Subject)
+				varType := getTypeOfExpr(typeSwitch.Subject)
 				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
 				tscc.Variable = vr
 				setVariable(assignIdent.Obj, vr)
@@ -4185,7 +4185,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 			// method call
 			receiver = fn.X
 			receiverMeta = walkExpr(receiver, nil)
-			receiverType := getTypeOfExprMeta(receiverMeta)
+			receiverType := getTypeOfExpr(receiverMeta)
 			method := lookupMethod(receiverType, fn.Sel)
 			funcType = method.FuncType
 			funcVal = NewFuncValueFromSymbol(getMethodSymbol(method))
@@ -4343,14 +4343,14 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 	if isNil(e.X) {
 		// Y should be typed
 		meta.Y = walkExpr(e.Y, nil) // right
-		xCtx := &evalContext{_type: getTypeOfExprMeta(meta.Y)}
+		xCtx := &evalContext{_type: getTypeOfExpr(meta.Y)}
 
 		meta.X = walkExpr(e.X, xCtx) // left
 		return meta
 	} else {
 		// X should be typed
 		meta.X = walkExpr(e.X, nil) // left
-		yCtx := &evalContext{_type: getTypeOfExprMeta(meta.X)}
+		yCtx := &evalContext{_type: getTypeOfExpr(meta.X)}
 		meta.Y = walkExpr(e.Y, yCtx) // right
 		return meta
 	}
@@ -4362,7 +4362,7 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 	}
 	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	meta.X = walkExpr(e.X, nil)
-	if kind(getTypeOfExprMeta(meta.X)) == T_MAP {
+	if kind(getTypeOfExpr(meta.X)) == T_MAP {
 		meta.IsMap = true
 		if ctx != nil && ctx.maybeOK {
 			meta.NeedsOK = true
@@ -4778,7 +4778,7 @@ func walk(pkg *PkgContainer) {
 
 			rhs := spec.Values[0]
 			rhsMeta = walkExpr(rhs, nil)
-			t = getTypeOfExprMeta(rhsMeta)
+			t = getTypeOfExpr(rhsMeta)
 			if t == nil {
 				panic("variable type is not determined : " + lhsIdent.Name)
 			}
