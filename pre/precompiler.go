@@ -5268,7 +5268,7 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 	for _, file := range gofiles {
 		logff("Parsing file: %s\n", file)
 		astFile := parseFile(fset, file)
-		logf("[main]package decl lineno = %s\n", fset.Position(astFile.Package))
+		//		logf("[main]package decl lineno = %s\n", fset.Position(astFile.Package))
 		_pkg.name = astFile.Name.Name
 		_pkg.astFiles = append(_pkg.astFiles, astFile)
 		for name, obj := range astFile.Scope.Objects {
