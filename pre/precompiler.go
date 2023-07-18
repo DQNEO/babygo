@@ -1624,14 +1624,14 @@ func emitBinaryExprComparison(left MetaExpr, right MetaExpr) {
 		emitExpr(right) // right
 		emitCallFF(ff)
 	} else {
-		// Assuming pointer-like types (pointer, map)
+		// Assuming 64 bit types (int, pointer, map, etc)
 		//var t = getTypeOfExpr(left)
 		emitExpr(left)  // left
 		emitExpr(right) // right
 		emitCompExpr("sete")
-	}
 
-	//@TODO: implement nil comparison with slices
+		//@TODO: slice <=> nil comparison works accidentally, but stack needs to be popped 2 times more.
+	}
 
 }
 
