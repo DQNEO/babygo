@@ -314,6 +314,8 @@ helloforrange
 2
 0
 0
+OK
+OK
 -- testZeroValues()
 1
 0

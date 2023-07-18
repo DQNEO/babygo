@@ -1834,13 +1834,25 @@ func testNewStruct() {
 var nilSlice []*MyStruct
 
 func testNilSlice() {
-	nilSlice = make([]*MyStruct, 2, 2)
+	nilSlice = make([]*MyStruct, 2, 2) // It becomes non nil
 	writeln(strconv.Itoa(len(nilSlice)))
 	writeln(strconv.Itoa(cap(nilSlice)))
 
 	nilSlice = nil
 	writeln(strconv.Itoa(len(nilSlice)))
 	writeln(strconv.Itoa(cap(nilSlice)))
+
+	if nilSlice == nil {
+		writeln("OK")
+	} else {
+		writeln("ERROR")
+	}
+
+	if nil == nilSlice {
+		writeln("OK")
+	} else {
+		writeln("ERROR")
+	}
 }
 
 func testZeroValues() {
