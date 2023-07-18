@@ -2625,7 +2625,7 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 	case *MetaSelectorExpr:
 		return getTypeOfExprAst(m.e)
 	case *MetaCallExpr: // funcall or conversion
-		return getTypeOfExprAst(m.e)
+		return m.typ // can be nil. if Tuple , m.types has types
 	case *MetaIndexExpr:
 		return m.typ
 	case *MetaSliceExpr:
@@ -4016,7 +4016,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
 	}
-	logf("%s: walkSelectorExpr %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
+	//logf("%s: walkSelectorExpr %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
 	//meta.typ = getTypeOfExprAst(e)
 	return meta
 }
@@ -4028,6 +4028,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	if isType(e.Fun) {
 		meta.isConversion = true
 		meta.toType = e2t(e.Fun)
+		meta.typ = meta.toType
 		assert(len(e.Args) == 1, "convert must take only 1 argument", __func__)
 		//logf("walkCallExpr: is Conversion\n")
 		ctx := &evalContext{
@@ -4068,17 +4069,20 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 		case gLen, gCap:
 			meta.builtin = identFun.Obj
 			meta.arg0 = walkExpr(meta.args[0], nil)
+			meta.typ = tInt
 			return meta
 		case gNew:
 			meta.builtin = identFun.Obj
 			walkExpr(meta.args[0], nil)
 			meta.typeArg0 = e2t(meta.args[0])
+			ptrType := &ast.StarExpr{X: meta.args[0]}
+			meta.typ = e2t(ptrType)
 			return meta
 		case gMake:
 			meta.builtin = identFun.Obj
 			walkExpr(meta.args[0], nil)
 			meta.typeArg0 = e2t(meta.args[0])
-
+			meta.typ = meta.typeArg0
 			ctx := &evalContext{_type: tInt}
 			if len(meta.args) > 1 {
 				meta.arg1 = walkExpr(meta.args[1], ctx)
@@ -4092,15 +4096,18 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 			meta.builtin = identFun.Obj
 			meta.arg0 = walkExpr(meta.args[0], nil)
 			meta.arg1 = walkExpr(meta.args[1], nil)
+			meta.typ = getTypeOfExpr(meta.arg0)
 			return meta
 		case gPanic:
 			meta.builtin = identFun.Obj
 			meta.arg0 = walkExpr(meta.args[0], nil)
+			meta.typ = nil
 			return meta
 		case gDelete:
 			meta.builtin = identFun.Obj
 			meta.arg0 = walkExpr(meta.args[0], nil)
 			meta.arg1 = walkExpr(meta.args[1], nil)
+			meta.typ = nil
 			return meta
 		}
 	}
@@ -4199,6 +4206,10 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	}
 
 	meta.funcType = funcType
+	if funcType.Results != nil && len(funcType.Results.List) > 0 {
+		meta.types = fieldList2Types(funcType.Results)
+		meta.typ = meta.types[0]
+	}
 	meta.funcVal = funcVal
 	meta.metaArgs = prepareArgs(meta.funcType, receiverMeta, meta.args, meta.hasEllipsis)
 	return meta
@@ -4479,6 +4490,7 @@ type MetaSelectorExpr struct {
 
 type MetaCallExpr struct {
 	e            *ast.CallExpr
+	typ          *Type // result type
 	isConversion bool
 
 	// For Conversion
@@ -4501,6 +4513,7 @@ type MetaCallExpr struct {
 	funcVal  *FuncValue
 	//receiver ast.Expr
 	metaArgs []*MetaArg
+	types    []*Type
 }
 
 type MetaIndexExpr struct {
