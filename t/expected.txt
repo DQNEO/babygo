@@ -276,6 +276,8 @@ nil pointer 1 ok
 nil pointer 2 ok
 nil pointer 3 ok
 nil pointer 4 ok
+ifc is nil
+ifc is nil
 this is slice literal
 202
 1

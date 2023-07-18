@@ -1620,6 +1620,19 @@ func testNilComparison() {
 	} else {
 		writeln("ERROR")
 	}
+
+	var ifc interface{}
+	if ifc == nil {
+		writeln("ifc is nil")
+	} else {
+		writeln("ERROR")
+	}
+
+	if nil == ifc {
+		writeln("ifc is nil")
+	} else {
+		writeln("ERROR")
+	}
 }
 
 func testSliceLiteral() {
