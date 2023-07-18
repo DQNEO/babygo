@@ -4019,6 +4019,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
 	}
+	logf("%s: walkSelectorExpr %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
 	//meta.typ = getTypeOfExprAst(e)
 	return meta
 }
@@ -5351,6 +5352,8 @@ func main() {
 	buildAll(os.Args[1:])
 }
 
+var fset *token.FileSet
+
 func buildAll(args []string) {
 	workdir := os.Getenv("WORKDIR")
 	if workdir == "" {
@@ -5388,7 +5391,7 @@ func buildAll(args []string) {
 	})
 
 	var universe = createUniverse()
-	fset := token.NewFileSet()
+	fset = token.NewFileSet()
 
 	for _, _pkg := range packagesToBuild {
 		if _pkg.name == "" {
