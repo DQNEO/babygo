@@ -2631,7 +2631,7 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 	case *MetaSliceExpr:
 		return m.typ
 	case *MetaStarExpr:
-		return getTypeOfExprAst(m.e)
+		return m.typ
 	case *MetaUnaryExpr:
 		return m.typ
 	case *MetaBinaryExpr:
@@ -2668,7 +2668,7 @@ func getTypeOfExprAst(expr ast.Expr) *Type {
 		case ast.Fun:
 			return e2t(e.Obj.Decl.(*ast.FuncDecl).Type)
 		default:
-			panic("Obj=" + e.Obj.Name + ", Kind=" + e.Obj.Kind.String())
+			panic("Obj=" + e.Obj.Name + ", Kind=" + e.Obj.Kind.String() + "\n\t" + fset.Position(e.Pos()))
 		}
 	case *ast.BasicLit:
 		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
@@ -2814,7 +2814,7 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 				starExpr := &ast.StarExpr{
 					X: e.Args[0],
 				}
-				walkExpr(starExpr, nil)
+				// walkExpr(starExpr, nil) // Do we need to walk type ?
 				return []*Type{e2t(starExpr)}
 			case gMake:
 				return []*Type{e2t(e.Args[0])}
@@ -3324,7 +3324,7 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 		var rhsMeta MetaExpr
 		var t *Type
 		if spec.Type != nil { // var x T = e
-			walkExpr(spec.Type, nil)
+			// walkExpr(spec.Type, nil) // Do we need to walk type ?
 			t = e2t(spec.Type)
 			if len(spec.Values) > 0 {
 				rhs := spec.Values[0]
@@ -4395,6 +4395,7 @@ func walkMapType(e *ast.MapType) {
 func walkStarExpr(e *ast.StarExpr, ctx *evalContext) *MetaStarExpr {
 	meta := &MetaStarExpr{e: e}
 	meta.X = walkExpr(e.X, nil)
+	meta.typ = getTypeOfExprAst(e)
 	return meta
 }
 
@@ -4520,8 +4521,9 @@ type MetaSliceExpr struct {
 	X    MetaExpr
 }
 type MetaStarExpr struct {
-	e *ast.StarExpr
-	X MetaExpr
+	e   *ast.StarExpr
+	typ *Type
+	X   MetaExpr
 }
 type MetaUnaryExpr struct {
 	e   *ast.UnaryExpr
@@ -4758,7 +4760,7 @@ func walk(pkg *PkgContainer) {
 		var rhsMeta MetaExpr
 		var t *Type
 		if spec.Type != nil { // var x T = e
-			walkExpr(spec.Type, nil)
+			// walkExpr(spec.Type, nil) // Do we need walk type ?s
 			t = e2t(spec.Type)
 			if len(spec.Values) > 0 {
 				rhs := spec.Values[0]
