@@ -2671,7 +2671,7 @@ func getTypeOfExprAst(expr ast.Expr) *Type {
 		case ast.Fun:
 			return e2t(e.Obj.Decl.(*ast.FuncDecl).Type)
 		default:
-			panic("Obj=" + e.Obj.Name + ", Kind=" + e.Obj.Kind.String() + "\n\t" + fset.Position(e.Pos()))
+			panic(fmt.Sprintf("Obj=%s, Kind=%s\t\n%s", e.Obj.Name, e.Obj.Kind.String(), fset.Position(e.Pos())))
 		}
 	case *ast.BasicLit:
 		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
