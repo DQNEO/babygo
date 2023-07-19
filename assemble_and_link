@@ -10,4 +10,5 @@ do
   as -o $o $f
 done
 
+# Note: I tried mold, but there wasn't any difference in linking time. Probably because the program is too small ?
 ld -o ${exe_file} ${work_dir}/*.o
