@@ -1141,9 +1141,9 @@ func (p *parser) parseBranchStmt(tok string) ast.Stmt {
 
 	p.expectSemi(__func__)
 
-	var branchStmt = &ast.BranchStmt{}
-	branchStmt.Tok = token.Token(tok)
-	return branchStmt
+	return &ast.BranchStmt{
+		Tok: token.Token(tok),
+	}
 }
 
 func (p *parser) parseReturnStmt() ast.Stmt {
