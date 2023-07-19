@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Usage:
+#    $ ./docker-exec
+#      enter into container with bash
+#    $ ./docker-exec <command>
+#      execute a command in the container
+
+if [[ $# -eq 1 ]]; then
+  cmd="bash"
+else
+  cmd="$@"
+fi
+
+docker exec -it bbg $cmd

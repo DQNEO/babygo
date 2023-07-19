@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Usage:
-#    ./docker-run   enter into container with bash
-#    ./docker-run <command> run a command in the container
-
+#    $ ./docker-run
+#      enter into a new container with bash
+#    $ ./docker-run <command>
+#      run a command in a new container
 if [[ $# -eq 1 ]]; then
   cmd="bash"
 else
