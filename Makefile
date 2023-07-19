@@ -1,12 +1,13 @@
 # Run this on a docker container
 tmp ?= /tmp/bbg
 
-#.PHONY: all
-#all: test
+# tests without pre stuff involved
+.PHONY: all
+all: test1 test2 selfhost
 
 # run all tests
 .PHONY: test
-test: $(tmp)  test1 test2 selfhost test0 compare-test
+test: $(tmp) test1 test2 selfhost test0 compare-test
 
 $(tmp):
 	mkdir -p $(tmp)
