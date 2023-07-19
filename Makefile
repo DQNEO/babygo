@@ -25,7 +25,7 @@ $(tmp)/pre-bbg.d: $(tmp)/pre *.go src/*/* lib/*/*
 
 # Make babygo 2 gen compiler (a thin binary) by pre compiler
 $(tmp)/pre-bbg: $(tmp)/pre-bbg.d
-	./assemble_and_link $@ $<
+	./assemble_and_link -o $@ $<
 
 # Generate asm files for babygo 2gen compiler by babygo 1gen compiler compiling babygo
 $(tmp)/bbg-bbg.d: $(tmp)/bbg
@@ -33,7 +33,7 @@ $(tmp)/bbg-bbg.d: $(tmp)/bbg
 
 # Make babygo 2gen compiler (a thin binary)
 $(tmp)/bbg-bbg: $(tmp)/bbg-bbg.d
-	./assemble_and_link $@ $<
+	./assemble_and_link -o $@ $<
 
 # Generate asm files for babygo 3gen compiler by babygo 2gen compiler compiling babygo
 $(tmp)/bbg-bbg-bbg.d: $(tmp)/bbg-bbg
@@ -49,7 +49,7 @@ $(tmp)/pre-test.d: $(tmp)/pre t/*.go src/*/* lib/*/*
 
 # Make a test binary by pre compiler compiling test
 $(tmp)/pre-test: $(tmp)/pre-test.d
-	./assemble_and_link $@ $<
+	./assemble_and_link -o $@ $<
 
 # Generate asm files for a test binary by babygo 1gen compiler compiling test
 $(tmp)/bbg-test.d: $(tmp)/bbg t/*.go
@@ -57,7 +57,7 @@ $(tmp)/bbg-test.d: $(tmp)/bbg t/*.go
 
 # Generate asm files for a test binary by babygo 1gen compiler compiling test
 $(tmp)/bbg-test: $(tmp)/bbg-test.d
-	./assemble_and_link $@ $<
+	./assemble_and_link -o $@ $<
 
 # Generate asm files for a test binary by babygo 2gen compiler compiling test
 $(tmp)/bbg-bbg-test.d: $(tmp)/bbg-bbg t/*.go
@@ -65,7 +65,7 @@ $(tmp)/bbg-bbg-test.d: $(tmp)/bbg-bbg t/*.go
 
 # Generate asm files for a test binary by babygo 2gen compiler compiling test
 $(tmp)/bbg-bbg-test: $(tmp)/bbg-bbg-test.d
-	./assemble_and_link $@ $<
+	./assemble_and_link -o $@ $<
 
 
 # make test expectations
