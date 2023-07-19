@@ -10,7 +10,7 @@ var heapCurrent uintptr
 var heapTail uintptr
 
 const SYS_BRK int = 12
-const SYS_EXIT int = 60
+const SYS_EXIT_GROUP int = 231
 
 var argc int
 var argv **uint8
@@ -189,11 +189,11 @@ func panic(ifc interface{}) {
 	case string:
 		var s = "panic: " + x + "\n\n"
 		Write(2, []uint8(s))
-		Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
+		Syscall(uintptr(SYS_EXIT_GROUP), 1, uintptr(0), uintptr(0))
 	default:
 		var s = "panic: " + "Unknown type" + "\n\n"
 		Write(2, []uint8(s))
-		Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
+		Syscall(uintptr(SYS_EXIT_GROUP), 1, uintptr(0), uintptr(0))
 	}
 }
 
@@ -223,7 +223,7 @@ func memcopy(src uintptr, dst uintptr, length int) {
 func malloc(size uintptr) uintptr {
 	if heapCurrent+size > heapTail {
 		Write(2, []uint8("malloc exceeded heap max"))
-		Syscall(uintptr(SYS_EXIT), 1, uintptr(0), uintptr(0))
+		Syscall(uintptr(SYS_EXIT_GROUP), 1, uintptr(0), uintptr(0))
 		return 0
 	}
 	var r uintptr
