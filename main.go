@@ -2740,7 +2740,6 @@ func getTypeOfExprAst(expr ast.Expr) *Type {
 		}
 		return e2t(r)
 	case *ast.StarExpr: // Dereference: *(Expr)
-		//logf("e.X = %T\n", e.X)
 		t := getTypeOfExprAst(e.X)
 		ptrType := t.E.(*ast.StarExpr)
 		return e2t(ptrType.X)
@@ -4248,14 +4247,16 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 			}
 		}
 		m.charVal = int(char)
+		m.typ = tInt32 // @TODO: This is not correct
 	case "INT":
 		m.intVal = strconv.Atoi(m.Value)
+		m.typ = tInt // @TODO: This is not correct
 	case "STRING":
 		m.strVal = registerStringLiteral(e)
+		m.typ = tString // @TODO: This is not correct
 	default:
 		panic("Unexpected literal kind:" + e.Kind.String())
 	}
-	m.typ = getTypeOfExprAst(e)
 	return m
 }
 
@@ -4329,9 +4330,25 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 }
 
 func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
-	meta := &MetaUnaryExpr{e: e}
+	meta := &MetaUnaryExpr{
+		e:  e,
+		Op: e.Op.String(),
+	}
 	meta.X = walkExpr(e.X, nil)
-	meta.typ = getTypeOfExprAst(e)
+	switch meta.Op {
+	case "+", "-":
+		meta.typ = getTypeOfExpr(meta.X)
+	case "!":
+		meta.typ = tBool
+	case "&":
+		xTyp := getTypeOfExpr(meta.X)
+		ptrType := &ast.StarExpr{
+			Star: Pos(e),
+			X:    xTyp.E,
+		}
+		meta.typ = e2t(ptrType)
+	}
+
 	return meta
 }
 
@@ -4352,7 +4369,17 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 		yCtx := &evalContext{_type: getTypeOfExpr(meta.X)}
 		meta.Y = walkExpr(e.Y, yCtx) // right
 	}
-	meta.typ = getTypeOfExprAst(e)
+	switch meta.Op {
+	case "==", "!=", "<", ">", "<=", ">=":
+		meta.typ = tBool
+	default:
+		// @TODO type of (1 + x) should be type of x
+		if isNilIdent(e.X) {
+			meta.typ = getTypeOfExpr(meta.Y)
+		} else {
+			meta.typ = getTypeOfExpr(meta.X)
+		}
+	}
 	return meta
 }
 
@@ -4362,13 +4389,15 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 	}
 	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	meta.X = walkExpr(e.X, nil)
-	if kind(getTypeOfExpr(meta.X)) == T_MAP {
+	collectionTyp := getTypeOfExpr(meta.X)
+	if kind(collectionTyp) == T_MAP {
 		meta.IsMap = true
 		if ctx != nil && ctx.maybeOK {
 			meta.NeedsOK = true
 		}
 	}
-	meta.typ = getTypeOfExprAst(e)
+
+	meta.typ = getElementTypeOfCollectionType(collectionTyp)
 	return meta
 }
 
@@ -4396,7 +4425,19 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) *MetaSliceExpr {
 		meta.Max = walkExpr(e.Max, nil)
 	}
 	meta.X = walkExpr(e.X, nil)
-	meta.typ = getTypeOfExprAst(e)
+	listType := getTypeOfExpr(meta.X)
+	if kind(listType) == T_STRING {
+		// str2 = str1[n:m]
+		meta.typ = tString
+	} else {
+		elmType := getElementTypeOfCollectionType(listType)
+		r := &ast.ArrayType{
+			Len:    nil, // slice
+			Elt:    elmType.E,
+			Lbrack: e.Pos(),
+		}
+		meta.typ = e2t(r)
+	}
 	return meta
 }
 
@@ -4415,7 +4456,9 @@ func walkMapType(e *ast.MapType) {
 func walkStarExpr(e *ast.StarExpr, ctx *evalContext) *MetaStarExpr {
 	meta := &MetaStarExpr{e: e}
 	meta.X = walkExpr(e.X, nil)
-	meta.typ = getTypeOfExprAst(e)
+	xType := getTypeOfExpr(meta.X)
+	origType := xType.E.(*ast.StarExpr)
+	meta.typ = e2t(origType.X)
 	return meta
 }
 
@@ -4450,7 +4493,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssert
 		meta.NeedsOK = true
 	}
 	meta.X = walkExpr(e.X, nil)
-	meta.typ = getTypeOfExprAst(e)
+	meta.typ = e2t(e.Type)
 	return meta
 }
 
@@ -4552,6 +4595,7 @@ type MetaUnaryExpr struct {
 	e   *ast.UnaryExpr
 	X   MetaExpr
 	typ *Type
+	Op  string
 }
 type MetaBinaryExpr struct {
 	e   *ast.BinaryExpr
