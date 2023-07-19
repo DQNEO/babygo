@@ -109,11 +109,13 @@ func (p *parser) parseIdent() *ast.Ident {
 
 func (p *parser) parseImportSpec() *ast.ImportSpec {
 	var pth = p.lit
+	pos := p.pos
 	p.next()
 	spec := &ast.ImportSpec{
 		Path: &ast.BasicLit{
-			Kind:  token.STRING,
-			Value: pth,
+			ValuePos: pos,
+			Kind:     token.STRING,
+			Value:    pth,
 		},
 	}
 	p.imports = append(p.imports, spec)
@@ -122,6 +124,7 @@ func (p *parser) parseImportSpec() *ast.ImportSpec {
 
 func (p *parser) tryVarType(ellipsisOK bool) ast.Expr {
 	if ellipsisOK && p.tok == "..." {
+		pos := p.pos
 		p.next() // consume "..."
 		var typ = p.tryIdentOrType()
 		if typ != nil {
@@ -130,9 +133,10 @@ func (p *parser) tryVarType(ellipsisOK bool) ast.Expr {
 			panic2(__func__, "Syntax error")
 		}
 
-		return (&ast.Ellipsis{
-			Elt: typ,
-		})
+		return &ast.Ellipsis{
+			Ellipsis: pos,
+			Elt:      typ,
+		}
 	}
 	return p.tryIdentOrType()
 }
@@ -163,14 +167,17 @@ func (p *parser) parseType() ast.Expr {
 }
 
 func (p *parser) parsePointerType() ast.Expr {
+	pos := p.pos
 	p.expect("*", __func__)
 	var base = p.parseType()
-	return (&ast.StarExpr{
-		X: base,
-	})
+	return &ast.StarExpr{
+		Star: pos,
+		X:    base,
+	}
 }
 
 func (p *parser) parseArrayType() ast.Expr {
+	pos := p.pos
 	p.expect("[", __func__)
 	var ln ast.Expr
 	if p.tok != "]" {
@@ -179,14 +186,14 @@ func (p *parser) parseArrayType() ast.Expr {
 	p.expect("]", __func__)
 	var elt = p.parseType()
 
-	return (&ast.ArrayType{
-		Elt: elt,
-		Len: ln,
-	})
+	return &ast.ArrayType{
+		Lbrack: pos,
+		Len:    ln,
+		Elt:    elt,
+	}
 }
 
 func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
-
 	var varType = p.parseVarType(false)
 	var typ = p.tryVarType(false)
 
@@ -202,6 +209,7 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 }
 
 func (p *parser) parseStructType() ast.Expr {
+	pos := p.pos
 	p.expect("struct", __func__)
 	p.expect("{", __func__)
 
@@ -215,20 +223,23 @@ func (p *parser) parseStructType() ast.Expr {
 	}
 	p.expect("}", __func__)
 
-	return (&ast.StructType{
+	return &ast.StructType{
+		Struct: pos,
 		Fields: &ast.FieldList{
 			List: list,
 		},
-	})
+	}
 }
 
 func (p *parser) parseMaptype() ast.Expr {
+	pos := p.pos
 	p.expect("map", __func__)
 	p.expect("[", __func__)
 	keyType := p.parseType()
 	p.expect("]", __func__)
 	valueType := p.parseType()
 	return &ast.MapType{
+		Map:   pos,
 		Key:   keyType,
 		Value: valueType,
 	}
@@ -240,17 +251,17 @@ func (p *parser) parseTypeName() ast.Expr {
 	if p.tok == "." {
 		// ident is a package name
 		p.next() // consume "."
-		eIdent := (ident)
+		eIdent := ident
 		p.resolve(eIdent)
 		sel := p.parseIdent()
 		selectorExpr := &ast.SelectorExpr{
 			X:   eIdent,
 			Sel: sel,
 		}
-		return (selectorExpr)
+		return selectorExpr
 	}
 	logff(" [%s] end\n", __func__)
-	return (ident)
+	return ident
 }
 
 func (p *parser) tryIdentOrType() ast.Expr {
@@ -267,22 +278,26 @@ func (p *parser) tryIdentOrType() ast.Expr {
 	case "*":
 		return p.parsePointerType()
 	case "interface":
+		pos := p.pos
 		p.next()
 		p.expect("{", __func__)
 		// @TODO parser method sets
 		p.expect("}", __func__)
-		return (&ast.InterfaceType{
-			Methods: nil,
-		})
+		return &ast.InterfaceType{
+			Interface: pos,
+			Methods:   nil,
+		}
 	case "func":
 		return p.parseFuncType()
 	case "(":
+		pos := p.pos
 		p.next()
 		var _typ = p.parseType()
 		p.expect(")", __func__)
-		return (&ast.ParenExpr{
-			X: _typ,
-		})
+		return &ast.ParenExpr{
+			Lparen: pos,
+			X:      _typ,
+		}
 	case "type":
 		p.next()
 		return nil
@@ -363,6 +378,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) *ast.FieldList {
 	logff(" [%s] begin\n", __func__)
 	var params []*ast.Field
+	pos := p.pos
 	p.expect("(", __func__)
 	if p.tok != ")" {
 		params = p.parseParameterList(scope, ellipsisOk)
@@ -370,13 +386,14 @@ func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) *ast.FieldLi
 	p.expect(")", __func__)
 	logff(" [%s] end\n", __func__)
 	return &ast.FieldList{
-		List: params,
+		Opening: pos,
+		List:    params,
 	}
 }
 
 func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
 	logff(" [%s] begin\n", __func__)
-
+	pos := p.pos
 	if p.tok == "(" {
 		var r = p.parseParameters(scope, false)
 		logff(" [%s] end\n", __func__)
@@ -397,19 +414,22 @@ func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
 	}
 	logff(" [%s] end\n", __func__)
 	return &ast.FieldList{
-		List: list,
+		Opening: pos,
+		List:    list,
 	}
 }
 
 func (p *parser) parseSignature(scope *ast.Scope) *ast.Signature {
 	logff(" [%s] begin\n", __func__)
+	pos := p.pos
 	var params *ast.FieldList
 	var results *ast.FieldList
 	params = p.parseParameters(scope, true)
 	results = p.parseResult(scope)
 	return &ast.Signature{
-		Params:  params,
-		Results: results,
+		StartPos: pos,
+		Params:   params,
+		Results:  results,
 	}
 }
 
@@ -483,22 +503,26 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 		}
 		return eIdent
 	case "INT", "STRING", "CHAR":
+		pos := p.pos
 		var basicLit = &ast.BasicLit{
-			Kind:  token.Token(p.tok),
-			Value: p.lit,
+			Kind:     token.Token(p.tok),
+			Value:    p.lit,
+			ValuePos: pos,
 		}
 		p.next()
 		logff("   end %s\n", __func__)
-		return (basicLit)
+		return basicLit
 	case "(":
+		pos := p.pos
 		p.next() // consume "("
 		parserExprLev++
 		var x = p.parseRhsOrType()
 		parserExprLev--
 		p.expect(")", __func__)
-		return (&ast.ParenExpr{
-			X: x,
-		})
+		return &ast.ParenExpr{
+			Lparen: pos,
+			X:      x,
+		}
 	}
 
 	var typ = p.tryIdentOrType()
@@ -540,11 +564,11 @@ func (p *parser) parseCallExpr(fn ast.Expr) ast.Expr {
 	}
 
 	p.expect(")", __func__)
-	return (&ast.CallExpr{
+	return &ast.CallExpr{
 		Fun:      fn,
 		Args:     list,
 		Ellipsis: ellipsis,
-	})
+	}
 }
 
 var parserExprLev int // < 0: in control clause, >= 0: in expression
@@ -618,10 +642,10 @@ func (p *parser) parseTypeAssertion(x ast.Expr) ast.Expr {
 	p.expect("(", __func__)
 	typ := p.parseType()
 	p.expect(")", __func__)
-	return (&ast.TypeAssertExpr{
+	return &ast.TypeAssertExpr{
 		X:    x,
 		Type: typ,
-	})
+	}
 }
 
 func (p *parser) parseElement() ast.Expr {
@@ -656,6 +680,7 @@ func (p *parser) parseElementList() []ast.Expr {
 
 func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 	logff("   start %s\n", __func__)
+	pos := p.pos
 	p.expect("{", __func__)
 	var elts []ast.Expr
 	if p.tok != "}" {
@@ -664,10 +689,11 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 	p.expect("}", __func__)
 
 	logff("   end %s\n", __func__)
-	return (&ast.CompositeLit{
-		Type: typ,
-		Elts: elts,
-	})
+	return &ast.CompositeLit{
+		Lbrace: pos,
+		Type:   typ,
+		Elts:   elts,
+	}
 }
 
 func isLiteralType(expr ast.Expr) bool {
@@ -722,23 +748,26 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 }
 
 func (p *parser) parseUnaryExpr(lhs bool) ast.Expr {
+	pos := p.pos
 	var r ast.Expr
 	switch p.tok {
 	case "+", "-", "!", "&":
 		var tok = p.tok
 		p.next()
 		var x = p.parseUnaryExpr(false)
-		r = (&ast.UnaryExpr{
-			X:  x,
-			Op: token.Token(tok),
-		})
+		r = &ast.UnaryExpr{
+			OpPos: pos,
+			X:     x,
+			Op:    token.Token(tok),
+		}
 		return r
 	case "*":
 		p.next() // consume "*"
 		var x = p.parseUnaryExpr(false)
-		r = (&ast.StarExpr{
-			X: x,
-		})
+		r = &ast.StarExpr{
+			Star: pos,
+			X:    x,
+		}
 		return r
 	}
 	r = p.parsePrimaryExpr(lhs)
@@ -1333,7 +1362,9 @@ func (p *parser) parseFuncDecl() ast.Decl {
 	funcDecl.Recv = receivers
 	funcDecl.Name = ident
 	funcDecl.TPos = token.Pos(pos)
-	funcDecl.Type = &ast.FuncType{}
+	funcDecl.Type = &ast.FuncType{
+		FPos: pos,
+	}
 	funcDecl.Type.Params = params
 	funcDecl.Type.Results = results
 	funcDecl.Body = body

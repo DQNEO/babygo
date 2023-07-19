@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/token"
 )
 
@@ -11,8 +12,9 @@ var Fun ObjKind = "Fun"
 var Pkg ObjKind = "Pkg"
 
 type Signature struct {
-	Params  *FieldList
-	Results *FieldList
+	Params   *FieldList
+	Results  *FieldList
+	StartPos token.Pos
 }
 
 type ObjKind string
@@ -28,7 +30,9 @@ type Object struct {
 	Data interface{}
 }
 
-type Expr interface{}
+type Expr interface {
+	//Pos() token.Pos
+}
 
 type Field struct {
 	Names  []*Ident
@@ -37,7 +41,8 @@ type Field struct {
 }
 
 type FieldList struct {
-	List []*Field
+	Opening token.Pos
+	List    []*Field
 }
 
 type Ident struct {
@@ -46,21 +51,21 @@ type Ident struct {
 	Obj     *Object
 }
 
-func (x *Ident) Pos() token.Pos    { return x.NamePos }
-func (x *TypeSpec) Pos() token.Pos { return x.NamePos }
-
 type Ellipsis struct {
-	Elt Expr
+	Elt      Expr
+	Ellipsis token.Pos
 }
 
 type BasicLit struct {
-	Kind  token.Token // token.INT, token.CHAR, or token.STRING
-	Value string
+	Kind     token.Token // token.INT, token.CHAR, or token.STRING
+	Value    string
+	ValuePos token.Pos
 }
 
 type CompositeLit struct {
-	Type Expr
-	Elts []Expr
+	Type   Expr
+	Elts   []Expr
+	Lbrace token.Pos
 }
 
 type KeyValueExpr struct {
@@ -69,7 +74,8 @@ type KeyValueExpr struct {
 }
 
 type ParenExpr struct {
-	X Expr
+	X      Expr
+	Lparen token.Pos
 }
 
 type SelectorExpr struct {
@@ -97,12 +103,14 @@ type CallExpr struct {
 }
 
 type StarExpr struct {
-	X Expr
+	X    Expr
+	Star token.Pos
 }
 
 type UnaryExpr struct {
-	X  Expr
-	Op token.Token
+	X     Expr
+	Op    token.Token
+	OpPos token.Pos
 }
 
 type BinaryExpr struct {
@@ -118,26 +126,107 @@ type TypeAssertExpr struct {
 
 // Type nodes
 type ArrayType struct {
-	Len Expr
-	Elt Expr
+	Len    Expr
+	Elt    Expr
+	Lbrack token.Pos
 }
 
 type StructType struct {
 	Fields *FieldList
+	Struct token.Pos
 }
 
 type InterfaceType struct {
-	Methods []string
+	Methods   []string
+	Interface token.Pos
 }
 
 type MapType struct {
 	Key   Expr
 	Value Expr
+	Map   token.Pos
 }
 
 type FuncType struct {
 	Params  *FieldList
 	Results *FieldList
+	FPos    token.Pos
+}
+
+func (x *Ident) Pos() token.Pos    { return x.NamePos }
+func (x *Ellipsis) Pos() token.Pos { return x.Ellipsis }
+func (x *BasicLit) Pos() token.Pos { return x.ValuePos }
+func (x *CompositeLit) Pos() token.Pos {
+	return x.Lbrace
+}
+func (x *ParenExpr) Pos() token.Pos      { return x.Lparen }
+func (x *SelectorExpr) Pos() token.Pos   { return pos(x.X) }
+func (x *IndexExpr) Pos() token.Pos      { return pos(x.X) }
+func (x *SliceExpr) Pos() token.Pos      { return pos(x.X) }
+func (x *TypeAssertExpr) Pos() token.Pos { return pos(x.X) }
+func (x *CallExpr) Pos() token.Pos       { return pos(x.Fun) }
+func (x *StarExpr) Pos() token.Pos       { return x.Star }
+func (x *UnaryExpr) Pos() token.Pos      { return x.OpPos }
+func (x *BinaryExpr) Pos() token.Pos     { return pos(x.X) }
+func (x *KeyValueExpr) Pos() token.Pos   { return pos(x.Key) }
+func (x *ArrayType) Pos() token.Pos      { return x.Lbrack }
+func (x *StructType) Pos() token.Pos     { return x.Struct }
+func (x *FuncType) Pos() token.Pos {
+	return x.FPos
+}
+
+func (x *Field) Pos() token.Pos {
+	if len(x.Names) > 0 {
+		return x.Names[0].Pos()
+	}
+	return token.NoPos
+}
+
+func (x *InterfaceType) Pos() token.Pos { return x.Interface }
+func (x *MapType) Pos() token.Pos       { return x.Map }
+
+func pos(expr Expr) token.Pos {
+	switch e := expr.(type) {
+	case *Ident:
+		return e.Pos()
+	case *Ellipsis:
+		return e.Pos()
+	case *BasicLit:
+		return e.Pos()
+	case *CompositeLit:
+		return e.Pos()
+	case *ParenExpr:
+		return e.Pos()
+	case *SelectorExpr:
+		return e.Pos()
+	case *IndexExpr:
+		return e.Pos()
+	case *SliceExpr:
+		return e.Pos()
+	case *TypeAssertExpr:
+		return e.Pos()
+	case *CallExpr:
+		return e.Pos()
+	case *StarExpr:
+		return e.Pos()
+	case *UnaryExpr:
+		return e.Pos()
+	case *BinaryExpr:
+		return e.Pos()
+	case *KeyValueExpr:
+		return e.Pos()
+	case *ArrayType:
+		return e.Pos()
+	case *MapType:
+		return e.Pos()
+	case *StructType:
+		return e.Pos()
+	case *FuncType:
+		return e.Pos()
+	case *InterfaceType:
+		return e.Pos()
+	}
+	panic(fmt.Sprintf("Unknown type:%T", expr))
 }
 
 type Stmt interface{}
@@ -261,6 +350,8 @@ func (x *FuncDecl) Pos() token.Pos {
 type File struct {
 	Name       *Ident
 	Package    token.Pos
+	FileStart  token.Pos
+	FileEnd    token.Pos
 	Imports    []*ImportSpec
 	Decls      []Decl
 	Unresolved []*Ident
