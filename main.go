@@ -2778,7 +2778,7 @@ func getTupleTypes(rhsMeta MetaExpr) []*Type {
 		if !ok {
 			panic("is not *MetaCallExpr")
 		}
-		return getCallResultTypes(rhs.e)
+		return rhs.types
 	}
 }
 
@@ -4489,8 +4489,10 @@ type MetaSelectorExpr struct {
 }
 
 type MetaCallExpr struct {
-	e            *ast.CallExpr
-	typ          *Type // result type
+	e     *ast.CallExpr
+	typ   *Type   // result type
+	types []*Type // result types when tuple
+
 	isConversion bool
 
 	// For Conversion
@@ -4513,7 +4515,6 @@ type MetaCallExpr struct {
 	funcVal  *FuncValue
 	//receiver ast.Expr
 	metaArgs []*MetaArg
-	types    []*Type
 }
 
 type MetaIndexExpr struct {
