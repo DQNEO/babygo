@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-set -ex
-compiler=$1
-workdir=$2
+set -e
+shift # remove -o
+workdir=$1
+compiler=$2
 shift
 shift
 
