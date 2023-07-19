@@ -16,6 +16,15 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testDereference() {
+	var i = 0
+	var _test_deref uint8 = 123
+	var ptr *uint8 = &_test_deref
+	var argv **uint8 = &ptr
+	var v *uint8 = *(**uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(argv)) + uintptr(i)))
+	fmt.Printf("testDereference=%T\n", *v)
+}
+
 func testBlankAssign() {
 	var x int = 1
 	_ = x
@@ -2367,6 +2376,7 @@ func testMisc() {
 }
 
 func main() {
+	testDereference()
 	testBlankAssign()
 	testBitWiseAnd()
 	testBitWiseOr()

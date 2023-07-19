@@ -2711,7 +2711,10 @@ func getTypeOfExprAst(expr ast.Expr) *Type {
 		list := e.X
 		return getElementTypeOfCollectionType(getTypeOfExprAst(list))
 	case *ast.CallExpr: // funcall or conversion
-		types := getCallResultTypes(e)
+		if isType(e.Fun) { // Conversion
+			return e2t(e.Fun)
+		}
+		types := getFuncResultTypes(e.Fun, e.Args)
 		assert(len(types) == 1, "Single value is expected", __func__)
 		return types[0]
 	case *ast.SliceExpr:
@@ -2730,7 +2733,8 @@ func getTypeOfExprAst(expr ast.Expr) *Type {
 			Elt: elementTyp,
 		}
 		return e2t(r)
-	case *ast.StarExpr:
+	case *ast.StarExpr: // Dereference: *(Expr)
+		//logf("e.X = %T\n", e.X)
 		t := getTypeOfExprAst(e.X)
 		ptrType := t.E.(*ast.StarExpr)
 		return e2t(ptrType.X)
@@ -2782,8 +2786,8 @@ func getTupleTypes(rhsMeta MetaExpr) []*Type {
 	}
 }
 
-func getCallResultTypes(e *ast.CallExpr) []*Type {
-	switch fn := e.Fun.(type) {
+func getFuncResultTypes(funcVal ast.Expr, args []ast.Expr) []*Type {
+	switch fn := funcVal.(type) {
 	case *ast.Ident:
 		if fn.Obj == nil {
 			throw(fn)
@@ -2804,22 +2808,20 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			default:
 				throw(dcl)
 			}
-		case ast.Typ: // conversion
-			return []*Type{e2t(fn)}
 		case ast.Fun:
 			switch fn.Obj {
 			case gLen, gCap:
 				return []*Type{tInt}
 			case gNew:
 				starExpr := &ast.StarExpr{
-					X: e.Args[0],
+					X: args[0],
 				}
 				// walkExpr(starExpr, nil) // Do we need to walk type ?
 				return []*Type{e2t(starExpr)}
 			case gMake:
-				return []*Type{e2t(e.Args[0])}
+				return []*Type{e2t(args[0])}
 			case gAppend:
-				return []*Type{e2t(e.Args[0])}
+				return []*Type{e2t(args[0])}
 			}
 			decl := fn.Obj.Decl
 			if decl == nil {
@@ -2832,18 +2834,9 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 				throw(decl)
 			}
 		}
-	case *ast.ParenExpr: // (X)(e) funcall or conversion
-		if isType(fn.X) {
-			return []*Type{e2t(fn.X)}
-		} else {
-			panic("TBI: what should we do ?")
-		}
-	case *ast.ArrayType: // conversion [n]T(e) or []T(e)
-		return []*Type{e2t(fn)}
+	case *ast.ParenExpr: // ((X))(arg,...)
+		return getFuncResultTypes(fn.X, args)
 	case *ast.SelectorExpr:
-		if isType(fn) {
-			return []*Type{e2t(fn)}
-		}
 		if isQI(fn) { // pkg.Sel()
 			ff := lookupForeignFunc(selector2QI(fn))
 			return fieldList2Types(ff.funcType.Results)
@@ -2852,17 +2845,22 @@ func getCallResultTypes(e *ast.CallExpr) []*Type {
 			method := lookupMethod(rcvType, fn.Sel)
 			return fieldList2Types(method.FuncType.Results)
 		}
-	case *ast.InterfaceType:
-		return []*Type{tEface}
 	}
 
-	throw(e)
+	throw(funcVal)
 	return nil
 }
 
 func e2t(typeExpr ast.Expr) *Type {
 	if typeExpr == nil {
 		panic("nil is not allowed")
+	}
+
+	// unwrap paren
+	switch e := typeExpr.(type) {
+	case *ast.ParenExpr:
+		typeExpr = e.X
+		return e2t(typeExpr)
 	}
 	return &Type{
 		E: typeExpr,
@@ -4818,9 +4816,9 @@ func walk(pkg *PkgContainer) {
 
 	//logf("walking funcDecls in detail ...\n")
 	for _, funcDecl := range funcDecls {
-		//logf("[walk] (package:%s) (pos:%d) (%s) walking funcDecl \"%s\" \n",
-		//	pkg.name, int(funcDecl.Pos()), pkg.fset.Position(funcDecl.Pos()), funcDecl.Name.Name)
-		//logf("walking funcDecl \"%s\" \n", funcDecl.Name.Name)
+		logf("[walk] (package:%s) (pos:%d) (%s) walking funcDecl \"%s\" \n",
+			pkg.name, int(funcDecl.Pos()), pkg.fset.Position(funcDecl.Pos()), funcDecl.Name.Name)
+
 		fnc := &Func{
 			Name:      funcDecl.Name.Name,
 			FuncType:  funcDecl.Type,
