@@ -121,7 +121,7 @@ func (s *scanner) scanComment() string {
 }
 
 type TokenContainer struct {
-	pos int    // what's this ?
+	pos token.Pos
 	tok string // token.Token
 	lit string // raw data
 }
@@ -135,7 +135,7 @@ func (s *scanner) skipWhitespace() {
 
 func (s *scanner) Scan() *TokenContainer {
 	s.skipWhitespace()
-	pos := s.File.Base + s.offset
+	pos := token.Pos(s.File.Base + s.offset)
 
 	var tc = &TokenContainer{}
 	var lit string
