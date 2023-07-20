@@ -3920,9 +3920,7 @@ func getTypeOfSelector(x MetaExpr, e *ast.SelectorExpr) *Type {
 }
 
 func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
-	meta := &MetaCallExpr{
-		e: e,
-	}
+	meta := &MetaCallExpr{}
 	if isType(e.Fun) {
 		meta.isConversion = true
 		meta.toType = e2t(e.Fun)
@@ -4167,7 +4165,6 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 		unexpectedKind(kind(typ))
 	}
 	meta := &MetaCompositLit{
-		e:    e,
 		kind: knd,
 		typ:  typ,
 	}
@@ -4409,7 +4406,6 @@ type MetaBasicLit struct {
 }
 
 type MetaCompositLit struct {
-	e    *ast.CompositeLit
 	typ  *Type  // type of the composite
 	kind string // "struct", "array", "slice" // @TODO "map"
 
@@ -4443,7 +4439,6 @@ type MetaSelectorExpr struct {
 }
 
 type MetaCallExpr struct {
-	e     *ast.CallExpr
 	typ   *Type   // result type
 	types []*Type // result types when tuple
 
