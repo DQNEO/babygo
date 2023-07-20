@@ -12,8 +12,13 @@ test: $(tmp) test1 test2 selfhost test0 compare-test
 $(tmp):
 	mkdir -p $(tmp)
 
+# prepare precompiler source file
+pre/precompiler.go: main.go
+	cp $< $@
+	sed -e 's#github.com/DQNEO/babygo/lib/ast#go/ast#' -e 's#github.com/DQNEO/babygo/lib/token#go/token#' -i $@
+
 # make pre compiler (a rich binary)
-$(tmp)/pre: pre/*.go lib/*/* $(tmp)
+$(tmp)/pre: pre/precompiler.go pre/hack.go lib/*/* $(tmp)
 	go build -o $@ ./pre
 
 # make babygo 1gen compiler (a rich binary)
