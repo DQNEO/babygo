@@ -3771,7 +3771,6 @@ func isUniverseNil(m *MetaIdent) bool {
 func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 	//	logf("(%s) [walkIdent] Pos=%d ident=\"%s\"\n", currentPkg.name, int(e.Pos()), e.Name)
 	meta := &MetaIdent{
-		e:    e,
 		Name: e.Name,
 	}
 	logfncname := "(toplevel)"
@@ -4280,9 +4279,7 @@ func panicPos(s string, pos token.Pos) {
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
-	meta := &MetaIndexExpr{
-		e: e,
-	}
+	meta := &MetaIndexExpr{}
 	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	meta.X = walkExpr(e.X, nil)
 	collectionTyp := getTypeOfExpr(meta.X)
@@ -4298,7 +4295,7 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 }
 
 func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) *MetaSliceExpr {
-	meta := &MetaSliceExpr{e: e}
+	meta := &MetaSliceExpr{}
 
 	// For convenience, any of the indices may be omitted.
 
@@ -4419,7 +4416,6 @@ type MetaCompositLit struct {
 }
 
 type MetaIdent struct {
-	e    *ast.Ident
 	typ  *Type
 	kind string // "blank|nil|true|false|var|con|fun|typ"
 	Name string
@@ -4470,12 +4466,10 @@ type MetaIndexExpr struct {
 	NeedsOK bool // when map, is it ok syntax ?
 	Index   MetaExpr
 	X       MetaExpr
-	e       *ast.IndexExpr
 	typ     *Type
 }
 
 type MetaSliceExpr struct {
-	e    *ast.SliceExpr
 	typ  *Type
 	Low  MetaExpr
 	High MetaExpr
