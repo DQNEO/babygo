@@ -4190,9 +4190,9 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 		}
 		meta.strctEements = metaElms
 	case T_ARRAY:
-		meta.arrayType = ut.E.(*ast.ArrayType)
-		meta.len = evalInt(meta.arrayType.Len)
-		meta.elmType = e2t(meta.arrayType.Elt)
+		arrayType := ut.E.(*ast.ArrayType)
+		meta.len = evalInt(arrayType.Len)
+		meta.elmType = e2t(arrayType.Elt)
 		ctx := &evalContext{_type: meta.elmType}
 		var ms []MetaExpr
 		for _, v := range e.Elts {
@@ -4201,9 +4201,9 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 		}
 		meta.metaElms = ms
 	case T_SLICE:
-		meta.arrayType = ut.E.(*ast.ArrayType)
+		arrayType := ut.E.(*ast.ArrayType)
 		meta.len = len(e.Elts)
-		meta.elmType = e2t(meta.arrayType.Elt)
+		meta.elmType = e2t(arrayType.Elt)
 		ctx := &evalContext{_type: meta.elmType}
 		var ms []MetaExpr
 		for _, v := range e.Elts {
@@ -4407,10 +4407,9 @@ type MetaCompositLit struct {
 	strctEements []*MetaStructLiteralElement // for "struct"
 
 	// for array or slice
-	arrayType *ast.ArrayType
-	len       int
-	elmType   *Type
-	metaElms  []MetaExpr
+	len      int
+	elmType  *Type
+	metaElms []MetaExpr
 }
 
 type MetaIdent struct {
