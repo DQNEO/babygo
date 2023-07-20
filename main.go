@@ -645,13 +645,13 @@ func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, ex
 }
 
 func emitCallDirect(symbol string, args []*MetaArg, resultList *ast.FieldList) {
-	emitCall(NewFuncValueFromSymbol(symbol), args, resultList)
+	returnTypes := fieldList2Types(resultList)
+	emitCall(NewFuncValueFromSymbol(symbol), args, returnTypes)
 }
 
 // see "ABI of stack layout" in the emitFuncall comment
-func emitCall(fv *FuncValue, args []*MetaArg, resultList *ast.FieldList) {
+func emitCall(fv *FuncValue, args []*MetaArg, returnTypes []*Type) {
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
-
 	var totalParamSize int
 	var offsets []int
 	for _, arg := range args {
@@ -662,7 +662,7 @@ func emitCall(fv *FuncValue, args []*MetaArg, resultList *ast.FieldList) {
 		totalParamSize += getSizeOfType(arg.paramType)
 	}
 
-	emitAllocReturnVarsArea(getTotalFieldsSize(resultList))
+	emitAllocReturnVarsArea(getTotalSizeOfType(returnTypes))
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for i, arg := range args {
 		paramType := arg.paramType
@@ -677,11 +677,19 @@ func emitCall(fv *FuncValue, args []*MetaArg, resultList *ast.FieldList) {
 		emitRegiToMem(paramType)
 	}
 
-	emitCallQ(fv, totalParamSize, resultList)
+	emitCallQ(fv, totalParamSize, returnTypes)
 }
 
 func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
 	emitAllocReturnVarsArea(getTotalFieldsSize(ff.funcType.Results))
+}
+
+func getTotalSizeOfType(types []*Type) int {
+	var r int
+	for _, t := range types {
+		r += getSizeOfType(t)
+	}
+	return r
 }
 
 func getTotalFieldsSize(flist *ast.FieldList) int {
@@ -697,7 +705,8 @@ func getTotalFieldsSize(flist *ast.FieldList) int {
 
 func emitCallFF(ff *ForeignFunc) {
 	totalParamSize := getTotalFieldsSize(ff.funcType.Params)
-	emitCallQ(NewFuncValueFromSymbol(ff.symbol), totalParamSize, ff.funcType.Results)
+	returnTypes := fieldList2Types(ff.funcType.Results)
+	emitCallQ(NewFuncValueFromSymbol(ff.symbol), totalParamSize, returnTypes)
 }
 
 func NewFuncValueFromSymbol(symbol string) *FuncValue {
@@ -713,7 +722,7 @@ type FuncValue struct {
 	expr     MetaExpr // for indirect call
 }
 
-func emitCallQ(fv *FuncValue, totalParamSize int, resultList *ast.FieldList) {
+func emitCallQ(fv *FuncValue, totalParamSize int, returnTypes []*Type) {
 	if fv.isDirect {
 		if fv.symbol == "" {
 			panic("callq target must not be empty")
@@ -726,8 +735,8 @@ func emitCallQ(fv *FuncValue, totalParamSize int, resultList *ast.FieldList) {
 	}
 
 	emitFreeParametersArea(totalParamSize)
-	printf("  #  totalReturnSize=%d\n", getTotalFieldsSize(resultList))
-	emitFreeAndPushReturnedValue(resultList)
+	printf("  #  totalReturnSize=%d\n", getTotalSizeOfType(returnTypes))
+	emitFreeAndPushReturnedValue(returnTypes)
 }
 
 // callee
@@ -746,16 +755,12 @@ func emitReturnStmt(meta *MetaReturnStmt) {
 }
 
 // caller
-func emitFreeAndPushReturnedValue(resultList *ast.FieldList) {
-	if resultList == nil {
-		return
-	}
-	switch len(resultList.List) {
+func emitFreeAndPushReturnedValue(returnTypes []*Type) {
+	switch len(returnTypes) {
 	case 0:
 		// do nothing
 	case 1:
-		retval0 := resultList.List[0]
-		knd := kind(e2t(retval0.Type))
+		knd := kind(returnTypes[0])
 		switch knd {
 		case T_STRING, T_INTERFACE:
 		case T_UINT8:
@@ -955,9 +960,7 @@ func emitFuncall(meta *MetaCallExpr) {
 		emitBuiltinFunCall(meta.builtin, meta.typeArg0, meta.arg0, meta.arg1, meta.arg2)
 		return
 	}
-
-	//	args := prepareArgs(meta.funcType, meta.receiver, meta.args, meta.hasEllipsis)
-	emitCall(meta.funcVal, meta.metaArgs, meta.funcType.Results)
+	emitCall(meta.funcVal, meta.metaArgs, meta.types)
 }
 
 type evalContext struct {
@@ -2665,6 +2668,9 @@ func getTypeOfForeignIdent(ident *ast.Ident) *Type {
 }
 
 func fieldList2Types(fldlist *ast.FieldList) []*Type {
+	if fldlist == nil {
+		return nil
+	}
 	var r []*Type
 	for _, e2 := range fldlist.List {
 		t := e2t(e2.Type)
@@ -4097,13 +4103,12 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 		throw(e.Fun)
 	}
 
-	meta.funcType = funcType
-	if funcType.Results != nil && len(funcType.Results.List) > 0 {
-		meta.types = fieldList2Types(funcType.Results)
+	meta.types = fieldList2Types(funcType.Results)
+	if len(meta.types) > 0 {
 		meta.typ = meta.types[0]
 	}
 	meta.funcVal = funcVal
-	meta.metaArgs = prepareArgs(meta.funcType, receiverMeta, meta.args, meta.hasEllipsis)
+	meta.metaArgs = prepareArgs(funcType, receiverMeta, meta.args, meta.hasEllipsis)
 	return meta
 }
 
@@ -4449,8 +4454,8 @@ type MetaCallExpr struct {
 	builtin *ast.Object
 
 	// general funcall
-	funcType *ast.FuncType
-	funcVal  *FuncValue
+	returnTypes []*Type
+	funcVal     *FuncValue
 	//receiver ast.Expr
 	metaArgs []*MetaArg
 }
