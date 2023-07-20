@@ -4697,8 +4697,8 @@ func setVariable(obj *ast.Object, vr *Variable) {
 // - collect local variables and set offset
 // - determine struct size and field offset
 // - determine types of variable declarations
-// - attach type to universe nil
-// - transmit ok sytanx context
+// - attach type to every expression
+// - transmit ok syntax context
 // - (hope) attach type to untyped constants
 // - (hope) transmit the need of interface conversion
 func walk(pkg *PkgContainer) {
