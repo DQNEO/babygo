@@ -1352,10 +1352,8 @@ func emitMapGet(m *MetaIndexExpr, okContext bool) {
 
 // 1 or 2 values
 func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
-	okContext := meta.NeedsOK
-	e := meta.e
 	emitExpr(meta.X)
-	emitDtypeLabelAddr(e2t(e.Type))
+	emitDtypeLabelAddr(meta.typ)
 	emitCompareDtypes()
 
 	emitPopBool("type assertion ok value")
@@ -1367,8 +1365,8 @@ func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 	printf("  jne %s # jmp if false\n", labelElse)
 
 	// if matched
-	emitLoadAndPush(e2t(e.Type)) // load dynamic data
-	if okContext {
+	emitLoadAndPush(meta.typ) // load dynamic data
+	if meta.NeedsOK {
 		printf("  pushq $1 # ok = true\n")
 	}
 	// exit
@@ -1376,8 +1374,8 @@ func emitTypeAssertExpr(meta *MetaTypeAssertExpr) {
 	// if not matched
 	printf("  %s:\n", labelElse)
 	printf("  popq %%rax # drop ifc.data\n")
-	emitZeroValue(e2t(e.Type))
-	if okContext {
+	emitZeroValue(meta.typ)
+	if meta.NeedsOK {
 		printf("  pushq $0 # ok = false\n")
 	}
 
@@ -4381,7 +4379,7 @@ func walkInterfaceType(e *ast.InterfaceType) {
 }
 
 func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssertExpr {
-	meta := &MetaTypeAssertExpr{e: e}
+	meta := &MetaTypeAssertExpr{}
 	if ctx != nil && ctx.maybeOK {
 		meta.NeedsOK = true
 	}
@@ -4498,7 +4496,6 @@ type MetaBinaryExpr struct {
 type MetaTypeAssertExpr struct {
 	NeedsOK bool
 	X       MetaExpr
-	e       *ast.TypeAssertExpr
 	typ     *Type
 }
 
