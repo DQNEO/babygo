@@ -949,8 +949,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *Type, arg0 MetaExpr, arg1 Met
 //	r
 //	--
 func emitFuncall(meta *MetaCallExpr) {
-
-	emitComment(2, "[emitFuncall] %T(...)\n", meta.fun)
+	emitComment(2, "[emitFuncall]\n")
 	// check if it's a builtin func
 	if meta.builtin != nil {
 		emitBuiltinFunCall(meta.builtin, meta.typeArg0, meta.arg0, meta.arg1, meta.arg2)
@@ -3929,7 +3928,6 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	}
 
 	meta.isConversion = false
-	meta.fun = e.Fun
 	meta.hasEllipsis = e.Ellipsis != token.NoPos
 	meta.args = e.Args
 
@@ -3952,7 +3950,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	//
 	//}
 
-	identFun, isIdent := meta.fun.(*ast.Ident)
+	identFun, isIdent := e.Fun.(*ast.Ident)
 	if isIdent {
 		//logf("  fun=%s\n", identFun.Name)
 		switch identFun.Obj {
@@ -4006,7 +4004,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	var funcVal *FuncValue
 	var receiver ast.Expr
 	var receiverMeta MetaExpr
-	switch fn := meta.fun.(type) {
+	switch fn := e.Fun.(type) {
 	case *ast.Ident:
 		// general function call
 		symbol := getPackageSymbol(currentPkg.name, fn.Name)
@@ -4096,7 +4094,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 			}
 		}
 	default:
-		throw(meta.fun)
+		throw(e.Fun)
 	}
 
 	meta.funcType = funcType
@@ -4445,7 +4443,6 @@ type MetaCallExpr struct {
 	arg2     MetaExpr
 
 	// For funcall
-	fun         ast.Expr
 	hasEllipsis bool
 	args        []ast.Expr
 
