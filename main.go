@@ -264,7 +264,7 @@ func emitAddr(meta MetaExpr) {
 			case ast.Fun:
 				emitFuncAddr(qi)
 			case ast.Con:
-				panic("TBI")
+				panic("TBI 267")
 			default:
 				panic("Unexpected foreign ident kind:" + ident.Obj.Kind.String())
 			}
@@ -2099,7 +2099,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 	labelid++
 	labelEnd := fmt.Sprintf(".L.switch.%d.exit", labelid)
 	if s.Init != nil {
-		panic("TBI")
+		panic("TBI 2186")
 	}
 	if s.Tag == nil {
 		panic("Omitted tag is not supported yet")
@@ -3358,7 +3358,7 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 		// @TODO type, const, etc
 	}
 
-	panic("TBI")
+	panic("TBI 3366")
 }
 
 func IsOkSyntax(rhs MetaExpr) bool {
@@ -3396,7 +3396,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				Rhs: rhsMeta,
 			}
 		} else if len(s.Lhs) == len(s.Rhs) {
-			panic("TBI")
+			panic("TBI 3404")
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 			// Tuple assignment
 			maybeOkContext := len(s.Lhs) == 2
@@ -3439,7 +3439,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				Rhs: rhsMeta,
 			}
 		} else if len(s.Lhs) == len(s.Rhs) {
-			panic("TBI")
+			panic("TBI 3447")
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 			// Tuple assignment
 			maybeOkContext := len(s.Lhs) == 2
@@ -3489,7 +3489,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			Rhs: rhsMeta,
 		}
 	default:
-		panic("TBI")
+		panic("TBI 3497 ")
 	}
 	return nil
 }
@@ -4178,7 +4178,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 					// p.mp() => as it is
 				} else {
 					// p.mv()
-					panic("TBI")
+					panic("TBI 4190")
 				}
 			} else {
 				if method.IsPtrMethod {
@@ -4426,7 +4426,7 @@ func walkKeyValueExpr(e *ast.KeyValueExpr, ctx *evalContext) {
 	// s := []bool{key: true} // => [false true]
 
 	//walkExpr(e.Key, nil)
-	panic("TBI")
+	panic("TBI 4439")
 }
 
 func walkInterfaceType(e *ast.InterfaceType) {
