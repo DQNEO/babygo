@@ -4343,7 +4343,7 @@ func walkMapType(e *ast.MapType) {
 	// do nothing
 }
 func walkStarExpr(e *ast.StarExpr, ctx *evalContext) *MetaStarExpr {
-	meta := &MetaStarExpr{e: e}
+	meta := &MetaStarExpr{}
 	meta.X = walkExpr(e.X, nil)
 	xType := getTypeOfExpr(meta.X)
 	origType := xType.E.(*ast.StarExpr)
@@ -4473,7 +4473,6 @@ type MetaSliceExpr struct {
 	X    MetaExpr
 }
 type MetaStarExpr struct {
-	e   *ast.StarExpr
 	typ *Type
 	X   MetaExpr
 }
