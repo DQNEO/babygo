@@ -2647,168 +2647,27 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 	panic("bad type\n")
 }
 
-func getTypeOfExprAst(expr ast.Expr) *Type {
-	switch e := expr.(type) {
-	case *ast.Ident:
-		assert(e.Obj != nil, "Obj is nil in ident '"+e.Name+"'", __func__)
-		switch e.Obj.Kind {
-		case ast.Var:
-			variable, isVariable := e.Obj.Data.(*Variable)
-			if isVariable {
-				return variable.Typ
-			}
-			panic("Variable is not set for ident:" + e.Name)
-		case ast.Con:
-			switch e.Obj {
-			case gTrue, gFalse:
-				return tBool
-			default:
-				switch decl2 := e.Obj.Decl.(type) {
-				case *ast.ValueSpec:
-					return e2t(decl2.Type)
-				default:
-					panic("cannot decide type of cont =" + e.Obj.Name)
-				}
-			}
-		case ast.Fun:
-			return e2t(e.Obj.Decl.(*ast.FuncDecl).Type)
+func getTypeOfForeignIdent(ident *ast.Ident) *Type {
+	assert(ident.Obj != nil, "Obj is nil in ident '"+ident.Name+"'", __func__)
+	switch ident.Obj.Kind {
+	case ast.Var:
+		variable, isVariable := ident.Obj.Data.(*Variable)
+		if isVariable {
+			return variable.Typ
+		}
+		panic("Variable is not set for ident:" + ident.Name)
+	case ast.Con:
+		switch decl2 := ident.Obj.Decl.(type) {
+		case *ast.ValueSpec:
+			return e2t(decl2.Type)
 		default:
-			panic(fmt.Sprintf("Obj=%s, Kind=%s\t\n%s", e.Obj.Name, e.Obj.Kind.String(), fset.Position(e.Pos())))
+			panic("cannot decide type of cont =" + ident.Obj.Name)
 		}
-	case *ast.BasicLit:
-		// The default type of an untyped constant is bool, rune, int, float64, complex128 or string respectively,
-		// depending on whether it is a boolean, rune, integer, floating-point, complex, or string constant.
-		switch e.Kind.String() {
-		case "STRING":
-			return tString
-		case "INT":
-			return tInt
-		case "CHAR":
-			return tInt32
-		default:
-			panic(e.Kind.String())
-		}
-	case *ast.UnaryExpr:
-		switch e.Op.String() {
-		case "+":
-			return getTypeOfExprAst(e.X)
-		case "-":
-			return getTypeOfExprAst(e.X)
-		case "!":
-			return tBool
-		case "&":
-			t := getTypeOfExprAst(e.X)
-			starExpr := &ast.StarExpr{
-				X: t.E,
-			}
-			return e2t(starExpr)
-		default:
-			panic(e.Op.String())
-		}
-	case *ast.BinaryExpr:
-		switch e.Op.String() {
-		case "==", "!=", "<", ">", "<=", ">=":
-			return tBool
-		default:
-			return getTypeOfExprAst(e.X)
-		}
-	case *ast.IndexExpr:
-		list := e.X
-		return getElementTypeOfCollectionType(getTypeOfExprAst(list))
-	case *ast.CallExpr: // funcall or conversion
-		if isType(e.Fun) { // Conversion
-			return e2t(e.Fun)
-		}
-		types := getFuncResultTypes(e.Fun, e.Args)
-		assert(len(types) == 1, "Single value is expected", __func__)
-		return types[0]
-	case *ast.SliceExpr:
-		underlyingCollectionType := getTypeOfExprAst(e.X)
-		if kind(underlyingCollectionType) == T_STRING {
-			// str2 = str1[n:m]
-			return tString
-		}
-		var elementTyp ast.Expr
-		switch colType := underlyingCollectionType.E.(type) {
-		case *ast.ArrayType:
-			elementTyp = colType.Elt
-		}
-		r := &ast.ArrayType{
-			Len:    nil,
-			Elt:    elementTyp,
-			Lbrack: e.Pos(),
-		}
-		return e2t(r)
-	case *ast.StarExpr: // Dereference: *(Expr)
-		t := getTypeOfExprAst(e.X)
-		ptrType := t.E.(*ast.StarExpr)
-		return e2t(ptrType.X)
-	case *ast.SelectorExpr:
-		if isQI(e) { // pkg.SomeType
-			ident := lookupForeignIdent(selector2QI(e))
-			return getTypeOfExprAst(ident)
-		} else { // (strct).field | (obj).method
-			logf("%s: Looking for struct filed ... %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
-			typeOfLeft := getTypeOfExprAst(e.X)
-			ut := getUnderlyingType(typeOfLeft)
-			var structTypeLiteral *ast.StructType
-			switch typ := ut.E.(type) {
-			case *ast.StructType: // strct.field
-				structTypeLiteral = typ
-			case *ast.StarExpr: // ptr.field
-				origType := e2t(typ.X)
-				if kind(origType) == T_STRUCT {
-					structTypeLiteral = getUnderlyingStructType(origType)
-				} else {
-					_, isIdent := typ.X.(*ast.Ident)
-					if isIdent {
-						typeOfLeft = origType
-						method := lookupMethod(typeOfLeft, e.Sel)
-						funcType := method.FuncType
-						logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
-						if funcType.Results == nil || len(funcType.Results.List) == 0 {
-							return nil
-						}
-						types := fieldList2Types(funcType.Results)
-						return types[0]
-					}
-				}
-			//case *ast.Ident:
-			//	panicPos(fmt.Sprintf("Invalid case:%T, '%s'", ut.E, typ.Name), typ.Pos())
-			default: // can be a named type of recevier
-				method := lookupMethod(typeOfLeft, e.Sel)
-				funcType := method.FuncType
-				logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
-				if funcType.Results == nil || len(funcType.Results.List) == 0 {
-					return nil
-				}
-				types := fieldList2Types(funcType.Results)
-				return types[0]
-			}
-
-			logf("%s: Looking for struct  ... \n", fset.Position(structTypeLiteral.Pos()))
-			field := lookupStructField(structTypeLiteral, e.Sel.Name)
-			if field != nil {
-				return e2t(field.Type)
-			}
-			if field == nil { // try to find method
-				method := lookupMethod(typeOfLeft, e.Sel)
-				funcType := method.FuncType
-				logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
-				if funcType.Results == nil || len(funcType.Results.List) == 0 {
-					return nil
-				}
-				return e2t(funcType.Results.List[0])
-			}
-		}
-	case *ast.CompositeLit:
-		return e2t(e.Type)
-	case *ast.ParenExpr:
-		return getTypeOfExprAst(e.X)
-	case *ast.TypeAssertExpr:
-		return e2t(e.Type)
+	case ast.Fun:
+		return e2t(ident.Obj.Decl.(*ast.FuncDecl).Type)
+	default:
+		panic(fmt.Sprintf("Obj=%s, Kind=%s\t\n%s", ident.Obj.Name, ident.Obj.Kind.String(), fset.Position(ident.Pos())))
 	}
-	panic("bad type\n")
 }
 
 func fieldList2Types(fldlist *ast.FieldList) []*Type {
@@ -2830,71 +2689,6 @@ func getTupleTypes(rhsMeta MetaExpr) []*Type {
 		}
 		return rhs.types
 	}
-}
-
-func getFuncResultTypes(funcVal ast.Expr, args []ast.Expr) []*Type {
-	switch fn := funcVal.(type) {
-	case *ast.Ident:
-		if fn.Obj == nil {
-			throw(fn)
-		}
-		switch fn.Obj.Kind {
-		case ast.Var:
-			switch dcl := fn.Obj.Decl.(type) {
-			case *ast.AssignStmt: // short var decl
-				rhs := dcl.Rhs[0]
-				switch r := rhs.(type) {
-				case *ast.SelectorExpr:
-					assert(isQI(r), "expect QI", __func__)
-					ff := lookupForeignFunc(selector2QI(r))
-					return fieldList2Types(ff.funcType.Results)
-				}
-			case *ast.ValueSpec: // var v func(T1)T2
-				return fieldList2Types(dcl.Type.(*ast.FuncType).Results)
-			default:
-				throw(dcl)
-			}
-		case ast.Fun:
-			switch fn.Obj {
-			case gLen, gCap:
-				return []*Type{tInt}
-			case gNew:
-				starExpr := &ast.StarExpr{
-					X: args[0],
-				}
-				// walkExpr(starExpr, nil) // Do we need to walk type ?
-				return []*Type{e2t(starExpr)}
-			case gMake:
-				return []*Type{e2t(args[0])}
-			case gAppend:
-				return []*Type{e2t(args[0])}
-			}
-			decl := fn.Obj.Decl
-			if decl == nil {
-				panic("decl of function " + fn.Name + " should not nil")
-			}
-			switch dcl := decl.(type) {
-			case *ast.FuncDecl:
-				return fieldList2Types(dcl.Type.Results)
-			default:
-				throw(decl)
-			}
-		}
-	case *ast.ParenExpr: // ((X))(arg,...)
-		return getFuncResultTypes(fn.X, args)
-	case *ast.SelectorExpr:
-		if isQI(fn) { // pkg.Sel()
-			ff := lookupForeignFunc(selector2QI(fn))
-			return fieldList2Types(ff.funcType.Results)
-		} else { // obj.method()
-			rcvType := getTypeOfExprAst(fn.X)
-			method := lookupMethod(rcvType, fn.Sel)
-			return fieldList2Types(method.FuncType.Results)
-		}
-	}
-
-	throw(funcVal)
-	return nil
 }
 
 func e2t(typeExpr ast.Expr) *Type {
@@ -4056,18 +3850,71 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 		// pkg.ident
 		qi := selector2QI(e)
 		ident := lookupForeignIdent(qi)
-		if ident.Obj.Kind == ast.Fun {
-			// what to do ?
-		} else {
-			walkExpr(ident, ctx)
-		}
+		meta.typ = getTypeOfForeignIdent(ident)
 	} else {
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
+		meta.typ = getTypeOfSelector(meta.X, e)
 	}
 	//logf("%s: walkSelectorExpr %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
-	meta.typ = getTypeOfExprAst(e)
 	return meta
+}
+
+func getTypeOfSelector(x MetaExpr, e *ast.SelectorExpr) *Type {
+	// (strct).field | (obj).method
+	logf("%s: Looking for struct filed ... %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
+	typeOfLeft := getTypeOfExpr(x)
+	ut := getUnderlyingType(typeOfLeft)
+	var structTypeLiteral *ast.StructType
+	switch typ := ut.E.(type) {
+	case *ast.StructType: // strct.field
+		structTypeLiteral = typ
+	case *ast.StarExpr: // ptr.field
+		origType := e2t(typ.X)
+		if kind(origType) == T_STRUCT {
+			structTypeLiteral = getUnderlyingStructType(origType)
+		} else {
+			_, isIdent := typ.X.(*ast.Ident)
+			if isIdent {
+				typeOfLeft = origType
+				method := lookupMethod(typeOfLeft, e.Sel)
+				funcType := method.FuncType
+				logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
+				if funcType.Results == nil || len(funcType.Results.List) == 0 {
+					return nil
+				}
+				types := fieldList2Types(funcType.Results)
+				return types[0]
+			}
+		}
+	default: // can be a named type of recevier
+		method := lookupMethod(typeOfLeft, e.Sel)
+		funcType := method.FuncType
+		logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
+		if funcType.Results == nil || len(funcType.Results.List) == 0 {
+			return nil
+		}
+		types := fieldList2Types(funcType.Results)
+		return types[0]
+	}
+
+	logf("%s: Looking for struct  ... \n", fset.Position(structTypeLiteral.Pos()))
+	field := lookupStructField(structTypeLiteral, e.Sel.Name)
+	if field != nil {
+		return e2t(field.Type)
+	}
+	if field == nil { // try to find method
+		method := lookupMethod(typeOfLeft, e.Sel)
+		funcType := method.FuncType
+		logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
+		if funcType.Results == nil || len(funcType.Results.List) == 0 {
+			return nil
+		}
+		types := fieldList2Types(funcType.Results)
+		return types[0]
+	}
+
+	panic("Bad type")
 }
 
 func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
