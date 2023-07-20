@@ -2667,12 +2667,12 @@ func getTypeOfForeignIdent(ident *ast.Ident) *Type {
 	}
 }
 
-func fieldList2Types(fldlist *ast.FieldList) []*Type {
-	if fldlist == nil {
+func fieldList2Types(fieldList *ast.FieldList) []*Type {
+	if fieldList == nil {
 		return nil
 	}
 	var r []*Type
-	for _, e2 := range fldlist.List {
+	for _, e2 := range fieldList.List {
 		t := e2t(e2.Type)
 		r = append(r, t)
 	}
