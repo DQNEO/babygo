@@ -318,10 +318,10 @@ type ValueSpec struct {
 }
 
 type TypeSpec struct {
-	Name    *Ident
-	NamePos token.Pos
-	Assign  bool // isAlias
-	Type    Expr
+	Name     *Ident
+	Assign   token.Pos
+	IsAssign bool // isAlias
+	Type     Expr
 }
 
 // Pseudo interface for *ast.Decl

@@ -1266,14 +1266,14 @@ func (p *parser) parserTypeSpec() *ast.TypeSpec {
 	logff(" decl type %s\n", ident.Name)
 
 	var spec = &ast.TypeSpec{
-		NamePos: pos,
+		Assign: pos,
 	}
 	spec.Name = ident
 	declare(spec, p.topScope, ast.Typ, ident)
 	if p.tok == "=" {
 		// type alias
 		p.next()
-		spec.Assign = true
+		spec.IsAssign = true
 	}
 	var typ = p.parseType()
 

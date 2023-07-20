@@ -267,7 +267,7 @@ func emitAddr(meta MetaExpr) {
 			case ast.Fun:
 				emitFuncAddr(qi)
 			case ast.Con:
-				panic("TBI")
+				panic("TBI 267")
 			default:
 				panic("Unexpected foreign ident kind:" + ident.Obj.Kind.String())
 			}
@@ -585,12 +585,15 @@ func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, ex
 
 	if variadicElmType != nil && !expandElipsis {
 		// collect args as a slice
+		pos := funcType.Pos()
 		sliceType := &ast.ArrayType{
-			Elt: variadicElmType,
+			Elt:    variadicElmType,
+			Lbrack: pos,
 		}
 		vargsSliceWrapper := &ast.CompositeLit{
-			Type: sliceType,
-			Elts: variadicArgs,
+			Type:   sliceType,
+			Elts:   variadicArgs,
+			Lbrace: pos,
 		}
 		args = append(args, &AstArg{
 			e:         vargsSliceWrapper,
@@ -602,8 +605,9 @@ func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, ex
 		elp := param.Type.(*ast.Ellipsis)
 		paramType := e2t(elp)
 		iNil := &ast.Ident{
-			Obj:  gNil,
-			Name: "nil",
+			Obj:     gNil,
+			Name:    "nil",
+			NamePos: param.Pos(),
 		}
 		//		exprTypeMeta[unsafe.Pointer(iNil)] = e2t(elp)
 		args = append(args, &AstArg{
@@ -1527,8 +1531,9 @@ func emitDtypeLabelAddr(t *Type) {
 
 func newNumberLiteral(x int) *MetaBasicLit {
 	e := &ast.BasicLit{
-		Kind:  token.INT,
-		Value: strconv.Itoa(x),
+		Kind:     token.INT,
+		Value:    strconv.Itoa(x),
+		ValuePos: token.Pos(1),
 	}
 	return walkBasicLit(e, nil)
 }
@@ -2102,7 +2107,7 @@ func emitSwitchStmt(s *MetaSwitchStmt) {
 	labelid++
 	labelEnd := fmt.Sprintf(".L.switch.%d.exit", labelid)
 	if s.Init != nil {
-		panic("TBI")
+		panic("TBI 2186")
 	}
 	if s.Tag == nil {
 		panic("Omitted tag is not supported yet")
@@ -2732,8 +2737,9 @@ func getTypeOfExprAst(expr ast.Expr) *Type {
 			elementTyp = colType.Elt
 		}
 		r := &ast.ArrayType{
-			Len: nil,
-			Elt: elementTyp,
+			Len:    nil,
+			Elt:    elementTyp,
+			Lbrack: e.Pos(),
 		}
 		return e2t(r)
 	case *ast.StarExpr: // Dereference: *(Expr)
@@ -3361,7 +3367,7 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 		// @TODO type, const, etc
 	}
 
-	panic("TBI")
+	panic("TBI 3366")
 }
 
 func IsOkSyntax(rhs MetaExpr) bool {
@@ -3399,7 +3405,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				Rhs: rhsMeta,
 			}
 		} else if len(s.Lhs) == len(s.Rhs) {
-			panic("TBI")
+			panic("TBI 3404")
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 			// Tuple assignment
 			maybeOkContext := len(s.Lhs) == 2
@@ -3442,7 +3448,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				Rhs: rhsMeta,
 			}
 		} else if len(s.Lhs) == len(s.Rhs) {
-			panic("TBI")
+			panic("TBI 3447")
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 			// Tuple assignment
 			maybeOkContext := len(s.Lhs) == 2
@@ -3492,7 +3498,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			Rhs: rhsMeta,
 		}
 	default:
-		panic("TBI")
+		panic("TBI 3497 ")
 	}
 	return nil
 }
@@ -3631,7 +3637,11 @@ func walkIncDecStmt(s *ast.IncDecStmt) *MetaSingleAssign {
 	default:
 		panic("Unexpected Tok=" + s.Tok.String())
 	}
-	exprOne := &ast.BasicLit{Kind: token.INT, Value: "1"}
+	exprOne := &ast.BasicLit{
+		Kind:     token.INT,
+		Value:    "1",
+		ValuePos: 1,
+	}
 	newRhs := &ast.BinaryExpr{
 		X:  s.X,
 		Y:  exprOne,
@@ -4181,7 +4191,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 					// p.mp() => as it is
 				} else {
 					// p.mv()
-					panic("TBI")
+					panic("TBI 4190")
 				}
 			} else {
 				if method.IsPtrMethod {
@@ -4375,8 +4385,9 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) *MetaSliceExpr {
 		meta.Low = walkExpr(e.Low, nil)
 	} else {
 		eZeroInt := &ast.BasicLit{
-			Value: "0",
-			Kind:  token.INT,
+			Value:    "0",
+			Kind:     token.INT,
+			ValuePos: 1,
 		}
 		meta.Low = walkExpr(eZeroInt, nil)
 	}
@@ -4429,7 +4440,7 @@ func walkKeyValueExpr(e *ast.KeyValueExpr, ctx *evalContext) {
 	// s := []bool{key: true} // => [false true]
 
 	//walkExpr(e.Key, nil)
-	panic("TBI")
+	panic("TBI 4439")
 }
 
 func walkInterfaceType(e *ast.InterfaceType) {
@@ -4574,49 +4585,110 @@ type MetaTypeAssertExpr struct {
 func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkBasicLit(e, ctx)
 	case *ast.CompositeLit:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkCompositeLit(e, ctx)
 	case *ast.Ident:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkIdent(e, ctx)
 	case *ast.SelectorExpr:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkSelectorExpr(e, ctx)
 	case *ast.CallExpr:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkCallExpr(e, ctx)
 	case *ast.IndexExpr:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkIndexExpr(e, ctx)
 	case *ast.SliceExpr:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkSliceExpr(e, ctx)
 	case *ast.StarExpr:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkStarExpr(e, ctx)
 	case *ast.UnaryExpr:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkUnaryExpr(e, ctx)
 	case *ast.BinaryExpr:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkBinaryExpr(e, ctx)
 	case *ast.TypeAssertExpr:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkTypeAssertExpr(e, ctx)
-
 	case *ast.ParenExpr:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkExpr(e.X, ctx)
 	case *ast.KeyValueExpr:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		walkKeyValueExpr(e, ctx)
 		return nil
 
 	// Each one below is not an expr but a type
 	case *ast.ArrayType: // type
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		walkArrayType(e) // []T(e)
 		return nil
 	case *ast.MapType: // type
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		walkMapType(e)
 		return nil
 	case *ast.InterfaceType: // type
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		walkInterfaceType(e)
 		return nil
 	case *ast.FuncType:
+		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return nil // @TODO walk
 	default:
 		panic(fmt.Sprintf("unknown type %T", expr))
 	}
+}
+
+func Pos(expr ast.Expr) token.Pos {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e.Pos()
+	case *ast.Ellipsis:
+		return e.Pos()
+	case *ast.BasicLit:
+		return e.Pos()
+	case *ast.CompositeLit:
+		return e.Pos()
+	case *ast.ParenExpr:
+		return e.Pos()
+	case *ast.SelectorExpr:
+		return e.Pos()
+	case *ast.IndexExpr:
+		return e.Pos()
+	case *ast.SliceExpr:
+		return e.Pos()
+	case *ast.TypeAssertExpr:
+		return e.Pos()
+	case *ast.CallExpr:
+		return e.Pos()
+	case *ast.StarExpr:
+		return e.Pos()
+	case *ast.UnaryExpr:
+		return e.Pos()
+	case *ast.BinaryExpr:
+		return e.Pos()
+	case *ast.KeyValueExpr:
+		return e.Pos()
+	case *ast.ArrayType:
+		return e.Pos()
+	case *ast.MapType:
+		return e.Pos()
+	case *ast.StructType:
+		return e.Pos()
+	case *ast.FuncType:
+		return e.Pos()
+	case *ast.InterfaceType:
+		return e.Pos()
+	}
+	//panic(fmt.Sprintf("TBI:%T\n", expr))
+	panic(fmt.Sprintf("Unknown type:%T", expr))
 }
 
 var ExportedQualifiedIdents = make(map[string]*ast.Ident)
@@ -4728,6 +4800,7 @@ func walk(pkg *PkgContainer) {
 		//@TODO check serializeType()'s *ast.Ident case
 		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
 		eType := &ast.Ident{
+			NamePos: typeSpec.Assign,
 			Obj: &ast.Object{
 				Kind: ast.Typ,
 				Decl: typeSpec,
@@ -4969,57 +5042,68 @@ var gDelete = &ast.Object{
 
 var tBool *Type = &Type{
 	E: &ast.Ident{
-		Name: "bool",
-		Obj:  gBool,
+		Name:    "bool",
+		Obj:     gBool,
+		NamePos: 1,
 	},
 }
 
 var tInt *Type = &Type{
 	E: &ast.Ident{
-		Name: "int",
-		Obj:  gInt,
+		Name:    "int",
+		Obj:     gInt,
+		NamePos: 1,
 	},
 }
 
 // Rune
 var tInt32 *Type = &Type{
 	E: &ast.Ident{
-		Name: "int32",
-		Obj:  gInt32,
+		Name:    "int32",
+		Obj:     gInt32,
+		NamePos: 1,
 	},
 }
 
 var tUintptr *Type = &Type{
 	E: &ast.Ident{
-		Name: "uintptr",
-		Obj:  gUintptr,
+		Name:    "uintptr",
+		Obj:     gUintptr,
+		NamePos: 1,
 	},
 }
 var tUint8 *Type = &Type{
 	E: &ast.Ident{
-		Name: "uint8",
-		Obj:  gUint8,
+		Name:    "uint8",
+		Obj:     gUint8,
+		NamePos: 1,
 	},
 }
 
 var tUint16 *Type = &Type{
 	E: &ast.Ident{
-		Name: "uint16",
-		Obj:  gUint16,
+		Name:    "uint16",
+		Obj:     gUint16,
+		NamePos: 1,
 	},
 }
 var tString *Type = &Type{
 	E: &ast.Ident{
-		Name: "string",
-		Obj:  gString,
+		Name:    "string",
+		Obj:     gString,
+		NamePos: 1,
 	},
 }
 
 var tEface *Type = &Type{
-	E: &ast.InterfaceType{},
+	E: &ast.InterfaceType{
+		Interface: 1,
+	},
 }
 
-var generalSlice ast.Expr = &ast.Ident{}
+var generalSlice ast.Expr = &ast.Ident{
+	NamePos: 1,
+}
 
 func createUniverse() *ast.Scope {
 	universe := ast.NewScope(nil)

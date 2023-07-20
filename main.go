@@ -4797,7 +4797,7 @@ func walk(pkg *PkgContainer) {
 		//@TODO check serializeType()'s *ast.Ident case
 		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
 		eType := &ast.Ident{
-			NamePos: typeSpec.NamePos,
+			NamePos: typeSpec.Assign,
 			Obj: &ast.Object{
 				Kind: ast.Typ,
 				Decl: typeSpec,
