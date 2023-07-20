@@ -3864,7 +3864,6 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 
 func getTypeOfSelector(x MetaExpr, e *ast.SelectorExpr) *Type {
 	// (strct).field | (obj).method
-	logf("%s: Looking for struct filed ... %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
 	typeOfLeft := getTypeOfExpr(x)
 	ut := getUnderlyingType(typeOfLeft)
 	var structTypeLiteral *ast.StructType
@@ -3881,7 +3880,7 @@ func getTypeOfSelector(x MetaExpr, e *ast.SelectorExpr) *Type {
 				typeOfLeft = origType
 				method := lookupMethod(typeOfLeft, e.Sel)
 				funcType := method.FuncType
-				logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
+				//logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
 				if funcType.Results == nil || len(funcType.Results.List) == 0 {
 					return nil
 				}
@@ -3892,7 +3891,7 @@ func getTypeOfSelector(x MetaExpr, e *ast.SelectorExpr) *Type {
 	default: // can be a named type of recevier
 		method := lookupMethod(typeOfLeft, e.Sel)
 		funcType := method.FuncType
-		logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
+		//logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil
 		}
@@ -3900,7 +3899,7 @@ func getTypeOfSelector(x MetaExpr, e *ast.SelectorExpr) *Type {
 		return types[0]
 	}
 
-	logf("%s: Looking for struct  ... \n", fset.Position(structTypeLiteral.Pos()))
+	//logf("%s: Looking for struct  ... \n", fset.Position(structTypeLiteral.Pos()))
 	field := lookupStructField(structTypeLiteral, e.Sel.Name)
 	if field != nil {
 		return e2t(field.Type)
@@ -3908,7 +3907,7 @@ func getTypeOfSelector(x MetaExpr, e *ast.SelectorExpr) *Type {
 	if field == nil { // try to find method
 		method := lookupMethod(typeOfLeft, e.Sel)
 		funcType := method.FuncType
-		logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
+		//logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil
 		}
@@ -4830,8 +4829,8 @@ func walk(pkg *PkgContainer) {
 
 	//logf("walking funcDecls in detail ...\n")
 	for _, funcDecl := range funcDecls {
-		logf("[walk] (package:%s) (pos:%d) (%s) walking funcDecl \"%s\" \n",
-			pkg.name, int(funcDecl.Pos()), pkg.fset.Position(funcDecl.Pos()), funcDecl.Name.Name)
+		//logf("[walk] (package:%s) (pos:%d) (%s) walking funcDecl \"%s\" \n",
+		//	pkg.name, int(funcDecl.Pos()), pkg.fset.Position(funcDecl.Pos()), funcDecl.Name.Name)
 
 		fnc := &Func{
 			Name:      funcDecl.Name.Name,
