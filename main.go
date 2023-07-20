@@ -254,8 +254,8 @@ func emitAddr(meta MetaExpr) {
 	case *MetaStarExpr:
 		emitExpr(m.X)
 	case *MetaSelectorExpr:
-		if isQI(m.e) { // pkg.Var|pkg.Const
-			qi := selector2QI(m.e)
+		if m.IsQI { // pkg.Var|pkg.Const
+			qi := m.QI
 			ident := lookupForeignIdent(qi)
 			switch ident.Obj.Kind {
 			case ast.Var:
@@ -282,7 +282,7 @@ func emitAddr(meta MetaExpr) {
 				unexpectedKind(kind(typeOfX))
 			}
 
-			field := lookupStructField(structTypeLiteral, m.e.Sel.Name)
+			field := lookupStructField(structTypeLiteral, m.SelName)
 			offset := getStructFieldOffset(field)
 			emitAddConst(offset, "struct head address + struct.field offset")
 		}
@@ -1017,10 +1017,9 @@ func emitStarExpr(meta *MetaStarExpr) {
 
 // 1 value X.Sel
 func emitSelectorExpr(meta *MetaSelectorExpr) {
-	e := meta.e
 	// pkg.Ident or strct.field
-	if isQI(e) {
-		qi := selector2QI(e)
+	if meta.IsQI {
+		qi := meta.QI
 		ident := lookupForeignIdent(qi)
 		switch ident.Obj.Kind {
 		case ast.Fun:
@@ -3845,10 +3844,12 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 }
 
 func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
-	meta := &MetaSelectorExpr{e: e}
+	meta := &MetaSelectorExpr{}
 	if isQI(e) {
+		meta.IsQI = true
 		// pkg.ident
 		qi := selector2QI(e)
+		meta.QI = qi
 		ident := lookupForeignIdent(qi)
 		meta.typ = getTypeOfForeignIdent(ident)
 	} else {
@@ -3856,6 +3857,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 		meta.X = walkExpr(e.X, ctx)
 		meta.typ = getTypeOfSelector(meta.X, e)
 	}
+	meta.SelName = e.Sel.Name
 	//logf("%s: walkSelectorExpr %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
 	return meta
 }
@@ -4433,9 +4435,11 @@ type MetaIdent struct {
 }
 
 type MetaSelectorExpr struct {
-	e   *ast.SelectorExpr
-	typ *Type
-	X   MetaExpr
+	IsQI    bool
+	QI      QualifiedIdent
+	typ     *Type
+	X       MetaExpr
+	SelName string
 }
 
 type MetaCallExpr struct {
