@@ -4355,27 +4355,6 @@ func walkStarExpr(e *ast.StarExpr, ctx *evalContext) *MetaStarExpr {
 	return meta
 }
 
-func walkKeyValueExpr(e *ast.KeyValueExpr, ctx *evalContext) {
-	// MYSTRUCT{key:value}
-	// key is not an expression in struct literals.
-	// Actually struct case is handled in walkCompositeLit().
-	// In map, array or slice types, key can be an expression.
-	// // map
-	// expr := "hello"
-	// a := map[string]int{expr: 0}
-	// fmt.Println(a) // => map[hello:0]
-
-	//const key = 1
-	//s := []bool{key: true}
-	//fmt.Println(s) // => map[hello:0]
-
-	// const key = 1
-	// s := []bool{key: true} // => [false true]
-
-	//walkExpr(e.Key, nil)
-	panic("TBI 4439")
-}
-
 func walkInterfaceType(e *ast.InterfaceType) {
 	// interface{}(e)  conversion. Nothing to do.
 }
@@ -4544,22 +4523,32 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkExpr(e.X, ctx)
 	case *ast.KeyValueExpr:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
-		walkKeyValueExpr(e, ctx)
-		return nil
+		// MYSTRUCT{key:value}
+		// key is not an expression in struct literals.
+		// Actually struct case is handled in walkCompositeLit().
+		// In map, array or slice types, key can be an expression.
+		// // map
+		// expr := "hello"
+		// a := map[string]int{expr: 0}
+		// fmt.Println(a) // => map[hello:0]
+
+		//const key = 1
+		//s := []bool{key: true}
+		//fmt.Println(s) // => map[hello:0]
+
+		// const key = 1
+		// s := []bool{key: true} // => [false true]
+		panic("the compiler should no reach here")
 
 	// Each one below is not an expr but a type
 	case *ast.ArrayType: // type
 		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
-		walkArrayType(e) // []T(e)
 		return nil
 	case *ast.MapType: // type
 		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
-		walkMapType(e)
 		return nil
 	case *ast.InterfaceType: // type
 		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
-		walkInterfaceType(e)
 		return nil
 	case *ast.FuncType:
 		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
