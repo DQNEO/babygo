@@ -1074,8 +1074,7 @@ func emitBasicLit(mt *MetaBasicLit) {
 
 // 1 value
 func emitUnaryExpr(meta *MetaUnaryExpr) {
-	e := meta.e
-	switch e.Op.String() {
+	switch meta.Op {
 	case "+":
 		emitExpr(meta.X)
 	case "-":
@@ -1089,7 +1088,7 @@ func emitUnaryExpr(meta *MetaUnaryExpr) {
 		emitExpr(meta.X)
 		emitInvertBoolValue()
 	default:
-		throw(e.Op)
+		panic(meta.Op)
 	}
 }
 
@@ -4078,14 +4077,19 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 					// v.mp() => (&v).mp()
 					// @TODO we should check addressable
 					rcvr := &ast.UnaryExpr{
-						Op: token.AND,
-						X:  receiver,
+						Op:    token.AND,
+						X:     receiver,
+						OpPos: 1,
 					}
-					eTyp := &ast.StarExpr{X: receiver}
+					eTyp := &ast.StarExpr{
+						X:    receiver,
+						Star: 1,
+					}
 					receiverMeta = &MetaUnaryExpr{
 						e:   rcvr,
 						X:   receiverMeta,
 						typ: e2t(eTyp),
+						Op:  rcvr.Op.String(),
 					}
 				} else {
 					// v.mv() => as it is
