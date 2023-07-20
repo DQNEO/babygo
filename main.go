@@ -1095,8 +1095,7 @@ func emitUnaryExpr(meta *MetaUnaryExpr) {
 
 // 1 value
 func emitBinaryExpr(meta *MetaBinaryExpr) {
-	e := meta.e
-	switch e.Op.String() {
+	switch meta.Op {
 	case "&&":
 		labelid++
 		labelExitWithFalse := fmt.Sprintf(".L.%d.false", labelid)
@@ -1203,7 +1202,7 @@ func emitBinaryExpr(meta *MetaBinaryExpr) {
 		emitExpr(meta.Y) // right
 		emitBitWiseAnd()
 	default:
-		panic(e.Op.String())
+		panic(meta.Op)
 	}
 }
 
@@ -4238,7 +4237,6 @@ func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
 
 func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 	meta := &MetaBinaryExpr{
-		e:  e,
 		Op: e.Op.String(),
 	}
 	if isNilIdent(e.X) {
@@ -4486,7 +4484,6 @@ type MetaUnaryExpr struct {
 	Op  string
 }
 type MetaBinaryExpr struct {
-	e   *ast.BinaryExpr
 	typ *Type
 	Op  string
 	X   MetaExpr
