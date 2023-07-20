@@ -3935,7 +3935,6 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 
 	meta.isConversion = false
 	meta.hasEllipsis = e.Ellipsis != token.NoPos
-	meta.args = e.Args
 
 	// function call
 	metaFun := walkExpr(e.Fun, nil)
@@ -3962,45 +3961,45 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 		switch identFun.Obj {
 		case gLen, gCap:
 			meta.builtin = identFun.Obj
-			meta.arg0 = walkExpr(meta.args[0], nil)
+			meta.arg0 = walkExpr(e.Args[0], nil)
 			meta.typ = tInt
 			return meta
 		case gNew:
 			meta.builtin = identFun.Obj
-			walkExpr(meta.args[0], nil)
-			meta.typeArg0 = e2t(meta.args[0])
-			ptrType := &ast.StarExpr{X: meta.args[0]}
+			walkExpr(e.Args[0], nil)
+			meta.typeArg0 = e2t(e.Args[0])
+			ptrType := &ast.StarExpr{X: e.Args[0]}
 			meta.typ = e2t(ptrType)
 			return meta
 		case gMake:
 			meta.builtin = identFun.Obj
-			walkExpr(meta.args[0], nil)
-			meta.typeArg0 = e2t(meta.args[0])
+			walkExpr(e.Args[0], nil)
+			meta.typeArg0 = e2t(e.Args[0])
 			meta.typ = meta.typeArg0
 			ctx := &evalContext{_type: tInt}
-			if len(meta.args) > 1 {
-				meta.arg1 = walkExpr(meta.args[1], ctx)
+			if len(e.Args) > 1 {
+				meta.arg1 = walkExpr(e.Args[1], ctx)
 			}
 
-			if len(meta.args) > 2 {
-				meta.arg2 = walkExpr(meta.args[2], ctx)
+			if len(e.Args) > 2 {
+				meta.arg2 = walkExpr(e.Args[2], ctx)
 			}
 			return meta
 		case gAppend:
 			meta.builtin = identFun.Obj
-			meta.arg0 = walkExpr(meta.args[0], nil)
-			meta.arg1 = walkExpr(meta.args[1], nil)
+			meta.arg0 = walkExpr(e.Args[0], nil)
+			meta.arg1 = walkExpr(e.Args[1], nil)
 			meta.typ = getTypeOfExpr(meta.arg0)
 			return meta
 		case gPanic:
 			meta.builtin = identFun.Obj
-			meta.arg0 = walkExpr(meta.args[0], nil)
+			meta.arg0 = walkExpr(e.Args[0], nil)
 			meta.typ = nil
 			return meta
 		case gDelete:
 			meta.builtin = identFun.Obj
-			meta.arg0 = walkExpr(meta.args[0], nil)
-			meta.arg1 = walkExpr(meta.args[1], nil)
+			meta.arg0 = walkExpr(e.Args[0], nil)
+			meta.arg1 = walkExpr(e.Args[1], nil)
 			meta.typ = nil
 			return meta
 		}
@@ -4108,7 +4107,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 		meta.typ = meta.types[0]
 	}
 	meta.funcVal = funcVal
-	meta.metaArgs = prepareArgs(funcType, receiverMeta, meta.args, meta.hasEllipsis)
+	meta.metaArgs = prepareArgs(funcType, receiverMeta, e.Args, meta.hasEllipsis)
 	return meta
 }
 
@@ -4449,9 +4448,7 @@ type MetaCallExpr struct {
 
 	// For funcall
 	hasEllipsis bool
-	args        []ast.Expr
-
-	builtin *ast.Object
+	builtin     *ast.Object
 
 	// general funcall
 	returnTypes []*Type
