@@ -149,7 +149,7 @@ type MapType struct {
 
 type FuncType struct {
 	Params  *FieldList
-	Results *FieldList
+	Results *FieldList // this can be nil: e.g. func f() {}
 	FPos    token.Pos
 }
 

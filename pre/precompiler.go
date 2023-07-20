@@ -2628,9 +2628,9 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 	case *MetaIdent:
 		return m.typ
 	case *MetaSelectorExpr:
-		return getTypeOfExprAst(m.e)
+		return m.typ
 	case *MetaCallExpr: // funcall or conversion
-		return m.typ // can be nil. if Tuple , m.types has types
+		return m.typ // can be nil (e.g. panic()). if Tuple , m.types has types
 	case *MetaIndexExpr:
 		return m.typ
 	case *MetaSliceExpr:
@@ -2747,18 +2747,60 @@ func getTypeOfExprAst(expr ast.Expr) *Type {
 		if isQI(e) { // pkg.SomeType
 			ident := lookupForeignIdent(selector2QI(e))
 			return getTypeOfExprAst(ident)
-		} else { // (e).field
-			ut := getUnderlyingType(getTypeOfExprAst(e.X))
+		} else { // (strct).field | (obj).method
+			logf("%s: Looking for struct filed ... %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
+			typeOfLeft := getTypeOfExprAst(e.X)
+			ut := getUnderlyingType(typeOfLeft)
 			var structTypeLiteral *ast.StructType
 			switch typ := ut.E.(type) {
 			case *ast.StructType: // strct.field
 				structTypeLiteral = typ
 			case *ast.StarExpr: // ptr.field
-				structType := e2t(typ.X)
-				structTypeLiteral = getUnderlyingStructType(structType)
+				origType := e2t(typ.X)
+				if kind(origType) == T_STRUCT {
+					structTypeLiteral = getUnderlyingStructType(origType)
+				} else {
+					_, isIdent := typ.X.(*ast.Ident)
+					if isIdent {
+						typeOfLeft = origType
+						method := lookupMethod(typeOfLeft, e.Sel)
+						funcType := method.FuncType
+						logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
+						if funcType.Results == nil || len(funcType.Results.List) == 0 {
+							return nil
+						}
+						types := fieldList2Types(funcType.Results)
+						return types[0]
+					}
+				}
+			//case *ast.Ident:
+			//	panicPos(fmt.Sprintf("Invalid case:%T, '%s'", ut.E, typ.Name), typ.Pos())
+			default: // can be a named type of recevier
+				method := lookupMethod(typeOfLeft, e.Sel)
+				funcType := method.FuncType
+				logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
+				if funcType.Results == nil || len(funcType.Results.List) == 0 {
+					return nil
+				}
+				types := fieldList2Types(funcType.Results)
+				return types[0]
 			}
+
+			logf("%s: Looking for struct  ... \n", fset.Position(structTypeLiteral.Pos()))
 			field := lookupStructField(structTypeLiteral, e.Sel.Name)
-			return e2t(field.Type)
+			if field != nil {
+				return e2t(field.Type)
+			}
+			if field == nil { // try to find method
+				method := lookupMethod(typeOfLeft, e.Sel)
+				funcType := method.FuncType
+				logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
+				if funcType.Results == nil || len(funcType.Results.List) == 0 {
+					return nil
+				}
+				types := fieldList2Types(funcType.Results)
+				return types[0]
+			}
 		}
 	case *ast.CompositeLit:
 		return e2t(e.Type)
@@ -3138,7 +3180,8 @@ func lookupStructField(structType *ast.StructType, selName string) *ast.Field {
 			return field
 		}
 	}
-	panic("Unexpected flow: struct field not found:" + selName)
+	//	panicPos("Unexpected flow: struct field not found:  "+selName, structType.Pos())
+	return nil
 }
 
 func calcStructSizeAndSetFieldOffset(structType *ast.StructType) int {
@@ -4024,7 +4067,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
 		meta.X = walkExpr(e.X, ctx)
 	}
 	//logf("%s: walkSelectorExpr %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
-	//meta.typ = getTypeOfExprAst(e)
+	meta.typ = getTypeOfExprAst(e)
 	return meta
 }
 
@@ -4176,7 +4219,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 		} else {
 			// method call
 			receiver = fn.X
-			receiverMeta = walkExpr(receiver, nil)
+			receiverMeta = walkExpr(fn.X, nil)
 			receiverType := getTypeOfExpr(receiverMeta)
 			method := lookupMethod(receiverType, fn.Sel)
 			funcType = method.FuncType
@@ -4261,7 +4304,7 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 }
 
 func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
-	walkExpr(e.Type, nil) // a[len("foo")]{...} // "foo" should be walked
+	//walkExpr(e.Type, nil) // a[len("foo")]{...} // "foo" should be walked
 	typ := e2t(e.Type)
 	ut := getUnderlyingType(typ)
 	var knd string
@@ -4366,7 +4409,11 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 	} else {
 		// X should be typed
 		meta.X = walkExpr(e.X, nil) // left
-		yCtx := &evalContext{_type: getTypeOfExpr(meta.X)}
+		xTyp := getTypeOfExpr(meta.X)
+		if xTyp == nil {
+			panicPos("xTyp should not be nil", Pos(e))
+		}
+		yCtx := &evalContext{_type: xTyp}
 		meta.Y = walkExpr(e.Y, yCtx) // right
 	}
 	switch meta.Op {
@@ -4381,6 +4428,11 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 		}
 	}
 	return meta
+}
+
+func panicPos(s string, pos token.Pos) {
+	position := fset.Position(pos)
+	panic(fmt.Sprintf("%s\n\t%s", s, position))
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
