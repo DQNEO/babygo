@@ -5,7 +5,6 @@ import (
 	"unsafe"
 
 	"go/ast"
-	"go/parser"
 	"go/token"
 
 	"github.com/DQNEO/babygo/lib/mylib"
@@ -16,8 +15,6 @@ import (
 	"github.com/DQNEO/babygo/lib/fmt"
 	//gofmt "fmt"
 )
-
-var ParseFile = parser.ParseFile
 
 const ThrowFormat string = "%T"
 
