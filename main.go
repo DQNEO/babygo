@@ -4086,7 +4086,6 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 						Star: 1,
 					}
 					receiverMeta = &MetaUnaryExpr{
-						e:   rcvr,
 						X:   receiverMeta,
 						typ: e2t(eTyp),
 						Op:  rcvr.Op.String(),
@@ -4218,7 +4217,6 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 
 func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
 	meta := &MetaUnaryExpr{
-		e:  e,
 		Op: e.Op.String(),
 	}
 	meta.X = walkExpr(e.X, nil)
@@ -4481,7 +4479,6 @@ type MetaStarExpr struct {
 	X   MetaExpr
 }
 type MetaUnaryExpr struct {
-	e   *ast.UnaryExpr
 	X   MetaExpr
 	typ *Type
 	Op  string
