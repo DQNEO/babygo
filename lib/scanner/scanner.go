@@ -1,4 +1,4 @@
-package main
+package scanner
 
 import (
 	"github.com/DQNEO/babygo/lib/mylib"
@@ -6,7 +6,7 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
-type scanner struct {
+type Scanner struct {
 	src        []uint8
 	ch         uint8
 	offset     int
@@ -15,7 +15,7 @@ type scanner struct {
 	File       *token.File
 }
 
-func (s *scanner) next() {
+func (s *Scanner) next() {
 	if s.nextOffset < len(s.src) {
 		s.offset = s.nextOffset
 		s.ch = s.src[s.offset]
@@ -31,7 +31,7 @@ func (s *scanner) next() {
 
 var keywords []string
 
-func (s *scanner) Init(f *token.File, src []uint8) {
+func (s *Scanner) Init(f *token.File, src []uint8) {
 	// https://golang.org/ref/spec#Keywords
 	keywords = []string{
 		"break", "default", "func", "interface", "select",
@@ -61,7 +61,7 @@ func isDecimal(ch uint8) bool {
 	return '0' <= ch && ch <= '9'
 }
 
-func (s *scanner) scanIdentifier() string {
+func (s *Scanner) scanIdentifier() string {
 	var offset = s.offset
 	for isLetter(s.ch) || isDecimal(s.ch) {
 		s.next()
@@ -69,7 +69,7 @@ func (s *scanner) scanIdentifier() string {
 	return string(s.src[offset:s.offset])
 }
 
-func (s *scanner) scanNumber() string {
+func (s *Scanner) scanNumber() string {
 	var offset = s.offset
 	for isDecimal(s.ch) {
 		s.next()
@@ -77,7 +77,7 @@ func (s *scanner) scanNumber() string {
 	return string(s.src[offset:s.offset])
 }
 
-func (s *scanner) scanString() string {
+func (s *Scanner) scanString() string {
 	var offset = s.offset - 1
 	var escaped bool
 	for !escaped && s.ch != '"' {
@@ -94,7 +94,7 @@ func (s *scanner) scanString() string {
 	return string(s.src[offset:s.offset])
 }
 
-func (s *scanner) scanChar() string {
+func (s *Scanner) scanChar() string {
 	// '\'' opening already consumed
 	var offset = s.offset - 1
 	var ch uint8
@@ -112,7 +112,7 @@ func (s *scanner) scanChar() string {
 	return string(s.src[offset:s.offset])
 }
 
-func (s *scanner) scanComment() string {
+func (s *Scanner) scanComment() string {
 	var offset = s.offset - 1
 	for s.ch != '\n' {
 		s.next()
@@ -121,19 +121,19 @@ func (s *scanner) scanComment() string {
 }
 
 type TokenContainer struct {
-	pos token.Pos
-	tok string // token.Token
-	lit string // raw data
+	Pos token.Pos
+	Tok string // token.Token
+	Lit string // raw data
 }
 
 // https://golang.org/ref/spec#Tokens
-func (s *scanner) skipWhitespace() {
+func (s *Scanner) skipWhitespace() {
 	for s.ch == ' ' || s.ch == '\t' || (s.ch == '\n' && !s.insertSemi) || s.ch == '\r' {
 		s.next()
 	}
 }
 
-func (s *scanner) Scan() *TokenContainer {
+func (s *Scanner) Scan() *TokenContainer {
 	s.skipWhitespace()
 	pos := token.Pos(s.File.Base + s.offset)
 
@@ -255,8 +255,8 @@ func (s *scanner) Scan() *TokenContainer {
 					s.ch = '/'
 					s.offset = s.offset - 1
 					s.nextOffset = s.offset + 1
-					tc.lit = "\n"
-					tc.tok = ";"
+					tc.Lit = "\n"
+					tc.Tok = ";"
 					s.insertSemi = false
 					return tc
 				}
@@ -368,15 +368,15 @@ func (s *scanner) Scan() *TokenContainer {
 			}
 		case 1:
 			tok = "EOF"
-			//			logf("[scanner] EOF @ file=%s line=%d final_offset=%d, Pos=%d\n", s.File.Name, len(s.File.Lines)-1, s.offset, pos)
+			//			logf("[Scanner] EOF @ file=%s line=%d final_offset=%d, Pos=%d\n", s.File.Name, len(s.File.Lines)-1, s.offset, Pos)
 		default:
-			panic2(__func__, "unknown char:"+string([]uint8{ch})+":"+strconv.Itoa(int(ch)))
+			panic("unknown char:" + string([]uint8{ch}) + ":" + strconv.Itoa(int(ch)))
 			tok = "UNKNOWN"
 		}
 	}
-	tc.lit = lit
-	tc.pos = pos
-	tc.tok = tok
+	tc.Lit = lit
+	tc.Pos = pos
+	tc.Tok = tok
 	s.insertSemi = insertSemi
 	return tc
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
+	"github.com/DQNEO/babygo/lib/scanner"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
 )
@@ -13,7 +14,7 @@ func (p *parser) init(fset *token.FileSet, filename string, src []uint8) {
 	f := fset.AddFile(filename, -1, len(src))
 	p.fset = fset
 	p.filename = filename
-	p.scanner = &scanner{}
+	p.scanner = &scanner.Scanner{}
 	p.scanner.Init(f, src)
 	p.next()
 }
@@ -25,7 +26,7 @@ type parser struct {
 	unresolved []*ast.Ident
 	topScope   *ast.Scope
 	pkgScope   *ast.Scope
-	scanner    *scanner
+	scanner    *scanner.Scanner
 	imports    []*ast.ImportSpec
 	filename   string
 	fset       *token.FileSet
@@ -46,20 +47,20 @@ func (p *parser) consumeComment() {
 func (p *parser) next0() {
 	var s = p.scanner
 	tc := s.Scan()
-	p.pos = tc.pos
-	p.tok = tc.tok
-	p.lit = tc.lit
+	p.pos = tc.Pos
+	p.tok = tc.Tok
+	p.lit = tc.Lit
 	//logf("[parser.next0] pos=%d\n", p.tok.pos)
 }
 
 func (p *parser) next() {
 	p.next0()
 	if p.tok == ";" {
-		logff(" [parser] pointing at : \"%s\" newline (%s)\n", p.tok, strconv.Itoa(p.scanner.offset))
+		//logff(" [parser] pointing at : \"%s\" newline (%s)\n", p.tok, strconv.Itoa(p.scanner.offset))
 	} else if p.tok == "IDENT" {
-		logff(" [parser] pointing at: IDENT \"%s\" (%s)\n", p.lit, strconv.Itoa(p.scanner.offset))
+		//logff(" [parser] pointing at: IDENT \"%s\" (%s)\n", p.lit, strconv.Itoa(p.scanner.offset))
 	} else {
-		logff(" [parser] pointing at: \"%s\" %s (%s)\n", p.tok, p.lit, strconv.Itoa(p.scanner.offset))
+		//logff(" [parser] pointing at: \"%s\" %s (%s)\n", p.tok, p.lit, strconv.Itoa(p.scanner.offset))
 	}
 
 	if p.tok == "COMMENT" {
