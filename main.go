@@ -5,6 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/DQNEO/babygo/lib/ast"
+	"github.com/DQNEO/babygo/lib/parser"
 	"github.com/DQNEO/babygo/lib/token"
 
 	"github.com/DQNEO/babygo/lib/mylib"
@@ -5242,10 +5243,8 @@ func collectSourceFiles(pkgDir string) []string {
 	return files
 }
 
-const parserImportsOnly = 2 // parser.ImportsOnly
-
 func parseImports(fset *token.FileSet, filename string) *ast.File {
-	f, err := ParseFile(fset, filename, nil, parserImportsOnly)
+	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
 	if err != nil {
 		panic(filename + ":" + err.Error())
 	}
@@ -5253,7 +5252,7 @@ func parseImports(fset *token.FileSet, filename string) *ast.File {
 }
 
 func parseFile(fset *token.FileSet, filename string) *ast.File {
-	f, err := ParseFile(fset, filename, nil, 0)
+	f, err := parser.ParseFile(fset, filename, nil, 0)
 	if err != nil {
 		panic(err.Error())
 	}

@@ -1,4 +1,4 @@
-package main
+package parser
 
 import (
 	"os"
@@ -9,6 +9,21 @@ import (
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
 )
+
+var ImportsOnly uint8 = 2
+
+var __func__ = "__func__"
+
+var debugFrontEnd bool
+
+// Log by Frontend components
+func logff(format string, a ...interface{}) {
+	if !debugFrontEnd {
+		return
+	}
+	f := "# " + format
+	fmt.Fprintf(os.Stderr, f, a...)
+}
 
 func (p *parser) init(fset *token.FileSet, filename string, src []uint8) {
 	f := fset.AddFile(filename, -1, len(src))
@@ -1461,9 +1476,9 @@ func readSource(filename string) []uint8 {
 }
 
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8) (*ast.File, *ParserError) {
-	logff("[ParseFile] Start file %s\n", filename)
+	//logff("[ParseFile] Start file %s\n", filename)
 	var importsOnly bool
-	if mode == parserImportsOnly {
+	if mode == ImportsOnly {
 		importsOnly = true
 	}
 
