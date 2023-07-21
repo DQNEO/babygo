@@ -15,10 +15,10 @@ $(tmp):
 # prepare precompiler source file
 pre/precompiler.go: main.go
 	cp $< $@
-	sed -e 's#github.com/DQNEO/babygo/lib/ast#go/ast#' -e 's#github.com/DQNEO/babygo/lib/token#go/token#' -i $@
+	sed -e 's#github.com/DQNEO/babygo/lib/ast#go/ast#' -e 's#github.com/DQNEO/babygo/lib/token#go/token#' -e 's#github.com/DQNEO/babygo/lib/parser#go/parser#' -i $@
 
 # make pre compiler (a rich binary)
-$(tmp)/pre: pre/precompiler.go pre/hack.go lib/*/* $(tmp)
+$(tmp)/pre: pre/precompiler.go lib/*/* $(tmp)
 	go build -o $@ ./pre
 
 # make babygo 1gen compiler (a rich binary)
