@@ -47,17 +47,6 @@ func logf(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, f, a...)
 }
 
-var debugFrontEnd bool
-
-// Log by Frontend components
-func logff(format string, a ...interface{}) {
-	if !debugFrontEnd {
-		return
-	}
-	f := "# " + format
-	fmt.Fprintf(os.Stderr, f, a...)
-}
-
 var debugCodeGen bool
 
 func emitComment(indent int, format string, a ...interface{}) {
@@ -5273,10 +5262,8 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 	typesMap = make(map[string]*dtypeEntry)
 	typeId = 1
 
-	logff("Building package : %s\n", _pkg.path)
 	pkgScope := ast.NewScope(universe)
 	for _, file := range gofiles {
-		logff("Parsing file: %s\n", file)
 		astFile := parseFile(fset, file)
 		//		logf("[main]package decl lineno = %s\n", fset.Position(astFile.Package))
 		_pkg.name = astFile.Name.Name
@@ -5289,18 +5276,16 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 		resolveImports(astFile)
 		var unresolved []*ast.Ident
 		for _, ident := range astFile.Unresolved {
-			logff("resolving %s ...", ident.Name)
 			obj := pkgScope.Lookup(ident.Name)
 			if obj != nil {
-				logff("  ===> obj found in pkg scope\n")
 				ident.Obj = obj
 			} else {
 				obj := universe.Lookup(ident.Name)
 				if obj != nil {
-					logff("  ===> obj found in universe scope\n")
+
 					ident.Obj = obj
 				} else {
-					logff("  ===> NOT FOUND\n")
+
 					// we should allow unresolved for now.
 					// e.g foo in X{foo:bar,}
 					unresolved = append(unresolved, ident)
@@ -5311,7 +5296,7 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 			_pkg.Decls = append(_pkg.Decls, dcl)
 		}
 	}
-	logff("Walking package: %s\n", _pkg.name)
+
 	printf("#=== Package %s\n", _pkg.path)
 	printf("#--- walk \n")
 	walk(_pkg)
@@ -5335,7 +5320,7 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 func showHelp() {
 	fmt.Printf("Usage:\n")
 	fmt.Printf("    %s version:  show version\n", ProgName)
-	fmt.Printf("    %s [-DF] [-DG] filename\n", ProgName)
+	fmt.Printf("    %s [-DG] filename\n", ProgName)
 }
 
 func main() {
@@ -5368,13 +5353,10 @@ func buildAll(args []string) {
 	if workdir == "" {
 		workdir = "/tmp"
 	}
-	logff("Build start\n")
 
 	var inputFiles []string
 	for _, arg := range args {
 		switch arg {
-		case "-DF":
-			debugFrontEnd = true
 		case "-DG":
 			debugCodeGen = true
 		default:
