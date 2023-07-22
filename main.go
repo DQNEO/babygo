@@ -28,7 +28,7 @@ var __func__ = "__func__"
 
 func assert(bol bool, msg string, caller string) {
 	if !bol {
-		panic(currentPkg.name + ":" + caller + ": " + msg)
+		panic(currentPkg.Name + ":" + caller + ": " + msg)
 	}
 }
 
@@ -229,7 +229,7 @@ func emitAddr(meta MetaExpr) {
 		case "var":
 			emitVariableAddr(m.Variable)
 		case "fun":
-			qi := newQI(currentPkg.name, m.Name)
+			qi := newQI(currentPkg.Name, m.Name)
 			emitFuncAddr(qi)
 		default:
 			panic("Unexpected kind")
@@ -972,7 +972,7 @@ func emitIdent(meta *MetaIdent) {
 		metaType := meta.Type
 		if metaType == nil {
 			//gofmt.Fprintf(os.Stderr, "exprTypeMeta=%v\n", exprTypeMeta)
-			panic("untyped nil is not allowed. Probably the type is not set in walk phase. pkg=" + currentPkg.name)
+			panic("untyped nil is not allowed. Probably the type is not set in walk phase. pkg=" + currentPkg.Name)
 		}
 		// emit zero value of the type
 		switch kind(metaType) {
@@ -2386,15 +2386,15 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("  ret\n")
 }
 
-func emitGlobalVariable(pkg *PkgContainer, vr *packageVar) {
-	name := vr.name.Name
-	t := vr.typ
-	typeKind := kind(vr.typ)
-	val := vr.val
-	printf(".global %s.%s\n", pkg.name, name)
-	printf("%s.%s: # T %s\n", pkg.name, name, string(typeKind))
+func emitGlobalVariable(pkg *PkgContainer, vr *PackageVar) {
+	name := vr.Name.Name
+	t := vr.Type
+	typeKind := kind(vr.Type)
+	val := vr.Val
+	printf(".global %s.%s\n", pkg.Name, name)
+	printf("%s.%s: # T %s\n", pkg.Name, name, string(typeKind))
 
-	metaVal := vr.metaVal
+	metaVal := vr.MetaVal
 	_ = metaVal
 	switch typeKind {
 	case T_STRING:
@@ -2530,15 +2530,15 @@ func generateCode(pkg *PkgContainer) {
 
 	printf("#--- string literals\n")
 	printf(".data\n")
-	for _, sl := range pkg.stringLiterals {
+	for _, sl := range pkg.StringLiterals {
 		printf("%s:\n", sl.label)
 		printf("  .string %s\n", sl.value)
 	}
 
 	printf("#--- global vars (static values)\n")
-	for _, vr := range pkg.vars {
-		if vr.typ == nil {
-			panic("type cannot be nil for global variable: " + vr.name.Name)
+	for _, vr := range pkg.Vars {
+		if vr.Type == nil {
+			panic("type cannot be nil for global variable: " + vr.Name.Name)
 		}
 		emitGlobalVariable(pkg, vr)
 	}
@@ -2546,24 +2546,24 @@ func generateCode(pkg *PkgContainer) {
 	printf("\n")
 	printf("#--- global vars (dynamic value setting)\n")
 	printf(".text\n")
-	printf(".global %s.__initVars\n", pkg.name)
-	printf("%s.__initVars:\n", pkg.name)
-	for _, vr := range pkg.vars {
-		if vr.metaVal == nil {
+	printf(".global %s.__initVars\n", pkg.Name)
+	printf("%s.__initVars:\n", pkg.Name)
+	for _, vr := range pkg.Vars {
+		if vr.MetaVal == nil {
 			continue
 		}
 		printf("  \n")
-		typeKind := kind(vr.typ)
+		typeKind := kind(vr.Type)
 		switch typeKind {
 		case T_POINTER, T_MAP, T_INTERFACE:
-			printf("  # init global %s:\n", vr.name.Name)
-			emitSingleAssign(vr.metaVar, vr.metaVal)
+			printf("  # init global %s:\n", vr.Name.Name)
+			emitSingleAssign(vr.MetaVar, vr.MetaVal)
 		}
 	}
 	printf("  ret\n")
 
-	for _, fnc := range pkg.funcs {
-		emitFuncDecl(pkg.name, fnc)
+	for _, fnc := range pkg.Funcs {
+		emitFuncDecl(pkg.Name, fnc)
 	}
 
 	emitDynamicTypes(typesMap)
@@ -3036,7 +3036,7 @@ var currentFor *MetaForContainer
 var currentFunc *Func
 
 func registerStringLiteral(lit *ast.BasicLit) *sliteral {
-	if currentPkg.name == "" {
+	if currentPkg.Name == "" {
 		panic("no pkgName")
 	}
 
@@ -3047,15 +3047,15 @@ func registerStringLiteral(lit *ast.BasicLit) *sliteral {
 		}
 	}
 
-	label := fmt.Sprintf(".string_%d", currentPkg.stringIndex)
-	currentPkg.stringIndex++
+	label := fmt.Sprintf(".string_%d", currentPkg.StringIndex)
+	currentPkg.StringIndex++
 
 	sl := &sliteral{
 		label:  label,
 		strlen: strlen - 2,
 		value:  lit.Value,
 	}
-	currentPkg.stringLiterals = append(currentPkg.stringLiterals, sl)
+	currentPkg.StringLiterals = append(currentPkg.StringLiterals, sl)
 	return sl
 }
 
@@ -3875,7 +3875,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		meta.Type = nil
 		return meta
 	}
-	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
+	assert(e.Obj != nil, currentPkg.Name+" ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
 	case universe.Nil:
 		assert(ctx != nil, "ctx of nil is not passed", __func__)
@@ -4105,8 +4105,8 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	switch fn := e.Fun.(type) {
 	case *ast.Ident:
 		// general function call
-		symbol := getPackageSymbol(currentPkg.name, fn.Name)
-		switch currentPkg.name {
+		symbol := getPackageSymbol(currentPkg.Name, fn.Name)
+		switch currentPkg.Name {
 		case "os":
 			switch fn.Name {
 			case "runtime_args":
@@ -4378,7 +4378,7 @@ func LinePosition(pos token.Pos) string {
 
 func getLoc(pos token.Pos) string {
 	posit := fset.Position(pos)
-	fileno, ok := currentPkg.fileNoMap[posit.Filename]
+	fileno, ok := currentPkg.FileNoMap[posit.Filename]
 	if !ok {
 		// Stmt or Expr in foreign package cannot be found in the map.
 		return ""
@@ -4929,7 +4929,7 @@ func walk(pkg *PkgContainer) {
 	//logf("checking typeSpecs...\n")
 	for _, typeSpec := range typeSpecs {
 		//@TODO check serializeType()'s *ast.Ident case
-		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
+		typeSpec.Name.Obj.Data = pkg.Name // package to which the type belongs to
 		eType := &ast.Ident{
 			NamePos: typeSpec.Pos(),
 			Obj: &ast.Object{
@@ -4938,7 +4938,7 @@ func walk(pkg *PkgContainer) {
 			},
 		}
 		t := e2t(eType)
-		t.PkgName = pkg.name
+		t.PkgName = pkg.Name
 		t.Name = typeSpec.Name.Name
 		exportedTpyes = append(exportedTpyes, t)
 		switch kind(t) {
@@ -4946,7 +4946,7 @@ func walk(pkg *PkgContainer) {
 			structType := getUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
-		ExportedQualifiedIdents[string(newQI(pkg.name, typeSpec.Name.Name))] = typeSpec.Name
+		ExportedQualifiedIdents[string(newQI(pkg.Name, typeSpec.Name.Name))] = typeSpec.Name
 	}
 
 	//logf("checking funcDecls...\n")
@@ -4955,13 +4955,13 @@ func walk(pkg *PkgContainer) {
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil { // non-method function
 			if funcDecl.Name.Name == "init" {
-				pkg.hasInitFunc = true
+				pkg.HasInitFunc = true
 			}
-			qi := newQI(pkg.name, funcDecl.Name.Name)
+			qi := newQI(pkg.Name, funcDecl.Name.Name)
 			ExportedQualifiedIdents[string(qi)] = funcDecl.Name
 		} else { // is method
 			if funcDecl.Body != nil {
-				method := newMethod(pkg.name, funcDecl)
+				method := newMethod(pkg.Name, funcDecl)
 				registerMethod(method)
 			}
 		}
@@ -5003,7 +5003,7 @@ func walk(pkg *PkgContainer) {
 		}
 		spec.Type = t.E
 
-		variable := newGlobalVariable(pkg.name, lhsIdent.Obj.Name, t)
+		variable := newGlobalVariable(pkg.Name, lhsIdent.Obj.Name, t)
 		setVariable(lhsIdent.Obj, variable)
 		metaVar := walkIdent(lhsIdent, nil)
 
@@ -5012,16 +5012,16 @@ func walk(pkg *PkgContainer) {
 			rhs = spec.Values[0]
 			// collect string literals
 		}
-		pkgVar := &packageVar{
-			spec:    spec,
-			name:    lhsIdent,
-			val:     rhs,
-			metaVal: rhsMeta, // can be nil
-			metaVar: metaVar,
-			typ:     t,
+		pkgVar := &PackageVar{
+			Spec:    spec,
+			Name:    lhsIdent,
+			Val:     rhs,
+			MetaVal: rhsMeta, // can be nil
+			MetaVar: metaVar,
+			Type:    t,
 		}
-		pkg.vars = append(pkg.vars, pkgVar)
-		ExportedQualifiedIdents[string(newQI(pkg.name, lhsIdent.Name))] = lhsIdent
+		pkg.Vars = append(pkg.Vars, pkgVar)
+		ExportedQualifiedIdents[string(newQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
 	//logf("walking funcDecls in detail ...\n")
@@ -5076,9 +5076,9 @@ func walk(pkg *PkgContainer) {
 			fnc.Stmts = ms
 
 			if funcDecl.Recv != nil { // is Method
-				fnc.Method = newMethod(pkg.name, funcDecl)
+				fnc.Method = newMethod(pkg.Name, funcDecl)
 			}
-			pkg.funcs = append(pkg.funcs, fnc)
+			pkg.Funcs = append(pkg.Funcs, fnc)
 		}
 		currentFunc = nil
 	}
@@ -5164,27 +5164,27 @@ type PackageToBuild struct {
 	files []string
 }
 
-type packageVar struct {
-	spec    *ast.ValueSpec
-	name    *ast.Ident
-	val     ast.Expr // can be nil
-	metaVal MetaExpr // can be nil
-	typ     *Type    // cannot be nil
-	metaVar *MetaIdent
+type PackageVar struct {
+	Spec    *ast.ValueSpec
+	Name    *ast.Ident
+	Val     ast.Expr // can be nil
+	MetaVal MetaExpr // can be nil
+	Type    *Type    // cannot be nil
+	MetaVar *MetaIdent
 }
 
 type PkgContainer struct {
-	path           string
-	name           string
-	astFiles       []*ast.File
-	vars           []*packageVar
-	funcs          []*Func
-	stringLiterals []*sliteral
-	stringIndex    int
+	Path           string
+	Name           string
+	AstFiles       []*ast.File
+	Vars           []*PackageVar
+	Funcs          []*Func
+	StringLiterals []*sliteral
+	StringIndex    int
 	Decls          []ast.Decl
-	fset           *token.FileSet
-	hasInitFunc    bool
-	fileNoMap      map[string]int // for .loc
+	Fset           *token.FileSet
+	HasInitFunc    bool
+	FileNoMap      map[string]int // for .loc
 }
 
 func resolveImports(file *ast.File) {
@@ -5379,16 +5379,16 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 
 // compile compiles go files of a package into an assembly file, and copy input assembly files into it.
 func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name string, gofiles []string, asmfiles []string, outFilePath string) *PkgContainer {
-	_pkg := &PkgContainer{name: name, path: pkgPath, fset: fset}
+	_pkg := &PkgContainer{Name: name, Path: pkgPath, Fset: fset}
 	currentPkg = _pkg
-	_pkg.fileNoMap = make(map[string]int)
+	_pkg.FileNoMap = make(map[string]int)
 	outAsmFile, err := os.Create(outFilePath)
 	if err != nil {
 		panic(err)
 	}
 	fout = outAsmFile
 
-	printf("#=== Package %s\n", _pkg.path)
+	printf("#=== Package %s\n", _pkg.Path)
 
 	typesMap = make(map[string]*dtypeEntry)
 	typeId = 1
@@ -5396,18 +5396,18 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 	pkgScope := ast.NewScope(universe)
 	for i, file := range gofiles {
 		fileno := i + 1
-		_pkg.fileNoMap[file] = fileno
+		_pkg.FileNoMap[file] = fileno
 		printf("  .file %d \"%s\"\n", fileno, file)
 
 		astFile := parseFile(fset, file)
 		//		logf("[main]package decl lineno = %s\n", fset.Position(astFile.Package))
-		_pkg.name = astFile.Name.Name
-		_pkg.astFiles = append(_pkg.astFiles, astFile)
+		_pkg.Name = astFile.Name.Name
+		_pkg.AstFiles = append(_pkg.AstFiles, astFile)
 		for name, obj := range astFile.Scope.Objects {
 			pkgScope.Objects[name] = obj
 		}
 	}
-	for _, astFile := range _pkg.astFiles {
+	for _, astFile := range _pkg.AstFiles {
 		resolveImports(astFile)
 		var unresolved []*ast.Ident
 		for _, ident := range astFile.Unresolved {
@@ -5564,11 +5564,11 @@ func buildAll(args []string) {
 	for _, _pkg := range builtPackages {
 		// A package with no imports is initialized by assigning initial values to all its package-level variables
 		//  followed by calling all init functions in the order they appear in the source
-		if _pkg.name != "runtime" {
-			fmt.Fprintf(outAsmFile, "  callq %s.__initVars \n", _pkg.name)
+		if _pkg.Name != "runtime" {
+			fmt.Fprintf(outAsmFile, "  callq %s.__initVars \n", _pkg.Name)
 		}
-		if _pkg.hasInitFunc {
-			fmt.Fprintf(outAsmFile, "  callq %s.init \n", _pkg.name)
+		if _pkg.HasInitFunc {
+			fmt.Fprintf(outAsmFile, "  callq %s.init \n", _pkg.Name)
 		}
 	}
 	fmt.Fprintf(outAsmFile, "  ret\n")
