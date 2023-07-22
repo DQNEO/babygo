@@ -34,11 +34,7 @@ runtime.rt0_go:
   callq runtime.__initVars
   callq runtime.schedinit
 
-  callq __INIT__.__initVars
-
-  // A package with no imports is initialized by assigning initial values to all its package-level variables
-  //  followed by calling all init functions in the order they appear in the source
-  callq os.init # set os.Args
+  callq __INIT__.init
 
   // wrapper to runtime.main
   leaq runtime.mainPC(%rip), %rax # entry

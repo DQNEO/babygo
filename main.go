@@ -4944,6 +4944,9 @@ func walk(pkg *PkgContainer) {
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil { // non-method function
+			if funcDecl.Name.Name == "init" {
+				pkg.hasInitFunc = true
+			}
 			qi := newQI(pkg.name, funcDecl.Name.Name)
 			ExportedQualifiedIdents[string(qi)] = funcDecl.Name
 		} else { // is method
@@ -5275,6 +5278,7 @@ type PkgContainer struct {
 	stringIndex    int
 	Decls          []ast.Decl
 	fset           *token.FileSet
+	hasInitFunc    bool
 	fileNoMap      map[string]int // for .loc
 }
 
@@ -5469,7 +5473,7 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 }
 
 // compile compiles go files of a package into an assembly file, and copy input assembly files into it.
-func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name string, gofiles []string, asmfiles []string, outFilePath string) {
+func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name string, gofiles []string, asmfiles []string, outFilePath string) *PkgContainer {
 	_pkg := &PkgContainer{name: name, path: pkgPath, fset: fset}
 	currentPkg = _pkg
 	_pkg.fileNoMap = make(map[string]int)
@@ -5540,6 +5544,7 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 	outAsmFile.Close()
 	fout = nil
 	currentPkg = nil
+	return _pkg
 }
 
 // --- main ---
@@ -5610,6 +5615,7 @@ func buildAll(args []string) {
 	var universe = createUniverse()
 	fset = token.NewFileSet()
 
+	var builtPackages []*PkgContainer
 	for _, _pkg := range packagesToBuild {
 		if _pkg.name == "" {
 			panic("empty pkg name")
@@ -5632,7 +5638,8 @@ func buildAll(args []string) {
 			}
 
 		}
-		compile(universe, fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
+		pkgC := compile(universe, fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
+		builtPackages = append(builtPackages, pkgC)
 	}
 
 	outFilePath := fmt.Sprintf("%s/%s", workdir, "__INIT__.s")
@@ -5641,11 +5648,17 @@ func buildAll(args []string) {
 		panic(err)
 	}
 	fmt.Fprintf(outAsmFile, ".text\n")
-	fmt.Fprintf(outAsmFile, ".global __INIT__.__initVars\n")
-	fmt.Fprintf(outAsmFile, "__INIT__.__initVars:\n")
-	for _, _pkg := range packagesToBuild {
+	fmt.Fprintf(outAsmFile, "# Initializes all packages except for runtime\n")
+	fmt.Fprintf(outAsmFile, ".global __INIT__.init\n")
+	fmt.Fprintf(outAsmFile, "__INIT__.init:\n")
+	for _, _pkg := range builtPackages {
+		// A package with no imports is initialized by assigning initial values to all its package-level variables
+		//  followed by calling all init functions in the order they appear in the source
 		if _pkg.name != "runtime" {
 			fmt.Fprintf(outAsmFile, "  callq %s.__initVars \n", _pkg.name)
+		}
+		if _pkg.hasInitFunc {
+			fmt.Fprintf(outAsmFile, "  callq %s.init \n", _pkg.name)
 		}
 	}
 	outAsmFile.Close()
