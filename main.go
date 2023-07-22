@@ -608,7 +608,7 @@ func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, ex
 
 	var metaArgs []*MetaArg
 	for _, arg := range args {
-		ctx := &evalContext{_type: arg.paramType}
+		ctx := &EvalContext{Type: arg.paramType}
 		m := walkExpr(arg.e, ctx)
 		a := &MetaArg{
 			meta:      m,
@@ -956,9 +956,9 @@ func emitFuncall(meta *MetaCallExpr) {
 	emitCall(meta.FuncVal, meta.MetaArgs, meta.Types)
 }
 
-type evalContext struct {
-	maybeOK bool
-	_type   *types.Type
+type EvalContext struct {
+	MaybeOK bool
+	Type    *types.Type
 }
 
 // 1 value
@@ -3161,7 +3161,7 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 			t = e2t(spec.Type)
 			if len(spec.Values) > 0 {
 				rhs := spec.Values[0]
-				ctx := &evalContext{_type: t}
+				ctx := &EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
 			}
 		} else { // var x = e  infer lhs type from rhs
@@ -3222,10 +3222,10 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				lm := walkExpr(lhs, nil)
 				lhsMetas = append(lhsMetas, lm)
 			}
-			var ctx *evalContext
+			var ctx *EvalContext
 			if !isBlankIdentifierMeta(lhsMetas[0]) {
-				ctx = &evalContext{
-					_type: getTypeOfExpr(lhsMetas[0]),
+				ctx = &EvalContext{
+					Type: getTypeOfExpr(lhsMetas[0]),
 				}
 			}
 			rhsMeta := walkExpr(s.Rhs[0], ctx)
@@ -3239,7 +3239,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 			// Tuple assignment
 			maybeOkContext := len(s.Lhs) == 2
-			rhsMeta := walkExpr(s.Rhs[0], &evalContext{maybeOK: maybeOkContext})
+			rhsMeta := walkExpr(s.Rhs[0], &EvalContext{MaybeOK: maybeOkContext})
 			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
 			rhsTypes := getTupleTypes(rhsMeta)
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
@@ -3284,7 +3284,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		} else if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 			// Tuple assignment
 			maybeOkContext := len(s.Lhs) == 2
-			rhsMeta := walkExpr(s.Rhs[0], &evalContext{maybeOK: maybeOkContext})
+			rhsMeta := walkExpr(s.Rhs[0], &EvalContext{MaybeOK: maybeOkContext})
 			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
 			rhsTypes := getTupleTypes(rhsMeta)
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
@@ -3348,8 +3348,8 @@ func walkReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
 	for i := 0; i < _len; i++ {
 		expr := s.Results[i]
 		retTyp := funcDef.Retvars[i].Typ
-		ctx := &evalContext{
-			_type: retTyp,
+		ctx := &EvalContext{
+			Type: retTyp,
 		}
 		m := walkExpr(expr, ctx)
 		results = append(results, m)
@@ -3831,7 +3831,7 @@ func isUniverseNil(m *MetaIdent) bool {
 	return m.Kind == "nil"
 }
 
-func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
+func walkIdent(e *ast.Ident, ctx *EvalContext) *MetaIdent {
 	//	logf("(%s) [walkIdent] Pos=%d ident=\"%s\"\n", currentPkg.name, int(e.Pos()), e.Name)
 	meta := &MetaIdent{
 		Pos:  e.Pos(),
@@ -3856,8 +3856,8 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 	switch e.Obj {
 	case universe.Nil:
 		assert(ctx != nil, "ctx of nil is not passed", __func__)
-		assert(ctx._type != nil, "ctx._type of nil is not passed", __func__)
-		meta.Type = ctx._type
+		assert(ctx.Type != nil, "ctx.Type of nil is not passed", __func__)
+		meta.Type = ctx.Type
 		meta.Kind = "nil"
 	case universe.True:
 		meta.Kind = "true"
@@ -3906,7 +3906,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 	return meta
 }
 
-func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
+func walkSelectorExpr(e *ast.SelectorExpr, ctx *EvalContext) *MetaSelectorExpr {
 	meta := &MetaSelectorExpr{
 		Pos: e.Pos(),
 	}
@@ -3983,7 +3983,7 @@ func getTypeOfSelector(x MetaExpr, e *ast.SelectorExpr) *types.Type {
 	panic("Bad type")
 }
 
-func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
+func walkCallExpr(e *ast.CallExpr, ctx *EvalContext) *MetaCallExpr {
 	meta := &MetaCallExpr{
 		Pos: e.Pos(),
 	}
@@ -3993,8 +3993,8 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 		meta.Type = meta.ToType
 		assert(len(e.Args) == 1, "convert must take only 1 argument", __func__)
 		//logf("walkCallExpr: is Conversion\n")
-		ctx := &evalContext{
-			_type: e2t(e.Fun),
+		ctx := &EvalContext{
+			Type: e2t(e.Fun),
 		}
 		meta.Arg0 = walkExpr(e.Args[0], ctx)
 		return meta
@@ -4046,7 +4046,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 			walkExpr(e.Args[0], nil)
 			meta.TypeArg0 = e2t(e.Args[0])
 			meta.Type = meta.TypeArg0
-			ctx := &evalContext{_type: tInt}
+			ctx := &EvalContext{Type: tInt}
 			if len(e.Args) > 1 {
 				meta.Arg1 = walkExpr(e.Args[1], ctx)
 			}
@@ -4181,7 +4181,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	return meta
 }
 
-func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
+func walkBasicLit(e *ast.BasicLit, ctx *EvalContext) *MetaBasicLit {
 	m := &MetaBasicLit{
 		Pos:   e.Pos(),
 		Kind:  e.Kind.String(),
@@ -4220,7 +4220,7 @@ func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 	return m
 }
 
-func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
+func walkCompositeLit(e *ast.CompositeLit, ctx *EvalContext) *MetaCompositLit {
 	//walkExpr(e.Type, nil) // a[len("foo")]{...} // "foo" should be walked
 	typ := e2t(e.Type)
 	ut := getUnderlyingType(typ)
@@ -4250,7 +4250,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 			fieldName := kvExpr.Key.(*ast.Ident)
 			field := lookupStructField(getUnderlyingStructType(structType), fieldName.Name)
 			fieldType := e2t(field.Type)
-			ctx := &evalContext{_type: fieldType}
+			ctx := &EvalContext{Type: fieldType}
 			// attach type to nil : STRUCT{Key:nil}
 			valueMeta := walkExpr(kvExpr.Value, ctx)
 
@@ -4268,7 +4268,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 		arrayType := ut.E.(*ast.ArrayType)
 		meta.Len = evalInt(arrayType.Len)
 		meta.ElmType = e2t(arrayType.Elt)
-		ctx := &evalContext{_type: meta.ElmType}
+		ctx := &EvalContext{Type: meta.ElmType}
 		var ms []MetaExpr
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
@@ -4279,7 +4279,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 		arrayType := ut.E.(*ast.ArrayType)
 		meta.Len = len(e.Elts)
 		meta.ElmType = e2t(arrayType.Elt)
-		ctx := &evalContext{_type: meta.ElmType}
+		ctx := &EvalContext{Type: meta.ElmType}
 		var ms []MetaExpr
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
@@ -4290,7 +4290,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 	return meta
 }
 
-func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
+func walkUnaryExpr(e *ast.UnaryExpr, ctx *EvalContext) *MetaUnaryExpr {
 	meta := &MetaUnaryExpr{
 		Pos: e.Pos(),
 		Op:  e.Op.String(),
@@ -4313,7 +4313,7 @@ func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
 	return meta
 }
 
-func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
+func walkBinaryExpr(e *ast.BinaryExpr, ctx *EvalContext) *MetaBinaryExpr {
 	meta := &MetaBinaryExpr{
 		Pos: e.Pos(),
 		Op:  e.Op.String(),
@@ -4321,7 +4321,7 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 	if isNilIdent(e.X) {
 		// Y should be typed
 		meta.Y = walkExpr(e.Y, nil) // right
-		xCtx := &evalContext{_type: getTypeOfExpr(meta.Y)}
+		xCtx := &EvalContext{Type: getTypeOfExpr(meta.Y)}
 
 		meta.X = walkExpr(e.X, xCtx) // left
 	} else {
@@ -4331,7 +4331,7 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 		if xTyp == nil {
 			panicPos("xTyp should not be nil", Pos(e))
 		}
-		yCtx := &evalContext{_type: xTyp}
+		yCtx := &EvalContext{Type: xTyp}
 		meta.Y = walkExpr(e.Y, yCtx) // right
 	}
 	switch meta.Op {
@@ -4368,7 +4368,7 @@ func panicPos(s string, pos token.Pos) {
 	panic(fmt.Sprintf("%s\n\t%s", s, position.String()))
 }
 
-func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
+func walkIndexExpr(e *ast.IndexExpr, ctx *EvalContext) *MetaIndexExpr {
 	meta := &MetaIndexExpr{
 		Pos: e.Pos(),
 	}
@@ -4377,7 +4377,7 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 	collectionTyp := getTypeOfExpr(meta.X)
 	if kind(collectionTyp) == types.T_MAP {
 		meta.IsMap = true
-		if ctx != nil && ctx.maybeOK {
+		if ctx != nil && ctx.MaybeOK {
 			meta.NeedsOK = true
 		}
 	}
@@ -4386,7 +4386,7 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 	return meta
 }
 
-func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) *MetaSliceExpr {
+func walkSliceExpr(e *ast.SliceExpr, ctx *EvalContext) *MetaSliceExpr {
 	meta := &MetaSliceExpr{
 		Pos: e.Pos(),
 	}
@@ -4440,7 +4440,7 @@ func walkMapType(e *ast.MapType) {
 	// first argument of builtin func
 	// do nothing
 }
-func walkStarExpr(e *ast.StarExpr, ctx *evalContext) *MetaStarExpr {
+func walkStarExpr(e *ast.StarExpr, ctx *EvalContext) *MetaStarExpr {
 	meta := &MetaStarExpr{
 		Pos: e.Pos(),
 	}
@@ -4455,11 +4455,11 @@ func walkInterfaceType(e *ast.InterfaceType) {
 	// interface{}(e)  conversion. Nothing to do.
 }
 
-func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssertExpr {
+func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *EvalContext) *MetaTypeAssertExpr {
 	meta := &MetaTypeAssertExpr{
 		Pos: e.Pos(),
 	}
-	if ctx != nil && ctx.maybeOK {
+	if ctx != nil && ctx.MaybeOK {
 		meta.NeedsOK = true
 	}
 	meta.X = walkExpr(e.X, nil)
@@ -4593,7 +4593,7 @@ type MetaTypeAssertExpr struct {
 // targetType is used when:
 //   - the expr is nil
 //   - the target type is interface and expr is not.
-func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
+func walkExpr(expr ast.Expr, ctx *EvalContext) MetaExpr {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
 		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
@@ -4963,7 +4963,7 @@ func walk(pkg *PkgContainer) {
 			t = e2t(spec.Type)
 			if len(spec.Values) > 0 {
 				rhs := spec.Values[0]
-				ctx := &evalContext{_type: t}
+				ctx := &EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
 			}
 		} else { // var x = e  infer lhs type from rhs
