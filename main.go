@@ -673,7 +673,7 @@ func emitCall(fv *FuncValue, args []*MetaArg, returnTypes []*Type) {
 }
 
 func emitAllocReturnVarsAreaFF(ff *ForeignFunc) {
-	emitAllocReturnVarsArea(getTotalFieldsSize(ff.funcType.Results))
+	emitAllocReturnVarsArea(getTotalFieldsSize(ff.FuncType.Results))
 }
 
 func getTotalSizeOfType(types []*Type) int {
@@ -696,9 +696,9 @@ func getTotalFieldsSize(flist *ast.FieldList) int {
 }
 
 func emitCallFF(ff *ForeignFunc) {
-	totalParamSize := getTotalFieldsSize(ff.funcType.Params)
-	returnTypes := fieldList2Types(ff.funcType.Results)
-	emitCallQ(NewFuncValueFromSymbol(ff.symbol), totalParamSize, returnTypes)
+	totalParamSize := getTotalFieldsSize(ff.FuncType.Params)
+	returnTypes := fieldList2Types(ff.FuncType.Results)
+	emitCallQ(NewFuncValueFromSymbol(ff.Symbol), totalParamSize, returnTypes)
 }
 
 func NewFuncValueFromSymbol(symbol string) *FuncValue {
@@ -3120,7 +3120,7 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *Method {
 var MethodSets = make(map[unsafe.Pointer]*NamedType)
 
 type NamedType struct {
-	methodSet map[string]*Method
+	MethodSet map[string]*Method
 }
 
 func registerMethod(method *Method) {
@@ -3128,11 +3128,11 @@ func registerMethod(method *Method) {
 	namedType, ok := MethodSets[key]
 	if !ok {
 		namedType = &NamedType{
-			methodSet: make(map[string]*Method),
+			MethodSet: make(map[string]*Method),
 		}
 		MethodSets[key] = namedType
 	}
-	namedType.methodSet[method.Name] = method
+	namedType.MethodSet[method.Name] = method
 }
 
 func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
@@ -3156,7 +3156,7 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 	if !ok {
 		panic(typeObj.Name + " has no methodSet")
 	}
-	method, ok := namedType.methodSet[methodName.Name]
+	method, ok := namedType.MethodSet[methodName.Name]
 	if !ok {
 		panic("method not found: " + methodName.Name)
 	}
@@ -4137,7 +4137,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 				assert(isQI(r), "expect QI", __func__)
 				qi := selector2QI(r)
 				ff := lookupForeignFunc(qi)
-				funcType = ff.funcType
+				funcType = ff.FuncType
 				funcVal = NewFuncValueFromSymbol(string(qi))
 			default:
 				throw(r)
@@ -4151,7 +4151,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 			qi := selector2QI(fn)
 			funcVal = NewFuncValueFromSymbol(string(qi))
 			ff := lookupForeignFunc(qi)
-			funcType = ff.funcType
+			funcType = ff.FuncType
 		} else {
 			// method call
 			receiver = fn.X
@@ -4833,8 +4833,8 @@ func lookupForeignIdent(qi QualifiedIdent) *ast.Ident {
 }
 
 type ForeignFunc struct {
-	symbol   string
-	funcType *ast.FuncType
+	Symbol   string
+	FuncType *ast.FuncType
 }
 
 func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
@@ -4842,8 +4842,8 @@ func lookupForeignFunc(qi QualifiedIdent) *ForeignFunc {
 	assert(ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
 	decl := ident.Obj.Decl.(*ast.FuncDecl)
 	return &ForeignFunc{
-		symbol:   string(qi),
-		funcType: decl.Type,
+		Symbol:   string(qi),
+		FuncType: decl.Type,
 	}
 }
 
