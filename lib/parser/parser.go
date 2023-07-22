@@ -847,16 +847,18 @@ func makeExpr(s ast.Stmt) ast.Expr {
 }
 
 func (p *parser) parseGoStmt() ast.Stmt {
+	pos := p.pos
 	p.expect("go", __func__)
 	expr := p.parsePrimaryExpr(false)
 	p.expectSemi(__func__)
 	return &ast.GoStmt{
+		Go:   pos,
 		Call: expr.(*ast.CallExpr),
 	}
 }
 
 func (p *parser) parseForStmt() ast.Stmt {
-
+	pos := p.pos
 	p.expect("for", __func__)
 	p.openScope()
 
@@ -911,7 +913,9 @@ func (p *parser) parseForStmt() ast.Stmt {
 		}
 
 		rangeX = as.Rhs[0].(*ast.UnaryExpr).X
-		var rangeStmt = &ast.RangeStmt{}
+		var rangeStmt = &ast.RangeStmt{
+			For: pos,
+		}
 		rangeStmt.Key = key
 		rangeStmt.Value = value
 		rangeStmt.X = rangeX
@@ -921,7 +925,9 @@ func (p *parser) parseForStmt() ast.Stmt {
 
 		return rangeStmt
 	}
-	var forStmt = &ast.ForStmt{}
+	var forStmt = &ast.ForStmt{
+		For: pos,
+	}
 	forStmt.Init = s1
 	forStmt.Cond = makeExpr(s2)
 	forStmt.Post = s3
@@ -932,6 +938,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 }
 
 func (p *parser) parseIfStmt() ast.Stmt {
+	pos := p.pos
 	p.expect("if", __func__)
 	parserExprLev = -1
 	var condStmt ast.Stmt = p.parseSimpleStmt(false)
@@ -952,7 +959,9 @@ func (p *parser) parseIfStmt() ast.Stmt {
 	} else {
 		p.expectSemi(__func__)
 	}
-	var ifStmt = &ast.IfStmt{}
+	var ifStmt = &ast.IfStmt{
+		If: pos,
+	}
 	ifStmt.Cond = cond
 	ifStmt.Body = body
 	ifStmt.Else = else_
@@ -1000,6 +1009,7 @@ func isTypeSwitchGuard(stmt ast.Stmt) bool {
 }
 
 func (p *parser) parseSwitchStmt() ast.Stmt {
+	pos := p.pos
 	p.expect("switch", __func__)
 	p.openScope()
 
@@ -1027,13 +1037,15 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	p.closeScope()
 	if typeSwitch {
 		return &ast.TypeSwitchStmt{
+			Switch: pos,
 			Assign: s2,
 			Body:   body,
 		}
 	} else {
 		return &ast.SwitchStmt{
-			Body: body,
-			Tag:  makeExpr(s2),
+			Switch: pos,
+			Body:   body,
+			Tag:    makeExpr(s2),
 		}
 	}
 }
@@ -1056,6 +1068,7 @@ func (p *parser) parseLhsList() []ast.Expr {
 func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 
 	var x = p.parseLhsList()
+	tokPos := p.pos
 	stok := p.tok
 	var isRange = false
 	var y ast.Expr
@@ -1076,7 +1089,9 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 		} else {
 			y = p.parseExpr(false) // rhs
 		}
-		var as = &ast.AssignStmt{}
+		var as = &ast.AssignStmt{
+			TokPos: tokPos,
+		}
 		as.Tok = token.Token(assignToken)
 		as.Lhs = x
 		as.Rhs = make([]ast.Expr, 1, 1)
@@ -1101,7 +1116,9 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 
 	switch stok {
 	case "++", "--":
-		var sInc = &ast.IncDecStmt{}
+		var sInc = &ast.IncDecStmt{
+			TokPos: tokPos,
+		}
 		sInc.X = x[0]
 		sInc.Tok = token.Token(stok)
 		p.next() // consume "++" or "--"
@@ -1164,24 +1181,29 @@ func (p *parser) parseRhsList() []ast.Expr {
 }
 
 func (p *parser) parseBranchStmt(tok string) ast.Stmt {
+	pos := p.pos
 	p.expect(tok, __func__)
 
 	p.expectSemi(__func__)
 
 	return &ast.BranchStmt{
-		Tok: token.Token(tok),
+		TokPos: pos,
+		Tok:    token.Token(tok),
 	}
 }
 
 func (p *parser) parseReturnStmt() ast.Stmt {
+	pos := p.pos
 	p.expect("return", __func__)
 	var x []ast.Expr
 	if p.tok != ";" && p.tok != "}" {
 		x = p.parseRhsList()
 	}
 	p.expectSemi(__func__)
-	var returnStmt = &ast.ReturnStmt{}
-	returnStmt.Results = x
+	var returnStmt = &ast.ReturnStmt{
+		Return:  pos,
+		Results: x,
+	}
 	return returnStmt
 }
 
@@ -1195,6 +1217,7 @@ func (p *parser) parseStmtList() []ast.Stmt {
 }
 
 func (p *parser) parseBody(scope *ast.Scope) *ast.BlockStmt {
+	pos := p.pos
 	p.expect("{", __func__)
 	p.topScope = scope
 
@@ -1202,12 +1225,14 @@ func (p *parser) parseBody(scope *ast.Scope) *ast.BlockStmt {
 
 	p.closeScope()
 	p.expect("}", __func__)
-	var r = &ast.BlockStmt{}
-	r.List = list
-	return r
+	return &ast.BlockStmt{
+		Lbrace: pos,
+		List:   list,
+	}
 }
 
 func (p *parser) parseBlockStmt() *ast.BlockStmt {
+	pos := p.pos
 	p.expect("{", __func__)
 	p.openScope()
 
@@ -1215,12 +1240,14 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 
 	p.closeScope()
 	p.expect("}", __func__)
-	var r = &ast.BlockStmt{}
-	r.List = list
-	return r
+	return &ast.BlockStmt{
+		Lbrace: pos,
+		List:   list,
+	}
 }
 
 func (p *parser) parseDecl(keyword string) *ast.GenDecl {
+	pos := p.pos
 	var r *ast.GenDecl
 	switch p.tok {
 	case "var":
@@ -1244,7 +1271,8 @@ func (p *parser) parseDecl(keyword string) *ast.GenDecl {
 		declare(valSpec, p.topScope, ast.Var, ident)
 		specs := []ast.Spec{valSpec}
 		return &ast.GenDecl{
-			Specs: specs,
+			TokPos: pos,
+			Specs:  specs,
 		}
 	default:
 		panic2(__func__, "TBI\n")
@@ -1255,12 +1283,9 @@ func (p *parser) parseDecl(keyword string) *ast.GenDecl {
 func (p *parser) parserTypeSpec() *ast.TypeSpec {
 
 	p.expect("type", __func__)
-	pos := p.pos
 	var ident = p.parseIdent()
 
-	var spec = &ast.TypeSpec{
-		Assign: pos,
-	}
+	var spec = &ast.TypeSpec{}
 	spec.Name = ident
 	declare(spec, p.topScope, ast.Typ, ident)
 	if p.tok == "=" {
@@ -1305,12 +1330,14 @@ func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
 }
 
 func (p *parser) parseFuncType() ast.Expr {
+	pos := p.pos
 	p.next()
 	var scope = ast.NewScope(p.topScope) // function scope
 	var sig = p.parseSignature(scope)
 	var params = sig.Params
 	var results = sig.Results
 	ft := &ast.FuncType{
+		Func:    pos,
 		Params:  params,
 		Results: results,
 	}
@@ -1354,9 +1381,8 @@ func (p *parser) parseFuncDecl() ast.Decl {
 	var funcDecl = &ast.FuncDecl{}
 	funcDecl.Recv = receivers
 	funcDecl.Name = ident
-	funcDecl.TPos = token.Pos(pos)
 	funcDecl.Type = &ast.FuncType{
-		FPos: pos,
+		Func: pos,
 	}
 	funcDecl.Type.Params = params
 	funcDecl.Type.Results = results
@@ -1370,6 +1396,7 @@ func (p *parser) parseFuncDecl() ast.Decl {
 
 func (p *parser) parseFile(importsOnly bool) *ast.File {
 	// expect "package" keyword
+	pos := p.pos
 	p.expect("package", __func__)
 	p.unresolved = nil
 	var ident = p.parseIdent()
@@ -1436,7 +1463,9 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 		}
 	}
 
-	var f = &ast.File{}
+	var f = &ast.File{
+		Package: pos,
+	}
 	f.Name = packageName
 	f.Scope = p.pkgScope
 	f.Decls = decls

@@ -148,9 +148,9 @@ type MapType struct {
 }
 
 type FuncType struct {
+	Func    token.Pos
 	Params  *FieldList
 	Results *FieldList // this can be nil: e.g. func f() {}
-	FPos    token.Pos
 }
 
 func (x *Ident) Pos() token.Pos    { return x.NamePos }
@@ -172,7 +172,7 @@ func (x *KeyValueExpr) Pos() token.Pos   { return pos(x.Key) }
 func (x *ArrayType) Pos() token.Pos      { return x.Lbrack }
 func (x *StructType) Pos() token.Pos     { return x.Struct }
 func (x *FuncType) Pos() token.Pos {
-	return x.FPos
+	return x.Func
 }
 
 func (x *Field) Pos() token.Pos {
@@ -255,6 +255,12 @@ func pos(expr interface{}) token.Pos {
 	case *ForStmt:
 		return e.Pos()
 	case *RangeStmt:
+		return e.Pos()
+
+	// Decl
+	case *GenDecl:
+		return e.Pos()
+	case *FuncDecl:
 		return e.Pos()
 	}
 	panic(fmt.Sprintf("Unknown type:%T", expr))
@@ -396,7 +402,8 @@ type Decl interface {
 type Spec interface{}
 
 type GenDecl struct {
-	Specs []Spec
+	TokPos token.Pos
+	Specs  []Spec
 }
 
 type FuncDecl struct {
@@ -404,11 +411,14 @@ type FuncDecl struct {
 	Name *Ident
 	Type *FuncType
 	Body *BlockStmt
-	TPos token.Pos
+}
+
+func (x *GenDecl) Pos() token.Pos {
+	return x.TokPos
 }
 
 func (x *FuncDecl) Pos() token.Pos {
-	return x.TPos
+	return x.Type.Pos()
 }
 
 type File struct {

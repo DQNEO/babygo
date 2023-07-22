@@ -466,6 +466,7 @@ func emitCallMalloc(size int) {
 }
 
 type MetaStructLiteralElement struct {
+	Pos       token.Pos
 	field     *ast.Field
 	fieldType *Type
 	ValueMeta MetaExpr
@@ -2801,7 +2802,8 @@ func getUnderlyingType(t *Type) *Type {
 			return t
 		case gError:
 			return e2t(&ast.InterfaceType{
-				Methods: nil, //  @FIXME
+				Methods:   nil, //  @FIXME
+				Interface: 1,
 			})
 		}
 		// defined type or alias
@@ -3141,7 +3143,10 @@ func lookupMethod(rcvT *Type, methodName *ast.Ident) *Method {
 
 func walkExprStmt(s *ast.ExprStmt) *MetaExprStmt {
 	m := walkExpr(s.X, nil)
-	return &MetaExprStmt{X: m}
+	return &MetaExprStmt{
+		X:   m,
+		Pos: s.Pos(),
+	}
 }
 
 func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
@@ -3178,10 +3183,12 @@ func walkDeclStmt(s *ast.DeclStmt) *MetaVarDecl {
 		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
 		lhsMeta := walkIdent(lhsIdent, nil)
 		single := &MetaSingleAssign{
+			Pos: lhsIdent.Pos(),
 			Lhs: lhsMeta,
 			Rhs: rhsMeta,
 		}
 		return &MetaVarDecl{
+			Pos:     lhsIdent.Pos(),
 			Single:  single,
 			LhsType: t,
 		}
@@ -3205,6 +3212,7 @@ func IsOkSyntax(rhs MetaExpr) bool {
 }
 
 func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
+	pos := s.Pos()
 	stok := s.Tok.String()
 	switch stok {
 	case "=":
@@ -3223,6 +3231,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			}
 			rhsMeta := walkExpr(s.Rhs[0], ctx)
 			return &MetaSingleAssign{
+				Pos: pos,
 				Lhs: lhsMetas[0],
 				Rhs: rhsMeta,
 			}
@@ -3242,6 +3251,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 			return &MetaTupleAssign{
+				Pos:      pos,
 				isOK:     isOK,
 				Lhss:     lhsMetas,
 				Rhs:      rhsMeta,
@@ -3266,6 +3276,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 			}
 
 			return &MetaSingleAssign{
+				Pos: pos,
 				Lhs: lhsMetas[0],
 				Rhs: rhsMeta,
 			}
@@ -3292,6 +3303,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 			return &MetaTupleAssign{
+				Pos:      pos,
 				isOK:     isOK,
 				Lhss:     lhsMetas,
 				Rhs:      rhsMeta,
@@ -3316,6 +3328,7 @@ func walkAssignStmt(s *ast.AssignStmt) MetaStmt {
 		rhsMeta := walkExpr(binaryExpr, nil)
 		lhsMeta := walkExpr(s.Lhs[0], nil)
 		return &MetaSingleAssign{
+			Pos: pos,
 			Lhs: lhsMeta,
 			Rhs: rhsMeta,
 		}
@@ -3343,6 +3356,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *MetaReturnStmt {
 		results = append(results, m)
 	}
 	return &MetaReturnStmt{
+		Pos:     s.Pos(),
 		Fnc:     funcDef,
 		Results: results,
 	}
@@ -3363,6 +3377,7 @@ func walkIfStmt(s *ast.IfStmt) *MetaIfStmt {
 		mElse = walkStmt(s.Else)
 	}
 	return &MetaIfStmt{
+		Pos:  s.Pos(),
 		Init: mInit,
 		Cond: condMeta,
 		Body: mtBlock,
@@ -3371,7 +3386,9 @@ func walkIfStmt(s *ast.IfStmt) *MetaIfStmt {
 }
 
 func walkBlockStmt(s *ast.BlockStmt) *MetaBlockStmt {
-	mt := &MetaBlockStmt{}
+	mt := &MetaBlockStmt{
+		Pos: s.Pos(),
+	}
 	for _, stmt := range s.List {
 		meta := walkStmt(stmt)
 		mt.List = append(mt.List, meta)
@@ -3413,6 +3430,7 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForContainer {
 	switch kind(collectionType) {
 	case T_SLICE, T_ARRAY:
 		meta.ForRangeStmt = &MetaForRangeStmt{
+			Pos:      s.Pos(),
 			IsMap:    false,
 			LenVar:   registerLocalVariable(currentFunc, ".range.len", tInt),
 			Indexvar: registerLocalVariable(currentFunc, ".range.index", tInt),
@@ -3420,6 +3438,7 @@ func walkRangeStmt(s *ast.RangeStmt) *MetaForContainer {
 		}
 	case T_MAP:
 		meta.ForRangeStmt = &MetaForRangeStmt{
+			Pos:     s.Pos(),
 			IsMap:   true,
 			MapVar:  registerLocalVariable(currentFunc, ".range.map", tUintptr),
 			ItemVar: registerLocalVariable(currentFunc, ".range.item", tUintptr),
@@ -3472,13 +3491,16 @@ func walkIncDecStmt(s *ast.IncDecStmt) *MetaSingleAssign {
 	rhsMeta := walkExpr(newRhs, nil)
 	lhsMeta := walkExpr(s.X, nil)
 	return &MetaSingleAssign{
+		Pos: s.Pos(),
 		Lhs: lhsMeta,
 		Rhs: rhsMeta,
 	}
 }
 
 func walkSwitchStmt(s *ast.SwitchStmt) *MetaSwitchStmt {
-	meta := &MetaSwitchStmt{}
+	meta := &MetaSwitchStmt{
+		Pos: s.Pos(),
+	}
 	if s.Init != nil {
 		meta.Init = walkStmt(s.Init)
 	}
@@ -3497,7 +3519,9 @@ func walkSwitchStmt(s *ast.SwitchStmt) *MetaSwitchStmt {
 }
 
 func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
-	typeSwitch := &MetaTypeSwitchStmt{}
+	typeSwitch := &MetaTypeSwitchStmt{
+		Pos: e.Pos(),
+	}
 	var assignIdent *ast.Ident
 
 	switch assign := e.Assign.(type) {
@@ -3520,7 +3544,9 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *MetaTypeSwitchStmt {
 	var cases []*MetaTypeSwitchCaseClose
 	for _, _case := range e.Body.List {
 		cc := _case.(*ast.CaseClause)
-		tscc := &MetaTypeSwitchCaseClose{}
+		tscc := &MetaTypeSwitchCaseClose{
+			Pos: cc.Pos(),
+		}
 		cases = append(cases, tscc)
 
 		if assignIdent != nil {
@@ -3587,6 +3613,7 @@ func walkCaseClause(s *ast.CaseClause) *MetaCaseClause {
 		body = append(body, metaStmt)
 	}
 	return &MetaCaseClause{
+		Pos:      s.Pos(),
 		ListMeta: listMeta,
 		Body:     body,
 	}
@@ -3605,6 +3632,7 @@ func walkBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
 	}
 
 	return &MetaBranchStmt{
+		Pos:              s.Pos(),
 		containerForStmt: currentFor,
 		ContinueOrBreak:  continueOrBreak,
 	}
@@ -3613,6 +3641,7 @@ func walkBranchStmt(s *ast.BranchStmt) *MetaBranchStmt {
 func walkGoStmt(s *ast.GoStmt) *MetaGoStmt {
 	fun := walkExpr(s.Call.Fun, nil)
 	return &MetaGoStmt{
+		Pos: s.Pos(),
 		fun: fun,
 	}
 }
@@ -3620,24 +3649,29 @@ func walkGoStmt(s *ast.GoStmt) *MetaGoStmt {
 type MetaStmt interface{}
 
 type MetaBlockStmt struct {
+	Pos  token.Pos
 	List []MetaStmt
 }
 
 type MetaExprStmt struct {
-	X MetaExpr
+	Pos token.Pos
+	X   MetaExpr
 }
 
 type MetaVarDecl struct {
+	Pos     token.Pos
 	Single  *MetaSingleAssign
 	LhsType *Type
 }
 
 type MetaSingleAssign struct {
+	Pos token.Pos
 	Lhs MetaExpr
 	Rhs MetaExpr // can be nil
 }
 
 type MetaTupleAssign struct {
+	Pos      token.Pos
 	isOK     bool // OK or funcall
 	Lhss     []MetaExpr
 	Rhs      MetaExpr
@@ -3645,11 +3679,13 @@ type MetaTupleAssign struct {
 }
 
 type MetaReturnStmt struct {
+	Pos     token.Pos
 	Fnc     *Func
 	Results []MetaExpr
 }
 
 type MetaIfStmt struct {
+	Pos  token.Pos
 	Init MetaStmt
 	Cond MetaExpr
 	Body *MetaBlockStmt
@@ -3657,6 +3693,7 @@ type MetaIfStmt struct {
 }
 
 type MetaForContainer struct {
+	Pos       token.Pos
 	LabelPost string // for continue
 	LabelExit string // for break
 	Outer     *MetaForContainer
@@ -3667,12 +3704,14 @@ type MetaForContainer struct {
 }
 
 type MetaForForStmt struct {
+	Pos  token.Pos
 	Init MetaStmt
 	Cond MetaExpr
 	Post MetaStmt
 }
 
 type MetaForRangeStmt struct {
+	Pos      token.Pos
 	IsMap    bool
 	LenVar   *Variable
 	Indexvar *Variable
@@ -3684,22 +3723,26 @@ type MetaForRangeStmt struct {
 }
 
 type MetaBranchStmt struct {
+	Pos              token.Pos
 	containerForStmt *MetaForContainer
 	ContinueOrBreak  int // 1: continue, 2:break
 }
 
 type MetaSwitchStmt struct {
+	Pos   token.Pos
 	Init  MetaStmt
 	cases []*MetaCaseClause
 	Tag   MetaExpr
 }
 
 type MetaCaseClause struct {
+	Pos      token.Pos
 	ListMeta []MetaExpr
 	Body     []MetaStmt
 }
 
 type MetaTypeSwitchStmt struct {
+	Pos             token.Pos
 	Subject         MetaExpr
 	SubjectVariable *Variable
 	assignObj       *ast.Object
@@ -3708,6 +3751,7 @@ type MetaTypeSwitchStmt struct {
 }
 
 type MetaTypeSwitchCaseClose struct {
+	Pos      token.Pos
 	Variable *Variable
 	//VariableType *Type
 	types []*Type
@@ -3715,6 +3759,7 @@ type MetaTypeSwitchCaseClose struct {
 }
 
 type MetaGoStmt struct {
+	Pos token.Pos
 	fun MetaExpr
 }
 
@@ -3722,30 +3767,43 @@ func walkStmt(stmt ast.Stmt) MetaStmt {
 	var mt MetaStmt
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkBlockStmt(s)
 	case *ast.ExprStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkExprStmt(s)
 	case *ast.DeclStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkDeclStmt(s)
 	case *ast.AssignStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkAssignStmt(s)
 	case *ast.IncDecStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkIncDecStmt(s)
 	case *ast.ReturnStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkReturnStmt(s)
 	case *ast.IfStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkIfStmt(s)
 	case *ast.ForStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkForStmt(s)
 	case *ast.RangeStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkRangeStmt(s)
 	case *ast.BranchStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkBranchStmt(s)
 	case *ast.SwitchStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkSwitchStmt(s)
 	case *ast.TypeSwitchStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkTypeSwitchStmt(s)
 	case *ast.GoStmt:
+		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkGoStmt(s)
 	default:
 		throw(stmt)
@@ -3762,6 +3820,7 @@ func isUniverseNil(m *MetaIdent) bool {
 func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 	//	logf("(%s) [walkIdent] Pos=%d ident=\"%s\"\n", currentPkg.name, int(e.Pos()), e.Name)
 	meta := &MetaIdent{
+		Pos:  e.Pos(),
 		Name: e.Name,
 	}
 	logfncname := "(toplevel)"
@@ -3834,7 +3893,9 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 }
 
 func walkSelectorExpr(e *ast.SelectorExpr, ctx *evalContext) *MetaSelectorExpr {
-	meta := &MetaSelectorExpr{}
+	meta := &MetaSelectorExpr{
+		Pos: e.Pos(),
+	}
 	if isQI(e) {
 		meta.IsQI = true
 		// pkg.ident
@@ -3909,7 +3970,9 @@ func getTypeOfSelector(x MetaExpr, e *ast.SelectorExpr) *Type {
 }
 
 func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
-	meta := &MetaCallExpr{}
+	meta := &MetaCallExpr{
+		Pos: e.Pos(),
+	}
 	if isType(e.Fun) {
 		meta.isConversion = true
 		meta.toType = e2t(e.Fun)
@@ -3958,7 +4021,10 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 			meta.builtin = identFun.Obj
 			walkExpr(e.Args[0], nil)
 			meta.typeArg0 = e2t(e.Args[0])
-			ptrType := &ast.StarExpr{X: e.Args[0]}
+			ptrType := &ast.StarExpr{
+				X:    e.Args[0],
+				Star: 1,
+			}
 			meta.typ = e2t(ptrType)
 			return meta
 		case gMake:
@@ -4103,6 +4169,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 
 func walkBasicLit(e *ast.BasicLit, ctx *evalContext) *MetaBasicLit {
 	m := &MetaBasicLit{
+		Pos:   e.Pos(),
 		Kind:  e.Kind.String(),
 		Value: e.Value,
 	}
@@ -4155,6 +4222,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 		unexpectedKind(kind(typ))
 	}
 	meta := &MetaCompositLit{
+		Pos:  e.Pos(),
 		kind: knd,
 		typ:  typ,
 	}
@@ -4173,6 +4241,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 			valueMeta := walkExpr(kvExpr.Value, ctx)
 
 			metaElm := &MetaStructLiteralElement{
+				Pos:       kvExpr.Pos(),
 				field:     field,
 				fieldType: fieldType,
 				ValueMeta: valueMeta,
@@ -4209,7 +4278,8 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *evalContext) *MetaCompositLit {
 
 func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
 	meta := &MetaUnaryExpr{
-		Op: e.Op.String(),
+		Pos: e.Pos(),
+		Op:  e.Op.String(),
 	}
 	meta.X = walkExpr(e.X, nil)
 	switch meta.Op {
@@ -4231,7 +4301,8 @@ func walkUnaryExpr(e *ast.UnaryExpr, ctx *evalContext) *MetaUnaryExpr {
 
 func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 	meta := &MetaBinaryExpr{
-		Op: e.Op.String(),
+		Pos: e.Pos(),
+		Op:  e.Op.String(),
 	}
 	if isNilIdent(e.X) {
 		// Y should be typed
@@ -4269,7 +4340,9 @@ func panicPos(s string, pos token.Pos) {
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
-	meta := &MetaIndexExpr{}
+	meta := &MetaIndexExpr{
+		Pos: e.Pos(),
+	}
 	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	meta.X = walkExpr(e.X, nil)
 	collectionTyp := getTypeOfExpr(meta.X)
@@ -4285,7 +4358,9 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
 }
 
 func walkSliceExpr(e *ast.SliceExpr, ctx *evalContext) *MetaSliceExpr {
-	meta := &MetaSliceExpr{}
+	meta := &MetaSliceExpr{
+		Pos: e.Pos(),
+	}
 
 	// For convenience, any of the indices may be omitted.
 
@@ -4337,7 +4412,9 @@ func walkMapType(e *ast.MapType) {
 	// do nothing
 }
 func walkStarExpr(e *ast.StarExpr, ctx *evalContext) *MetaStarExpr {
-	meta := &MetaStarExpr{}
+	meta := &MetaStarExpr{
+		Pos: e.Pos(),
+	}
 	meta.X = walkExpr(e.X, nil)
 	xType := getTypeOfExpr(meta.X)
 	origType := xType.E.(*ast.StarExpr)
@@ -4350,7 +4427,9 @@ func walkInterfaceType(e *ast.InterfaceType) {
 }
 
 func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssertExpr {
-	meta := &MetaTypeAssertExpr{}
+	meta := &MetaTypeAssertExpr{
+		Pos: e.Pos(),
+	}
 	if ctx != nil && ctx.maybeOK {
 		meta.NeedsOK = true
 	}
@@ -4362,6 +4441,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *evalContext) *MetaTypeAssert
 type MetaExpr interface{}
 
 type MetaBasicLit struct {
+	Pos     token.Pos
 	typ     *Type
 	Kind    string
 	Value   string
@@ -4371,6 +4451,7 @@ type MetaBasicLit struct {
 }
 
 type MetaCompositLit struct {
+	Pos  token.Pos
 	typ  *Type  // type of the composite
 	kind string // "struct", "array", "slice" // @TODO "map"
 
@@ -4384,6 +4465,7 @@ type MetaCompositLit struct {
 }
 
 type MetaIdent struct {
+	Pos  token.Pos
 	typ  *Type
 	kind string // "blank|nil|true|false|var|con|fun|typ"
 	Name string
@@ -4394,6 +4476,7 @@ type MetaIdent struct {
 }
 
 type MetaSelectorExpr struct {
+	Pos     token.Pos
 	IsQI    bool
 	QI      QualifiedIdent
 	typ     *Type
@@ -4402,6 +4485,7 @@ type MetaSelectorExpr struct {
 }
 
 type MetaCallExpr struct {
+	Pos   token.Pos
 	typ   *Type   // result type
 	types []*Type // result types when tuple
 
@@ -4427,6 +4511,7 @@ type MetaCallExpr struct {
 }
 
 type MetaIndexExpr struct {
+	Pos     token.Pos
 	IsMap   bool // mp[k]
 	NeedsOK bool // when map, is it ok syntax ?
 	Index   MetaExpr
@@ -4435,6 +4520,7 @@ type MetaIndexExpr struct {
 }
 
 type MetaSliceExpr struct {
+	Pos  token.Pos
 	typ  *Type
 	Low  MetaExpr
 	High MetaExpr
@@ -4442,15 +4528,18 @@ type MetaSliceExpr struct {
 	X    MetaExpr
 }
 type MetaStarExpr struct {
+	Pos token.Pos
 	typ *Type
 	X   MetaExpr
 }
 type MetaUnaryExpr struct {
+	Pos token.Pos
 	X   MetaExpr
 	typ *Type
 	Op  string
 }
 type MetaBinaryExpr struct {
+	Pos token.Pos
 	typ *Type
 	Op  string
 	X   MetaExpr
@@ -4458,6 +4547,7 @@ type MetaBinaryExpr struct {
 }
 
 type MetaTypeAssertExpr struct {
+	Pos     token.Pos
 	NeedsOK bool
 	X       MetaExpr
 	typ     *Type
@@ -4548,8 +4638,9 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 	}
 }
 
-func Pos(expr ast.Expr) token.Pos {
+func Pos(expr interface{}) token.Pos {
 	switch e := expr.(type) {
+	// Expr
 	case *ast.Ident:
 		return e.Pos()
 	case *ast.Ellipsis:
@@ -4588,6 +4679,37 @@ func Pos(expr ast.Expr) token.Pos {
 		return e.Pos()
 	case *ast.InterfaceType:
 		return e.Pos()
+
+	// Stmt
+	case *ast.DeclStmt:
+		return e.Pos()
+	case *ast.ExprStmt:
+		return e.Pos()
+	case *ast.IncDecStmt:
+		return e.Pos()
+	case *ast.AssignStmt:
+		return e.Pos()
+	case *ast.GoStmt:
+		return e.Pos()
+	case *ast.ReturnStmt:
+		return e.Pos()
+	case *ast.BranchStmt:
+		return e.Pos()
+	case *ast.BlockStmt:
+		return e.Pos()
+	case *ast.IfStmt:
+		return e.Pos()
+	case *ast.CaseClause:
+		return e.Pos()
+	case *ast.SwitchStmt:
+		return e.Pos()
+	case *ast.TypeSwitchStmt:
+		return e.Pos()
+	case *ast.ForStmt:
+		return e.Pos()
+	case *ast.RangeStmt:
+		return e.Pos()
+
 	}
 	//panic(fmt.Sprintf("TBI:%T\n", expr))
 	panic(fmt.Sprintf("Unknown type:%T", expr))
@@ -4702,7 +4824,7 @@ func walk(pkg *PkgContainer) {
 		//@TODO check serializeType()'s *ast.Ident case
 		typeSpec.Name.Obj.Data = pkg.name // package to which the type belongs to
 		eType := &ast.Ident{
-			NamePos: typeSpec.Assign,
+			NamePos: typeSpec.Pos(),
 			Obj: &ast.Object{
 				Kind: ast.Typ,
 				Decl: typeSpec,
