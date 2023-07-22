@@ -15,6 +15,14 @@ const SYS_EXIT_GROUP int = 231
 var argc int
 var argv **uint8
 
+// This func is not used from anywhere.
+// However, this can be useful to detect problems when there is something wrong with the compiler's runtime initialization,
+// Because this func is the first code that the compiler handles.
+func x() {
+	i := 0
+	i = i
+}
+
 func argv_index(argv **uint8, i int) *uint8 {
 	return *(**uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(argv)) + uintptr(i)*8))
 }

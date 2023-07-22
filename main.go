@@ -2551,10 +2551,11 @@ func generateCode(pkg *PkgContainer) {
 		if vr.metaVal == nil {
 			continue
 		}
+		printf("  \n")
 		typeKind := kind(vr.typ)
 		switch typeKind {
 		case T_POINTER, T_MAP, T_INTERFACE:
-			printf("# init global %s:\n", vr.name.Name)
+			printf("  # init global %s:\n", vr.name.Name)
 			emitSingleAssign(vr.metaVar, vr.metaVal)
 		}
 	}
@@ -2818,10 +2819,18 @@ func getUnderlyingType(t *Type) *Type {
 				Interface: 1,
 			})
 		}
+		if e.Obj.Decl == nil {
+			//logf("universe.Int=%d\n", uintptr(unsafe.Pointer(universe.Int)))
+			//logf("e.Obj=%d\n", uintptr(unsafe.Pointer(e.Obj)))
+			panic("e.Obj.Decl should not be nil: Obj.Name=" + e.Obj.Name)
+		}
+
 		// defined type or alias
 		typeSpec := e.Obj.Decl.(*ast.TypeSpec)
+		specType := typeSpec.Type
+		t := e2t(specType)
 		// get RHS in its type definition recursively
-		return getUnderlyingType(e2t(typeSpec.Type))
+		return getUnderlyingType(t)
 	case *ast.SelectorExpr:
 		ident := lookupForeignIdent(selector2QI(e))
 		return getUnderlyingType(e2t(ident))
@@ -3779,6 +3788,7 @@ type MetaGoStmt struct {
 
 func walkStmt(stmt ast.Stmt) MetaStmt {
 	var mt MetaStmt
+	//logf("walkStmt : %s\n", fset.Position(Pos(stmt)).String())
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
@@ -5555,9 +5565,14 @@ func showHelp() {
 }
 
 func main() {
+	// Check object addresses
+	tIdent := tInt.E.(*ast.Ident)
+	if tIdent.Obj != universe.Int {
+		panic("object mismatch")
+	}
+
 	srcPath = os.Getenv("GOPATH") + "/src"
 	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src"
-
 	if len(os.Args) == 1 {
 		showHelp()
 		return
@@ -5661,6 +5676,7 @@ func buildAll(args []string) {
 			fmt.Fprintf(outAsmFile, "  callq %s.init \n", _pkg.name)
 		}
 	}
+	fmt.Fprintf(outAsmFile, "  ret\n")
 	outAsmFile.Close()
 }
 
