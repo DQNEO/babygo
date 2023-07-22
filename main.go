@@ -425,8 +425,8 @@ func emitLen(arg MetaExpr) {
 		args := []*MetaArg{
 			// len
 			&MetaArg{
-				meta:      arg,
-				paramType: getTypeOfExpr(arg),
+				Meta:      arg,
+				ParamType: getTypeOfExpr(arg),
 			},
 		}
 		resultList := &ast.FieldList{
@@ -535,8 +535,8 @@ type AstArg struct {
 }
 
 type MetaArg struct {
-	meta      MetaExpr
-	paramType *types.Type // expected type
+	Meta      MetaExpr
+	ParamType *types.Type // expected type
 }
 
 func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, expandElipsis bool) []*MetaArg {
@@ -611,8 +611,8 @@ func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, ex
 		ctx := &EvalContext{Type: arg.paramType}
 		m := walkExpr(arg.e, ctx)
 		a := &MetaArg{
-			meta:      m,
-			paramType: arg.paramType,
+			Meta:      m,
+			ParamType: arg.paramType,
 		}
 		metaArgs = append(metaArgs, a)
 	}
@@ -624,8 +624,8 @@ func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, ex
 		}
 		var receiverAndArgs []*MetaArg = []*MetaArg{
 			&MetaArg{
-				paramType: paramType,
-				meta:      receiver,
+				ParamType: paramType,
+				Meta:      receiver,
 			},
 		}
 		for _, arg := range metaArgs {
@@ -649,21 +649,21 @@ func emitCall(fv *FuncValue, args []*MetaArg, returnTypes []*types.Type) {
 	var offsets []int
 	for _, arg := range args {
 		offsets = append(offsets, totalParamSize)
-		if arg.paramType == nil {
-			panic("paramType must not be nil")
+		if arg.ParamType == nil {
+			panic("ParamType must not be nil")
 		}
-		totalParamSize += getSizeOfType(arg.paramType)
+		totalParamSize += getSizeOfType(arg.ParamType)
 	}
 
 	emitAllocReturnVarsArea(getTotalSizeOfType(returnTypes))
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for i, arg := range args {
-		paramType := arg.paramType
-		if arg.meta == nil {
+		paramType := arg.ParamType
+		if arg.Meta == nil {
 			panic("arg.meta should not be nil")
 		}
-		emitExpr(arg.meta)
-		mayEmitConvertTooIfc(arg.meta, paramType)
+		emitExpr(arg.Meta)
+		mayEmitConvertTooIfc(arg.Meta, paramType)
 		emitPop(kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 		printf("  pushq %%rsi # place to save\n")
@@ -794,12 +794,12 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 MetaExpr, ar
 			length := newNumberLiteral(0)
 			args := []*MetaArg{
 				&MetaArg{
-					meta:      length,
-					paramType: tUintptr,
+					Meta:      length,
+					ParamType: tUintptr,
 				},
 				&MetaArg{
-					meta:      valueSize,
-					paramType: tUintptr,
+					Meta:      valueSize,
+					ParamType: tUintptr,
 				},
 			}
 			resultList := &ast.FieldList{
@@ -819,18 +819,18 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 MetaExpr, ar
 			args := []*MetaArg{
 				// elmSize
 				&MetaArg{
-					meta:      numlit,
-					paramType: tInt,
+					Meta:      numlit,
+					ParamType: tInt,
 				},
 				// len
 				&MetaArg{
-					meta:      arg1,
-					paramType: tInt,
+					Meta:      arg1,
+					ParamType: tInt,
 				},
 				// cap
 				&MetaArg{
-					meta:      arg2,
-					paramType: tInt,
+					Meta:      arg2,
+					ParamType: tInt,
 				},
 			}
 
@@ -854,13 +854,13 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 MetaExpr, ar
 		args := []*MetaArg{
 			// slice
 			&MetaArg{
-				meta:      sliceArg,
-				paramType: e2t(generalSlice),
+				Meta:      sliceArg,
+				ParamType: e2t(generalSlice),
 			},
 			// elm
 			&MetaArg{
-				meta:      elemArg,
-				paramType: elmType,
+				Meta:      elemArg,
+				ParamType: elmType,
 			},
 		}
 
@@ -889,8 +889,8 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 MetaExpr, ar
 	case universe.Panic:
 		funcVal := "runtime.panic"
 		_args := []*MetaArg{&MetaArg{
-			meta:      arg0,
-			paramType: tEface,
+			Meta:      arg0,
+			ParamType: tEface,
 		}}
 		emitCallDirect(funcVal, _args, nil)
 		return
@@ -898,12 +898,12 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 MetaExpr, ar
 		funcVal := "runtime.deleteMap"
 		_args := []*MetaArg{
 			&MetaArg{
-				meta:      arg0,
-				paramType: getTypeOfExpr(arg0),
+				Meta:      arg0,
+				ParamType: getTypeOfExpr(arg0),
 			},
 			&MetaArg{
-				meta:      arg1,
-				paramType: tEface,
+				Meta:      arg1,
+				ParamType: tEface,
 			},
 		}
 		emitCallDirect(funcVal, _args, nil)
@@ -1297,12 +1297,12 @@ func emitMapGet(m *MetaIndexExpr, okContext bool) {
 
 	args := []*MetaArg{
 		&MetaArg{
-			meta:      mp,
-			paramType: tUintptr,
+			Meta:      mp,
+			ParamType: tUintptr,
 		},
 		&MetaArg{
-			meta:      key,
-			paramType: tEface,
+			Meta:      key,
+			ParamType: tEface,
 		},
 	}
 	resultList := &ast.FieldList{
@@ -1539,12 +1539,12 @@ func emitAddrForMapSet(indexExpr *MetaIndexExpr) {
 
 	args := []*MetaArg{
 		&MetaArg{
-			meta:      mp,
-			paramType: tUintptr,
+			Meta:      mp,
+			ParamType: tUintptr,
 		},
 		&MetaArg{
-			meta:      key,
-			paramType: tEface,
+			Meta:      key,
+			ParamType: tEface,
 		},
 	}
 	resultList := &ast.FieldList{
@@ -1570,12 +1570,12 @@ func emitListElementAddr(list MetaExpr, elmType *types.Type) {
 func emitCatStrings(left MetaExpr, right MetaExpr) {
 	args := []*MetaArg{
 		&MetaArg{
-			meta:      left,
-			paramType: tString,
+			Meta:      left,
+			ParamType: tString,
 		},
 		&MetaArg{
-			meta:      right,
-			paramType: tString,
+			Meta:      right,
+			ParamType: tString,
 		},
 	}
 	resultList := &ast.FieldList{
@@ -1591,12 +1591,12 @@ func emitCatStrings(left MetaExpr, right MetaExpr) {
 func emitCompStrings(left MetaExpr, right MetaExpr) {
 	args := []*MetaArg{
 		&MetaArg{
-			meta:      left,
-			paramType: tString,
+			Meta:      left,
+			ParamType: tString,
 		},
 		&MetaArg{
-			meta:      right,
-			paramType: tString,
+			Meta:      right,
+			ParamType: tString,
 		},
 	}
 	resultList := &ast.FieldList{
