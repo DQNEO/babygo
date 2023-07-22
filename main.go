@@ -3399,6 +3399,7 @@ func walkBlockStmt(s *ast.BlockStmt) *MetaBlockStmt {
 
 func walkForStmt(s *ast.ForStmt) *MetaForContainer {
 	meta := &MetaForContainer{
+		Pos:     s.Pos(),
 		Outer:   currentFor,
 		ForStmt: &MetaForForStmt{},
 	}
@@ -3419,6 +3420,7 @@ func walkForStmt(s *ast.ForStmt) *MetaForContainer {
 }
 func walkRangeStmt(s *ast.RangeStmt) *MetaForContainer {
 	meta := &MetaForContainer{
+		Pos:   s.Pos(),
 		Outer: currentFor,
 	}
 	currentFor = meta
@@ -3770,42 +3772,55 @@ func walkStmt(stmt ast.Stmt) MetaStmt {
 	case *ast.BlockStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkBlockStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.ExprStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkExprStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.DeclStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkDeclStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.AssignStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkAssignStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.IncDecStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkIncDecStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.ReturnStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkReturnStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.IfStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkIfStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.ForStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkForStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.RangeStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkRangeStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.BranchStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkBranchStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.SwitchStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkSwitchStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.TypeSwitchStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkTypeSwitchStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.GoStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkGoStmt(s)
+		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	default:
 		throw(stmt)
 	}
@@ -4639,81 +4654,136 @@ func walkExpr(expr ast.Expr, ctx *evalContext) MetaExpr {
 	}
 }
 
-func Pos(expr interface{}) token.Pos {
-	switch e := expr.(type) {
+func Pos(node interface{}) token.Pos {
+	switch n := node.(type) {
 	// Expr
 	case *ast.Ident:
-		return e.Pos()
+		return n.Pos()
 	case *ast.Ellipsis:
-		return e.Pos()
+		return n.Pos()
 	case *ast.BasicLit:
-		return e.Pos()
+		return n.Pos()
 	case *ast.CompositeLit:
-		return e.Pos()
+		return n.Pos()
 	case *ast.ParenExpr:
-		return e.Pos()
+		return n.Pos()
 	case *ast.SelectorExpr:
-		return e.Pos()
+		return n.Pos()
 	case *ast.IndexExpr:
-		return e.Pos()
+		return n.Pos()
 	case *ast.SliceExpr:
-		return e.Pos()
+		return n.Pos()
 	case *ast.TypeAssertExpr:
-		return e.Pos()
+		return n.Pos()
 	case *ast.CallExpr:
-		return e.Pos()
+		return n.Pos()
 	case *ast.StarExpr:
-		return e.Pos()
+		return n.Pos()
 	case *ast.UnaryExpr:
-		return e.Pos()
+		return n.Pos()
 	case *ast.BinaryExpr:
-		return e.Pos()
+		return n.Pos()
 	case *ast.KeyValueExpr:
-		return e.Pos()
+		return n.Pos()
 	case *ast.ArrayType:
-		return e.Pos()
+		return n.Pos()
 	case *ast.MapType:
-		return e.Pos()
+		return n.Pos()
 	case *ast.StructType:
-		return e.Pos()
+		return n.Pos()
 	case *ast.FuncType:
-		return e.Pos()
+		return n.Pos()
 	case *ast.InterfaceType:
-		return e.Pos()
+		return n.Pos()
 
 	// Stmt
 	case *ast.DeclStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.ExprStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.IncDecStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.AssignStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.GoStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.ReturnStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.BranchStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.BlockStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.IfStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.CaseClause:
-		return e.Pos()
+		return n.Pos()
 	case *ast.SwitchStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.TypeSwitchStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.ForStmt:
-		return e.Pos()
+		return n.Pos()
 	case *ast.RangeStmt:
-		return e.Pos()
+		return n.Pos()
+	// IR
+	case *MetaBasicLit:
+		return n.Pos
+	case *MetaCompositLit:
+		return n.Pos
+	case *MetaIdent:
+		return n.Pos
+	case *MetaSelectorExpr:
+		return n.Pos
+	case *MetaCallExpr:
+		return n.Pos
+	case *MetaIndexExpr:
+		return n.Pos
+	case *MetaSliceExpr:
+		return n.Pos
+	case *MetaStarExpr:
+		return n.Pos
+	case *MetaUnaryExpr:
+		return n.Pos
+	case *MetaBinaryExpr:
+		return n.Pos
+	case *MetaTypeAssertExpr:
+		return n.Pos
+	case *MetaBlockStmt:
+		return n.Pos
+	case *MetaExprStmt:
+		return n.Pos
+	case *MetaVarDecl:
+		return n.Pos
+	case *MetaSingleAssign:
+		return n.Pos
+	case *MetaTupleAssign:
+		return n.Pos
+	case *MetaReturnStmt:
+		return n.Pos
+	case *MetaIfStmt:
+		return n.Pos
+	case *MetaForContainer:
+		return n.Pos
+	case *MetaForForStmt:
+		return n.Pos
+	case *MetaForRangeStmt:
+		return n.Pos
+	case *MetaBranchStmt:
+		return n.Pos
+	case *MetaSwitchStmt:
+		return n.Pos
+	case *MetaCaseClause:
+		return n.Pos
+	case *MetaTypeSwitchStmt:
+		return n.Pos
+	case *MetaTypeSwitchCaseClose:
+		return n.Pos
+	case *MetaGoStmt:
+		return n.Pos
 
 	}
-	//panic(fmt.Sprintf("TBI:%T\n", expr))
-	panic(fmt.Sprintf("Unknown type:%T", expr))
+
+	panic(fmt.Sprintf("Unknown type:%T", node))
 }
 
 var ExportedQualifiedIdents = make(map[string]*ast.Ident)
