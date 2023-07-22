@@ -82,22 +82,25 @@ t/expected.txt: t/*.go lib/*/*
 .PHONY: test0
 test0: $(tmp)/pre-test t/expected.txt
 	./test.sh $< $(tmp)
+	@echo "[PASS] test by pre"
 
 # test the test binary made by babygo 1gen compiler
 .PHONY: test1
 test1: $(tmp)/bbg-test t/expected.txt
 	./test.sh $< $(tmp)
+	@echo "[PASS] test by bbg"
 
 # test the test binary made by babygo 2gen compiler
 .PHONY: test2
 test2: $(tmp)/bbg-bbg-test t/expected.txt
 	./test.sh $< $(tmp)
+	@echo "[PASS] test by bbg-bbg"
 
 # do selfhost check by comparing 2gen and 3gen asm files
 .PHONY: selfhost
 selfhost: $(tmp)/bbg-bbg.d $(tmp)/bbg-bbg-bbg.d
 	diff $(tmp)/bbg-bbg.d/all $(tmp)/bbg-bbg-bbg.d/all  >/dev/null
-	@echo "self host is ok"
+	@echo "[PASS] selfhost"
 
 # compare output of test0 and test1
 .PHONY: compare-test
@@ -105,6 +108,7 @@ compare-test: $(tmp)/pre-test.d $(tmp)/bbg-test.d $(tmp)/bbg-bbg-test.d $(tmp)/p
 	diff -u $(tmp)/pre-test.d/all $(tmp)/bbg-test.d/all >/dev/null
 	diff -u $(tmp)/bbg-test.d/all $(tmp)/pre-bbg-test.d/all  >/dev/null
 	diff -u $(tmp)/bbg-test.d/all $(tmp)/bbg-bbg-test.d/all  >/dev/null
+	@echo "[PASS] compare-test"
 
 .PHONY: fmt
 fmt:
