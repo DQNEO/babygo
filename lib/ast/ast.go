@@ -185,8 +185,9 @@ func (x *Field) Pos() token.Pos {
 func (x *InterfaceType) Pos() token.Pos { return x.Interface }
 func (x *MapType) Pos() token.Pos       { return x.Map }
 
-func pos(expr Expr) token.Pos {
+func pos(expr interface{}) token.Pos {
 	switch e := expr.(type) {
+	// Expr
 	case *Ident:
 		return e.Pos()
 	case *Ellipsis:
@@ -225,6 +226,36 @@ func pos(expr Expr) token.Pos {
 		return e.Pos()
 	case *InterfaceType:
 		return e.Pos()
+
+	// Stmt
+	case *DeclStmt:
+		return e.Pos()
+	case *ExprStmt:
+		return e.Pos()
+	case *IncDecStmt:
+		return e.Pos()
+	case *AssignStmt:
+		return e.Pos()
+	case *GoStmt:
+		return e.Pos()
+	case *ReturnStmt:
+		return e.Pos()
+	case *BranchStmt:
+		return e.Pos()
+	case *BlockStmt:
+		return e.Pos()
+	case *IfStmt:
+		return e.Pos()
+	case *CaseClause:
+		return e.Pos()
+	case *SwitchStmt:
+		return e.Pos()
+	case *TypeSwitchStmt:
+		return e.Pos()
+	case *ForStmt:
+		return e.Pos()
+	case *RangeStmt:
+		return e.Pos()
 	}
 	panic(fmt.Sprintf("Unknown type:%T", expr))
 }
@@ -240,31 +271,37 @@ type ExprStmt struct {
 }
 
 type IncDecStmt struct {
-	X   Expr
-	Tok token.Token
+	X      Expr
+	TokPos token.Pos
+	Tok    token.Token
 }
 
 type AssignStmt struct {
 	Lhs     []Expr
+	TokPos  token.Pos
 	Tok     token.Token
 	Rhs     []Expr
 	IsRange bool
 }
 
 type ReturnStmt struct {
+	Return  token.Pos
 	Results []Expr
 }
 
 type BranchStmt struct {
-	Tok   token.Token
-	Label string
+	TokPos token.Pos
+	Tok    token.Token
+	Label  string
 }
 
 type BlockStmt struct {
-	List []Stmt
+	Lbrace token.Pos
+	List   []Stmt
 }
 
 type IfStmt struct {
+	If   token.Pos
 	Init Stmt
 	Cond Expr
 	Body *BlockStmt
@@ -272,23 +309,27 @@ type IfStmt struct {
 }
 
 type CaseClause struct {
+	Case token.Pos
 	List []Expr
 	Body []Stmt
 }
 
 type SwitchStmt struct {
-	Init Expr
-	Tag  Expr
-	Body *BlockStmt
+	Switch token.Pos
+	Init   Expr
+	Tag    Expr
+	Body   *BlockStmt
 	// lableExit string
 }
 
 type TypeSwitchStmt struct {
+	Switch token.Pos
 	Assign Stmt
 	Body   *BlockStmt
 }
 
 type ForStmt struct {
+	For  token.Pos
 	Init Stmt
 	Cond Expr
 	Post Stmt
@@ -296,6 +337,7 @@ type ForStmt struct {
 }
 
 type RangeStmt struct {
+	For   token.Pos
 	Key   Expr
 	Value Expr
 	X     Expr
@@ -304,8 +346,24 @@ type RangeStmt struct {
 }
 
 type GoStmt struct {
+	Go   token.Pos
 	Call *CallExpr
 }
+
+func (s *DeclStmt) Pos() token.Pos       { return pos(s.Decl) }
+func (s *ExprStmt) Pos() token.Pos       { return pos(s.X) }
+func (s *IncDecStmt) Pos() token.Pos     { return pos(s.X) }
+func (s *AssignStmt) Pos() token.Pos     { return pos(s.Lhs[0]) }
+func (s *GoStmt) Pos() token.Pos         { return s.Go }
+func (s *ReturnStmt) Pos() token.Pos     { return s.Return }
+func (s *BranchStmt) Pos() token.Pos     { return s.TokPos }
+func (s *BlockStmt) Pos() token.Pos      { return s.Lbrace }
+func (s *IfStmt) Pos() token.Pos         { return s.If }
+func (s *CaseClause) Pos() token.Pos     { return s.Case }
+func (s *SwitchStmt) Pos() token.Pos     { return s.Switch }
+func (s *TypeSwitchStmt) Pos() token.Pos { return s.Switch }
+func (s *ForStmt) Pos() token.Pos        { return s.For }
+func (s *RangeStmt) Pos() token.Pos      { return s.For }
 
 type ImportSpec struct {
 	Path *BasicLit
@@ -319,10 +377,16 @@ type ValueSpec struct {
 
 type TypeSpec struct {
 	Name     *Ident
-	Assign   token.Pos
 	IsAssign bool // isAlias
 	Type     Expr
 }
+
+func (s *ImportSpec) Pos() token.Pos {
+	return s.Path.Pos()
+}
+
+func (s *ValueSpec) Pos() token.Pos { return s.Names[0].Pos() }
+func (s *TypeSpec) Pos() token.Pos  { return s.Name.Pos() }
 
 // Pseudo interface for *ast.Decl
 // *GenDecl | *FuncDecl
