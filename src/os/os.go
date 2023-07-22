@@ -7,9 +7,15 @@ const SYS_EXIT int = 60
 
 var Args []string
 
-var Stdin *File
-var Stdout *File
-var Stderr *File
+var Stdin *File = &File{
+	fd: 0,
+}
+var Stdout *File = &File{
+	fd: 1,
+}
+var Stderr *File = &File{
+	fd: 2,
+}
 
 type File struct {
 	fd int
@@ -142,15 +148,6 @@ func ReadFile(filename string) ([]uint8, error) {
 
 func init() {
 	Args = runtime_args()
-	Stdin = &File{
-		fd: 0,
-	}
-	Stdout = &File{
-		fd: 1,
-	}
-	Stderr = &File{
-		fd: 2,
-	}
 }
 
 func Getenv(key string) string {
