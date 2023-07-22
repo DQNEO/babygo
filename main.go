@@ -2545,8 +2545,8 @@ func generateCode(pkg *PkgContainer) {
 	printf("\n")
 	printf("#--- global vars (dynamic value setting)\n")
 	printf(".text\n")
-	printf(".global %s.__initGlobals\n", pkg.name)
-	printf("%s.__initGlobals:\n", pkg.name)
+	printf(".global %s.__initVars\n", pkg.name)
+	printf("%s.__initVars:\n", pkg.name)
 	for _, vr := range pkg.vars {
 		if vr.metaVal == nil {
 			continue
@@ -5641,11 +5641,11 @@ func buildAll(args []string) {
 		panic(err)
 	}
 	fmt.Fprintf(outAsmFile, ".text\n")
-	fmt.Fprintf(outAsmFile, ".global __INIT__.__initGlobals\n")
-	fmt.Fprintf(outAsmFile, "__INIT__.__initGlobals:\n")
+	fmt.Fprintf(outAsmFile, ".global __INIT__.__initVars\n")
+	fmt.Fprintf(outAsmFile, "__INIT__.__initVars:\n")
 	for _, _pkg := range packagesToBuild {
 		if _pkg.name != "runtime" {
-			fmt.Fprintf(outAsmFile, "  callq %s.__initGlobals \n", _pkg.name)
+			fmt.Fprintf(outAsmFile, "  callq %s.__initVars \n", _pkg.name)
 		}
 	}
 	outAsmFile.Close()

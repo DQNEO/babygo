@@ -31,12 +31,12 @@ runtime.rt0_go:
   leaq main.main(%rip), %rax
   movq %rax, runtime.main_main(%rip)
 
-  callq runtime.__initGlobals
+  callq runtime.__initVars
   callq runtime.schedinit
 
   callq os.init # set os.Args
 
-  callq __INIT__.__initGlobals
+  callq __INIT__.__initVars
 
   // wrapper to runtime.main
   leaq runtime.mainPC(%rip), %rax # entry
