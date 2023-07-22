@@ -4,6 +4,7 @@ import (
 	"os"
 	"unsafe"
 
+	"github.com/DQNEO/babygo/internal/universe"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/parser"
 	"github.com/DQNEO/babygo/lib/token"
@@ -321,7 +322,7 @@ func emitConversion(toType *Type, arg0 MetaExpr) {
 	switch to := toType.E.(type) {
 	case *ast.Ident:
 		switch to.Obj {
-		case gString: // string(e)
+		case universe.String: // string(e)
 			switch kind(getTypeOfExpr(arg0)) {
 			case T_SLICE: // string(slice)
 				emitExpr(arg0) // slice
@@ -333,7 +334,7 @@ func emitConversion(toType *Type, arg0 MetaExpr) {
 			default:
 				unexpectedKind(kind(getTypeOfExpr(arg0)))
 			}
-		case gInt, gUint8, gUint16, gUintptr: // int(e)
+		case universe.Int, universe.Uint8, universe.Uint16, universe.Uintptr: // int(e)
 			emitExpr(arg0)
 		default:
 			if to.Obj.Kind == ast.Typ {
@@ -593,7 +594,7 @@ func prepareArgs(funcType *ast.FuncType, receiver MetaExpr, eArgs []ast.Expr, ex
 		elp := param.Type.(*ast.Ellipsis)
 		paramType := e2t(elp)
 		iNil := &ast.Ident{
-			Obj:     gNil,
+			Obj:     universe.Nil,
 			Name:    "nil",
 			NamePos: param.Pos(),
 		}
@@ -770,18 +771,18 @@ func emitFreeAndPushReturnedValue(returnTypes []*Type) {
 
 func emitBuiltinFunCall(obj *ast.Object, typeArg0 *Type, arg0 MetaExpr, arg1 MetaExpr, arg2 MetaExpr) {
 	switch obj {
-	case gLen:
+	case universe.Len:
 		emitLen(arg0)
 		return
-	case gCap:
+	case universe.Cap:
 		emitCap(arg0)
 		return
-	case gNew:
+	case universe.New:
 		// size to malloc
 		size := getSizeOfType(typeArg0)
 		emitCallMalloc(size)
 		return
-	case gMake:
+	case universe.Make:
 		typeArg := typeArg0
 		switch kind(typeArg) {
 		case T_MAP:
@@ -844,7 +845,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *Type, arg0 MetaExpr, arg1 Met
 		default:
 			throw(typeArg)
 		}
-	case gAppend:
+	case universe.Append:
 		sliceArg := arg0
 		elemArg := arg1
 		elmType := getElementTypeOfCollectionType(getTypeOfExpr(sliceArg))
@@ -884,7 +885,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *Type, arg0 MetaExpr, arg1 Met
 		}
 		emitCallDirect(symbol, args, resultList)
 		return
-	case gPanic:
+	case universe.Panic:
 		funcVal := "runtime.panic"
 		_args := []*MetaArg{&MetaArg{
 			meta:      arg0,
@@ -892,7 +893,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *Type, arg0 MetaExpr, arg1 Met
 		}}
 		emitCallDirect(funcVal, _args, nil)
 		return
-	case gDelete:
+	case universe.Delete:
 		funcVal := "runtime.deleteMap"
 		_args := []*MetaArg{
 			&MetaArg{
@@ -2416,9 +2417,9 @@ func emitGlobalVariable(pkg *PkgContainer, vr *packageVar) {
 			printf("  .quad 0 # bool zero value\n")
 		case *ast.Ident:
 			switch vl.Obj {
-			case gTrue:
+			case universe.True:
 				printf("  .quad 1 # bool true\n")
-			case gFalse:
+			case universe.False:
 				printf("  .quad 0 # bool false\n")
 			default:
 				throw(val)
@@ -2730,19 +2731,19 @@ func serializeType(t *Type) string {
 			throw(e.Obj)
 		} else if e.Obj.Kind == ast.Typ {
 			switch e.Obj {
-			case gUintptr:
+			case universe.Uintptr:
 				return "uintptr"
-			case gInt:
+			case universe.Int:
 				return "int"
-			case gString:
+			case universe.String:
 				return "string"
-			case gUint8:
+			case universe.Uint8:
 				return "uint8"
-			case gUint16:
+			case universe.Uint16:
 				return "uint16"
-			case gBool:
+			case universe.Bool:
 				return "bool"
-			case gError:
+			case universe.Error:
 				return "error"
 			default:
 				// named type
@@ -2811,9 +2812,9 @@ func getUnderlyingType(t *Type) *Type {
 		assert(e.Obj != nil, "should not be nil : "+e.Name, __func__)
 		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ : "+e.Name, __func__)
 		switch e.Obj {
-		case gUintptr, gInt, gInt32, gString, gUint8, gUint16, gBool:
+		case universe.Uintptr, universe.Int, universe.Int32, universe.String, universe.Uint8, universe.Uint16, universe.Bool:
 			return t
-		case gError:
+		case universe.Error:
 			return e2t(&ast.InterfaceType{
 				Methods:   nil, //  @FIXME
 				Interface: 1,
@@ -2857,21 +2858,21 @@ func kind(t *Type) TypeKind {
 	case *ast.Ident:
 		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
 		switch e.Obj {
-		case gUintptr:
+		case universe.Uintptr:
 			return T_UINTPTR
-		case gInt:
+		case universe.Int:
 			return T_INT
-		case gInt32:
+		case universe.Int32:
 			return T_INT32
-		case gString:
+		case universe.String:
 			return T_STRING
-		case gUint8:
+		case universe.Uint8:
 			return T_UINT8
-		case gUint16:
+		case universe.Uint16:
 			return T_UINT16
-		case gBool:
+		case universe.Bool:
 			return T_BOOL
-		case gError:
+		case universe.Error:
 			return T_INTERFACE
 		default:
 			panic("Unexpected type")
@@ -3621,7 +3622,7 @@ func isNilIdent(e ast.Expr) bool {
 	if !ok {
 		return false
 	}
-	return ident.Obj == gNil
+	return ident.Obj == universe.Nil
 }
 
 func walkCaseClause(s *ast.CaseClause) *MetaCaseClause {
@@ -3877,15 +3878,15 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 	}
 	assert(e.Obj != nil, currentPkg.name+" ident.Obj should not be nil:"+e.Name, __func__)
 	switch e.Obj {
-	case gNil:
+	case universe.Nil:
 		assert(ctx != nil, "ctx of nil is not passed", __func__)
 		assert(ctx._type != nil, "ctx._type of nil is not passed", __func__)
 		meta.typ = ctx._type
 		meta.kind = "nil"
-	case gTrue:
+	case universe.True:
 		meta.kind = "true"
 		meta.typ = tBool
-	case gFalse:
+	case universe.False:
 		meta.kind = "false"
 		meta.typ = tBool
 	default:
@@ -3911,7 +3912,7 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 		case ast.Fun:
 			meta.kind = "fun"
 			switch e.Obj {
-			case gLen, gCap, gNew, gMake, gAppend, gPanic, gDelete:
+			case universe.Len, universe.Cap, universe.New, universe.Make, universe.Append, universe.Panic, universe.Delete:
 				// builtin funcs have no func type
 			default:
 				//logf("ast.Fun=%s\n", e.Name)
@@ -4049,12 +4050,12 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 	if isIdent {
 		//logf("  fun=%s\n", identFun.Name)
 		switch identFun.Obj {
-		case gLen, gCap:
+		case universe.Len, universe.Cap:
 			meta.builtin = identFun.Obj
 			meta.arg0 = walkExpr(e.Args[0], nil)
 			meta.typ = tInt
 			return meta
-		case gNew:
+		case universe.New:
 			meta.builtin = identFun.Obj
 			walkExpr(e.Args[0], nil)
 			meta.typeArg0 = e2t(e.Args[0])
@@ -4064,7 +4065,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 			}
 			meta.typ = e2t(ptrType)
 			return meta
-		case gMake:
+		case universe.Make:
 			meta.builtin = identFun.Obj
 			walkExpr(e.Args[0], nil)
 			meta.typeArg0 = e2t(e.Args[0])
@@ -4078,18 +4079,18 @@ func walkCallExpr(e *ast.CallExpr, ctx *evalContext) *MetaCallExpr {
 				meta.arg2 = walkExpr(e.Args[2], ctx)
 			}
 			return meta
-		case gAppend:
+		case universe.Append:
 			meta.builtin = identFun.Obj
 			meta.arg0 = walkExpr(e.Args[0], nil)
 			meta.arg1 = walkExpr(e.Args[1], nil)
 			meta.typ = getTypeOfExpr(meta.arg0)
 			return meta
-		case gPanic:
+		case universe.Panic:
 			meta.builtin = identFun.Obj
 			meta.arg0 = walkExpr(e.Args[0], nil)
 			meta.typ = nil
 			return meta
-		case gDelete:
+		case universe.Delete:
 			meta.builtin = identFun.Obj
 			meta.arg0 = walkExpr(e.Args[0], nil)
 			meta.arg1 = walkExpr(e.Args[1], nil)
@@ -5090,94 +5091,10 @@ func walk(pkg *PkgContainer) {
 }
 
 // --- universe ---
-var gNil = &ast.Object{
-	Kind: ast.Con, // is nil a constant ?
-	Name: "nil",
-}
-
-var gTrue = &ast.Object{
-	Kind: ast.Con,
-	Name: "true",
-}
-var gFalse = &ast.Object{
-	Kind: ast.Con,
-	Name: "false",
-}
-
-var gString = &ast.Object{
-	Kind: ast.Typ,
-	Name: "string",
-}
-
-var gUintptr = &ast.Object{
-	Kind: ast.Typ,
-	Name: "uintptr",
-}
-var gBool = &ast.Object{
-	Kind: ast.Typ,
-	Name: "bool",
-}
-var gInt = &ast.Object{
-	Kind: ast.Typ,
-	Name: "int",
-}
-
-var gInt32 = &ast.Object{
-	Kind: ast.Typ,
-	Name: "int32",
-}
-
-var gUint8 = &ast.Object{
-	Kind: ast.Typ,
-	Name: "uint8",
-}
-
-var gUint16 = &ast.Object{
-	Kind: ast.Typ,
-	Name: "uint16",
-}
-
-var gError = &ast.Object{
-	Kind: ast.Typ,
-	Name: "error",
-}
-
-var gNew = &ast.Object{
-	Kind: ast.Fun,
-	Name: "new",
-}
-
-var gMake = &ast.Object{
-	Kind: ast.Fun,
-	Name: "make",
-}
-var gAppend = &ast.Object{
-	Kind: ast.Fun,
-	Name: "append",
-}
-
-var gLen = &ast.Object{
-	Kind: ast.Fun,
-	Name: "len",
-}
-
-var gCap = &ast.Object{
-	Kind: ast.Fun,
-	Name: "cap",
-}
-var gPanic = &ast.Object{
-	Kind: ast.Fun,
-	Name: "panic",
-}
-var gDelete = &ast.Object{
-	Kind: ast.Fun,
-	Name: "delete",
-}
-
 var tBool *Type = &Type{
 	E: &ast.Ident{
 		Name:    "bool",
-		Obj:     gBool,
+		Obj:     universe.Bool,
 		NamePos: 1,
 	},
 }
@@ -5185,7 +5102,7 @@ var tBool *Type = &Type{
 var tInt *Type = &Type{
 	E: &ast.Ident{
 		Name:    "int",
-		Obj:     gInt,
+		Obj:     universe.Int,
 		NamePos: 1,
 	},
 }
@@ -5194,7 +5111,7 @@ var tInt *Type = &Type{
 var tInt32 *Type = &Type{
 	E: &ast.Ident{
 		Name:    "int32",
-		Obj:     gInt32,
+		Obj:     universe.Int32,
 		NamePos: 1,
 	},
 }
@@ -5202,14 +5119,14 @@ var tInt32 *Type = &Type{
 var tUintptr *Type = &Type{
 	E: &ast.Ident{
 		Name:    "uintptr",
-		Obj:     gUintptr,
+		Obj:     universe.Uintptr,
 		NamePos: 1,
 	},
 }
 var tUint8 *Type = &Type{
 	E: &ast.Ident{
 		Name:    "uint8",
-		Obj:     gUint8,
+		Obj:     universe.Uint8,
 		NamePos: 1,
 	},
 }
@@ -5217,14 +5134,14 @@ var tUint8 *Type = &Type{
 var tUint16 *Type = &Type{
 	E: &ast.Ident{
 		Name:    "uint16",
-		Obj:     gUint16,
+		Obj:     universe.Uint16,
 		NamePos: 1,
 	},
 }
 var tString *Type = &Type{
 	E: &ast.Ident{
 		Name:    "string",
-		Obj:     gString,
+		Obj:     universe.String,
 		NamePos: 1,
 	},
 }
@@ -5237,27 +5154,6 @@ var tEface *Type = &Type{
 
 var generalSlice ast.Expr = &ast.Ident{
 	NamePos: 1,
-}
-
-func createUniverse() *ast.Scope {
-	universe := ast.NewScope(nil)
-	objects := []*ast.Object{
-		gNil,
-		// constants
-		gTrue, gFalse,
-		// types
-		gString, gUintptr, gBool, gInt, gUint8, gUint16, gInt32, gError,
-		// funcs
-		gNew, gMake, gAppend, gLen, gCap, gPanic, gDelete,
-	}
-	for _, obj := range objects {
-		universe.Insert(obj)
-	}
-
-	// setting aliases
-	universe.Objects["byte"] = gUint8
-
-	return universe
 }
 
 // --- builder ---
@@ -5627,7 +5523,7 @@ func buildAll(args []string) {
 		files: inputFiles,
 	})
 
-	var universe = createUniverse()
+	var universe *ast.Scope = universe.CreateUniverse()
 	fset = token.NewFileSet()
 
 	var builtPackages []*PkgContainer

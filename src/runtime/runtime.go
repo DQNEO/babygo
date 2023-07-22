@@ -34,7 +34,8 @@ func args(c int, v **uint8) {
 
 func goargs() {
 	argslice = make([]string, argc, argc)
-	for i := 0; i < argc; i++ {
+	var i int
+	for i = 0; i < argc; i++ {
 		argslice[i] = cstring2string(argv_index(argv, i))
 	}
 }

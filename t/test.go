@@ -8,6 +8,7 @@ import (
 
 	"github.com/DQNEO/babygo/lib/token"
 
+	"github.com/DQNEO/babygo/internal/universe"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/mymap"
@@ -15,6 +16,16 @@ import (
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/strings"
 )
+
+var checkPtr *universe.T = universe.X
+
+func testForeignVar() {
+	if universe.X != checkPtr {
+		writeln("ERROR")
+	} else {
+		writeln("object addresses match")
+	}
+}
 
 func testDereference() {
 	var i = 0
@@ -2385,6 +2396,7 @@ func testMisc() {
 }
 
 func main() {
+	testForeignVar()
 	testDereference()
 	testBlankAssign()
 	testBitWiseAnd()

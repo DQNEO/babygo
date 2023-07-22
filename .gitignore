@@ -15,3 +15,4 @@
 /hello.o
 a.out
 /pre/precompiler.go
+/pre/internal/

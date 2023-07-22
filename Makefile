@@ -13,9 +13,12 @@ $(tmp):
 	mkdir -p $(tmp)
 
 # prepare precompiler source file
-pre/precompiler.go: main.go
+pre/precompiler.go: main.go internal/*/* lib/*/*
 	cp $< $@
-	sed -e 's#github.com/DQNEO/babygo/lib/ast#go/ast#' -e 's#github.com/DQNEO/babygo/lib/token#go/token#' -e 's#github.com/DQNEO/babygo/lib/parser#go/parser#' -i $@
+	sed -e 's#github.com/DQNEO/babygo/lib/ast#go/ast#' -e 's#github.com/DQNEO/babygo/lib/token#go/token#' -e 's#github.com/DQNEO/babygo/lib/parser#go/parser#' -e 's#babygo/internal#babygo/pre/internal#g' -i $@
+	rm -rf pre/internal
+	cp -ar internal pre/
+	sed -e 's#github.com/DQNEO/babygo/lib/ast#go/ast#' -i pre/internal/universe/universe.go
 
 # make pre compiler (a rich binary)
 $(tmp)/pre: pre/precompiler.go lib/*/* $(tmp)

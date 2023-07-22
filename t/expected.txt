@@ -1,3 +1,4 @@
+object addresses match
 testDereference=uint8
 is int
 is not string
