@@ -206,7 +206,7 @@ func emitVariableAddr(variable *ir.Variable) {
 }
 
 func emitListHeadAddr(list ir.MetaExpr) {
-	t := getTypeOfExpr(list)
+	t := GetTypeOfExpr(list)
 	switch kind(t) {
 	case types.T_ARRAY:
 		emitAddr(list) // array head
@@ -237,10 +237,10 @@ func emitAddr(meta ir.MetaExpr) {
 			panic("Unexpected kind")
 		}
 	case *ir.MetaIndexExpr:
-		if kind(getTypeOfExpr(m.X)) == types.T_MAP {
+		if kind(GetTypeOfExpr(m.X)) == types.T_MAP {
 			emitAddrForMapSet(m)
 		} else {
-			elmType := getTypeOfExpr(m)
+			elmType := GetTypeOfExpr(m)
 			emitExpr(m.Index) // index number
 			emitListElementAddr(m.X, elmType)
 		}
@@ -249,7 +249,7 @@ func emitAddr(meta ir.MetaExpr) {
 	case *ir.MetaSelectorExpr:
 		if m.IsQI { // pkg.Var|pkg.Const
 			qi := m.QI
-			ident := lookupForeignIdent(qi)
+			ident := LookupForeignIdent(qi)
 			switch ident.Obj.Kind {
 			case ast.Var:
 				printf("  leaq %s(%%rip), %%rax # external global variable \n", string(qi))
@@ -262,14 +262,14 @@ func emitAddr(meta ir.MetaExpr) {
 				panic("Unexpected foreign ident kind:" + ident.Obj.Kind.String())
 			}
 		} else { // (e).field
-			typeOfX := getUnderlyingType(getTypeOfExpr(m.X))
+			typeOfX := getUnderlyingType(GetTypeOfExpr(m.X))
 			var structTypeLiteral *ast.StructType
 			switch typ := typeOfX.E.(type) {
 			case *ast.StructType: // strct.field
 				structTypeLiteral = typ
 				emitAddr(m.X)
 			case *ast.StarExpr: // ptr.field
-				structTypeLiteral = getUnderlyingStructType(e2t(typ.X))
+				structTypeLiteral = getUnderlyingStructType(E2T(typ.X))
 				emitExpr(m.X)
 			default:
 				unexpectedKind(kind(typeOfX))
@@ -280,7 +280,7 @@ func emitAddr(meta ir.MetaExpr) {
 			emitAddConst(offset, "struct head address + struct.field offset")
 		}
 	case *ir.MetaCompositLit:
-		knd := kind(getTypeOfExpr(m))
+		knd := kind(GetTypeOfExpr(m))
 		switch knd {
 		case types.T_STRUCT:
 			// result of evaluation of a struct literal is its address
@@ -303,7 +303,7 @@ func isType(expr ast.Expr) bool {
 	case *ast.SelectorExpr:
 		if isQI(e) {
 			qi := selector2QI(e)
-			ident := lookupForeignIdent(qi)
+			ident := LookupForeignIdent(qi)
 			if ident.Obj.Kind == ast.Typ {
 				return true
 			}
@@ -325,7 +325,7 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 	case *ast.Ident:
 		switch to.Obj {
 		case universe.String: // string(e)
-			switch kind(getTypeOfExpr(arg0)) {
+			switch kind(GetTypeOfExpr(arg0)) {
 			case types.T_SLICE: // string(slice)
 				emitExpr(arg0) // slice
 				emitPopSlice()
@@ -334,7 +334,7 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 			case types.T_STRING: // string(string)
 				emitExpr(arg0)
 			default:
-				unexpectedKind(kind(getTypeOfExpr(arg0)))
+				unexpectedKind(kind(GetTypeOfExpr(arg0)))
 			}
 		case universe.Int, universe.Uint8, universe.Uint16, universe.Uintptr: // int(e)
 			emitExpr(arg0)
@@ -348,15 +348,15 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 	case *ast.SelectorExpr:
 		// pkg.Type(arg0)
 		qi := selector2QI(to)
-		ff := lookupForeignIdent(qi)
+		ff := LookupForeignIdent(qi)
 		assert(ff.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
-		emitConversion(e2t(ff), arg0)
+		emitConversion(E2T(ff), arg0)
 	case *ast.ArrayType: // Conversion to slice
 		arrayType := to
 		if arrayType.Len != nil {
 			throw(to)
 		}
-		assert(kind(getTypeOfExpr(arg0)) == types.T_STRING, "source type should be slice", __func__)
+		assert(kind(GetTypeOfExpr(arg0)) == types.T_STRING, "source type should be slice", __func__)
 		emitComment(2, "Conversion of string => slice \n")
 		emitExpr(arg0)
 		emitPopString()
@@ -364,16 +364,16 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 		printf("  pushq %%rcx # len\n")
 		printf("  pushq %%rax # ptr\n")
 	case *ast.ParenExpr: // (T)(arg0)
-		emitConversion(e2t(to.X), arg0)
+		emitConversion(E2T(to.X), arg0)
 	case *ast.StarExpr: // (*T)(arg0)
 		emitExpr(arg0)
 	case *ast.InterfaceType:
 		emitExpr(arg0)
-		if isInterface(getTypeOfExpr(arg0)) {
+		if isInterface(GetTypeOfExpr(arg0)) {
 			// do nothing
 		} else {
 			// Convert dynamic value to interface
-			emitConvertToInterface(getTypeOfExpr(arg0))
+			emitConvertToInterface(GetTypeOfExpr(arg0))
 		}
 	default:
 		throw(to)
@@ -410,9 +410,9 @@ func emitZeroValue(t *types.Type) {
 }
 
 func emitLen(arg ir.MetaExpr) {
-	switch kind(getTypeOfExpr(arg)) {
+	switch kind(GetTypeOfExpr(arg)) {
 	case types.T_ARRAY:
-		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
+		arrayType := GetTypeOfExpr(arg).E.(*ast.ArrayType)
 		emitConstInt(arrayType.Len)
 	case types.T_SLICE:
 		emitExpr(arg)
@@ -427,7 +427,7 @@ func emitLen(arg ir.MetaExpr) {
 			// len
 			&ir.MetaArg{
 				Meta:      arg,
-				ParamType: getTypeOfExpr(arg),
+				ParamType: GetTypeOfExpr(arg),
 			},
 		}
 		resultList := &ast.FieldList{
@@ -440,14 +440,14 @@ func emitLen(arg ir.MetaExpr) {
 		emitCallDirect("runtime.lenMap", args, resultList)
 
 	default:
-		unexpectedKind(kind(getTypeOfExpr(arg)))
+		unexpectedKind(kind(GetTypeOfExpr(arg)))
 	}
 }
 
 func emitCap(arg ir.MetaExpr) {
-	switch kind(getTypeOfExpr(arg)) {
+	switch kind(GetTypeOfExpr(arg)) {
 	case types.T_ARRAY:
-		arrayType := getTypeOfExpr(arg).E.(*ast.ArrayType)
+		arrayType := GetTypeOfExpr(arg).E.(*ast.ArrayType)
 		emitConstInt(arrayType.Len)
 	case types.T_SLICE:
 		emitExpr(arg)
@@ -456,13 +456,13 @@ func emitCap(arg ir.MetaExpr) {
 	case types.T_STRING:
 		panic("cap() cannot accept string type")
 	default:
-		unexpectedKind(kind(getTypeOfExpr(arg)))
+		unexpectedKind(kind(GetTypeOfExpr(arg)))
 	}
 }
 
 func emitCallMalloc(size int) {
 	// call malloc and return pointer
-	ff := lookupForeignFunc(newQI("runtime", "malloc"))
+	ff := LookupForeignFunc(newQI("runtime", "malloc"))
 	emitAllocReturnVarsAreaFF(ff)
 	printf("  pushq $%d\n", size)
 	emitCallFF(ff)
@@ -554,7 +554,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr,
 			continue
 		}
 
-		paramType := e2t(param.Type)
+		paramType := E2T(param.Type)
 		arg := &AstArg{
 			e:         eArg,
 			paramType: paramType,
@@ -576,19 +576,19 @@ func prepareArgs(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr,
 		}
 		args = append(args, &AstArg{
 			e:         vargsSliceWrapper,
-			paramType: e2t(sliceType),
+			paramType: E2T(sliceType),
 		})
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
 		param := params[len(args)]
 		elp := param.Type.(*ast.Ellipsis)
-		paramType := e2t(elp)
+		paramType := E2T(elp)
 		iNil := &ast.Ident{
 			Obj:     universe.Nil,
 			Name:    "nil",
 			NamePos: param.Pos(),
 		}
-		//		exprTypeMeta[unsafe.Pointer(iNil)] = e2t(elp)
+		//		exprTypeMeta[unsafe.Pointer(iNil)] = E2T(elp)
 		args = append(args, &AstArg{
 			e:         iNil,
 			paramType: paramType,
@@ -607,7 +607,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr,
 	}
 
 	if receiver != nil { // method call
-		paramType := getTypeOfExpr(receiver)
+		paramType := GetTypeOfExpr(receiver)
 		if paramType == nil {
 			panic("[prepaareArgs] param type must not be nil")
 		}
@@ -627,7 +627,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr,
 }
 
 func emitCallDirect(symbol string, args []*ir.MetaArg, resultList *ast.FieldList) {
-	returnTypes := fieldList2Types(resultList)
+	returnTypes := FieldList2Types(resultList)
 	emitCall(NewFuncValueFromSymbol(symbol), args, returnTypes)
 }
 
@@ -680,14 +680,14 @@ func getTotalFieldsSize(flist *ast.FieldList) int {
 	}
 	var r int
 	for _, fld := range flist.List {
-		r += getSizeOfType(e2t(fld.Type))
+		r += getSizeOfType(E2T(fld.Type))
 	}
 	return r
 }
 
 func emitCallFF(ff *ir.ForeignFunc) {
 	totalParamSize := getTotalFieldsSize(ff.FuncType.Params)
-	returnTypes := fieldList2Types(ff.FuncType.Results)
+	returnTypes := FieldList2Types(ff.FuncType.Results)
 	emitCallQ(NewFuncValueFromSymbol(ff.Symbol), totalParamSize, returnTypes)
 }
 
@@ -771,7 +771,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr,
 		switch kind(typeArg) {
 		case types.T_MAP:
 			mapType := getUnderlyingType(typeArg).E.(*ast.MapType)
-			valueSize := newNumberLiteral(getSizeOfType(e2t(mapType.Value)))
+			valueSize := newNumberLiteral(getSizeOfType(E2T(mapType.Value)))
 			// A new, empty map value is made using the built-in function make,
 			// which takes the map type and an optional capacity hint as arguments:
 			length := newNumberLiteral(0)
@@ -797,7 +797,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr,
 		case types.T_SLICE:
 			// make([]T, ...)
 			arrayType := getUnderlyingType(typeArg).E.(*ast.ArrayType)
-			elmSize := getSizeOfType(e2t(arrayType.Elt))
+			elmSize := getSizeOfType(E2T(arrayType.Elt))
 			numlit := newNumberLiteral(elmSize)
 			args := []*ir.MetaArg{
 				// elmSize
@@ -832,13 +832,13 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr,
 	case universe.Append:
 		sliceArg := arg0
 		elemArg := arg1
-		elmType := getElementTypeOfCollectionType(getTypeOfExpr(sliceArg))
+		elmType := getElementTypeOfCollectionType(GetTypeOfExpr(sliceArg))
 		elmSize := getSizeOfType(elmType)
 		args := []*ir.MetaArg{
 			// slice
 			&ir.MetaArg{
 				Meta:      sliceArg,
-				ParamType: e2t(generalSlice),
+				ParamType: E2T(generalSlice),
 			},
 			// elm
 			&ir.MetaArg{
@@ -882,7 +882,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr,
 		_args := []*ir.MetaArg{
 			&ir.MetaArg{
 				Meta:      arg0,
-				ParamType: getTypeOfExpr(arg0),
+				ParamType: GetTypeOfExpr(arg0),
 			},
 			&ir.MetaArg{
 				Meta:      arg1,
@@ -962,7 +962,7 @@ func emitIdent(meta *ir.MetaIdent) {
 		}
 	case "var":
 		emitAddr(meta)
-		emitLoadAndPush(getTypeOfExpr(meta))
+		emitLoadAndPush(GetTypeOfExpr(meta))
 	case "con":
 		emitExpr(meta.ConstLiteral)
 	case "fun":
@@ -978,14 +978,14 @@ func emitIndexExpr(meta *ir.MetaIndexExpr) {
 		emitMapGet(meta, meta.NeedsOK)
 	} else {
 		emitAddr(meta)
-		emitLoadAndPush(getTypeOfExpr(meta))
+		emitLoadAndPush(GetTypeOfExpr(meta))
 	}
 }
 
 // 1 value
 func emitStarExpr(meta *ir.MetaStarExpr) {
 	emitAddr(meta)
-	emitLoadAndPush(getTypeOfExpr(meta))
+	emitLoadAndPush(GetTypeOfExpr(meta))
 }
 
 // 1 value X.Sel
@@ -993,7 +993,7 @@ func emitSelectorExpr(meta *ir.MetaSelectorExpr) {
 	// pkg.Ident or strct.field
 	if meta.IsQI {
 		qi := meta.QI
-		ident := lookupForeignIdent(qi)
+		ident := LookupForeignIdent(qi)
 		switch ident.Obj.Kind {
 		case ast.Fun:
 			emitFuncAddr(qi)
@@ -1007,7 +1007,7 @@ func emitSelectorExpr(meta *ir.MetaSelectorExpr) {
 	} else {
 		// strct.field
 		emitAddr(meta)
-		emitLoadAndPush(getTypeOfExpr(meta))
+		emitLoadAndPush(GetTypeOfExpr(meta))
 	}
 }
 
@@ -1103,7 +1103,7 @@ func emitBinaryExpr(meta *ir.MetaBinaryExpr) {
 		emitTrue()
 		printf("  %s:\n", labelExit)
 	case "+":
-		if kind(getTypeOfExpr(meta.X)) == types.T_STRING {
+		if kind(GetTypeOfExpr(meta.X)) == types.T_STRING {
 			emitCatStrings(meta.X, meta.Y)
 		} else {
 			emitExpr(meta.X) // left
@@ -1200,7 +1200,7 @@ func emitCompositeLit(meta *ir.MetaCompositLit) {
 // 1 value list[low:high]
 func emitSliceExpr(meta *ir.MetaSliceExpr) {
 	list := meta.X
-	listType := getTypeOfExpr(list)
+	listType := GetTypeOfExpr(list)
 
 	switch kind(listType) {
 	case types.T_SLICE, types.T_ARRAY:
@@ -1266,7 +1266,7 @@ func emitSliceExpr(meta *ir.MetaSliceExpr) {
 
 // 1 or 2 values
 func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
-	valueType := getTypeOfExpr(m)
+	valueType := GetTypeOfExpr(m)
 
 	emitComment(2, "MAP GET for map[string]string\n")
 	// emit addr of map element
@@ -1408,8 +1408,8 @@ func emitConvertToInterface(fromType *types.Type) {
 }
 
 func mayEmitConvertTooIfc(meta ir.MetaExpr, ctxType *types.Type) {
-	if !isNil(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(getTypeOfExpr(meta)) {
-		emitConvertToInterface(getTypeOfExpr(meta))
+	if !isNil(meta) && ctxType != nil && isInterface(ctxType) && !isInterface(GetTypeOfExpr(meta)) {
+		emitConvertToInterface(GetTypeOfExpr(meta))
 	}
 }
 
@@ -1588,11 +1588,11 @@ func emitCompStrings(left ir.MetaExpr, right ir.MetaExpr) {
 }
 
 func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
-	if kind(getTypeOfExpr(left)) == types.T_STRING {
+	if kind(GetTypeOfExpr(left)) == types.T_STRING {
 		emitCompStrings(left, right)
-	} else if kind(getTypeOfExpr(left)) == types.T_INTERFACE {
-		//var t = getTypeOfExpr(left)
-		ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
+	} else if kind(GetTypeOfExpr(left)) == types.T_INTERFACE {
+		//var t = GetTypeOfExpr(left)
+		ff := LookupForeignFunc(newQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)
 		//@TODO: confirm nil comparison with interfaces
 		emitExpr(left)  // left
@@ -1600,7 +1600,7 @@ func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
 		emitCallFF(ff)
 	} else {
 		// Assuming 64 bit types (int, pointer, map, etc)
-		//var t = getTypeOfExpr(left)
+		//var t = GetTypeOfExpr(left)
 		emitExpr(left)  // left
 		emitExpr(right) // right
 		emitCompExpr("sete")
@@ -1701,7 +1701,7 @@ func emitRegiToMem(t *types.Type) {
 		printf("  pushq $%d # size\n", getSizeOfType(t))
 		printf("  pushq %%rsi # dst lhs\n")
 		printf("  pushq %%rax # src rhs\n")
-		ff := lookupForeignFunc(newQI("runtime", "memcopy"))
+		ff := LookupForeignFunc(newQI("runtime", "memcopy"))
 		emitCallFF(ff)
 	default:
 		unexpectedKind(k)
@@ -1742,15 +1742,15 @@ func emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 	//	rhs := metaSingle.rhs
 	if isBlankIdentifierMeta(lhs) {
 		emitExpr(rhs)
-		emitPop(kind(getTypeOfExpr(rhs)))
+		emitPop(kind(GetTypeOfExpr(rhs)))
 		return
 	}
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs)
-	mayEmitConvertTooIfc(rhs, getTypeOfExpr(lhs))
-	emitStore(getTypeOfExpr(lhs), true, false)
+	mayEmitConvertTooIfc(rhs, GetTypeOfExpr(lhs))
+	emitStore(GetTypeOfExpr(lhs), true, false)
 }
 
 func emitBlockStmt(s *ir.MetaBlockStmt) {
@@ -1791,7 +1791,7 @@ func emitOkAssignment(meta *ir.MetaTupleAssign) {
 		} else {
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
-			emitStore(getTypeOfExpr(lhsMeta), false, false)
+			emitStore(GetTypeOfExpr(lhsMeta), false, false)
 		}
 
 	}
@@ -1819,7 +1819,7 @@ func emitFuncallAssignment(meta *ir.MetaTupleAssign) {
 			}
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
-			emitStore(getTypeOfExpr(lhsMeta), false, false)
+			emitStore(GetTypeOfExpr(lhsMeta), false, false)
 		}
 	}
 }
@@ -1941,8 +1941,8 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 16(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(getTypeOfExpr(keyMeta)) // load dynamic data
-			emitStore(getTypeOfExpr(keyMeta), true, false)
+			emitLoadAndPush(GetTypeOfExpr(keyMeta)) // load dynamic data
+			emitStore(GetTypeOfExpr(keyMeta), true, false)
 		}
 	}
 
@@ -1962,8 +1962,8 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 24(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(getTypeOfExpr(valueMeta)) // load dynamic data
-			emitStore(getTypeOfExpr(valueMeta), true, false)
+			emitLoadAndPush(GetTypeOfExpr(valueMeta)) // load dynamic data
+			emitStore(GetTypeOfExpr(valueMeta), true, false)
 		}
 	}
 
@@ -2035,7 +2035,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	printf("  jne %s # jmp if false\n", labelExit)
 
 	emitComment(2, "assign list[indexvar] value variables\n")
-	elemType := getTypeOfExpr(meta.ForRangeStmt.Value)
+	elemType := GetTypeOfExpr(meta.ForRangeStmt.Value)
 	emitAddr(meta.ForRangeStmt.Value) // lhs
 
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
@@ -2083,7 +2083,7 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 		panic("Omitted tag is not supported yet")
 	}
 	emitExpr(s.Tag)
-	condType := getTypeOfExpr(s.Tag)
+	condType := GetTypeOfExpr(s.Tag)
 	cases := s.Cases
 	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
@@ -2100,7 +2100,7 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 			assert(getSizeOfType(condType) <= 8 || kind(condType) == types.T_STRING, "should be one register size or string", __func__)
 			switch kind(condType) {
 			case types.T_STRING:
-				ff := lookupForeignFunc(newQI("runtime", "cmpstrings"))
+				ff := LookupForeignFunc(newQI("runtime", "cmpstrings"))
 				emitAllocReturnVarsAreaFF(ff)
 
 				emitPushStackTop(condType, SizeOfInt, "switch expr")
@@ -2108,7 +2108,7 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 
 				emitCallFF(ff)
 			case types.T_INTERFACE:
-				ff := lookupForeignFunc(newQI("runtime", "cmpinterface"))
+				ff := LookupForeignFunc(newQI("runtime", "cmpinterface"))
 
 				emitAllocReturnVarsAreaFF(ff)
 
@@ -2203,7 +2203,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 	for i, c := range meta.Cases {
 		// Injecting variable and type to the subject
 		if c.Variable != nil {
-			setVariable(meta.AssignObj, c.Variable)
+			SetVariable(meta.AssignObj, c.Variable)
 		}
 		printf("  %s:\n", labels[i])
 
@@ -2472,7 +2472,7 @@ func emitGlobalVariable(pkg *ir.PkgContainer, vr *ir.PackageVar) {
 		assert(arrayType.Len != nil, "slice type is not expected", __func__)
 		length := evalInt(arrayType.Len)
 		var zeroValue string
-		knd := kind(e2t(arrayType.Elt))
+		knd := kind(E2T(arrayType.Elt))
 		switch knd {
 		case types.T_INT:
 			zeroValue = "  .quad 0 # int zero value\n"
@@ -2576,7 +2576,7 @@ func emitDynamicTypes(mapDtypes map[string]*dtypeEntry) {
 }
 
 // Types of an expr in Single value context
-func getTypeOfExpr(meta ir.MetaExpr) *types.Type {
+func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 	switch m := meta.(type) {
 	case *ir.MetaBasicLit:
 		return m.Type
@@ -2616,32 +2616,32 @@ func getTypeOfForeignIdent(ident *ast.Ident) *types.Type {
 	case ast.Con:
 		switch decl2 := ident.Obj.Decl.(type) {
 		case *ast.ValueSpec:
-			return e2t(decl2.Type)
+			return E2T(decl2.Type)
 		default:
 			panic("cannot decide type of cont =" + ident.Obj.Name)
 		}
 	case ast.Fun:
-		return e2t(ident.Obj.Decl.(*ast.FuncDecl).Type)
+		return E2T(ident.Obj.Decl.(*ast.FuncDecl).Type)
 	default:
 		panic(fmt.Sprintf("Obj=%s, Kind=%s\t\n%s", ident.Obj.Name, ident.Obj.Kind.String(), fset.Position(ident.Pos()).String()))
 	}
 }
 
-func fieldList2Types(fieldList *ast.FieldList) []*types.Type {
+func FieldList2Types(fieldList *ast.FieldList) []*types.Type {
 	if fieldList == nil {
 		return nil
 	}
 	var r []*types.Type
 	for _, e2 := range fieldList.List {
-		t := e2t(e2.Type)
+		t := E2T(e2.Type)
 		r = append(r, t)
 	}
 	return r
 }
 
-func getTupleTypes(rhsMeta ir.MetaExpr) []*types.Type {
+func GetTupleTypes(rhsMeta ir.MetaExpr) []*types.Type {
 	if IsOkSyntax(rhsMeta) {
-		return []*types.Type{getTypeOfExpr(rhsMeta), tBool}
+		return []*types.Type{GetTypeOfExpr(rhsMeta), tBool}
 	} else {
 		rhs, ok := rhsMeta.(*ir.MetaCallExpr)
 		if !ok {
@@ -2651,7 +2651,7 @@ func getTupleTypes(rhsMeta ir.MetaExpr) []*types.Type {
 	}
 }
 
-func e2t(typeExpr ast.Expr) *types.Type {
+func E2T(typeExpr ast.Expr) *types.Type {
 	if typeExpr == nil {
 		panic("nil is not allowed")
 	}
@@ -2660,7 +2660,7 @@ func e2t(typeExpr ast.Expr) *types.Type {
 	switch e := typeExpr.(type) {
 	case *ast.ParenExpr:
 		typeExpr = e.X
-		return e2t(typeExpr)
+		return E2T(typeExpr)
 	}
 	return &types.Type{
 		E: typeExpr,
@@ -2713,7 +2713,7 @@ func serializeType(t *types.Type) string {
 		if e.Fields != nil {
 			for _, field := range e.Fields.List {
 				name := field.Names[0].Name
-				typ := e2t(field.Type)
+				typ := E2T(field.Type)
 				r += fmt.Sprintf("%s %s;", name, serializeType(typ))
 			}
 		}
@@ -2723,18 +2723,18 @@ func serializeType(t *types.Type) string {
 			if e.Elt == nil {
 				panic(e)
 			}
-			return "[]" + serializeType(e2t(e.Elt))
+			return "[]" + serializeType(E2T(e.Elt))
 		} else {
-			return "[" + strconv.Itoa(evalInt(e.Len)) + "]" + serializeType(e2t(e.Elt))
+			return "[" + strconv.Itoa(evalInt(e.Len)) + "]" + serializeType(E2T(e.Elt))
 		}
 	case *ast.StarExpr:
-		return "*" + serializeType(e2t(e.X))
+		return "*" + serializeType(E2T(e.X))
 	case *ast.Ellipsis: // x ...T
 		panic("TBD: Ellipsis")
 	case *ast.InterfaceType:
 		return "interface{}" // @TODO list methods
 	case *ast.MapType:
-		return "map[" + serializeType(e2t(e.Key)) + "]" + serializeType(e2t(e.Value))
+		return "map[" + serializeType(E2T(e.Key)) + "]" + serializeType(E2T(e.Value))
 	case *ast.SelectorExpr:
 		qi := selector2QI(e)
 		return string(qi)
@@ -2770,7 +2770,7 @@ func getUnderlyingType(t *types.Type) *types.Type {
 		case universe.Uintptr, universe.Int, universe.Int32, universe.String, universe.Uint8, universe.Uint16, universe.Bool:
 			return t
 		case universe.Error:
-			return e2t(&ast.InterfaceType{
+			return E2T(&ast.InterfaceType{
 				Methods:   nil, //  @FIXME
 				Interface: 1,
 			})
@@ -2784,14 +2784,14 @@ func getUnderlyingType(t *types.Type) *types.Type {
 		// defined type or alias
 		typeSpec := e.Obj.Decl.(*ast.TypeSpec)
 		specType := typeSpec.Type
-		t := e2t(specType)
+		t := E2T(specType)
 		// get RHS in its type definition recursively
 		return getUnderlyingType(t)
 	case *ast.SelectorExpr:
-		ident := lookupForeignIdent(selector2QI(e))
-		return getUnderlyingType(e2t(ident))
+		ident := LookupForeignIdent(selector2QI(e))
+		return getUnderlyingType(E2T(ident))
 	case *ast.ParenExpr:
-		return getUnderlyingType(e2t(e.X))
+		return getUnderlyingType(E2T(e.X))
 	case *ast.FuncType:
 		return t
 	}
@@ -2864,9 +2864,9 @@ func getElementTypeOfCollectionType(t *types.Type) *types.Type {
 	case types.T_SLICE, types.T_ARRAY:
 		switch e := ut.E.(type) {
 		case *ast.ArrayType:
-			return e2t(e.Elt)
+			return E2T(e.Elt)
 		case *ast.Ellipsis:
-			return e2t(e.Elt)
+			return E2T(e.Elt)
 		default:
 			throw(t.E)
 		}
@@ -2874,7 +2874,7 @@ func getElementTypeOfCollectionType(t *types.Type) *types.Type {
 		return tUint8
 	case types.T_MAP:
 		mapType := ut.E.(*ast.MapType)
-		return e2t(mapType.Value)
+		return E2T(mapType.Value)
 	default:
 		unexpectedKind(kind(t))
 	}
@@ -2888,7 +2888,7 @@ func getKeyTypeOfCollectionType(t *types.Type) *types.Type {
 		return tInt
 	case types.T_MAP:
 		mapType := ut.E.(*ast.MapType)
-		return e2t(mapType.Key)
+		return E2T(mapType.Key)
 	default:
 		unexpectedKind(kind(t))
 	}
@@ -2924,7 +2924,7 @@ func getSizeOfType(t *types.Type) int {
 		return SizeOfInterface
 	case types.T_ARRAY:
 		arrayType := ut.E.(*ast.ArrayType)
-		elmSize := getSizeOfType(e2t(arrayType.Elt))
+		elmSize := getSizeOfType(E2T(arrayType.Elt))
 		return elmSize * evalInt(arrayType.Len)
 	case types.T_STRUCT:
 		return calcStructSizeAndSetFieldOffset(ut.E.(*ast.StructType))
@@ -2950,7 +2950,7 @@ func calcStructSizeAndSetFieldOffset(structType *ast.StructType) int {
 	var offset int = 0
 	for _, field := range structType.Fields.List {
 		setStructFieldOffset(field, offset)
-		size := getSizeOfType(e2t(field.Type))
+		size := getSizeOfType(E2T(field.Type))
 		offset += size
 	}
 	return offset
@@ -3088,7 +3088,7 @@ func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 	case *ast.Ident:
 		typeObj = typ.Obj
 	case *ast.SelectorExpr:
-		t := lookupForeignIdent(selector2QI(typ))
+		t := LookupForeignIdent(selector2QI(typ))
 		typeObj = t.Obj
 	default:
 		panic(rcvType)
@@ -3123,7 +3123,7 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 		var t *types.Type
 		if spec.Type != nil { // var x T = e
 			// walkExpr(spec.Type, nil) // Do we need to walk type ?
-			t = e2t(spec.Type)
+			t = E2T(spec.Type)
 			if len(spec.Values) > 0 {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
@@ -3136,7 +3136,7 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 
 			rhs := spec.Values[0]
 			rhsMeta = walkExpr(rhs, nil)
-			t = getTypeOfExpr(rhsMeta)
+			t = GetTypeOfExpr(rhsMeta)
 			if t == nil {
 				panic("rhs should have a type")
 			}
@@ -3144,7 +3144,7 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 		spec.Type = t.E // set lhs type
 
 		obj := lhsIdent.Obj
-		setVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
+		SetVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
 		lhsMeta := walkIdent(lhsIdent, nil)
 		single := &ir.MetaSingleAssign{
 			Pos: lhsIdent.Pos(),
@@ -3190,7 +3190,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			var ctx *ir.EvalContext
 			if !isBlankIdentifierMeta(lhsMetas[0]) {
 				ctx = &ir.EvalContext{
-					Type: getTypeOfExpr(lhsMetas[0]),
+					Type: GetTypeOfExpr(lhsMetas[0]),
 				}
 			}
 			rhsMeta := walkExpr(s.Rhs[0], ctx)
@@ -3206,7 +3206,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &ir.EvalContext{MaybeOK: maybeOkContext})
 			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
-			rhsTypes := getTupleTypes(rhsMeta)
+			rhsTypes := GetTupleTypes(rhsMeta)
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
 			var lhsMetas []ir.MetaExpr
@@ -3228,13 +3228,13 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 		if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 			// Single assignment
 			rhsMeta := walkExpr(s.Rhs[0], nil) // FIXME
-			rhsType := getTypeOfExpr(rhsMeta)
+			rhsType := GetTypeOfExpr(rhsMeta)
 			lhsTypes := []*types.Type{rhsType}
 			var lhsMetas []ir.MetaExpr
 			for i, lhs := range s.Lhs {
 				typ := lhsTypes[i]
 				obj := lhs.(*ast.Ident).Obj
-				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				SetVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
 				lm := walkExpr(lhs, nil)
 				lhsMetas = append(lhsMetas, lm)
 			}
@@ -3251,14 +3251,14 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &ir.EvalContext{MaybeOK: maybeOkContext})
 			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
-			rhsTypes := getTupleTypes(rhsMeta)
+			rhsTypes := GetTupleTypes(rhsMeta)
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
 			lhsTypes := rhsTypes
 			for i, lhs := range s.Lhs {
 				typ := lhsTypes[i]
 				obj := lhs.(*ast.Ident).Obj
-				setVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				SetVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
 			}
 
 			var lhsMetas []ir.MetaExpr
@@ -3389,7 +3389,7 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 	currentFor = meta
 	metaX := walkExpr(s.X, nil)
 
-	collectionType := getUnderlyingType(getTypeOfExpr(metaX))
+	collectionType := getUnderlyingType(GetTypeOfExpr(metaX))
 	keyType := getKeyTypeOfCollectionType(collectionType)
 	elmType := getElementTypeOfCollectionType(collectionType)
 	walkExpr(tInt.E, nil)
@@ -3416,10 +3416,10 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 	if s.Tok.String() == ":=" {
 		// declare local variables
 		keyIdent := s.Key.(*ast.Ident)
-		setVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, keyType))
+		SetVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, keyType))
 
 		valueIdent := s.Value.(*ast.Ident)
-		setVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
+		SetVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
 	}
 	if s.Key != nil {
 		meta.ForRangeStmt.Key = walkExpr(s.Key, nil)
@@ -3519,21 +3519,21 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 			if len(cc.List) > 0 {
 				var varType *types.Type
 				if isNilIdent(cc.List[0]) {
-					varType = getTypeOfExpr(typeSwitch.Subject)
+					varType = GetTypeOfExpr(typeSwitch.Subject)
 				} else {
-					varType = e2t(cc.List[0])
+					varType = E2T(cc.List[0])
 				}
 				// inject a variable of that type
 				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
 				tscc.Variable = vr
-				setVariable(assignIdent.Obj, vr)
+				SetVariable(assignIdent.Obj, vr)
 			} else {
 				// default clause
 				// inject a variable of subject type
-				varType := getTypeOfExpr(typeSwitch.Subject)
+				varType := GetTypeOfExpr(typeSwitch.Subject)
 				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
 				tscc.Variable = vr
-				setVariable(assignIdent.Obj, vr)
+				SetVariable(assignIdent.Obj, vr)
 			}
 		}
 		var body []ir.MetaStmt
@@ -3546,13 +3546,13 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 		for _, e := range cc.List {
 			var typ *types.Type
 			if !isNilIdent(e) {
-				typ = e2t(e)
+				typ = E2T(e)
 			}
 			typs = append(typs, typ) // universe nil can be appended
 		}
 		tscc.Types = typs
 		if assignIdent != nil {
-			setVariable(assignIdent.Obj, nil)
+			SetVariable(assignIdent.Obj, nil)
 		}
 	}
 	typeSwitch.Cases = cases
@@ -3730,9 +3730,9 @@ func walkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
 			lit := valSpec.Values[0].(*ast.BasicLit)
 			meta.ConstLiteral = walkBasicLit(lit, nil)
 			if valSpec.Type != nil {
-				meta.Type = e2t(valSpec.Type)
+				meta.Type = E2T(valSpec.Type)
 			} else {
-				meta.Type = getTypeOfExpr(meta.ConstLiteral)
+				meta.Type = GetTypeOfExpr(meta.ConstLiteral)
 			}
 		case ast.Fun:
 			meta.Kind = "fun"
@@ -3741,12 +3741,12 @@ func walkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
 				// builtin funcs have no func type
 			default:
 				//logf("ast.Fun=%s\n", e.Name)
-				meta.Type = e2t(e.Obj.Decl.(*ast.FuncDecl).Type)
+				meta.Type = E2T(e.Obj.Decl.(*ast.FuncDecl).Type)
 			}
 		case ast.Typ:
 			// this can happen when walking type nodes intentionally
 			meta.Kind = "typ"
-			meta.Type = e2t(e)
+			meta.Type = E2T(e)
 		default: // ast.Pkg
 			panic("Unexpected ident kind:" + e.Obj.Kind.String() + " name:" + e.Name)
 		}
@@ -3764,7 +3764,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		// pkg.ident
 		qi := selector2QI(e)
 		meta.QI = qi
-		ident := lookupForeignIdent(qi)
+		ident := LookupForeignIdent(qi)
 		meta.Type = getTypeOfForeignIdent(ident)
 	} else {
 		// expr.field
@@ -3778,14 +3778,14 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 
 func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) *types.Type {
 	// (strct).field | (obj).method
-	typeOfLeft := getTypeOfExpr(x)
+	typeOfLeft := GetTypeOfExpr(x)
 	ut := getUnderlyingType(typeOfLeft)
 	var structTypeLiteral *ast.StructType
 	switch typ := ut.E.(type) {
 	case *ast.StructType: // strct.field
 		structTypeLiteral = typ
 	case *ast.StarExpr: // ptr.field
-		origType := e2t(typ.X)
+		origType := E2T(typ.X)
 		if kind(origType) == types.T_STRUCT {
 			structTypeLiteral = getUnderlyingStructType(origType)
 		} else {
@@ -3798,7 +3798,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) *types.Type {
 				if funcType.Results == nil || len(funcType.Results.List) == 0 {
 					return nil
 				}
-				types := fieldList2Types(funcType.Results)
+				types := FieldList2Types(funcType.Results)
 				return types[0]
 			}
 		}
@@ -3809,14 +3809,14 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) *types.Type {
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil
 		}
-		types := fieldList2Types(funcType.Results)
+		types := FieldList2Types(funcType.Results)
 		return types[0]
 	}
 
 	//logf("%s: Looking for struct  ... \n", fset.Position(structTypeLiteral.Pos()))
 	field := lookupStructField(structTypeLiteral, e.Sel.Name)
 	if field != nil {
-		return e2t(field.Type)
+		return E2T(field.Type)
 	}
 	if field == nil { // try to find method
 		method := lookupMethod(typeOfLeft, e.Sel)
@@ -3825,7 +3825,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) *types.Type {
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil
 		}
-		types := fieldList2Types(funcType.Results)
+		types := FieldList2Types(funcType.Results)
 		return types[0]
 	}
 
@@ -3838,12 +3838,12 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) *ir.MetaCallExpr {
 	}
 	if isType(e.Fun) {
 		meta.IsConversion = true
-		meta.ToType = e2t(e.Fun)
+		meta.ToType = E2T(e.Fun)
 		meta.Type = meta.ToType
 		assert(len(e.Args) == 1, "convert must take only 1 argument", __func__)
 		//logf("walkCallExpr: is Conversion\n")
 		ctx := &ir.EvalContext{
-			Type: e2t(e.Fun),
+			Type: E2T(e.Fun),
 		}
 		meta.Arg0 = walkExpr(e.Args[0], ctx)
 		return meta
@@ -3883,17 +3883,17 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) *ir.MetaCallExpr {
 		case universe.New:
 			meta.Builtin = identFun.Obj
 			walkExpr(e.Args[0], nil)
-			meta.TypeArg0 = e2t(e.Args[0])
+			meta.TypeArg0 = E2T(e.Args[0])
 			ptrType := &ast.StarExpr{
 				X:    e.Args[0],
 				Star: 1,
 			}
-			meta.Type = e2t(ptrType)
+			meta.Type = E2T(ptrType)
 			return meta
 		case universe.Make:
 			meta.Builtin = identFun.Obj
 			walkExpr(e.Args[0], nil)
-			meta.TypeArg0 = e2t(e.Args[0])
+			meta.TypeArg0 = E2T(e.Args[0])
 			meta.Type = meta.TypeArg0
 			ctx := &ir.EvalContext{Type: tInt}
 			if len(e.Args) > 1 {
@@ -3908,7 +3908,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) *ir.MetaCallExpr {
 			meta.Builtin = identFun.Obj
 			meta.Arg0 = walkExpr(e.Args[0], nil)
 			meta.Arg1 = walkExpr(e.Args[1], nil)
-			meta.Type = getTypeOfExpr(meta.Arg0)
+			meta.Type = GetTypeOfExpr(meta.Arg0)
 			return meta
 		case universe.Panic:
 			meta.Builtin = identFun.Obj
@@ -3962,7 +3962,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) *ir.MetaCallExpr {
 			case *ast.SelectorExpr:
 				assert(isQI(r), "expect QI", __func__)
 				qi := selector2QI(r)
-				ff := lookupForeignFunc(qi)
+				ff := LookupForeignFunc(qi)
 				funcType = ff.FuncType
 				funcVal = NewFuncValueFromSymbol(string(qi))
 			default:
@@ -3976,13 +3976,13 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) *ir.MetaCallExpr {
 			// pkg.Sel()
 			qi := selector2QI(fn)
 			funcVal = NewFuncValueFromSymbol(string(qi))
-			ff := lookupForeignFunc(qi)
+			ff := LookupForeignFunc(qi)
 			funcType = ff.FuncType
 		} else {
 			// method call
 			receiver = fn.X
 			receiverMeta = walkExpr(fn.X, nil)
-			receiverType := getTypeOfExpr(receiverMeta)
+			receiverType := GetTypeOfExpr(receiverMeta)
 			method := lookupMethod(receiverType, fn.Sel)
 			funcType = method.FuncType
 			funcVal = NewFuncValueFromSymbol(getMethodSymbol(method))
@@ -4009,7 +4009,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) *ir.MetaCallExpr {
 					}
 					receiverMeta = &ir.MetaUnaryExpr{
 						X:    receiverMeta,
-						Type: e2t(eTyp),
+						Type: E2T(eTyp),
 						Op:   rcvr.Op.String(),
 					}
 				} else {
@@ -4021,7 +4021,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) *ir.MetaCallExpr {
 		throw(e.Fun)
 	}
 
-	meta.Types = fieldList2Types(funcType.Results)
+	meta.Types = FieldList2Types(funcType.Results)
 	if len(meta.Types) > 0 {
 		meta.Type = meta.Types[0]
 	}
@@ -4071,7 +4071,7 @@ func walkBasicLit(e *ast.BasicLit, ctx *ir.EvalContext) *ir.MetaBasicLit {
 
 func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaCompositLit {
 	//walkExpr(e.Type, nil) // a[len("foo")]{...} // "foo" should be walked
-	typ := e2t(e.Type)
+	typ := E2T(e.Type)
 	ut := getUnderlyingType(typ)
 	var knd string
 	switch kind(ut) {
@@ -4098,7 +4098,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 			kvExpr := elm.(*ast.KeyValueExpr)
 			fieldName := kvExpr.Key.(*ast.Ident)
 			field := lookupStructField(getUnderlyingStructType(structType), fieldName.Name)
-			fieldType := e2t(field.Type)
+			fieldType := E2T(field.Type)
 			ctx := &ir.EvalContext{Type: fieldType}
 			// attach type to nil : STRUCT{Key:nil}
 			valueMeta := walkExpr(kvExpr.Value, ctx)
@@ -4116,7 +4116,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 	case types.T_ARRAY:
 		arrayType := ut.E.(*ast.ArrayType)
 		meta.Len = evalInt(arrayType.Len)
-		meta.ElmType = e2t(arrayType.Elt)
+		meta.ElmType = E2T(arrayType.Elt)
 		ctx := &ir.EvalContext{Type: meta.ElmType}
 		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
@@ -4127,7 +4127,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 	case types.T_SLICE:
 		arrayType := ut.E.(*ast.ArrayType)
 		meta.Len = len(e.Elts)
-		meta.ElmType = e2t(arrayType.Elt)
+		meta.ElmType = E2T(arrayType.Elt)
 		ctx := &ir.EvalContext{Type: meta.ElmType}
 		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
@@ -4147,16 +4147,16 @@ func walkUnaryExpr(e *ast.UnaryExpr, ctx *ir.EvalContext) *ir.MetaUnaryExpr {
 	meta.X = walkExpr(e.X, nil)
 	switch meta.Op {
 	case "+", "-":
-		meta.Type = getTypeOfExpr(meta.X)
+		meta.Type = GetTypeOfExpr(meta.X)
 	case "!":
 		meta.Type = tBool
 	case "&":
-		xTyp := getTypeOfExpr(meta.X)
+		xTyp := GetTypeOfExpr(meta.X)
 		ptrType := &ast.StarExpr{
 			Star: Pos(e),
 			X:    xTyp.E,
 		}
-		meta.Type = e2t(ptrType)
+		meta.Type = E2T(ptrType)
 	}
 
 	return meta
@@ -4170,13 +4170,13 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *ir.EvalContext) *ir.MetaBinaryExpr {
 	if isNilIdent(e.X) {
 		// Y should be typed
 		meta.Y = walkExpr(e.Y, nil) // right
-		xCtx := &ir.EvalContext{Type: getTypeOfExpr(meta.Y)}
+		xCtx := &ir.EvalContext{Type: GetTypeOfExpr(meta.Y)}
 
 		meta.X = walkExpr(e.X, xCtx) // left
 	} else {
 		// X should be typed
 		meta.X = walkExpr(e.X, nil) // left
-		xTyp := getTypeOfExpr(meta.X)
+		xTyp := GetTypeOfExpr(meta.X)
 		if xTyp == nil {
 			panicPos("xTyp should not be nil", Pos(e))
 		}
@@ -4189,9 +4189,9 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *ir.EvalContext) *ir.MetaBinaryExpr {
 	default:
 		// @TODO type of (1 + x) should be type of x
 		if isNilIdent(e.X) {
-			meta.Type = getTypeOfExpr(meta.Y)
+			meta.Type = GetTypeOfExpr(meta.Y)
 		} else {
-			meta.Type = getTypeOfExpr(meta.X)
+			meta.Type = GetTypeOfExpr(meta.X)
 		}
 	}
 	return meta
@@ -4223,7 +4223,7 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *ir.EvalContext) *ir.MetaIndexExpr {
 	}
 	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	meta.X = walkExpr(e.X, nil)
-	collectionTyp := getTypeOfExpr(meta.X)
+	collectionTyp := GetTypeOfExpr(meta.X)
 	if kind(collectionTyp) == types.T_MAP {
 		meta.IsMap = true
 		if ctx != nil && ctx.MaybeOK {
@@ -4261,7 +4261,7 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *ir.EvalContext) *ir.MetaSliceExpr {
 		meta.Max = walkExpr(e.Max, nil)
 	}
 	meta.X = walkExpr(e.X, nil)
-	listType := getTypeOfExpr(meta.X)
+	listType := GetTypeOfExpr(meta.X)
 	if kind(listType) == types.T_STRING {
 		// str2 = str1[n:m]
 		meta.Type = tString
@@ -4272,7 +4272,7 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *ir.EvalContext) *ir.MetaSliceExpr {
 			Elt:    elmType.E,
 			Lbrack: e.Pos(),
 		}
-		meta.Type = e2t(r)
+		meta.Type = E2T(r)
 	}
 	return meta
 }
@@ -4294,9 +4294,9 @@ func walkStarExpr(e *ast.StarExpr, ctx *ir.EvalContext) *ir.MetaStarExpr {
 		Pos: e.Pos(),
 	}
 	meta.X = walkExpr(e.X, nil)
-	xType := getTypeOfExpr(meta.X)
+	xType := GetTypeOfExpr(meta.X)
 	origType := xType.E.(*ast.StarExpr)
-	meta.Type = e2t(origType.X)
+	meta.Type = E2T(origType.X)
 	return meta
 }
 
@@ -4312,7 +4312,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *ir.EvalContext) *ir.MetaType
 		meta.NeedsOK = true
 	}
 	meta.X = walkExpr(e.X, nil)
-	meta.Type = e2t(e.Type)
+	meta.Type = E2T(e.Type)
 	return meta
 }
 
@@ -4535,7 +4535,7 @@ func Pos(node interface{}) token.Pos {
 
 var ExportedQualifiedIdents = make(map[string]*ast.Ident)
 
-func lookupForeignIdent(qi ir.QualifiedIdent) *ast.Ident {
+func LookupForeignIdent(qi ir.QualifiedIdent) *ast.Ident {
 	ident, ok := ExportedQualifiedIdents[string(qi)]
 	if !ok {
 		panic(qi + " Not found in ExportedQualifiedIdents")
@@ -4543,8 +4543,8 @@ func lookupForeignIdent(qi ir.QualifiedIdent) *ast.Ident {
 	return ident
 }
 
-func lookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
-	ident := lookupForeignIdent(qi)
+func LookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
+	ident := LookupForeignIdent(qi)
 	assert(ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
 	decl := ident.Obj.Decl.(*ast.FuncDecl)
 	return &ir.ForeignFunc{
@@ -4553,7 +4553,7 @@ func lookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
 	}
 }
 
-func setVariable(obj *ast.Object, vr *ir.Variable) {
+func SetVariable(obj *ast.Object, vr *ir.Variable) {
 	assert(obj.Kind == ast.Var, "obj is not  ast.Var", __func__)
 	if vr == nil {
 		obj.Data = nil
@@ -4573,7 +4573,7 @@ func setVariable(obj *ast.Object, vr *ir.Variable) {
 // - transmit ok syntax context
 // - (hope) attach type to untyped constants
 // - (hope) transmit the need of interface conversion
-func walk(pkg *ir.PkgContainer) {
+func Walk(pkg *ir.PkgContainer) {
 	var typeSpecs []*ast.TypeSpec
 	var funcDecls []*ast.FuncDecl
 	var varSpecs []*ast.ValueSpec
@@ -4617,7 +4617,7 @@ func walk(pkg *ir.PkgContainer) {
 				Decl: typeSpec,
 			},
 		}
-		t := e2t(eType)
+		t := E2T(eType)
 		t.PkgName = pkg.Name
 		t.Name = typeSpec.Name.Name
 		exportedTpyes = append(exportedTpyes, t)
@@ -4663,7 +4663,7 @@ func walk(pkg *ir.PkgContainer) {
 		var t *types.Type
 		if spec.Type != nil { // var x T = e
 			// walkExpr(spec.Type, nil) // Do we need walk type ?s
-			t = e2t(spec.Type)
+			t = E2T(spec.Type)
 			if len(spec.Values) > 0 {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
@@ -4676,7 +4676,7 @@ func walk(pkg *ir.PkgContainer) {
 
 			rhs := spec.Values[0]
 			rhsMeta = walkExpr(rhs, nil)
-			t = getTypeOfExpr(rhsMeta)
+			t = GetTypeOfExpr(rhsMeta)
 			if t == nil {
 				panic("variable type is not determined : " + lhsIdent.Name)
 			}
@@ -4684,7 +4684,7 @@ func walk(pkg *ir.PkgContainer) {
 		spec.Type = t.E
 
 		variable := newGlobalVariable(pkg.Name, lhsIdent.Obj.Name, t)
-		setVariable(lhsIdent.Obj, variable)
+		SetVariable(lhsIdent.Obj, variable)
 		metaVar := walkIdent(lhsIdent, nil)
 
 		var rhs ast.Expr
@@ -4735,13 +4735,13 @@ func walk(pkg *ir.PkgContainer) {
 
 		for _, field := range paramFields {
 			obj := field.Names[0].Obj
-			setVariable(obj, registerParamVariable(fnc, obj.Name, e2t(field.Type)))
+			SetVariable(obj, registerParamVariable(fnc, obj.Name, E2T(field.Type)))
 		}
 
 		for i, field := range resultFields {
 			if len(field.Names) == 0 {
 				// unnamed retval
-				registerReturnVariable(fnc, ".r"+strconv.Itoa(i), e2t(field.Type))
+				registerReturnVariable(fnc, ".r"+strconv.Itoa(i), E2T(field.Type))
 			} else {
 				panic("TBI: named return variable is not supported")
 			}
@@ -5090,7 +5090,7 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 	}
 
 	printf("#--- walk \n")
-	walk(_pkg)
+	Walk(_pkg)
 	generateCode(_pkg)
 
 	// append static asm files
