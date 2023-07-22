@@ -1054,12 +1054,12 @@ func emitBasicLit(mt *MetaBasicLit) {
 		printf("  pushq $%d # number literal\n", mt.IntVal)
 	case "STRING":
 		sl := mt.StrVal
-		if sl.strlen == 0 {
+		if sl.Strlen == 0 {
 			// zero value
 			emitZeroValue(tString)
 		} else {
-			printf("  pushq $%d # str len\n", sl.strlen)
-			printf("  leaq %s(%%rip), %%rax # str ptr\n", sl.label)
+			printf("  pushq $%d # str len\n", sl.Strlen)
+			printf("  leaq %s(%%rip), %%rax # str ptr\n", sl.Label)
 			printf("  pushq %%rax # str ptr\n")
 		}
 	default:
@@ -2409,8 +2409,8 @@ func emitGlobalVariable(pkg *PkgContainer, vr *PackageVar) {
 				panic("only BasicLit is supported")
 			}
 			sl := lit.StrVal
-			printf("  .quad %s\n", sl.label)
-			printf("  .quad %d\n", sl.strlen)
+			printf("  .quad %s\n", sl.Label)
+			printf("  .quad %d\n", sl.Strlen)
 		}
 	case types.T_BOOL:
 		switch vl := val.(type) {
@@ -2532,8 +2532,8 @@ func generateCode(pkg *PkgContainer) {
 	printf("#--- string literals\n")
 	printf(".data\n")
 	for _, sl := range pkg.StringLiterals {
-		printf("%s:\n", sl.label)
-		printf("  .string %s\n", sl.value)
+		printf("%s:\n", sl.Label)
+		printf("  .string %s\n", sl.Value)
 	}
 
 	printf("#--- global vars (static values)\n")
@@ -2979,10 +2979,10 @@ func calcStructSizeAndSetFieldOffset(structType *ast.StructType) int {
 }
 
 // --- walk ---
-type sliteral struct {
-	label  string
-	strlen int
-	value  string // raw value
+type SLiteral struct {
+	Label  string
+	Strlen int
+	Value  string // raw value
 }
 
 func registerParamVariable(fnc *Func, name string, t *types.Type) *Variable {
@@ -3012,7 +3012,7 @@ func registerLocalVariable(fnc *Func, name string, t *types.Type) *Variable {
 var currentFor *MetaForContainer
 var currentFunc *Func
 
-func registerStringLiteral(lit *ast.BasicLit) *sliteral {
+func registerStringLiteral(lit *ast.BasicLit) *SLiteral {
 	if currentPkg.Name == "" {
 		panic("no pkgName")
 	}
@@ -3027,10 +3027,10 @@ func registerStringLiteral(lit *ast.BasicLit) *sliteral {
 	label := fmt.Sprintf(".string_%d", currentPkg.StringIndex)
 	currentPkg.StringIndex++
 
-	sl := &sliteral{
-		label:  label,
-		strlen: strlen - 2,
-		value:  lit.Value,
+	sl := &SLiteral{
+		Label:  label,
+		Strlen: strlen - 2,
+		Value:  lit.Value,
 	}
 	currentPkg.StringLiterals = append(currentPkg.StringLiterals, sl)
 	return sl
@@ -4476,7 +4476,7 @@ type MetaBasicLit struct {
 	Value   string
 	CharVal int
 	IntVal  int
-	StrVal  *sliteral
+	StrVal  *SLiteral
 }
 
 type MetaCompositLit struct {
@@ -5156,7 +5156,7 @@ type PkgContainer struct {
 	AstFiles       []*ast.File
 	Vars           []*PackageVar
 	Funcs          []*Func
-	StringLiterals []*sliteral
+	StringLiterals []*SLiteral
 	StringIndex    int
 	Decls          []ast.Decl
 	Fset           *token.FileSet
