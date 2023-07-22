@@ -2515,6 +2515,7 @@ func emitGlobalVariable(pkg *PkgContainer, vr *packageVar) {
 }
 
 func generateCode(pkg *PkgContainer) {
+
 	printf("#--- string literals\n")
 	printf(".data\n")
 	for _, sl := range pkg.stringLiterals {
@@ -5381,11 +5382,15 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 	}
 	fout = outAsmFile
 
+	printf("#=== Package %s\n", _pkg.path)
+
 	typesMap = make(map[string]*dtypeEntry)
 	typeId = 1
 
 	pkgScope := ast.NewScope(universe)
-	for _, file := range gofiles {
+	for i, file := range gofiles {
+		printf("  .file %d \"%s\"\n", i+1, file)
+
 		astFile := parseFile(fset, file)
 		//		logf("[main]package decl lineno = %s\n", fset.Position(astFile.Package))
 		_pkg.name = astFile.Name.Name
@@ -5419,7 +5424,6 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 		}
 	}
 
-	printf("#=== Package %s\n", _pkg.path)
 	printf("#--- walk \n")
 	walk(_pkg)
 	generateCode(_pkg)

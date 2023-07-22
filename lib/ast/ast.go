@@ -422,7 +422,7 @@ func (x *FuncDecl) Pos() token.Pos {
 }
 
 type File struct {
-	Name       *Ident
+	Name       *Ident // package name that is in the package clause
 	Package    token.Pos
 	FileStart  token.Pos
 	FileEnd    token.Pos
