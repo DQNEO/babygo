@@ -469,8 +469,8 @@ func emitCallMalloc(size int) {
 
 type MetaStructLiteralElement struct {
 	Pos       token.Pos
-	field     *ast.Field
-	fieldType *types.Type
+	Field     *ast.Field
+	FieldType *types.Type
 	ValueMeta MetaExpr
 }
 
@@ -484,15 +484,15 @@ func emitStructLiteral(meta *MetaCompositLit) {
 		// push lhs address
 		emitPushStackTop(tUintptr, 0, "address of struct heaad")
 
-		fieldOffset := getStructFieldOffset(metaElm.field)
+		fieldOffset := getStructFieldOffset(metaElm.Field)
 		emitAddConst(fieldOffset, "address of struct field")
 
 		// push rhs value
 		emitExpr(metaElm.ValueMeta)
-		mayEmitConvertTooIfc(metaElm.ValueMeta, metaElm.fieldType)
+		mayEmitConvertTooIfc(metaElm.ValueMeta, metaElm.FieldType)
 
 		// assign
-		emitStore(metaElm.fieldType, true, false)
+		emitStore(metaElm.FieldType, true, false)
 	}
 }
 
@@ -4256,8 +4256,8 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *EvalContext) *MetaCompositLit {
 
 			metaElm := &MetaStructLiteralElement{
 				Pos:       kvExpr.Pos(),
-				field:     field,
-				fieldType: fieldType,
+				Field:     field,
+				FieldType: fieldType,
 				ValueMeta: valueMeta,
 			}
 
