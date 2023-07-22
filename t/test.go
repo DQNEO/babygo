@@ -479,6 +479,15 @@ func testSprinfMore() {
 	s = fmt.Sprintf("%s", 123)
 	writeln(s)
 
+	ptr := &s
+	uintPtr := uintptr(unsafe.Pointer(ptr))
+	p := fmt.Sprintf("%p", uintPtr)
+	pp := strconv.Atoi(p)
+	if int(uintPtr) == pp {
+		writeln("ok")
+	} else {
+		writeln("ERROR")
+	}
 }
 
 var anotherVar string = "Another Hello\n"

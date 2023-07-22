@@ -1,9 +1,10 @@
 package fmt
 
 import (
-	"github.com/DQNEO/babygo/lib/strconv"
 	"os"
 	"reflect"
+
+	"github.com/DQNEO/babygo/lib/strconv"
 )
 import "syscall"
 
@@ -46,6 +47,9 @@ func Sprintf(format string, a ...interface{}) string {
 						str = "%!d(string=" + _arg + ")" // %!d(string=xyz)
 					case int: // ("%d", 123)
 						str = strconv.Itoa(_arg)
+					case uintptr: // ("%d", 123)
+						intVal := int(_arg)
+						str = strconv.Itoa(intVal)
 					default:
 						str = "unknown type"
 					}
