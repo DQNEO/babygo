@@ -1,8 +1,6 @@
 package token
 
-import (
-	"github.com/DQNEO/babygo/lib/fmt"
-)
+import "github.com/DQNEO/babygo/lib/fmt"
 
 type Token string
 type Pos int
@@ -54,7 +52,17 @@ func (fs *FileSet) AddFile(filename string, base int, size int) *File {
 	return f
 }
 
-func (fs *FileSet) Position(pos Pos) string {
+type Position struct {
+	Filename string // filename, if any
+	Offset   int    // offset, starting at 0
+	Line     int    // line number, starting at 1
+	Column   int    // column number, starting at 1 (byte count)
+}
+
+func (p *Position) String() string {
+	return fmt.Sprintf("%s:%d", p.Filename, p.Line)
+}
+func (fs *FileSet) Position(pos Pos) *Position {
 	var currentFile *File
 	if len(fs.Files) > 0 {
 		currentFile = fs.Files[0]
@@ -77,5 +85,10 @@ func (fs *FileSet) Position(pos Pos) string {
 		currentLineNo = id + 1
 	}
 
-	return fmt.Sprintf("%s:%d", currentFile.Name, int(currentLineNo))
+	return &Position{
+		Filename: currentFile.Name,
+		Offset:   0,
+		Line:     currentLineNo,
+		Column:   0,
+	}
 }

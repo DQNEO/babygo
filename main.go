@@ -1382,7 +1382,12 @@ func isNil(meta MetaExpr) bool {
 }
 
 func emitExpr(meta MetaExpr) {
-	emitComment(2, "[emitExpr] meta=%T\n", meta)
+	loc := getLoc(Pos(meta))
+	if loc == "" {
+		printf("  # noloc %T\n", meta)
+	} else {
+		printf("  .loc %s # %T\n", loc, meta)
+	}
 	switch m := meta.(type) {
 	case *MetaBasicLit:
 		emitBasicLit(m)
@@ -2283,46 +2288,52 @@ func emitGoStmt(m *MetaGoStmt) {
 	printf("  callq runtime.mstart0\n")
 }
 
-func emitStmt(mtstmt MetaStmt) {
-	switch meta := mtstmt.(type) {
+func emitStmt(meta MetaStmt) {
+	loc := getLoc(Pos(meta))
+	if loc == "" {
+		printf("  # noloc %T\n", meta)
+	} else {
+		printf("  .loc %s # %T\n", loc, meta)
+	}
+	switch m := meta.(type) {
 	case *MetaBlockStmt:
-		emitBlockStmt(meta)
+		emitBlockStmt(m)
 	case *MetaExprStmt:
-		emitExprStmt(meta)
+		emitExprStmt(m)
 	case *MetaVarDecl:
-		emitDeclStmt(meta)
+		emitDeclStmt(m)
 	case *MetaSingleAssign:
-		emitSingleAssign(meta.Lhs, meta.Rhs)
+		emitSingleAssign(m.Lhs, m.Rhs)
 	case *MetaTupleAssign:
-		if meta.isOK {
-			emitOkAssignment(meta)
+		if m.isOK {
+			emitOkAssignment(m)
 		} else {
-			emitFuncallAssignment(meta)
+			emitFuncallAssignment(m)
 		}
 	case *MetaReturnStmt:
-		emitReturnStmt(meta)
+		emitReturnStmt(m)
 	case *MetaIfStmt:
-		emitIfStmt(meta)
+		emitIfStmt(m)
 	case *MetaForContainer:
-		if meta.ForRangeStmt != nil {
-			if meta.ForRangeStmt.IsMap {
-				emitRangeMap(meta)
+		if m.ForRangeStmt != nil {
+			if m.ForRangeStmt.IsMap {
+				emitRangeMap(m)
 			} else {
-				emitRangeStmt(meta)
+				emitRangeStmt(m)
 			}
 		} else {
-			emitForStmt(meta)
+			emitForStmt(m)
 		}
 	case *MetaSwitchStmt:
-		emitSwitchStmt(meta)
+		emitSwitchStmt(m)
 	case *MetaTypeSwitchStmt:
-		emitTypeSwitchStmt(meta)
+		emitTypeSwitchStmt(m)
 	case *MetaBranchStmt:
-		emitBranchStmt(meta)
+		emitBranchStmt(m)
 	case *MetaGoStmt:
-		emitGoStmt(meta)
+		emitGoStmt(m)
 	default:
-		panic(fmt.Sprintf("unknown type:%T", mtstmt))
+		panic(fmt.Sprintf("unknown type:%T", meta))
 	}
 }
 
@@ -2655,7 +2666,7 @@ func getTypeOfForeignIdent(ident *ast.Ident) *Type {
 	case ast.Fun:
 		return e2t(ident.Obj.Decl.(*ast.FuncDecl).Type)
 	default:
-		panic(fmt.Sprintf("Obj=%s, Kind=%s\t\n%s", ident.Obj.Name, ident.Obj.Kind.String(), fset.Position(ident.Pos())))
+		panic(fmt.Sprintf("Obj=%s, Kind=%s\t\n%s", ident.Obj.Name, ident.Obj.Kind.String(), fset.Position(ident.Pos()).String()))
 	}
 }
 
@@ -4350,9 +4361,24 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *evalContext) *MetaBinaryExpr {
 	return meta
 }
 
+func LinePosition(pos token.Pos) string {
+	posit := fset.Position(pos)
+	return fmt.Sprintf("%s:%d", posit.Filename, posit.Line)
+}
+
+func getLoc(pos token.Pos) string {
+	posit := fset.Position(pos)
+	fileno, ok := currentPkg.fileNoMap[posit.Filename]
+	if !ok {
+		// Stmt or Expr in foreign package cannot be found in the map.
+		return ""
+	}
+	return fmt.Sprintf("%d %d", fileno, posit.Line)
+}
+
 func panicPos(s string, pos token.Pos) {
 	position := fset.Position(pos)
-	panic(fmt.Sprintf("%s\n\t%s", s, position))
+	panic(fmt.Sprintf("%s\n\t%s", s, position.String()))
 }
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *evalContext) *MetaIndexExpr {
@@ -5249,6 +5275,7 @@ type PkgContainer struct {
 	stringIndex    int
 	Decls          []ast.Decl
 	fset           *token.FileSet
+	fileNoMap      map[string]int // for .loc
 }
 
 func resolveImports(file *ast.File) {
@@ -5445,7 +5472,7 @@ func parseFile(fset *token.FileSet, filename string) *ast.File {
 func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name string, gofiles []string, asmfiles []string, outFilePath string) {
 	_pkg := &PkgContainer{name: name, path: pkgPath, fset: fset}
 	currentPkg = _pkg
-
+	_pkg.fileNoMap = make(map[string]int)
 	outAsmFile, err := os.Create(outFilePath)
 	if err != nil {
 		panic(err)
@@ -5459,7 +5486,9 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 
 	pkgScope := ast.NewScope(universe)
 	for i, file := range gofiles {
-		printf("  .file %d \"%s\"\n", i+1, file)
+		fileno := i + 1
+		_pkg.fileNoMap[file] = fileno
+		printf("  .file %d \"%s\"\n", fileno, file)
 
 		astFile := parseFile(fset, file)
 		//		logf("[main]package decl lineno = %s\n", fset.Position(astFile.Package))
@@ -5510,6 +5539,7 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 
 	outAsmFile.Close()
 	fout = nil
+	currentPkg = nil
 }
 
 // --- main ---
@@ -5604,12 +5634,6 @@ func buildAll(args []string) {
 		}
 		compile(universe, fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
 	}
-
-	//fmt.Fprintf(os.Stderr, "### Debugging File Postions\n")
-	//for _, f := range fset.Files {
-	//	fmt.Fprintf(os.Stderr, "fset.File: %s size=%d base=%d, lines=%d\n", f.Name, f.Size, f.Base, len(f.Lines))
-	//	fmt.Fprintf(os.Stderr, "  first line pos=%d,  last line pos=%d\n", int(f.Lines[0]), int(f.Lines[len(f.Lines)-1]))
-	//}
 }
 
 // --- AST meta data ---
