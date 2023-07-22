@@ -5634,6 +5634,21 @@ func buildAll(args []string) {
 		}
 		compile(universe, fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
 	}
+
+	outFilePath := fmt.Sprintf("%s/%s", workdir, "__INIT__.s")
+	outAsmFile, err := os.Create(outFilePath)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Fprintf(outAsmFile, ".text\n")
+	fmt.Fprintf(outAsmFile, ".global __INIT__.__initGlobals\n")
+	fmt.Fprintf(outAsmFile, "__INIT__.__initGlobals:\n")
+	for _, _pkg := range packagesToBuild {
+		if _pkg.name != "runtime" {
+			fmt.Fprintf(outAsmFile, "  callq %s.__initGlobals \n", _pkg.name)
+		}
+	}
+	outAsmFile.Close()
 }
 
 // --- AST meta data ---

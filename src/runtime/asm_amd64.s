@@ -33,8 +33,10 @@ runtime.rt0_go:
 
   callq runtime.__initGlobals
   callq runtime.schedinit
-  callq main.__initGlobals
+
   callq os.init # set os.Args
+
+  callq __INIT__.__initGlobals
 
   // wrapper to runtime.main
   leaq runtime.mainPC(%rip), %rax # entry
