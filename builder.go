@@ -16,8 +16,6 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
-var fset *token.FileSet
-
 // --- builder ---
 //var CurrentPkg *ir.PkgContainer
 
@@ -243,8 +241,7 @@ func buildAll(args []string) {
 	})
 
 	var universe *ast.Scope = universe.CreateUniverse()
-	fset = token.NewFileSet()
-	sema.Fset = fset
+	sema.Fset = token.NewFileSet()
 	var builtPackages []*ir.PkgContainer
 	for _, _pkg := range packagesToBuild {
 		if _pkg.name == "" {
@@ -268,7 +265,7 @@ func buildAll(args []string) {
 			}
 
 		}
-		pkgC := compile(universe, fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
+		pkgC := compile(universe, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
 		builtPackages = append(builtPackages, pkgC)
 	}
 

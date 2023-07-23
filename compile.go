@@ -36,7 +36,6 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 			panic(err.Error())
 		}
 
-		pkg.Name = astFile.Name.Name
 		pkg.AstFiles = append(pkg.AstFiles, astFile)
 		for name, obj := range astFile.Scope.Objects {
 			pkgScope.Objects[name] = obj
