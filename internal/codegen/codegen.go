@@ -60,11 +60,6 @@ func emitComment(indent int, format string, a ...interface{}) {
 	printf(format2, a...)
 }
 
-func emitConstInt(expr ast.Expr) {
-	i := sema.EvalInt(expr)
-	printf("  pushq $%d # const number literal\n", i)
-}
-
 func emitPopPrimitive(comment string) {
 	printf("  popq %%rax # result of %s\n", comment)
 }
@@ -235,7 +230,7 @@ func emitAddr(meta ir.MetaExpr) {
 	case *ir.MetaStarExpr:
 		emitExpr(m.X)
 	case *ir.MetaSelectorExpr:
-		if m.IsQI { // pkg.Var|pkg.Const
+		if m.IsQI { // pkg.Var|pkg.Const|pkg.Fun
 			qi := m.QI
 			ident := sema.LookupForeignIdent(qi)
 			switch ident.Obj.Kind {
@@ -311,9 +306,8 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 	case *ast.SelectorExpr:
 		// pkg.Type(arg0)
 		qi := sema.Selector2QI(to)
-		ff := sema.LookupForeignIdent(qi)
-		assert(ff.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
-		emitConversion(sema.E2T(ff), arg0)
+		t := sema.LookupForeignType(qi)
+		emitConversion(t, arg0)
 	case *ast.ArrayType: // Conversion to slice
 		arrayType := to
 		if arrayType.Len != nil {
@@ -373,10 +367,11 @@ func emitZeroValue(t *types.Type) {
 }
 
 func emitLen(arg ir.MetaExpr) {
-	switch sema.Kind(sema.GetTypeOfExpr(arg)) {
+	t := sema.GetTypeOfExpr(arg)
+	switch sema.Kind(t) {
 	case types.T_ARRAY:
-		arrayType := sema.GetTypeOfExpr(arg).E.(*ast.ArrayType)
-		emitConstInt(arrayType.Len)
+		arrayLen := sema.GetArrayLen(t)
+		printf("  pushq $%d # array len\n", arrayLen)
 	case types.T_SLICE:
 		emitExpr(arg)
 		emitPopSlice()
@@ -408,10 +403,11 @@ func emitLen(arg ir.MetaExpr) {
 }
 
 func emitCap(arg ir.MetaExpr) {
-	switch sema.Kind(sema.GetTypeOfExpr(arg)) {
+	t := sema.GetTypeOfExpr(arg)
+	switch sema.Kind(t) {
 	case types.T_ARRAY:
-		arrayType := sema.GetTypeOfExpr(arg).E.(*ast.ArrayType)
-		emitConstInt(arrayType.Len)
+		arrayLen := sema.GetArrayLen(t)
+		printf("  pushq $%d # array len\n", arrayLen)
 	case types.T_SLICE:
 		emitExpr(arg)
 		emitPopSlice()
@@ -856,23 +852,16 @@ func emitStarExpr(meta *ir.MetaStarExpr) {
 func emitSelectorExpr(meta *ir.MetaSelectorExpr) {
 	// pkg.Ident or strct.field
 	if meta.IsQI {
-		qi := meta.QI
-		ident := sema.LookupForeignIdent(qi)
-		switch ident.Obj.Kind {
-		case ast.Fun:
-			emitFuncAddr(qi)
-		case ast.Var:
-			m := sema.WalkIdent(ident, nil)
-			emitExpr(m)
-		case ast.Con:
-			m := sema.WalkIdent(ident, nil)
-			emitExpr(m)
-		}
+		emitExpr(meta.ForeignValue) // var,con,fun
 	} else {
 		// strct.field
 		emitAddr(meta)
 		emitLoadAndPush(sema.GetTypeOfExpr(meta))
 	}
+}
+
+func emitForeignFuncAddr(meta *ir.MetaForeignFuncWrapper) {
+	emitFuncAddr(meta.QI)
 }
 
 // multi values Fun(Args)
@@ -1233,6 +1222,8 @@ func emitExpr(meta ir.MetaExpr) {
 		emitIdent(m)
 	case *ir.MetaSelectorExpr:
 		emitSelectorExpr(m)
+	case *ir.MetaForeignFuncWrapper:
+		emitForeignFuncAddr(m)
 	case *ir.MetaCallExpr:
 		emitCallExpr(m) // can be Tuple
 	case *ir.MetaIndexExpr:

@@ -311,6 +311,11 @@ func E2T(typeExpr ast.Expr) *types.Type {
 	}
 }
 
+func GetArrayLen(t *types.Type) int {
+	arrayType := t.E.(*ast.ArrayType)
+	return EvalInt(arrayType.Len)
+}
+
 func GetUnderlyingStructType(t *types.Type) *ast.StructType {
 	ut := GetUnderlyingType(t)
 	return ut.E.(*ast.StructType)
@@ -1275,8 +1280,27 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		// pkg.ident
 		qi := Selector2QI(e)
 		meta.QI = qi
-		ident := LookupForeignIdent(qi)
-		meta.Type = getTypeOfForeignIdent(ident)
+		fident := LookupForeignIdent(qi)
+		switch fident.Obj.Kind {
+		case ast.Var:
+			foreignMeta := WalkIdent(fident, nil)
+			meta.ForeignValue = foreignMeta
+		case ast.Con:
+			foreignMeta := WalkIdent(fident, nil)
+			meta.ForeignValue = foreignMeta
+		case ast.Fun:
+			ff := newForeignFunc(fident, qi)
+			foreignMeta := &ir.MetaForeignFuncWrapper{
+				Pos: e.Pos(),
+				QI:  qi,
+				FF:  ff,
+				// @TODO: set Type from ff.FuncType
+			}
+			meta.ForeignValue = foreignMeta
+		default:
+			panic("Unexpected")
+		}
+		meta.Type = getTypeOfForeignIdent(fident)
 	} else {
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
@@ -1972,6 +1996,8 @@ func Pos(node interface{}) token.Pos {
 		return n.Pos
 	case *ir.MetaSelectorExpr:
 		return n.Pos
+	case *ir.MetaForeignFuncWrapper:
+		return n.Pos
 	case *ir.MetaCallExpr:
 		return n.Pos
 	case *ir.MetaIndexExpr:
@@ -2034,8 +2060,22 @@ func LookupForeignIdent(qi ir.QualifiedIdent) *ast.Ident {
 	return ident
 }
 
+func LookupForeignType(qi ir.QualifiedIdent) *types.Type {
+	ident, ok := ExportedQualifiedIdents[string(qi)]
+	if !ok {
+		panic(qi + " Not found in ExportedQualifiedIdents")
+	}
+	assert(ident.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
+	return E2T(ident)
+
+}
+
 func LookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
 	ident := LookupForeignIdent(qi)
+	return newForeignFunc(ident, qi)
+}
+
+func newForeignFunc(ident *ast.Ident, qi ir.QualifiedIdent) *ir.ForeignFunc {
 	assert(ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
 	decl := ident.Obj.Decl.(*ast.FuncDecl)
 	return &ir.ForeignFunc{

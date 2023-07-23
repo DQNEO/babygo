@@ -195,13 +195,21 @@ type MetaIdent struct {
 	Const *Const // for "con"
 }
 
+type MetaForeignFuncWrapper struct {
+	Pos token.Pos
+	QI  QualifiedIdent
+	FF  *ForeignFunc
+}
+
 type MetaSelectorExpr struct {
-	Pos     token.Pos
-	IsQI    bool
-	QI      QualifiedIdent
-	Type    *types.Type
-	X       MetaExpr
-	SelName string
+	Pos            token.Pos
+	IsQI           bool
+	QI             QualifiedIdent
+	Type           *types.Type
+	X              MetaExpr
+	SelName        string
+	ForeignObjKind string // "var|con|fun"
+	ForeignValue   MetaExpr
 }
 
 type MetaCallExpr struct {
