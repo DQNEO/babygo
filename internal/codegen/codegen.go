@@ -364,14 +364,7 @@ func emitLen(arg ir.MetaExpr) {
 				ParamType: sema.GetTypeOfExpr(arg),
 			},
 		}
-		resultList := &ast.FieldList{
-			List: []*ast.Field{
-				&ast.Field{
-					Type: types.Int.E,
-				},
-			},
-		}
-		emitCallDirect("runtime.lenMap", args, resultList)
+		emitCallDirect("runtime.lenMap", args, []*types.Type{types.Int})
 
 	default:
 		unexpectedKind(sema.Kind(sema.GetTypeOfExpr(arg)))
@@ -458,8 +451,7 @@ func emitFalse() {
 	printf("  pushq $0 # false\n")
 }
 
-func emitCallDirect(symbol string, args []*ir.MetaArg, resultList *ast.FieldList) {
-	returnTypes := sema.FieldList2Types(resultList)
+func emitCallDirect(symbol string, args []*ir.MetaArg, returnTypes []*types.Type) {
 	emitCall(sema.NewFuncValueFromSymbol(symbol), args, returnTypes)
 }
 
@@ -610,14 +602,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr,
 					ParamType: types.Uintptr,
 				},
 			}
-			resultList := &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Type: types.Uintptr.E,
-					},
-				},
-			}
-			emitCallDirect("runtime.makeMap", args, resultList)
+			emitCallDirect("runtime.makeMap", args, []*types.Type{types.Uintptr})
 			return
 		case types.T_SLICE:
 			// make([]T, ...)
@@ -642,14 +627,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr,
 				},
 			}
 
-			resultList := &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Type: sema.GeneralSlice,
-					},
-				},
-			}
-			emitCallDirect("runtime.makeSlice", args, resultList)
+			emitCallDirect("runtime.makeSlice", args, []*types.Type{sema.E2T(sema.GeneralSlice)})
 			return
 		default:
 			throw(typeArg)
@@ -685,14 +663,7 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr,
 		default:
 			throw(elmSize)
 		}
-		resultList := &ast.FieldList{
-			List: []*ast.Field{
-				&ast.Field{
-					Type: sema.GeneralSlice,
-				},
-			},
-		}
-		emitCallDirect(symbol, args, resultList)
+		emitCallDirect(symbol, args, []*types.Type{sema.E2T(sema.GeneralSlice)})
 		return
 	case universe.Panic:
 		funcVal := "runtime.panic"
@@ -1112,17 +1083,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 			ParamType: types.Eface,
 		},
 	}
-	resultList := &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type: types.Bool.E,
-			},
-			&ast.Field{
-				Type: types.Uintptr.E,
-			},
-		},
-	}
-	emitCallDirect("runtime.getAddrForMapGet", args, resultList)
+	emitCallDirect("runtime.getAddrForMapGet", args, []*types.Type{types.Bool, types.Uintptr})
 	// return values = [ptr, bool(stack top)]
 	emitPopBool("map get:  ok value")
 	printf("  cmpq $1, %%rax\n")
@@ -1339,14 +1300,7 @@ func emitAddrForMapSet(indexExpr *ir.MetaIndexExpr) {
 			ParamType: types.Eface,
 		},
 	}
-	resultList := &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type: types.Uintptr.E,
-			},
-		},
-	}
-	emitCallDirect("runtime.getAddrForMapSet", args, resultList)
+	emitCallDirect("runtime.getAddrForMapSet", args, []*types.Type{types.Uintptr})
 }
 
 func emitListElementAddr(list ir.MetaExpr, elmType *types.Type) {
@@ -1370,14 +1324,7 @@ func emitCatStrings(left ir.MetaExpr, right ir.MetaExpr) {
 			ParamType: types.String,
 		},
 	}
-	resultList := &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type: types.String.E,
-			},
-		},
-	}
-	emitCallDirect("runtime.catstrings", args, resultList)
+	emitCallDirect("runtime.catstrings", args, []*types.Type{types.String})
 }
 
 func emitCompStrings(left ir.MetaExpr, right ir.MetaExpr) {
@@ -1391,14 +1338,7 @@ func emitCompStrings(left ir.MetaExpr, right ir.MetaExpr) {
 			ParamType: types.String,
 		},
 	}
-	resultList := &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type: types.Bool.E,
-			},
-		},
-	}
-	emitCallDirect("runtime.cmpstrings", args, resultList)
+	emitCallDirect("runtime.cmpstrings", args, []*types.Type{types.Bool})
 }
 
 func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
