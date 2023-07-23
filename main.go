@@ -825,7 +825,18 @@ func emitIdent(meta *ir.MetaIdent) {
 		emitAddr(meta)
 		emitLoadAndPush(sema.GetTypeOfExpr(meta))
 	case "con":
-		emitExpr(meta.ConstLiteral)
+		if meta.Const.IsGlobal && sema.Kind(meta.Type) == types.T_STRING {
+			// Treat like a global variable.
+			// emit addr
+			printf("  leaq %s(%%rip), %%rax # global const \"%s\"\n", meta.Const.GlobalSymbol, meta.Const.Name)
+			printf("  pushq %%rax # global const address\n")
+
+			// load and push
+			emitLoadAndPush(meta.Type)
+		} else {
+			// emit literal directly
+			emitBasicLit(meta.Const.Literal)
+		}
 	case "fun":
 		emitAddr(meta)
 	default:
@@ -2185,7 +2196,7 @@ func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	printf("  ret\n")
 }
 
-func emitGlobalVariable(pkg *ir.PkgContainer, vr *ir.PackageVar) {
+func emitGlobalVariable(pkg *ir.PkgContainer, vr *ir.PackageVals) {
 	name := vr.Name.Name
 	t := vr.Type
 	typeKind := sema.Kind(vr.Type)
@@ -2226,7 +2237,7 @@ func emitGlobalVariable(pkg *ir.PkgContainer, vr *ir.PackageVar) {
 		default:
 			throw(val)
 		}
-	case types.T_INT:
+	case types.T_INT, types.T_UINTPTR:
 		switch vl := val.(type) {
 		case nil:
 			printf("  .quad 0\n")
@@ -2262,12 +2273,6 @@ func emitGlobalVariable(pkg *ir.PkgContainer, vr *ir.PackageVar) {
 		default:
 			throw(val)
 		}
-	case types.T_UINTPTR:
-		// only zero value
-		if val != nil {
-			panic("Unsupported global value")
-		}
-		printf("  .quad 0\n")
 	case types.T_SLICE:
 		// only zero value
 		if val != nil {
@@ -2337,7 +2342,7 @@ func generateCode(pkg *ir.PkgContainer) {
 	}
 
 	printf("#--- global vars (static values)\n")
-	for _, vr := range pkg.Vars {
+	for _, vr := range pkg.Vals {
 		if vr.Type == nil {
 			panic("type cannot be nil for global variable: " + vr.Name.Name)
 		}
@@ -2349,7 +2354,7 @@ func generateCode(pkg *ir.PkgContainer) {
 	printf(".text\n")
 	printf(".global %s.__initVars\n", pkg.Name)
 	printf("%s.__initVars:\n", pkg.Name)
-	for _, vr := range pkg.Vars {
+	for _, vr := range pkg.Vals {
 		if vr.MetaVal == nil {
 			continue
 		}

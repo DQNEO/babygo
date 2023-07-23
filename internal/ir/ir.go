@@ -192,7 +192,7 @@ type MetaIdent struct {
 
 	Variable *Variable // for "var"
 
-	ConstLiteral *MetaBasicLit // for "con"
+	Const *Const // for "con"
 }
 
 type MetaSelectorExpr struct {
@@ -304,20 +304,29 @@ type Variable struct {
 	Typ          *types.Type
 }
 
-type PackageVar struct {
+type Const struct {
+	Name         string
+	IsGlobal     bool
+	GlobalSymbol string // "pkg.Foo"
+	Literal      *MetaBasicLit
+	Type         *types.Type
+}
+
+// Package vars or consts
+type PackageVals struct {
 	Spec    *ast.ValueSpec
 	Name    *ast.Ident
 	Val     ast.Expr    // can be nil
 	MetaVal MetaExpr    // can be nil
 	Type    *types.Type // cannot be nil
-	MetaVar *MetaIdent
+	MetaVar *MetaIdent  // only for var
 }
 
 type PkgContainer struct {
 	Path           string
 	Name           string
 	AstFiles       []*ast.File
-	Vars           []*PackageVar
+	Vals           []*PackageVals
 	Funcs          []*Func
 	StringLiterals []*SLiteral
 	StringIndex    int

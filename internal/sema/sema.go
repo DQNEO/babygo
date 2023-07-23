@@ -245,7 +245,7 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 	case *ir.MetaTypeAssertExpr:
 		return m.Type
 	}
-	panic("bad type\n")
+	panic(fmt.Sprintf("bad type:%T\n", meta))
 }
 
 func getTypeOfForeignIdent(ident *ast.Ident) *types.Type {
@@ -1239,15 +1239,12 @@ func WalkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
 			meta.Type = meta.Variable.Typ
 		case ast.Con:
 			meta.Kind = "con"
-			// TODO: attach type
-			valSpec := e.Obj.Decl.(*ast.ValueSpec)
-			lit := valSpec.Values[0].(*ast.BasicLit)
-			meta.ConstLiteral = walkBasicLit(lit, nil)
-			if valSpec.Type != nil {
-				meta.Type = E2T(valSpec.Type)
-			} else {
-				meta.Type = GetTypeOfExpr(meta.ConstLiteral)
+			if e.Obj.Data == nil {
+				panic("ident.Obj.Data should not be nil: name=" + meta.Name)
 			}
+			cnst := e.Obj.Data.(*ir.Const)
+			meta.Type = cnst.Type
+			meta.Const = cnst
 		case ast.Fun:
 			meta.Kind = "fun"
 			switch e.Obj {
@@ -2147,10 +2144,44 @@ func Walk(pkg *ir.PkgContainer) {
 	//logf("walking constSpecs...\n")
 
 	for _, spec := range constSpecs {
+		assert(len(spec.Values) == 1, "only 1 value is supported", __func__)
 		lhsIdent := spec.Names[0]
-		for _, v := range spec.Values {
-			walkExpr(v, nil) // @TODO: store meta
+		rhs := spec.Values[0]
+		var rhsMeta ir.MetaExpr
+		var t *types.Type
+		if spec.Type != nil { // const x T = e
+			t = E2T(spec.Type)
+			ctx := &ir.EvalContext{Type: t}
+			rhsMeta = walkExpr(rhs, ctx)
+		} else { // const x = e
+			rhsMeta = walkExpr(rhs, nil)
+			t = GetTypeOfExpr(rhsMeta)
+			spec.Type = t.E
 		}
+		// treat package const as global var for now
+
+		rhsLiteral, isLiteral := rhsMeta.(*ir.MetaBasicLit)
+		if !isLiteral {
+			panic("const decl value should be literal:" + lhsIdent.Name)
+		}
+		cnst := &ir.Const{
+			Name:         lhsIdent.Name,
+			IsGlobal:     true,
+			GlobalSymbol: CurrentPkg.Name + "." + lhsIdent.Name,
+			Literal:      rhsLiteral,
+			Type:         t,
+		}
+		lhsIdent.Obj.Data = cnst
+		metaVar := WalkIdent(lhsIdent, nil)
+		pkgVar := &ir.PackageVals{
+			Spec:    spec,
+			Name:    lhsIdent,
+			Val:     rhs,
+			MetaVal: rhsMeta, // cannot be nil
+			MetaVar: metaVar,
+			Type:    t,
+		}
+		pkg.Vals = append(pkg.Vals, pkgVar)
 		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
@@ -2191,7 +2222,7 @@ func Walk(pkg *ir.PkgContainer) {
 			rhs = spec.Values[0]
 			// collect string literals
 		}
-		pkgVar := &ir.PackageVar{
+		pkgVar := &ir.PackageVals{
 			Spec:    spec,
 			Name:    lhsIdent,
 			Val:     rhs,
@@ -2199,7 +2230,7 @@ func Walk(pkg *ir.PkgContainer) {
 			MetaVar: metaVar,
 			Type:    t,
 		}
-		pkg.Vars = append(pkg.Vars, pkgVar)
+		pkg.Vals = append(pkg.Vals, pkgVar)
 		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
