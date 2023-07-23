@@ -31,12 +31,6 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf(ThrowFormat, x))
 }
 
-var fout *os.File
-
-func printf(format string, a ...interface{}) {
-	fmt.Fprintf(fout, format, a...)
-}
-
 // General debug log
 func logf(format string, a ...interface{}) {
 	f := "# " + format

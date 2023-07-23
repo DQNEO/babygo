@@ -13,38 +13,36 @@ import (
 )
 
 // compile compiles go files of a package into an assembly file, and copy input assembly files into it.
-func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name string, gofiles []string, asmfiles []string, outFilePath string) *ir.PkgContainer {
-	_pkg := &ir.PkgContainer{Name: name, Path: pkgPath, Fset: fset}
-	_pkg.FileNoMap = make(map[string]int)
-	outAsmFile, err := os.Create(outFilePath)
+func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName string, gofiles []string, asmfiles []string, outFilePath string) *ir.PkgContainer {
+	pkg := &ir.PkgContainer{Name: pkgName, Path: pkgPath, Fset: fset}
+	pkg.FileNoMap = make(map[string]int)
+	fout, err := os.Create(outFilePath)
 	if err != nil {
 		panic(err)
 	}
-	fout = outAsmFile
-	codegen.Fout = fout
-	printf("#=== Package %s\n", _pkg.Path)
+	fmt.Fprintf(fout, "#=== Package %s\n", pkg.Path)
 
+	codegen.Fout = fout
 	codegen.TypesMap = make(map[string]*codegen.DtypeEntry)
 	codegen.TypeId = 1
 
 	pkgScope := ast.NewScope(universe)
 	for i, file := range gofiles {
 		fileno := i + 1
-		_pkg.FileNoMap[file] = fileno
-		printf("  .file %d \"%s\"\n", fileno, file)
+		pkg.FileNoMap[file] = fileno
+		fmt.Fprintf(fout, "  .file %d \"%s\"\n", fileno, file) // For DWARF debug info
 		astFile, err := parser.ParseFile(fset, file, nil, 0)
 		if err != nil {
 			panic(err.Error())
 		}
 
-		//		logf("[main]package decl lineno = %s\n", fset.Position(astFile.Package))
-		_pkg.Name = astFile.Name.Name
-		_pkg.AstFiles = append(_pkg.AstFiles, astFile)
+		pkg.Name = astFile.Name.Name
+		pkg.AstFiles = append(pkg.AstFiles, astFile)
 		for name, obj := range astFile.Scope.Objects {
 			pkgScope.Objects[name] = obj
 		}
 	}
-	for _, astFile := range _pkg.AstFiles {
+	for _, astFile := range pkg.AstFiles {
 		resolveImports(astFile)
 		var unresolved []*ast.Ident
 		for _, ident := range astFile.Unresolved {
@@ -65,27 +63,26 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 			}
 		}
 		for _, dcl := range astFile.Decls {
-			_pkg.Decls = append(_pkg.Decls, dcl)
+			pkg.Decls = append(pkg.Decls, dcl)
 		}
 	}
 
-	printf("#--- walk \n")
-	sema.Walk(_pkg)
-	codegen.GenerateCode(_pkg)
+	fmt.Fprintf(fout, "#--- walk \n")
+	sema.Walk(pkg)
+	codegen.GenerateCode(pkg)
 
 	// append static asm files
 	for _, file := range asmfiles {
-		fmt.Fprintf(outAsmFile, "# === static assembly %s ====\n", file)
+		fmt.Fprintf(fout, "# === static assembly %s ====\n", file)
 		asmContents, err := os.ReadFile(file)
 		if err != nil {
 			panic(err)
 		}
-		outAsmFile.Write(asmContents)
+		fout.Write(asmContents)
 	}
 
-	outAsmFile.Close()
-	fout = nil
+	fout.Close()
 	codegen.Fout = nil
 	sema.CurrentPkg = nil
-	return _pkg
+	return pkg
 }
