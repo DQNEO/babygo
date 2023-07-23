@@ -2322,7 +2322,10 @@ func emitGlobalVariable(pkg *ir.PkgContainer, vr *ir.PackageVals) {
 	}
 }
 
-func GenerateCode(pkg *ir.PkgContainer) {
+func GenerateCode(pkg *ir.PkgContainer, fout *os.File) {
+	Fout = fout
+	TypesMap = make(map[string]*DtypeEntry)
+	TypeId = 1
 
 	printf("#--- string literals\n")
 	printf(".data\n")
@@ -2366,6 +2369,10 @@ func GenerateCode(pkg *ir.PkgContainer) {
 
 	emitDynamicTypes(TypesMap)
 	printf("\n")
+
+	Fout = nil
+	TypesMap = nil
+	TypeId = 0
 }
 
 func emitDynamicTypes(mapDtypes map[string]*DtypeEntry) {

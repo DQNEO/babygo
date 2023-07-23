@@ -22,10 +22,6 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 	}
 	fmt.Fprintf(fout, "#=== Package %s\n", pkg.Path)
 
-	codegen.Fout = fout
-	codegen.TypesMap = make(map[string]*codegen.DtypeEntry)
-	codegen.TypeId = 1
-
 	pkgScope := ast.NewScope(universe)
 	for i, file := range gofiles {
 		fileno := i + 1
@@ -66,7 +62,7 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 
 	fmt.Fprintf(fout, "#--- walk \n")
 	sema.Walk(pkg)
-	codegen.GenerateCode(pkg)
+	codegen.GenerateCode(pkg, fout)
 
 	// append static asm files
 	for _, file := range asmfiles {
@@ -80,10 +76,6 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 
 	// cleanup
 	fout.Close()
-	codegen.Fout = nil
 	sema.CurrentPkg = nil
-	codegen.TypesMap = nil
-	codegen.TypeId = 0
-
 	return pkg
 }
