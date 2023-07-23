@@ -13,6 +13,9 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
+var Fout *os.File
+var DebugCodeGen bool
+
 var __func__ = "__func__"
 
 func assert(bol bool, msg string, caller string) {
@@ -37,8 +40,6 @@ func getLoc(pos token.Pos) string {
 	return fmt.Sprintf("%d %d", fileno, posit.Line)
 }
 
-var Fout *os.File
-
 func printf(format string, a ...interface{}) {
 	fmt.Fprintf(Fout, format, a...)
 }
@@ -46,8 +47,6 @@ func printf(format string, a ...interface{}) {
 func unexpectedKind(knd types.TypeKind) {
 	panic("Unexpected Kind: " + string(knd))
 }
-
-var DebugCodeGen bool
 
 func emitComment(indent int, format string, a ...interface{}) {
 	if !DebugCodeGen {
@@ -2473,5 +2472,3 @@ func serializeType(t *types.Type) string {
 	}
 	return ""
 }
-
-// --- codgen.go ---
