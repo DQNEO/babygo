@@ -243,6 +243,12 @@ type MetaCallExpr struct {
 	MetaArgs []*MetaArg
 }
 
+type MetaConversionExpr struct {
+	Pos  token.Pos
+	Type *types.Type // To type
+	Arg0 MetaExpr    // For conversion, len, cap
+}
+
 type MetaIndexExpr struct {
 	Pos     token.Pos
 	IsMap   bool // mp[k]

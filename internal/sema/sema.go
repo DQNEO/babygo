@@ -230,6 +230,8 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 		return m.Type
 	case *ir.MetaSelectorExpr:
 		return m.Type
+	case *ir.MetaConversionExpr:
+		return m.Type
 	case *ir.MetaCallExpr: // funcall or conversion
 		return m.Type // can be nil (e.g. panic()). if Tuple , m.Types has Types
 	case *ir.MetaIndexExpr:
@@ -1378,16 +1380,13 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 	panic("Bad type")
 }
 
-func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) *ir.MetaCallExpr {
-	meta := &ir.MetaCallExpr{
-		Pos: e.Pos(),
-	}
+func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	if isType(e.Fun) {
-		meta.IsConversion = true
-		meta.ToType = E2T(e.Fun)
-		meta.Type = meta.ToType
 		assert(len(e.Args) == 1, "convert must take only 1 argument", __func__)
-		//logf("walkCallExpr: is Conversion\n")
+		meta := &ir.MetaConversionExpr{
+			Pos:  e.Pos(),
+			Type: E2T(e.Fun),
+		}
 		ctx := &ir.EvalContext{
 			Type: E2T(e.Fun),
 		}
@@ -1395,6 +1394,9 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) *ir.MetaCallExpr {
 		return meta
 	}
 
+	meta := &ir.MetaCallExpr{
+		Pos: e.Pos(),
+	}
 	meta.IsConversion = false
 	meta.HasEllipsis = e.Ellipsis != token.NoPos
 
@@ -2008,6 +2010,8 @@ func Pos(node interface{}) token.Pos {
 	case *ir.MetaSelectorExpr:
 		return n.Pos
 	case *ir.MetaForeignFuncWrapper:
+		return n.Pos
+	case *ir.MetaConversionExpr:
 		return n.Pos
 	case *ir.MetaCallExpr:
 		return n.Pos

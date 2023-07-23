@@ -801,14 +801,9 @@ func emitForeignFuncAddr(meta *ir.MetaForeignFuncWrapper) {
 
 // multi values Fun(Args)
 func emitCallExpr(meta *ir.MetaCallExpr) {
-	// check if it's a conversion
-	if meta.IsConversion {
-		emitComment(2, "[emitCallExpr] Conversion\n")
-		emitConversion(meta.ToType, meta.Arg0)
-	} else {
-		emitComment(2, "[emitCallExpr] Funcall\n")
-		emitFuncall(meta)
-	}
+	// not conversion
+	emitComment(2, "[emitCallExpr] Funcall\n")
+	emitFuncall(meta)
 }
 
 // 1 value
@@ -1149,6 +1144,8 @@ func emitExpr(meta ir.MetaExpr) {
 		emitSelectorExpr(m)
 	case *ir.MetaForeignFuncWrapper:
 		emitForeignFuncAddr(m)
+	case *ir.MetaConversionExpr:
+		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:
 		emitCallExpr(m) // can be Tuple
 	case *ir.MetaIndexExpr:
