@@ -2173,7 +2173,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		}
 		lhsIdent.Obj.Data = cnst
 		metaVar := WalkIdent(lhsIdent, nil)
-		pkgVar := &ir.PackageVals{
+		pkgVar := &ir.PackageVarConst{
 			Spec:    spec,
 			Name:    lhsIdent,
 			Val:     rhs,
@@ -2181,7 +2181,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			MetaVar: metaVar,
 			Type:    t,
 		}
-		pkg.Vals = append(pkg.Vals, pkgVar)
+		pkg.VarConsts = append(pkg.VarConsts, pkgVar)
 		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
@@ -2222,7 +2222,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			rhs = spec.Values[0]
 			// collect string literals
 		}
-		pkgVar := &ir.PackageVals{
+		pkgVar := &ir.PackageVarConst{
 			Spec:    spec,
 			Name:    lhsIdent,
 			Val:     rhs,
@@ -2230,7 +2230,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			MetaVar: metaVar,
 			Type:    t,
 		}
-		pkg.Vals = append(pkg.Vals, pkgVar)
+		pkg.VarConsts = append(pkg.VarConsts, pkgVar)
 		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
@@ -2300,7 +2300,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	return &ir.AnalyzedPackage{
 		Path:           pkg.Path,
 		Name:           pkg.Name,
-		Vals:           pkg.Vals,
+		VarConsts:      pkg.VarConsts,
 		Funcs:          pkg.Funcs,
 		StringLiterals: pkg.StringLiterals,
 		Fset:           pkg.Fset,

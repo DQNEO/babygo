@@ -2188,7 +2188,7 @@ func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	printf("  ret\n")
 }
 
-func emitGlobalVarConst(pkgName string, vr *ir.PackageVals) {
+func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 	name := vr.Name.Name
 	t := vr.Type
 	typeKind := sema.Kind(vr.Type)
@@ -2337,7 +2337,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	}
 
 	printf("#--- global vars (static values)\n")
-	for _, vr := range pkg.Vals {
+	for _, vr := range pkg.VarConsts {
 		if vr.Type == nil {
 			panic("type cannot be nil for global variable: " + vr.Name.Name)
 		}
@@ -2349,7 +2349,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	printf(".text\n")
 	printf(".global %s.__initVars\n", pkg.Name)
 	printf("%s.__initVars:\n", pkg.Name)
-	for _, vr := range pkg.Vals {
+	for _, vr := range pkg.VarConsts {
 		if vr.MetaVal == nil {
 			continue
 		}

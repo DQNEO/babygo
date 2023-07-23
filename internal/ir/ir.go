@@ -313,7 +313,7 @@ type Const struct {
 }
 
 // Package vars or consts
-type PackageVals struct {
+type PackageVarConst struct {
 	Spec    *ast.ValueSpec
 	Name    *ast.Ident
 	Val     ast.Expr    // can be nil
@@ -326,7 +326,7 @@ type PkgContainer struct {
 	Path           string
 	Name           string
 	AstFiles       []*ast.File
-	Vals           []*PackageVals
+	VarConsts      []*PackageVarConst
 	Funcs          []*Func
 	StringLiterals []*SLiteral
 	StringIndex    int
@@ -339,7 +339,7 @@ type PkgContainer struct {
 type AnalyzedPackage struct {
 	Path           string
 	Name           string
-	Vals           []*PackageVals
+	VarConsts      []*PackageVarConst
 	Funcs          []*Func
 	StringLiterals []*SLiteral
 	Fset           *token.FileSet
