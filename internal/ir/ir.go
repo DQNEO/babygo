@@ -287,8 +287,10 @@ type MetaTypeAssertExpr struct {
 }
 
 type ForeignFunc struct {
-	Symbol   string
-	FuncType *ast.FuncType
+	Symbol      string
+	FuncType    *ast.FuncType
+	ReturnTypes []*types.Type
+	ParamTypes  []*types.Type
 }
 
 type Func struct {

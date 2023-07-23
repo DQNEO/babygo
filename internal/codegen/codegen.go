@@ -487,7 +487,7 @@ func emitCall(fv *ir.FuncValue, args []*ir.MetaArg, returnTypes []*types.Type) {
 }
 
 func emitAllocReturnVarsAreaFF(ff *ir.ForeignFunc) {
-	emitAllocReturnVarsArea(getTotalFieldsSize(ff.FuncType.Results))
+	emitAllocReturnVarsArea(getTotalSizeOfType(ff.ReturnTypes))
 }
 
 func getTotalSizeOfType(types []*types.Type) int {
@@ -498,21 +498,9 @@ func getTotalSizeOfType(types []*types.Type) int {
 	return r
 }
 
-func getTotalFieldsSize(flist *ast.FieldList) int {
-	if flist == nil {
-		return 0
-	}
-	var r int
-	for _, fld := range flist.List {
-		r += sema.GetSizeOfType(sema.E2T(fld.Type))
-	}
-	return r
-}
-
 func emitCallFF(ff *ir.ForeignFunc) {
-	totalParamSize := getTotalFieldsSize(ff.FuncType.Params)
-	returnTypes := sema.FieldList2Types(ff.FuncType.Results)
-	emitCallQ(sema.NewFuncValueFromSymbol(ff.Symbol), totalParamSize, returnTypes)
+	totalParamSize := getTotalSizeOfType(ff.ParamTypes)
+	emitCallQ(sema.NewFuncValueFromSymbol(ff.Symbol), totalParamSize, ff.ReturnTypes)
 }
 
 func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) {

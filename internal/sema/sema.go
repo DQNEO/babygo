@@ -2089,9 +2089,13 @@ func LookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
 func newForeignFunc(ident *ast.Ident, qi ir.QualifiedIdent) *ir.ForeignFunc {
 	assert(ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
 	decl := ident.Obj.Decl.(*ast.FuncDecl)
+	returnTypes := FieldList2Types(decl.Type.Results)
+	paramTypes := FieldList2Types(decl.Type.Params)
 	return &ir.ForeignFunc{
-		Symbol:   string(qi),
-		FuncType: decl.Type,
+		Symbol:      string(qi),
+		FuncType:    decl.Type,
+		ParamTypes:  paramTypes,
+		ReturnTypes: returnTypes,
 	}
 }
 
