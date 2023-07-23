@@ -12,14 +12,6 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
-func parseFile(fset *token.FileSet, filename string) *ast.File {
-	f, err := parser.ParseFile(fset, filename, nil, 0)
-	if err != nil {
-		panic(err.Error())
-	}
-	return f
-}
-
 // compile compiles go files of a package into an assembly file, and copy input assembly files into it.
 func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name string, gofiles []string, asmfiles []string, outFilePath string) *ir.PkgContainer {
 	_pkg := &ir.PkgContainer{Name: name, Path: pkgPath, Fset: fset}
@@ -40,8 +32,11 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, name stri
 		fileno := i + 1
 		_pkg.FileNoMap[file] = fileno
 		printf("  .file %d \"%s\"\n", fileno, file)
+		astFile, err := parser.ParseFile(fset, file, nil, 0)
+		if err != nil {
+			panic(err.Error())
+		}
 
-		astFile := parseFile(fset, file)
 		//		logf("[main]package decl lineno = %s\n", fset.Position(astFile.Package))
 		_pkg.Name = astFile.Name.Name
 		_pkg.AstFiles = append(_pkg.AstFiles, astFile)
