@@ -230,20 +230,8 @@ func emitAddr(meta ir.MetaExpr) {
 	case *ir.MetaStarExpr:
 		emitExpr(m.X)
 	case *ir.MetaSelectorExpr:
-		if m.IsQI { // pkg.Var|pkg.Const|pkg.Fun
-			qi := m.QI
-			ident := sema.LookupForeignIdent(qi)
-			switch ident.Obj.Kind {
-			case ast.Var:
-				printf("  leaq %s(%%rip), %%rax # external global variable \n", string(qi))
-				printf("  pushq %%rax # variable address\n")
-			case ast.Fun:
-				emitFuncAddr(qi)
-			case ast.Con:
-				panic("TBI 267")
-			default:
-				panic("Unexpected foreign ident kind:" + ident.Obj.Kind.String())
-			}
+		if m.IsQI { // pkg.Var|pkg.Con|pkg.Fun
+			emitAddr(m.ForeignValue)
 		} else { // (e).field
 			typeOfX := sema.GetUnderlyingType(sema.GetTypeOfExpr(m.X))
 			var structTypeLiteral *ast.StructType
