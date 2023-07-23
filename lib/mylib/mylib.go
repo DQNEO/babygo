@@ -3,6 +3,8 @@ package mylib
 import "os"
 import "github.com/DQNEO/babygo/lib/mylib2"
 
+const Msg string = "I am mylib"
+
 type Type struct {
 	Field int
 }
