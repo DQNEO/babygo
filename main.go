@@ -985,7 +985,18 @@ func emitIdent(meta *MetaIdent) {
 		emitAddr(meta)
 		emitLoadAndPush(getTypeOfExpr(meta))
 	case "con":
-		emitExpr(meta.ConstLiteral)
+		if meta.Const.IsGlobal && kind(meta.Type) == T_STRING {
+			// Treat like a global variable.
+			// emit addr
+			printf("  leaq %s(%%rip), %%rax # global const \"%s\"\n", meta.Const.GlobalSymbol, meta.Const.Name)
+			printf("  pushq %%rax # global const address\n")
+
+			// load and push
+			emitLoadAndPush(meta.Type)
+		} else {
+			// emit literal directly
+			emitBasicLit(meta.Const.Literal)
+		}
 	case "fun":
 		emitAddr(meta)
 	default:
@@ -2386,7 +2397,7 @@ func emitFuncDecl(pkgName string, fnc *Func) {
 	printf("  ret\n")
 }
 
-func emitGlobalVariable(pkg *PkgContainer, vr *PackageVar) {
+func emitGlobalVariable(pkg *PkgContainer, vr *PackageVals) {
 	name := vr.Name.Name
 	t := vr.Type
 	typeKind := kind(vr.Type)
@@ -2427,7 +2438,7 @@ func emitGlobalVariable(pkg *PkgContainer, vr *PackageVar) {
 		default:
 			throw(val)
 		}
-	case T_INT:
+	case T_INT, T_UINTPTR:
 		switch vl := val.(type) {
 		case nil:
 			printf("  .quad 0\n")
@@ -2463,12 +2474,6 @@ func emitGlobalVariable(pkg *PkgContainer, vr *PackageVar) {
 		default:
 			throw(val)
 		}
-	case T_UINTPTR:
-		// only zero value
-		if val != nil {
-			panic("Unsupported global value")
-		}
-		printf("  .quad 0\n")
 	case T_SLICE:
 		// only zero value
 		if val != nil {
@@ -2536,7 +2541,7 @@ func generateCode(pkg *PkgContainer) {
 	}
 
 	printf("#--- global vars (static values)\n")
-	for _, vr := range pkg.Vars {
+	for _, vr := range pkg.Vals {
 		if vr.Type == nil {
 			panic("type cannot be nil for global variable: " + vr.Name.Name)
 		}
@@ -2548,7 +2553,7 @@ func generateCode(pkg *PkgContainer) {
 	printf(".text\n")
 	printf(".global %s.__initVars\n", pkg.Name)
 	printf("%s.__initVars:\n", pkg.Name)
-	for _, vr := range pkg.Vars {
+	for _, vr := range pkg.Vals {
 		if vr.MetaVal == nil {
 			continue
 		}
@@ -2646,7 +2651,7 @@ func getTypeOfExpr(meta MetaExpr) *Type {
 	case *MetaTypeAssertExpr:
 		return m.Type
 	}
-	panic("bad type\n")
+	panic(fmt.Sprintf("bad type:%T\n", meta))
 }
 
 func getTypeOfForeignIdent(ident *ast.Ident) *Type {
@@ -3899,15 +3904,12 @@ func walkIdent(e *ast.Ident, ctx *evalContext) *MetaIdent {
 			meta.Type = meta.Variable.Typ
 		case ast.Con:
 			meta.Kind = "con"
-			// TODO: attach type
-			valSpec := e.Obj.Decl.(*ast.ValueSpec)
-			lit := valSpec.Values[0].(*ast.BasicLit)
-			meta.ConstLiteral = walkBasicLit(lit, nil)
-			if valSpec.Type != nil {
-				meta.Type = e2t(valSpec.Type)
-			} else {
-				meta.Type = getTypeOfExpr(meta.ConstLiteral)
+			if e.Obj.Data == nil {
+				panic("ident.Obj.Data should not be nil: name=" + meta.Name)
 			}
+			cnst := e.Obj.Data.(*Const)
+			meta.Type = cnst.Type
+			meta.Const = cnst
 		case ast.Fun:
 			meta.Kind = "fun"
 			switch e.Obj {
@@ -4524,7 +4526,7 @@ type MetaIdent struct {
 
 	Variable *Variable // for "var"
 
-	ConstLiteral *MetaBasicLit // for "con"
+	Const *Const // for "con"
 }
 
 type MetaSelectorExpr struct {
@@ -4865,12 +4867,21 @@ type Method struct {
 	Name         string
 	FuncType     *ast.FuncType
 }
+
 type Variable struct {
 	Name         string
 	IsGlobal     bool
 	GlobalSymbol string
 	LocalOffset  int
 	Typ          *Type
+}
+
+type Const struct {
+	Name         string
+	IsGlobal     bool
+	GlobalSymbol string // "pkg.Foo"
+	Literal      *MetaBasicLit
+	Type         *Type
 }
 
 func setVariable(obj *ast.Object, vr *Variable) {
@@ -4969,10 +4980,46 @@ func walk(pkg *PkgContainer) {
 
 	//logf("walking constSpecs...\n")
 
-	for _, constSpec := range constSpecs {
-		for _, v := range constSpec.Values {
-			walkExpr(v, nil) // @TODO: store meta
+	for _, spec := range constSpecs {
+		assert(len(spec.Values) == 1, "only 1 value is supported", __func__)
+		lhsIdent := spec.Names[0]
+		rhs := spec.Values[0]
+		var rhsMeta MetaExpr
+		var t *Type
+		if spec.Type != nil { // const x T = e
+			t = e2t(spec.Type)
+			ctx := &evalContext{_type: t}
+			rhsMeta = walkExpr(rhs, ctx)
+		} else { // const x = e
+			rhsMeta = walkExpr(rhs, nil)
+			t = getTypeOfExpr(rhsMeta)
+			spec.Type = t.E
 		}
+		// treat package const as global var for now
+
+		rhsLiteral, isLiteral := rhsMeta.(*MetaBasicLit)
+		if !isLiteral {
+			panic("const decl value should be literal:" + lhsIdent.Name)
+		}
+		cnst := &Const{
+			Name:         lhsIdent.Name,
+			IsGlobal:     true,
+			GlobalSymbol: currentPkg.Name + "." + lhsIdent.Name,
+			Literal:      rhsLiteral,
+			Type:         t,
+		}
+		lhsIdent.Obj.Data = cnst
+		metaVar := walkIdent(lhsIdent, nil)
+		pkgVar := &PackageVals{
+			Spec:    spec,
+			Name:    lhsIdent,
+			Val:     rhs,
+			MetaVal: rhsMeta, // cannot be nil
+			MetaVar: metaVar,
+			Type:    t,
+		}
+		pkg.Vals = append(pkg.Vals, pkgVar)
+		ExportedQualifiedIdents[string(newQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
 	//logf("walking varSpecs...\n")
@@ -5012,7 +5059,7 @@ func walk(pkg *PkgContainer) {
 			rhs = spec.Values[0]
 			// collect string literals
 		}
-		pkgVar := &PackageVar{
+		pkgVar := &PackageVals{
 			Spec:    spec,
 			Name:    lhsIdent,
 			Val:     rhs,
@@ -5020,7 +5067,7 @@ func walk(pkg *PkgContainer) {
 			MetaVar: metaVar,
 			Type:    t,
 		}
-		pkg.Vars = append(pkg.Vars, pkgVar)
+		pkg.Vals = append(pkg.Vals, pkgVar)
 		ExportedQualifiedIdents[string(newQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
@@ -5164,20 +5211,21 @@ type PackageToBuild struct {
 	files []string
 }
 
-type PackageVar struct {
+// Package vars or consts
+type PackageVals struct {
 	Spec    *ast.ValueSpec
 	Name    *ast.Ident
-	Val     ast.Expr // can be nil
-	MetaVal MetaExpr // can be nil
-	Type    *Type    // cannot be nil
-	MetaVar *MetaIdent
+	Val     ast.Expr   // can be nil
+	MetaVal MetaExpr   // can be nil
+	Type    *Type      // cannot be nil
+	MetaVar *MetaIdent // only for var
 }
 
 type PkgContainer struct {
 	Path           string
 	Name           string
 	AstFiles       []*ast.File
-	Vars           []*PackageVar
+	Vals           []*PackageVals
 	Funcs          []*Func
 	StringLiterals []*sliteral
 	StringIndex    int

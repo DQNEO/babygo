@@ -17,6 +17,15 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testForeignConst() {
+	foreignStr := mylib.Msg
+	if foreignStr == "I am mylib" {
+		writeln("OK")
+	} else {
+		writeln("ERROR")
+	}
+}
+
 var checkPtr *universe.T = universe.X
 
 func testForeignVar() {
@@ -2396,6 +2405,7 @@ func testMisc() {
 }
 
 func main() {
+	testForeignConst()
 	testForeignVar()
 	testDereference()
 	testBlankAssign()
