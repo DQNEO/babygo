@@ -2329,8 +2329,8 @@ func generateCode(pkg *ir.PkgContainer) {
 
 	printf("#--- string literals\n")
 	printf(".data\n")
-	for idx, sl := range pkg.StringLiterals {
-		fmt.Fprintf(os.Stderr, "[emit string] %s index=%d\n", pkg.Name, idx)
+	for _, sl := range pkg.StringLiterals {
+		//fmt.Fprintf(os.Stderr, "[emit string] %s index=%d\n", pkg.Name, idx)
 
 		printf("%s:\n", sl.Label)
 		printf("  .string %s\n", sl.Value)

@@ -1,7 +1,6 @@
 package sema
 
 import (
-	"os"
 	"unsafe"
 
 	"github.com/DQNEO/babygo/internal/ir"
@@ -510,7 +509,7 @@ func registerStringLiteral(lit *ast.BasicLit) *ir.SLiteral {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "[register string] %s index=%d\n", CurrentPkg.Name, CurrentPkg.StringIndex)
+	//fmt.Fprintf(os.Stderr, "[register string] %s index=%d\n", CurrentPkg.Name, CurrentPkg.StringIndex)
 	label := fmt.Sprintf(".string_%d", CurrentPkg.StringIndex)
 	CurrentPkg.StringIndex++
 	sl := &ir.SLiteral{
