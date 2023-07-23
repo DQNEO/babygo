@@ -2064,7 +2064,7 @@ func SetVariable(obj *ast.Object, vr *ir.Variable) {
 // - transmit ok syntax context
 // - (hope) attach type to untyped constants
 // - (hope) transmit the need of interface conversion
-func Walk(pkg *ir.PkgContainer) {
+func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	pkg.StringIndex = 0
 	pkg.StringLiterals = nil
 	CurrentPkg = pkg
@@ -2297,6 +2297,15 @@ func Walk(pkg *ir.PkgContainer) {
 	//for _, typ := range exportedTpyes {
 	//	printf("# type %s %s\n", serializeType(typ), serializeType(GetUnderlyingType(typ)))
 	//}
+	return &ir.AnalyzedPackage{
+		Path:           pkg.Path,
+		Name:           pkg.Name,
+		Vals:           pkg.Vals,
+		Funcs:          pkg.Funcs,
+		StringLiterals: pkg.StringLiterals,
+		Fset:           pkg.Fset,
+		FileNoMap:      pkg.FileNoMap,
+	}
 }
 
 var GeneralSlice ast.Expr = &ast.Ident{

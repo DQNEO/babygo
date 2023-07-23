@@ -61,8 +61,8 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 	}
 
 	fmt.Fprintf(fout, "#--- walk \n")
-	sema.Walk(pkg)
-	codegen.GenerateCode(pkg, fout)
+	apkg := sema.Walk(pkg)
+	codegen.GenerateCode(apkg, fout)
 
 	// append static asm files
 	for _, file := range asmfiles {

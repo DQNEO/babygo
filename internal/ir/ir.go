@@ -335,3 +335,13 @@ type PkgContainer struct {
 	HasInitFunc    bool
 	FileNoMap      map[string]int // for .loc
 }
+
+type AnalyzedPackage struct {
+	Path           string
+	Name           string
+	Vals           []*PackageVals
+	Funcs          []*Func
+	StringLiterals []*SLiteral
+	Fset           *token.FileSet
+	FileNoMap      map[string]int // for .loc
+}

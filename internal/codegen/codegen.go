@@ -2188,13 +2188,13 @@ func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	printf("  ret\n")
 }
 
-func emitGlobalVariable(pkg *ir.PkgContainer, vr *ir.PackageVals) {
+func emitGlobalVarConst(pkgName string, vr *ir.PackageVals) {
 	name := vr.Name.Name
 	t := vr.Type
 	typeKind := sema.Kind(vr.Type)
 	val := vr.Val
-	printf(".global %s.%s\n", pkg.Name, name)
-	printf("%s.%s: # T %s\n", pkg.Name, name, string(typeKind))
+	printf(".global %s.%s\n", pkgName, name)
+	printf("%s.%s: # T %s\n", pkgName, name, string(typeKind))
 
 	metaVal := vr.MetaVal
 	_ = metaVal
@@ -2322,7 +2322,7 @@ func emitGlobalVariable(pkg *ir.PkgContainer, vr *ir.PackageVals) {
 	}
 }
 
-func GenerateCode(pkg *ir.PkgContainer, fout *os.File) {
+func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	Fout = fout
 	TypesMap = make(map[string]*DtypeEntry)
 	TypeId = 1
@@ -2341,7 +2341,7 @@ func GenerateCode(pkg *ir.PkgContainer, fout *os.File) {
 		if vr.Type == nil {
 			panic("type cannot be nil for global variable: " + vr.Name.Name)
 		}
-		emitGlobalVariable(pkg, vr)
+		emitGlobalVarConst(pkg.Name, vr)
 	}
 
 	printf("\n")

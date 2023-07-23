@@ -16,3 +16,4 @@
 a.out
 /pre/precompiler.go
 /pre/internal/
+/pre/*.go
