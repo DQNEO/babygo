@@ -52,11 +52,9 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 			} else {
 				obj := universe.Lookup(ident.Name)
 				if obj != nil {
-
 					ident.Obj = obj
 				} else {
-
-					// we should allow unresolved for now.
+					// we should allow unresolved in this stage.
 					// e.g foo in X{foo:bar,}
 					unresolved = append(unresolved, ident)
 				}
@@ -81,8 +79,12 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 		fout.Write(asmContents)
 	}
 
+	// cleanup
 	fout.Close()
 	codegen.Fout = nil
 	sema.CurrentPkg = nil
+	codegen.TypesMap = nil
+	codegen.TypeId = 0
+
 	return pkg
 }
