@@ -5533,7 +5533,7 @@ func buildAll(args []string) {
 		var asmBasename []byte
 		for _, ch := range []byte(_pkg.path) {
 			if ch == '/' {
-				ch = '@'
+				ch = '.'
 			}
 			asmBasename = append(asmBasename, ch)
 		}
