@@ -2068,6 +2068,9 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	pkg.StringIndex = 0
 	pkg.StringLiterals = nil
 	CurrentPkg = pkg
+	var hasInitFunc bool
+	var varAndConsts []*ir.PackageVarConst
+
 	var typeSpecs []*ast.TypeSpec
 	var funcDecls []*ast.FuncDecl
 	var varSpecs []*ast.ValueSpec
@@ -2124,12 +2127,11 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	}
 
 	//logf("checking funcDecls...\n")
-
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
 		if funcDecl.Recv == nil { // non-method function
 			if funcDecl.Name.Name == "init" {
-				pkg.HasInitFunc = true
+				hasInitFunc = true
 			}
 			qi := NewQI(pkg.Name, funcDecl.Name.Name)
 			ExportedQualifiedIdents[string(qi)] = funcDecl.Name
@@ -2173,7 +2175,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		}
 		lhsIdent.Obj.Data = cnst
 		metaVar := WalkIdent(lhsIdent, nil)
-		pkgVar := &ir.PackageVarConst{
+		pconst := &ir.PackageVarConst{
 			Spec:    spec,
 			Name:    lhsIdent,
 			Val:     rhs,
@@ -2181,7 +2183,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			MetaVar: metaVar,
 			Type:    t,
 		}
-		pkg.VarConsts = append(pkg.VarConsts, pkgVar)
+		varAndConsts = append(varAndConsts, pconst)
 		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
@@ -2230,10 +2232,11 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			MetaVar: metaVar,
 			Type:    t,
 		}
-		pkg.VarConsts = append(pkg.VarConsts, pkgVar)
+		varAndConsts = append(varAndConsts, pkgVar)
 		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
+	var funcs []*ir.Func
 	//logf("walking funcDecls in detail ...\n")
 	for _, funcDecl := range funcDecls {
 		//logf("[walk] (package:%s) (pos:%d) (%s) walking funcDecl \"%s\" \n",
@@ -2288,7 +2291,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			if funcDecl.Recv != nil { // is Method
 				fnc.Method = newMethod(pkg.Name, funcDecl)
 			}
-			pkg.Funcs = append(pkg.Funcs, fnc)
+			funcs = append(funcs, fnc)
 		}
 		currentFunc = nil
 	}
@@ -2300,8 +2303,9 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	return &ir.AnalyzedPackage{
 		Path:           pkg.Path,
 		Name:           pkg.Name,
-		VarConsts:      pkg.VarConsts,
-		Funcs:          pkg.Funcs,
+		VarConsts:      varAndConsts,
+		Funcs:          funcs,
+		HasInitFunc:    hasInitFunc,
 		StringLiterals: pkg.StringLiterals,
 		Fset:           pkg.Fset,
 		FileNoMap:      pkg.FileNoMap,

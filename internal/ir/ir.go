@@ -326,13 +326,10 @@ type PkgContainer struct {
 	Path           string
 	Name           string
 	AstFiles       []*ast.File
-	VarConsts      []*PackageVarConst
-	Funcs          []*Func
 	StringLiterals []*SLiteral
 	StringIndex    int
 	Decls          []ast.Decl
 	Fset           *token.FileSet
-	HasInitFunc    bool
 	FileNoMap      map[string]int // for .loc
 }
 
@@ -341,6 +338,7 @@ type AnalyzedPackage struct {
 	Name           string
 	VarConsts      []*PackageVarConst
 	Funcs          []*Func
+	HasInitFunc    bool
 	StringLiterals []*SLiteral
 	Fset           *token.FileSet
 	FileNoMap      map[string]int // for .loc

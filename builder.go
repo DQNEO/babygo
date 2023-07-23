@@ -242,7 +242,7 @@ func buildAll(args []string) {
 
 	var universe *ast.Scope = universe.CreateUniverse()
 	sema.Fset = token.NewFileSet()
-	var builtPackages []*ir.PkgContainer
+	var builtPackages []*ir.AnalyzedPackage
 	for _, _pkg := range packagesToBuild {
 		if _pkg.name == "" {
 			panic("empty pkg name")
@@ -265,8 +265,8 @@ func buildAll(args []string) {
 			}
 
 		}
-		pkgC := compile(universe, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
-		builtPackages = append(builtPackages, pkgC)
+		apkg := compile(universe, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
+		builtPackages = append(builtPackages, apkg)
 	}
 
 	outFilePath := fmt.Sprintf("%s/%s", workdir, "__INIT__.s")

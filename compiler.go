@@ -13,7 +13,7 @@ import (
 )
 
 // compile compiles go files of a package into an assembly file, and copy input assembly files into it.
-func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName string, gofiles []string, asmfiles []string, outFilePath string) *ir.PkgContainer {
+func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName string, gofiles []string, asmfiles []string, outFilePath string) *ir.AnalyzedPackage {
 	pkg := &ir.PkgContainer{Name: pkgName, Path: pkgPath, Fset: fset}
 	pkg.FileNoMap = make(map[string]int)
 	fout, err := os.Create(outFilePath)
@@ -77,5 +77,5 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 	// cleanup
 	fout.Close()
 	sema.CurrentPkg = nil
-	return pkg
+	return apkg
 }
