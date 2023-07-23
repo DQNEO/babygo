@@ -4,12 +4,6 @@ import (
 	"github.com/DQNEO/babygo/lib/ast"
 )
 
-type T struct {
-	A int
-}
-
-var X = &T{}
-
 var Nil = &ast.Object{
 	Kind: ast.Con, // is nil a constant ?
 	Name: "nil",
@@ -115,3 +109,11 @@ func CreateUniverse() *ast.Scope {
 
 	return universe
 }
+
+// T exists for For pointer address test
+type T struct {
+	A int
+}
+
+// X exists for For pointer address test
+var X = &T{}
