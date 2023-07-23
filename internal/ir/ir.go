@@ -210,6 +210,11 @@ type MetaSelectorExpr struct {
 	SelName        string
 	ForeignObjKind string // "var|con|fun"
 	ForeignValue   MetaExpr
+
+	// for struct field
+	Field     *ast.Field
+	Offset    int
+	NeedDeref bool
 }
 
 type MetaCallExpr struct {

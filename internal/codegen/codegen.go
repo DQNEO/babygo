@@ -233,22 +233,12 @@ func emitAddr(meta ir.MetaExpr) {
 		if m.IsQI { // pkg.Var|pkg.Con|pkg.Fun
 			emitAddr(m.ForeignValue)
 		} else { // (e).field
-			typeOfX := sema.GetUnderlyingType(sema.GetTypeOfExpr(m.X))
-			var structTypeLiteral *ast.StructType
-			switch typ := typeOfX.E.(type) {
-			case *ast.StructType: // strct.field
-				structTypeLiteral = typ
-				emitAddr(m.X)
-			case *ast.StarExpr: // ptr.field
-				structTypeLiteral = sema.GetUnderlyingStructType(sema.E2T(typ.X))
+			if m.NeedDeref {
 				emitExpr(m.X)
-			default:
-				unexpectedKind(sema.Kind(typeOfX))
+			} else {
+				emitAddr(m.X)
 			}
-
-			field := sema.LookupStructField(structTypeLiteral, m.SelName)
-			offset := sema.GetStructFieldOffset(field)
-			emitAddConst(offset, "struct head address + struct.field offset")
+			emitAddConst(m.Offset, "struct head address + struct.field offset")
 		}
 	case *ir.MetaCompositLit:
 		knd := sema.Kind(sema.GetTypeOfExpr(m))

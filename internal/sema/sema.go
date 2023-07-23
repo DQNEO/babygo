@@ -1304,22 +1304,36 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 	} else {
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
-		meta.Type = getTypeOfSelector(meta.X, e)
+		var field *ast.Field
+		var offset int
+		var typ *types.Type
+		var needDeref bool
+		typ, field, offset, needDeref = getTypeOfSelector(meta.X, e)
+		meta.Type = typ
+		if field != nil {
+			// struct.field
+			meta.Field = field
+			meta.Offset = offset
+			meta.NeedDeref = needDeref
+		}
+
 	}
 	meta.SelName = e.Sel.Name
 	//logf("%s: walkSelectorExpr %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
 	return meta
 }
 
-func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) *types.Type {
-	// (strct).field | (obj).method
+func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Field, int, bool) {
+	// (strct).field | (ptr).field | (obj).method
+	var needDeref bool
 	typeOfLeft := GetTypeOfExpr(x)
-	ut := GetUnderlyingType(typeOfLeft)
+	utLeft := GetUnderlyingType(typeOfLeft)
 	var structTypeLiteral *ast.StructType
-	switch typ := ut.E.(type) {
+	switch typ := utLeft.E.(type) {
 	case *ast.StructType: // strct.field
 		structTypeLiteral = typ
 	case *ast.StarExpr: // ptr.field
+		needDeref = true
 		origType := E2T(typ.X)
 		if Kind(origType) == types.T_STRUCT {
 			structTypeLiteral = GetUnderlyingStructType(origType)
@@ -1331,10 +1345,10 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) *types.Type {
 				funcType := method.FuncType
 				//logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
 				if funcType.Results == nil || len(funcType.Results.List) == 0 {
-					return nil
+					return nil, nil, 0, needDeref
 				}
 				types := FieldList2Types(funcType.Results)
-				return types[0]
+				return types[0], nil, 0, needDeref
 			}
 		}
 	default: // can be a named type of recevier
@@ -1342,26 +1356,27 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) *types.Type {
 		funcType := method.FuncType
 		//logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
-			return nil
+			return nil, nil, 0, false
 		}
 		types := FieldList2Types(funcType.Results)
-		return types[0]
+		return types[0], nil, 0, false
 	}
 
 	//logf("%s: Looking for struct  ... \n", fset.Position(structTypeLiteral.Pos()))
 	field := LookupStructField(structTypeLiteral, e.Sel.Name)
 	if field != nil {
-		return E2T(field.Type)
+		offset := GetStructFieldOffset(field)
+		return E2T(field.Type), field, offset, needDeref
 	}
 	if field == nil { // try to find method
 		method := lookupMethod(typeOfLeft, e.Sel)
 		funcType := method.FuncType
 		//logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
-			return nil
+			return nil, nil, 0, needDeref
 		}
 		types := FieldList2Types(funcType.Results)
-		return types[0]
+		return types[0], field, 0, needDeref
 	}
 
 	panic("Bad type")
