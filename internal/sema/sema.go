@@ -1304,11 +1304,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 	} else {
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
-		var field *ast.Field
-		var offset int
-		var typ *types.Type
-		var needDeref bool
-		typ, field, offset, needDeref = getTypeOfSelector(meta.X, e)
+		typ, field, offset, needDeref := getTypeOfSelector(meta.X, e)
 		meta.Type = typ
 		if field != nil {
 			// struct.field

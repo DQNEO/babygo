@@ -298,8 +298,6 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 		printf("  pushq %%rcx # cap\n")
 		printf("  pushq %%rcx # len\n")
 		printf("  pushq %%rax # ptr\n")
-	case *ast.ParenExpr: // (T)(arg0)
-		emitConversion(sema.E2T(to.X), arg0)
 	case *ast.StarExpr: // (*T)(arg0)
 		emitExpr(arg0)
 	case *ast.InterfaceType:
