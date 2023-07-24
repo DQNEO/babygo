@@ -22,6 +22,10 @@ func showHelp() {
 	fmt.Printf("    %s [-DG] filename\n", ProgName)
 }
 
+func showVersion() {
+	fmt.Printf("babygo version %s  linux/amd64\n", Version)
+}
+
 func main() {
 	// Check object addresses
 	tIdent := types.Int.E.(*ast.Ident)
@@ -35,7 +39,7 @@ func main() {
 	}
 
 	if os.Args[1] == "version" {
-		fmt.Printf("babygo version %s  linux/amd64\n", Version)
+		showVersion()
 		return
 	} else if os.Args[1] == "help" {
 		showHelp()
