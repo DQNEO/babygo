@@ -341,7 +341,7 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 	if t == nil {
 		panic("nil type is not expected")
 	}
-	if t.E == GeneralSlice {
+	if t == GeneralSliceType {
 		return t
 	}
 
@@ -391,7 +391,7 @@ func Kind(t *types.Type) types.TypeKind {
 	}
 
 	ut := GetUnderlyingType(t)
-	if ut.E == GeneralSlice {
+	if ut == GeneralSliceType {
 		return types.T_SLICE
 	}
 
@@ -2424,9 +2424,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	}
 }
 
-var GeneralSlice ast.Expr = &ast.Ident{
-	NamePos: 1,
-}
+var GeneralSliceType *types.Type = &types.Type{}
 
 const SizeOfSlice int = 24
 const SizeOfString int = 16
@@ -2502,7 +2500,7 @@ func SerializeType(t *types.Type) string {
 	if t == nil {
 		panic("nil type is not expected")
 	}
-	if t.E == GeneralSlice {
+	if t == GeneralSliceType {
 		panic("TBD: GeneralSlice")
 	}
 	if t.Name != "" {

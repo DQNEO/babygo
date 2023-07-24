@@ -623,7 +623,7 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 			},
 		}
 
-		emitCallDirect("runtime.makeSlice", args, []*types.Type{sema.E2T(sema.GeneralSlice)})
+		emitCallDirect("runtime.makeSlice", args, []*types.Type{sema.GeneralSliceType})
 		return
 	default:
 		throw(typeArg)
@@ -640,7 +640,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 		// slice
 		&ir.MetaArg{
 			Meta:      sliceArg,
-			ParamType: sema.E2T(sema.GeneralSlice),
+			ParamType: sema.GeneralSliceType,
 		},
 		// elm
 		&ir.MetaArg{
@@ -662,7 +662,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
-	emitCallDirect(symbol, args, []*types.Type{sema.E2T(sema.GeneralSlice)})
+	emitCallDirect(symbol, args, []*types.Type{sema.GeneralSliceType})
 	return
 
 }
