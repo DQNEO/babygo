@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	"github.com/DQNEO/babygo/internal/builder"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
@@ -51,8 +52,8 @@ func main() {
 		panic("object mismatch")
 	}
 
-	SrcPath = os.Getenv("GOPATH") + "/src"
-	PrjSrcPath = SrcPath + "/github.com/DQNEO/babygo/src"
+	builder.SrcPath = os.Getenv("GOPATH") + "/src"
+	builder.PrjSrcPath = builder.SrcPath + "/github.com/DQNEO/babygo/src"
 	if len(os.Args) == 1 {
 		showHelp()
 		return
@@ -72,5 +73,5 @@ func main() {
 	if workdir == "" {
 		workdir = "/tmp"
 	}
-	BuildAll(workdir, os.Args[1:])
+	builder.BuildAll(workdir, os.Args[1:])
 }

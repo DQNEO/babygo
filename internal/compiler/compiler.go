@@ -1,4 +1,4 @@
-package main
+package compiler
 
 import (
 	"os"
@@ -9,11 +9,12 @@ import (
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/parser"
+	"github.com/DQNEO/babygo/lib/path"
 	"github.com/DQNEO/babygo/lib/token"
 )
 
-// compile compiles go files of a package into an assembly file, and copy input assembly files into it.
-func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName string, gofiles []string, asmfiles []string, outFilePath string) *ir.AnalyzedPackage {
+// Compile compiles go files of a package into an assembly file, and copy input assembly files into it.
+func Compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName string, gofiles []string, asmfiles []string, outFilePath string) *ir.AnalyzedPackage {
 	pkg := &ir.PkgContainer{Name: pkgName, Path: pkgPath, Fset: fset}
 	pkg.FileNoMap = make(map[string]int)
 	fout, err := os.Create(outFilePath)
@@ -78,4 +79,25 @@ func compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 	fout.Close()
 	sema.CurrentPkg = nil
 	return apkg
+}
+
+func resolveImports(file *ast.File) {
+	mapImports := make(map[string]bool)
+	for _, imprt := range file.Imports {
+		// unwrap double quote "..."
+		rawValue := imprt.Path.Value
+		pth := rawValue[1 : len(rawValue)-1]
+		base := path.Base(pth)
+		mapImports[base] = true
+	}
+	for _, ident := range file.Unresolved {
+		// lookup imported package name
+		_, ok := mapImports[ident.Name]
+		if ok {
+			ident.Obj = &ast.Object{
+				Kind: ast.Pkg,
+				Name: ident.Name,
+			}
+		}
+	}
 }

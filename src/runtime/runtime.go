@@ -3,7 +3,7 @@ package runtime
 
 import "unsafe"
 
-const heapSize uintptr = 1820205360
+const heapSize uintptr = 2147483647 // int max
 
 var heapHead uintptr
 var heapCurrent uintptr
@@ -117,7 +117,7 @@ var Envs []*envEntry
 
 func heapInit() {
 	heapHead = brk(0)
-	heapTail = brk(heapHead + heapSize)
+	heapTail = brk(heapHead + heapSize*2)
 	if heapHead%8 == 0 {
 		heapCurrent = heapHead
 	} else {

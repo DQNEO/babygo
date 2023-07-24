@@ -1,9 +1,10 @@
-package main
+package builder
 
 import (
 	"os"
 
 	"github.com/DQNEO/babygo/internal/codegen"
+	"github.com/DQNEO/babygo/internal/compiler"
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/universe"
@@ -23,27 +24,6 @@ type PackageToBuild struct {
 	path  string
 	name  string
 	files []string
-}
-
-func resolveImports(file *ast.File) {
-	mapImports := make(map[string]bool)
-	for _, imprt := range file.Imports {
-		// unwrap double quote "..."
-		rawValue := imprt.Path.Value
-		pth := rawValue[1 : len(rawValue)-1]
-		base := path.Base(pth)
-		mapImports[base] = true
-	}
-	for _, ident := range file.Unresolved {
-		// lookup imported package name
-		_, ok := mapImports[ident.Name]
-		if ok {
-			ident.Obj = &ast.Object{
-				Kind: ast.Pkg,
-				Name: ident.Name,
-			}
-		}
-	}
 }
 
 // "some/dir" => []string{"a.go", "b.go"}
@@ -258,7 +238,7 @@ func BuildAll(workdir string, args []string) {
 			}
 
 		}
-		apkg := compile(universe, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
+		apkg := compiler.Compile(universe, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
 		builtPackages = append(builtPackages, apkg)
 	}
 
