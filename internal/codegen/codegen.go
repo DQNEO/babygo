@@ -594,8 +594,8 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr,
 			return
 		case types.T_SLICE:
 			// make([]T, ...)
-			arrayType := sema.GetUnderlyingType(typeArg).E.(*ast.ArrayType)
-			elmSize := sema.GetSizeOfType(sema.E2T(arrayType.Elt))
+			elmType := sema.GetElementTypeOfCollectionType(typeArg)
+			elmSize := sema.GetSizeOfType(elmType)
 			numlit := sema.NewNumberLiteral(elmSize)
 			args := []*ir.MetaArg{
 				// elmSize
