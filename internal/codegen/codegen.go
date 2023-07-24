@@ -2069,7 +2069,7 @@ func emitData(dotSize string, val ir.MetaExpr) {
 		printf("  %s 0\n", dotSize)
 	} else {
 		v := val.(*ir.MetaBasicLit)
-		printf("  %s %s\n", dotSize, v.Value)
+		printf("  %s %s\n", dotSize, v.RawValue)
 	}
 }
 

@@ -187,12 +187,12 @@ func IsNil(meta ir.MetaExpr) bool {
 }
 
 func NewNumberLiteral(x int) *ir.MetaBasicLit {
-	e := &ast.BasicLit{
-		Kind:     token.INT,
-		Value:    strconv.Itoa(x),
-		ValuePos: token.Pos(1),
+	return &ir.MetaBasicLit{
+		Pos:    1,
+		Type:   types.Int,
+		Kind:   "INT",
+		IntVal: x,
 	}
-	return walkBasicLit(e, nil)
 }
 
 func IsBlankIdentifierMeta(m ir.MetaExpr) bool {
@@ -1431,7 +1431,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	//		if ident.Name == "__func__" && ident.Obj.Kind == ast.Var {
 	//			basicLit := &ast.BasicLit{
 	//				Kind:  token.STRING,
-	//				Value: "\"" + currentFunc.Name + "\"",
+	//				RawValue: "\"" + currentFunc.Name + "\"",
 	//			}
 	//			arg = basicLit
 	//			e.Args[i] = arg
@@ -1629,9 +1629,9 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 
 func walkBasicLit(e *ast.BasicLit, ctx *ir.EvalContext) *ir.MetaBasicLit {
 	m := &ir.MetaBasicLit{
-		Pos:   e.Pos(),
-		Kind:  e.Kind.String(),
-		Value: e.Value,
+		Pos:      e.Pos(),
+		Kind:     e.Kind.String(),
+		RawValue: e.Value,
 	}
 
 	switch e.Kind.String() {
@@ -1655,7 +1655,7 @@ func walkBasicLit(e *ast.BasicLit, ctx *ir.EvalContext) *ir.MetaBasicLit {
 		m.CharVal = int(char)
 		m.Type = types.Int32 // @TODO: This is not correct
 	case "INT":
-		m.IntVal = strconv.Atoi(m.Value)
+		m.IntVal = strconv.Atoi(m.RawValue)
 		m.Type = types.Int // @TODO: This is not correct
 	case "STRING":
 		m.StrVal = registerStringLiteral(e)

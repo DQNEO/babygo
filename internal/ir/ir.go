@@ -161,13 +161,13 @@ type MetaGoStmt struct {
 type MetaExpr interface{}
 
 type MetaBasicLit struct {
-	Pos     token.Pos
-	Type    *types.Type
-	Kind    string
-	Value   string
-	CharVal int
-	IntVal  int
-	StrVal  *SLiteral
+	Pos      token.Pos
+	Type     *types.Type
+	Kind     string
+	RawValue string // for emitting .data data
+	CharVal  int
+	IntVal   int
+	StrVal   *SLiteral
 }
 
 type MetaCompositLit struct {
