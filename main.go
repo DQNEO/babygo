@@ -51,8 +51,8 @@ func main() {
 		panic("object mismatch")
 	}
 
-	srcPath = os.Getenv("GOPATH") + "/src"
-	prjSrcPath = srcPath + "/github.com/DQNEO/babygo/src"
+	SrcPath = os.Getenv("GOPATH") + "/src"
+	PrjSrcPath = SrcPath + "/github.com/DQNEO/babygo/src"
 	if len(os.Args) == 1 {
 		showHelp()
 		return
@@ -72,5 +72,5 @@ func main() {
 	if workdir == "" {
 		workdir = "/tmp"
 	}
-	buildAll(workdir, os.Args[1:])
+	BuildAll(workdir, os.Args[1:])
 }
