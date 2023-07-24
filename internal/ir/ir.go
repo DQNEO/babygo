@@ -217,23 +217,16 @@ type MetaSelectorExpr struct {
 	NeedDeref bool
 }
 
+// general funcall
 type MetaCallExpr struct {
 	Pos   token.Pos
 	Type  *types.Type   // result type
 	Types []*types.Type // result types when tuple
 
-	Arg0     MetaExpr // For len, cap, etc
-	TypeArg0 *types.Type
-	Arg1     MetaExpr
-	Arg2     MetaExpr
-
-	// For funcall
 	HasEllipsis bool
 
-	// general funcall
-	ReturnTypes []*types.Type
-	FuncVal     *FuncValue
-	//receiver ast.Expr
+	FuncVal *FuncValue
+
 	MetaArgs []*MetaArg
 }
 
