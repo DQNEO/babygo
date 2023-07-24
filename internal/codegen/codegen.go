@@ -455,7 +455,40 @@ func emitCallDirect(symbol string, args []*ir.MetaArg, returnTypes []*types.Type
 	emitCall(sema.NewFuncValueFromSymbol(symbol), args, returnTypes)
 }
 
-// see "ABI of stack layout" in the emitFuncall comment
+// ABI of stack layout in function call
+//
+// string:
+//
+//	str.ptr
+//	str.len
+//
+// slice:
+//
+//	slc.ptr
+//	slc.len
+//	slc.cap
+//
+// # ABI of function call
+//
+// call f(i1 int, i2 int) (r1 int, r2 int)
+//
+//	-- stack top
+//	i1
+//	i2
+//	r1
+//	r2
+//
+// call f(i int, s string, slc []T) int
+//
+//	-- stack top
+//	i
+//	s.ptr
+//	s.len
+//	slc.ptr
+//	slc.len
+//	slc.cap
+//	r
+//	--
 func emitCall(fv *ir.FuncValue, args []*ir.MetaArg, returnTypes []*types.Type) {
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 	var totalParamSize int
@@ -558,166 +591,125 @@ func emitFreeAndPushReturnedValue(returnTypes []*types.Type) {
 	}
 }
 
-func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr, arg1 ir.MetaExpr, arg2 ir.MetaExpr) {
-	switch obj {
-	case universe.Cap:
-		emitCap(arg0)
-		return
-	case universe.New:
-		// size to malloc
-		size := sema.GetSizeOfType(typeArg0)
-		emitCallMalloc(size)
-		return
-	case universe.Make:
-		typeArg := typeArg0
-		switch sema.Kind(typeArg) {
-		case types.T_MAP:
-			mapValueType := sema.GetElementTypeOfCollectionType(typeArg)
-			valueSize := sema.NewNumberLiteral(sema.GetSizeOfType(mapValueType))
-			// A new, empty map value is made using the built-in function make,
-			// which takes the map type and an optional capacity hint as arguments:
-			length := sema.NewNumberLiteral(0)
-			args := []*ir.MetaArg{
-				&ir.MetaArg{
-					Meta:      length,
-					ParamType: types.Uintptr,
-				},
-				&ir.MetaArg{
-					Meta:      valueSize,
-					ParamType: types.Uintptr,
-				},
-			}
-			emitCallDirect("runtime.makeMap", args, []*types.Type{types.Uintptr})
-			return
-		case types.T_SLICE:
-			// make([]T, ...)
-			elmType := sema.GetElementTypeOfCollectionType(typeArg)
-			elmSize := sema.GetSizeOfType(elmType)
-			numlit := sema.NewNumberLiteral(elmSize)
-			args := []*ir.MetaArg{
-				// elmSize
-				&ir.MetaArg{
-					Meta:      numlit,
-					ParamType: types.Int,
-				},
-				// len
-				&ir.MetaArg{
-					Meta:      arg1,
-					ParamType: types.Int,
-				},
-				// cap
-				&ir.MetaArg{
-					Meta:      arg2,
-					ParamType: types.Int,
-				},
-			}
+func emitMetaCallNew(m *ir.MetaCallNew) {
+	// size to malloc
+	size := sema.GetSizeOfType(m.TypeArg0)
+	emitCallMalloc(size)
+}
 
-			emitCallDirect("runtime.makeSlice", args, []*types.Type{sema.E2T(sema.GeneralSlice)})
-			return
-		default:
-			throw(typeArg)
-		}
-	case universe.Append:
-		sliceArg := arg0
-		elemArg := arg1
-		elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
-		elmSize := sema.GetSizeOfType(elmType)
+func emitMetaCallMake(m *ir.MetaCallMake) {
+	typeArg := m.TypeArg0
+	switch sema.Kind(typeArg) {
+	case types.T_MAP:
+		mapValueType := sema.GetElementTypeOfCollectionType(typeArg)
+		valueSize := sema.NewNumberLiteral(sema.GetSizeOfType(mapValueType))
+		// A new, empty map value is made using the built-in function make,
+		// which takes the map type and an optional capacity hint as arguments:
+		length := sema.NewNumberLiteral(0)
 		args := []*ir.MetaArg{
-			// slice
 			&ir.MetaArg{
-				Meta:      sliceArg,
-				ParamType: sema.E2T(sema.GeneralSlice),
+				Meta:      length,
+				ParamType: types.Uintptr,
 			},
-			// elm
 			&ir.MetaArg{
-				Meta:      elemArg,
-				ParamType: elmType,
+				Meta:      valueSize,
+				ParamType: types.Uintptr,
+			},
+		}
+		emitCallDirect("runtime.makeMap", args, []*types.Type{types.Uintptr})
+		return
+	case types.T_SLICE:
+		// make([]T, ...)
+		elmType := sema.GetElementTypeOfCollectionType(typeArg)
+		elmSize := sema.GetSizeOfType(elmType)
+		numlit := sema.NewNumberLiteral(elmSize)
+		args := []*ir.MetaArg{
+			// elmSize
+			&ir.MetaArg{
+				Meta:      numlit,
+				ParamType: types.Int,
+			},
+			// len
+			&ir.MetaArg{
+				Meta:      m.Arg1,
+				ParamType: types.Int,
+			},
+			// cap
+			&ir.MetaArg{
+				Meta:      m.Arg2,
+				ParamType: types.Int,
 			},
 		}
 
-		var symbol string
-		switch elmSize {
-		case 1:
-			symbol = "runtime.append1"
-		case 8:
-			symbol = "runtime.append8"
-		case 16:
-			symbol = "runtime.append16"
-		case 24:
-			symbol = "runtime.append24"
-		default:
-			throw(elmSize)
-		}
-		emitCallDirect(symbol, args, []*types.Type{sema.E2T(sema.GeneralSlice)})
+		emitCallDirect("runtime.makeSlice", args, []*types.Type{sema.E2T(sema.GeneralSlice)})
 		return
-	case universe.Panic:
-		funcVal := "runtime.panic"
-		_args := []*ir.MetaArg{&ir.MetaArg{
-			Meta:      arg0,
-			ParamType: types.Eface,
-		}}
-		emitCallDirect(funcVal, _args, nil)
-		return
-	case universe.Delete:
-		funcVal := "runtime.deleteMap"
-		_args := []*ir.MetaArg{
-			&ir.MetaArg{
-				Meta:      arg0,
-				ParamType: sema.GetTypeOfExpr(arg0),
-			},
-			&ir.MetaArg{
-				Meta:      arg1,
-				ParamType: types.Eface,
-			},
-		}
-		emitCallDirect(funcVal, _args, nil)
-		return
+	default:
+		throw(typeArg)
 	}
 
 }
 
-// ABI of stack layout in function call
-//
-// string:
-//
-//	str.ptr
-//	str.len
-//
-// slice:
-//
-//	slc.ptr
-//	slc.len
-//	slc.cap
-//
-// # ABI of function call
-//
-// call f(i1 int, i2 int) (r1 int, r2 int)
-//
-//	-- stack top
-//	i1
-//	i2
-//	r1
-//	r2
-//
-// call f(i int, s string, slc []T) int
-//
-//	-- stack top
-//	i
-//	s.ptr
-//	s.len
-//	slc.ptr
-//	slc.len
-//	slc.cap
-//	r
-//	--
-func emitFuncall(meta *ir.MetaCallExpr) {
-	emitComment(2, "[emitFuncall]\n")
-	// check if it's a builtin func
-	if meta.Builtin != nil {
-		emitBuiltinFunCall(meta.Builtin, meta.TypeArg0, meta.Arg0, meta.Arg1, meta.Arg2)
-		return
+func emitMetaCallAppend(m *ir.MetaCallAppend) {
+	sliceArg := m.Arg0
+	elemArg := m.Arg1
+	elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
+	elmSize := sema.GetSizeOfType(elmType)
+	args := []*ir.MetaArg{
+		// slice
+		&ir.MetaArg{
+			Meta:      sliceArg,
+			ParamType: sema.E2T(sema.GeneralSlice),
+		},
+		// elm
+		&ir.MetaArg{
+			Meta:      elemArg,
+			ParamType: elmType,
+		},
 	}
-	emitCall(meta.FuncVal, meta.MetaArgs, meta.Types)
+
+	var symbol string
+	switch elmSize {
+	case 1:
+		symbol = "runtime.append1"
+	case 8:
+		symbol = "runtime.append8"
+	case 16:
+		symbol = "runtime.append16"
+	case 24:
+		symbol = "runtime.append24"
+	default:
+		throw(elmSize)
+	}
+	emitCallDirect(symbol, args, []*types.Type{sema.E2T(sema.GeneralSlice)})
+	return
+
+}
+
+func emitMetaCallPanic(m *ir.MetaCallPanic) {
+	funcVal := "runtime.panic"
+	_args := []*ir.MetaArg{&ir.MetaArg{
+		Meta:      m.Arg0,
+		ParamType: types.Eface,
+	}}
+	emitCallDirect(funcVal, _args, nil)
+	return
+}
+
+func emitMetaCallDelete(m *ir.MetaCallDelete) {
+	funcVal := "runtime.deleteMap"
+	_args := []*ir.MetaArg{
+		&ir.MetaArg{
+			Meta:      m.Arg0,
+			ParamType: sema.GetTypeOfExpr(m.Arg0),
+		},
+		&ir.MetaArg{
+			Meta:      m.Arg1,
+			ParamType: types.Eface,
+		},
+	}
+	emitCallDirect(funcVal, _args, nil)
+	return
+
 }
 
 // 1 value
@@ -794,13 +786,6 @@ func emitSelectorExpr(meta *ir.MetaSelectorExpr) {
 
 func emitForeignFuncAddr(meta *ir.MetaForeignFuncWrapper) {
 	emitFuncAddr(meta.QI)
-}
-
-// multi values Fun(Args)
-func emitCallExpr(meta *ir.MetaCallExpr) {
-	// not conversion
-	emitComment(2, "[emitCallExpr] Funcall\n")
-	emitFuncall(meta)
 }
 
 // 1 value
@@ -1145,10 +1130,20 @@ func emitExpr(meta ir.MetaExpr) {
 		emitLen(m.Arg0)
 	case *ir.MetaCallCap:
 		emitCap(m.Arg0)
+	case *ir.MetaCallNew:
+		emitMetaCallNew(m)
+	case *ir.MetaCallMake:
+		emitMetaCallMake(m)
+	case *ir.MetaCallAppend:
+		emitMetaCallAppend(m)
+	case *ir.MetaCallPanic:
+		emitMetaCallPanic(m)
+	case *ir.MetaCallDelete:
+		emitMetaCallDelete(m)
 	case *ir.MetaConversionExpr:
 		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:
-		emitCallExpr(m) // can be Tuple
+		emitCall(m.FuncVal, m.MetaArgs, m.Types) // can be Tuple
 	case *ir.MetaIndexExpr:
 		emitIndexExpr(m) // can be Tuple
 	case *ir.MetaSliceExpr:

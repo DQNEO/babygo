@@ -236,6 +236,16 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 		return m.Type
 	case *ir.MetaCallCap:
 		return m.Type
+	case *ir.MetaCallNew:
+		return m.Type
+	case *ir.MetaCallMake:
+		return m.Type
+	case *ir.MetaCallAppend:
+		return m.Type
+	case *ir.MetaCallPanic:
+		return m.Type
+	case *ir.MetaCallDelete:
+		return m.Type
 	case *ir.MetaCallExpr: // funcall
 		return m.Type // can be nil (e.g. panic()). if Tuple , m.Types has Types
 	case *ir.MetaIndexExpr:
@@ -1428,60 +1438,79 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		//logf("  fun=%s\n", identFun.Name)
 		switch identFun.Obj {
 		case universe.Len:
-			arg0 := walkExpr(e.Args[0], nil)
+			a0 := walkExpr(e.Args[0], nil)
 			return &ir.MetaCallLen{
 				Pos:  e.Pos(),
 				Type: types.Int,
-				Arg0: arg0,
+				Arg0: a0,
 			}
 		case universe.Cap:
-			arg0 := walkExpr(e.Args[0], nil)
+			a0 := walkExpr(e.Args[0], nil)
 			return &ir.MetaCallCap{
 				Pos:  e.Pos(),
 				Type: types.Int,
-				Arg0: arg0,
+				Arg0: a0,
 			}
 		case universe.New:
-			meta.Builtin = identFun.Obj
-			walkExpr(e.Args[0], nil)
-			meta.TypeArg0 = E2T(e.Args[0])
+			walkExpr(e.Args[0], nil) // Do we need this ?
+			typeArg0 := E2T(e.Args[0])
 			ptrType := &ast.StarExpr{
 				X:    e.Args[0],
 				Star: 1,
 			}
-			meta.Type = E2T(ptrType)
-			return meta
+			typ := E2T(ptrType)
+			return &ir.MetaCallNew{
+				Pos:      e.Pos(),
+				Type:     typ,
+				TypeArg0: typeArg0,
+			}
 		case universe.Make:
-			meta.Builtin = identFun.Obj
-			walkExpr(e.Args[0], nil)
-			meta.TypeArg0 = E2T(e.Args[0])
-			meta.Type = meta.TypeArg0
+			walkExpr(e.Args[0], nil) // Do we need this ?
+			typeArg0 := E2T(e.Args[0])
+			typ := typeArg0
 			ctx := &ir.EvalContext{Type: types.Int}
+			var a1 ir.MetaExpr
+			var a2 ir.MetaExpr
 			if len(e.Args) > 1 {
-				meta.Arg1 = walkExpr(e.Args[1], ctx)
+				a1 = walkExpr(e.Args[1], ctx)
 			}
 
 			if len(e.Args) > 2 {
-				meta.Arg2 = walkExpr(e.Args[2], ctx)
+				a2 = walkExpr(e.Args[2], ctx)
 			}
-			return meta
+			return &ir.MetaCallMake{
+				Pos:      e.Pos(),
+				Type:     typ,
+				TypeArg0: typeArg0,
+				Arg1:     a1,
+				Arg2:     a2,
+			}
 		case universe.Append:
-			meta.Builtin = identFun.Obj
-			meta.Arg0 = walkExpr(e.Args[0], nil)
-			meta.Arg1 = walkExpr(e.Args[1], nil)
-			meta.Type = GetTypeOfExpr(meta.Arg0)
-			return meta
+			a0 := walkExpr(e.Args[0], nil)
+			a1 := walkExpr(e.Args[1], nil)
+			typ := GetTypeOfExpr(a0)
+			return &ir.MetaCallAppend{
+				Pos:  e.Pos(),
+				Type: typ,
+				Arg0: a0,
+				Arg1: a1,
+			}
 		case universe.Panic:
-			meta.Builtin = identFun.Obj
-			meta.Arg0 = walkExpr(e.Args[0], nil)
-			meta.Type = nil
-			return meta
+			a0 := walkExpr(e.Args[0], nil)
+			return &ir.MetaCallPanic{
+				Pos:  e.Pos(),
+				Type: nil,
+				Arg0: a0,
+			}
 		case universe.Delete:
-			meta.Builtin = identFun.Obj
-			meta.Arg0 = walkExpr(e.Args[0], nil)
-			meta.Arg1 = walkExpr(e.Args[1], nil)
-			meta.Type = nil
-			return meta
+			a0 := walkExpr(e.Args[0], nil)
+			a1 := walkExpr(e.Args[1], nil)
+			return &ir.MetaCallDelete{
+				Pos:  e.Pos(),
+				Type: nil,
+				Arg0: a0,
+				Arg1: a1,
+			}
 		}
 	}
 
@@ -2029,6 +2058,16 @@ func Pos(node interface{}) token.Pos {
 	case *ir.MetaCallLen:
 		return n.Pos
 	case *ir.MetaCallCap:
+		return n.Pos
+	case *ir.MetaCallNew:
+		return n.Pos
+	case *ir.MetaCallMake:
+		return n.Pos
+	case *ir.MetaCallAppend:
+		return n.Pos
+	case *ir.MetaCallPanic:
+		return n.Pos
+	case *ir.MetaCallDelete:
 		return n.Pos
 	case *ir.MetaCallExpr:
 		return n.Pos

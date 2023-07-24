@@ -229,7 +229,6 @@ type MetaCallExpr struct {
 
 	// For funcall
 	HasEllipsis bool
-	Builtin     *ast.Object
 
 	// general funcall
 	ReturnTypes []*types.Type
@@ -248,6 +247,40 @@ type MetaCallCap struct {
 	Pos  token.Pos
 	Type *types.Type // result type
 	Arg0 MetaExpr
+}
+
+type MetaCallNew struct {
+	Pos      token.Pos
+	Type     *types.Type // result type
+	TypeArg0 *types.Type
+}
+
+type MetaCallMake struct {
+	Pos      token.Pos
+	Type     *types.Type // result type
+	TypeArg0 *types.Type
+	Arg1     MetaExpr
+	Arg2     MetaExpr
+}
+
+type MetaCallAppend struct {
+	Pos  token.Pos
+	Type *types.Type // result type
+	Arg0 MetaExpr
+	Arg1 MetaExpr
+}
+
+type MetaCallPanic struct {
+	Pos  token.Pos
+	Type *types.Type // result type
+	Arg0 MetaExpr
+}
+
+type MetaCallDelete struct {
+	Pos  token.Pos
+	Type *types.Type // result type
+	Arg0 MetaExpr
+	Arg1 MetaExpr
 }
 
 type MetaConversionExpr struct {
