@@ -2080,6 +2080,21 @@ func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	printf("  ret\n")
 }
 
+func emitZeroData(t *types.Type) {
+	for i := 0; i < sema.GetSizeOfType(t); i++ {
+		printf("  .byte 0 # zero value\n")
+	}
+}
+
+func emitData(dotSize string, val ir.MetaExpr) {
+	if val == nil {
+		printf("  %s 0\n", dotSize)
+	} else {
+		v := val.(*ir.MetaBasicLit)
+		printf("  %s %s\n", dotSize, v.Value)
+	}
+}
+
 func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 	name := vr.Name.Name
 	t := vr.Type
@@ -2089,13 +2104,11 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 	printf("%s.%s: # T %s\n", pkgName, name, string(typeKind))
 
 	metaVal := vr.MetaVal
-	_ = metaVal
 	switch typeKind {
 	case types.T_STRING:
 		if metaVal == nil {
 			// no value
-			printf("  .quad 0\n")
-			printf("  .quad 0\n")
+			emitZeroData(t)
 		} else {
 			lit, ok := metaVal.(*ir.MetaBasicLit)
 			if !ok {
@@ -2106,109 +2119,36 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 			printf("  .quad %d\n", sl.Strlen)
 		}
 	case types.T_BOOL:
-		switch vl := val.(type) {
-		case nil:
+		if metaVal == nil {
 			printf("  .quad 0 # bool zero value\n")
-		case *ast.Ident:
-			switch vl.Obj {
-			case universe.True:
+		} else {
+			m := metaVal.(*ir.MetaIdent)
+			switch m.Kind {
+			case "true":
 				printf("  .quad 1 # bool true\n")
-			case universe.False:
+			case "false":
 				printf("  .quad 0 # bool false\n")
 			default:
-				throw(val)
+				panic("Unexpected bool value")
 			}
-		default:
-			throw(val)
-		}
-	case types.T_INT, types.T_UINTPTR:
-		switch vl := val.(type) {
-		case nil:
-			printf("  .quad 0\n")
-		case *ast.BasicLit:
-			printf("  .quad %s\n", vl.Value)
-		default:
-			throw(val)
 		}
 	case types.T_UINT8:
-		switch vl := val.(type) {
-		case nil:
-			printf("  .byte 0\n")
-		case *ast.BasicLit:
-			printf("  .byte %s\n", vl.Value)
-		default:
-			throw(val)
-		}
+		emitData(".byte", metaVal)
 	case types.T_UINT16:
-		switch vl := val.(type) {
-		case nil:
-			printf("  .word 0\n")
-		case *ast.BasicLit:
-			printf("  .word %s\n", vl.Value)
-		default:
-			throw(val)
-		}
+		emitData(".word", metaVal)
 	case types.T_INT32:
-		switch vl := val.(type) {
-		case nil:
-			printf("  .long 0\n")
-		case *ast.BasicLit:
-			printf("  .long %s\n", vl.Value)
-		default:
-			throw(val)
-		}
-	case types.T_SLICE:
+		emitData(".long", metaVal)
+	case types.T_INT, types.T_UINTPTR:
+		emitData(".quad", metaVal)
+	case types.T_STRUCT, types.T_ARRAY, types.T_SLICE:
 		// only zero value
 		if val != nil {
 			panic("Unsupported global value")
 		}
-		printf("  .quad 0 # ptr\n")
-		printf("  .quad 0 # len\n")
-		printf("  .quad 0 # cap\n")
-	case types.T_STRUCT:
-		if val != nil {
-			panic("Unsupported global value")
-		}
-		for i := 0; i < sema.GetSizeOfType(t); i++ {
-			printf("  .byte 0 # struct zero value\n")
-		}
-	case types.T_ARRAY:
-		// only zero value
-		if val != nil {
-			panic("Unsupported global value")
-		}
-		arrayType := t.E.(*ast.ArrayType)
-		assert(arrayType.Len != nil, "slice type is not expected", __func__)
-		length := sema.EvalInt(arrayType.Len)
-		var zeroValue string
-		knd := sema.Kind(sema.E2T(arrayType.Elt))
-		switch knd {
-		case types.T_INT:
-			zeroValue = "  .quad 0 # int zero value\n"
-		case types.T_UINT8:
-			zeroValue = "  .byte 0 # uint8 zero value\n"
-		case types.T_STRING:
-			zeroValue = "  .quad 0 # string zero value (ptr)\n"
-			zeroValue += "  .quad 0 # string zero value (len)\n"
-		case types.T_INTERFACE:
-			zeroValue = "  .quad 0 # eface zero value (dtype)\n"
-			zeroValue += "  .quad 0 # eface zero value (data)\n"
-		default:
-			unexpectedKind(knd)
-		}
-		for i := 0; i < length; i++ {
-			printf(zeroValue)
-		}
-	case types.T_POINTER, types.T_FUNC:
+		emitZeroData(t)
+	case types.T_POINTER, types.T_FUNC, types.T_MAP, types.T_INTERFACE:
 		// will be set in the initGlobal func
-		printf("  .quad 0\n")
-	case types.T_MAP:
-		// will be set in the initGlobal func
-		printf("  .quad 0\n")
-	case types.T_INTERFACE:
-		// will be set in the initGlobal func
-		printf("  .quad 0\n")
-		printf("  .quad 0\n")
+		emitZeroData(t)
 	default:
 		unexpectedKind(typeKind)
 	}
