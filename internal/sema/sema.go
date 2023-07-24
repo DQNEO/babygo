@@ -1395,6 +1395,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 }
 
 func walkConversion(pos token.Pos, toType *types.Type, arg0 ir.MetaExpr) ir.MetaExpr {
+
 	meta := &ir.MetaConversionExpr{
 		Pos:  pos,
 		Type: toType,
@@ -2135,16 +2136,6 @@ func LookupForeignIdent(qi ir.QualifiedIdent) *ast.Ident {
 		panic(qi + " Not found in ExportedQualifiedIdents")
 	}
 	return ident
-}
-
-func LookupForeignType(qi ir.QualifiedIdent) *types.Type {
-	ident, ok := ExportedQualifiedIdents[string(qi)]
-	if !ok {
-		panic(qi + " Not found in ExportedQualifiedIdents")
-	}
-	assert(ident.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
-	return E2T(ident)
-
 }
 
 func LookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {

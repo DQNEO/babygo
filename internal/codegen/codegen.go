@@ -6,8 +6,6 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
-	"github.com/DQNEO/babygo/internal/universe"
-	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
@@ -257,59 +255,43 @@ func emitAddr(meta ir.MetaExpr) {
 // explicit conversion T(e)
 func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 	emitComment(2, "[emitConversion]\n")
-	switch to := toType.E.(type) {
-	case *ast.Ident:
-		switch to.Obj {
-		case universe.String: // string(e)
-			switch sema.Kind(sema.GetTypeOfExpr(arg0)) {
-			case types.T_SLICE: // string(slice)
-				emitExpr(arg0) // slice
-				emitPopSlice()
-				printf("  pushq %%rcx # str len\n")
-				printf("  pushq %%rax # str ptr\n")
-			case types.T_STRING: // string(string)
-				emitExpr(arg0)
-			default:
-				unexpectedKind(sema.Kind(sema.GetTypeOfExpr(arg0)))
-			}
-		case universe.Int, universe.Uint8, universe.Uint16, universe.Uintptr: // int(e)
+	fromType := sema.GetTypeOfExpr(arg0)
+	fromKind := sema.Kind(fromType)
+	toKind := sema.Kind(toType)
+	switch toKind {
+	case types.T_STRING:
+		if fromKind == types.T_SLICE {
+			emitExpr(arg0) // slice
+			emitPopSlice()
+			printf("  pushq %%rcx # str len\n")
+			printf("  pushq %%rax # str ptr\n")
+			return
+		} else {
 			emitExpr(arg0)
-		default:
-			if to.Obj.Kind == ast.Typ {
-				emitExpr(arg0)
-			} else {
-				throw(to.Obj)
-			}
+			return
 		}
-	case *ast.SelectorExpr:
-		// pkg.Type(arg0)
-		qi := sema.Selector2QI(to)
-		t := sema.LookupForeignType(qi)
-		emitConversion(t, arg0)
-	case *ast.ArrayType: // Conversion to slice
-		arrayType := to
-		if arrayType.Len != nil {
-			throw(to)
-		}
-		assert(sema.Kind(sema.GetTypeOfExpr(arg0)) == types.T_STRING, "source type should be slice", __func__)
+	case types.T_SLICE:
+		assert(fromKind == types.T_STRING, "source type should be slice", __func__)
 		emitComment(2, "Conversion of string => slice \n")
+		// @FIXME: As string should be immutable, we must copy data.
 		emitExpr(arg0)
 		emitPopString()
 		printf("  pushq %%rcx # cap\n")
 		printf("  pushq %%rcx # len\n")
 		printf("  pushq %%rax # ptr\n")
-	case *ast.StarExpr: // (*T)(arg0)
+		return
+	case types.T_INTERFACE:
 		emitExpr(arg0)
-	case *ast.InterfaceType:
-		emitExpr(arg0)
-		if sema.IsInterface(sema.GetTypeOfExpr(arg0)) {
-			// do nothing
+		if sema.IsInterface(fromType) {
+			return // do nothing
 		} else {
 			// Convert dynamic value to interface
-			emitConvertToInterface(sema.GetTypeOfExpr(arg0))
+			emitConvertToInterface(fromType)
+			return
 		}
 	default:
-		throw(to)
+		emitExpr(arg0)
+		return
 	}
 }
 
