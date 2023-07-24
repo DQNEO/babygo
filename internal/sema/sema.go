@@ -1394,18 +1394,24 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 	panic("Bad type")
 }
 
+func walkConversion(pos token.Pos, toType *types.Type, arg0 ir.MetaExpr) ir.MetaExpr {
+	meta := &ir.MetaConversionExpr{
+		Pos:  pos,
+		Type: toType,
+		Arg0: arg0,
+	}
+	return meta
+}
+
 func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	if isType(e.Fun) {
 		assert(len(e.Args) == 1, "convert must take only 1 argument", __func__)
-		meta := &ir.MetaConversionExpr{
-			Pos:  e.Pos(),
-			Type: E2T(e.Fun),
-		}
+		toType := E2T(e.Fun)
 		ctx := &ir.EvalContext{
-			Type: E2T(e.Fun),
+			Type: toType,
 		}
-		meta.Arg0 = walkExpr(e.Args[0], ctx)
-		return meta
+		arg0 := walkExpr(e.Args[0], ctx)
+		return walkConversion(e.Pos(), toType, arg0)
 	}
 
 	meta := &ir.MetaCallExpr{
