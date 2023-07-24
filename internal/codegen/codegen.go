@@ -1258,7 +1258,7 @@ func emitCompareDtypes() {
 }
 
 func emitDtypeLabelAddr(t *types.Type) {
-	serializedType := serializeType(t)
+	serializedType := sema.SerializeType(t)
 	dtypeLabel := getDtypeLabel(serializedType)
 	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, serializedType)
 	printf("  pushq %%rax           # dtype label address\n")
@@ -2227,83 +2227,4 @@ func emitDynamicTypes(mapDtypes map[string]*DtypeEntry) {
 		printf("  .string \"%s\"\n", ent.serialized)
 	}
 	printf("\n")
-}
-
-func serializeType(t *types.Type) string {
-	if t == nil {
-		panic("nil type is not expected")
-	}
-	if t.E == sema.GeneralSlice {
-		panic("TBD: GeneralSlice")
-	}
-	if t.Name != "" {
-		return t.PkgName + "." + t.Name
-	}
-	switch e := t.E.(type) {
-	case *ast.Ident:
-		if e.Obj == nil {
-			panic("Unresolved identifier:" + e.Name)
-		}
-		if e.Obj.Kind == ast.Var {
-			throw(e.Obj)
-		} else if e.Obj.Kind == ast.Typ {
-			switch e.Obj {
-			case universe.Uintptr:
-				return "uintptr"
-			case universe.Int:
-				return "int"
-			case universe.String:
-				return "string"
-			case universe.Uint8:
-				return "uint8"
-			case universe.Uint16:
-				return "uint16"
-			case universe.Bool:
-				return "bool"
-			case universe.Error:
-				return "error"
-			default:
-				// named type
-				decl := e.Obj.Decl
-				typeSpec := decl.(*ast.TypeSpec)
-				pkgName := typeSpec.Name.Obj.Data.(string)
-				return pkgName + "." + typeSpec.Name.Name
-			}
-		}
-	case *ast.StructType:
-		r := "struct{"
-		if e.Fields != nil {
-			for _, field := range e.Fields.List {
-				name := field.Names[0].Name
-				typ := sema.E2T(field.Type)
-				r += fmt.Sprintf("%s %s;", name, serializeType(typ))
-			}
-		}
-		return r + "}"
-	case *ast.ArrayType:
-		if e.Len == nil {
-			if e.Elt == nil {
-				panic(e)
-			}
-			return "[]" + serializeType(sema.E2T(e.Elt))
-		} else {
-			return "[" + strconv.Itoa(sema.EvalInt(e.Len)) + "]" + serializeType(sema.E2T(e.Elt))
-		}
-	case *ast.StarExpr:
-		return "*" + serializeType(sema.E2T(e.X))
-	case *ast.Ellipsis: // x ...T
-		panic("TBD: Ellipsis")
-	case *ast.InterfaceType:
-		return "interface{}" // @TODO list methods
-	case *ast.MapType:
-		return "map[" + serializeType(sema.E2T(e.Key)) + "]" + serializeType(sema.E2T(e.Value))
-	case *ast.SelectorExpr:
-		qi := sema.Selector2QI(e)
-		return string(qi)
-	case *ast.FuncType:
-		return "func"
-	default:
-		throw(t)
-	}
-	return ""
 }

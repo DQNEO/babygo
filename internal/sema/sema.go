@@ -2500,3 +2500,82 @@ func EvalInt(expr ast.Expr) int {
 	}
 	panic("Unknown type")
 }
+
+func SerializeType(t *types.Type) string {
+	if t == nil {
+		panic("nil type is not expected")
+	}
+	if t.E == GeneralSlice {
+		panic("TBD: GeneralSlice")
+	}
+	if t.Name != "" {
+		return t.PkgName + "." + t.Name
+	}
+	switch e := t.E.(type) {
+	case *ast.Ident:
+		if e.Obj == nil {
+			panic("Unresolved identifier:" + e.Name)
+		}
+		if e.Obj.Kind == ast.Var {
+			panic(e.Obj)
+		} else if e.Obj.Kind == ast.Typ {
+			switch e.Obj {
+			case universe.Uintptr:
+				return "uintptr"
+			case universe.Int:
+				return "int"
+			case universe.String:
+				return "string"
+			case universe.Uint8:
+				return "uint8"
+			case universe.Uint16:
+				return "uint16"
+			case universe.Bool:
+				return "bool"
+			case universe.Error:
+				return "error"
+			default:
+				// named type
+				decl := e.Obj.Decl
+				typeSpec := decl.(*ast.TypeSpec)
+				pkgName := typeSpec.Name.Obj.Data.(string)
+				return pkgName + "." + typeSpec.Name.Name
+			}
+		}
+	case *ast.StructType:
+		r := "struct{"
+		if e.Fields != nil {
+			for _, field := range e.Fields.List {
+				name := field.Names[0].Name
+				typ := E2T(field.Type)
+				r += fmt.Sprintf("%s %s;", name, SerializeType(typ))
+			}
+		}
+		return r + "}"
+	case *ast.ArrayType:
+		if e.Len == nil {
+			if e.Elt == nil {
+				panic(e)
+			}
+			return "[]" + SerializeType(E2T(e.Elt))
+		} else {
+			return "[" + strconv.Itoa(EvalInt(e.Len)) + "]" + SerializeType(E2T(e.Elt))
+		}
+	case *ast.StarExpr:
+		return "*" + SerializeType(E2T(e.X))
+	case *ast.Ellipsis: // x ...T
+		panic("TBD: Ellipsis")
+	case *ast.InterfaceType:
+		return "interface{}" // @TODO list methods
+	case *ast.MapType:
+		return "map[" + SerializeType(E2T(e.Key)) + "]" + SerializeType(E2T(e.Value))
+	case *ast.SelectorExpr:
+		qi := Selector2QI(e)
+		return string(qi)
+	case *ast.FuncType:
+		return "func"
+	default:
+		panic(t)
+	}
+	return ""
+}
