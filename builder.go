@@ -77,6 +77,8 @@ func getImportPathsFromFile(file string) []string {
 	return paths
 }
 
+type DependencyTree map[string]map[string]bool
+
 func removeNode(tree DependencyTree, node string) {
 	for _, paths := range tree {
 		delete(paths, node)
@@ -92,8 +94,6 @@ func getKeys(tree DependencyTree) []string {
 	}
 	return keys
 }
-
-type DependencyTree map[string]map[string]bool
 
 // Do topological sort
 // In the result list, the independent (lowest level) packages come first.
@@ -207,11 +207,7 @@ func parseImports(fset *token.FileSet, filename string) *ast.File {
 	return f
 }
 
-func buildAll(args []string) {
-	workdir := os.Getenv("WORKDIR")
-	if workdir == "" {
-		workdir = "/tmp"
-	}
+func buildAll(workdir string, args []string) {
 
 	var inputFiles []string
 	for _, arg := range args {

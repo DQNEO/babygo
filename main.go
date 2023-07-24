@@ -68,6 +68,9 @@ func main() {
 		panicVersion := strconv.Itoa(mylib.Sum(1, 1))
 		panic("I am panic version " + panicVersion)
 	}
-
-	buildAll(os.Args[1:])
+	workdir := os.Getenv("WORKDIR")
+	if workdir == "" {
+		workdir = "/tmp"
+	}
+	buildAll(workdir, os.Args[1:])
 }
