@@ -44,11 +44,17 @@ func main() {
 		panicVersion := strconv.Itoa(mylib.Sum(1, 1))
 		panic("I am panic version " + panicVersion)
 	}
+
 	workdir := os.Getenv("WORKDIR")
 	if workdir == "" {
 		workdir = "/tmp"
 	}
 	srcPath := os.Getenv("GOPATH") + "/src"                    // userland packages
 	bbgRootSrcPath := srcPath + "/github.com/DQNEO/babygo/src" // std packages
-	builder.BuildAll(srcPath, bbgRootSrcPath, workdir, os.Args[1:])
+
+	b := builder.Builder{
+		SrcPath:        srcPath,
+		BbgRootSrcPath: bbgRootSrcPath,
+	}
+	b.Build(workdir, os.Args[1:])
 }

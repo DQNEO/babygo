@@ -94,20 +94,20 @@ func sortTopologically(tree DependencyTree) []string {
 	return sorted
 }
 
-func getPackageDir(importPath string) string {
+func (b *Builder) getPackageDir(importPath string) string {
 	if isStdLib(importPath) {
-		return BbgRootSrcPath + "/" + importPath
+		return b.BbgRootSrcPath + "/" + importPath
 	} else {
-		return SrcPath + "/" + importPath
+		return b.SrcPath + "/" + importPath
 	}
 }
 
-func collectDependency(tree DependencyTree, paths map[string]bool) {
+func (b *Builder) collectDependency(tree DependencyTree, paths map[string]bool) {
 	for pkgPath, _ := range paths {
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
 		}
-		packageDir := getPackageDir(pkgPath)
+		packageDir := b.getPackageDir(pkgPath)
 		fnames := findFilesInDir(packageDir)
 		children := make(map[string]bool)
 		for _, fname := range fnames {
@@ -124,14 +124,14 @@ func collectDependency(tree DependencyTree, paths map[string]bool) {
 			}
 		}
 		tree[pkgPath] = children
-		collectDependency(tree, children)
+		b.collectDependency(tree, children)
 	}
 }
 
-func collectAllPackages(inputFiles []string) []string {
+func (b *Builder) collectAllPackages(inputFiles []string) []string {
 	directChildren := collectDirectDependents(inputFiles)
 	tree := make(DependencyTree)
-	collectDependency(tree, directChildren)
+	b.collectDependency(tree, directChildren)
 	sortedPaths := sortTopologically(tree)
 
 	// sort packages by this order
@@ -181,12 +181,12 @@ func parseImports(fset *token.FileSet, filename string) *ast.File {
 	return f
 }
 
-var SrcPath string
-var BbgRootSrcPath string
+type Builder struct {
+	SrcPath        string // user-land packages
+	BbgRootSrcPath string // std packages
+}
 
-func BuildAll(srcPath string, bbgRootSrcPath string, workdir string, args []string) {
-	SrcPath = srcPath
-	BbgRootSrcPath = bbgRootSrcPath
+func (b *Builder) Build(workdir string, args []string) {
 
 	var inputFiles []string
 	for _, arg := range args {
@@ -198,10 +198,10 @@ func BuildAll(srcPath string, bbgRootSrcPath string, workdir string, args []stri
 		}
 	}
 
-	paths := collectAllPackages(inputFiles)
+	paths := b.collectAllPackages(inputFiles)
 	var packagesToBuild []*PackageToBuild
 	for _, _path := range paths {
-		files := collectSourceFiles(getPackageDir(_path))
+		files := collectSourceFiles(b.getPackageDir(_path))
 		packagesToBuild = append(packagesToBuild, &PackageToBuild{
 			name:  path.Base(_path),
 			path:  _path,
