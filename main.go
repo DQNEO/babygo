@@ -29,8 +29,6 @@ func main() {
 		panic("object mismatch")
 	}
 
-	builder.SrcPath = os.Getenv("GOPATH") + "/src"
-	builder.PrjSrcPath = builder.SrcPath + "/github.com/DQNEO/babygo/src"
 	if len(os.Args) == 1 {
 		showHelp()
 		return
@@ -50,5 +48,7 @@ func main() {
 	if workdir == "" {
 		workdir = "/tmp"
 	}
-	builder.BuildAll(workdir, os.Args[1:])
+	srcPath := os.Getenv("GOPATH") + "/src"                    // userland packages
+	bbgRootSrcPath := srcPath + "/github.com/DQNEO/babygo/src" // std packages
+	builder.BuildAll(srcPath, bbgRootSrcPath, workdir, os.Args[1:])
 }

@@ -17,9 +17,6 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
-var SrcPath string
-var PrjSrcPath string
-
 type PackageToBuild struct {
 	path  string
 	name  string
@@ -99,7 +96,7 @@ func sortTopologically(tree DependencyTree) []string {
 
 func getPackageDir(importPath string) string {
 	if isStdLib(importPath) {
-		return PrjSrcPath + "/" + importPath
+		return BbgRootSrcPath + "/" + importPath
 	} else {
 		return SrcPath + "/" + importPath
 	}
@@ -184,7 +181,12 @@ func parseImports(fset *token.FileSet, filename string) *ast.File {
 	return f
 }
 
-func BuildAll(workdir string, args []string) {
+var SrcPath string
+var BbgRootSrcPath string
+
+func BuildAll(srcPath string, bbgRootSrcPath string, workdir string, args []string) {
+	SrcPath = srcPath
+	BbgRootSrcPath = bbgRootSrcPath
 
 	var inputFiles []string
 	for _, arg := range args {
