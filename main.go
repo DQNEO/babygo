@@ -4,9 +4,6 @@ import (
 	"os"
 
 	"github.com/DQNEO/babygo/internal/builder"
-	"github.com/DQNEO/babygo/internal/types"
-	"github.com/DQNEO/babygo/internal/universe"
-	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -27,12 +24,6 @@ func showVersion() {
 }
 
 func main() {
-	// Check object addresses
-	tIdent := types.Int.E.(*ast.Ident)
-	if tIdent.Obj != universe.Int {
-		panic("object mismatch")
-	}
-
 	if len(os.Args) == 1 {
 		showHelp()
 		return
