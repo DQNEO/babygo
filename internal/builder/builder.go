@@ -215,7 +215,8 @@ func (b *Builder) Build(workdir string, args []string) {
 		files: inputFiles,
 	})
 
-	var universe *ast.Scope = universe.CreateUniverse()
+	var uni = universe.CreateUniverse()
+
 	sema.Fset = token.NewFileSet()
 	var builtPackages []*ir.AnalyzedPackage
 	for _, _pkg := range packagesToBuild {
@@ -240,7 +241,7 @@ func (b *Builder) Build(workdir string, args []string) {
 			}
 
 		}
-		apkg := compiler.Compile(universe, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
+		apkg := compiler.Compile(uni, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
 		builtPackages = append(builtPackages, apkg)
 	}
 
