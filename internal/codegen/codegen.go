@@ -575,8 +575,8 @@ func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr,
 		typeArg := typeArg0
 		switch sema.Kind(typeArg) {
 		case types.T_MAP:
-			mapType := sema.GetUnderlyingType(typeArg).E.(*ast.MapType)
-			valueSize := sema.NewNumberLiteral(sema.GetSizeOfType(sema.E2T(mapType.Value)))
+			mapValueType := sema.GetElementTypeOfCollectionType(typeArg)
+			valueSize := sema.NewNumberLiteral(sema.GetSizeOfType(mapValueType))
 			// A new, empty map value is made using the built-in function make,
 			// which takes the map type and an optional capacity hint as arguments:
 			length := sema.NewNumberLiteral(0)
