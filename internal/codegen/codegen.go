@@ -560,9 +560,6 @@ func emitFreeAndPushReturnedValue(returnTypes []*types.Type) {
 
 func emitBuiltinFunCall(obj *ast.Object, typeArg0 *types.Type, arg0 ir.MetaExpr, arg1 ir.MetaExpr, arg2 ir.MetaExpr) {
 	switch obj {
-	case universe.Len:
-		emitLen(arg0)
-		return
 	case universe.Cap:
 		emitCap(arg0)
 		return
@@ -1144,6 +1141,10 @@ func emitExpr(meta ir.MetaExpr) {
 		emitSelectorExpr(m)
 	case *ir.MetaForeignFuncWrapper:
 		emitForeignFuncAddr(m)
+	case *ir.MetaCallLen:
+		emitLen(m.Arg0)
+	case *ir.MetaCallCap:
+		emitCap(m.Arg0)
 	case *ir.MetaConversionExpr:
 		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:

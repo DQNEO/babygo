@@ -232,7 +232,11 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 		return m.Type
 	case *ir.MetaConversionExpr:
 		return m.Type
-	case *ir.MetaCallExpr: // funcall or conversion
+	case *ir.MetaCallLen:
+		return m.Type
+	case *ir.MetaCallCap:
+		return m.Type
+	case *ir.MetaCallExpr: // funcall
 		return m.Type // can be nil (e.g. panic()). if Tuple , m.Types has Types
 	case *ir.MetaIndexExpr:
 		return m.Type
@@ -1397,7 +1401,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	meta := &ir.MetaCallExpr{
 		Pos: e.Pos(),
 	}
-	meta.IsConversion = false
+
 	meta.HasEllipsis = e.Ellipsis != token.NoPos
 
 	// function call
@@ -1423,11 +1427,20 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	if isIdent {
 		//logf("  fun=%s\n", identFun.Name)
 		switch identFun.Obj {
-		case universe.Len, universe.Cap:
-			meta.Builtin = identFun.Obj
-			meta.Arg0 = walkExpr(e.Args[0], nil)
-			meta.Type = types.Int
-			return meta
+		case universe.Len:
+			arg0 := walkExpr(e.Args[0], nil)
+			return &ir.MetaCallLen{
+				Pos:  e.Pos(),
+				Type: types.Int,
+				Arg0: arg0,
+			}
+		case universe.Cap:
+			arg0 := walkExpr(e.Args[0], nil)
+			return &ir.MetaCallCap{
+				Pos:  e.Pos(),
+				Type: types.Int,
+				Arg0: arg0,
+			}
 		case universe.New:
 			meta.Builtin = identFun.Obj
 			walkExpr(e.Args[0], nil)
@@ -2012,6 +2025,10 @@ func Pos(node interface{}) token.Pos {
 	case *ir.MetaForeignFuncWrapper:
 		return n.Pos
 	case *ir.MetaConversionExpr:
+		return n.Pos
+	case *ir.MetaCallLen:
+		return n.Pos
+	case *ir.MetaCallCap:
 		return n.Pos
 	case *ir.MetaCallExpr:
 		return n.Pos

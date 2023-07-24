@@ -222,12 +222,7 @@ type MetaCallExpr struct {
 	Type  *types.Type   // result type
 	Types []*types.Type // result types when tuple
 
-	IsConversion bool
-
-	// For Conversion
-	ToType *types.Type
-
-	Arg0     MetaExpr // For conversion, len, cap
+	Arg0     MetaExpr // For len, cap, etc
 	TypeArg0 *types.Type
 	Arg1     MetaExpr
 	Arg2     MetaExpr
@@ -243,10 +238,22 @@ type MetaCallExpr struct {
 	MetaArgs []*MetaArg
 }
 
+type MetaCallLen struct {
+	Pos  token.Pos
+	Type *types.Type // result type
+	Arg0 MetaExpr
+}
+
+type MetaCallCap struct {
+	Pos  token.Pos
+	Type *types.Type // result type
+	Arg0 MetaExpr
+}
+
 type MetaConversionExpr struct {
 	Pos  token.Pos
 	Type *types.Type // To type
-	Arg0 MetaExpr    // For conversion, len, cap
+	Arg0 MetaExpr
 }
 
 type MetaIndexExpr struct {
