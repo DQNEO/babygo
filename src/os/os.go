@@ -159,5 +159,8 @@ func Exit(status int) {
 	syscall.Syscall(uintptr(SYS_EXIT), uintptr(status), 0, 0)
 }
 
+//go:linkname runtime_args runtime.runtime_args
 func runtime_args() []string
+
+//go:linkname runtime_getenv runtime.runtime_getenv
 func runtime_getenv(key string) string

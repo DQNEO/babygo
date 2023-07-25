@@ -391,15 +391,34 @@ func cmpinterface(a uintptr, b uintptr, c uintptr, d uintptr) bool {
 	return false
 }
 
+//go:linkname Write
 func Write(fd int, p []byte) int
+
+//go:linkname Syscall
 func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
+
+//go:linkname exit
 func exit(c int)
+
+//go:linkname exitThread
 func exitThread()
+
+//go:linkname clone
 func clone(flags int, stack uintptr, fn func())
+
+//go:linkname futex
 func futex(addr unsafe.Pointer, op int, val int)
 
-// Actually this is an alias to makeSlice
+// The followings are aliases to runtime.makeSlice
+
+//go:linkname makeSlice1 runtime.makeSlice
 func makeSlice1(elmSize int, slen int, scap int) []uint8
+
+//go:linkname makeSlice8 runtime.makeSlice
 func makeSlice8(elmSize int, slen int, scap int) []int
+
+//go:linkname makeSlice16 runtime.makeSlice
 func makeSlice16(elmSize int, slen int, scap int) []string
+
+//go:linkname makeSlice24 runtime.makeSlice
 func makeSlice24(elmSize int, slen int, scap int) [][]int

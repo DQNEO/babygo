@@ -46,4 +46,5 @@ func Getdents(fd int, buf []byte) (int, error) {
 	return int(nread), nil
 }
 
+//go:linkname Syscall
 func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
