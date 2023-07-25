@@ -49,10 +49,10 @@ func (p *parser) consumeComment() {
 
 func (p *parser) next0() {
 	var s = p.scanner
-	tc := s.Scan()
-	p.pos = tc.Pos
-	p.tok = tc.Tok
-	p.lit = tc.Lit
+	lit, tok, pos := s.Scan()
+	p.lit = lit
+	p.tok = tok
+	p.pos = pos
 	//logf("[parser.next0] pos=%d\n", p.tok.pos)
 }
 

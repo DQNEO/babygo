@@ -120,12 +120,6 @@ func (s *Scanner) scanComment() string {
 	return string(s.src[offset:s.offset])
 }
 
-type TokenContainer struct {
-	Pos token.Pos
-	Tok string // token.Token
-	Lit string // raw data
-}
-
 // https://golang.org/ref/spec#Tokens
 func (s *Scanner) skipWhitespace() {
 	for s.ch == ' ' || s.ch == '\t' || (s.ch == '\n' && !s.insertSemi) || s.ch == '\r' {
@@ -133,11 +127,10 @@ func (s *Scanner) skipWhitespace() {
 	}
 }
 
-func (s *Scanner) Scan() *TokenContainer {
+func (s *Scanner) Scan() (string, string, token.Pos) {
 	s.skipWhitespace()
 	pos := token.Pos(s.File.Base + s.offset)
 
-	var tc = &TokenContainer{}
 	var lit string
 	var tok string
 	var insertSemi bool
@@ -255,10 +248,8 @@ func (s *Scanner) Scan() *TokenContainer {
 					s.ch = '/'
 					s.offset = s.offset - 1
 					s.nextOffset = s.offset + 1
-					tc.Lit = "\n"
-					tc.Tok = ";"
 					s.insertSemi = false
-					return tc
+					return "\n", ";", pos
 				}
 				lit = s.scanComment()
 				tok = "COMMENT"
@@ -374,9 +365,6 @@ func (s *Scanner) Scan() *TokenContainer {
 			tok = "UNKNOWN"
 		}
 	}
-	tc.Lit = lit
-	tc.Pos = pos
-	tc.Tok = tok
 	s.insertSemi = insertSemi
-	return tc
+	return lit, tok, pos
 }
