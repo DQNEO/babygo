@@ -13,11 +13,6 @@ type MetaStructLiteralElement struct {
 	ValueMeta MetaExpr
 }
 
-type MetaArg struct {
-	Meta      MetaExpr
-	ParamType *types.Type // expected type
-}
-
 type FuncValue struct {
 	IsDirect bool     // direct or indirect
 	Symbol   string   // for direct call
@@ -219,15 +214,13 @@ type MetaSelectorExpr struct {
 
 // general funcall
 type MetaCallExpr struct {
-	Pos   token.Pos
-	Type  *types.Type   // result type
-	Types []*types.Type // result types when tuple
-
+	Pos         token.Pos
+	Type        *types.Type   // result type
+	Types       []*types.Type // result types when tuple
+	ParamTypes  []*types.Type // param types to accept
+	Args        []MetaExpr    // args sent from caller
 	HasEllipsis bool
-
-	FuncVal *FuncValue
-
-	MetaArgs []*MetaArg
+	FuncVal     *FuncValue
 }
 
 type MetaCallLen struct {
@@ -325,6 +318,11 @@ type MetaTypeAssertExpr struct {
 	Type    *types.Type
 }
 
+type Signature struct {
+	ParamTypes  []*types.Type
+	ReturnTypes []*types.Type
+}
+
 type ForeignFunc struct {
 	Symbol      string
 	FuncType    *ast.FuncType
@@ -396,4 +394,39 @@ type AnalyzedPackage struct {
 	StringLiterals []*SLiteral
 	Fset           *token.FileSet
 	FileNoMap      map[string]int // for .loc
+}
+
+var RuntimeCmpStringFuncSignature = &Signature{
+	ParamTypes:  []*types.Type{types.String, types.String},
+	ReturnTypes: []*types.Type{types.Bool},
+}
+
+var RuntimeCatStringsSignature = &Signature{
+	ParamTypes:  []*types.Type{types.String, types.String},
+	ReturnTypes: []*types.Type{types.String},
+}
+
+var RuntimeMakeMapSignature = &Signature{
+	ParamTypes:  []*types.Type{types.Uintptr, types.Uintptr},
+	ReturnTypes: []*types.Type{types.Uintptr},
+}
+
+var RuntimeMakeSliceSignature = &Signature{
+	ParamTypes:  []*types.Type{types.Int, types.Int, types.Int},
+	ReturnTypes: []*types.Type{types.GeneralSliceType},
+}
+
+var RuntimeGetAddrForMapGetSignature = &Signature{
+	ParamTypes:  []*types.Type{types.Uintptr, types.Eface},
+	ReturnTypes: []*types.Type{types.Bool, types.Uintptr},
+}
+
+var RuntimeGetAddrForMapSetSignature = &Signature{
+	ParamTypes:  []*types.Type{types.Uintptr, types.Eface},
+	ReturnTypes: []*types.Type{types.Uintptr},
+}
+
+var BuiltinPanicSignature = &Signature{
+	ParamTypes:  []*types.Type{types.Eface},
+	ReturnTypes: nil,
 }

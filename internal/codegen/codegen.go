@@ -339,14 +339,8 @@ func emitLen(arg ir.MetaExpr) {
 		emitPopString()
 		printf("  pushq %%rcx # len\n")
 	case types.T_MAP:
-		args := []*ir.MetaArg{
-			// len
-			&ir.MetaArg{
-				Meta:      arg,
-				ParamType: sema.GetTypeOfExpr(arg),
-			},
-		}
-		emitCallDirect("runtime.lenMap", args, []*types.Type{types.Int})
+		sig := sema.NewLenMapSignature(arg)
+		emitCallDirect("runtime.lenMap", []ir.MetaExpr{arg}, sig)
 
 	default:
 		unexpectedKind(sema.Kind(sema.GetTypeOfExpr(arg)))
@@ -433,8 +427,8 @@ func emitFalse() {
 	printf("  pushq $0 # false\n")
 }
 
-func emitCallDirect(symbol string, args []*ir.MetaArg, returnTypes []*types.Type) {
-	emitCall(sema.NewFuncValueFromSymbol(symbol), args, returnTypes)
+func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
+	emitCall(sema.NewFuncValueFromSymbol(symbol), args, sig.ParamTypes, sig.ReturnTypes)
 }
 
 // ABI of stack layout in function call
@@ -471,27 +465,21 @@ func emitCallDirect(symbol string, args []*ir.MetaArg, returnTypes []*types.Type
 //	slc.cap
 //	r
 //	--
-func emitCall(fv *ir.FuncValue, args []*ir.MetaArg, returnTypes []*types.Type) {
+func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, returnTypes []*types.Type) {
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 	var totalParamSize int
 	var offsets []int
-	for _, arg := range args {
+	for _, paramType := range paramTypes {
 		offsets = append(offsets, totalParamSize)
-		if arg.ParamType == nil {
-			panic("ParamType must not be nil")
-		}
-		totalParamSize += sema.GetSizeOfType(arg.ParamType)
+		totalParamSize += sema.GetSizeOfType(paramType)
 	}
 
 	emitAllocReturnVarsArea(getTotalSizeOfType(returnTypes))
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for i, arg := range args {
-		paramType := arg.ParamType
-		if arg.Meta == nil {
-			panic("arg.meta should not be nil")
-		}
-		emitExpr(arg.Meta)
-		mayEmitConvertTooIfc(arg.Meta, paramType)
+		paramType := paramTypes[i]
+		emitExpr(arg)
+		mayEmitConvertTooIfc(arg, paramType)
 		emitPop(sema.Kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 		printf("  pushq %%rsi # place to save\n")
@@ -588,42 +576,15 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 		// A new, empty map value is made using the built-in function make,
 		// which takes the map type and an optional capacity hint as arguments:
 		length := sema.NewNumberLiteral(0)
-		args := []*ir.MetaArg{
-			&ir.MetaArg{
-				Meta:      length,
-				ParamType: types.Uintptr,
-			},
-			&ir.MetaArg{
-				Meta:      valueSize,
-				ParamType: types.Uintptr,
-			},
-		}
-		emitCallDirect("runtime.makeMap", args, []*types.Type{types.Uintptr})
+		emitCallDirect("runtime.makeMap", []ir.MetaExpr{length, valueSize}, ir.RuntimeMakeMapSignature)
 		return
 	case types.T_SLICE:
 		// make([]T, ...)
 		elmType := sema.GetElementTypeOfCollectionType(typeArg)
 		elmSize := sema.GetSizeOfType(elmType)
 		numlit := sema.NewNumberLiteral(elmSize)
-		args := []*ir.MetaArg{
-			// elmSize
-			&ir.MetaArg{
-				Meta:      numlit,
-				ParamType: types.Int,
-			},
-			// len
-			&ir.MetaArg{
-				Meta:      m.Arg1,
-				ParamType: types.Int,
-			},
-			// cap
-			&ir.MetaArg{
-				Meta:      m.Arg2,
-				ParamType: types.Int,
-			},
-		}
-
-		emitCallDirect("runtime.makeSlice", args, []*types.Type{sema.GeneralSliceType})
+		args := []ir.MetaExpr{numlit, m.Arg1, m.Arg2}
+		emitCallDirect("runtime.makeSlice", args, ir.RuntimeMakeSliceSignature)
 		return
 	default:
 		throw(typeArg)
@@ -636,18 +597,6 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	elemArg := m.Arg1
 	elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
 	elmSize := sema.GetSizeOfType(elmType)
-	args := []*ir.MetaArg{
-		// slice
-		&ir.MetaArg{
-			Meta:      sliceArg,
-			ParamType: sema.GeneralSliceType,
-		},
-		// elm
-		&ir.MetaArg{
-			Meta:      elemArg,
-			ParamType: elmType,
-		},
-	}
 
 	var symbol string
 	switch elmSize {
@@ -662,34 +611,25 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
-	emitCallDirect(symbol, args, []*types.Type{sema.GeneralSliceType})
+	args := []ir.MetaExpr{sliceArg, elemArg}
+	sig := sema.NewAppendSignature(elmType)
+	emitCallDirect(symbol, args, sig)
 	return
 
 }
 
 func emitMetaCallPanic(m *ir.MetaCallPanic) {
 	funcVal := "runtime.panic"
-	_args := []*ir.MetaArg{&ir.MetaArg{
-		Meta:      m.Arg0,
-		ParamType: types.Eface,
-	}}
-	emitCallDirect(funcVal, _args, nil)
+	args := []ir.MetaExpr{m.Arg0}
+	emitCallDirect(funcVal, args, ir.BuiltinPanicSignature)
 	return
 }
 
 func emitMetaCallDelete(m *ir.MetaCallDelete) {
 	funcVal := "runtime.deleteMap"
-	_args := []*ir.MetaArg{
-		&ir.MetaArg{
-			Meta:      m.Arg0,
-			ParamType: sema.GetTypeOfExpr(m.Arg0),
-		},
-		&ir.MetaArg{
-			Meta:      m.Arg1,
-			ParamType: types.Eface,
-		},
-	}
-	emitCallDirect(funcVal, _args, nil)
+	args := []ir.MetaExpr{m.Arg0, m.Arg1}
+	sig := sema.NewDeleteSignature(m.Arg0)
+	emitCallDirect(funcVal, args, sig)
 	return
 
 }
@@ -1020,17 +960,8 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 	mp := m.X
 	key := m.Index
 
-	args := []*ir.MetaArg{
-		&ir.MetaArg{
-			Meta:      mp,
-			ParamType: types.Uintptr,
-		},
-		&ir.MetaArg{
-			Meta:      key,
-			ParamType: types.Eface,
-		},
-	}
-	emitCallDirect("runtime.getAddrForMapGet", args, []*types.Type{types.Bool, types.Uintptr})
+	args := []ir.MetaExpr{mp, key}
+	emitCallDirect("runtime.getAddrForMapGet", args, ir.RuntimeGetAddrForMapGetSignature)
 	// return values = [ptr, bool(stack top)]
 	emitPopBool("map get:  ok value")
 	printf("  cmpq $1, %%rax\n")
@@ -1125,7 +1056,7 @@ func emitExpr(meta ir.MetaExpr) {
 	case *ir.MetaConversionExpr:
 		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:
-		emitCall(m.FuncVal, m.MetaArgs, m.Types) // can be Tuple
+		emitCall(m.FuncVal, m.Args, m.ParamTypes, m.Types) // can be Tuple
 	case *ir.MetaIndexExpr:
 		emitIndexExpr(m) // can be Tuple
 	case *ir.MetaSliceExpr:
@@ -1250,20 +1181,8 @@ func emitAddrForMapSet(indexExpr *ir.MetaIndexExpr) {
 	// alloc heap for map value
 	//size := GetSizeOfType(elmType)
 	emitComment(2, "[emitAddrForMapSet]\n")
-	mp := indexExpr.X
-	key := indexExpr.Index
-
-	args := []*ir.MetaArg{
-		&ir.MetaArg{
-			Meta:      mp,
-			ParamType: types.Uintptr,
-		},
-		&ir.MetaArg{
-			Meta:      key,
-			ParamType: types.Eface,
-		},
-	}
-	emitCallDirect("runtime.getAddrForMapSet", args, []*types.Type{types.Uintptr})
+	args := []ir.MetaExpr{indexExpr.X, indexExpr.Index}
+	emitCallDirect("runtime.getAddrForMapSet", args, ir.RuntimeGetAddrForMapSetSignature)
 }
 
 func emitListElementAddr(list ir.MetaExpr, elmType *types.Type) {
@@ -1277,31 +1196,13 @@ func emitListElementAddr(list ir.MetaExpr, elmType *types.Type) {
 }
 
 func emitCatStrings(left ir.MetaExpr, right ir.MetaExpr) {
-	args := []*ir.MetaArg{
-		&ir.MetaArg{
-			Meta:      left,
-			ParamType: types.String,
-		},
-		&ir.MetaArg{
-			Meta:      right,
-			ParamType: types.String,
-		},
-	}
-	emitCallDirect("runtime.catstrings", args, []*types.Type{types.String})
+	args := []ir.MetaExpr{left, right}
+	emitCallDirect("runtime.catstrings", args, ir.RuntimeCatStringsSignature)
 }
 
 func emitCompStrings(left ir.MetaExpr, right ir.MetaExpr) {
-	args := []*ir.MetaArg{
-		&ir.MetaArg{
-			Meta:      left,
-			ParamType: types.String,
-		},
-		&ir.MetaArg{
-			Meta:      right,
-			ParamType: types.String,
-		},
-	}
-	emitCallDirect("runtime.cmpstrings", args, []*types.Type{types.Bool})
+	args := []ir.MetaExpr{left, right}
+	emitCallDirect("runtime.cmpstrings", args, ir.RuntimeCmpStringFuncSignature)
 }
 
 func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {

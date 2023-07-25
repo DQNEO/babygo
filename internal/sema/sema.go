@@ -68,16 +68,21 @@ func isType(expr ast.Expr) bool {
 	return false
 }
 
-type AstArg struct {
+type astArgAndParam struct {
 	e         ast.Expr
 	paramType *types.Type // expected type
 }
 
-func prepareArgs(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool) []*ir.MetaArg {
+type argAndParamType struct {
+	Meta      ir.MetaExpr
+	ParamType *types.Type // expected type
+}
+
+func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool) []*argAndParamType {
 	if funcType == nil {
 		panic("no funcType")
 	}
-	var args []*AstArg
+	var args []*astArgAndParam
 	params := funcType.Params.List
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
 	var variadicElmType ast.Expr
@@ -100,7 +105,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr,
 		}
 
 		paramType := E2T(param.Type)
-		arg := &AstArg{
+		arg := &astArgAndParam{
 			e:         eArg,
 			paramType: paramType,
 		}
@@ -119,7 +124,7 @@ func prepareArgs(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr,
 			Elts:   variadicArgs,
 			Lbrace: pos,
 		}
-		args = append(args, &AstArg{
+		args = append(args, &astArgAndParam{
 			e:         vargsSliceWrapper,
 			paramType: E2T(sliceType),
 		})
@@ -134,17 +139,17 @@ func prepareArgs(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr,
 			NamePos: param.Pos(),
 		}
 		//		exprTypeMeta[unsafe.Pointer(iNil)] = E2T(elp)
-		args = append(args, &AstArg{
+		args = append(args, &astArgAndParam{
 			e:         iNil,
 			paramType: paramType,
 		})
 	}
 
-	var metaArgs []*ir.MetaArg
+	var metaArgs []*argAndParamType
 	for _, arg := range args {
 		ctx := &ir.EvalContext{Type: arg.paramType}
 		m := walkExpr(arg.e, ctx)
-		a := &ir.MetaArg{
+		a := &argAndParamType{
 			Meta:      m,
 			ParamType: arg.paramType,
 		}
@@ -156,8 +161,8 @@ func prepareArgs(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr,
 		if paramType == nil {
 			panic("[prepaareArgs] param type must not be nil")
 		}
-		var receiverAndArgs []*ir.MetaArg = []*ir.MetaArg{
-			&ir.MetaArg{
+		var receiverAndArgs []*argAndParamType = []*argAndParamType{
+			&argAndParamType{
 				ParamType: paramType,
 				Meta:      receiver,
 			},
@@ -341,7 +346,7 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 	if t == nil {
 		panic("nil type is not expected")
 	}
-	if t == GeneralSliceType {
+	if t == types.GeneralSliceType {
 		return t
 	}
 
@@ -391,7 +396,7 @@ func Kind(t *types.Type) types.TypeKind {
 	}
 
 	ut := GetUnderlyingType(t)
-	if ut == GeneralSliceType {
+	if ut == types.GeneralSliceType {
 		return types.T_SLICE
 	}
 
@@ -1623,7 +1628,16 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		meta.Type = meta.Types[0]
 	}
 	meta.FuncVal = funcVal
-	meta.MetaArgs = prepareArgs(funcType, receiverMeta, e.Args, meta.HasEllipsis)
+	argsAndParams := prepareArgsAndParams(funcType, receiverMeta, e.Args, meta.HasEllipsis)
+	var paramTypes []*types.Type
+	var args []ir.MetaExpr
+	for _, a := range argsAndParams {
+		paramTypes = append(paramTypes, a.ParamType)
+		args = append(args, a.Meta)
+	}
+
+	meta.ParamTypes = paramTypes
+	meta.Args = args
 	return meta
 }
 
@@ -2424,8 +2438,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	}
 }
 
-var GeneralSliceType *types.Type = &types.Type{}
-
 const SizeOfSlice int = 24
 const SizeOfString int = 16
 const SizeOfInt int = 8
@@ -2500,7 +2512,7 @@ func SerializeType(t *types.Type) string {
 	if t == nil {
 		panic("nil type is not expected")
 	}
-	if t == GeneralSliceType {
+	if t == types.GeneralSliceType {
 		panic("TBD: GeneralSlice")
 	}
 	if t.Name != "" {
@@ -2573,4 +2585,25 @@ func SerializeType(t *types.Type) string {
 		panic(t)
 	}
 	return ""
+}
+
+func NewLenMapSignature(arg0 ir.MetaExpr) *ir.Signature {
+	return &ir.Signature{
+		ParamTypes:  []*types.Type{types.Int},
+		ReturnTypes: []*types.Type{GetTypeOfExpr(arg0)},
+	}
+}
+
+func NewAppendSignature(elmType *types.Type) *ir.Signature {
+	return &ir.Signature{
+		ParamTypes:  []*types.Type{types.GeneralSliceType, elmType},
+		ReturnTypes: []*types.Type{types.GeneralSliceType},
+	}
+}
+
+func NewDeleteSignature(arg0 ir.MetaExpr) *ir.Signature {
+	return &ir.Signature{
+		ParamTypes:  []*types.Type{GetTypeOfExpr(arg0), types.Eface},
+		ReturnTypes: nil,
+	}
 }

@@ -28,7 +28,7 @@ const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
 const T_MAP TypeKind = "T_MAP"
 
-// --- universe ---
+// --- universal types ---
 var Bool *Type = &Type{
 	E: &ast.Ident{
 		Name:    "bool",
@@ -90,3 +90,5 @@ var Eface *Type = &Type{
 		Interface: 1,
 	},
 }
+
+var GeneralSliceType *Type = &Type{}
