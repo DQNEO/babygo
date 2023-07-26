@@ -33,8 +33,8 @@ func init() {
 
 }
 
-// "some/dir" => []string{"a.go", "b.go"}
-func findFilesInDir(dir string) []string {
+// "some/dir" => "some/dir/a.go" (if abs == true)
+func findFilesInDir(dir string, abs bool) []string {
 	dirents, _ := mylib.Readdirnames(dir)
 	var r []string
 	for _, dirent := range dirents {
@@ -42,9 +42,16 @@ func findFilesInDir(dir string) []string {
 			continue
 		}
 		if strings.HasSuffix(dirent, ".go") || strings.HasSuffix(dirent, ".s") {
-			r = append(r, dirent)
+			var file string
+			if abs {
+				file = dir + "/" + dirent
+			} else {
+				file = dirent
+			}
+			r = append(r, file)
 		}
 	}
+
 	return r
 }
 
@@ -112,20 +119,25 @@ func (b *Builder) getPackageDir(importPath string) string {
 	}
 }
 
+func (b *Builder) getPackageSourceFiles(pkgPath string) []string {
+	packageDir := b.getPackageDir(pkgPath)
+	return findFilesInDir(packageDir, true)
+}
+
 func (b *Builder) collectDependency(tree DependencyTree, paths map[string]bool) {
 	for pkgPath, _ := range paths {
 		if pkgPath == "unsafe" || pkgPath == "runtime" {
 			continue
 		}
-		packageDir := b.getPackageDir(pkgPath)
-		fnames := findFilesInDir(packageDir)
+
+		files := b.getPackageSourceFiles(pkgPath)
 		children := make(map[string]bool)
-		for _, fname := range fnames {
-			if !strings.HasSuffix(fname, ".go") {
+		for _, file := range files {
+			if !strings.HasSuffix(file, ".go") {
 				// skip ".s"
 				continue
 			}
-			_paths := getImportPathsFromFile(packageDir + "/" + fname)
+			_paths := getImportPathsFromFile(file)
 			for _, pth := range _paths {
 				if pth == "unsafe" || pth == "runtime" {
 					continue
@@ -173,16 +185,6 @@ func collectDirectDependents(inputFiles []string) map[string]bool {
 	return importPaths
 }
 
-func collectSourceFiles(pkgDir string) []string {
-	fnames := findFilesInDir(pkgDir)
-	var files []string
-	for _, fname := range fnames {
-		srcFile := pkgDir + "/" + fname
-		files = append(files, srcFile)
-	}
-	return files
-}
-
 func parseImports(fset *token.FileSet, filename string) *ast.File {
 	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
 	if err != nil {
@@ -211,7 +213,7 @@ func (b *Builder) Build(workdir string, args []string) {
 	paths := b.collectAllPackages(inputFiles)
 	var packagesToBuild []*PackageToBuild
 	for _, _path := range paths {
-		files := collectSourceFiles(b.getPackageDir(_path))
+		files := findFilesInDir(b.getPackageDir(_path), true)
 		packagesToBuild = append(packagesToBuild, &PackageToBuild{
 			name:  path.Base(_path),
 			path:  _path,
