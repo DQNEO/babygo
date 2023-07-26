@@ -1,3 +1,6 @@
+expected error.
+OK
+OK
 OK
 object addresses match
 testDereference=uint8

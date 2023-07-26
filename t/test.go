@@ -17,6 +17,42 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testOSReturnError() {
+	f, err := os.Open("/no/exist/file")
+	if err == nil {
+		writeln("Unexpected ERROR")
+	}
+
+	writeln("expected error.")
+	perr, ok := err.(*os.PathError)
+	if !ok {
+		writeln("Not expected type")
+	}
+	errMsg := perr.Error()
+	if errMsg == "open /no/exist/file: no such file or directory" {
+		writeln("OK")
+	} else {
+		writeln("NG")
+	}
+
+	f, err = os.Create("/no/exist/file")
+	if err == nil {
+		writeln("Unexpected ERROR")
+	}
+	perr, ok = err.(*os.PathError)
+	if !ok {
+		writeln("Not expected type")
+	}
+	errMsg = perr.Error()
+	if errMsg == "open /no/exist/file: no such file or directory" {
+		writeln("OK")
+	} else {
+		writeln("Unexpected error message:" + errMsg)
+	}
+
+	_ = f
+}
+
 func testForeignConst() {
 	foreignStr := mylib.Msg
 	if foreignStr == "I am mylib" {
@@ -2405,6 +2441,7 @@ func testMisc() {
 }
 
 func main() {
+	testOSReturnError()
 	testForeignConst()
 	testForeignVar()
 	testDereference()

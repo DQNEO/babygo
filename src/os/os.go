@@ -29,11 +29,20 @@ const O_CREATE int = 64       // 0x40
 const O_TRUNC int = 512       // 0x200
 const O_CLOSEXEC int = 524288 // 0x80000
 
+type PathError struct {
+	Err string
+}
+
+func (e *PathError) Error() string {
+	return e.Err
+}
+
 func Open(name string) (*File, error) {
 	var fd int
 	fd, _ = syscall.Open(name, O_READONLY, 438)
 	if fd < 0 {
-		panic("unable to create file " + name)
+		e := &PathError{Err: "open " + name + ": no such file or directory"}
+		return nil, e
 	}
 
 	f := new(File)
@@ -45,7 +54,8 @@ func Create(name string) (*File, error) {
 	var fd int
 	fd, _ = syscall.Open(name, O_RDWR|O_CREATE|O_TRUNC|O_CLOSEXEC, 438)
 	if fd < 0 {
-		panic("unable to create file " + name)
+		e := &PathError{Err: "open " + name + ": no such file or directory"}
+		return nil, e
 	}
 
 	f := new(File)
@@ -96,7 +106,8 @@ func (f *File) Readdirnames(n int) ([]string, error) {
 	for {
 		nread, _ := syscall.Getdents(int(fd), buf)
 		if nread == -1 {
-			panic("getdents failed")
+			e := &PathError{Err: "Getdents failed"}
+			return nil, e
 		}
 		if nread == 0 {
 			break
@@ -122,25 +133,33 @@ func (f *File) Readdirnames(n int) ([]string, error) {
 }
 
 func (f *File) Close() error {
-	err := syscall.Close(f.fd)
-	return err
+	syscall.Close(f.fd) // @TODO return error
+	return nil
 }
 
 func (f *File) Write(p []byte) (int, error) {
-	syscall.Write(f.fd, p)
+	n, _ := syscall.Write(f.fd, p)
+	if n < 0 {
+		e := &PathError{Err: "Write failed"} // @TODO use appropriate error type
+		return 0, e
+	}
 	return 0, nil
 }
 
 func ReadFile(filename string) ([]uint8, error) {
-	// @TODO check error
 	var fd int
 	fd, _ = syscall.Open(filename, O_READONLY, 0)
 	if fd < 0 {
-		panic("syscall.Open failed: " + filename)
+		e := &PathError{Err: "open " + filename + ": no such file or directory"}
+		return nil, e
 	}
 	var buf = make([]uint8, FILE_SIZE, FILE_SIZE)
 	var n int
 	n, _ = syscall.Read(fd, buf)
+	if n < 0 {
+		e := &PathError{Err: "Read failed"} // @TODO use appropriate error type
+		return nil, e
+	}
 	syscall.Close(fd)
 	var readbytes = buf[0:n]
 	return readbytes, nil
