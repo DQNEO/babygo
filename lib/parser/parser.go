@@ -75,7 +75,7 @@ func (p *parser) next() {
 
 func (p *parser) expect(tok string, who string) {
 	if p.tok != tok {
-		var s = fmt.Sprintf("%s expected, but got %s", tok, p.tok)
+		var s = fmt.Sprintf("%s %s expected, but got %s", p.fset.Position(p.pos).String(), tok, p.tok)
 		panic2(who, s)
 	}
 	p.next()
