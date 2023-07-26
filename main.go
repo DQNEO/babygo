@@ -29,13 +29,14 @@ func main() {
 		return
 	}
 
-	if os.Args[1] == "version" {
+	switch os.Args[1] {
+	case "version":
 		showVersion()
 		return
-	} else if os.Args[1] == "help" {
+	case "help":
 		showHelp()
 		return
-	} else if os.Args[1] == "panic" {
+	case "panic": // What's this for ?? I can't remember ...
 		panicVersion := strconv.Itoa(mylib.Sum(1, 1))
 		panic("I am panic version " + panicVersion)
 	}
