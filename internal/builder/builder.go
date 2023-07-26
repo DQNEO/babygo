@@ -131,29 +131,23 @@ func (b *Builder) collectDependency(tree DependencyTree, paths map[string]bool) 
 		}
 
 		files := b.getPackageSourceFiles(pkgPath)
-		children := make(map[string]bool)
+		var gofiles []string
 		for _, file := range files {
-			if !strings.HasSuffix(file, ".go") {
-				// skip ".s"
-				continue
-			}
-			_paths := getImportPathsFromFile(file)
-			for _, pth := range _paths {
-				if pth == "unsafe" || pth == "runtime" {
-					continue
-				}
-				children[pth] = true
+			if strings.HasSuffix(file, ".go") {
+				gofiles = append(gofiles, file)
 			}
 		}
-		tree[pkgPath] = children
-		b.collectDependency(tree, children)
+
+		imports := collectImportsFromFiles(gofiles)
+		tree[pkgPath] = imports
+		b.collectDependency(tree, imports)
 	}
 }
 
-func (b *Builder) collectAllPackages(inputFiles []string) []string {
-	directChildren := collectDirectDependents(inputFiles)
+func (b *Builder) collectAllPackages(mainFiles []string) []string {
+	imports := collectImportsFromFiles(mainFiles)
 	tree := make(DependencyTree)
-	b.collectDependency(tree, directChildren)
+	b.collectDependency(tree, imports)
 	sortedPaths := sortTopologically(tree)
 
 	// sort packages by this order
@@ -174,15 +168,18 @@ func (b *Builder) collectAllPackages(inputFiles []string) []string {
 	return paths
 }
 
-func collectDirectDependents(inputFiles []string) map[string]bool {
-	importPaths := make(map[string]bool)
-	for _, inputFile := range inputFiles {
-		paths := getImportPathsFromFile(inputFile)
-		for _, pth := range paths {
-			importPaths[pth] = true
+func collectImportsFromFiles(gofiles []string) map[string]bool {
+	imports := make(map[string]bool)
+	for _, gofile := range gofiles {
+		pths := getImportPathsFromFile(gofile)
+		for _, pth := range pths {
+			if pth == "unsafe" || pth == "runtime" {
+				continue
+			}
+			imports[pth] = true
 		}
 	}
-	return importPaths
+	return imports
 }
 
 func parseImports(fset *token.FileSet, filename string) *ast.File {
