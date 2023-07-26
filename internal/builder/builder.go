@@ -235,14 +235,8 @@ func (b *Builder) Build(workdir string, args []string) {
 		if _pkg.name == "" {
 			panic("empty pkg name")
 		}
-		var asmBasename []byte
-		for _, ch := range []byte(_pkg.path) {
-			if ch == '/' {
-				ch = '.'
-			}
-			asmBasename = append(asmBasename, ch)
-		}
-		outFilePath := fmt.Sprintf("%s/%s", workdir, string(asmBasename)+".s")
+		basename := strReplace(_pkg.path, '/', '.')
+		outFilePath := fmt.Sprintf("%s/%s", workdir, basename+".s")
 		var gofiles []string
 		var asmfiles []string
 		for _, f := range _pkg.files {
@@ -282,4 +276,16 @@ func (b *Builder) Build(workdir string, args []string) {
 	}
 	fmt.Fprintf(outAsmFile, "  ret\n")
 	outAsmFile.Close()
+}
+
+// replace a by b in s
+func strReplace(s string, a byte, b byte) string {
+	var r []byte
+	for _, ch := range []byte(s) {
+		if ch == '/' {
+			ch = '.'
+		}
+		r = append(r, ch)
+	}
+	return string(r)
 }
