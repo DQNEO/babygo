@@ -38,9 +38,6 @@ func findFilesInDir(dir string, abs bool) []string {
 	dirents, _ := mylib.Readdirnames(dir)
 	var r []string
 	for _, dirent := range dirents {
-		if dirent == "_.s" {
-			continue
-		}
 		if strings.HasSuffix(dirent, ".go") || strings.HasSuffix(dirent, ".s") {
 			var file string
 			if abs {
