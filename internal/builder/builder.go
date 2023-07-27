@@ -141,7 +141,7 @@ func (b *Builder) collectDependency(tree DependencyTree, paths map[string]bool) 
 
 		imports := collectImportsFromFiles(gofiles)
 		tree[pkgPath] = imports
-		permanentTree[pkgPath] = mapToSlice(imports)
+		b.permanentTree[pkgPath] = mapToSlice(imports)
 
 		b.collectDependency(tree, imports)
 	}
@@ -154,8 +154,6 @@ func mapToSlice(imports map[string]bool) []string {
 	}
 	return list
 }
-
-var permanentTree = make(map[string][]string) // {"mylib":[]stirng{"fmt", "os"},..}
 
 func collectImportsFromFiles(gofiles []string) map[string]bool {
 	imports := make(map[string]bool)
@@ -180,10 +178,13 @@ type Builder struct {
 	SrcPath        string // user-land packages
 	BbgRootSrcPath string // std packages
 	filesCache     map[string][]string
+	permanentTree  map[string][]string
 }
 
 func (b *Builder) Build(workdir string, args []string) {
 	b.filesCache = make(map[string][]string)
+	b.permanentTree = make(map[string][]string)
+
 	var mainFiles []string
 	for _, arg := range args {
 		switch arg {
@@ -195,7 +196,7 @@ func (b *Builder) Build(workdir string, args []string) {
 	}
 
 	imports := collectImportsFromFiles(mainFiles)
-	permanentTree["main"] = mapToSlice(imports)
+	b.permanentTree["main"] = mapToSlice(imports)
 	imports["runtime"] = true
 	tree := make(DependencyTree)
 	b.collectDependency(tree, imports)
@@ -223,7 +224,7 @@ func (b *Builder) Build(workdir string, args []string) {
 			name:    path.Base(_path),
 			path:    _path,
 			files:   files,
-			imports: permanentTree[_path],
+			imports: b.permanentTree[_path],
 		})
 	}
 
@@ -231,7 +232,7 @@ func (b *Builder) Build(workdir string, args []string) {
 		name:    "main",
 		path:    "main",
 		files:   mainFiles,
-		imports: permanentTree["main"],
+		imports: b.permanentTree["main"],
 	})
 
 	var uni = universe.CreateUniverse()
