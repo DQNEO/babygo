@@ -2195,6 +2195,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	pkg.StringLiterals = nil
 	CurrentPkg = pkg
 	var hasInitFunc bool
+	var funcs []*ir.Func
 	var consts []*ir.PackageVarConst
 	var vars []*ir.PackageVarConst
 
@@ -2364,7 +2365,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
-	var funcs []*ir.Func
 	//logf("walking funcDecls in detail ...\n")
 	for _, funcDecl := range funcDecls {
 		//logf("[walk] (package:%s) (pos:%d) (%s) walking funcDecl \"%s\" \n",
@@ -2377,6 +2377,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			Argsarea:  16, // return address + previous rbp
 		}
 		currentFunc = fnc
+		funcs = append(funcs, fnc)
 
 		var paramFields []*ast.Field
 		var resultFields []*ast.Field
@@ -2409,6 +2410,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		}
 
 		if funcDecl.Body != nil {
+			fnc.HasBody = true
 			var ms []ir.MetaStmt
 			for _, stmt := range funcDecl.Body.List {
 				m := walkStmt(stmt)
@@ -2419,7 +2421,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			if funcDecl.Recv != nil { // is Method
 				fnc.Method = newMethod(pkg.Name, funcDecl)
 			}
-			funcs = append(funcs, fnc)
 		}
 		currentFunc = nil
 	}

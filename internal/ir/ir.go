@@ -332,6 +332,7 @@ type ForeignFunc struct {
 
 type Func struct {
 	Name      string
+	HasBody   bool
 	Stmts     []MetaStmt
 	Localarea int
 	Argsarea  int

@@ -2083,7 +2083,9 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	printf("  ret\n")
 
 	for _, fnc := range pkg.Funcs {
-		emitFuncDecl(pkg.Name, fnc)
+		if fnc.HasBody { // if not hasBody, func decl should be in asm code.
+			emitFuncDecl(pkg.Name, fnc)
+		}
 	}
 
 	emitDynamicTypes(TypesMap)
