@@ -246,14 +246,14 @@ func (b *Builder) Build(workdir string, args []string) {
 	}
 
 	outFilePath := fmt.Sprintf("%s/%s", workdir, "__INIT__.s")
-	outAsmFile, err := os.Create(outFilePath)
+	initAsm, err := os.Create(outFilePath)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Fprintf(outAsmFile, ".text\n")
-	fmt.Fprintf(outAsmFile, "# Initializes all packages except for runtime\n")
-	fmt.Fprintf(outAsmFile, ".global __INIT__.init\n")
-	fmt.Fprintf(outAsmFile, "__INIT__.init:\n")
+	fmt.Fprintf(initAsm, ".text\n")
+	fmt.Fprintf(initAsm, "# Initializes all packages except for runtime\n")
+	fmt.Fprintf(initAsm, ".global __INIT__.init\n")
+	fmt.Fprintf(initAsm, "__INIT__.init:\n")
 	for _, _pkg := range builtPackages {
 		// A package with no imports is initialized by assigning initial values to all its package-level variables
 		//  followed by calling all init functions in the order they appear in the source
@@ -263,13 +263,13 @@ func (b *Builder) Build(workdir string, args []string) {
 			continue
 		}
 
-		fmt.Fprintf(outAsmFile, "  callq %s.__initVars \n", _pkg.Name)
+		fmt.Fprintf(initAsm, "  callq %s.__initVars \n", _pkg.Name)
 		if _pkg.HasInitFunc {
-			fmt.Fprintf(outAsmFile, "  callq %s.init \n", _pkg.Name)
+			fmt.Fprintf(initAsm, "  callq %s.init \n", _pkg.Name)
 		}
 	}
-	fmt.Fprintf(outAsmFile, "  ret\n")
-	outAsmFile.Close()
+	fmt.Fprintf(initAsm, "  ret\n")
+	initAsm.Close()
 }
 
 // replace a by b in s
