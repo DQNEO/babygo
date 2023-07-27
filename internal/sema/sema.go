@@ -53,7 +53,7 @@ func isType(expr ast.Expr) bool {
 	case *ast.SelectorExpr:
 		if isQI(e) {
 			qi := Selector2QI(e)
-			ident := LookupForeignIdent(qi)
+			ident := LookupForeignIdent(qi, e.Pos())
 			if ident.Obj.Kind == ast.Typ {
 				return true
 			}
@@ -136,7 +136,7 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 		iNil := &ast.Ident{
 			Obj:     universe.Nil,
 			Name:    "nil",
-			NamePos: param.Pos(),
+			NamePos: funcType.Pos(),
 		}
 		//		exprTypeMeta[unsafe.Pointer(iNil)] = E2T(elp)
 		args = append(args, &astArgAndParam{
@@ -379,7 +379,7 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 		// get RHS in its type definition recursively
 		return GetUnderlyingType(t)
 	case *ast.SelectorExpr:
-		ident := LookupForeignIdent(Selector2QI(e))
+		ident := LookupForeignIdent(Selector2QI(e), e.Pos())
 		return GetUnderlyingType(E2T(ident))
 	case *ast.ParenExpr:
 		return GetUnderlyingType(E2T(e.X))
@@ -628,7 +628,7 @@ func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 	case *ast.Ident:
 		typeObj = typ.Obj
 	case *ast.SelectorExpr:
-		t := LookupForeignIdent(Selector2QI(typ))
+		t := LookupForeignIdent(Selector2QI(typ), methodName.Pos())
 		typeObj = t.Obj
 	default:
 		panic(rcvType)
@@ -636,11 +636,11 @@ func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 
 	namedType, ok := MethodSets[unsafe.Pointer(typeObj)]
 	if !ok {
-		panic(typeObj.Name + " has no methodSet")
+		panicPos(typeObj.Name+" has no methodSet", methodName.Pos())
 	}
 	method, ok := namedType.MethodSet[methodName.Name]
 	if !ok {
-		panic("method not found: " + methodName.Name)
+		panicPos("method not found: "+methodName.Name, methodName.Pos())
 	}
 	return method
 }
@@ -1301,7 +1301,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		// pkg.ident
 		qi := Selector2QI(e)
 		meta.QI = qi
-		fident := LookupForeignIdent(qi)
+		fident := LookupForeignIdent(qi, e.Pos())
 		switch fident.Obj.Kind {
 		case ast.Var:
 			foreignMeta := WalkIdent(fident, nil)
@@ -2144,16 +2144,16 @@ func Pos(node interface{}) token.Pos {
 
 var ExportedQualifiedIdents = make(map[string]*ast.Ident)
 
-func LookupForeignIdent(qi ir.QualifiedIdent) *ast.Ident {
+func LookupForeignIdent(qi ir.QualifiedIdent, pos token.Pos) *ast.Ident {
 	ident, ok := ExportedQualifiedIdents[string(qi)]
 	if !ok {
-		panic(qi + " Not found in ExportedQualifiedIdents")
+		panicPos(string(qi)+" Not found in ExportedQualifiedIdents", pos)
 	}
 	return ident
 }
 
 func LookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
-	ident := LookupForeignIdent(qi)
+	ident := LookupForeignIdent(qi, 1)
 	return newForeignFunc(ident, qi)
 }
 
