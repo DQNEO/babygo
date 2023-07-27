@@ -247,6 +247,7 @@ func (b *Builder) Build(workdir string, args []string) {
 		builtPackages = append(builtPackages, apkg)
 	}
 
+	// Write to init asm
 	outFilePath := fmt.Sprintf("%s/%s", workdir, "__INIT__.s")
 	initAsm, err := os.Create(outFilePath)
 	if err != nil {
@@ -266,7 +267,7 @@ func (b *Builder) Build(workdir string, args []string) {
 		}
 
 		fmt.Fprintf(initAsm, "  callq %s.__initVars \n", _pkg.Name)
-		if _pkg.HasInitFunc {
+		if _pkg.HasInitFunc { // @TODO: eliminate this flag. We should always call this
 			fmt.Fprintf(initAsm, "  callq %s.init \n", _pkg.Name)
 		}
 	}
