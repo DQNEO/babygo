@@ -231,8 +231,6 @@ func (b *Builder) Build(workdir string, args []string) {
 		if _pkg.name == "" {
 			panic("empty pkg name")
 		}
-		basename := strReplace(_pkg.path, '/', '.')
-		outFilePath := fmt.Sprintf("%s/%s", workdir, basename+".s")
 		var gofiles []string
 		var asmfiles []string
 		for _, f := range _pkg.files {
@@ -243,7 +241,10 @@ func (b *Builder) Build(workdir string, args []string) {
 			}
 
 		}
-		apkg := compiler.Compile(uni, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outFilePath)
+
+		basename := strReplace(_pkg.path, '/', '.')
+		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
+		apkg := compiler.Compile(uni, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outAsmPath)
 		builtPackages = append(builtPackages, apkg)
 	}
 
