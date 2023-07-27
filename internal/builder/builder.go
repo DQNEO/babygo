@@ -211,28 +211,13 @@ func (b *Builder) Build(workdir string, args []string) {
 	tree := make(DependencyTree)
 	b.collectDependency(tree, imports)
 	sortedPaths := sortTopologically(tree)
-
-	// sort packages by this order
-	// 1: stdlib
-	// 2: external
-	var paths []string
-	for _, pth := range sortedPaths {
-		if isStdLib(pth) {
-			paths = append(paths, pth)
-		}
-	}
-	for _, pth := range sortedPaths {
-		if !isStdLib(pth) {
-			paths = append(paths, pth)
-		}
-	}
-	paths = append(paths, "main")
+	sortedPaths = append(sortedPaths, "main")
 
 	var uni = universe.CreateUniverse()
 	sema.Fset = token.NewFileSet()
 
 	var builtPackages []*ir.AnalyzedPackage
-	for _, path := range paths {
+	for _, path := range sortedPaths {
 		pkg := b.permanentTree[path]
 		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pkg.Path, pkg.Name)
 		basename := normalizeImportPath(pkg.Path)
