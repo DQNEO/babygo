@@ -117,7 +117,7 @@ var Envs []*envEntry
 
 func heapInit() {
 	heapHead = brk(0)
-	heapTail = brk(heapHead + heapSize*2)
+	heapTail = brk(heapHead + heapSize*16)
 	if heapHead%8 == 0 {
 		heapCurrent = heapHead
 	} else {
