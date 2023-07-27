@@ -126,7 +126,12 @@ func (b *Builder) getPackageSourceFiles(pkgPath string) []string {
 
 func (b *Builder) collectDependency(tree DependencyTree, paths map[string]bool) {
 	for pkgPath, _ := range paths {
+		_, ok := b.filesCache[pkgPath]
+		if ok {
+			continue
+		}
 		files := b.getPackageSourceFiles(pkgPath)
+		b.filesCache[pkgPath] = files
 		var gofiles []string
 		for _, file := range files {
 			if strings.HasSuffix(file, ".go") {
@@ -174,9 +179,11 @@ func parseImports(fset *token.FileSet, filename string) *ast.File {
 type Builder struct {
 	SrcPath        string // user-land packages
 	BbgRootSrcPath string // std packages
+	filesCache     map[string][]string
 }
 
 func (b *Builder) Build(workdir string, args []string) {
+	b.filesCache = make(map[string][]string)
 	var mainFiles []string
 	for _, arg := range args {
 		switch arg {
@@ -189,7 +196,7 @@ func (b *Builder) Build(workdir string, args []string) {
 
 	imports := collectImportsFromFiles(mainFiles)
 	permanentTree["main"] = mapToSlice(imports)
-	permanentTree["runtime"] = []string{"unsafe"}
+	imports["runtime"] = true
 	tree := make(DependencyTree)
 	b.collectDependency(tree, imports)
 	sortedPaths := sortTopologically(tree)
@@ -211,8 +218,7 @@ func (b *Builder) Build(workdir string, args []string) {
 
 	var packagesToBuild []*PackageToBuild
 	for _, _path := range paths {
-		files := findFilesInDir(b.getPackageDir(_path), true)
-
+		files := b.filesCache[_path]
 		packagesToBuild = append(packagesToBuild, &PackageToBuild{
 			name:    path.Base(_path),
 			path:    _path,
