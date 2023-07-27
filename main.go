@@ -28,7 +28,8 @@ func main() {
 		showHelp()
 		return
 	}
-
+	var mode string
+	var args []string
 	switch os.Args[1] {
 	case "version":
 		showVersion()
@@ -36,9 +37,15 @@ func main() {
 	case "help":
 		showHelp()
 		return
+	case "compile":
+		mode = "single"
+		args = os.Args[2:]
 	case "panic": // What's this for ?? I can't remember ...
 		panicVersion := strconv.Itoa(mylib.Sum(1, 1))
 		panic("I am panic version " + panicVersion)
+	default:
+		mode = "build"
+		args = os.Args[1:]
 	}
 
 	workdir := os.Getenv("WORKDIR")
@@ -52,5 +59,10 @@ func main() {
 		SrcPath:        srcPath,
 		BbgRootSrcPath: bbgRootSrcPath,
 	}
-	b.Build(workdir, os.Args[1:])
+	switch mode {
+	case "single":
+		b.Compile(workdir, args)
+	case "build":
+		b.Build(workdir, args)
+	}
 }

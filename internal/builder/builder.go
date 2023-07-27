@@ -255,6 +255,31 @@ func (b *Builder) Build(workdir string, args []string) {
 	initAsm.Close()
 }
 
+func (b *Builder) Compile(workdir string, args []string) {
+	pkgPath := args[0]
+	fmt.Fprintf(os.Stderr, "Compiling  %s ...\n", pkgPath)
+	files := b.getPackageSourceFiles(pkgPath)
+	for _, file := range files {
+		fmt.Fprintf(os.Stderr, "  %s\n", file)
+	}
+	var gofiles []string
+	var asmfiles []string
+	for _, file := range files {
+		if strings.HasSuffix(file, ".go") {
+			gofiles = append(gofiles, file)
+		} else if strings.HasSuffix(file, ".s") {
+			asmfiles = append(asmfiles, file)
+		}
+	}
+
+	imports := collectImportsFromFiles(gofiles)
+	importsList := mapToSlice(imports)
+	for _, imprt := range importsList {
+		fmt.Fprintf(os.Stderr, "  import %s\n", imprt)
+	}
+
+}
+
 func normalizeImportPath(importPath string) string {
 	return strReplace(importPath, '/', '.')
 }
