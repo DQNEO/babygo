@@ -19,9 +19,10 @@ import (
 )
 
 type PackageToBuild struct {
-	path  string
-	name  string
-	files []string
+	path    string
+	name    string
+	files   []string
+	imports []string
 }
 
 func init() {
@@ -89,7 +90,9 @@ func getKeys(tree DependencyTree) []string {
 // Do topological sort
 // In the result list, the independent (lowest level) packages come first.
 func sortTopologically(tree DependencyTree) []string {
-	var sorted []string
+	var sorted []string = []string{"unsafe", "runtime"}
+	removeNode(tree, "unsafe")
+	removeNode(tree, "runtime")
 	for len(tree) > 0 {
 		keys := getKeys(tree)
 		mylib.SortStrings(keys)
@@ -123,10 +126,6 @@ func (b *Builder) getPackageSourceFiles(pkgPath string) []string {
 
 func (b *Builder) collectDependency(tree DependencyTree, paths map[string]bool) {
 	for pkgPath, _ := range paths {
-		if pkgPath == "unsafe" || pkgPath == "runtime" {
-			continue
-		}
-
 		files := b.getPackageSourceFiles(pkgPath)
 		var gofiles []string
 		for _, file := range files {
@@ -137,42 +136,27 @@ func (b *Builder) collectDependency(tree DependencyTree, paths map[string]bool) 
 
 		imports := collectImportsFromFiles(gofiles)
 		tree[pkgPath] = imports
+		permanentTree[pkgPath] = mapToSlice(imports)
+
 		b.collectDependency(tree, imports)
 	}
 }
 
-func (b *Builder) collectAllPackages(mainFiles []string) []string {
-	imports := collectImportsFromFiles(mainFiles)
-	tree := make(DependencyTree)
-	b.collectDependency(tree, imports)
-	sortedPaths := sortTopologically(tree)
-
-	// sort packages by this order
-	// 1: pseudo
-	// 2: stdlib
-	// 3: external
-	paths := []string{"unsafe", "runtime"}
-	for _, pth := range sortedPaths {
-		if isStdLib(pth) {
-			paths = append(paths, pth)
-		}
+func mapToSlice(imports map[string]bool) []string {
+	var list []string
+	for k, _ := range imports {
+		list = append(list, k)
 	}
-	for _, pth := range sortedPaths {
-		if !isStdLib(pth) {
-			paths = append(paths, pth)
-		}
-	}
-	return paths
+	return list
 }
+
+var permanentTree = make(map[string][]string) // {"mylib":[]stirng{"fmt", "os"},..}
 
 func collectImportsFromFiles(gofiles []string) map[string]bool {
 	imports := make(map[string]bool)
 	for _, gofile := range gofiles {
 		pths := getImportPathsFromFile(gofile)
 		for _, pth := range pths {
-			if pth == "unsafe" || pth == "runtime" {
-				continue
-			}
 			imports[pth] = true
 		}
 	}
@@ -196,41 +180,66 @@ var Workdir string
 
 func (b *Builder) Build(workdir string, args []string) {
 	Workdir = workdir
-	var inputFiles []string
+	var mainFiles []string
 	for _, arg := range args {
 		switch arg {
 		case "-DG":
 			codegen.DebugCodeGen = true
 		default:
-			inputFiles = append(inputFiles, arg)
+			mainFiles = append(mainFiles, arg)
 		}
 	}
 
-	var uni = universe.CreateUniverse()
-	sema.Fset = token.NewFileSet()
+	imports := collectImportsFromFiles(mainFiles)
+	permanentTree["main"] = mapToSlice(imports)
+	permanentTree["runtime"] = []string{"unsafe"}
+	tree := make(DependencyTree)
+	b.collectDependency(tree, imports)
+	sortedPaths := sortTopologically(tree)
 
-	paths := b.collectAllPackages(inputFiles)
+	// sort packages by this order
+	// 1: stdlib
+	// 2: external
+	var paths []string
+	for _, pth := range sortedPaths {
+		if isStdLib(pth) {
+			paths = append(paths, pth)
+		}
+	}
+	for _, pth := range sortedPaths {
+		if !isStdLib(pth) {
+			paths = append(paths, pth)
+		}
+	}
+
 	var packagesToBuild []*PackageToBuild
 	for _, _path := range paths {
 		files := findFilesInDir(b.getPackageDir(_path), true)
+
 		packagesToBuild = append(packagesToBuild, &PackageToBuild{
-			name:  path.Base(_path),
-			path:  _path,
-			files: files,
+			name:    path.Base(_path),
+			path:    _path,
+			files:   files,
+			imports: permanentTree[_path],
 		})
 	}
 
 	packagesToBuild = append(packagesToBuild, &PackageToBuild{
-		name:  "main",
-		path:  "main",
-		files: inputFiles,
+		name:    "main",
+		path:    "main",
+		files:   mainFiles,
+		imports: permanentTree["main"],
 	})
+
+	var uni = universe.CreateUniverse()
+	sema.Fset = token.NewFileSet()
 
 	var builtPackages []*ir.AnalyzedPackage
 	for _, _pkg := range packagesToBuild {
 		if _pkg.name == "" {
 			panic("empty pkg name")
 		}
+		fmt.Fprintf(os.Stderr, "Building  %s %s\n", _pkg.path, _pkg.name)
 		var gofiles []string
 		var asmfiles []string
 		for _, f := range _pkg.files {
@@ -243,7 +252,8 @@ func (b *Builder) Build(workdir string, args []string) {
 		}
 		basename := normalizeImportPath(_pkg.path)
 		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
-		apkg := compiler.Compile(uni, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outAsmPath)
+		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
+		apkg := compiler.Compile(uni, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outAsmPath, declFilePath, _pkg.imports)
 		builtPackages = append(builtPackages, apkg)
 	}
 

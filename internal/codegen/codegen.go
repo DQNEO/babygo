@@ -1172,7 +1172,7 @@ func emitCompareDtypes() {
 }
 
 func emitDtypeLabelAddr(t *types.Type) {
-	serializedType := sema.SerializeType(t)
+	serializedType := sema.SerializeType(t, true)
 	dtypeLabel := getDtypeLabel(serializedType)
 	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, serializedType)
 	printf("  pushq %%rax           # dtype label address\n")
@@ -2030,6 +2030,36 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 	default:
 		unexpectedKind(typeKind)
 	}
+}
+
+func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
+	fout, err := os.Create(declFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Fprintf(fout, "package %s\n", pkg.Name)
+
+	// list import
+	for _, im := range pkg.Imports {
+		fmt.Fprintf(fout, "import \"%s\"\n", im)
+	}
+	// Type, Con, Var, Func
+	for _, typ := range pkg.Types {
+		ut := sema.GetUnderlyingType(typ)
+		fmt.Fprintf(fout, "type %s %s\n", typ.Name, sema.SerializeType(ut, false))
+	}
+	for _, vr := range pkg.Vars {
+		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, false))
+	}
+	for _, cnst := range pkg.Consts {
+		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type, false), sema.GetConstRawValue(cnst.MetaVal))
+	}
+	for _, fnc := range pkg.Funcs {
+		fmt.Fprintf(fout, "%s\n", sema.RestoreFuncDecl(fnc))
+	}
+
+	fout.Close()
 }
 
 func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {

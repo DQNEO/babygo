@@ -14,7 +14,7 @@ import (
 )
 
 // Compile compiles go files of a package into an assembly file, and copy input assembly files into it.
-func Compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName string, gofiles []string, asmfiles []string, outAsmPath string) *ir.AnalyzedPackage {
+func Compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName string, gofiles []string, asmfiles []string, outAsmPath string, declFilePath string, imports []string) *ir.AnalyzedPackage {
 	pkg := &ir.PkgContainer{Name: pkgName, Path: pkgPath, Fset: fset}
 	pkg.FileNoMap = make(map[string]int)
 	fout, err := os.Create(outAsmPath)
@@ -61,8 +61,9 @@ func Compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 		}
 	}
 
-	fmt.Fprintf(fout, "#--- walk \n")
 	apkg := sema.Walk(pkg)
+	apkg.Imports = imports
+	codegen.GenerateDecls(apkg, declFilePath)
 	codegen.GenerateCode(apkg, fout)
 
 	// append static asm files

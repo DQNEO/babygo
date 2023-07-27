@@ -17,6 +17,8 @@ var __func__ = "__func__"
 var Fset *token.FileSet
 var CurrentPkg *ir.PkgContainer
 
+var ExportedQualifiedIdents = make(map[string]*ast.Ident)
+
 func assert(bol bool, msg string, caller string) {
 	if !bol {
 		panic(caller + ": " + msg)
@@ -614,6 +616,7 @@ func registerMethod(method *ir.Method) {
 		}
 		MethodSets[key] = namedType
 	}
+	//	util.Logf("registerMethod: type=%s name=%s\n", method.RcvNamedType.Name, method.Name)
 	namedType.MethodSet[method.Name] = method
 }
 
@@ -2142,8 +2145,6 @@ func Pos(node interface{}) token.Pos {
 	panic(fmt.Sprintf("Unknown type:%T", node))
 }
 
-var ExportedQualifiedIdents = make(map[string]*ast.Ident)
-
 func LookupForeignIdent(qi ir.QualifiedIdent, pos token.Pos) *ast.Ident {
 	ident, ok := ExportedQualifiedIdents[string(qi)]
 	if !ok {
@@ -2194,7 +2195,9 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	pkg.StringIndex = 0
 	pkg.StringLiterals = nil
 	CurrentPkg = pkg
+
 	var hasInitFunc bool
+	var typs []*types.Type
 	var funcs []*ir.Func
 	var consts []*ir.PackageVarConst
 	var vars []*ir.PackageVarConst
@@ -2231,7 +2234,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			panic("Unexpected")
 		}
 	}
-
 	//logf("checking typeSpecs...\n")
 	for _, typeSpec := range typeSpecs {
 		//@TODO check serializeType()'s *ast.Ident case
@@ -2246,6 +2248,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		t := E2T(eType)
 		t.PkgName = pkg.Name
 		t.Name = typeSpec.Name.Name
+		typs = append(typs, t)
 		exportedTpyes = append(exportedTpyes, t)
 		switch Kind(t) {
 		case types.T_STRUCT:
@@ -2258,6 +2261,9 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	//logf("checking funcDecls...\n")
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
+		//util.Logf("(%s) walking funcDecl \"%s\" \n",
+		//	pkg.Fset.Position(funcDecl.Pos()).String(), funcDecl.Name.Name)
+
 		if funcDecl.Recv == nil { // non-method function
 			if funcDecl.Name.Name == "init" {
 				hasInitFunc = true
@@ -2265,10 +2271,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			qi := NewQI(pkg.Name, funcDecl.Name.Name)
 			ExportedQualifiedIdents[string(qi)] = funcDecl.Name
 		} else { // is method
-			if funcDecl.Body != nil {
-				method := newMethod(pkg.Name, funcDecl)
-				registerMethod(method)
-			}
+			method := newMethod(pkg.Name, funcDecl)
+			registerMethod(method)
 		}
 	}
 
@@ -2367,12 +2371,11 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 
 	//logf("walking funcDecls in detail ...\n")
 	for _, funcDecl := range funcDecls {
-		//logf("[walk] (package:%s) (pos:%d) (%s) walking funcDecl \"%s\" \n",
-		//	pkg.name, int(funcDecl.Pos()), pkg.fset.Position(funcDecl.Pos()), funcDecl.Name.Name)
 
 		fnc := &ir.Func{
 			Name:      funcDecl.Name.Name,
-			FuncType:  funcDecl.Type,
+			Decl:      funcDecl,
+			Signature: FuncTypeToSignature(funcDecl.Type),
 			Localarea: 0,
 			Argsarea:  16, // return address + previous rbp
 		}
@@ -2396,8 +2399,11 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		}
 
 		for _, field := range paramFields {
-			obj := field.Names[0].Obj
-			SetVariable(obj, registerParamVariable(fnc, obj.Name, E2T(field.Type)))
+			// param names can be ommitted.
+			if len(field.Names) > 0 {
+				obj := field.Names[0].Obj
+				SetVariable(obj, registerParamVariable(fnc, obj.Name, E2T(field.Type)))
+			}
 		}
 
 		for i, field := range resultFields {
@@ -2425,16 +2431,14 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		currentFunc = nil
 	}
 
-	//printf("# Package types:\n")
-	//for _, typ := range exportedTpyes {
-	//	printf("# type %s %s\n", serializeType(typ), serializeType(GetUnderlyingType(typ)))
-	//}
 	return &ir.AnalyzedPackage{
 		Path:           pkg.Path,
 		Name:           pkg.Name,
+		Imports:        pkg.Imports,
+		Types:          typs,
+		Funcs:          funcs,
 		Consts:         consts,
 		Vars:           vars,
-		Funcs:          funcs,
 		HasInitFunc:    hasInitFunc,
 		StringLiterals: pkg.StringLiterals,
 		Fset:           pkg.Fset,
@@ -2512,7 +2516,7 @@ func EvalInt(expr ast.Expr) int {
 	panic("Unknown type")
 }
 
-func SerializeType(t *types.Type) string {
+func SerializeType(t *types.Type, showPkgPrefix bool) string {
 	if t == nil {
 		panic("nil type is not expected")
 	}
@@ -2549,8 +2553,13 @@ func SerializeType(t *types.Type) string {
 				// named type
 				decl := e.Obj.Decl
 				typeSpec := decl.(*ast.TypeSpec)
-				pkgName := typeSpec.Name.Obj.Data.(string)
-				return pkgName + "." + typeSpec.Name.Name
+				typeName := typeSpec.Name.Name
+				if showPkgPrefix {
+					pkgName := typeSpec.Name.Obj.Data.(string)
+					return pkgName + "." + typeName
+				} else {
+					return typeName
+				}
 			}
 		}
 	case *ast.StructType:
@@ -2559,7 +2568,7 @@ func SerializeType(t *types.Type) string {
 			for _, field := range e.Fields.List {
 				name := field.Names[0].Name
 				typ := E2T(field.Type)
-				r += fmt.Sprintf("%s %s;", name, SerializeType(typ))
+				r += fmt.Sprintf("%s %s;", name, SerializeType(typ, showPkgPrefix))
 			}
 		}
 		return r + "}"
@@ -2568,27 +2577,63 @@ func SerializeType(t *types.Type) string {
 			if e.Elt == nil {
 				panic(e)
 			}
-			return "[]" + SerializeType(E2T(e.Elt))
+			return "[]" + SerializeType(E2T(e.Elt), showPkgPrefix)
 		} else {
-			return "[" + strconv.Itoa(EvalInt(e.Len)) + "]" + SerializeType(E2T(e.Elt))
+			return "[" + strconv.Itoa(EvalInt(e.Len)) + "]" + SerializeType(E2T(e.Elt), showPkgPrefix)
 		}
 	case *ast.StarExpr:
-		return "*" + SerializeType(E2T(e.X))
+		return "*" + SerializeType(E2T(e.X), showPkgPrefix)
 	case *ast.Ellipsis: // x ...T
-		panic("TBD: Ellipsis")
+		return "..." + SerializeType(E2T(e.Elt), showPkgPrefix)
 	case *ast.InterfaceType:
 		return "interface{}" // @TODO list methods
 	case *ast.MapType:
-		return "map[" + SerializeType(E2T(e.Key)) + "]" + SerializeType(E2T(e.Value))
+		return "map[" + SerializeType(E2T(e.Key), showPkgPrefix) + "]" + SerializeType(E2T(e.Value), showPkgPrefix)
 	case *ast.SelectorExpr:
 		qi := Selector2QI(e)
 		return string(qi)
 	case *ast.FuncType:
-		return "func"
+		return "func()"
 	default:
 		panic(t)
 	}
 	return ""
+}
+
+func FuncTypeToSignature(funcType *ast.FuncType) *ir.Signature {
+	p := FieldList2Types(funcType.Params)
+	r := FieldList2Types(funcType.Results)
+	return &ir.Signature{
+		ParamTypes:  p,
+		ReturnTypes: r,
+	}
+}
+
+func RestoreFuncDecl(fnc *ir.Func) string {
+	var p string
+	var r string
+	for _, t := range fnc.Signature.ParamTypes {
+		if p != "" {
+			p += ","
+		}
+		p += SerializeType(t, false)
+	}
+	for _, t := range fnc.Signature.ReturnTypes {
+		if r != "" {
+			r += ","
+		}
+		r += SerializeType(t, false)
+	}
+	var m string
+	var star string
+	if fnc.Method != nil {
+		if fnc.Method.IsPtrMethod {
+			star = "*"
+		}
+		m = fmt.Sprintf("(%s%s) ", star, fnc.Method.RcvNamedType.Name)
+	}
+	return fmt.Sprintf("func %s%s (%s) (%s)",
+		m, fnc.Name, p, r)
 }
 
 func NewLenMapSignature(arg0 ir.MetaExpr) *ir.Signature {
@@ -2609,5 +2654,16 @@ func NewDeleteSignature(arg0 ir.MetaExpr) *ir.Signature {
 	return &ir.Signature{
 		ParamTypes:  []*types.Type{GetTypeOfExpr(arg0), types.Eface},
 		ReturnTypes: nil,
+	}
+}
+
+func GetConstRawValue(cnstExpr ir.MetaExpr) string {
+	switch v := cnstExpr.(type) {
+	case *ir.MetaBasicLit:
+		return v.RawValue
+	case *ir.MetaIdent:
+		return GetConstRawValue(v.Const)
+	default:
+		panic("TBI")
 	}
 }

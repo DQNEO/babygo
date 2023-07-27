@@ -339,9 +339,11 @@ type Func struct {
 	LocalVars []*Variable
 	Params    []*Variable
 	Retvars   []*Variable
-	FuncType  *ast.FuncType
 	Method    *Method
+	Decl      *ast.FuncDecl
+	Signature *Signature
 }
+
 type Method struct {
 	PkgName      string
 	RcvNamedType *ast.Ident
@@ -378,6 +380,7 @@ type PackageVarConst struct {
 type PkgContainer struct {
 	Path           string
 	Name           string
+	Imports        []string
 	AstFiles       []*ast.File
 	StringLiterals []*SLiteral
 	StringIndex    int
@@ -389,9 +392,11 @@ type PkgContainer struct {
 type AnalyzedPackage struct {
 	Path           string
 	Name           string
+	Imports        []string
+	Types          []*types.Type
 	Consts         []*PackageVarConst
-	Vars           []*PackageVarConst
 	Funcs          []*Func
+	Vars           []*PackageVarConst
 	HasInitFunc    bool
 	StringLiterals []*SLiteral
 	Fset           *token.FileSet
