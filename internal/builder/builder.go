@@ -219,7 +219,7 @@ func (b *Builder) Build(workdir string, args []string) {
 	var builtPackages []*ir.AnalyzedPackage
 	for _, path := range sortedPaths {
 		pkg := b.permanentTree[path]
-		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pkg.Path, pkg.Name)
+		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pkg.Name, pkg.Path)
 		basename := normalizeImportPath(pkg.Path)
 		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
 		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
