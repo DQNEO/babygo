@@ -13,9 +13,18 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
+type PackageToCompile struct {
+	Path     string
+	Name     string
+	Imports  []string
+	GoFiles  []string
+	AsmFiles []string
+}
+
 // Compile compiles go files of a package into an assembly file, and copy input assembly files into it.
-func Compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName string, gofiles []string, asmfiles []string, outAsmPath string, declFilePath string, imports []string) *ir.AnalyzedPackage {
-	pkg := &ir.PkgContainer{Name: pkgName, Path: pkgPath, Fset: fset}
+func Compile(universe *ast.Scope, fset *token.FileSet, pkgc *PackageToCompile, outAsmPath string, declFilePath string) *ir.AnalyzedPackage {
+	// Path string, pkgName string, gofiles []string, asmfiles []string,
+	pkg := &ir.PkgContainer{Name: pkgc.Name, Path: pkgc.Path, Fset: fset}
 	pkg.FileNoMap = make(map[string]int)
 	fout, err := os.Create(outAsmPath)
 	if err != nil {
@@ -24,7 +33,7 @@ func Compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 	fmt.Fprintf(fout, "#=== Package %s\n", pkg.Path)
 
 	pkgScope := ast.NewScope(universe)
-	for i, file := range gofiles {
+	for i, file := range pkgc.GoFiles {
 		fileno := i + 1
 		pkg.FileNoMap[file] = fileno
 		fmt.Fprintf(fout, "  .file %d \"%s\"\n", fileno, file) // For DWARF debug info
@@ -38,6 +47,7 @@ func Compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 			pkgScope.Objects[name] = obj
 		}
 	}
+
 	for _, astFile := range pkg.AstFiles {
 		resolveImports(astFile)
 		var unresolved []*ast.Ident
@@ -62,12 +72,12 @@ func Compile(universe *ast.Scope, fset *token.FileSet, pkgPath string, pkgName s
 	}
 
 	apkg := sema.Walk(pkg)
-	apkg.Imports = imports
+	apkg.Imports = pkgc.Imports
 	codegen.GenerateDecls(apkg, declFilePath)
 	codegen.GenerateCode(apkg, fout)
 
 	// append static asm files
-	for _, file := range asmfiles {
+	for _, file := range pkgc.AsmFiles {
 		fmt.Fprintf(fout, "# === static assembly %s ====\n", file)
 		asmContents, err := os.ReadFile(file)
 		if err != nil {

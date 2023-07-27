@@ -18,14 +18,6 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
-type PackageToBuild struct {
-	path     string
-	name     string
-	imports  []string
-	gofiles  []string
-	asmfiles []string
-}
-
 func init() {
 	// Check object addresses
 	tIdent := types.Int.E.(*ast.Ident)
@@ -147,12 +139,12 @@ func (b *Builder) collectDependency(tree DependencyTree, paths map[string]bool) 
 		importsList := mapToSlice(imports)
 
 		tree[pkgPath] = imports
-		b.permanentTree[pkgPath] = &PackageToBuild{
-			path:     pkgPath,
-			name:     path.Base(pkgPath),
-			gofiles:  gofiles,
-			asmfiles: asmfiles,
-			imports:  importsList,
+		b.permanentTree[pkgPath] = &compiler.PackageToCompile{
+			Path:     pkgPath,
+			Name:     path.Base(pkgPath),
+			GoFiles:  gofiles,
+			AsmFiles: asmfiles,
+			Imports:  importsList,
 		}
 
 		b.collectDependency(tree, imports)
@@ -190,12 +182,12 @@ type Builder struct {
 	SrcPath        string // user-land packages
 	BbgRootSrcPath string // std packages
 	filesCache     map[string][]string
-	permanentTree  map[string]*PackageToBuild
+	permanentTree  map[string]*compiler.PackageToCompile
 }
 
 func (b *Builder) Build(workdir string, args []string) {
 	b.filesCache = make(map[string][]string)
-	b.permanentTree = make(map[string]*PackageToBuild)
+	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 
 	var mainFiles []string
 	for _, arg := range args {
@@ -209,13 +201,12 @@ func (b *Builder) Build(workdir string, args []string) {
 
 	imports := collectImportsFromFiles(mainFiles)
 	importsList := mapToSlice(imports)
-	pbMain := &PackageToBuild{
-		name:    "main",
-		path:    "main",
-		gofiles: mainFiles,
-		imports: importsList,
+	b.permanentTree["main"] = &compiler.PackageToCompile{
+		Name:    "main",
+		Path:    "main",
+		GoFiles: mainFiles,
+		Imports: importsList,
 	}
-	b.permanentTree["main"] = pbMain
 	imports["runtime"] = true
 	tree := make(DependencyTree)
 	b.collectDependency(tree, imports)
@@ -242,13 +233,12 @@ func (b *Builder) Build(workdir string, args []string) {
 
 	var builtPackages []*ir.AnalyzedPackage
 	for _, path := range paths {
-		pb := b.permanentTree[path]
-		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pb.path, pb.name)
-
-		basename := normalizeImportPath(pb.path)
+		pkg := b.permanentTree[path]
+		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pkg.Path, pkg.Name)
+		basename := normalizeImportPath(pkg.Path)
 		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
 		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
-		apkg := compiler.Compile(uni, sema.Fset, pb.path, pb.name, pb.gofiles, pb.asmfiles, outAsmPath, declFilePath, pb.imports)
+		apkg := compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
 		builtPackages = append(builtPackages, apkg)
 	}
 
