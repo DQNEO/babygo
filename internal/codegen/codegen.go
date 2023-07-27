@@ -2056,11 +2056,11 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	}
 
 	printf("#--- global consts\n")
-	for _, vr := range pkg.Consts {
-		if vr.Type == nil {
-			panic("type cannot be nil for global const: " + vr.Name.Name)
+	for _, cnst := range pkg.Consts {
+		if cnst.Type == nil {
+			panic("type cannot be nil for global const: " + cnst.Name.Name)
 		}
-		emitGlobalVarConst(pkg.Name, vr)
+		emitGlobalVarConst(pkg.Name, cnst)
 	}
 
 	printf("\n")
