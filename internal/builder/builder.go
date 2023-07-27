@@ -215,6 +215,7 @@ func (b *Builder) Build(workdir string, args []string) {
 		gofiles: mainFiles,
 		imports: importsList,
 	}
+	b.permanentTree["main"] = pbMain
 	imports["runtime"] = true
 	tree := make(DependencyTree)
 	b.collectDependency(tree, imports)
@@ -234,26 +235,20 @@ func (b *Builder) Build(workdir string, args []string) {
 			paths = append(paths, pth)
 		}
 	}
-
-	var packagesToBuild []*PackageToBuild
-	for _, _path := range paths {
-		pb := b.permanentTree[_path]
-		packagesToBuild = append(packagesToBuild, pb)
-	}
-
-	packagesToBuild = append(packagesToBuild, pbMain)
+	paths = append(paths, "main")
 
 	var uni = universe.CreateUniverse()
 	sema.Fset = token.NewFileSet()
 
 	var builtPackages []*ir.AnalyzedPackage
-	for _, _pkg := range packagesToBuild {
-		fmt.Fprintf(os.Stderr, "Building  %s %s\n", _pkg.path, _pkg.name)
+	for _, path := range paths {
+		pb := b.permanentTree[path]
+		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pb.path, pb.name)
 
-		basename := normalizeImportPath(_pkg.path)
+		basename := normalizeImportPath(pb.path)
 		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
 		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
-		apkg := compiler.Compile(uni, sema.Fset, _pkg.path, _pkg.name, _pkg.gofiles, _pkg.asmfiles, outAsmPath, declFilePath, _pkg.imports)
+		apkg := compiler.Compile(uni, sema.Fset, pb.path, pb.name, pb.gofiles, pb.asmfiles, outAsmPath, declFilePath, pb.imports)
 		builtPackages = append(builtPackages, apkg)
 	}
 
