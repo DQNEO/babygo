@@ -176,10 +176,7 @@ type Builder struct {
 	BbgRootSrcPath string // std packages
 }
 
-var Workdir string
-
 func (b *Builder) Build(workdir string, args []string) {
-	Workdir = workdir
 	var mainFiles []string
 	for _, arg := range args {
 		switch arg {
