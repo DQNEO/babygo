@@ -12,6 +12,7 @@ import (
 )
 
 var Fout *os.File
+var labelid int
 var DebugCodeGen bool
 
 var __func__ = "__func__"
@@ -1931,8 +1932,6 @@ func emitRevertStackTop(t *types.Type) {
 	printf("  addq $%d, %%rsp # revert stack top\n", sema.GetSizeOfType(t))
 }
 
-var labelid int
-
 func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	printf("\n")
 	//logf("[package %s][emitFuncDecl], fnc.name=\"%s\"\n", pkgName, fnc.Name)
@@ -2037,6 +2036,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	Fout = fout
 	TypesMap = make(map[string]*DtypeEntry)
 	TypeId = 1
+	labelid = 1
 
 	printf("#--- string literals\n")
 	printf(".data\n")
