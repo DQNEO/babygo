@@ -19,10 +19,11 @@ import (
 )
 
 type PackageToBuild struct {
-	path    string
-	name    string
-	files   []string
-	imports []string
+	path     string
+	name     string
+	imports  []string
+	gofiles  []string
+	asmfiles []string
 }
 
 func init() {
@@ -133,15 +134,26 @@ func (b *Builder) collectDependency(tree DependencyTree, paths map[string]bool) 
 		files := b.getPackageSourceFiles(pkgPath)
 		b.filesCache[pkgPath] = files
 		var gofiles []string
+		var asmfiles []string
 		for _, file := range files {
 			if strings.HasSuffix(file, ".go") {
 				gofiles = append(gofiles, file)
+			} else if strings.HasSuffix(file, ".s") {
+				asmfiles = append(asmfiles, file)
 			}
 		}
 
 		imports := collectImportsFromFiles(gofiles)
+		importsList := mapToSlice(imports)
+
 		tree[pkgPath] = imports
-		b.permanentTree[pkgPath] = mapToSlice(imports)
+		b.permanentTree[pkgPath] = &PackageToBuild{
+			path:     pkgPath,
+			name:     path.Base(pkgPath),
+			gofiles:  gofiles,
+			asmfiles: asmfiles,
+			imports:  importsList,
+		}
 
 		b.collectDependency(tree, imports)
 	}
@@ -178,12 +190,12 @@ type Builder struct {
 	SrcPath        string // user-land packages
 	BbgRootSrcPath string // std packages
 	filesCache     map[string][]string
-	permanentTree  map[string][]string
+	permanentTree  map[string]*PackageToBuild
 }
 
 func (b *Builder) Build(workdir string, args []string) {
 	b.filesCache = make(map[string][]string)
-	b.permanentTree = make(map[string][]string)
+	b.permanentTree = make(map[string]*PackageToBuild)
 
 	var mainFiles []string
 	for _, arg := range args {
@@ -196,7 +208,13 @@ func (b *Builder) Build(workdir string, args []string) {
 	}
 
 	imports := collectImportsFromFiles(mainFiles)
-	b.permanentTree["main"] = mapToSlice(imports)
+	importsList := mapToSlice(imports)
+	pbMain := &PackageToBuild{
+		name:    "main",
+		path:    "main",
+		gofiles: mainFiles,
+		imports: importsList,
+	}
 	imports["runtime"] = true
 	tree := make(DependencyTree)
 	b.collectDependency(tree, imports)
@@ -219,45 +237,23 @@ func (b *Builder) Build(workdir string, args []string) {
 
 	var packagesToBuild []*PackageToBuild
 	for _, _path := range paths {
-		files := b.filesCache[_path]
-		packagesToBuild = append(packagesToBuild, &PackageToBuild{
-			name:    path.Base(_path),
-			path:    _path,
-			files:   files,
-			imports: b.permanentTree[_path],
-		})
+		pb := b.permanentTree[_path]
+		packagesToBuild = append(packagesToBuild, pb)
 	}
 
-	packagesToBuild = append(packagesToBuild, &PackageToBuild{
-		name:    "main",
-		path:    "main",
-		files:   mainFiles,
-		imports: b.permanentTree["main"],
-	})
+	packagesToBuild = append(packagesToBuild, pbMain)
 
 	var uni = universe.CreateUniverse()
 	sema.Fset = token.NewFileSet()
 
 	var builtPackages []*ir.AnalyzedPackage
 	for _, _pkg := range packagesToBuild {
-		if _pkg.name == "" {
-			panic("empty pkg name")
-		}
 		fmt.Fprintf(os.Stderr, "Building  %s %s\n", _pkg.path, _pkg.name)
-		var gofiles []string
-		var asmfiles []string
-		for _, f := range _pkg.files {
-			if strings.HasSuffix(f, ".go") {
-				gofiles = append(gofiles, f)
-			} else if strings.HasSuffix(f, ".s") {
-				asmfiles = append(asmfiles, f)
-			}
 
-		}
 		basename := normalizeImportPath(_pkg.path)
 		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
 		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
-		apkg := compiler.Compile(uni, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outAsmPath, declFilePath, _pkg.imports)
+		apkg := compiler.Compile(uni, sema.Fset, _pkg.path, _pkg.name, _pkg.gofiles, _pkg.asmfiles, outAsmPath, declFilePath, _pkg.imports)
 		builtPackages = append(builtPackages, apkg)
 	}
 
