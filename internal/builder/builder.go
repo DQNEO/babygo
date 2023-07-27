@@ -241,8 +241,7 @@ func (b *Builder) Build(workdir string, args []string) {
 			}
 
 		}
-
-		basename := strReplace(_pkg.path, '/', '.')
+		basename := normalizeImportPath(_pkg.path)
 		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
 		apkg := compiler.Compile(uni, sema.Fset, _pkg.path, _pkg.name, gofiles, asmfiles, outAsmPath)
 		builtPackages = append(builtPackages, apkg)
@@ -274,6 +273,10 @@ func (b *Builder) Build(workdir string, args []string) {
 	}
 	fmt.Fprintf(initAsm, "  ret\n")
 	initAsm.Close()
+}
+
+func normalizeImportPath(importPath string) string {
+	return strReplace(importPath, '/', '.')
 }
 
 // replace a by b in s
