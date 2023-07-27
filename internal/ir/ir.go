@@ -388,7 +388,8 @@ type PkgContainer struct {
 type AnalyzedPackage struct {
 	Path           string
 	Name           string
-	VarConsts      []*PackageVarConst
+	Consts         []*PackageVarConst
+	Vars           []*PackageVarConst
 	Funcs          []*Func
 	HasInitFunc    bool
 	StringLiterals []*SLiteral

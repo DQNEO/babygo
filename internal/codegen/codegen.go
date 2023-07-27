@@ -2048,9 +2048,17 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	}
 
 	printf("#--- global vars (static values)\n")
-	for _, vr := range pkg.VarConsts {
+	for _, vr := range pkg.Vars {
 		if vr.Type == nil {
 			panic("type cannot be nil for global variable: " + vr.Name.Name)
+		}
+		emitGlobalVarConst(pkg.Name, vr)
+	}
+
+	printf("#--- global consts\n")
+	for _, vr := range pkg.Consts {
+		if vr.Type == nil {
+			panic("type cannot be nil for global const: " + vr.Name.Name)
 		}
 		emitGlobalVarConst(pkg.Name, vr)
 	}
@@ -2060,7 +2068,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	printf(".text\n")
 	printf(".global %s.__initVars\n", pkg.Name)
 	printf("%s.__initVars:\n", pkg.Name)
-	for _, vr := range pkg.VarConsts {
+	for _, vr := range pkg.Vars {
 		if vr.MetaVal == nil {
 			continue
 		}

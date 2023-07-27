@@ -2195,7 +2195,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	pkg.StringLiterals = nil
 	CurrentPkg = pkg
 	var hasInitFunc bool
-	var varAndConsts []*ir.PackageVarConst
+	var consts []*ir.PackageVarConst
+	var vars []*ir.PackageVarConst
 
 	var typeSpecs []*ast.TypeSpec
 	var funcDecls []*ast.FuncDecl
@@ -2203,6 +2204,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	var constSpecs []*ast.ValueSpec
 
 	var exportedTpyes []*types.Type
+
 	//logf("grouping declarations by type\n")
 	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
@@ -2309,7 +2311,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			MetaVar: metaVar,
 			Type:    t,
 		}
-		varAndConsts = append(varAndConsts, pconst)
+		consts = append(consts, pconst)
 		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
@@ -2358,7 +2360,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			MetaVar: metaVar,
 			Type:    t,
 		}
-		varAndConsts = append(varAndConsts, pkgVar)
+		vars = append(vars, pkgVar)
 		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
 	}
 
@@ -2429,7 +2431,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	return &ir.AnalyzedPackage{
 		Path:           pkg.Path,
 		Name:           pkg.Name,
-		VarConsts:      varAndConsts,
+		Consts:         consts,
+		Vars:           vars,
 		Funcs:          funcs,
 		HasInitFunc:    hasInitFunc,
 		StringLiterals: pkg.StringLiterals,
