@@ -206,6 +206,9 @@ func (b *Builder) Build(workdir string, args []string) {
 		}
 	}
 
+	var uni = universe.CreateUniverse()
+	sema.Fset = token.NewFileSet()
+
 	paths := b.collectAllPackages(inputFiles)
 	var packagesToBuild []*PackageToBuild
 	for _, _path := range paths {
@@ -223,9 +226,6 @@ func (b *Builder) Build(workdir string, args []string) {
 		files: inputFiles,
 	})
 
-	var uni = universe.CreateUniverse()
-
-	sema.Fset = token.NewFileSet()
 	var builtPackages []*ir.AnalyzedPackage
 	for _, _pkg := range packagesToBuild {
 		if _pkg.name == "" {
