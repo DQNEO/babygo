@@ -231,7 +231,7 @@ func memcopy(src uintptr, dst uintptr, length int) {
 
 func malloc(size uintptr) uintptr {
 	if heapCurrent+size > heapTail {
-		Write(2, []uint8("malloc exceeded heap max"))
+		Write(2, []uint8("[runtime.malloc] malloc exceeded heap max\n"))
 		Syscall(uintptr(SYS_EXIT_GROUP), 1, uintptr(0), uintptr(0))
 		return 0
 	}
