@@ -82,8 +82,8 @@ func getKeys(tree DependencyTree) []string {
 
 // Do topological sort
 // In the result list, the independent (lowest level) packages come first.
-func sortTopologically(tree DependencyTree) []string {
-	var sorted []string = []string{"unsafe", "runtime"}
+func sortTopologically(tree DependencyTree, prepend []string) []string {
+	sorted := prepend
 	removeNode(tree, "unsafe")
 	removeNode(tree, "runtime")
 	for len(tree) > 0 {
@@ -105,6 +105,10 @@ func sortTopologically(tree DependencyTree) []string {
 }
 
 func (b *Builder) getPackageDir(importPath string) string {
+	if strings.HasPrefix(importPath, "./") {
+		// relative path means it is the package directory
+		return importPath
+	}
 	if isStdLib(importPath) {
 		return b.BbgRootSrcPath + "/" + importPath
 	} else {
@@ -210,7 +214,8 @@ func (b *Builder) Build(workdir string, args []string) {
 	imports["runtime"] = true
 	tree := make(DependencyTree)
 	b.collectDependency(tree, imports)
-	sortedPaths := sortTopologically(tree)
+	prepend := []string{"unsafe", "runtime"}
+	sortedPaths := sortTopologically(tree, prepend)
 	sortedPaths = append(sortedPaths, "main")
 
 	var uni = universe.CreateUniverse()
@@ -246,9 +251,9 @@ func (b *Builder) Build(workdir string, args []string) {
 			continue
 		}
 
-		fmt.Fprintf(initAsm, "  callq %s.__initVars \n", _pkg.Name)
+		fmt.Fprintf(initAsm, "  callq %s.__initVars\n", _pkg.Name)
 		if _pkg.HasInitFunc { // @TODO: eliminate this flag. We should always call this
-			fmt.Fprintf(initAsm, "  callq %s.init \n", _pkg.Name)
+			fmt.Fprintf(initAsm, "  callq %s.init\n", _pkg.Name)
 		}
 	}
 	fmt.Fprintf(initAsm, "  ret\n")
@@ -266,7 +271,7 @@ func (b *Builder) Compile(workdir string, args []string) {
 	fmt.Fprintf(os.Stderr, "Compiling  %s ...\n", pkgPath)
 	files := b.getPackageSourceFiles(pkgPath)
 	for _, file := range files {
-		fmt.Fprintf(os.Stderr, "  %s\n", file)
+		fmt.Fprintf(os.Stderr, "file:  %s\n", file)
 	}
 	var gofiles []string
 	var asmfiles []string
@@ -278,19 +283,38 @@ func (b *Builder) Compile(workdir string, args []string) {
 		}
 	}
 
+	var pkgName string
+	if strings.HasPrefix(pkgPath, "./") {
+		pkgName = "main"
+	} else {
+		pkgName = path.Base(pkgPath)
+	}
+
 	imports := collectImportsFromFiles(gofiles)
 	importsList := mapToSlice(imports)
 	pkg := &compiler.PackageToCompile{
-		Name:    path.Base(pkgPath),
-		Path:    pkgPath,
-		GoFiles: gofiles,
-		Imports: importsList,
+		Name:     pkgName,
+		Path:     pkgPath,
+		GoFiles:  gofiles,
+		AsmFiles: asmfiles,
+		Imports:  importsList,
 	}
-	imports["runtime"] = true
+
+	var prepend []string
+
+	switch pkgPath {
+	case "unsafe":
+		// do not prepend
+	case "runtime":
+		prepend = []string{"unsafe"}
+	default:
+		prepend = []string{"unsafe", "runtime"}
+		imports["runtime"] = true
+	}
+
 	tree := make(DependencyTree)
 	b.collectDependency(tree, imports)
-	sortedPaths := sortTopologically(tree)
-	sortedPaths = append(sortedPaths, pkgPath)
+	sortedPaths := sortTopologically(tree, prepend)
 
 	var uni = universe.CreateUniverse()
 	sema.Fset = token.NewFileSet()
@@ -302,10 +326,12 @@ func (b *Builder) Compile(workdir string, args []string) {
 		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
 		compiler.CompileDecl(uni, sema.Fset, path, declFilePath)
 	}
-	fmt.Fprintf(os.Stderr, "outputFile %s\n", outputBaseName)
-	outAsmPath := outputBaseName + ".2s"
-	declFilePath := outputBaseName + ".2dcl.go"
+	outAsmPath := outputBaseName + ".s"
+	declFilePath := outputBaseName + ".dcl.go"
+	fmt.Fprintf(os.Stderr, "output asm %s\n", outAsmPath)
+	fmt.Fprintf(os.Stderr, "output decl %s\n", declFilePath)
 	compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
+
 }
 
 func normalizeImportPath(importPath string) string {

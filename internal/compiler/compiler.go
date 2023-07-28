@@ -133,7 +133,16 @@ func Compile(universe *ast.Scope, fset *token.FileSet, pkgc *PackageToCompile, o
 	codegen.GenerateCode(apkg, fout)
 
 	// append static asm files
-	for _, file := range pkgc.AsmFiles {
+	AppendAsmFiles(pkgc.AsmFiles, fout)
+
+	// cleanup
+	fout.Close()
+	sema.CurrentPkg = nil
+	return apkg
+}
+
+func AppendAsmFiles(asmFiles []string, fout *os.File) {
+	for _, file := range asmFiles {
 		fmt.Fprintf(fout, "# === static assembly %s ====\n", file)
 		asmContents, err := os.ReadFile(file)
 		if err != nil {
@@ -141,11 +150,6 @@ func Compile(universe *ast.Scope, fset *token.FileSet, pkgc *PackageToCompile, o
 		}
 		fout.Write(asmContents)
 	}
-
-	// cleanup
-	fout.Close()
-	sema.CurrentPkg = nil
-	return apkg
 }
 
 func resolveImports(file *ast.File) {
