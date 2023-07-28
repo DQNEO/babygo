@@ -13,6 +13,7 @@ else
   echo "    ${program} myargs"
   echo
   echo "exit status = $exit_status"
+  cat ${tmpdir}/actual.1
   cat ${tmpdir}/actual.2
   exit 1
 fi
