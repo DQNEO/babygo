@@ -260,6 +260,9 @@ func (b *Builder) Compile(workdir string, args []string) {
 	outputBaseName := args[1]
 	pkgPath := args[2]
 
+	b.filesCache = make(map[string][]string)
+	b.permanentTree = make(map[string]*compiler.PackageToCompile)
+
 	fmt.Fprintf(os.Stderr, "Compiling  %s ...\n", pkgPath)
 	files := b.getPackageSourceFiles(pkgPath)
 	for _, file := range files {
@@ -275,31 +278,34 @@ func (b *Builder) Compile(workdir string, args []string) {
 		}
 	}
 
-	var uni = universe.CreateUniverse()
-	sema.Fset = token.NewFileSet()
-
-	// @TODO collect imports recursively
-
 	imports := collectImportsFromFiles(gofiles)
 	importsList := mapToSlice(imports)
-	for _, importPath := range importsList {
-		fmt.Fprintf(os.Stderr, "  import %s\n", importPath)
-		//@TODO:  compiler.CompileDec()
-		basename := normalizeImportPath(importPath)
-		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
-		compiler.CompileDecl(uni, sema.Fset, importPath, declFilePath)
-	}
-	fmt.Fprintf(os.Stderr, "outputFile %s\n", outputBaseName)
 	pkg := &compiler.PackageToCompile{
-		Name:    "main",
-		Path:    "main",
+		Name:    path.Base(pkgPath),
+		Path:    pkgPath,
 		GoFiles: gofiles,
 		Imports: importsList,
 	}
-	outAsmPath := outputBaseName + ".s"
-	declFilePath := outputBaseName + ".dcl.go"
-	apkg := compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
-	_ = apkg
+	imports["runtime"] = true
+	tree := make(DependencyTree)
+	b.collectDependency(tree, imports)
+	sortedPaths := sortTopologically(tree)
+	sortedPaths = append(sortedPaths, pkgPath)
+
+	var uni = universe.CreateUniverse()
+	sema.Fset = token.NewFileSet()
+
+	for _, path := range sortedPaths {
+		fmt.Fprintf(os.Stderr, "  import %s\n", path)
+		//@TODO:  compiler.CompileDec()
+		basename := normalizeImportPath(path)
+		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
+		compiler.CompileDecl(uni, sema.Fset, path, declFilePath)
+	}
+	fmt.Fprintf(os.Stderr, "outputFile %s\n", outputBaseName)
+	outAsmPath := outputBaseName + ".2s"
+	declFilePath := outputBaseName + ".2dcl.go"
+	compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
 }
 
 func normalizeImportPath(importPath string) string {
