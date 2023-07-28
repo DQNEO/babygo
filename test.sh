@@ -3,6 +3,7 @@ set -ux
 readonly program=$1
 readonly tmpdir=$2
 export FOO=bar
+${program} myargs
 ${program} myargs 1> ${tmpdir}/actual.1 2> ${tmpdir}/actual.2
 if [[ $? -eq 0 ]]; then
   :
