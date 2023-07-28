@@ -256,7 +256,10 @@ func (b *Builder) Build(workdir string, args []string) {
 }
 
 func (b *Builder) Compile(workdir string, args []string) {
-	pkgPath := args[0]
+	_ = args[0] // -o
+	outputBaseName := args[1]
+	pkgPath := args[2]
+
 	fmt.Fprintf(os.Stderr, "Compiling  %s ...\n", pkgPath)
 	files := b.getPackageSourceFiles(pkgPath)
 	for _, file := range files {
@@ -272,12 +275,31 @@ func (b *Builder) Compile(workdir string, args []string) {
 		}
 	}
 
+	var uni = universe.CreateUniverse()
+	sema.Fset = token.NewFileSet()
+
+	// @TODO collect imports recursively
+
 	imports := collectImportsFromFiles(gofiles)
 	importsList := mapToSlice(imports)
-	for _, imprt := range importsList {
-		fmt.Fprintf(os.Stderr, "  import %s\n", imprt)
+	for _, importPath := range importsList {
+		fmt.Fprintf(os.Stderr, "  import %s\n", importPath)
+		//@TODO:  compiler.CompileDec()
+		basename := normalizeImportPath(importPath)
+		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
+		compiler.CompileDecl(uni, sema.Fset, importPath, declFilePath)
 	}
-
+	fmt.Fprintf(os.Stderr, "outputFile %s\n", outputBaseName)
+	pkg := &compiler.PackageToCompile{
+		Name:    "main",
+		Path:    "main",
+		GoFiles: gofiles,
+		Imports: importsList,
+	}
+	outAsmPath := outputBaseName + ".s"
+	declFilePath := outputBaseName + ".dcl.go"
+	apkg := compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
+	_ = apkg
 }
 
 func normalizeImportPath(importPath string) string {

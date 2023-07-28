@@ -21,6 +21,61 @@ type PackageToCompile struct {
 	AsmFiles []string
 }
 
+func CompileDecl(universe *ast.Scope, fset *token.FileSet, importPath string, declFilePath string) {
+	f, err := os.Open(declFilePath)
+	if err != nil {
+		panic("cannot open file " + declFilePath)
+	}
+	f.Close()
+	pkgName := path.Base(importPath)
+	pkg := &ir.PkgContainer{Name: pkgName, Path: importPath, Fset: fset}
+	pkg.FileNoMap = make(map[string]int)
+
+	//	fmt.Fprintf(fout, "#=== Package %s\n", pkg.Path)
+
+	pkgScope := ast.NewScope(universe)
+	for i, file := range []string{declFilePath} {
+		fileno := i + 1
+		pkg.FileNoMap[file] = fileno
+		//		fmt.Fprintf(fout, "  .file %d \"%s\"\n", fileno, file) // For DWARF debug info
+		astFile, err := parser.ParseFile(fset, file, nil, 0)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		pkg.AstFiles = append(pkg.AstFiles, astFile)
+		for name, obj := range astFile.Scope.Objects {
+			pkgScope.Objects[name] = obj
+		}
+	}
+
+	for _, astFile := range pkg.AstFiles {
+		resolveImports(astFile)
+		var unresolved []*ast.Ident
+		for _, ident := range astFile.Unresolved {
+			obj := pkgScope.Lookup(ident.Name)
+			if obj != nil {
+				ident.Obj = obj
+			} else {
+				obj := universe.Lookup(ident.Name)
+				if obj != nil {
+					ident.Obj = obj
+				} else {
+					// we should allow unresolved in this stage.
+					// e.g foo in X{foo:bar,}
+					unresolved = append(unresolved, ident)
+				}
+			}
+		}
+		for _, dcl := range astFile.Decls {
+			pkg.Decls = append(pkg.Decls, dcl)
+		}
+	}
+
+	sema.Walk(pkg)
+
+}
+
 // Compile compiles go files of a package into an assembly file, and copy input assembly files into it.
 func Compile(universe *ast.Scope, fset *token.FileSet, pkgc *PackageToCompile, outAsmPath string, declFilePath string) *ir.AnalyzedPackage {
 	// Path string, pkgName string, gofiles []string, asmfiles []string,

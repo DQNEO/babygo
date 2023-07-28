@@ -37,7 +37,7 @@ func main() {
 	case "help":
 		showHelp()
 		return
-	case "compile":
+	case "compile": // e.g. WORKDIR=/tmpfs/bbg/bbg-test.d go run . compile -o /tmp/os os
 		mode = "single"
 		args = os.Args[2:]
 	case "panic": // What's this for ?? I can't remember ...
@@ -45,7 +45,7 @@ func main() {
 		panic("I am panic version " + panicVersion)
 	default:
 		mode = "build"
-		args = os.Args[1:]
+		args = os.Args[2:]
 	}
 
 	workdir := os.Getenv("WORKDIR")
