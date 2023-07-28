@@ -34,7 +34,8 @@ func CompileDecl(universe *ast.Scope, fset *token.FileSet, importPath string, de
 	//	fmt.Fprintf(fout, "#=== Package %s\n", pkg.Path)
 
 	pkgScope := ast.NewScope(universe)
-	for i, file := range []string{declFilePath} {
+	files := []string{declFilePath}
+	for i, file := range files {
 		fileno := i + 1
 		pkg.FileNoMap[file] = fileno
 		//		fmt.Fprintf(fout, "  .file %d \"%s\"\n", fileno, file) // For DWARF debug info
