@@ -3,9 +3,9 @@ set -ux
 readonly program=$1
 readonly tmpdir=$2
 export FOO=bar
-${program} myargs
 ${program} myargs 1> ${tmpdir}/actual.1 2> ${tmpdir}/actual.2
-if [[ $? -eq 0 ]]; then
+exit_status=$?
+if [[ $exit_status -eq 0 ]]; then
   :
 else
   echo FAILED
@@ -13,6 +13,7 @@ else
   echo "    ${program} myargs"
   echo
   exit $exit_status
+  cat ${tmpdir}/actual.2
 fi
 
 diff -u t/expected.txt ${tmpdir}/actual.1
