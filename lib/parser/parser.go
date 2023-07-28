@@ -87,7 +87,7 @@ func (p *parser) expectSemi(caller string) {
 		case ";":
 			p.next()
 		default:
-			panic2(caller, "semicolon expected, but got token "+p.tok)
+			p.panicPos(caller, "semicolon expected, but got token ", p.pos)
 		}
 	}
 }
@@ -1502,6 +1502,10 @@ func isExprIdent(e ast.Expr) bool {
 
 func panic2(caller string, x string) {
 	panic(caller + ": " + x)
+}
+
+func (p *parser) panicPos(caller string, x string, pos token.Pos) {
+	panic(caller + ": " + x + "\n\t" + p.fset.Position(pos).String())
 }
 
 type ParserError struct {
