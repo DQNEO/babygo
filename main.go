@@ -45,7 +45,7 @@ func main() {
 		panic("I am panic version " + panicVersion)
 	default:
 		mode = "build"
-		args = os.Args[2:]
+		args = os.Args[1:]
 	}
 
 	workdir := os.Getenv("WORKDIR")
