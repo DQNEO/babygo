@@ -61,8 +61,8 @@ func main() {
 	}
 	switch mode {
 	case "single":
-		b.Compile(workdir, args)
+		b.BuildOne(workdir, args)
 	case "build":
-		b.Build(workdir, args)
+		b.BuildAll(workdir, args)
 	}
 }

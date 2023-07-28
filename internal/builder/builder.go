@@ -189,7 +189,7 @@ type Builder struct {
 	permanentTree  map[string]*compiler.PackageToCompile
 }
 
-func (b *Builder) Build(workdir string, args []string) {
+func (b *Builder) BuildAll(workdir string, args []string) {
 	b.filesCache = make(map[string][]string)
 	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 
@@ -260,7 +260,7 @@ func (b *Builder) Build(workdir string, args []string) {
 	initAsm.Close()
 }
 
-func (b *Builder) Compile(workdir string, args []string) {
+func (b *Builder) BuildOne(workdir string, args []string) {
 	_ = args[0] // -o
 	outputBaseName := args[1]
 	pkgPath := args[2]
