@@ -12,8 +12,9 @@ else
   echo
   echo "    ${program} myargs"
   echo
-  exit $exit_status
+  echo "exit status = $exit_status"
   cat ${tmpdir}/actual.2
+  exit 1
 fi
 
 diff -u t/expected.txt ${tmpdir}/actual.1
