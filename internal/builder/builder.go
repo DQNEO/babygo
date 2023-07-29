@@ -99,7 +99,21 @@ func sortTopologically(tree DependencyTree, prepend []string) []string {
 			}
 		}
 	}
-	return sorted
+
+	var r []string
+	var users []string
+
+	for _, pth := range sorted {
+		if isStdLib(pth) {
+			r = append(r, pth)
+		} else {
+			users = append(users, pth)
+		}
+	}
+	for _, pth := range users {
+		r = append(r, pth)
+	}
+	return r
 }
 
 func (b *Builder) getPackageDir(importPath string) string {
