@@ -13,7 +13,7 @@ compiler=$2
 package=$3
 
 out_file_abs=$(realpath $out_file)
-workdir=${out_file}.d
+workdir=${tmp}/${out_file##*/}.d
 export WORKDIR=$workdir
 mkdir -p $workdir
 $compiler list -deps $package  > $workdir/list
