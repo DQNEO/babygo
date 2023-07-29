@@ -12,7 +12,7 @@ test: $(tmp) test1 test2 selfhost test0 compare-test
 $(tmp):
 	mkdir -p $(tmp)
 
-# make pre compiler (a rich binary)
+# make p compiler (a rich binary)
 $(tmp)/p:  src/*/* internal/*/* lib/*/*  $(tmp)
 	rm -rf pre/internal pre/*.go
 	cp *.go pre/
@@ -21,27 +21,27 @@ $(tmp)/p:  src/*/* internal/*/* lib/*/*  $(tmp)
 	go build -o $@ ./pre
 
 # babygo 1gen compiler (a rich binary)
-$(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
+$(tmp)/b: *.go lib/*/* src/*/* $(tmp)
 	go build -o $@ .
 
-# babygo 2gen compiler (a thin binary) by pre compiler
+# babygo 2gen compiler (a thin binary) by p compiler
 $(tmp)/pb: $(tmp)/p *.go src/*/* lib/*/*
 	./bld -o $@ $< ./
 
 # babygo 2gen compiler (a thin binary) by babygo 1gen compiler compiling babygo
-$(tmp)/bb: $(tmp)/bbg
+$(tmp)/bb: $(tmp)/b
 	./bld -o $@ $< ./
 
 # babygo 3gen compiler (a thin binary) by babygo 2gen compiler compiling babygo
 $(tmp)/bbb: $(tmp)/bb
 	./bld -o $@ $< ./
 
-# test binary made by pre
+# test binary made by p
 $(tmp)/pt: $(tmp)/p t/*.go src/*/* lib/*/*
 	./bld -o $@ $< ./t/
 
 # test binary made by babygo 1 gen compiler
-$(tmp)/bt: $(tmp)/bbg t/*.go
+$(tmp)/bt: $(tmp)/b t/*.go
 	./bld -o $@ $< ./t/
 
 # test binary made by pb
@@ -57,17 +57,17 @@ $(tmp)/bbt: $(tmp)/bb t/*.go
 t/expected.txt: t/*.go lib/*/*
 	export FOO=bar; go run t/*.go myargs > t/expected.txt
 
-# test the test binary made by pre compiler
+# test the test binary made by p compiler
 .PHONY: test0
 test0: $(tmp)/pt t/expected.txt
 	./test.sh $< $(tmp)
-	@echo "[PASS] test by pre"
+	@echo "[PASS] test by p"
 
 # test the test binary made by babygo 1gen compiler
 .PHONY: test1
 test1: $(tmp)/bt t/expected.txt
 	./test.sh $< $(tmp)
-	@echo "[PASS] test by bbg"
+	@echo "[PASS] test by b"
 
 # test the test binary made by babygo 2gen compiler
 .PHONY: test2
