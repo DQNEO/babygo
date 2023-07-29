@@ -294,7 +294,6 @@ func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string
 
 	for _, path := range sortedPaths {
 		//fmt.Fprintf(os.Stderr, "  import %s\n", path)
-		//@TODO:  compiler.CompileDec()
 		basename := normalizeImportPath(path)
 		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
 		compiler.CompileDecl(uni, sema.Fset, path, declFilePath)

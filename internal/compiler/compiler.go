@@ -137,7 +137,8 @@ func Compile(universe *ast.Scope, fset *token.FileSet, pkgc *PackageToCompile, o
 
 	// cleanup
 	fout.Close()
-	sema.CurrentPkg = nil
+	sema.Clear()
+
 	return apkg
 }
 
