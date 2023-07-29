@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# ./bld2 -o outfile compiler pkgdir
+set -eux
+shift
+outfile=$1
+compiler=$2
+pkgdir=$3
+
+workdir=${compiler}.d
+export WORKDIR=$workdir
+$compiler buildn $pkgdir  | ./build.sh -o $outfile $compiler $pkgdir

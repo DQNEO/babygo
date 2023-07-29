@@ -29,31 +29,31 @@ $(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
 
 # babygo 2gen compiler (a thin binary) by pre compiler
 $(tmp)/pb: $(tmp)/p *.go src/*/* lib/*/*
-	./bld -o $@ $< ./
+	./bld2 -o $@ $< ./
 
 # babygo 2gen compiler (a thin binary) by babygo 1gen compiler compiling babygo
 $(tmp)/bb: $(tmp)/bbg
-	./bld -o $@ $< ./
+	./bld2 -o $@ $< ./
 
 # babygo 3gen compiler (a thin binary) by babygo 2gen compiler compiling babygo
 $(tmp)/bbb: $(tmp)/bb
-	./bld -o $@ $< ./
+	./bld2 -o $@ $< ./
 
 # test binary made by pre
 $(tmp)/pt: $(tmp)/p t/*.go src/*/* lib/*/*
-	./bld -o $@ $< ./t/
+	./bld2 -o $@ $< ./t/
 
 # test binary made by babygo 1 gen compiler
 $(tmp)/bt: $(tmp)/bbg t/*.go
-	./bld -o $@ $< ./t/
+	./bld2 -o $@ $< ./t/
 
 # test binary made by pb
 $(tmp)/pbt: $(tmp)/pb t/*.go
-	./bld -o $@ $< ./t/
+	./bld2 -o $@ $< ./t/
 
 # test binary made by bb
 $(tmp)/bbt: $(tmp)/bb t/*.go
-	./bld -o $@ $< ./t/
+	./bld2 -o $@ $< ./t/
 
 
 # make test expectations
@@ -81,15 +81,15 @@ test2: $(tmp)/bbt t/expected.txt
 # do selfhost check by comparing 2gen and 3gen asm files
 .PHONY: selfhost
 selfhost: $(tmp)/bb $(tmp)/bbb
-	diff $(tmp)/bb $(tmp)/bbb  >/dev/null
+	diff $(tmp)/bb.d/all $(tmp)/bbb.d/all  >/dev/null
 	@echo "[PASS] selfhost"
 
 # compare output of test0 and test1
 .PHONY: compare-test
 compare-test: $(tmp)/pt $(tmp)/bt $(tmp)/bbt $(tmp)/pbt
-	diff -u $(tmp)/pt $(tmp)/bt >/dev/null
-	diff -u $(tmp)/bt $(tmp)/pbt  >/dev/null
-	diff -u $(tmp)/bt $(tmp)/bbt  >/dev/null
+	diff -u $(tmp)/pt.d/all $(tmp)/bt.d/all >/dev/null
+	diff -u $(tmp)/bt.d/all $(tmp)/pbt.d/all  >/dev/null
+	diff -u $(tmp)/bt.d/all $(tmp)/bbt.d/all  >/dev/null
 	@echo "[PASS] compare-test"
 
 .PHONY: fmt

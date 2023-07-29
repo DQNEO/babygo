@@ -1,33 +1,37 @@
 #!/usr/bin/env bash
 #
 # Usage:
-#   build.sh -o BINARY MAIN_DIR
+#   build.sh -o BINARY COMPILER PKG_DIR
 #
 ####
 set -eu
 REPO_ROOT=$(cd $(dirname $0);pwd)
-if [[ -z $WORKDIR ]]; then
-  echo "WORKDIR must be set" >/dev/stderr
-  exit 1
-fi
 
-OUT_FILE=$2
+shift;
+
+OUT_FILE=$1
 OUT_FILE_ABS=$(realpath $OUT_FILE)
+compiler=$2
 MAIN_PKG_PATH=$3
-mkdir -p $WORKDIR
+workdir=${OUT_FILE}.d
+export WORKDIR=$workdir
+mkdir -p $workdir
 PKGS=""
 while read p
 do
+  if [[ $p == "main" ]]; then
+    continue
+  fi
   PKGS="$PKGS $p"
   p2=$(echo $p | tr '/' '.')
-  go run . compile -o $WORKDIR/$p2  $p
+  $compiler compile -o $workdir/$p2  $p
 done
 
 # Compile main
-go run . compile -o $WORKDIR/main $MAIN_PKG_PATH
+$compiler compile -o $workdir/main $MAIN_PKG_PATH
 
 set -x
-cd $WORKDIR
+cd $workdir
 
 # Assemble .s files
 for a in *.s
@@ -67,4 +71,5 @@ as -o __INIT__.o __INIT__.s
 ld -o a.out *.o
 cp a.out $OUT_FILE_ABS
 
+cat *.s > all
 echo $OUT_FILE
