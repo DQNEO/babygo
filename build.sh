@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+#
+# Usage:
+#   build.sh -o BINARY MAIN_DIR
+#
+####
 set -eu
 REPO_ROOT=$(cd $(dirname $0);pwd)
 if [[ -z $WORKDIR ]]; then
@@ -6,8 +11,9 @@ if [[ -z $WORKDIR ]]; then
   exit 1
 fi
 
-OUT_FILE=$1
-MAIN_PKG_PATH=$2
+OUT_FILE=$2
+OUT_FILE_ABS=$(realpath $OUT_FILE)
+MAIN_PKG_PATH=$3
 mkdir -p $WORKDIR
 PKGS=""
 while read p
@@ -58,7 +64,7 @@ echo "  ret"
 
 # Link
 as -o __INIT__.o __INIT__.s
-ld -o $OUT_FILE *.o
+ld -o a.out *.o
+cp a.out $OUT_FILE_ABS
 
-cd $REPO_ROOT
-echo $WORKDIR/$OUT_FILE
+echo $OUT_FILE
