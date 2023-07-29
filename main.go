@@ -17,7 +17,7 @@ func showHelp() {
 	fmt.Printf("Usage:\n")
 	fmt.Printf("    version:  show version\n")
 	fmt.Printf("    compile -o <tmpbasename> <pkgpath> e.g. compile -o /tmp/os os\n")
-	fmt.Printf("    buildn <pkgpath> e.g. buildn ./t/\n")
+	fmt.Printf("    list -deps <pkgpath> e.g. list -deps ./t/\n")
 }
 
 func showVersion() {
@@ -59,9 +59,10 @@ func main() {
 		outputBaseName := os.Args[3]
 		pkgPath := os.Args[4]
 		b.BuildOne(workdir, outputBaseName, pkgPath)
-	case "buildn": // e.g. WORKDIR=/tmpfs/bbg/bbg-test.d babygo buildn ./t/
-		pkgPath := os.Args[2]
-		b.BuildN(workdir, pkgPath)
+	case "list": // e.g. WORKDIR=/tmpfs/bbg/bbg-test.d babygo list -depth ./t/
+
+		pkgPath := os.Args[3]
+		b.ListDepth(workdir, pkgPath)
 	default:
 		showHelp()
 		return

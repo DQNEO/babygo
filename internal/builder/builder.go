@@ -201,7 +201,7 @@ type Builder struct {
 	permanentTree  map[string]*compiler.PackageToCompile
 }
 
-func (b *Builder) BuildN(workdir string, pkgPath string) {
+func (b *Builder) ListDepth(workdir string, pkgPath string) {
 	b.filesCache = make(map[string][]string)
 	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 
