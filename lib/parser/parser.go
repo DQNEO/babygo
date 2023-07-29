@@ -1474,9 +1474,12 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 	return f
 }
 
-func readSource(filename string) []uint8 {
-	buf, _ := os.ReadFile(filename)
-	return buf
+func readSource(filename string) ([]uint8, error) {
+	buf, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
 
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8) (*ast.File, *ParserError) {
@@ -1486,7 +1489,10 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8
 		importsOnly = true
 	}
 
-	text := readSource(filename)
+	text, err := readSource(filename)
+	if err != nil {
+		panic(err.(*os.PathError).Error())
+	}
 	var p = &parser{}
 	packagePos := token.Pos(fset.Base)
 	p.init(fset, filename, text)

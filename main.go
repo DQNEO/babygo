@@ -28,7 +28,7 @@ func main() {
 		showHelp()
 		return
 	}
-	var mode string
+
 	var args []string
 	switch os.Args[1] {
 	case "version":
@@ -37,15 +37,9 @@ func main() {
 	case "help":
 		showHelp()
 		return
-	case "compile": // e.g. WORKDIR=/tmpfs/bbg/bbg-test.d go run . compile -o /tmp/os os
-		mode = "single"
-		args = os.Args[2:]
 	case "panic": // What's this for ?? I can't remember ...
 		panicVersion := strconv.Itoa(mylib.Sum(1, 1))
 		panic("I am panic version " + panicVersion)
-	default:
-		mode = "build"
-		args = os.Args[1:]
 	}
 
 	workdir := os.Getenv("WORKDIR")
@@ -59,10 +53,17 @@ func main() {
 		SrcPath:        srcPath,
 		BbgRootSrcPath: bbgRootSrcPath,
 	}
-	switch mode {
-	case "single":
-		b.BuildOne(workdir, args)
-	case "build":
-		b.BuildAll(workdir, args)
+
+	switch os.Args[1] {
+	case "compile": // e.g. WORKDIR=/tmpfs/bbg/bbg-test.d babygo compile -o /tmp/os os
+		outputBaseName := os.Args[3]
+		pkgPath := os.Args[4]
+		b.BuildOne(workdir, outputBaseName, pkgPath)
+	case "buildn": // e.g. WORKDIR=/tmpfs/bbg/bbg-test.d babygo buildn t/*.go
+		pkgPath := os.Args[2]
+		b.BuildN(workdir, pkgPath)
+	default:
+		args = os.Args[1:]
+		b.BuildAll(workdir, args) // This will be deprecated soon
 	}
 }
