@@ -29,35 +29,35 @@ $(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
 
 # Generate asm files for babygo 2gen compiler by pre compiler compiling babygo
 # Make babygo 2 gen compiler (a thin binary) by pre compiler
-$(tmp)/pre-bbg: $(tmp)/pre *.go src/*/* lib/*/*
+$(tmp)/pb: $(tmp)/pre *.go src/*/* lib/*/*
 	./bld -o $@ $< *.go
 
 # Generate asm files for babygo 2gen compiler by babygo 1gen compiler compiling babygo
 # Make babygo 2gen compiler (a thin binary)
-$(tmp)/bbg-bbg: $(tmp)/bbg
+$(tmp)/bb: $(tmp)/bbg
 	./bld -o $@ $< *.go
 
 # Generate asm files for babygo 3gen compiler by babygo 2gen compiler compiling babygo
-$(tmp)/bbg-bbg-bbg: $(tmp)/bbg-bbg
+$(tmp)/bbb: $(tmp)/bb
 	./bld -o $@ $< *.go
 
 # Generate asm files for a test binary by babygo compiler compiling test
-$(tmp)/pre-bbg-test: $(tmp)/pre-bbg t/*.go
+$(tmp)/pbt: $(tmp)/pb t/*.go
 	./bld -o $@ $< t/*.go
 
 # Generate asm files for a test binary by pre compiler compiling test
 # Make a test binary by pre compiler compiling test
-$(tmp)/pre-test: $(tmp)/pre t/*.go src/*/* lib/*/*
+$(tmp)/pt: $(tmp)/pre t/*.go src/*/* lib/*/*
 	./bld -o $@ $< t/*.go
 
 # Generate asm files for a test binary by babygo 1gen compiler compiling test
 # Generate asm files for a test binary by babygo 1gen compiler compiling test
-$(tmp)/bbg-test: $(tmp)/bbg t/*.go
+$(tmp)/bt: $(tmp)/bbg t/*.go
 	./bld -o $@ $< t/*.go
 
 # Generate asm files for a test binary by babygo 2gen compiler compiling test
 # Generate asm files for a test binary by babygo 2gen compiler compiling test
-$(tmp)/bbg-bbg-test: $(tmp)/bbg-bbg t/*.go
+$(tmp)/bbt: $(tmp)/bb t/*.go
 	./bld -o $@ $< t/*.go
 
 
@@ -67,34 +67,34 @@ t/expected.txt: t/*.go lib/*/*
 
 # test the test binary made by pre compiler
 .PHONY: test0
-test0: $(tmp)/pre-test t/expected.txt
+test0: $(tmp)/pt t/expected.txt
 	./test.sh $< $(tmp)
 	@echo "[PASS] test by pre"
 
 # test the test binary made by babygo 1gen compiler
 .PHONY: test1
-test1: $(tmp)/bbg-test t/expected.txt
+test1: $(tmp)/bt t/expected.txt
 	./test.sh $< $(tmp)
 	@echo "[PASS] test by bbg"
 
 # test the test binary made by babygo 2gen compiler
 .PHONY: test2
-test2: $(tmp)/bbg-bbg-test t/expected.txt
+test2: $(tmp)/bbt t/expected.txt
 	./test.sh $< $(tmp)
-	@echo "[PASS] test by bbg-bbg"
+	@echo "[PASS] test by bb"
 
 # do selfhost check by comparing 2gen and 3gen asm files
 .PHONY: selfhost
-selfhost: $(tmp)/bbg-bbg $(tmp)/bbg-bbg-bbg
-	diff $(tmp)/bbg-bbg.d/all $(tmp)/bbg-bbg-bbg.d/all  >/dev/null
+selfhost: $(tmp)/bb $(tmp)/bbb
+	diff $(tmp)/bb $(tmp)/bbb  >/dev/null
 	@echo "[PASS] selfhost"
 
 # compare output of test0 and test1
 .PHONY: compare-test
-compare-test: $(tmp)/pre-test $(tmp)/bbg-test $(tmp)/bbg-bbg-test $(tmp)/pre-bbg-test
-	diff -u $(tmp)/pre-test.d/all $(tmp)/bbg-test.d/all >/dev/null
-	diff -u $(tmp)/bbg-test.d/all $(tmp)/pre-bbg-test.d/all  >/dev/null
-	diff -u $(tmp)/bbg-test.d/all $(tmp)/bbg-bbg-test.d/all  >/dev/null
+compare-test: $(tmp)/pt $(tmp)/bt $(tmp)/bbt $(tmp)/pbt
+	diff -u $(tmp)/pt $(tmp)/bt >/dev/null
+	diff -u $(tmp)/bt $(tmp)/pbt  >/dev/null
+	diff -u $(tmp)/bt $(tmp)/bbt  >/dev/null
 	@echo "[PASS] compare-test"
 
 .PHONY: fmt
