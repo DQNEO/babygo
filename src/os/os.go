@@ -38,28 +38,28 @@ func (e *PathError) Error() string {
 }
 
 func Open(name string) (*File, error) {
-	var fd int
-	fd, _ = syscall.Open(name, O_READONLY, 438)
+	fd, _ := syscall.Open(name, O_READONLY, 438)
 	if fd < 0 {
 		e := &PathError{Err: "open " + name + ": no such file or directory"}
 		return nil, e
 	}
 
-	f := new(File)
-	f.fd = fd
+	f := &File{
+		fd: fd,
+	}
 	return f, nil
 }
 
 func Create(name string) (*File, error) {
-	var fd int
-	fd, _ = syscall.Open(name, O_RDWR|O_CREATE|O_TRUNC|O_CLOSEXEC, 438)
+	fd, _ := syscall.Open(name, O_RDWR|O_CREATE|O_TRUNC|O_CLOSEXEC, 438)
 	if fd < 0 {
 		e := &PathError{Err: "open " + name + ": no such file or directory"}
 		return nil, e
 	}
 
-	f := new(File)
-	f.fd = fd
+	f := &File{
+		fd: fd,
+	}
 	return f, nil
 }
 
