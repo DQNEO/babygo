@@ -38,8 +38,9 @@ github.com/DQNEO/babygo/internal/universe
 "
 
 export WORKDIR=/tmpfs/bbg/t2
+REPO_ROOT=$(cd $(dirname $0);pwd)
 
-
+mkdir -p $WORKDIR
 
 for p in $PKGS
 do
@@ -87,3 +88,6 @@ done
 
 # Link
 ld -o bbg-test *.o
+
+cd $REPO_ROOT
+./test.sh $WORKDIR/bbg-test $WORKDIR
