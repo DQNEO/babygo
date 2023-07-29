@@ -147,22 +147,20 @@ func (f *File) Write(p []byte) (int, error) {
 }
 
 func ReadFile(filename string) ([]uint8, error) {
-	var fd int
-	fd, _ = syscall.Open(filename, O_READONLY, 0)
-	if fd < 0 {
-		e := &PathError{Err: "open " + filename + ": no such file or directory"}
-		return nil, e
+	f, err := Open(filename)
+	if err != nil {
+		return nil, err
 	}
 	var buf = make([]uint8, FILE_SIZE, FILE_SIZE)
 	var n int
-	n, _ = syscall.Read(fd, buf)
+	n, _ = syscall.Read(f.fd, buf)
 	if n < 0 {
 		e := &PathError{Err: "Read failed"} // @TODO use appropriate error type
 		return nil, e
 	}
-	syscall.Close(fd)
-	var readbytes = buf[0:n]
-	return readbytes, nil
+	f.Close()
+	read := buf[0:n]
+	return read, nil
 }
 
 func init() {
