@@ -206,9 +206,6 @@ func (b *Builder) ListDepth(workdir string, pkgPath string) {
 	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 
 	files := b.getPackageSourceFiles(pkgPath)
-	//for _, file := range files {
-	//	fmt.Fprintf(os.Stderr, "file:  %s\n", file)
-	//}
 	var gofiles []string
 	var asmfiles []string
 	for _, file := range files {
@@ -236,51 +233,10 @@ func (b *Builder) ListDepth(workdir string, pkgPath string) {
 	sortedPaths := sortTopologically(tree, prepend)
 	sortedPaths = append(sortedPaths, "main")
 
-	//var uni = universe.CreateUniverse()
-	sema.Fset = token.NewFileSet()
-
-	//var builtPackages []*ir.AnalyzedPackage
-	for _, path := range sortedPaths {
-		pkg := b.permanentTree[path]
-		fmt.Fprintf(os.Stdout, "%s\n", pkg.Path)
-		continue
-		basename := normalizeImportPath(pkg.Path)
-		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
-		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
-		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pkg.Name, pkg.Path)
-		fmt.Fprintf(os.Stderr, "   asm %s\n", outAsmPath)
-		fmt.Fprintf(os.Stderr, "   decl %s\n", declFilePath)
-		//apkg := compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
-		//builtPackages = append(builtPackages, apkg)
+	for _, pth := range sortedPaths {
+		pkg := b.permanentTree[pth]
+		fmt.Printf("%s\n", pkg.Path)
 	}
-
-	// Write to init asm
-
-	//outFilePath := fmt.Sprintf("%s/%s", workdir, "__INIT__.s")
-	//initAsm, err := os.Create(outFilePath)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Fprintf(initAsm, ".text\n")
-	//fmt.Fprintf(initAsm, "# Initializes all packages except for runtime\n")
-	//fmt.Fprintf(initAsm, ".global __INIT__.init\n")
-	//fmt.Fprintf(initAsm, "__INIT__.init:\n")
-	//for _, _pkg := range builtPackages {
-	//	// A package with no imports is initialized by assigning initial values to all its package-level variables
-	//	//  followed by calling all init functions in the order they appear in the source
-	//
-	//	if _pkg.Name == "runtime" {
-	//		// Do not call runtime inits. They should be called manually from runtime asm
-	//		continue
-	//	}
-	//
-	//	fmt.Fprintf(initAsm, "  callq %s.__initVars\n", _pkg.Name)
-	//	if _pkg.HasInitFunc { // @TODO: eliminate this flag. We should always call this
-	//		fmt.Fprintf(initAsm, "  callq %s.init\n", _pkg.Name)
-	//	}
-	//}
-	//fmt.Fprintf(initAsm, "  ret\n")
-	//initAsm.Close()
 }
 
 func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string) {
