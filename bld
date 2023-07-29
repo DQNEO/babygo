@@ -3,13 +3,29 @@
 # Usage:
 #   bld -o outfile compiler <files>
 set -eu
-shift # ignore -o
-target=$1
+shift # skip -o
+binfile=$1
 compiler=$2
 shift
 shift
 files="$@"
 
-wdir=${target}.d
-./compile -o $wdir $compiler $files
-./assemble_and_link -o $target $wdir
+workdir=${binfile}.d
+
+rm -rf $workdir
+mkdir -p $workdir
+
+echo WORKDIR="$workdir" $compiler $files
+WORKDIR="$workdir" $compiler $files
+
+cat $workdir/*.s > $workdir/all
+
+
+for f in ${workdir}/*.s
+do
+  o=${f%\.s}.o
+  as -o $o $f
+done
+
+# Note: I tried mold, but there wasn't any difference in linking time. Probably because the program is too small ?
+ld -o ${binfile} ${workdir}/*.o
