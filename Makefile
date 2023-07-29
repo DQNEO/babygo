@@ -26,31 +26,31 @@ $(tmp)/b: *.go lib/*/* src/*/* $(tmp)
 
 # babygo 2gen compiler (a thin binary) by p compiler
 $(tmp)/pb: $(tmp)/p *.go src/*/* lib/*/*
-	./bld -o $@ $< ./
+	./go-build -o $@ -c $< ./
 
 # babygo 2gen compiler (a thin binary) by babygo 1gen compiler compiling babygo
 $(tmp)/bb: $(tmp)/b
-	./bld -o $@ $< ./
+	./go-build -o $@ -c $< ./
 
 # babygo 3gen compiler (a thin binary) by babygo 2gen compiler compiling babygo
 $(tmp)/bbb: $(tmp)/bb
-	./bld -o $@ $< ./
+	./go-build -o $@ -c $< ./
 
 # test binary made by p
 $(tmp)/pt: $(tmp)/p t/*.go src/*/* lib/*/*
-	./bld -o $@ $< ./t/
+	./go-build -o $@ -c $< ./t/
 
 # test binary made by babygo 1 gen compiler
 $(tmp)/bt: $(tmp)/b t/*.go
-	./bld -o $@ $< ./t/
+	./go-build -o $@ -c $< ./t/
 
 # test binary made by pb
 $(tmp)/pbt: $(tmp)/pb t/*.go
-	./bld -o $@ $< ./t/
+	./go-build -o $@ -c $< ./t/
 
 # test binary made by bb
 $(tmp)/bbt: $(tmp)/bb t/*.go
-	./bld -o $@ $< ./t/
+	./go-build -o $@ -c $< ./t/
 
 
 # make test expectations
