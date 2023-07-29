@@ -16,8 +16,19 @@ var __func__ = "__func__"
 
 var Fset *token.FileSet
 var CurrentPkg *ir.PkgContainer
-
 var ExportedQualifiedIdents = make(map[string]*ast.Ident)
+var currentFor *ir.MetaForContainer
+var currentFunc *ir.Func
+var mapFieldOffset = make(map[unsafe.Pointer]int)
+
+func Clear() {
+	Fset = nil
+	CurrentPkg = nil
+	ExportedQualifiedIdents = nil
+	currentFor = nil
+	currentFunc = nil
+	mapFieldOffset = nil
+}
 
 func assert(bol bool, msg string, caller string) {
 	if !bol {
@@ -521,9 +532,6 @@ func registerLocalVariable(fnc *ir.Func, name string, t *types.Type) *ir.Variabl
 	fnc.LocalVars = append(fnc.LocalVars, vr)
 	return vr
 }
-
-var currentFor *ir.MetaForContainer
-var currentFunc *ir.Func
 
 func registerStringLiteral(lit *ast.BasicLit) *ir.SLiteral {
 	if CurrentPkg.Name == "" {
@@ -2496,9 +2504,6 @@ func calcStructSizeAndSetFieldOffset(structType *ast.StructType) int {
 	}
 	return offset
 }
-
-// --- AST meta data ---
-var mapFieldOffset = make(map[unsafe.Pointer]int)
 
 func GetStructFieldOffset(field *ast.Field) int {
 	return mapFieldOffset[unsafe.Pointer(field)]
