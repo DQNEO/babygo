@@ -8,4 +8,6 @@ pkgdir=$3
 
 workdir=${compiler}.d
 export WORKDIR=$workdir
-$compiler list -deps $pkgdir  | ./build.sh -o $outfile $compiler $pkgdir
+mkdir -p $workdir
+$compiler list -deps $pkgdir  > $workdir/list
+cat  $workdir/list | ./build.sh -o $outfile $compiler $pkgdir
