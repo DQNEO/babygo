@@ -230,12 +230,12 @@ func (b *Builder) BuildN(workdir string, pkgPath string) {
 	//var builtPackages []*ir.AnalyzedPackage
 	for _, path := range sortedPaths {
 		pkg := b.permanentTree[path]
-		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pkg.Name, pkg.Path)
 		basename := normalizeImportPath(pkg.Path)
 		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
 		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
-		fmt.Fprintf(os.Stderr, "   asm \n", outAsmPath)
-		fmt.Fprintf(os.Stderr, "   decl \n", declFilePath)
+		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pkg.Name, pkg.Path)
+		fmt.Fprintf(os.Stderr, "   asm %s\n", outAsmPath)
+		fmt.Fprintf(os.Stderr, "   decl %s\n", declFilePath)
 		fmt.Fprintf(os.Stdout, "%s\n", pkg.Path)
 		//apkg := compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
 		//builtPackages = append(builtPackages, apkg)
