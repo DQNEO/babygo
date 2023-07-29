@@ -3,9 +3,7 @@ package builder
 import (
 	"os"
 
-	"github.com/DQNEO/babygo/internal/codegen"
 	"github.com/DQNEO/babygo/internal/compiler"
-	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
@@ -269,77 +267,6 @@ func (b *Builder) BuildN(workdir string, pkgPath string) {
 	//}
 	//fmt.Fprintf(initAsm, "  ret\n")
 	//initAsm.Close()
-}
-
-func (b *Builder) BuildAll(workdir string, args []string) {
-	b.filesCache = make(map[string][]string)
-	b.permanentTree = make(map[string]*compiler.PackageToCompile)
-
-	var mainFiles []string
-	for _, arg := range args {
-		switch arg {
-		case "-DG":
-			codegen.DebugCodeGen = true
-		default:
-			mainFiles = append(mainFiles, arg)
-		}
-	}
-
-	imports := collectImportsFromFiles(mainFiles)
-	importsList := mapToSlice(imports)
-	b.permanentTree["main"] = &compiler.PackageToCompile{
-		Name:    "main",
-		Path:    "main",
-		GoFiles: mainFiles,
-		Imports: importsList,
-	}
-	imports["runtime"] = true
-	tree := make(DependencyTree)
-	b.collectDependency(tree, imports)
-	prepend := []string{"unsafe", "runtime"}
-	sortedPaths := sortTopologically(tree, prepend)
-	sortedPaths = append(sortedPaths, "main")
-
-	var uni = universe.CreateUniverse()
-	sema.Fset = token.NewFileSet()
-
-	var builtPackages []*ir.AnalyzedPackage
-	for _, path := range sortedPaths {
-		pkg := b.permanentTree[path]
-		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pkg.Name, pkg.Path)
-		basename := normalizeImportPath(pkg.Path)
-		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
-		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
-		apkg := compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
-		builtPackages = append(builtPackages, apkg)
-	}
-
-	// Write to init asm
-	outFilePath := fmt.Sprintf("%s/%s", workdir, "__INIT__.s")
-	initAsm, err := os.Create(outFilePath)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Fprintf(initAsm, ".text\n")
-	fmt.Fprintf(initAsm, "# Initializes all packages except for runtime\n")
-	fmt.Fprintf(initAsm, ".global __INIT__.init\n")
-	fmt.Fprintf(initAsm, "__INIT__.init:\n")
-	for _, _pkg := range builtPackages {
-		// A package with no imports is initialized by assigning initial values to all its package-level variables
-		//  followed by calling all init functions in the order they appear in the source
-
-		if _pkg.Name == "runtime" {
-			// Do not call runtime inits. They should be called manually from runtime asm
-			continue
-		}
-
-		fmt.Fprintf(initAsm, "  callq %s.__initVars\n", _pkg.Name)
-		if _pkg.HasInitFunc { // @TODO: eliminate this flag. We should always call this
-			fmt.Fprintf(initAsm, "  callq %s.init\n", _pkg.Name)
-		}
-	}
-	fmt.Fprintf(initAsm, "  ret\n")
-	initAsm.Close()
 }
 
 func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string) {

@@ -11,14 +11,7 @@ It is made from scratch and can compile itself.
 
 It depends only on `as` as an assembler and `ld` as a linker.
 
-It is composed of only a few files.
-
-* main.go - the main compiler
-* parser.go - parser
-* scanner.go - scanner(or lexer)
-* src/ - standard packages
-* lib/ - libraries
-
+s
 # Design
 
 ## Lexer, Parser and AST
@@ -43,18 +36,15 @@ $ ./docker-run
 
 # Usage
 
+**Currently we are changing CLI design. This section will be updated later**
+
 ## Hello world
 
 ```terminal
 # Build babygo
 $ go build -o babygo
 
-# Compile the hello world program by babygo
-$ ./babygo example/hello.go
-
-# Assemble and link
-$ as -o hello.o /tmp/*.s
-$ ld -o hello hello.o
+.... TODO: update this part .... 
 
 # Run hello world
 $ ./hello
@@ -67,17 +57,8 @@ hello world!
 # Build babygo (1st generation)
 $ go build -o babygo
 
-# Build babygo by babygo (2nd generation)
-$ rm /tmp/*.s
-$ ./babygo *.go
-$ as -o babygo2.o /tmp/*.s
-$ ld -o babygo2 babygo2.o # 2nd generation compiler
+.... TODO: update this part .... 
 
-# You can generate babygo3 (3rd generation), babygo4, and so on...
-$ rm /tmp/*.s
-$ ./babygo2 *.go
-$ as -o babygo3.o /tmp/*.s
-$ ld -o babygo3 babygo3.o # 3rd generation compiler
 ```
 
 ## Test
