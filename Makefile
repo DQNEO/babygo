@@ -23,40 +23,35 @@ $(tmp)/pre:  src/*/* internal/*/* lib/*/*  $(tmp)
 	find pre -name '*.go' | xargs sed -e 's#github.com/DQNEO/babygo/lib/ast#go/ast#' -e 's#github.com/DQNEO/babygo/lib/token#go/token#' -e 's#github.com/DQNEO/babygo/lib/parser#go/parser#' -e 's#babygo/internal#babygo/pre/internal#g' -i
 	go build -o $@ ./pre
 
-# make babygo 1gen compiler (a rich binary)
+# babygo 1gen compiler (a rich binary)
 $(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
 	go build -o $@ .
 
-# Generate asm files for babygo 2gen compiler by pre compiler compiling babygo
-# Make babygo 2 gen compiler (a thin binary) by pre compiler
+# babygo 2gen compiler (a thin binary) by pre compiler
 $(tmp)/pb: $(tmp)/pre *.go src/*/* lib/*/*
 	./bld -o $@ $< *.go
 
-# Generate asm files for babygo 2gen compiler by babygo 1gen compiler compiling babygo
-# Make babygo 2gen compiler (a thin binary)
+# babygo 2gen compiler (a thin binary) by babygo 1gen compiler compiling babygo
 $(tmp)/bb: $(tmp)/bbg
 	./bld -o $@ $< *.go
 
-# Generate asm files for babygo 3gen compiler by babygo 2gen compiler compiling babygo
+# babygo 3gen compiler (a thin binary) by babygo 2gen compiler compiling babygo
 $(tmp)/bbb: $(tmp)/bb
 	./bld -o $@ $< *.go
 
-# Generate asm files for a test binary by babygo compiler compiling test
-$(tmp)/pbt: $(tmp)/pb t/*.go
-	./bld -o $@ $< t/*.go
-
-# Generate asm files for a test binary by pre compiler compiling test
-# Make a test binary by pre compiler compiling test
+# test binary made by pre
 $(tmp)/pt: $(tmp)/pre t/*.go src/*/* lib/*/*
 	./bld -o $@ $< t/*.go
 
-# Generate asm files for a test binary by babygo 1gen compiler compiling test
-# Generate asm files for a test binary by babygo 1gen compiler compiling test
+# test binary made by babygo 1 gen compiler
 $(tmp)/bt: $(tmp)/bbg t/*.go
 	./bld -o $@ $< t/*.go
 
-# Generate asm files for a test binary by babygo 2gen compiler compiling test
-# Generate asm files for a test binary by babygo 2gen compiler compiling test
+# test binary made by pb
+$(tmp)/pbt: $(tmp)/pb t/*.go
+	./bld -o $@ $< t/*.go
+
+# test binary made by bb
 $(tmp)/bbt: $(tmp)/bb t/*.go
 	./bld -o $@ $< t/*.go
 
