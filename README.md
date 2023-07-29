@@ -11,7 +11,6 @@ It is made from scratch and can compile itself.
 
 It depends only on `as` as an assembler and `ld` as a linker.
 
-s
 # Design
 
 ## Lexer, Parser and AST
