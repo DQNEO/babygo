@@ -16,7 +16,7 @@ $(tmp):
 pre/precompiler.go: *.go internal/*/* lib/*/*
 
 # make pre compiler (a rich binary)
-$(tmp)/pre:  src/*/* internal/*/* lib/*/*  $(tmp)
+$(tmp)/p:  src/*/* internal/*/* lib/*/*  $(tmp)
 	rm -rf pre/internal pre/*.go
 	cp *.go pre/
 	cp -ar internal pre/
@@ -28,7 +28,7 @@ $(tmp)/bbg: *.go lib/*/* src/*/* $(tmp)
 	go build -o $@ .
 
 # babygo 2gen compiler (a thin binary) by pre compiler
-$(tmp)/pb: $(tmp)/pre *.go src/*/* lib/*/*
+$(tmp)/pb: $(tmp)/p *.go src/*/* lib/*/*
 	./bld -o $@ $< *.go
 
 # babygo 2gen compiler (a thin binary) by babygo 1gen compiler compiling babygo
@@ -40,7 +40,7 @@ $(tmp)/bbb: $(tmp)/bb
 	./bld -o $@ $< *.go
 
 # test binary made by pre
-$(tmp)/pt: $(tmp)/pre t/*.go src/*/* lib/*/*
+$(tmp)/pt: $(tmp)/p t/*.go src/*/* lib/*/*
 	./bld -o $@ $< t/*.go
 
 # test binary made by babygo 1 gen compiler
