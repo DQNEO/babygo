@@ -3,7 +3,7 @@
 #   go-build -o outfile -c compiler [package]
 #
 ####
-set -eux
+set -eu
 REPO_ROOT=$(cd $(dirname $0);pwd)
 
 shift # skip -o
