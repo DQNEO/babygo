@@ -43,7 +43,8 @@ $ ./docker-run
 # Build babygo
 $ go build -o babygo
 
-.... TODO: update this part .... 
+# Build hello world by babygo
+$ ./go-build -o hello -c ./babygo ./example/hello
 
 # Run hello world
 $ ./hello
@@ -56,8 +57,11 @@ hello world!
 # Build babygo (1st generation)
 $ go build -o babygo
 
-.... TODO: update this part .... 
+# Build babygo (2nd generation) by babygo 1gen
+$ ./go-build -o ./babygo2 -c ./babygo ./
 
+# Build babygo (3rd generation) by babygo 2gen
+$ ./go-build -o ./babygo3 -c ./babygo ./
 ```
 
 ## Test
