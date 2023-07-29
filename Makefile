@@ -12,9 +12,6 @@ test: $(tmp) test1 test2 selfhost test0 compare-test
 $(tmp):
 	mkdir -p $(tmp)
 
-# prepare precompiler source file
-pre/precompiler.go: *.go internal/*/* lib/*/*
-
 # make pre compiler (a rich binary)
 $(tmp)/p:  src/*/* internal/*/* lib/*/*  $(tmp)
 	rm -rf pre/internal pre/*.go
