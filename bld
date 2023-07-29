@@ -6,15 +6,14 @@ set -eu
 shift # skip -o
 binfile=$1
 compiler=$2
-shift
-shift
-files="$@"
+pkgdir=$3
 
 workdir=${binfile}.d
 
 rm -rf $workdir
 mkdir -p $workdir
 
+files=${pkgdir}/*.go
 echo WORKDIR="$workdir" $compiler $files
 WORKDIR="$workdir" $compiler $files
 
