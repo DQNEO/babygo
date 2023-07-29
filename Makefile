@@ -47,9 +47,15 @@ $(tmp)/bbg-bbg: $(tmp)/bbg-bbg.d
 $(tmp)/bbg-bbg-bbg.d: $(tmp)/bbg-bbg
 	./compile -o $(@) $<  *.go
 
+$(tmp)/bbg-bbg-bbg: $(tmp)/bbg-bbg-bbg.d
+	./assemble_and_link -o $@ $<
+
 # Generate asm files for a test binary by babygo compiler compiling test
 $(tmp)/pre-bbg-test.d: $(tmp)/pre-bbg t/*.go
 	./compile -o $@ $< t/*.go
+
+$(tmp)/pre-bbg-test: $(tmp)/pre-bbg-test.d
+	./assemble_and_link -o $@ $<
 
 # Generate asm files for a test binary by pre compiler compiling test
 $(tmp)/pre-test.d: $(tmp)/pre t/*.go src/*/* lib/*/*
@@ -62,6 +68,7 @@ $(tmp)/pre-test: $(tmp)/pre-test.d
 # Generate asm files for a test binary by babygo 1gen compiler compiling test
 $(tmp)/bbg-test.d: $(tmp)/bbg t/*.go
 	./compile -o $@ $< t/*.go
+
 
 # Generate asm files for a test binary by babygo 1gen compiler compiling test
 $(tmp)/bbg-test: $(tmp)/bbg-test.d
@@ -106,7 +113,7 @@ selfhost: $(tmp)/bbg-bbg.d $(tmp)/bbg-bbg-bbg.d
 
 # compare output of test0 and test1
 .PHONY: compare-test
-compare-test: $(tmp)/pre-test.d $(tmp)/bbg-test.d $(tmp)/bbg-bbg-test.d $(tmp)/pre-bbg-test.d
+compare-test: $(tmp)/pre-test $(tmp)/bbg-test $(tmp)/bbg-bbg-test $(tmp)/pre-bbg-test
 	diff -u $(tmp)/pre-test.d/all $(tmp)/bbg-test.d/all >/dev/null
 	diff -u $(tmp)/bbg-test.d/all $(tmp)/pre-bbg-test.d/all  >/dev/null
 	diff -u $(tmp)/bbg-test.d/all $(tmp)/bbg-bbg-test.d/all  >/dev/null
