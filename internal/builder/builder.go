@@ -1,8 +1,6 @@
 package builder
 
 import (
-	"os"
-
 	"github.com/DQNEO/babygo/internal/compiler"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
@@ -243,11 +241,11 @@ func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string
 	b.filesCache = make(map[string][]string)
 	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 
-	fmt.Fprintf(os.Stderr, "Compiling  %s ...\n", pkgPath)
+	//fmt.Fprintf(os.Stderr, "Compiling  %s ...\n", pkgPath)
 	files := b.getPackageSourceFiles(pkgPath)
-	for _, file := range files {
-		fmt.Fprintf(os.Stderr, "file:  %s\n", file)
-	}
+	//for _, file := range files {
+	//	fmt.Fprintf(os.Stderr, "file:  %s\n", file)
+	//}
 	var gofiles []string
 	var asmfiles []string
 	for _, file := range files {
@@ -295,7 +293,7 @@ func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string
 	sema.Fset = token.NewFileSet()
 
 	for _, path := range sortedPaths {
-		fmt.Fprintf(os.Stderr, "  import %s\n", path)
+		//fmt.Fprintf(os.Stderr, "  import %s\n", path)
 		//@TODO:  compiler.CompileDec()
 		basename := normalizeImportPath(path)
 		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
@@ -303,8 +301,8 @@ func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string
 	}
 	outAsmPath := outputBaseName + ".s"
 	declFilePath := outputBaseName + ".dcl.go"
-	fmt.Fprintf(os.Stderr, "output asm %s\n", outAsmPath)
-	fmt.Fprintf(os.Stderr, "output decl %s\n", declFilePath)
+	//fmt.Fprintf(os.Stderr, "output asm %s\n", outAsmPath)
+	//fmt.Fprintf(os.Stderr, "output decl %s\n", declFilePath)
 	compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
 
 }
