@@ -61,7 +61,7 @@ $ go build -o babygo
 $ ./go-build -o ./babygo2 -c ./babygo ./
 
 # Build babygo (3rd generation) by babygo 2gen
-$ ./go-build -o ./babygo3 -c ./babygo ./
+$ ./go-build -o ./babygo3 -c ./babygo2 ./
 ```
 
 ## Test
