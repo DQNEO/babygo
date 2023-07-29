@@ -12,9 +12,9 @@ shift;
 OUT_FILE=$1
 OUT_FILE_ABS=$(realpath $OUT_FILE)
 compiler=$2
-MAIN_PKG_PATH=$3
-workdir=${OUT_FILE}.d
-export WORKDIR=$workdir
+pkgdir=$3
+workdir=$WORKDIR
+
 mkdir -p $workdir
 PKGS=""
 while read p
@@ -25,10 +25,10 @@ do
   PKGS="$PKGS $p"
   p2=$(echo $p | tr '/' '.')
   $compiler compile -o $workdir/$p2  $p
-done
+done < $workdir/list
 
 # Compile main
-$compiler compile -o $workdir/main $MAIN_PKG_PATH
+$compiler compile -o $workdir/main $pkgdir
 
 set -x
 cd $workdir

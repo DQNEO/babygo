@@ -2,12 +2,13 @@
 # ./bld2 -o outfile compiler pkgdir
 set -eux
 shift
-outfile=$1
+OUTFILE=$1
 compiler=$2
 pkgdir=$3
 
-workdir=${compiler}.d
+workdir=${OUTFILE}.d
 export WORKDIR=$workdir
 mkdir -p $workdir
 $compiler list -deps $pkgdir  > $workdir/list
-cat  $workdir/list | ./build.sh -o $outfile $compiler $pkgdir
+
+./build.sh -o $OUTFILE $compiler $pkgdir
