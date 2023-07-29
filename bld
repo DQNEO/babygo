@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# compile, assemble and link
+# Usage:
+#   bld -o outfile compiler <files>
+set -eu
+shift # ignore -o
+target=$1
+compiler=$2
+shift
+shift
+files="$@"
+
+wdir=${target}.d
+./compile -o $wdir $compiler $files
+./assemble_and_link -o $target $wdir
