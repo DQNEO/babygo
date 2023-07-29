@@ -15,8 +15,9 @@ const ProgName string = "babygo"
 
 func showHelp() {
 	fmt.Printf("Usage:\n")
-	fmt.Printf("    %s version:  show version\n", ProgName)
-	fmt.Printf("    %s [-DG] filename\n", ProgName)
+	fmt.Printf("    version:  show version\n")
+	fmt.Printf("    compile -o <tmpbasename> <pkgpath> e.g. compile -o /tmp/os os\n")
+	fmt.Printf("    buildn <pkgpath> e.g. buildn ./t/\n")
 }
 
 func showVersion() {
@@ -52,5 +53,17 @@ func main() {
 		SrcPath:        srcPath,
 		BbgRootSrcPath: bbgRootSrcPath,
 	}
-	b.Build(workdir, os.Args[1:])
+
+	switch os.Args[1] {
+	case "compile": // e.g. WORKDIR=/tmpfs/bbg/bbg-test.d babygo compile -o /tmp/os os
+		outputBaseName := os.Args[3]
+		pkgPath := os.Args[4]
+		b.BuildOne(workdir, outputBaseName, pkgPath)
+	case "buildn": // e.g. WORKDIR=/tmpfs/bbg/bbg-test.d babygo buildn ./t/
+		pkgPath := os.Args[2]
+		b.BuildN(workdir, pkgPath)
+	default:
+		showHelp()
+		return
+	}
 }

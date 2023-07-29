@@ -81,15 +81,15 @@ test2: $(tmp)/bbt t/expected.txt
 # do selfhost check by comparing 2gen and 3gen asm files
 .PHONY: selfhost
 selfhost: $(tmp)/bb $(tmp)/bbb
-	diff $(tmp)/bb $(tmp)/bbb  >/dev/null
+	diff $(tmp)/bb.d/all $(tmp)/bbb.d/all  >/dev/null
 	@echo "[PASS] selfhost"
 
 # compare output of test0 and test1
 .PHONY: compare-test
 compare-test: $(tmp)/pt $(tmp)/bt $(tmp)/bbt $(tmp)/pbt
-	diff -u $(tmp)/pt $(tmp)/bt >/dev/null
-	diff -u $(tmp)/bt $(tmp)/pbt  >/dev/null
-	diff -u $(tmp)/bt $(tmp)/bbt  >/dev/null
+	diff -u $(tmp)/pt.d/all $(tmp)/bt.d/all >/dev/null
+	diff -u $(tmp)/bt.d/all $(tmp)/pbt.d/all  >/dev/null
+	diff -u $(tmp)/bt.d/all $(tmp)/bbt.d/all  >/dev/null
 	@echo "[PASS] compare-test"
 
 .PHONY: fmt

@@ -3,9 +3,7 @@ package builder
 import (
 	"os"
 
-	"github.com/DQNEO/babygo/internal/codegen"
 	"github.com/DQNEO/babygo/internal/compiler"
-	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
@@ -82,8 +80,8 @@ func getKeys(tree DependencyTree) []string {
 
 // Do topological sort
 // In the result list, the independent (lowest level) packages come first.
-func sortTopologically(tree DependencyTree) []string {
-	var sorted []string = []string{"unsafe", "runtime"}
+func sortTopologically(tree DependencyTree, prepend []string) []string {
+	sorted := prepend
 	removeNode(tree, "unsafe")
 	removeNode(tree, "runtime")
 	for len(tree) > 0 {
@@ -105,6 +103,10 @@ func sortTopologically(tree DependencyTree) []string {
 }
 
 func (b *Builder) getPackageDir(importPath string) string {
+	if strings.HasPrefix(importPath, "./") {
+		// relative path means it is the package directory
+		return importPath
+	}
 	if isStdLib(importPath) {
 		return b.BbgRootSrcPath + "/" + importPath
 	} else {
@@ -185,74 +187,156 @@ type Builder struct {
 	permanentTree  map[string]*compiler.PackageToCompile
 }
 
-func (b *Builder) Build(workdir string, args []string) {
+func (b *Builder) BuildN(workdir string, pkgPath string) {
 	b.filesCache = make(map[string][]string)
 	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 
-	var mainFiles []string
-	for _, arg := range args {
-		switch arg {
-		case "-DG":
-			codegen.DebugCodeGen = true
-		default:
-			mainFiles = append(mainFiles, arg)
+	files := b.getPackageSourceFiles(pkgPath)
+	//for _, file := range files {
+	//	fmt.Fprintf(os.Stderr, "file:  %s\n", file)
+	//}
+	var gofiles []string
+	var asmfiles []string
+	for _, file := range files {
+		if strings.HasSuffix(file, ".go") {
+			gofiles = append(gofiles, file)
+		} else if strings.HasSuffix(file, ".s") {
+			asmfiles = append(asmfiles, file)
 		}
 	}
 
-	imports := collectImportsFromFiles(mainFiles)
+	var mainGoFiles []string = gofiles
+
+	imports := collectImportsFromFiles(mainGoFiles)
 	importsList := mapToSlice(imports)
 	b.permanentTree["main"] = &compiler.PackageToCompile{
 		Name:    "main",
 		Path:    "main",
-		GoFiles: mainFiles,
+		GoFiles: mainGoFiles,
 		Imports: importsList,
 	}
 	imports["runtime"] = true
 	tree := make(DependencyTree)
 	b.collectDependency(tree, imports)
-	sortedPaths := sortTopologically(tree)
+	prepend := []string{"unsafe", "runtime"}
+	sortedPaths := sortTopologically(tree, prepend)
 	sortedPaths = append(sortedPaths, "main")
+
+	//var uni = universe.CreateUniverse()
+	sema.Fset = token.NewFileSet()
+
+	//var builtPackages []*ir.AnalyzedPackage
+	for _, path := range sortedPaths {
+		pkg := b.permanentTree[path]
+		fmt.Fprintf(os.Stdout, "%s\n", pkg.Path)
+		continue
+		basename := normalizeImportPath(pkg.Path)
+		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
+		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
+		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pkg.Name, pkg.Path)
+		fmt.Fprintf(os.Stderr, "   asm %s\n", outAsmPath)
+		fmt.Fprintf(os.Stderr, "   decl %s\n", declFilePath)
+		//apkg := compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
+		//builtPackages = append(builtPackages, apkg)
+	}
+
+	// Write to init asm
+
+	//outFilePath := fmt.Sprintf("%s/%s", workdir, "__INIT__.s")
+	//initAsm, err := os.Create(outFilePath)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Fprintf(initAsm, ".text\n")
+	//fmt.Fprintf(initAsm, "# Initializes all packages except for runtime\n")
+	//fmt.Fprintf(initAsm, ".global __INIT__.init\n")
+	//fmt.Fprintf(initAsm, "__INIT__.init:\n")
+	//for _, _pkg := range builtPackages {
+	//	// A package with no imports is initialized by assigning initial values to all its package-level variables
+	//	//  followed by calling all init functions in the order they appear in the source
+	//
+	//	if _pkg.Name == "runtime" {
+	//		// Do not call runtime inits. They should be called manually from runtime asm
+	//		continue
+	//	}
+	//
+	//	fmt.Fprintf(initAsm, "  callq %s.__initVars\n", _pkg.Name)
+	//	if _pkg.HasInitFunc { // @TODO: eliminate this flag. We should always call this
+	//		fmt.Fprintf(initAsm, "  callq %s.init\n", _pkg.Name)
+	//	}
+	//}
+	//fmt.Fprintf(initAsm, "  ret\n")
+	//initAsm.Close()
+}
+
+func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string) {
+	b.filesCache = make(map[string][]string)
+	b.permanentTree = make(map[string]*compiler.PackageToCompile)
+
+	fmt.Fprintf(os.Stderr, "Compiling  %s ...\n", pkgPath)
+	files := b.getPackageSourceFiles(pkgPath)
+	for _, file := range files {
+		fmt.Fprintf(os.Stderr, "file:  %s\n", file)
+	}
+	var gofiles []string
+	var asmfiles []string
+	for _, file := range files {
+		if strings.HasSuffix(file, ".go") {
+			gofiles = append(gofiles, file)
+		} else if strings.HasSuffix(file, ".s") {
+			asmfiles = append(asmfiles, file)
+		}
+	}
+
+	var pkgName string
+	if strings.HasPrefix(pkgPath, "./") {
+		pkgName = "main"
+	} else {
+		pkgName = path.Base(pkgPath)
+	}
+
+	imports := collectImportsFromFiles(gofiles)
+	importsList := mapToSlice(imports)
+	pkg := &compiler.PackageToCompile{
+		Name:     pkgName,
+		Path:     pkgPath,
+		GoFiles:  gofiles,
+		AsmFiles: asmfiles,
+		Imports:  importsList,
+	}
+
+	var prepend []string
+
+	switch pkgPath {
+	case "unsafe":
+		// do not prepend
+	case "runtime":
+		prepend = []string{"unsafe"}
+	default:
+		prepend = []string{"unsafe", "runtime"}
+		imports["runtime"] = true
+	}
+
+	tree := make(DependencyTree)
+	b.collectDependency(tree, imports)
+	sortedPaths := sortTopologically(tree, prepend)
 
 	var uni = universe.CreateUniverse()
 	sema.Fset = token.NewFileSet()
 
-	var builtPackages []*ir.AnalyzedPackage
 	for _, path := range sortedPaths {
-		pkg := b.permanentTree[path]
-		fmt.Fprintf(os.Stderr, "Building  %s %s\n", pkg.Name, pkg.Path)
-		basename := normalizeImportPath(pkg.Path)
-		outAsmPath := fmt.Sprintf("%s/%s", workdir, basename+".s")
+		fmt.Fprintf(os.Stderr, "  import %s\n", path)
+		//@TODO:  compiler.CompileDec()
+		basename := normalizeImportPath(path)
 		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
-		apkg := compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
-		builtPackages = append(builtPackages, apkg)
+		compiler.CompileDecl(uni, sema.Fset, path, declFilePath)
 	}
+	outAsmPath := outputBaseName + ".s"
+	declFilePath := outputBaseName + ".dcl.go"
+	fmt.Fprintf(os.Stderr, "output asm %s\n", outAsmPath)
+	fmt.Fprintf(os.Stderr, "output decl %s\n", declFilePath)
+	compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
 
-	// Write to init asm
-	outFilePath := fmt.Sprintf("%s/%s", workdir, "__INIT__.s")
-	initAsm, err := os.Create(outFilePath)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Fprintf(initAsm, ".text\n")
-	fmt.Fprintf(initAsm, "# Initializes all packages except for runtime\n")
-	fmt.Fprintf(initAsm, ".global __INIT__.init\n")
-	fmt.Fprintf(initAsm, "__INIT__.init:\n")
-	for _, _pkg := range builtPackages {
-		// A package with no imports is initialized by assigning initial values to all its package-level variables
-		//  followed by calling all init functions in the order they appear in the source
-
-		if _pkg.Name == "runtime" {
-			// Do not call runtime inits. They should be called manually from runtime asm
-			continue
-		}
-
-		fmt.Fprintf(initAsm, "  callq %s.__initVars \n", _pkg.Name)
-		if _pkg.HasInitFunc { // @TODO: eliminate this flag. We should always call this
-			fmt.Fprintf(initAsm, "  callq %s.init \n", _pkg.Name)
-		}
-	}
-	fmt.Fprintf(initAsm, "  ret\n")
-	initAsm.Close()
 }
 
 func normalizeImportPath(importPath string) string {

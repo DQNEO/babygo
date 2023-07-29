@@ -1,30 +1,11 @@
 #!/usr/bin/env bash
-# compile, assemble and link
-# Usage:
-#   bld -o outfile compiler <files>
-set -eu
-shift # skip -o
-binfile=$1
+# ./bld2 -o outfile compiler pkgdir
+set -eux
+shift
+outfile=$1
 compiler=$2
 pkgdir=$3
 
-workdir=${binfile}.d
-
-rm -rf $workdir
-mkdir -p $workdir
-
-files=${pkgdir}/*.go
-echo WORKDIR="$workdir" $compiler $files
-WORKDIR="$workdir" $compiler $files
-
-cat $workdir/*.s > $workdir/all
-
-
-for f in ${workdir}/*.s
-do
-  o=${f%\.s}.o
-  as -o $o $f
-done
-
-# Note: I tried mold, but there wasn't any difference in linking time. Probably because the program is too small ?
-ld -o ${binfile} ${workdir}/*.o
+workdir=${compiler}.d
+export WORKDIR=$workdir
+$compiler buildn $pkgdir  | ./build.sh -o $outfile $compiler $pkgdir

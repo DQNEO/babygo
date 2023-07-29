@@ -9,6 +9,12 @@ type Type struct {
 	Field int
 }
 
+var Var int
+
+func init() {
+	Var = 7
+}
+
 func (mt *Type) Method() int {
 	return mt.Field
 }
