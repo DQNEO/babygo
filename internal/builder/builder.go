@@ -128,7 +128,11 @@ func (b *Builder) getPackageDir(importPath string) string {
 
 func (b *Builder) getPackageSourceFiles(pkgPath string) []string {
 	packageDir := b.getPackageDir(pkgPath)
-	return findFilesInDir(packageDir, true)
+	files := findFilesInDir(packageDir, true)
+	if len(files) == 0 {
+		panic("No source files found in " + packageDir + " (" + pkgPath + ")")
+	}
+	return files
 }
 
 func (b *Builder) collectDependency(tree DependencyTree, paths map[string]bool) {
