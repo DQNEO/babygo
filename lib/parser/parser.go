@@ -9,7 +9,7 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
-var ImportsOnly uint8 = 2
+const ImportsOnly uint8 = 2
 
 var __func__ = "__func__"
 
