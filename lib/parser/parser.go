@@ -404,12 +404,9 @@ func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
 }
 
 func (p *parser) parseSignature(scope *ast.Scope) *ast.Signature {
-
 	pos := p.pos
-	var params *ast.FieldList
-	var results *ast.FieldList
-	params = p.parseParameters(scope, true)
-	results = p.parseResult(scope)
+	params := p.parseParameters(scope, true)
+	results := p.parseResult(scope)
 	return &ast.Signature{
 		StartPos: pos,
 		Params:   params,
@@ -419,7 +416,7 @@ func (p *parser) parseSignature(scope *ast.Scope) *ast.Signature {
 
 func declareField(decl *ast.Field, scope *ast.Scope, kind ast.ObjKind, ident *ast.Ident) {
 	// declare
-	var obj = &ast.Object{
+	obj := &ast.Object{
 		Decl: decl,
 		Name: ident.Name,
 		Kind: kind,
@@ -434,9 +431,8 @@ func declareField(decl *ast.Field, scope *ast.Scope, kind ast.ObjKind, ident *as
 }
 
 func declare(decl interface{}, scope *ast.Scope, kind ast.ObjKind, ident *ast.Ident) {
-
 	//valSpec.Name.Obj
-	var obj = &ast.Object{
+	obj := &ast.Object{
 		Decl: decl,
 		Name: ident.Name,
 		Kind: kind,
@@ -462,8 +458,7 @@ func (p *parser) tryResolve(x ast.Expr, collectUnresolved bool) {
 		return
 	}
 
-	var s *ast.Scope
-	for s = p.topScope; s != nil; s = s.Outer {
+	for s := p.topScope; s != nil; s = s.Outer {
 		var obj = s.Lookup(ident.Name)
 		if obj != nil {
 			ident.Obj = obj
@@ -509,7 +504,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 		}
 	}
 
-	var typ = p.tryIdentOrType()
+	typ := p.tryIdentOrType()
 	if typ == nil {
 		panic2(__func__, "# typ should not be nil\n")
 	}
@@ -518,7 +513,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 }
 
 func (p *parser) parseRhsOrType() ast.Expr {
-	var x = p.parseExpr(false)
+	x := p.parseExpr(false)
 	return x
 }
 
@@ -528,7 +523,7 @@ func (p *parser) parseCallExpr(fn ast.Expr) ast.Expr {
 	var list []ast.Expr
 	var ellipsis token.Pos
 	for p.tok != ")" {
-		var arg = p.parseExpr(false)
+		arg := p.parseExpr(false)
 		list = append(list, arg)
 		if p.tok == "," {
 			p.next()
@@ -557,8 +552,7 @@ func (p *parser) parseCallExpr(fn ast.Expr) ast.Expr {
 var parserExprLev int // < 0: in control clause, >= 0: in expression
 
 func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
-
-	var x = p.parseOperand(lhs)
+	x := p.parseOperand(lhs)
 
 	var cnt int
 
