@@ -5,6 +5,11 @@
 ####
 set -eu
 REPO_ROOT=$(cd $(dirname $0);pwd)
+verbose=""
+if [[ $1 == "-x" ]]; then
+  verbose="1"
+  shift
+fi
 
 shift # skip -o
 out_file=$1
@@ -17,7 +22,10 @@ workdir=${tmp}/${out_file##*/}.d
 export WORKDIR=$workdir
 mkdir -p $workdir
 $compiler list -deps $package  > $workdir/list
-
+if [[ -n $verbose ]]; then
+  echo '>' $compiler list -deps $package
+  cat $workdir/list
+fi
 PKGS=""
 while read p
 do
@@ -26,10 +34,16 @@ do
   fi
   PKGS="$PKGS $p"
   p2=$(echo $p | tr '/' '.')
+  if [[ -n $verbose ]]; then
+    echo '>' $compiler compile -o $workdir/$p2  $p
+  fi
   $compiler compile -o $workdir/$p2  $p
 done < $workdir/list
 
 # Compile main
+  if [[ -n $verbose ]]; then
+    echo '>' $compiler compile -o $workdir/main $package
+  fi
 $compiler compile -o $workdir/main $package
 
 cd $workdir
