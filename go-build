@@ -11,6 +11,8 @@ if [[ $1 == "-x" ]]; then
   shift
 fi
 
+tmp=${tmp:=/tmp/bbg}
+
 shift # skip -o
 out_file=$1
 shift # skip -c
