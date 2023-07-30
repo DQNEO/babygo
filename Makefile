@@ -38,19 +38,19 @@ $(tmp)/bbb: $(tmp)/bb
 
 # test binary made by p
 $(tmp)/pt: $(tmp)/p t/*.go src/*/* lib/*/*
-	./go-build -o $@ -c $< ./t/
+	./go-build -o $@ -c $< ./t
 
 # test binary made by babygo 1 gen compiler
 $(tmp)/bt: $(tmp)/b t/*.go
-	./go-build -o $@ -c $< ./t/
+	./go-build -o $@ -c $< ./t
 
 # test binary made by pb
 $(tmp)/pbt: $(tmp)/pb t/*.go
-	./go-build -o $@ -c $< ./t/
+	./go-build -o $@ -c $< ./t
 
 # test binary made by bb
 $(tmp)/bbt: $(tmp)/bb t/*.go
-	./go-build -o $@ -c $< ./t/
+	./go-build -o $@ -c $< ./t
 
 
 # make test expectations
