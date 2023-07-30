@@ -48,22 +48,17 @@ func (p *parser) consumeComment() {
 }
 
 func (p *parser) next0() {
-	var s = p.scanner
-	lit, tok, pos := s.Scan()
+	lit, tok, pos := p.scanner.Scan()
 	p.lit = lit
 	p.tok = tok
 	p.pos = pos
-	//logf("[parser.next0] pos=%d\n", p.tok.pos)
 }
 
 func (p *parser) next() {
 	p.next0()
 	if p.tok == ";" {
-		//logff(" [parser] pointing at : \"%s\" newline (%s)\n", p.tok, strconv.Itoa(p.scanner.offset))
 	} else if p.tok == "IDENT" {
-		//logff(" [parser] pointing at: IDENT \"%s\" (%s)\n", p.lit, strconv.Itoa(p.scanner.offset))
 	} else {
-		//logff(" [parser] pointing at: \"%s\" %s (%s)\n", p.tok, p.lit, strconv.Itoa(p.scanner.offset))
 	}
 
 	if p.tok == "COMMENT" {
@@ -75,7 +70,7 @@ func (p *parser) next() {
 
 func (p *parser) expect(tok string, who string) {
 	if p.tok != tok {
-		var s = fmt.Sprintf("%s %s expected, but got %s", p.fset.Position(p.pos).String(), tok, p.tok)
+		s := fmt.Sprintf("%s %s expected, but got %s", p.fset.Position(p.pos).String(), tok, p.tok)
 		panic2(who, s)
 	}
 	p.next()
@@ -109,7 +104,7 @@ func (p *parser) parseIdent() *ast.Ident {
 }
 
 func (p *parser) parseImportSpec() *ast.ImportSpec {
-	var pth = p.lit
+	pth := p.lit
 	pos := p.pos
 	p.next()
 	spec := &ast.ImportSpec{
@@ -143,8 +138,7 @@ func (p *parser) tryVarType(ellipsisOK bool) ast.Expr {
 }
 
 func (p *parser) parseVarType(ellipsisOK bool) ast.Expr {
-
-	var typ = p.tryVarType(ellipsisOK)
+	typ := p.tryVarType(ellipsisOK)
 	if typ == nil {
 		panic2(__func__, "nil is not expected")
 	}
@@ -153,8 +147,7 @@ func (p *parser) parseVarType(ellipsisOK bool) ast.Expr {
 }
 
 func (p *parser) tryType() ast.Expr {
-
-	var typ = p.tryIdentOrType()
+	typ := p.tryIdentOrType()
 	if typ != nil {
 		p.resolve(typ)
 	}
@@ -163,14 +156,14 @@ func (p *parser) tryType() ast.Expr {
 }
 
 func (p *parser) parseType() ast.Expr {
-	var typ = p.tryType()
+	typ := p.tryType()
 	return typ
 }
 
 func (p *parser) parsePointerType() ast.Expr {
 	pos := p.pos
 	p.expect("*", __func__)
-	var base = p.parseType()
+	base := p.parseType()
 	return &ast.StarExpr{
 		Star: pos,
 		X:    base,
@@ -185,7 +178,7 @@ func (p *parser) parseArrayType() ast.Expr {
 		ln = p.parseRhs()
 	}
 	p.expect("]", __func__)
-	var elt = p.parseType()
+	elt := p.parseType()
 
 	return &ast.ArrayType{
 		Lbrack: pos,
@@ -195,12 +188,12 @@ func (p *parser) parseArrayType() ast.Expr {
 }
 
 func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
-	var varType = p.parseVarType(false)
-	var typ = p.tryVarType(false)
+	varType := p.parseVarType(false)
+	typ := p.tryVarType(false)
 
 	p.expectSemi(__func__)
 	ident := varType.(*ast.Ident)
-	var field = &ast.Field{
+	field := &ast.Field{
 		Type:  typ,
 		Names: []*ast.Ident{ident},
 	}
@@ -215,11 +208,11 @@ func (p *parser) parseStructType() ast.Expr {
 	p.expect("{", __func__)
 
 	var _nil *ast.Scope
-	var scope = ast.NewScope(_nil)
+	scope := ast.NewScope(_nil)
 
 	var list []*ast.Field
 	for p.tok == "IDENT" || p.tok == "*" {
-		var field *ast.Field = p.parseFieldDecl(scope)
+		field := p.parseFieldDecl(scope)
 		list = append(list, field)
 	}
 	p.expect("}", __func__)
@@ -247,26 +240,23 @@ func (p *parser) parseMaptype() ast.Expr {
 }
 
 func (p *parser) parseTypeName() ast.Expr {
-
-	var ident = p.parseIdent()
+	ident := p.parseIdent()
 	if p.tok == "." {
 		// ident is a package name
 		p.next() // consume "."
 		eIdent := ident
 		p.resolve(eIdent)
 		sel := p.parseIdent()
-		selectorExpr := &ast.SelectorExpr{
+		return &ast.SelectorExpr{
 			X:   eIdent,
 			Sel: sel,
 		}
-		return selectorExpr
 	}
 
 	return ident
 }
 
 func (p *parser) tryIdentOrType() ast.Expr {
-
 	switch p.tok {
 	case "IDENT":
 		return p.parseTypeName()
@@ -293,7 +283,7 @@ func (p *parser) tryIdentOrType() ast.Expr {
 	case "(":
 		pos := p.pos
 		p.next()
-		var _typ = p.parseType()
+		_typ := p.parseType()
 		p.expect(")", __func__)
 		return &ast.ParenExpr{
 			Lparen: pos,
@@ -308,7 +298,6 @@ func (p *parser) tryIdentOrType() ast.Expr {
 }
 
 func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Field {
-
 	var list []ast.Expr
 	for {
 		var varType = p.parseVarType(ellipsisOK)
@@ -324,12 +313,12 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 
 	var params []*ast.Field
 
-	var typ = p.tryVarType(ellipsisOK)
+	typ := p.tryVarType(ellipsisOK)
 	if typ != nil {
 		if len(list) > 1 {
 			panic2(__func__, "Ident list is not supported")
 		}
-		var eIdent = list[0]
+		eIdent := list[0]
 		ident := eIdent.(*ast.Ident)
 
 		field := &ast.Field{
@@ -340,7 +329,6 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 		declareField(field, scope, ast.Var, ident)
 		p.resolve(typ)
 		if p.tok != "," {
-
 			return params
 		}
 		p.next()
@@ -393,20 +381,15 @@ func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) *ast.FieldLi
 }
 
 func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
-
 	pos := p.pos
 	if p.tok == "(" {
-		var r = p.parseParameters(scope, false)
-
-		return r
+		return p.parseParameters(scope, false)
 	}
 
 	if p.tok == "{" {
-
-		var _r *ast.FieldList = nil
-		return _r
+		return nil
 	}
-	var typ = p.tryType()
+	typ := p.tryType()
 	var list []*ast.Field
 	if typ != nil {
 		list = append(list, &ast.Field{
