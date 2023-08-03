@@ -847,11 +847,8 @@ func (p *parser) parseForStmt() ast.Stmt {
 	body := p.parseBlockStmt()
 	p.expectSemi(__func__)
 
-	var as *ast.AssignStmt
-	var rangeX ast.Expr
 	if isRange {
-		as = s2.(*ast.AssignStmt)
-
+		as := s2.(*ast.AssignStmt)
 		var key ast.Expr
 		var value ast.Expr
 		switch len(as.Lhs) {
@@ -865,29 +862,26 @@ func (p *parser) parseForStmt() ast.Stmt {
 			panic2(__func__, "Unexpected len of as.Lhs")
 		}
 
-		rangeX = as.Rhs[0].(*ast.UnaryExpr).X
-		var rangeStmt = &ast.RangeStmt{
-			For: pos,
-		}
-		rangeStmt.Key = key
-		rangeStmt.Value = value
-		rangeStmt.X = rangeX
-		rangeStmt.Body = body
-		rangeStmt.Tok = token.Token(as.Tok)
+		rangeX := as.Rhs[0].(*ast.UnaryExpr).X
 		p.closeScope()
-
-		return rangeStmt
+		return &ast.RangeStmt{
+			For:   pos,
+			Key:   key,
+			Value: value,
+			X:     rangeX,
+			Body:  body,
+			Tok:   as.Tok,
+		}
 	}
-	var forStmt = &ast.ForStmt{
-		For: pos,
-	}
-	forStmt.Init = s1
-	forStmt.Cond = makeExpr(s2)
-	forStmt.Post = s3
-	forStmt.Body = body
+	cond := makeExpr(s2)
 	p.closeScope()
-
-	return forStmt
+	return &ast.ForStmt{
+		For:  pos,
+		Init: s1,
+		Cond: cond,
+		Post: s3,
+		Body: body,
+	}
 }
 
 func (p *parser) parseIfStmt() ast.Stmt {
