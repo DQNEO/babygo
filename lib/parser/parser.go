@@ -888,36 +888,33 @@ func (p *parser) parseIfStmt() ast.Stmt {
 	pos := p.pos
 	p.expect("if", __func__)
 	parserExprLev = -1
-	var condStmt ast.Stmt = p.parseSimpleStmt(false)
+	condStmt := p.parseSimpleStmt(false)
 	exprStmt := condStmt.(*ast.ExprStmt)
-	var cond = exprStmt.X
+	cond := exprStmt.X
 	parserExprLev = 0
-	var body = p.parseBlockStmt()
+	body := p.parseBlockStmt()
 	var else_ ast.Stmt
 	if p.tok == "else" {
 		p.next()
 		if p.tok == "if" {
 			else_ = p.parseIfStmt()
 		} else {
-			var elseblock = p.parseBlockStmt()
+			elseblock := p.parseBlockStmt()
 			p.expectSemi(__func__)
 			else_ = elseblock
 		}
 	} else {
 		p.expectSemi(__func__)
 	}
-	var ifStmt = &ast.IfStmt{
-		If: pos,
+	return &ast.IfStmt{
+		If:   pos,
+		Cond: cond,
+		Body: body,
+		Else: else_,
 	}
-	ifStmt.Cond = cond
-	ifStmt.Body = body
-	ifStmt.Else = else_
-
-	return ifStmt
 }
 
 func (p *parser) parseCaseClause() *ast.CaseClause {
-
 	var list []ast.Expr
 	if p.tok == "case" {
 		p.next() // consume "case"
@@ -927,13 +924,12 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 	}
 	p.expect(":", __func__)
 	p.openScope()
-	var body = p.parseStmtList()
-	var r = &ast.CaseClause{}
-	r.Body = body
-	r.List = list
+	body := p.parseStmtList()
 	p.closeScope()
-
-	return r
+	return &ast.CaseClause{
+		List: list,
+		Body: body,
+	}
 }
 
 func isTypeSwitchAssert(e ast.Expr) bool {
@@ -960,9 +956,8 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	p.expect("switch", __func__)
 	p.openScope()
 
-	var s2 ast.Stmt
 	parserExprLev = -1
-	s2 = p.parseSimpleStmt(false)
+	s2 := p.parseSimpleStmt(false)
 	parserExprLev = 0
 
 	p.expect("{", __func__)
@@ -976,9 +971,9 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	}
 	p.expect("}", __func__)
 	p.expectSemi(__func__)
-	var body = &ast.BlockStmt{}
-	body.List = list
-
+	body := &ast.BlockStmt{
+		List: list,
+	}
 	typeSwitch := isTypeSwitchGuard(s2)
 
 	p.closeScope()
@@ -998,9 +993,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 }
 
 func (p *parser) parseLhsList() []ast.Expr {
-
-	var list = p.parseExprList(true)
-
+	list := p.parseExprList(true)
 	if p.tok != ":=" {
 		// x = y
 		// x is declared earlier and it should be resolved here
@@ -1013,11 +1006,10 @@ func (p *parser) parseLhsList() []ast.Expr {
 }
 
 func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
-
-	var x = p.parseLhsList()
+	x := p.parseLhsList()
 	tokPos := p.pos
 	stok := p.tok
-	var isRange = false
+	var isRange bool
 	var y ast.Expr
 	var rangeX ast.Expr
 	var rangeUnary *ast.UnaryExpr
@@ -1041,8 +1033,7 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 		}
 		as.Tok = token.Token(assignToken)
 		as.Lhs = x
-		as.Rhs = make([]ast.Expr, 1, 1)
-		as.Rhs[0] = y
+		as.Rhs = []ast.Expr{y}
 		as.IsRange = isRange
 		s := as
 		if as.Tok == ":=" {
@@ -1052,29 +1043,25 @@ func (p *parser) parseSimpleStmt(isRangeOK bool) ast.Stmt {
 				declare(as, p.topScope, ast.Var, idnt)
 			}
 		}
-
 		return s
 	case ";":
-		var exprStmt = &ast.ExprStmt{}
-		exprStmt.X = x[0]
-
-		return exprStmt
+		return &ast.ExprStmt{
+			X: x[0],
+		}
 	}
 
 	switch stok {
 	case "++", "--":
-		var sInc = &ast.IncDecStmt{
-			TokPos: tokPos,
-		}
-		sInc.X = x[0]
-		sInc.Tok = token.Token(stok)
 		p.next() // consume "++" or "--"
-		return sInc
+		return &ast.IncDecStmt{
+			TokPos: tokPos,
+			X:      x[0],
+			Tok:    token.Token(stok),
+		}
 	}
-	var exprStmt = &ast.ExprStmt{}
-	exprStmt.X = x[0]
-
-	return exprStmt
+	return &ast.ExprStmt{
+		X: x[0],
+	}
 }
 
 func (p *parser) parseStmt() ast.Stmt {
