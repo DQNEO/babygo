@@ -765,7 +765,6 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 		var op = p.tok
 		oprec = precedence(op)
 		if oprec < prec1 {
-
 			return x
 		}
 		p.expect(op, __func__)
@@ -776,36 +775,29 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 			lhs = false
 		}
 
-		var y = p.parseBinaryExpr(false, oprec+1)
-		var binaryExpr = &ast.BinaryExpr{}
-		binaryExpr.X = x
-		binaryExpr.Y = y
-		binaryExpr.Op = token.Token(op)
-		var r = (binaryExpr)
-		x = r
+		y := p.parseBinaryExpr(false, oprec+1)
+		x = &ast.BinaryExpr{
+			X:  x,
+			Y:  y,
+			Op: token.Token(op),
+		}
 	}
-
-	return x
 }
 
 func (p *parser) parseExpr(lhs bool) ast.Expr {
-
-	var e = p.parseBinaryExpr(lhs, 1)
-
+	e := p.parseBinaryExpr(lhs, 1)
 	return e
 }
 
 func (p *parser) parseRhs() ast.Expr {
-	var x = p.parseExpr(false)
+	x := p.parseExpr(false)
 	return x
 }
 
 // Extract ast.Expr from ExprStmt. Returns nil if input is nil
 func makeExpr(s ast.Stmt) ast.Expr {
-
 	if s == nil {
-		var r ast.Expr
-		return r
+		return nil
 	}
 	return s.(*ast.ExprStmt).X
 }
@@ -834,11 +826,8 @@ func (p *parser) parseForStmt() ast.Stmt {
 	if p.tok != "{" {
 		if p.tok != ";" {
 			s2 = p.parseSimpleStmt(true)
-			var isAssign bool
-			var assign *ast.AssignStmt
-			assign, isAssign = s2.(*ast.AssignStmt)
+			assign, isAssign := s2.(*ast.AssignStmt)
 			isRange = isAssign && assign.IsRange
-
 		}
 		if !isRange && p.tok == ";" {
 			p.next() // consume ";"
@@ -855,7 +844,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 	}
 
 	parserExprLev = 0
-	var body = p.parseBlockStmt()
+	body := p.parseBlockStmt()
 	p.expectSemi(__func__)
 
 	var as *ast.AssignStmt
