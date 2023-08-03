@@ -573,16 +573,15 @@ func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
 			switch p.tok {
 			case "IDENT":
 				// Assume CallExpr
-				var secondIdent = p.parseIdent()
-				var sel = &ast.SelectorExpr{
+				secondIdent := p.parseIdent()
+				sel := &ast.SelectorExpr{
 					X:   x,
 					Sel: secondIdent,
 				}
 				if p.tok == "(" {
-					var fn = (sel)
-					x = p.parseCallExpr(fn)
+					x = p.parseCallExpr(sel)
 				} else {
-					x = (sel)
+					x = sel
 				}
 			case "(": // type assertion
 				x = p.parseTypeAssertion(x)
@@ -606,12 +605,9 @@ func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
 				return x
 			}
 		default:
-
 			return x
 		}
 	}
-
-	return x
 }
 
 func (p *parser) parseTypeAssertion(x ast.Expr) ast.Expr {
@@ -625,17 +621,15 @@ func (p *parser) parseTypeAssertion(x ast.Expr) ast.Expr {
 }
 
 func (p *parser) parseElement() ast.Expr {
-	var x = p.parseExpr(false) // key or value
+	x := p.parseExpr(false) // key or value
 	var v ast.Expr
-	var kvExpr *ast.KeyValueExpr
 	if p.tok == ":" {
 		p.next() // skip ":"
 		v = p.parseExpr(false)
-		kvExpr = &ast.KeyValueExpr{
+		x = &ast.KeyValueExpr{
 			Key:   x,
 			Value: v,
 		}
-		x = (kvExpr)
 	}
 	return x
 }
@@ -655,7 +649,6 @@ func (p *parser) parseElementList() []ast.Expr {
 }
 
 func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
-
 	pos := p.pos
 	p.expect("{", __func__)
 	var elts []ast.Expr
@@ -713,40 +706,36 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 		if ncolons == 2 {
 			sliceExpr.Max = index[2]
 		}
-		return (sliceExpr)
+		return sliceExpr
 	}
 
-	var indexExpr = &ast.IndexExpr{}
-	indexExpr.X = x
-	indexExpr.Index = index[0]
-	return (indexExpr)
+	return &ast.IndexExpr{
+		X:     x,
+		Index: index[0],
+	}
 }
 
 func (p *parser) parseUnaryExpr(lhs bool) ast.Expr {
 	pos := p.pos
-	var r ast.Expr
 	switch p.tok {
 	case "+", "-", "!", "&":
-		var tok = p.tok
+		tok := p.tok
 		p.next()
-		var x = p.parseUnaryExpr(false)
-		r = &ast.UnaryExpr{
+		x := p.parseUnaryExpr(false)
+		return &ast.UnaryExpr{
 			OpPos: pos,
 			X:     x,
 			Op:    token.Token(tok),
 		}
-		return r
 	case "*":
 		p.next() // consume "*"
-		var x = p.parseUnaryExpr(false)
-		r = &ast.StarExpr{
+		x := p.parseUnaryExpr(false)
+		return &ast.StarExpr{
 			Star: pos,
 			X:    x,
 		}
-		return r
 	}
-	r = p.parsePrimaryExpr(lhs)
-	return r
+	return p.parsePrimaryExpr(lhs)
 }
 
 const LowestPrec int = 0
@@ -767,12 +756,10 @@ func precedence(op string) int {
 	default:
 		return 0
 	}
-	return 0
 }
 
 func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
-
-	var x = p.parseUnaryExpr(lhs)
+	x := p.parseUnaryExpr(lhs)
 	var oprec int
 	for {
 		var op = p.tok
