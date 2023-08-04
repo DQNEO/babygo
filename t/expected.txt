@@ -1,3 +1,4 @@
+exec ok
 expected error.
 OK
 OK

@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"reflect"
 	"syscall"
 	"unsafe"
@@ -16,6 +17,14 @@ import (
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/strings"
 )
+
+func testOSExec() {
+	err := exec.Command("touch", "/tmp/0805").Run()
+	if err != nil {
+		panic(err)
+	}
+	writeln("exec ok")
+}
 
 func testOSReturnError() {
 	f, err := os.Open("/no/exist/file")
@@ -2441,6 +2450,7 @@ func testMisc() {
 }
 
 func main() {
+	testOSExec()
 	testOSReturnError()
 	testForeignConst()
 	testForeignVar()
