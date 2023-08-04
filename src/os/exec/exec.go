@@ -10,13 +10,13 @@ import (
 
 type Cmd struct {
 	Name string
-	Arg  string
+	Args []string
 }
 
-func Command(name string, arg string) *Cmd {
+func Command(name string, arg ...string) *Cmd {
 	return &Cmd{
 		Name: name,
-		Arg:  arg,
+		Args: arg,
 	}
 }
 
@@ -31,8 +31,8 @@ func (c *Cmd) Run() error {
 	if pid == 0 {
 		// child
 		os.Stdout.Write([]byte("\nI am the child\n"))
-		os.Stdout.Write([]byte("child: " + c.Name + " " + c.Arg + "\n"))
-		execve(c.Name, c.Arg)
+		//		os.Stdout.Write([]byte("child: " + c.Name + " " + c.Arg + "\n"))
+		execve(c.Name, c.Args)
 		os.Exit(0)
 	} else {
 		os.Stdout.Write([]byte("I am the parent\n"))
@@ -66,7 +66,7 @@ func fork() int {
 	return int(r1)
 }
 
-func execve(cmds string, argv1s string) {
+func execve(cmds string, args []string) {
 	//  int execve(const char *pathname, char *const _Nullable argv[],
 	//                  char *const _Nullable envp[]);
 	trap := uintptr(59)
@@ -75,10 +75,12 @@ func execve(cmds string, argv1s string) {
 	pathname := uintptr(unsafe.Pointer(&cmd[0]))
 	var argv []uintptr
 	argv0 := pathname
-	argv1 := []byte(argv1s)
-	argv1 = append(argv1, 0)
 	argv = append(argv, argv0)
-	argv = append(argv, uintptr(unsafe.Pointer(&argv1[0])))
+	for _, arg := range args {
+		a := []byte(arg)
+		a = append(a, 0)
+		argv = append(argv, uintptr(unsafe.Pointer(&a[0])))
+	}
 	argv = append(argv, 0)
 	argvAddr := uintptr(unsafe.Pointer(&argv[0]))
 	syscall.Syscall(trap, pathname, argvAddr, uintptr(0))
