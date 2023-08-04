@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage:
-#   go-build -o outfile -c compiler [package]
+#   go-build -o outfile -c prog [package]
 #
 ####
 set -eu
@@ -16,16 +16,16 @@ tmp=${tmp:=/tmp/bbg}
 shift # skip -o
 out_file=$1
 shift # skip -c
-compiler=$2
+prog=$2
 package=$3
 
 out_file_abs=$(realpath $out_file)
 workdir=${tmp}/${out_file##*/}.d
 export WORKDIR=$workdir
 mkdir -p $workdir
-$compiler list -deps $package  > $workdir/list
+$prog list -deps $package  > $workdir/list
 if [[ -n $verbose ]]; then
-  echo '>' $compiler list -deps $package
+  echo '>' $prog list -deps $package
   cat $workdir/list
 fi
 PKGS=""
@@ -37,16 +37,16 @@ do
   PKGS="$PKGS $p"
   p2=$(echo $p | tr '/' '.')
   if [[ -n $verbose ]]; then
-    echo '>' $compiler compile -o $workdir/$p2  $p
+    echo '>' $prog compile -o $workdir/$p2  $p
   fi
-  $compiler compile -o $workdir/$p2  $p
+  $prog compile -o $workdir/$p2  $p
 done < $workdir/list
 
 # Compile main
   if [[ -n $verbose ]]; then
-    echo '>' $compiler compile -o $workdir/main $package
+    echo '>' $prog compile -o $workdir/main $package
   fi
-$compiler compile -o $workdir/main $package
+$prog compile -o $workdir/main $package
 
 cd $workdir
 
@@ -78,9 +78,9 @@ as -o __INIT__.o __INIT__.s
 
 # Link
 if [[ -n $verbose ]]; then
-  echo '>' $compiler link -o $out_file_abs *.o
+  echo '>' $prog link -o $out_file_abs *.o
 fi
-$compiler link -o $out_file_abs *.o
+$prog link -o $out_file_abs *.o
 
 
 cat *.s > all
