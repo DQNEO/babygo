@@ -298,8 +298,9 @@ func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string
 		compiler.CompileDecl(uni, sema.Fset, path, declFilePath)
 	}
 	outAsmPath := outputBaseName + ".s"
+	outObjPath := outputBaseName + ".o"
 	declFilePath := outputBaseName + ".dcl.go"
-	compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
+	compiler.Compile(uni, sema.Fset, pkg, outAsmPath, outObjPath, declFilePath)
 
 }
 

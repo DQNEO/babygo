@@ -19,7 +19,7 @@ import (
 )
 
 func testOSExec() {
-	err := exec.Command("/usr/bin/touch", "/tmp/foo.txt", "/tmp/bar.txt").Run()
+	err := exec.Command("touch", "/tmp/foo2.txt", "/tmp/bar2.txt").Run()
 	if err != nil {
 		panic(err)
 	}

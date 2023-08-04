@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"os"
+	"os/exec"
 
 	"github.com/DQNEO/babygo/internal/codegen"
 	"github.com/DQNEO/babygo/internal/ir"
@@ -78,7 +79,7 @@ func CompileDecl(universe *ast.Scope, fset *token.FileSet, importPath string, de
 }
 
 // Compile compiles go files of a package into an assembly file, and copy input assembly files into it.
-func Compile(universe *ast.Scope, fset *token.FileSet, pkgc *PackageToCompile, outAsmPath string, declFilePath string) *ir.AnalyzedPackage {
+func Compile(universe *ast.Scope, fset *token.FileSet, pkgc *PackageToCompile, outAsmPath string, outObjPath string, declFilePath string) *ir.AnalyzedPackage {
 	// Path string, pkgName string, gofiles []string, asmfiles []string,
 	pkg := &ir.PkgContainer{Name: pkgc.Name, Path: pkgc.Path, Fset: fset}
 	pkg.FileNoMap = make(map[string]int)
@@ -139,6 +140,8 @@ func Compile(universe *ast.Scope, fset *token.FileSet, pkgc *PackageToCompile, o
 	fout.Close()
 	sema.Clear()
 
+	// Do assembling
+	exec.Command("/usr/bin/as", "-o", outObjPath, outAsmPath).Run()
 	return apkg
 }
 

@@ -4,8 +4,6 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
-
-	"runtime"
 )
 
 type Cmd struct {
@@ -30,21 +28,22 @@ func (c *Cmd) Run() error {
 
 	if pid == 0 {
 		// child
-		os.Stdout.Write([]byte("\nI am the child\n"))
+		//		os.Stdout.Write([]byte("\nI am the child\n"))
 		//		os.Stdout.Write([]byte("child: " + c.Name + " " + c.Arg + "\n"))
 		execve(c.Name, c.Args)
 		os.Exit(0)
 	} else {
-		os.Stdout.Write([]byte("I am the parent\n"))
-		//_ = r2
-		//_ = err
-		spid := runtime.Itoa(pid)
-		os.Stdout.Write([]byte("parent: child pid=" + spid + "\n"))
+		// parent
+		//		os.Stdout.Write([]byte("I am the parent\n"))
+		//		spid := runtime.Itoa(pid)
+		//		os.Stdout.Write([]byte("parent: child pid=" + spid + "\n"))
+		// @TODO: waitpid
+		wait4(pid)
 	}
 	return nil
 }
 
-func fork() int {
+func fork() uintptr {
 	// strace:
 	// clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7feb85d62a10) = 42420
 	//
@@ -63,7 +62,7 @@ func fork() int {
 	//var r2 uintptr
 	//var err error
 	r1 := syscall.Syscall(trap, flags, uintptr(0), uintptr(0))
-	return int(r1)
+	return r1
 }
 
 func execve(cmds string, args []string) {
@@ -84,4 +83,13 @@ func execve(cmds string, args []string) {
 	argv = append(argv, 0)
 	argvAddr := uintptr(unsafe.Pointer(&argv[0]))
 	syscall.Syscall(trap, pathname, argvAddr, uintptr(0))
+}
+
+func wait4(pid uintptr) int {
+	trap := uintptr(61)
+	var status int
+	stat_addr := uintptr(unsafe.Pointer(&status))
+	r1 := syscall.Syscall(trap, pid, stat_addr, uintptr(0))
+	_ = r1
+	return status
 }
