@@ -587,10 +587,10 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ir.Method {
 
 // https://golang.org/ref/spec#Method_sets
 // @TODO map key should be a QI ?
-var namedTypes = make(map[unsafe.Pointer]*ir.NamedType)
+var namedTypes = make(map[string]*ir.NamedType)
 
 func registerMethod(pkgName string, method *ir.Method) {
-	namedTypeId := unsafe.Pointer(method.RcvNamedType.Obj)
+	namedTypeId := pkgName + "." + method.RcvNamedType.Name
 	namedType, ok := namedTypes[namedTypeId]
 	if !ok {
 		namedType = &ir.NamedType{
@@ -598,8 +598,7 @@ func registerMethod(pkgName string, method *ir.Method) {
 		}
 		namedTypes[namedTypeId] = namedType
 	}
-	id := uintptr(namedTypeId)
-	util.Logf("registerMethod: pkg=%s namedTypeId=%p namedType=%s\n", pkgName, id, method.RcvNamedType.Obj.Name)
+	util.Logf("registerMethod: pkg=%s namedTypeId=%s namedType=%s\n", pkgName, namedTypeId, method.RcvNamedType.Obj.Name)
 	namedType.MethodSet[method.Name] = method
 }
 
@@ -609,18 +608,24 @@ func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 	if isPtr {
 		rcvType = rcvPointerType.X
 	}
+	var namedTypeId string
 	var typeObj *ast.Object
 	switch typ := rcvType.(type) {
 	case *ast.Ident:
 		typeObj = typ.Obj
+		pkgName := typeObj.Data.(string)
+		namedTypeId = pkgName + "." + typ.Name
+		util.Logf("[lookupMethod] ident: namedTypeId=%s\n", namedTypeId)
 	case *ast.SelectorExpr:
 		ei := LookupForeignIdent(Selector2QI(typ), methodName.Pos())
 		typeObj = ei.Obj
+		namedTypeId = ei.PkgName + "." + ei.Name
+		util.Logf("[lookupMethod] selector: namedTypeId=%s\n", namedTypeId)
 	default:
 		panic(rcvType)
 	}
 
-	namedType, ok := namedTypes[unsafe.Pointer(typeObj)]
+	namedType, ok := namedTypes[namedTypeId]
 	if !ok {
 		panicPos(typeObj.Name+" has no methodSet", methodName.Pos())
 	}
