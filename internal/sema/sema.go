@@ -16,7 +16,7 @@ var __func__ = "__func__"
 
 var Fset *token.FileSet
 var CurrentPkg *ir.PkgContainer
-var ExportedQualifiedIdents = make(map[string]*ast.Ident)
+var exportedIdents = make(map[string]*ir.ExportedIdent)
 var currentFor *ir.MetaForContainer
 var currentFunc *ir.Func
 var mapFieldOffset = make(map[unsafe.Pointer]int)
@@ -24,7 +24,7 @@ var mapFieldOffset = make(map[unsafe.Pointer]int)
 func Clear() {
 	Fset = nil
 	CurrentPkg = nil
-	ExportedQualifiedIdents = nil
+	exportedIdents = nil
 	currentFor = nil
 	currentFunc = nil
 	mapFieldOffset = nil
@@ -66,8 +66,8 @@ func isType(expr ast.Expr) bool {
 	case *ast.SelectorExpr:
 		if isQI(e) {
 			qi := Selector2QI(e)
-			ident := LookupForeignIdent(qi, e.Pos())
-			if ident.Obj.Kind == ast.Typ {
+			ei := LookupForeignIdent(qi, e.Pos())
+			if ei.Ident.Obj.Kind == ast.Typ {
 				return true
 			}
 		}
@@ -369,8 +369,8 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 		// get RHS in its type definition recursively
 		return GetUnderlyingType(t)
 	case *ast.SelectorExpr:
-		ident := LookupForeignIdent(Selector2QI(e), e.Pos())
-		return GetUnderlyingType(E2T(ident))
+		ei := LookupForeignIdent(Selector2QI(e), e.Pos())
+		return GetUnderlyingType(E2T(ei.Ident))
 	case *ast.ParenExpr:
 		return GetUnderlyingType(E2T(e.X))
 	case *ast.FuncType:
@@ -616,8 +616,8 @@ func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 	case *ast.Ident:
 		typeObj = typ.Obj
 	case *ast.SelectorExpr:
-		t := LookupForeignIdent(Selector2QI(typ), methodName.Pos())
-		typeObj = t.Obj
+		ei := LookupForeignIdent(Selector2QI(typ), methodName.Pos())
+		typeObj = ei.Ident.Obj
 	default:
 		panic(rcvType)
 	}
@@ -1289,18 +1289,18 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		// pkg.ident
 		qi := Selector2QI(e)
 		meta.QI = qi
-		fident := LookupForeignIdent(qi, e.Pos())
-		switch fident.Obj.Kind {
+		ei := LookupForeignIdent(qi, e.Pos())
+		switch ei.Ident.Obj.Kind {
 		case ast.Var:
-			foreignMeta := WalkIdent(fident, nil)
+			foreignMeta := WalkIdent(ei.Ident, nil)
 			meta.ForeignValue = foreignMeta
 			meta.Type = foreignMeta.Type
 		case ast.Con:
-			foreignMeta := WalkIdent(fident, nil)
+			foreignMeta := WalkIdent(ei.Ident, nil)
 			meta.ForeignValue = foreignMeta
 			meta.Type = foreignMeta.Type
 		case ast.Fun:
-			ff := newForeignFunc(fident, qi)
+			ff := newForeignFunc(ei, qi)
 			foreignMeta := &ir.MetaForeignFuncWrapper{
 				Pos: e.Pos(),
 				QI:  qi,
@@ -1308,7 +1308,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 				// @TODO: set Type from ff.FuncType
 			}
 			meta.ForeignValue = foreignMeta
-			meta.Type = E2T(fident.Obj.Decl.(*ast.FuncDecl).Type)
+			meta.Type = E2T(ei.Ident.Obj.Decl.(*ast.FuncDecl).Type)
 		default:
 			panic("Unexpected")
 		}
@@ -2132,22 +2132,22 @@ func Pos(node interface{}) token.Pos {
 	panic(fmt.Sprintf("Unknown type:%T", node))
 }
 
-func LookupForeignIdent(qi ir.QualifiedIdent, pos token.Pos) *ast.Ident {
-	ident, ok := ExportedQualifiedIdents[string(qi)]
+func LookupForeignIdent(qi ir.QualifiedIdent, pos token.Pos) *ir.ExportedIdent {
+	ei, ok := exportedIdents[string(qi)]
 	if !ok {
-		panicPos(string(qi)+" Not found in ExportedQualifiedIdents", pos)
+		panicPos(string(qi)+" Not found in exportedIdents", pos)
 	}
-	return ident
+	return ei
 }
 
 func LookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
-	ident := LookupForeignIdent(qi, 1)
-	return newForeignFunc(ident, qi)
+	ei := LookupForeignIdent(qi, 1)
+	return newForeignFunc(ei, qi)
 }
 
-func newForeignFunc(ident *ast.Ident, qi ir.QualifiedIdent) *ir.ForeignFunc {
-	assert(ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
-	decl := ident.Obj.Decl.(*ast.FuncDecl)
+func newForeignFunc(ei *ir.ExportedIdent, qi ir.QualifiedIdent) *ir.ForeignFunc {
+	assert(ei.Ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
+	decl := ei.Ident.Obj.Decl.(*ast.FuncDecl)
 	returnTypes := FieldList2Types(decl.Type.Results)
 	paramTypes := FieldList2Types(decl.Type.Params)
 	return &ir.ForeignFunc{
@@ -2242,7 +2242,12 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			structType := GetUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
-		ExportedQualifiedIdents[string(NewQI(pkg.Name, typeSpec.Name.Name))] = typeSpec.Name
+		ei := &ir.ExportedIdent{
+			Ident:   typeSpec.Name,
+			PkgName: pkg.Name,
+			Pos:     typeSpec.Pos(),
+		}
+		exportedIdents[string(NewQI(pkg.Name, typeSpec.Name.Name))] = ei
 	}
 
 	//logf("checking funcDecls...\n")
@@ -2256,7 +2261,13 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 				hasInitFunc = true
 			}
 			qi := NewQI(pkg.Name, funcDecl.Name.Name)
-			ExportedQualifiedIdents[string(qi)] = funcDecl.Name
+			ei := &ir.ExportedIdent{
+				Ident:   funcDecl.Name,
+				PkgName: pkg.Name,
+				Pos:     funcDecl.Pos(),
+			}
+
+			exportedIdents[string(qi)] = ei
 		} else { // is method
 			method := newMethod(pkg.Name, funcDecl)
 			registerMethod(method)
@@ -2304,7 +2315,14 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			Type:    t,
 		}
 		consts = append(consts, pconst)
-		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
+
+		ei := &ir.ExportedIdent{
+			Ident:   lhsIdent,
+			PkgName: pkg.Name,
+			Pos:     lhsIdent.Pos(),
+		}
+
+		exportedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = ei
 	}
 
 	//logf("walking varSpecs...\n")
@@ -2353,7 +2371,12 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			Type:    t,
 		}
 		vars = append(vars, pkgVar)
-		ExportedQualifiedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = lhsIdent
+		ei := &ir.ExportedIdent{
+			PkgName: pkg.Name,
+			Ident:   lhsIdent,
+			Pos:     lhsIdent.Pos(),
+		}
+		exportedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = ei
 	}
 
 	//logf("walking funcDecls in detail ...\n")

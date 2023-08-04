@@ -33,6 +33,12 @@ type SLiteral struct {
 
 type QualifiedIdent string
 
+type ExportedIdent struct {
+	PkgName string
+	Ident   *ast.Ident
+	Pos     token.Pos
+}
+
 type NamedType struct {
 	MethodSet map[string]*Method
 }
