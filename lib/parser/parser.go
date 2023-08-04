@@ -71,7 +71,7 @@ func (p *parser) next() {
 func (p *parser) expect(tok string, who string) {
 	if p.tok != tok {
 		s := fmt.Sprintf("%s %s expected, but got %s", p.fset.Position(p.pos).String(), tok, p.tok)
-		panic2(who, s)
+		p.panic(who, s)
 	}
 	p.next()
 }
@@ -82,7 +82,7 @@ func (p *parser) expectSemi(caller string) {
 		case ";":
 			p.next()
 		default:
-			p.panicPos(caller, "semicolon expected, but got token ", p.pos)
+			p.panic(caller, "semicolon expected, but got token ")
 		}
 	}
 }
@@ -94,7 +94,7 @@ func (p *parser) parseIdent() *ast.Ident {
 		name = p.lit
 		p.next()
 	} else {
-		panic2(__func__, "IDENT expected, but got "+p.tok)
+		p.panic(__func__, "IDENT expected, but got "+p.tok)
 	}
 
 	return &ast.Ident{
@@ -126,7 +126,7 @@ func (p *parser) tryVarType(ellipsisOK bool) ast.Expr {
 		if typ != nil {
 			p.resolve(typ)
 		} else {
-			panic2(__func__, "Syntax error")
+			p.panic(__func__, "Syntax error")
 		}
 
 		return &ast.Ellipsis{
@@ -140,7 +140,7 @@ func (p *parser) tryVarType(ellipsisOK bool) ast.Expr {
 func (p *parser) parseVarType(ellipsisOK bool) ast.Expr {
 	typ := p.tryVarType(ellipsisOK)
 	if typ == nil {
-		panic2(__func__, "nil is not expected")
+		p.panic(__func__, "nil is not expected")
 	}
 
 	return typ
@@ -316,7 +316,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOK bool) []*ast.Fi
 	typ := p.tryVarType(ellipsisOK)
 	if typ != nil {
 		if len(list) > 1 {
-			panic2(__func__, "Ident list is not supported")
+			p.panic(__func__, "Ident list is not supported")
 		}
 		eIdent := list[0]
 		ident := eIdent.(*ast.Ident)
@@ -506,7 +506,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 
 	typ := p.tryIdentOrType()
 	if typ == nil {
-		panic2(__func__, "# typ should not be nil\n")
+		p.panic(__func__, "# typ should not be nil\n")
 	}
 
 	return typ
@@ -560,7 +560,7 @@ func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
 		cnt++
 
 		if cnt > 100 {
-			panic2(__func__, "too many iteration")
+			p.panic(__func__, "too many iteration")
 		}
 
 		switch p.tok {
@@ -586,7 +586,7 @@ func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
 			case "(": // type assertion
 				x = p.parseTypeAssertion(x)
 			default:
-				panic2(__func__, "Unexpected token:"+p.tok)
+				p.panic(__func__, "Unexpected token:"+p.tok)
 			}
 		case "(":
 			// a simpleStmt like x() is parsed in lhs=true mode.
@@ -859,7 +859,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 			key = as.Lhs[0]
 			value = as.Lhs[1]
 		default:
-			panic2(__func__, "Unexpected len of as.Lhs")
+			p.panic(__func__, "Unexpected len of as.Lhs")
 		}
 
 		rangeX := as.Rhs[0].(*ast.UnaryExpr).X
@@ -1086,7 +1086,7 @@ func (p *parser) parseStmt() ast.Stmt {
 	case "go":
 		s = p.parseGoStmt()
 	default:
-		panic2(__func__, "TBI 3:"+p.tok)
+		p.panic(__func__, "TBI 3:"+p.tok)
 	}
 
 	return s
@@ -1198,7 +1198,7 @@ func (p *parser) parseDecl(keyword string) *ast.GenDecl {
 			Specs:  specs,
 		}
 	default:
-		panic2(__func__, "TBI\n")
+		p.panic(__func__, "TBI\n")
 	}
 	return nil
 }
@@ -1343,7 +1343,7 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 				Specs: specs,
 			}
 		default:
-			panic2(__func__, "TBI:"+p.tok)
+			p.panic(__func__, "TBI:"+p.tok)
 		}
 		decls = append(decls, decl)
 	}
@@ -1404,12 +1404,8 @@ func isExprIdent(e ast.Expr) bool {
 	return ok
 }
 
-func panic2(caller string, x string) {
-	panic(caller + ": " + x)
-}
-
-func (p *parser) panicPos(caller string, x string, pos token.Pos) {
-	panic(caller + ": " + x + "\n\t" + p.fset.Position(pos).String())
+func (p *parser) panic(caller string, x string) {
+	panic(caller + ": " + x + "\n\t" + p.fset.Position(p.pos).String())
 }
 
 type ParserError struct {
