@@ -586,7 +586,6 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ir.Method {
 }
 
 // https://golang.org/ref/spec#Method_sets
-// @TODO map key should be a QI ?
 var namedTypes = make(map[string]*ir.NamedType)
 
 func registerMethod(pkgName string, method *ir.Method) {
@@ -617,9 +616,8 @@ func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 		namedTypeId = pkgName + "." + typ.Name
 		util.Logf("[lookupMethod] ident: namedTypeId=%s\n", namedTypeId)
 	case *ast.SelectorExpr:
-		ei := LookupForeignIdent(Selector2QI(typ), methodName.Pos())
-		typeObj = ei.Obj
-		namedTypeId = ei.PkgName + "." + ei.Name
+		qi := Selector2QI(typ)
+		namedTypeId = string(qi)
 		util.Logf("[lookupMethod] selector: namedTypeId=%s\n", namedTypeId)
 	default:
 		panic(rcvType)
