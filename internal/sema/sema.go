@@ -2248,26 +2248,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		exportedIdents[string(NewQI(pkg.Name, typeSpec.Name.Name))] = ei
 	}
 
-	// collect methods in advance
-	for _, funcDecl := range funcDecls {
-		if funcDecl.Recv == nil { // non-method function
-			if funcDecl.Name.Name == "init" {
-				hasInitFunc = true
-			}
-			qi := NewQI(pkg.Name, funcDecl.Name.Name)
-			ei := &ir.ExportedIdent{
-				Ident:   funcDecl.Name,
-				PkgName: pkg.Name,
-				Pos:     funcDecl.Pos(),
-			}
-
-			exportedIdents[string(qi)] = ei
-		} else { // is method
-			method := newMethod(pkg.Name, funcDecl)
-			registerMethod(method)
-		}
-	}
-
 	for _, spec := range constSpecs {
 		assert(len(spec.Values) == 1, "only 1 value is supported", __func__)
 		lhsIdent := spec.Names[0]
@@ -2374,8 +2354,16 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		exportedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = ei
 	}
 
+	// collect methods in advance
 	for _, funcDecl := range funcDecls {
+		if funcDecl.Recv != nil {
+			// is method
+			method := newMethod(pkg.Name, funcDecl)
+			registerMethod(method)
+		}
+	}
 
+	for _, funcDecl := range funcDecls {
 		fnc := &ir.Func{
 			Name:      funcDecl.Name.Name,
 			Decl:      funcDecl,
@@ -2385,6 +2373,20 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		}
 		currentFunc = fnc
 		funcs = append(funcs, fnc)
+
+		if funcDecl.Recv == nil {
+			// non-method function
+			if funcDecl.Name.Name == "init" {
+				hasInitFunc = true
+			}
+			qi := NewQI(pkg.Name, funcDecl.Name.Name)
+			ei := &ir.ExportedIdent{
+				Ident:   funcDecl.Name,
+				PkgName: pkg.Name,
+				Pos:     funcDecl.Pos(),
+			}
+			exportedIdents[string(qi)] = ei
+		}
 
 		var paramFields []*ast.Field
 		var resultFields []*ast.Field
