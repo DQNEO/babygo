@@ -2220,7 +2220,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 
 	for _, typeSpec := range typeSpecs {
 		//@TODO check serializeType()'s *ast.Ident case
-		typeSpec.Name.Obj.Data = pkg.Name // package to which the type belongs to
+		typeSpec.Name.Obj.Data = pkg.Name // package the type belongs to
 		eType := &ast.Ident{
 			NamePos: typeSpec.Pos(),
 			Obj: &ast.Object{
