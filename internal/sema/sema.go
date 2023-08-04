@@ -1548,7 +1548,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			case *ast.SelectorExpr:
 				assert(isQI(r), "expect QI", __func__)
 				qi := Selector2QI(r)
-				ff := LookupForeignFunc2(qi)
+				ff := LookupForeignFunc(qi)
 				funcType = ff.Decl.Type
 				funcVal = NewFuncValueFromSymbol(string(qi))
 			default:
@@ -1562,7 +1562,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			// pkg.Sel()
 			qi := Selector2QI(fn)
 			funcVal = NewFuncValueFromSymbol(string(qi))
-			ff := LookupForeignFunc2(qi)
+			ff := LookupForeignFunc(qi)
 			funcType = ff.Decl.Type
 		} else {
 			// method call
@@ -2134,7 +2134,7 @@ func LookupForeignIdent(qi ir.QualifiedIdent, pos token.Pos) *ir.ExportedIdent {
 	return ei
 }
 
-func LookupForeignFunc2(qi ir.QualifiedIdent) *ir.Func {
+func LookupForeignFunc(qi ir.QualifiedIdent) *ir.Func {
 	ei := LookupForeignIdent(qi, 1)
 	assert(ei.Ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
 	return ei.Func
