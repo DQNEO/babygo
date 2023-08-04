@@ -3,6 +3,7 @@ package exec
 import (
 	"os"
 	"syscall"
+	"unsafe"
 
 	"runtime"
 )
@@ -31,6 +32,7 @@ func (c *Cmd) Run() error {
 		// child
 		os.Stdout.Write([]byte("\nI am the child\n"))
 		os.Stdout.Write([]byte("child: " + c.Name + " " + c.Arg + "\n"))
+		execve(c.Name, c.Arg)
 		os.Exit(0)
 	} else {
 		os.Stdout.Write([]byte("I am the parent\n"))
@@ -43,18 +45,10 @@ func (c *Cmd) Run() error {
 }
 
 func fork() int {
-	//   runtime.clone:
-	//     movq 24(%rsp), %r12
-	//     movl $56, %eax # sys_clone
-	//     movq 8(%rsp), %rdi # flags
-	//     movq 16(%rsp), %rsi # stack
-	//     movq $0, %rdx # ptid
-	//     movq $0, %r10 # chtid
-	//     movq $0, %r8 # tls
-	//     syscall
+	// strace:
+	// clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7feb85d62a10) = 42420
 	//
-	//clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7feb85d62a10) = 42420
-	//
+	// https://man7.org/linux/man-pages/man2/clone.2.html
 	// The raw system call interface on x86-64 and some other
 	//       architectures (including sh, tile, and alpha) is:
 	//
@@ -69,6 +63,23 @@ func fork() int {
 	//var r2 uintptr
 	//var err error
 	r1 := syscall.Syscall(trap, flags, uintptr(0), uintptr(0))
-
 	return int(r1)
+}
+
+func execve(cmds string, argv1s string) {
+	//  int execve(const char *pathname, char *const _Nullable argv[],
+	//                  char *const _Nullable envp[]);
+	trap := uintptr(59)
+	cmd := []byte(cmds)
+	cmd = append(cmd, 0)
+	pathname := uintptr(unsafe.Pointer(&cmd[0]))
+	var argv []uintptr
+	argv0 := pathname
+	argv1 := []byte(argv1s)
+	argv1 = append(argv1, 0)
+	argv = append(argv, argv0)
+	argv = append(argv, uintptr(unsafe.Pointer(&argv1[0])))
+	argv = append(argv, 0)
+	argvAddr := uintptr(unsafe.Pointer(&argv[0]))
+	syscall.Syscall(trap, pathname, argvAddr, uintptr(0))
 }
