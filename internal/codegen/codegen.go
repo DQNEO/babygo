@@ -367,10 +367,10 @@ func emitCap(arg ir.MetaExpr) {
 
 func emitCallMalloc(size int) {
 	// call malloc and return pointer
-	ff := sema.LookupForeignFunc2(sema.NewQI("runtime", "malloc"))
-	emitAllocReturnVarsAreaFF2(ff)
+	ff := sema.LookupForeignFunc(sema.NewQI("runtime", "malloc"))
+	emitAllocReturnVarsAreaFF(ff)
 	printf("  pushq $%d\n", size)
-	emitCallFF2(ff)
+	emitCallFF(ff)
 }
 
 func emitStructLiteral(meta *ir.MetaCompositLit) {
@@ -490,7 +490,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 	emitCallQ(fv, totalParamSize, returnTypes)
 }
 
-func emitAllocReturnVarsAreaFF2(ff *ir.Func) {
+func emitAllocReturnVarsAreaFF(ff *ir.Func) {
 	emitAllocReturnVarsArea(getTotalSizeOfType(ff.Signature.ReturnTypes))
 }
 
@@ -502,7 +502,7 @@ func getTotalSizeOfType(types []*types.Type) int {
 	return r
 }
 
-func emitCallFF2(ff *ir.Func) {
+func emitCallFF(ff *ir.Func) {
 	totalParamSize := getTotalSizeOfType(ff.Signature.ParamTypes)
 	symbol := ff.PkgName + "." + ff.Name
 	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, ff.Signature.ReturnTypes)
@@ -1212,12 +1212,12 @@ func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
 		emitCompStrings(left, right)
 	} else if sema.Kind(sema.GetTypeOfExpr(left)) == types.T_INTERFACE {
 		//var t = GetTypeOfExpr(left)
-		ff := sema.LookupForeignFunc2(sema.NewQI("runtime", "cmpinterface"))
-		emitAllocReturnVarsAreaFF2(ff)
+		ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpinterface"))
+		emitAllocReturnVarsAreaFF(ff)
 		//@TODO: confirm nil comparison with interfaces
 		emitExpr(left)  // left
 		emitExpr(right) // right
-		emitCallFF2(ff)
+		emitCallFF(ff)
 	} else {
 		// Assuming 64 bit types (int, pointer, map, etc)
 		//var t = GetTypeOfExpr(left)
@@ -1321,8 +1321,8 @@ func emitRegiToMem(t *types.Type) {
 		printf("  pushq $%d # size\n", sema.GetSizeOfType(t))
 		printf("  pushq %%rsi # dst lhs\n")
 		printf("  pushq %%rax # src rhs\n")
-		ff := sema.LookupForeignFunc2(sema.NewQI("runtime", "memcopy"))
-		emitCallFF2(ff)
+		ff := sema.LookupForeignFunc(sema.NewQI("runtime", "memcopy"))
+		emitCallFF(ff)
 	default:
 		unexpectedKind(k)
 	}
@@ -1712,22 +1712,22 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 			assert(sema.GetSizeOfType(condType) <= 8 || sema.Kind(condType) == types.T_STRING, "should be one register size or string", __func__)
 			switch sema.Kind(condType) {
 			case types.T_STRING:
-				ff := sema.LookupForeignFunc2(sema.NewQI("runtime", "cmpstrings"))
-				emitAllocReturnVarsAreaFF2(ff)
+				ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpstrings"))
+				emitAllocReturnVarsAreaFF(ff)
 
 				emitPushStackTop(condType, sema.SizeOfInt, "switch expr")
 				emitExpr(m)
 
-				emitCallFF2(ff)
+				emitCallFF(ff)
 			case types.T_INTERFACE:
-				ff := sema.LookupForeignFunc2(sema.NewQI("runtime", "cmpinterface"))
+				ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpinterface"))
 
-				emitAllocReturnVarsAreaFF2(ff)
+				emitAllocReturnVarsAreaFF(ff)
 
 				emitPushStackTop(condType, sema.SizeOfInt, "switch expr")
 				emitExpr(m)
 
-				emitCallFF2(ff)
+				emitCallFF(ff)
 			case types.T_INT, types.T_UINT8, types.T_UINT16, types.T_UINTPTR, types.T_POINTER:
 				emitPushStackTop(condType, 0, "switch expr")
 				emitExpr(m)
