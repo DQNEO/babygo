@@ -67,9 +67,7 @@ func isType(expr ast.Expr) bool {
 		if isQI(e) {
 			qi := Selector2QI(e)
 			ei := LookupForeignIdent(qi, e.Pos())
-			if ei.Ident.Obj.Kind == ast.Typ {
-				return true
-			}
+			return ei.IsType
 		}
 	case *ast.ParenExpr:
 		return isType(e.X)
@@ -370,7 +368,8 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 		return GetUnderlyingType(t)
 	case *ast.SelectorExpr:
 		ei := LookupForeignIdent(Selector2QI(e), e.Pos())
-		return GetUnderlyingType(E2T(ei.Ident))
+		assert(ei.IsType, "should be a type", __func__)
+		return GetUnderlyingType(ei.Type)
 	case *ast.ParenExpr:
 		return GetUnderlyingType(E2T(e.X))
 	case *ast.FuncType:
@@ -1292,13 +1291,11 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		ei := LookupForeignIdent(qi, e.Pos())
 		switch ei.Ident.Obj.Kind {
 		case ast.Var:
-			foreignMeta := WalkIdent(ei.Ident, nil)
-			meta.ForeignValue = foreignMeta
-			meta.Type = foreignMeta.Type
+			meta.ForeignValue = ei.MetaIdent
+			meta.Type = ei.Type
 		case ast.Con:
-			foreignMeta := WalkIdent(ei.Ident, nil)
-			meta.ForeignValue = foreignMeta
-			meta.Type = foreignMeta.Type
+			meta.ForeignValue = ei.MetaIdent
+			meta.Type = ei.Type
 		case ast.Fun:
 			ff := newForeignFunc(ei, qi)
 			foreignMeta := &ir.MetaForeignFuncWrapper{
@@ -2244,6 +2241,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		}
 		ei := &ir.ExportedIdent{
 			Ident:   typeSpec.Name,
+			IsType:  true,
+			Type:    t,
 			PkgName: pkg.Name,
 			Pos:     typeSpec.Pos(),
 		}
@@ -2317,9 +2316,11 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		consts = append(consts, pconst)
 
 		ei := &ir.ExportedIdent{
-			Ident:   lhsIdent,
-			PkgName: pkg.Name,
-			Pos:     lhsIdent.Pos(),
+			Ident:     lhsIdent,
+			PkgName:   pkg.Name,
+			Pos:       lhsIdent.Pos(),
+			MetaIdent: metaVar,
+			Type:      t,
 		}
 
 		exportedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = ei
@@ -2372,9 +2373,11 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		}
 		vars = append(vars, pkgVar)
 		ei := &ir.ExportedIdent{
-			PkgName: pkg.Name,
-			Ident:   lhsIdent,
-			Pos:     lhsIdent.Pos(),
+			PkgName:   pkg.Name,
+			Ident:     lhsIdent,
+			Pos:       lhsIdent.Pos(),
+			Type:      t,
+			MetaIdent: metaVar,
 		}
 		exportedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = ei
 	}
