@@ -282,29 +282,6 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 	panic(fmt.Sprintf("bad type:%T\n", meta))
 }
 
-func getTypeOfForeignIdent(ident *ast.Ident) *types.Type {
-	assert(ident.Obj != nil, "Obj is nil in ident '"+ident.Name+"'", __func__)
-	switch ident.Obj.Kind {
-	case ast.Var:
-		variable, isVariable := ident.Obj.Data.(*ir.Variable)
-		if isVariable {
-			return variable.Typ
-		}
-		panic("Variable is not set for ident:" + ident.Name)
-	case ast.Con:
-		switch decl2 := ident.Obj.Decl.(type) {
-		case *ast.ValueSpec:
-			return E2T(decl2.Type)
-		default:
-			panic("cannot decide type of cont =" + ident.Obj.Name)
-		}
-	case ast.Fun:
-		return E2T(ident.Obj.Decl.(*ast.FuncDecl).Type)
-	default:
-		panic(fmt.Sprintf("Obj=%s, Kind=%s\t\n%s", ident.Obj.Name, ident.Obj.Kind.String(), Fset.Position(ident.Pos()).String()))
-	}
-}
-
 func FieldList2Types(fieldList *ast.FieldList) []*types.Type {
 	if fieldList == nil {
 		return nil
@@ -1317,9 +1294,11 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		case ast.Var:
 			foreignMeta := WalkIdent(fident, nil)
 			meta.ForeignValue = foreignMeta
+			meta.Type = foreignMeta.Type
 		case ast.Con:
 			foreignMeta := WalkIdent(fident, nil)
 			meta.ForeignValue = foreignMeta
+			meta.Type = foreignMeta.Type
 		case ast.Fun:
 			ff := newForeignFunc(fident, qi)
 			foreignMeta := &ir.MetaForeignFuncWrapper{
@@ -1329,10 +1308,10 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 				// @TODO: set Type from ff.FuncType
 			}
 			meta.ForeignValue = foreignMeta
+			meta.Type = E2T(fident.Obj.Decl.(*ast.FuncDecl).Type)
 		default:
 			panic("Unexpected")
 		}
-		meta.Type = getTypeOfForeignIdent(fident)
 	} else {
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
