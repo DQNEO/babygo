@@ -50,14 +50,6 @@ $compiler compile -o $workdir/main $package
 
 cd $workdir
 
-# Assemble .s files
-#for a in *.s
-#do
-#  b=${a%*.s}
-#  as $a -o ${b}.o
-#done
-
-
 # Generate __INIT__.s
 {
 cat <<EOF
