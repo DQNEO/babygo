@@ -203,7 +203,6 @@ type MetaIdent struct {
 type MetaForeignFuncWrapper struct {
 	Pos token.Pos
 	QI  QualifiedIdent
-	FF  *ForeignFunc
 }
 
 type MetaSelectorExpr struct {
