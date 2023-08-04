@@ -587,18 +587,19 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ir.Method {
 
 // https://golang.org/ref/spec#Method_sets
 // @TODO map key should be a QI ?
-var MethodSets = make(map[unsafe.Pointer]*ir.NamedType)
+var namedTypes = make(map[unsafe.Pointer]*ir.NamedType)
 
-func registerMethod(method *ir.Method) {
-	key := unsafe.Pointer(method.RcvNamedType.Obj)
-	namedType, ok := MethodSets[key]
+func registerMethod(pkgName string, method *ir.Method) {
+	namedTypeId := unsafe.Pointer(method.RcvNamedType.Obj)
+	namedType, ok := namedTypes[namedTypeId]
 	if !ok {
 		namedType = &ir.NamedType{
 			MethodSet: make(map[string]*ir.Method),
 		}
-		MethodSets[key] = namedType
+		namedTypes[namedTypeId] = namedType
 	}
-	util.Logf("registerMethod: type=%s name=%s\n", method.RcvNamedType.Name, method.Name)
+	id := uintptr(namedTypeId)
+	util.Logf("registerMethod: pkg=%s namedTypeId=%p namedType=%s\n", pkgName, id, method.RcvNamedType.Obj.Name)
 	namedType.MethodSet[method.Name] = method
 }
 
@@ -619,7 +620,7 @@ func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 		panic(rcvType)
 	}
 
-	namedType, ok := MethodSets[unsafe.Pointer(typeObj)]
+	namedType, ok := namedTypes[unsafe.Pointer(typeObj)]
 	if !ok {
 		panicPos(typeObj.Name+" has no methodSet", methodName.Pos())
 	}
@@ -2326,7 +2327,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		if funcDecl.Recv != nil {
 			// is method
 			method := newMethod(pkg.Name, funcDecl)
-			registerMethod(method)
+			registerMethod(pkg.Name, method)
 		}
 	}
 
