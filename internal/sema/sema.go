@@ -616,7 +616,7 @@ func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 		typeObj = typ.Obj
 	case *ast.SelectorExpr:
 		ei := LookupForeignIdent(Selector2QI(typ), methodName.Pos())
-		typeObj = ei.Ident.Obj
+		typeObj = ei.Obj
 	default:
 		panic(rcvType)
 	}
@@ -1289,22 +1289,16 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		qi := Selector2QI(e)
 		meta.QI = qi
 		ei := LookupForeignIdent(qi, e.Pos())
-		switch ei.Ident.Obj.Kind {
-		case ast.Var:
-			meta.ForeignValue = ei.MetaIdent
-			meta.Type = ei.Type
-		case ast.Con:
-			meta.ForeignValue = ei.MetaIdent
-			meta.Type = ei.Type
-		case ast.Fun:
+		if ei.Func != nil { // fun
 			foreignMeta := &ir.MetaForeignFuncWrapper{
 				Pos: e.Pos(),
 				QI:  qi,
 			}
 			meta.ForeignValue = foreignMeta
 			meta.Type = E2T(ei.Func.Decl.Type)
-		default:
-			panic("Unexpected")
+		} else { // var|con
+			meta.ForeignValue = ei.MetaIdent
+			meta.Type = ei.Type
 		}
 	} else {
 		// expr.field
@@ -2136,7 +2130,6 @@ func LookupForeignIdent(qi ir.QualifiedIdent, pos token.Pos) *ir.ExportedIdent {
 
 func LookupForeignFunc(qi ir.QualifiedIdent) *ir.Func {
 	ei := LookupForeignIdent(qi, 1)
-	assert(ei.Ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
 	return ei.Func
 }
 
@@ -2223,9 +2216,11 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			structType := GetUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		}
+		// named type
 		ei := &ir.ExportedIdent{
-			Ident:   typeSpec.Name,
+			Name:    typeSpec.Name.Name,
 			IsType:  true,
+			Obj:     typeSpec.Name.Obj,
 			Type:    t,
 			PkgName: pkg.Name,
 			Pos:     typeSpec.Pos(),
@@ -2274,7 +2269,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		consts = append(consts, pconst)
 
 		ei := &ir.ExportedIdent{
-			Ident:     lhsIdent,
+			Name:      lhsIdent.Name,
 			PkgName:   pkg.Name,
 			Pos:       lhsIdent.Pos(),
 			MetaIdent: metaVar,
@@ -2331,7 +2326,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		vars = append(vars, pkgVar)
 		ei := &ir.ExportedIdent{
 			PkgName:   pkg.Name,
-			Ident:     lhsIdent,
+			Name:      lhsIdent.Name,
 			Pos:       lhsIdent.Pos(),
 			Type:      t,
 			MetaIdent: metaVar,
@@ -2367,7 +2362,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			}
 			qi := NewQI(pkg.Name, funcDecl.Name.Name)
 			ei := &ir.ExportedIdent{
-				Ident:   funcDecl.Name,
+				Name:    funcDecl.Name.Name,
 				PkgName: pkg.Name,
 				Pos:     funcDecl.Pos(),
 				Func:    fnc,
