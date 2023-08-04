@@ -2193,7 +2193,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 
 	var exportedTpyes []*types.Type
 
-	//logf("grouping declarations by type\n")
 	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
@@ -2218,7 +2217,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			panic("Unexpected")
 		}
 	}
-	//logf("checking typeSpecs...\n")
+
 	for _, typeSpec := range typeSpecs {
 		//@TODO check serializeType()'s *ast.Ident case
 		typeSpec.Name.Obj.Data = pkg.Name // package to which the type belongs to
@@ -2249,12 +2248,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		exportedIdents[string(NewQI(pkg.Name, typeSpec.Name.Name))] = ei
 	}
 
-	//logf("checking funcDecls...\n")
 	// collect methods in advance
 	for _, funcDecl := range funcDecls {
-		//util.Logf("(%s) walking funcDecl \"%s\" \n",
-		//	pkg.Fset.Position(funcDecl.Pos()).String(), funcDecl.Name.Name)
-
 		if funcDecl.Recv == nil { // non-method function
 			if funcDecl.Name.Name == "init" {
 				hasInitFunc = true
@@ -2272,8 +2267,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			registerMethod(method)
 		}
 	}
-
-	//logf("walking constSpecs...\n")
 
 	for _, spec := range constSpecs {
 		assert(len(spec.Values) == 1, "only 1 value is supported", __func__)
@@ -2326,7 +2319,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		exportedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = ei
 	}
 
-	//logf("walking varSpecs...\n")
 	for _, spec := range varSpecs {
 		lhsIdent := spec.Names[0]
 		assert(lhsIdent.Obj.Kind == ast.Var, "should be Var", __func__)
@@ -2382,7 +2374,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		exportedIdents[string(NewQI(pkg.Name, lhsIdent.Name))] = ei
 	}
 
-	//logf("walking funcDecls in detail ...\n")
 	for _, funcDecl := range funcDecls {
 
 		fnc := &ir.Func{
