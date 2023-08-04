@@ -74,9 +74,6 @@ func (fs *FileSet) Position(pos Pos) *Position {
 		currentFile = nextFile
 	}
 
-	// debug:
-	//	fmt.Fprintf(os.Stderr, "[token.Position] currentFile=%s, firstPos=%d\n", currentFile.Name, int(currentFile.Lines[0]))
-
 	var currentLineNo int = 1 // Line starts from 1
 	for id, nextLinePos := range currentFile.Lines {
 		if pos < nextLinePos {

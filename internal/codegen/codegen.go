@@ -638,7 +638,6 @@ func emitMetaCallDelete(m *ir.MetaCallDelete) {
 
 // 1 value
 func emitIdent(meta *ir.MetaIdent) {
-	//logf("emitIdent ident=%s\n", meta.Name)
 	switch meta.Kind {
 	case "true": // true constant
 		emitTrue()
@@ -647,7 +646,6 @@ func emitIdent(meta *ir.MetaIdent) {
 	case "nil": // zero value
 		metaType := meta.Type
 		if metaType == nil {
-			//gofmt.Fprintf(os.Stderr, "exprTypeMeta=%v\n", exprTypeMeta)
 			panic("untyped nil is not allowed. Probably the type is not set in walk phase. pkg=" + sema.CurrentPkg.Name)
 		}
 		// emit zero value of the type
@@ -2072,8 +2070,6 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	printf("#--- string literals\n")
 	printf(".data\n")
 	for _, sl := range pkg.StringLiterals {
-		//fmt.Fprintf(os.Stderr, "[emit string] %s index=%d\n", pkg.Name, idx)
-
 		printf("%s:\n", sl.Label)
 		printf("  .string %s\n", sl.Value)
 	}

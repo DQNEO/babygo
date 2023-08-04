@@ -245,11 +245,7 @@ func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string
 	b.filesCache = make(map[string][]string)
 	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 
-	//fmt.Fprintf(os.Stderr, "Compiling  %s ...\n", pkgPath)
 	files := b.getPackageSourceFiles(pkgPath)
-	//for _, file := range files {
-	//	fmt.Fprintf(os.Stderr, "file:  %s\n", file)
-	//}
 	var gofiles []string
 	var asmfiles []string
 	for _, file := range files {
@@ -297,15 +293,12 @@ func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string
 	sema.Fset = token.NewFileSet()
 
 	for _, path := range sortedPaths {
-		//fmt.Fprintf(os.Stderr, "  import %s\n", path)
 		basename := normalizeImportPath(path)
 		declFilePath := fmt.Sprintf("%s/%s", workdir, basename+".dcl.go")
 		compiler.CompileDecl(uni, sema.Fset, path, declFilePath)
 	}
 	outAsmPath := outputBaseName + ".s"
 	declFilePath := outputBaseName + ".dcl.go"
-	//fmt.Fprintf(os.Stderr, "output asm %s\n", outAsmPath)
-	//fmt.Fprintf(os.Stderr, "output decl %s\n", declFilePath)
 	compiler.Compile(uni, sema.Fset, pkg, outAsmPath, declFilePath)
 
 }

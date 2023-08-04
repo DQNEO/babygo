@@ -6,6 +6,7 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
+	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -355,8 +356,6 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 			})
 		}
 		if e.Obj.Decl == nil {
-			//logf("universe.Int=%d\n", uintptr(unsafe.Pointer(universe.Int)))
-			//logf("e.Obj=%d\n", uintptr(unsafe.Pointer(e.Obj)))
 			panic("e.Obj.Decl should not be nil: Obj.Name=" + e.Obj.Name)
 		}
 
@@ -521,7 +520,6 @@ func registerStringLiteral(lit *ast.BasicLit) *ir.SLiteral {
 		}
 	}
 
-	//fmt.Fprintf(os.Stderr, "[register string] %s index=%d\n", CurrentPkg.Name, CurrentPkg.StringIndex)
 	label := fmt.Sprintf(".string_%d", CurrentPkg.StringIndex)
 	CurrentPkg.StringIndex++
 	sl := &ir.SLiteral{
@@ -600,7 +598,7 @@ func registerMethod(method *ir.Method) {
 		}
 		MethodSets[key] = namedType
 	}
-	//	util.Logf("registerMethod: type=%s name=%s\n", method.RcvNamedType.Name, method.Name)
+	util.Logf("registerMethod: type=%s name=%s\n", method.RcvNamedType.Name, method.Name)
 	namedType.MethodSet[method.Name] = method
 }
 
@@ -1141,7 +1139,6 @@ func walkGoStmt(s *ast.GoStmt) *ir.MetaGoStmt {
 
 func walkStmt(stmt ast.Stmt) ir.MetaStmt {
 	var mt ir.MetaStmt
-	//logf("walkStmt : %s\n", fset.Position(Pos(stmt)).String())
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
 		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
@@ -1208,7 +1205,6 @@ func isUniverseNil(m *ir.MetaIdent) bool {
 }
 
 func WalkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
-	//	logf("(%s) [WalkIdent] Pos=%d ident=\"%s\"\n", CurrentPkg.name, int(e.Pos()), e.Name)
 	meta := &ir.MetaIdent{
 		Pos:  e.Pos(),
 		Name: e.Name,
@@ -1217,9 +1213,7 @@ func WalkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
 	if currentFunc != nil {
 		logfncname = currentFunc.Name
 	}
-	//logf("WalkIdent: pkg=%s func=%s, ident=%s\n", CurrentPkg.name, logfncname, e.Name)
 	_ = logfncname
-	// what to do ?
 	if e.Name == "_" {
 		// blank identifier
 		// e.Obj is nil in this case.
@@ -1264,7 +1258,6 @@ func WalkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
 			case universe.Len, universe.Cap, universe.New, universe.Make, universe.Append, universe.Panic, universe.Delete:
 				// builtin funcs have no func type
 			default:
-				//logf("ast.Fun=%s\n", e.Name)
 				meta.Type = E2T(e.Obj.Decl.(*ast.FuncDecl).Type)
 			}
 		case ast.Typ:
@@ -1314,7 +1307,6 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 
 	}
 	meta.SelName = e.Sel.Name
-	//logf("%s: walkSelectorExpr %s\n", fset.Position(e.Sel.Pos()), e.Sel.Name)
 	return meta
 }
 
@@ -1338,7 +1330,6 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 				typeOfLeft = origType
 				method := lookupMethod(typeOfLeft, e.Sel)
 				funcType := method.FuncType
-				//logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
 				if funcType.Results == nil || len(funcType.Results.List) == 0 {
 					return nil, nil, 0, needDeref
 				}
@@ -1349,7 +1340,6 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 	default: // can be a named type of recevier
 		method := lookupMethod(typeOfLeft, e.Sel)
 		funcType := method.FuncType
-		//logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, false
 		}
@@ -1357,7 +1347,6 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 		return types[0], nil, 0, false
 	}
 
-	//logf("%s: Looking for struct  ... \n", fset.Position(structTypeLiteral.Pos()))
 	field := LookupStructField(structTypeLiteral, e.Sel.Name)
 	if field != nil {
 		offset := GetStructFieldOffset(field)
@@ -1366,7 +1355,6 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 	if field == nil { // try to find method
 		method := lookupMethod(typeOfLeft, e.Sel)
 		funcType := method.FuncType
-		//logf("%s: Looking for method ... %s\n", e.Sel.Pos(), e.Sel.Name)
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, needDeref
 		}
@@ -1425,7 +1413,6 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 
 	identFun, isIdent := e.Fun.(*ast.Ident)
 	if isIdent {
-		//logf("  fun=%s\n", identFun.Name)
 		switch identFun.Obj {
 		case universe.Len:
 			a0 := walkExpr(e.Args[0], nil)
