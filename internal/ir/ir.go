@@ -332,14 +332,8 @@ type Signature struct {
 	ReturnTypes []*types.Type
 }
 
-type ForeignFunc struct {
-	Symbol      string
-	FuncType    *ast.FuncType
-	ReturnTypes []*types.Type
-	ParamTypes  []*types.Type
-}
-
 type Func struct {
+	PkgName   string
 	Name      string
 	HasBody   bool
 	Stmts     []MetaStmt

@@ -2140,17 +2140,6 @@ func LookupForeignFunc2(qi ir.QualifiedIdent) *ir.Func {
 	return ei.Func
 }
 
-func LookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
-	ei := LookupForeignIdent(qi, 1)
-	assert(ei.Ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
-	return &ir.ForeignFunc{
-		Symbol:      string(qi),
-		FuncType:    ei.Func.Decl.Type,
-		ParamTypes:  ei.Func.Signature.ParamTypes,
-		ReturnTypes: ei.Func.Signature.ReturnTypes,
-	}
-}
-
 func SetVariable(obj *ast.Object, vr *ir.Variable) {
 	assert(obj.Kind == ast.Var, "obj is not  ast.Var", __func__)
 	if vr == nil {
@@ -2361,6 +2350,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 
 	for _, funcDecl := range funcDecls {
 		fnc := &ir.Func{
+			PkgName:   CurrentPkg.Name,
 			Name:      funcDecl.Name.Name,
 			Decl:      funcDecl,
 			Signature: FuncTypeToSignature(funcDecl.Type),
