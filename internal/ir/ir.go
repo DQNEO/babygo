@@ -34,9 +34,12 @@ type SLiteral struct {
 type QualifiedIdent string
 
 type ExportedIdent struct {
-	PkgName string
-	Ident   *ast.Ident
-	Pos     token.Pos
+	PkgName   string
+	Ident     *ast.Ident
+	Pos       token.Pos
+	IsType    bool
+	Type      *types.Type // type of the ident, or type itself if ident is type
+	MetaIdent *MetaIdent  // for expr
 }
 
 type NamedType struct {
