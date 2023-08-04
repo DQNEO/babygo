@@ -14,8 +14,7 @@ func Throw(x interface{}) {
 
 // Logf writes General debug log to stderr
 func Logf(format string, a ...interface{}) {
-	f := "# " + format
-	fmt.Fprintf(os.Stderr, f, a...)
+	fmt.Fprintf(os.Stderr, format, a...)
 }
 
 var CurrentPkgName string
