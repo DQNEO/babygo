@@ -1297,12 +1297,9 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 			meta.ForeignValue = ei.MetaIdent
 			meta.Type = ei.Type
 		case ast.Fun:
-			ff := newForeignFunc(ei, qi)
 			foreignMeta := &ir.MetaForeignFuncWrapper{
 				Pos: e.Pos(),
 				QI:  qi,
-				FF:  ff,
-				// @TODO: set Type from ff.FuncType
 			}
 			meta.ForeignValue = foreignMeta
 			meta.Type = E2T(ei.Func.Decl.Type)
@@ -1551,8 +1548,8 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			case *ast.SelectorExpr:
 				assert(isQI(r), "expect QI", __func__)
 				qi := Selector2QI(r)
-				ff := LookupForeignFunc(qi)
-				funcType = ff.FuncType
+				ff := LookupForeignFunc2(qi)
+				funcType = ff.Decl.Type
 				funcVal = NewFuncValueFromSymbol(string(qi))
 			default:
 				throw(r)
@@ -1565,8 +1562,8 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			// pkg.Sel()
 			qi := Selector2QI(fn)
 			funcVal = NewFuncValueFromSymbol(string(qi))
-			ff := LookupForeignFunc(qi)
-			funcType = ff.FuncType
+			ff := LookupForeignFunc2(qi)
+			funcType = ff.Decl.Type
 		} else {
 			// method call
 			receiver = fn.X
@@ -2137,12 +2134,14 @@ func LookupForeignIdent(qi ir.QualifiedIdent, pos token.Pos) *ir.ExportedIdent {
 	return ei
 }
 
-func LookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
+func LookupForeignFunc2(qi ir.QualifiedIdent) *ir.Func {
 	ei := LookupForeignIdent(qi, 1)
-	return newForeignFunc(ei, qi)
+	assert(ei.Ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
+	return ei.Func
 }
 
-func newForeignFunc(ei *ir.ExportedIdent, qi ir.QualifiedIdent) *ir.ForeignFunc {
+func LookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
+	ei := LookupForeignIdent(qi, 1)
 	assert(ei.Ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
 	return &ir.ForeignFunc{
 		Symbol:      string(qi),
