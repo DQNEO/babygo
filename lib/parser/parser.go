@@ -1222,11 +1222,10 @@ func (p *parser) parserTypeSpec() *ast.TypeSpec {
 }
 
 func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
-
 	p.expect(keyword, __func__)
-	var ident = p.parseIdent()
+	ident := p.parseIdent()
 
-	var typ = p.parseType()
+	typ := p.parseType()
 	var value ast.Expr
 	var values []ast.Expr
 	if p.tok == "=" {
@@ -1241,9 +1240,11 @@ func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
 		Type:   typ,
 		Values: values,
 	}
-	var kind = ast.Con
+	var kind ast.ObjKind
 	if keyword == "var" {
 		kind = ast.Var
+	} else {
+		kind = ast.Con
 	}
 	declare(spec, p.topScope, kind, ident)
 
@@ -1253,74 +1254,53 @@ func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
 func (p *parser) parseFuncType() ast.Expr {
 	pos := p.pos
 	p.next()
-	var scope = ast.NewScope(p.topScope) // function scope
-	var sig = p.parseSignature(scope)
-	var params = sig.Params
-	var results = sig.Results
-	ft := &ast.FuncType{
+	scope := ast.NewScope(p.topScope) // function scope
+	sig := p.parseSignature(scope)
+	return &ast.FuncType{
 		Func:    pos,
-		Params:  params,
-		Results: results,
+		Params:  sig.Params,
+		Results: sig.Results,
 	}
-	return ft
 }
 
 func (p *parser) parseFuncDecl() ast.Decl {
 	pos := p.pos
 	p.expect("func", __func__)
-	var scope = ast.NewScope(p.topScope) // function scope
+	scope := ast.NewScope(p.topScope) // function scope
 	var receivers *ast.FieldList
 	if p.tok == "(" {
-
 		receivers = p.parseParameters(scope, false)
-	} else {
-
 	}
-	var ident = p.parseIdent() // func name
-	var sig = p.parseSignature(scope)
-	var params = sig.Params
-	var results = sig.Results
-	if results == nil {
+	ident := p.parseIdent() // func name
+	sig := p.parseSignature(scope)
 
-	} else {
-
-	}
 	var body *ast.BlockStmt
 	if p.tok == "{" {
-
 		body = p.parseBody(scope)
-
-		p.expectSemi(__func__)
-	} else {
-
-		p.expectSemi(__func__)
 	}
-	var decl ast.Decl
-
-	//logf("[parser] p.tok.pos=%d\n", p.tok.pos)
-
-	var funcDecl = &ast.FuncDecl{}
-	funcDecl.Recv = receivers
-	funcDecl.Name = ident
-	funcDecl.Type = &ast.FuncType{
-		Func: pos,
+	p.expectSemi(__func__)
+	funcType := &ast.FuncType{
+		Func:    pos,
+		Params:  sig.Params,
+		Results: sig.Results,
 	}
-	funcDecl.Type.Params = params
-	funcDecl.Type.Results = results
-	funcDecl.Body = body
-	decl = funcDecl
+	funcDecl := &ast.FuncDecl{
+		Recv: receivers,
+		Name: ident,
+		Body: body,
+		Type: funcType,
+	}
 	if receivers == nil {
 		declare(funcDecl, p.pkgScope, ast.Fun, ident)
 	}
-	return decl
+	return funcDecl
 }
 
 func (p *parser) parseFile(importsOnly bool) *ast.File {
-	// expect "package" keyword
 	pos := p.pos
 	p.expect("package", __func__)
 	p.unresolved = nil
-	var ident = p.parseIdent()
+	ident := p.parseIdent()
 	packageName := ident
 	p.expectSemi(__func__)
 
@@ -1349,22 +1329,19 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 	for !importsOnly && p.tok != "EOF" {
 		switch p.tok {
 		case "var", "const":
-			var spec = p.parseValueSpec(p.tok)
+			spec := p.parseValueSpec(p.tok)
 			specs := []ast.Spec{spec}
 			decl = &ast.GenDecl{
 				Specs: specs,
 			}
 		case "func":
-
 			decl = p.parseFuncDecl()
-			//logff(" func decl parsed:%s\n", decl.funcDecl.Name.Name)
 		case "type":
 			spec := p.parserTypeSpec()
 			specs := []ast.Spec{spec}
 			decl = &ast.GenDecl{
 				Specs: specs,
 			}
-
 		default:
 			panic2(__func__, "TBI:"+p.tok)
 		}
@@ -1376,7 +1353,7 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 	var unresolved []*ast.Ident
 	for _, idnt := range p.unresolved {
 		ps := p.pkgScope
-		var obj *ast.Object = ps.Lookup(idnt.Name)
+		obj := ps.Lookup(idnt.Name)
 		if obj != nil {
 			idnt.Obj = obj
 		} else {
@@ -1384,15 +1361,14 @@ func (p *parser) parseFile(importsOnly bool) *ast.File {
 		}
 	}
 
-	var f = &ast.File{
-		Package: pos,
+	return &ast.File{
+		Package:    pos,
+		Name:       packageName,
+		Scope:      p.pkgScope,
+		Decls:      decls,
+		Unresolved: unresolved,
+		Imports:    p.imports,
 	}
-	f.Name = packageName
-	f.Scope = p.pkgScope
-	f.Decls = decls
-	f.Unresolved = unresolved
-	f.Imports = p.imports
-	return f
 }
 
 func readSource(filename string) ([]uint8, error) {
@@ -1404,7 +1380,6 @@ func readSource(filename string) ([]uint8, error) {
 }
 
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8) (*ast.File, *ParserError) {
-	//logff("[ParseFile] Start file %s\n", filename)
 	var importsOnly bool
 	if mode == ImportsOnly {
 		importsOnly = true
@@ -1412,7 +1387,9 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8
 
 	text, err := readSource(filename)
 	if err != nil {
-		panic(err.(*os.PathError).Error())
+		msg := err.(*os.PathError).Error()
+		newErr := &ParserError{msg: msg}
+		return nil, newErr
 	}
 	var p = &parser{}
 	packagePos := token.Pos(fset.Base)
