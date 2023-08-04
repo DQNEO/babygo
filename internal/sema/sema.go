@@ -6,7 +6,6 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
-	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -597,7 +596,7 @@ func registerMethod(pkgName string, method *ir.Method) {
 		}
 		namedTypes[namedTypeId] = namedType
 	}
-	util.Logf("registerMethod: pkg=%s namedTypeId=%s namedType=%s\n", pkgName, namedTypeId, method.RcvNamedType.Obj.Name)
+	//util.Logf("registerMethod: pkg=%s namedTypeId=%s namedType=%s\n", pkgName, namedTypeId, method.RcvNamedType.Obj.Name)
 	namedType.MethodSet[method.Name] = method
 }
 
@@ -614,11 +613,11 @@ func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 		typeObj = typ.Obj
 		pkgName := typeObj.Data.(string)
 		namedTypeId = pkgName + "." + typ.Name
-		util.Logf("[lookupMethod] ident: namedTypeId=%s\n", namedTypeId)
+		//util.Logf("[lookupMethod] ident: namedTypeId=%s\n", namedTypeId)
 	case *ast.SelectorExpr:
 		qi := Selector2QI(typ)
 		namedTypeId = string(qi)
-		util.Logf("[lookupMethod] selector: namedTypeId=%s\n", namedTypeId)
+		//util.Logf("[lookupMethod] selector: namedTypeId=%s\n", namedTypeId)
 	default:
 		panic(rcvType)
 	}
