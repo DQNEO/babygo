@@ -2,6 +2,7 @@ package exec
 
 import (
 	"os"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -22,6 +23,15 @@ const CLONE_CHILD_CLEARTID uintptr = 2097152 //  0x00200000 // 2097152
 const CLONE_CHILD_SETTID uintptr = 16777216  // 0x01000000 // 16777216
 const SIGCHLD uintptr = 17
 
+type ExitError struct {
+	Status int
+}
+
+func (err *ExitError) Error() string {
+	sStatus := runtime.Itoa(err.Status)
+	return "Command failed: status=" + sStatus
+}
+
 func (c *Cmd) Run() error {
 
 	pid := fork()
@@ -37,8 +47,10 @@ func (c *Cmd) Run() error {
 		//		os.Stdout.Write([]byte("I am the parent\n"))
 		//		spid := runtime.Itoa(pid)
 		//		os.Stdout.Write([]byte("parent: child pid=" + spid + "\n"))
-		// @TODO: waitpid
-		wait4(pid)
+		status := wait4(pid)
+		if status != 0 {
+			return &ExitError{Status: status}
+		}
 	}
 	return nil
 }
