@@ -59,8 +59,7 @@ cat <<EOF
 __INIT__.init:
 EOF
 
-PKGSM="${PKGS} main"
-for p in $PKGSM
+while read p
 do
   if [[ $p == "runtime" ]] ; then
       continue
@@ -71,12 +70,13 @@ do
   if grep -E '^func init' ${p2}.dcl.go >/dev/null ; then
     echo "  callq ${basename}.init"
   fi
-done
+done < $workdir/list
+
 echo "  ret"
 } > __INIT__.s
+as -o __INIT__.o __INIT__.s
 
 # Link
-as -o __INIT__.o __INIT__.s
 ld -o a.out *.o
 cp a.out $out_file_abs
 
