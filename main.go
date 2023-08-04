@@ -60,9 +60,12 @@ func main() {
 		pkgPath := os.Args[4]
 		b.BuildOne(workdir, outputBaseName, pkgPath)
 	case "list": // e.g. WORKDIR=/tmpfs/bbg/bbg-test.d babygo list -depth ./t/
-
 		pkgPath := os.Args[3]
 		b.ListDepth(workdir, pkgPath)
+	case "link": // e.g. babygo link -o $out_file_abs a.o b.o
+		outFilePath := os.Args[3]
+		objFileNames := os.Args[4:]
+		b.Link(outFilePath, objFileNames)
 	default:
 		showHelp()
 		return

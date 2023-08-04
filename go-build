@@ -77,8 +77,11 @@ echo "  ret"
 as -o __INIT__.o __INIT__.s
 
 # Link
-ld -o a.out *.o
-cp a.out $out_file_abs
+if [[ -n $verbose ]]; then
+  echo '>' $compiler link -o $out_file_abs *.o
+fi
+$compiler link -o $out_file_abs *.o
+
 
 cat *.s > all
 echo $out_file

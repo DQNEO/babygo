@@ -1,6 +1,8 @@
 package builder
 
 import (
+	"os/exec"
+
 	"github.com/DQNEO/babygo/internal/compiler"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
@@ -302,6 +304,15 @@ func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string
 	declFilePath := outputBaseName + ".dcl.go"
 	compiler.Compile(uni, sema.Fset, pkg, outAsmPath, outObjPath, declFilePath)
 
+}
+
+func (b *Builder) Link(outFilePath string, objFileNames []string) error {
+	var args []string = []string{"-o", outFilePath}
+	for _, f := range objFileNames {
+		args = append(args, f)
+	}
+	err := exec.Command("/usr/bin/ld", args...).Run()
+	return err
 }
 
 func normalizeImportPath(importPath string) string {
