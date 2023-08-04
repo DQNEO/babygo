@@ -1305,7 +1305,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 				// @TODO: set Type from ff.FuncType
 			}
 			meta.ForeignValue = foreignMeta
-			meta.Type = E2T(ei.Ident.Obj.Decl.(*ast.FuncDecl).Type)
+			meta.Type = E2T(ei.Func.Decl.Type)
 		default:
 			panic("Unexpected")
 		}
@@ -2144,14 +2144,11 @@ func LookupForeignFunc(qi ir.QualifiedIdent) *ir.ForeignFunc {
 
 func newForeignFunc(ei *ir.ExportedIdent, qi ir.QualifiedIdent) *ir.ForeignFunc {
 	assert(ei.Ident.Obj.Kind == ast.Fun, "should be Fun", __func__)
-	decl := ei.Ident.Obj.Decl.(*ast.FuncDecl)
-	returnTypes := FieldList2Types(decl.Type.Results)
-	paramTypes := FieldList2Types(decl.Type.Params)
 	return &ir.ForeignFunc{
 		Symbol:      string(qi),
-		FuncType:    decl.Type,
-		ParamTypes:  paramTypes,
-		ReturnTypes: returnTypes,
+		FuncType:    ei.Func.Decl.Type,
+		ParamTypes:  ei.Func.Signature.ParamTypes,
+		ReturnTypes: ei.Func.Signature.ReturnTypes,
 	}
 }
 
@@ -2384,6 +2381,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 				Ident:   funcDecl.Name,
 				PkgName: pkg.Name,
 				Pos:     funcDecl.Pos(),
+				Func:    fnc,
 			}
 			exportedIdents[string(qi)] = ei
 		}

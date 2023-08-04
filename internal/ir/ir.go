@@ -40,6 +40,7 @@ type ExportedIdent struct {
 	IsType    bool
 	Type      *types.Type // type of the ident, or type itself if ident is type
 	MetaIdent *MetaIdent  // for expr
+	Func      *Func       // for func
 }
 
 type NamedType struct {
