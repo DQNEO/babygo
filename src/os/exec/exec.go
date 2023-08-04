@@ -24,14 +24,14 @@ const CLONE_CHILD_SETTID uintptr = 16777216  // 0x01000000 // 16777216
 const SIGCHLD uintptr = 17
 
 func (c *Cmd) Run() error {
-	msg := []byte(c.Name + " " + c.Arg + "\n")
-	os.Stdout.Write(msg)
 
 	pid := fork()
 
 	if pid == 0 {
 		// child
-		os.Stdout.Write([]byte("I am the child\n"))
+		os.Stdout.Write([]byte("\nI am the child\n"))
+		os.Stdout.Write([]byte("child: " + c.Name + " " + c.Arg + "\n"))
+		os.Exit(0)
 	} else {
 		os.Stdout.Write([]byte("I am the parent\n"))
 		//_ = r2
