@@ -270,13 +270,12 @@ func (p *parser) tryIdentOrType() ast.Expr {
 		return p.parsePointerType()
 	case "interface":
 		pos := p.pos
-		p.next()
+		p.expect("interface", __func__)
 		p.expect("{", __func__)
-		// @TODO parser method sets
-		p.expect("}", __func__)
+		methods := p.parseMethods()
 		return &ast.InterfaceType{
 			Interface: pos,
-			Methods:   nil,
+			Methods:   methods,
 		}
 	case "func":
 		return p.parseFuncType()
@@ -1253,13 +1252,43 @@ func (p *parser) parseValueSpec(keyword string) *ast.ValueSpec {
 
 func (p *parser) parseFuncType() ast.Expr {
 	pos := p.pos
-	p.next()
+	p.expect("func", __func__)
 	scope := ast.NewScope(p.topScope) // function scope
 	sig := p.parseSignature(scope)
 	return &ast.FuncType{
 		Func:    pos,
 		Params:  sig.Params,
 		Results: sig.Results,
+	}
+}
+
+func (p *parser) parseMethods() *ast.FieldList {
+	pos := p.pos
+
+	var list []*ast.Field
+	for p.tok == "IDENT" {
+		ident := p.parseIdent() // method name
+
+		scope := ast.NewScope(p.topScope) // function scope
+		sig := p.parseSignature(scope)
+
+		funcType := &ast.FuncType{
+			Func:    pos,
+			Params:  sig.Params,
+			Results: sig.Results,
+		}
+		field := &ast.Field{
+			Names: []*ast.Ident{ident},
+			Type:  funcType,
+		}
+		list = append(list, field)
+		p.expectSemi(__func__)
+	}
+	p.expect("}", __func__)
+
+	return &ast.FieldList{
+		Opening: pos,
+		List:    list,
 	}
 }
 

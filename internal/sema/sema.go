@@ -2203,6 +2203,20 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		case types.T_STRUCT:
 			structType := GetUnderlyingType(t)
 			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
+		case types.T_INTERFACE:
+			// register ifc method
+			it := typeSpec.Type.(*ast.InterfaceType)
+			if it.Methods != nil {
+				for _, m := range it.Methods.List {
+					//mt := m.Type
+					method := &ir.Method{
+						PkgName: pkg.Name,
+						Name:    m.Names[0].Name,
+						//FuncType: methodType,
+					}
+					registerMethod(pkg.Name, method)
+				}
+			}
 		}
 		// named type
 		ei := &ir.ExportedIdent{

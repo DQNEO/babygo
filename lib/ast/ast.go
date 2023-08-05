@@ -137,7 +137,7 @@ type StructType struct {
 }
 
 type InterfaceType struct {
-	Methods   []string
+	Methods   *FieldList
 	Interface token.Pos
 }
 
