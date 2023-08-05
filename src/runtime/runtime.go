@@ -106,7 +106,7 @@ func mstart0() {
 
 // Environment variables
 var envp uintptr
-var envlines []string // []{"FOO=BAR\0", "HOME=/home/...\0", ..}
+var Envlines []string // []{"FOO=BAR\0", "HOME=/home/...\0", ..}
 
 type EnvEntry struct {
 	Key   string
@@ -136,10 +136,10 @@ func envInit() {
 		if *bpp == nil {
 			break
 		}
-		envlines = append(envlines, cstring2string(*bpp))
+		Envlines = append(Envlines, cstring2string(*bpp))
 	}
 
-	for _, envline := range envlines {
+	for _, envline := range Envlines {
 		var i int
 		var c byte
 		for i, c = range []byte(envline) {

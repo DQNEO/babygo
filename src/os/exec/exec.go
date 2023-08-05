@@ -95,14 +95,12 @@ func execve(cmds string, args []string) {
 	argv = append(argv, 0)
 	argvAddr := uintptr(unsafe.Pointer(&argv[0]))
 
+	environ := syscall.Environ()
 	var envp []uintptr
-	gopathenvstr := "GOPATH=" + os.Getenv("GOPATH")
-	gopathenv := append([]byte(gopathenvstr), 0)
-	envp = append(envp, uintptr(unsafe.Pointer(&gopathenv[0])))
-	workdirenvstr := "WORKDIR=" + os.Getenv("WORKDIR")
-	workdirenv := append([]byte(workdirenvstr), 0)
-	envp = append(envp, uintptr(unsafe.Pointer(&workdirenv[0])))
-
+	for _, envLine := range environ {
+		bufEnvLine := []byte(envLine)
+		envp = append(envp, uintptr(unsafe.Pointer(&bufEnvLine[0])))
+	}
 	envp = append(envp, 0)
 	envpAddr := uintptr(unsafe.Pointer(&envp[0]))
 	syscall.Syscall(trap, pathname, argvAddr, envpAddr)

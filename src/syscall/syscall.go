@@ -23,6 +23,10 @@ func Getenv(key string) (string, bool) {
 	return "", false
 }
 
+func Environ() []string {
+	return runtime.Envlines
+}
+
 func Read(fd int, buf []byte) (uintptr, error) {
 	p := &buf[0]
 	_cap := cap(buf)

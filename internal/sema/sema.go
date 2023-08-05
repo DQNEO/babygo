@@ -1508,11 +1508,6 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			case "runtime_args":
 				symbol = GetPackageSymbol("runtime", "runtime_args")
 			}
-		case "syscall":
-			switch fn.Name {
-			case "runtime_getenv":
-				symbol = GetPackageSymbol("runtime", "runtime_getenv")
-			}
 		case "runtime":
 			if fn.Name == "makeSlice1" || fn.Name == "makeSlice8" || fn.Name == "makeSlice16" || fn.Name == "makeSlice24" {
 				fn.Name = "makeSlice"
