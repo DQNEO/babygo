@@ -75,6 +75,8 @@ func Index(s string, substr string) int {
 			if b == substr[subIndex] {
 				if subIndex == len(substr)-1 {
 					return r
+				} else {
+					subIndex++
 				}
 			} else {
 				in = false
