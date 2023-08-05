@@ -7,8 +7,9 @@ import (
 )
 
 type Cmd struct {
-	Name string
-	Args []string
+	Name     string
+	Args     []string
+	childPid uintptr
 }
 
 func Command(name string, arg ...string) *Cmd {
@@ -45,10 +46,16 @@ func (c *Cmd) Run() error {
 		//		os.Stdout.Write([]byte("I am the parent\n"))
 		//		spid := runtime.Itoa(pid)
 		//		os.Stdout.Write([]byte("parent: child pid=" + spid + "\n"))
-		status := wait4(pid)
-		if status != 0 {
-			return &ExitError{Status: status}
-		}
+		c.childPid = pid
+		return c.Wait()
+	}
+	return nil
+}
+
+func (c *Cmd) Wait() error {
+	status := wait4(c.childPid)
+	if status != 0 {
+		return &ExitError{Status: status}
 	}
 	return nil
 }
