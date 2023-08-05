@@ -28,7 +28,12 @@ func init() {
 }
 
 func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath string) error {
-	err := exec.Command("/usr/bin/mkdir", "-p", workdir).Run()
+	err := exec.Command("/usr/bin/rm", "-fr", workdir).Run()
+	if err != nil {
+		return err
+	}
+
+	err = exec.Command("/usr/bin/mkdir", "-p", workdir).Run()
 	if err != nil {
 		return err
 	}

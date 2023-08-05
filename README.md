@@ -44,7 +44,7 @@ $ ./docker-run
 $ go build -o babygo
 
 # Build hello world by babygo
-$ ./go-build -o hello -c ./babygo ./example/hello
+$ ./babygo build -o hello ./example/hello
 
 # Run hello world
 $ ./hello
@@ -58,13 +58,18 @@ hello world!
 $ go build -o babygo
 
 # Build babygo (2nd generation) by babygo 1gen
-$ ./go-build -o ./babygo2 -c ./babygo ./
+$ ./babygo build -o babygo2 ./
 
 # Build babygo (3rd generation) by babygo 2gen
-$ ./go-build -o ./babygo3 -c ./babygo2 ./
+$ ./babygo2 build -o ./babygo3 ./
+
+# Check if babygo2 and babygo3 are identical
+$ diff ./babygo2 ./babygo3
 ```
 
 ## Test
+
+Run this in the docker container:
 
 ```terminal
 $ make test

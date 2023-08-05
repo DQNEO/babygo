@@ -48,7 +48,7 @@ func main() {
 	}
 	workdir := os.Getenv("WORKDIR")
 	if workdir == "" {
-		panic("WORKDIR is not set")
+		workdir = "/tmp/bbg-work/"
 	}
 	srcPath := gopath + "/src"                                 // userland packages
 	bbgRootSrcPath := srcPath + "/github.com/DQNEO/babygo/src" // std packages
