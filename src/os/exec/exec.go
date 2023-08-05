@@ -2,7 +2,6 @@ package exec
 
 import (
 	"os"
-	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -28,8 +27,7 @@ type ExitError struct {
 }
 
 func (err *ExitError) Error() string {
-	sStatus := runtime.Itoa(err.Status)
-	return "Command failed: status=" + sStatus
+	return "[ExitError] Command failed"
 }
 
 func (c *Cmd) Run() error {
