@@ -8,7 +8,6 @@ import (
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
-	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
@@ -87,12 +86,8 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 		if err != nil {
 			return err
 		}
-		util.Logf("declfile=%s : ", declFilePath)
 		if strings.Contains(string(declContent), "func init ") {
 			fmt.Fprintf(wInitS, "  callq %s.init\n", basename)
-			util.Logf("%s\n", "Has init")
-		} else {
-			util.Logf("%s\n", "No init")
 		}
 	}
 	fmt.Fprintf(wInitS, "  %s\n", "ret")
@@ -106,7 +101,7 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 	}
 	oFiles = append(oFiles, initOFile)
 	b.Link(outFilePath, oFiles)
-	fmt.Printf("%s\n", outFilePath)
+	//fmt.Printf("%s\n", outFilePath)
 	return nil
 }
 
@@ -329,7 +324,6 @@ func (b *Builder) ListDepth(workdir string, pkgPath string, w *os.File) []string
 }
 
 func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string) {
-	util.Logf("[BuildOne] workdir=%s, BbgRootSrcPath=%s\n", workdir, b.BbgRootSrcPath)
 	b.filesCache = make(map[string][]string)
 	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 
