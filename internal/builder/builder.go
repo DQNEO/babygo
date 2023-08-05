@@ -58,6 +58,38 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 		}
 	}
 
+	oInitSFile := workdir + "/" + "__INIT__.s"
+	wInitS, err := os.Create(oInitSFile)
+	if err != nil {
+		return err
+	}
+	var initHeader string = ".text\n# Initializes all packages except for runtime\n.global __INIT__.init\n__INIT__.init:"
+	fmt.Fprintf(wInitS, "%s", initHeader)
+	for _, pth := range sortedPaths {
+		if pth == "runtime" {
+			continue
+		}
+		basename := path.Base(pth)
+		fmt.Fprintf(wInitS, "  callq %s.__initVars\n", basename)
+
+		normalizedPath := normalizeImportPath(pth)
+		nbasepath := path.Base(normalizedPath)
+		declFilePath := workdir + "/" + nbasepath + ".dcl.go"
+		declContent, err := os.ReadFile(declFilePath)
+		if err != nil {
+			return err
+		}
+		util.Logf("declfile=%s : ", declFilePath)
+		if strings.Contains(string(declContent), "func init ") {
+			fmt.Fprintf(wInitS, "  callq %s.init\n", basename)
+			util.Logf("%s\n", "Has init")
+		} else {
+			util.Logf("%s\n", "No init")
+		}
+	}
+	fmt.Fprintf(wInitS, "  %s\n", "ret")
+	wInitS.Close()
+
 	return nil
 }
 

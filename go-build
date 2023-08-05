@@ -26,31 +26,6 @@ export WORKDIR=$workdir
 echo WORKDIR=$workdir $prog build -o $out_file $package
 $prog build -o $out_file $package
 
-# Generate __INIT__.s
-{
-cat <<EOF
-.text
-# Initializes all packages except for runtime
-.global __INIT__.init
-__INIT__.init:
-EOF
-
-while read p
-do
-  if [[ $p == "runtime" ]] ; then
-      continue
-  fi
-  p2=$(echo $p | tr '/' '.')
-  basename=${p##*/}
-  echo "  callq ${basename}.__initVars"
-  if grep -E '^func init' $workdir/${p2}.dcl.go >/dev/null ; then
-    echo "  callq ${basename}.init"
-  fi
-done < $workdir/list
-
-echo "  ret"
-} > $workdir/__INIT__.s
-
 as -o $workdir/__INIT__.o $workdir/__INIT__.s
 
 # Link
