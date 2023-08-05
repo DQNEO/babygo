@@ -111,6 +111,9 @@ func findFilesInDir(dir string, abs bool) []string {
 	var r []string
 	for _, dirent := range dirents {
 		if strings.HasSuffix(dirent, ".go") || strings.HasSuffix(dirent, ".s") {
+			if strings.HasSuffix(dirent, "_test.go") {
+				continue
+			}
 			var file string
 			if abs {
 				file = dir + "/" + dirent

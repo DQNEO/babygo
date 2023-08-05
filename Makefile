@@ -7,7 +7,7 @@ all: test1 test2 selfhost
 
 # run all tests
 .PHONY: test
-test: $(tmp) test1 test2 selfhost test0 compare-test
+test: $(tmp) test1 test2 selfhost test0 compare-test testlib
 
 $(tmp):
 	mkdir -p $(tmp)
@@ -94,6 +94,11 @@ compare-test: $(tmp)/pt $(tmp)/bt $(tmp)/bbt $(tmp)/pbt
 	diff -u $(tmp)/bt.d/all $(tmp)/pbt.d/all  >/dev/null
 	diff -u $(tmp)/bt.d/all $(tmp)/bbt.d/all  >/dev/null
 	@echo "[PASS] compare-test"
+
+# Library's test by go test
+.PHONY: testlib
+testlib: lib/*/*
+	go test ./lib/...
 
 .PHONY: fmt
 fmt:
