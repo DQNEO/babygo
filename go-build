@@ -53,15 +53,8 @@ echo "  ret"
 
 as -o $workdir/__INIT__.o $workdir/__INIT__.s
 
-cd $workdir
-
-
 # Link
-if [[ -n $verbose ]]; then
-  echo '>' $prog link -o $out_file_abs *.o
-fi
-$prog link -o $out_file_abs *.o
+$prog link -o $out_file_abs $workdir/*.o
 
-
-cat *.s > all
+cat $workdir/*.s > $workdir/all
 echo $out_file
