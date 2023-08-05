@@ -41,15 +41,11 @@ func (c *Cmd) Run() error {
 		//		os.Stdout.Write([]byte("child: " + c.Name + " " + c.Arg + "\n"))
 		execve(c.Name, c.Args)
 		os.Exit(0)
-	} else {
-		// parent
-		//		os.Stdout.Write([]byte("I am the parent\n"))
-		//		spid := runtime.Itoa(pid)
-		//		os.Stdout.Write([]byte("parent: child pid=" + spid + "\n"))
-		c.childPid = pid
-		return c.Wait()
 	}
-	return nil
+
+	// parent
+	c.childPid = pid
+	return c.Wait()
 }
 
 func (c *Cmd) Wait() error {
