@@ -39,23 +39,26 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 		return err
 	}
 	sortedPaths := b.ListDepth(workdir, pkgPath, oListFile)
+	var oFiles []string
 
 	for _, pth := range sortedPaths {
-		var outPath string
+		var outputBaseName string
 		var pp string
 		if pth == "main" {
 			pp = pkgPath
-			outPath = workdir + "/" + "main"
+			outputBaseName = workdir + "/" + "main"
 		} else {
 			pp = pth
 			normalizedPath := normalizeImportPath(pth)
-			outPath = workdir + "/" + normalizedPath
+			outputBaseName = workdir + "/" + normalizedPath
 		}
 
-		err = exec.Command(self, "compile", "-o", outPath, pp).Run()
+		err = exec.Command(self, "compile", "-o", outputBaseName, pp).Run()
 		if err != nil {
-			panic("compile failed: " + self + " compile " + " -o " + outPath + " " + pp)
+			panic("compile failed: " + self + " compile " + " -o " + outputBaseName + " " + pp)
 		}
+		outObjPath := outputBaseName + ".o"
+		oFiles = append(oFiles, outObjPath)
 	}
 
 	initAsmFile := workdir + "/" + "__INIT__.s"
@@ -96,7 +99,8 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 	if err != nil {
 		panic("assembling init  failed: " + initAsmFile)
 	}
-
+	oFiles = append(oFiles, initOFile)
+	b.Link(outFilePath, oFiles)
 	return nil
 }
 
