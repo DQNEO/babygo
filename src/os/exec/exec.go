@@ -32,9 +32,15 @@ func (err *ExitError) Error() string {
 }
 
 func (c *Cmd) Run() error {
+	err := c.Start()
+	if err != nil {
+		return err
+	}
+	return c.Wait()
+}
 
+func (c *Cmd) Start() error {
 	pid := fork()
-
 	if pid == 0 {
 		// child
 		//		os.Stdout.Write([]byte("\nI am the child\n"))
@@ -45,7 +51,7 @@ func (c *Cmd) Run() error {
 
 	// parent
 	c.childPid = pid
-	return c.Wait()
+	return nil
 }
 
 func (c *Cmd) Wait() error {
