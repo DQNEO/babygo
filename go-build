@@ -26,8 +26,6 @@ export WORKDIR=$workdir
 echo WORKDIR=$workdir $prog build -o $out_file $package
 $prog build -o $out_file $package
 
-cd $workdir
-
 # Generate __INIT__.s
 {
 cat <<EOF
@@ -45,14 +43,18 @@ do
   p2=$(echo $p | tr '/' '.')
   basename=${p##*/}
   echo "  callq ${basename}.__initVars"
-  if grep -E '^func init' ${p2}.dcl.go >/dev/null ; then
+  if grep -E '^func init' $workdir/${p2}.dcl.go >/dev/null ; then
     echo "  callq ${basename}.init"
   fi
 done < $workdir/list
 
 echo "  ret"
-} > __INIT__.s
-as -o __INIT__.o __INIT__.s
+} > $workdir/__INIT__.s
+
+as -o $workdir/__INIT__.o $workdir/__INIT__.s
+
+cd $workdir
+
 
 # Link
 if [[ -n $verbose ]]; then
