@@ -39,8 +39,21 @@ func (c *Cmd) Run() error {
 	return c.Wait()
 }
 
+type Err struct {
+	Msg string
+}
+
+func (err *Err) Error() string {
+	return err.Msg
+}
+
 func (c *Cmd) Start() error {
 	pid := fork()
+	if pid < 0 {
+		return &Err{
+			Msg: "[exec] fork failed",
+		}
+	}
 	if pid == 0 {
 		// child
 		//		os.Stdout.Write([]byte("\nI am the child\n"))
