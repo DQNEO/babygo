@@ -9,7 +9,6 @@ type WriteCloser interface {
 	Close() error
 }
 
-var msg = []uint8("hello world!\n")
 var ifc WriteCloser
 
 func f1() {
@@ -17,6 +16,7 @@ func f1() {
 }
 
 func f2() {
+	var msg = []uint8("hello world!\n")
 	ifc.Write(msg)
 }
 func main() {

@@ -2020,7 +2020,7 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 	case types.T_STRUCT, types.T_ARRAY, types.T_SLICE:
 		// only zero value
 		if val != nil {
-			panic("Unsupported global value")
+			panic("Unsupported global value:" + typeKind)
 		}
 		emitZeroData(t)
 	case types.T_POINTER, types.T_FUNC, types.T_MAP, types.T_INTERFACE:

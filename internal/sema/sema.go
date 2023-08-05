@@ -587,6 +587,7 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ir.Method {
 // https://golang.org/ref/spec#Method_sets
 var namedTypes = make(map[string]*ir.NamedType)
 
+// @TODO: enable to register ifc method
 func registerMethod(pkgName string, method *ir.Method) {
 	namedTypeId := pkgName + "." + method.RcvNamedType.Name
 	namedType, ok := namedTypes[namedTypeId]
@@ -600,6 +601,7 @@ func registerMethod(pkgName string, method *ir.Method) {
 	namedType.MethodSet[method.Name] = method
 }
 
+// @TODO: enable to lookup ifc method
 func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 	rcvType := rcvT.E
 	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
@@ -1340,7 +1342,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 				return types[0], nil, 0, needDeref
 			}
 		}
-	default: // can be a named type of recevier
+	default: // obj.method
 		method := lookupMethod(typeOfLeft, e.Sel)
 		funcType := method.FuncType
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
@@ -2208,11 +2210,12 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			it := typeSpec.Type.(*ast.InterfaceType)
 			if it.Methods != nil {
 				for _, m := range it.Methods.List {
-					//mt := m.Type
+					funcType := m.Type.(*ast.FuncType)
 					method := &ir.Method{
-						PkgName: pkg.Name,
-						Name:    m.Names[0].Name,
-						//FuncType: methodType,
+						PkgName:      pkg.Name,
+						RcvNamedType: typeSpec.Name,
+						Name:         m.Names[0].Name,
+						FuncType:     funcType,
 					}
 					registerMethod(pkg.Name, method)
 				}
