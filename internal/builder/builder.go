@@ -1,12 +1,14 @@
 package builder
 
 import (
+	"os"
 	"os/exec"
 
 	"github.com/DQNEO/babygo/internal/compiler"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
+	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
@@ -23,6 +25,40 @@ func init() {
 		panic("object mismatch")
 	}
 
+}
+
+func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath string) error {
+	err := exec.Command("/usr/bin/mkdir", "-p", workdir).Run()
+	if err != nil {
+		return err
+	}
+
+	listFilePath := workdir + "/" + "list"
+	oListFile, err := os.Create(listFilePath)
+	if err != nil {
+		return err
+	}
+	sortedPaths := b.ListDepth(workdir, pkgPath, oListFile)
+
+	for _, pth := range sortedPaths {
+		var outPath string
+		var pp string
+		if pth == "main" {
+			pp = pkgPath
+			outPath = workdir + "/" + "main"
+		} else {
+			pp = pth
+			normalizedPath := normalizeImportPath(pth)
+			outPath = workdir + "/" + normalizedPath
+		}
+
+		err = exec.Command(self, "compile", "-o", outPath, pp).Run()
+		if err != nil {
+			panic("compile failed: " + self + " compile " + " -o " + outPath + " " + pp)
+		}
+	}
+
+	return nil
 }
 
 // "some/dir" => "some/dir/a.go" (if abs == true)
@@ -205,7 +241,7 @@ type Builder struct {
 	permanentTree  map[string]*compiler.PackageToCompile
 }
 
-func (b *Builder) ListDepth(workdir string, pkgPath string) {
+func (b *Builder) ListDepth(workdir string, pkgPath string, w *os.File) []string {
 	b.filesCache = make(map[string][]string)
 	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 
@@ -238,12 +274,13 @@ func (b *Builder) ListDepth(workdir string, pkgPath string) {
 	sortedPaths = append(sortedPaths, "main")
 
 	for _, pth := range sortedPaths {
-		pkg := b.permanentTree[pth]
-		fmt.Printf("%s\n", pkg.Path)
+		fmt.Fprintf(w, "%s\n", pth)
 	}
+	return sortedPaths
 }
 
 func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string) {
+	util.Logf("[BuildOne] workdir=%s, BbgRootSrcPath=%s\n", workdir, b.BbgRootSrcPath)
 	b.filesCache = make(map[string][]string)
 	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 

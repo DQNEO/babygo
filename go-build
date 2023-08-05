@@ -22,31 +22,9 @@ package=$3
 out_file_abs=$(realpath $out_file)
 workdir=${tmp}/${out_file##*/}.d
 export WORKDIR=$workdir
-mkdir -p $workdir
-$prog list -deps $package  > $workdir/list
-if [[ -n $verbose ]]; then
-  echo '>' $prog list -deps $package
-  cat $workdir/list
-fi
-PKGS=""
-while read p
-do
-  if [[ $p == "main" ]]; then
-    continue
-  fi
-  PKGS="$PKGS $p"
-  p2=$(echo $p | tr '/' '.')
-  if [[ -n $verbose ]]; then
-    echo '>' $prog compile -o $workdir/$p2  $p
-  fi
-  $prog compile -o $workdir/$p2  $p
-done < $workdir/list
 
-# Compile main
-  if [[ -n $verbose ]]; then
-    echo '>' $prog compile -o $workdir/main $package
-  fi
-$prog compile -o $workdir/main $package
+echo WORKDIR=$workdir $prog build -o $out_file $package
+$prog build -o $out_file $package
 
 cd $workdir
 

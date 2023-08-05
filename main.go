@@ -42,11 +42,15 @@ func main() {
 		panic("I am panic version " + panicVersion)
 	}
 
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		panic("GOPATH is not set")
+	}
 	workdir := os.Getenv("WORKDIR")
 	if workdir == "" {
-		workdir = "/tmp"
+		panic("WORKDIR is not set")
 	}
-	srcPath := os.Getenv("GOPATH") + "/src"                    // userland packages
+	srcPath := gopath + "/src"                                 // userland packages
 	bbgRootSrcPath := srcPath + "/github.com/DQNEO/babygo/src" // std packages
 
 	b := builder.Builder{
@@ -61,11 +65,15 @@ func main() {
 		b.BuildOne(workdir, outputBaseName, pkgPath)
 	case "list": // e.g. WORKDIR=/tmpfs/bbg/bbg-test.d babygo list -depth ./t/
 		pkgPath := os.Args[3]
-		b.ListDepth(workdir, pkgPath)
+		b.ListDepth(workdir, pkgPath, os.Stdout)
 	case "link": // e.g. babygo link -o $out_file_abs a.o b.o
 		outFilePath := os.Args[3]
 		objFileNames := os.Args[4:]
 		b.Link(outFilePath, objFileNames)
+	case "build": // e.g. babygo build -o outfile ./t
+		outFilePath := os.Args[3]
+		pkgPath := os.Args[4]
+		b.Build(os.Args[0], workdir, outFilePath, pkgPath)
 	default:
 		showHelp()
 		return

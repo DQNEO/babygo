@@ -25,7 +25,7 @@ type PackageToCompile struct {
 func CompileDecl(universe *ast.Scope, fset *token.FileSet, importPath string, declFilePath string) {
 	f, err := os.Open(declFilePath)
 	if err != nil {
-		panic("cannot open file " + declFilePath)
+		panic("cannot open decl file " + declFilePath)
 	}
 	f.Close()
 	pkgName := path.Base(importPath)

@@ -94,7 +94,18 @@ func execve(cmds string, args []string) {
 	}
 	argv = append(argv, 0)
 	argvAddr := uintptr(unsafe.Pointer(&argv[0]))
-	syscall.Syscall(trap, pathname, argvAddr, uintptr(0))
+
+	var envp []uintptr
+	gopathenvstr := "GOPATH=" + os.Getenv("GOPATH")
+	gopathenv := append([]byte(gopathenvstr), 0)
+	envp = append(envp, uintptr(unsafe.Pointer(&gopathenv[0])))
+	workdirenvstr := "WORKDIR=" + os.Getenv("WORKDIR")
+	workdirenv := append([]byte(workdirenvstr), 0)
+	envp = append(envp, uintptr(unsafe.Pointer(&workdirenv[0])))
+
+	envp = append(envp, 0)
+	envpAddr := uintptr(unsafe.Pointer(&envp[0]))
+	syscall.Syscall(trap, pathname, argvAddr, envpAddr)
 }
 
 func wait4(pid uintptr) int {
