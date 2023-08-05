@@ -66,11 +66,8 @@ func fork() uintptr {
 	//                      unsigned long tls);
 
 	trap := uintptr(56) // sys_clone
-	var flags uintptr = CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | SIGCHLD
-	//var childTid int
-	//var r1 uintptr
-	//var r2 uintptr
-	//var err error
+	flags := CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | SIGCHLD
+	// @TODO: use Syscall6 instead of Syscall
 	r1, _, _ := syscall.Syscall(trap, flags, uintptr(0), uintptr(0))
 	return r1
 }
