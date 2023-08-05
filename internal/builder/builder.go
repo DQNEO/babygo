@@ -58,8 +58,8 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 		}
 	}
 
-	oInitSFile := workdir + "/" + "__INIT__.s"
-	wInitS, err := os.Create(oInitSFile)
+	initAsmFile := workdir + "/" + "__INIT__.s"
+	wInitS, err := os.Create(initAsmFile)
 	if err != nil {
 		return err
 	}
@@ -89,6 +89,13 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 	}
 	fmt.Fprintf(wInitS, "  %s\n", "ret")
 	wInitS.Close()
+
+	// Assemble INIT
+	initOFile := workdir + "/" + "__INIT__.o"
+	err = exec.Command("/usr/bin/as", "-o", initOFile, initAsmFile).Run()
+	if err != nil {
+		panic("assembling init  failed: " + initAsmFile)
+	}
 
 	return nil
 }

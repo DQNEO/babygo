@@ -26,8 +26,6 @@ export WORKDIR=$workdir
 echo WORKDIR=$workdir $prog build -o $out_file $package
 $prog build -o $out_file $package
 
-as -o $workdir/__INIT__.o $workdir/__INIT__.s
-
 # Link
 $prog link -o $out_file_abs $workdir/*.o
 
