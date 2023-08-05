@@ -31,7 +31,7 @@ func Read(fd int, buf []byte) (uintptr, error) {
 	p := &buf[0]
 	_cap := cap(buf)
 	var ret uintptr
-	ret = Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_cap))
+	ret, _, _ = Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_cap))
 	return ret, nil
 }
 
@@ -40,7 +40,7 @@ func Open(path string, mode int, perm int) (uintptr, error) {
 	buf = append(buf, 0) // add null terminator
 	p := &buf[0]
 	var fd uintptr
-	fd = Syscall(SYS_OPEN, uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(perm))
+	fd, _, _ = Syscall(SYS_OPEN, uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(perm))
 	return fd, nil
 }
 
@@ -53,16 +53,16 @@ func Write(fd int, buf []byte) (uintptr, error) {
 	p := &buf[0]
 	_len := len(buf)
 	var ret uintptr
-	ret = Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_len))
+	ret, _, _ = Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(_len))
 	return ret, nil
 }
 
 func Getdents(fd int, buf []byte) (int, error) {
 	var _p0 unsafe.Pointer
 	_p0 = unsafe.Pointer(&buf[0])
-	nread := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+	nread, _, _ := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
 	return int(nread), nil
 }
 
 //go:linkname Syscall
-func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) uintptr
+func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (uintptr, uintptr, uintptr)

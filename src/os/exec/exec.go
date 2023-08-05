@@ -73,7 +73,7 @@ func fork() uintptr {
 	//var r1 uintptr
 	//var r2 uintptr
 	//var err error
-	r1 := syscall.Syscall(trap, flags, uintptr(0), uintptr(0))
+	r1, _, _ := syscall.Syscall(trap, flags, uintptr(0), uintptr(0))
 	return r1
 }
 
@@ -110,7 +110,7 @@ func wait4(pid uintptr) int {
 	trap := uintptr(61)
 	var status int
 	stat_addr := uintptr(unsafe.Pointer(&status))
-	r1 := syscall.Syscall(trap, pid, stat_addr, uintptr(0))
+	r1, _, _ := syscall.Syscall(trap, pid, stat_addr, uintptr(0))
 	_ = r1
 	return status
 }
