@@ -1,20 +1,18 @@
-# binaries
-/pre.mac
-/pre/pre
-/babygo.mac
-/bbg.mac
-
-# intermediate files
+# tmp files
 /tmp/*
 /.shared/*
-/babygo
-/babygo2
-/babygo2.o
-/babygo3
+
+# binaries
+/babygo.mac
+
+/babygo*
 /bbg*
 /hello
-/hello.o
-a.out
-/pre/precompiler.go
+
+# pre stuff
 /pre/internal/
 /pre/*.go
+
+# intermediate files
+a.out
+*.o
