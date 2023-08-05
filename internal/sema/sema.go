@@ -1507,6 +1507,9 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			switch fn.Name {
 			case "runtime_args":
 				symbol = GetPackageSymbol("runtime", "runtime_args")
+			}
+		case "syscall":
+			switch fn.Name {
 			case "runtime_getenv":
 				symbol = GetPackageSymbol("runtime", "runtime_getenv")
 			}

@@ -108,12 +108,12 @@ func mstart0() {
 var envp uintptr
 var envlines []string // []{"FOO=BAR\0", "HOME=/home/...\0", ..}
 
-type envEntry struct {
-	key   string
-	value string
+type EnvEntry struct {
+	Key   string
+	Value string
 }
 
-var Envs []*envEntry
+var Envs []*EnvEntry
 
 func heapInit() {
 	heapHead = brk(0)
@@ -150,9 +150,9 @@ func envInit() {
 		key := envline[:i]
 		value := envline[i+1:]
 
-		entry := &envEntry{
-			key:   key,
-			value: value,
+		entry := &EnvEntry{
+			Key:   key,
+			Value: value,
 		}
 		Envs = append(Envs, entry)
 
@@ -161,8 +161,8 @@ func envInit() {
 
 func runtime_getenv(key string) string {
 	for _, e := range Envs {
-		if e.key == key {
-			return e.value
+		if e.Key == key {
+			return e.Value
 		}
 	}
 

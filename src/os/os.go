@@ -168,7 +168,7 @@ func init() {
 }
 
 func Getenv(key string) string {
-	v := runtime_getenv(key)
+	v, _ := syscall.Getenv(key)
 	return v
 }
 
@@ -178,6 +178,3 @@ func Exit(status int) {
 
 //go:linkname runtime_args runtime.runtime_args
 func runtime_args() []string
-
-//go:linkname runtime_getenv runtime.runtime_getenv
-func runtime_getenv(key string) string

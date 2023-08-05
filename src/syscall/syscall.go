@@ -1,6 +1,10 @@
 package syscall
 
-import "unsafe"
+import (
+	"unsafe"
+
+	"runtime"
+)
 
 // cheat sheet: https://chromium.googlesource.com/chromiumos/docs/+/HEAD/constants/syscalls.md#x86_64-64_bit
 const SYS_READ uintptr = 0
@@ -8,6 +12,16 @@ const SYS_WRITE uintptr = 1
 const SYS_OPEN uintptr = 2
 const SYS_CLOSE uintptr = 3
 const SYS_GETDENTS64 uintptr = 217
+
+func Getenv(key string) (string, bool) {
+	for _, e := range runtime.Envs {
+		if e.Key == key {
+			return e.Value, true
+		}
+	}
+
+	return "", false
+}
 
 func Read(fd int, buf []byte) (uintptr, error) {
 	p := &buf[0]
