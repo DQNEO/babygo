@@ -5,26 +5,12 @@
 ####
 set -eu
 REPO_ROOT=$(cd $(dirname $0);pwd)
-verbose=""
-if [[ $1 == "-x" ]]; then
-  verbose="1"
-  shift
-fi
-
 tmp=${tmp:=/tmp/bbg}
-
 shift # skip -o
 out_file=$1
 shift # skip -c
 prog=$2
 package=$3
-
-out_file_abs=$(realpath $out_file)
 workdir=${tmp}/${out_file##*/}.d
 export WORKDIR=$workdir
-
-echo WORKDIR=$workdir $prog build -o $out_file $package
 $prog build -o $out_file $package
-
-cat $workdir/*.s > $workdir/all
-echo $out_file

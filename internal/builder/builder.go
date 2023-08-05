@@ -101,6 +101,7 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 	}
 	oFiles = append(oFiles, initOFile)
 	b.Link(outFilePath, oFiles)
+	fmt.Printf("%s\n", outFilePath)
 	return nil
 }
 
