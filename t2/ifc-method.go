@@ -1,13 +1,16 @@
 package main
 
 import (
-	"io"
-
 	"os"
 )
 
+type WriteCloser interface {
+	Write(p []byte) (n int, err error)
+	Close() error
+}
+
 var msg = []uint8("hello world!\n")
-var ifc io.WriteCloser
+var ifc WriteCloser
 
 func f1() {
 	ifc = os.Stdout
