@@ -18,6 +18,13 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testHexDigit() {
+	var x int = 0xff
+	if x == 255 {
+		writeln("0xff == 255")
+	}
+}
+
 func testOSExec() {
 	err := exec.Command("touch", "/tmp/foo2.txt", "/tmp/bar2.txt").Run()
 	if err != nil {
@@ -2450,6 +2457,7 @@ func testMisc() {
 }
 
 func main() {
+	testHexDigit()
 	testOSExec()
 	testOSReturnError()
 	testForeignConst()

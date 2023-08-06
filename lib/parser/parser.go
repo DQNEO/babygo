@@ -82,7 +82,7 @@ func (p *parser) expectSemi(caller string) {
 		case ";":
 			p.next()
 		default:
-			p.panic(caller, "semicolon expected, but got token ")
+			p.panic(caller, "semicolon expected, but got token "+p.tok+" lit:"+p.lit)
 		}
 	}
 }

@@ -716,7 +716,7 @@ func emitBasicLit(mt *ir.MetaBasicLit) {
 	case "CHAR":
 		printf("  pushq $%d # convert char literal to int\n", mt.CharVal)
 	case "INT":
-		printf("  pushq $%d # number literal\n", mt.IntVal)
+		printf("  pushq $%d # number literal %s\n", mt.IntVal, mt.RawValue)
 	case "STRING":
 		sl := mt.StrVal
 		if sl.Strlen == 0 {

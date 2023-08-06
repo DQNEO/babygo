@@ -1635,7 +1635,11 @@ func walkBasicLit(e *ast.BasicLit, ctx *ir.EvalContext) *ir.MetaBasicLit {
 		m.CharVal = int(char)
 		m.Type = types.Int32 // @TODO: This is not correct
 	case "INT":
-		m.IntVal = strconv.Atoi(m.RawValue)
+		ival, err := strconv.ParseInt(m.RawValue, 0, 64)
+		if err != nil {
+			panic("strconv.ParseInt failed")
+		}
+		m.IntVal = int(ival)
 		m.Type = types.Int // @TODO: This is not correct
 	case "STRING":
 		m.StrVal = registerStringLiteral(e)
