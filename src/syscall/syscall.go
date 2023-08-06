@@ -87,8 +87,6 @@ func forkExec(path string, args []string, attr unsafe.Pointer) (uintptr, error) 
 	}
 	if pid == 0 {
 		// child
-		//		os.Stdout.Write([]byte("\nI am the child\n"))
-		//		os.Stdout.Write([]byte("child: " + c.Name + " " + c.Arg + "\n"))
 		execve(path, args)
 		exit(0)
 	}
