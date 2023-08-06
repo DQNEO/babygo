@@ -53,10 +53,9 @@ func (c *Cmd) Wait() error {
 }
 
 func wait4(pid uintptr) int {
-	trap := uintptr(61)
 	var status int
 	stat_addr := uintptr(unsafe.Pointer(&status))
-	r1, _, _ := syscall.Syscall(trap, pid, stat_addr, uintptr(0))
+	r1, _, _ := syscall.Syscall(syscall.SYS_WAIT4, pid, stat_addr, uintptr(0))
 	_ = r1
 	return status
 }

@@ -15,6 +15,7 @@ const SYS_GETDENTS64 uintptr = 217
 const SYS_CLONE uintptr = 56
 const SYS_EXECVE uintptr = 59
 const SYS_EXIT uintptr = 60
+const SYS_WAIT4 uintptr = 61
 
 func Getenv(key string) (string, bool) {
 	for _, e := range runtime.Envs {
