@@ -12,6 +12,8 @@ const SYS_WRITE uintptr = 1
 const SYS_OPEN uintptr = 2
 const SYS_CLOSE uintptr = 3
 const SYS_GETDENTS64 uintptr = 217
+const SYS_CLONE uintptr = 56
+const SYS_EXECVE uintptr = 59
 const SYS_EXIT uintptr = 60
 
 func Getenv(key string) (string, bool) {
@@ -115,17 +117,15 @@ func fork() uintptr {
 	//                      int *parent_tid, int *child_tid,
 	//                      unsigned long tls);
 
-	trap := uintptr(56) // sys_clone
 	flags := CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | SIGCHLD
 	// @TODO: use Syscall6 instead of Syscall
-	r1, _, _ := Syscall(trap, flags, uintptr(0), uintptr(0))
+	r1, _, _ := Syscall(SYS_CLONE, flags, uintptr(0), uintptr(0))
 	return r1
 }
 
 func execve(cmds string, args []string) {
 	//  int execve(const char *pathname, char *const _Nullable argv[],
 	//                  char *const _Nullable envp[]);
-	trap := uintptr(59)
 	cmd := []byte(cmds)
 	cmd = append(cmd, 0)
 	pathname := uintptr(unsafe.Pointer(&cmd[0]))
@@ -148,7 +148,7 @@ func execve(cmds string, args []string) {
 	}
 	envp = append(envp, 0)
 	envpAddr := uintptr(unsafe.Pointer(&envp[0]))
-	Syscall(trap, pathname, argvAddr, envpAddr)
+	Syscall(SYS_EXECVE, pathname, argvAddr, envpAddr)
 }
 
 //go:linkname Syscall
