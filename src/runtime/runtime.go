@@ -73,7 +73,7 @@ func newproc(size int, fn *func()) {
 var futexp uintptr // *int32
 
 const _FUTEX_WAIT int = 0
-const _FUTEX_PRIVATE_FLAG int = 128
+const _FUTEX_PRIVATE_FLAG int = 0x80
 
 func futexsleep(addr uintptr, val int) {
 	futex(unsafe.Pointer(addr), _FUTEX_WAIT|_FUTEX_PRIVATE_FLAG, val) // sleep
@@ -85,11 +85,11 @@ func mstart1() {
 	exitThread()
 }
 
-const _CLONE_VM int = 256       // 0x100
-const _CLONE_FS int = 512       // 0x200
-const _CLONE_FILES int = 1024   // 0x400
-const _CLONE_SIGHAND int = 2048 // 0x800
-const _CLONE_THREAD int = 65536 // 0x10000
+const _CLONE_VM int = 0x100
+const _CLONE_FS int = 0x200
+const _CLONE_FILES int = 0x400
+const _CLONE_SIGHAND int = 0x800
+const _CLONE_THREAD int = 0x10000
 
 func newosproc() {
 	var cloneFlags int = _CLONE_VM | _CLONE_FS | _CLONE_FILES | _CLONE_SIGHAND | _CLONE_THREAD

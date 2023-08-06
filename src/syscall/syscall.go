@@ -101,9 +101,9 @@ func exit(status int) {
 	Syscall(SYS_EXIT, uintptr(status), 0, 0)
 }
 
-const CLONE_CHILD_CLEARTID uintptr = 2097152 //  0x00200000 // 2097152
-const CLONE_CHILD_SETTID uintptr = 16777216  // 0x01000000 // 16777216
-const SIGCHLD uintptr = 17
+const CLONE_CHILD_CLEARTID uintptr = 0x00200000
+const CLONE_CHILD_SETTID uintptr = 0x01000000
+const SIGCHLD uintptr = 0x11
 
 func fork() uintptr {
 	// strace:
