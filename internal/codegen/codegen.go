@@ -488,7 +488,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 	for i, arg := range args {
 		paramType := paramTypes[i]
 		emitExpr(arg)
-		mayEmitConvertTooIfc(arg, paramType)
+		//mayEmitConvertTooIfc(arg, paramType)
 		emitPop(sema.Kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 		printf("  pushq %%rsi # place to save\n")
@@ -621,7 +621,12 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
-	args := []ir.MetaExpr{sliceArg, elemArg}
+	arg1 := &ir.MaybeIfcConversion{
+		Pos:   sema.Pos(m),
+		Value: elemArg,
+		Type:  elmType,
+	}
+	args := []ir.MetaExpr{sliceArg, arg1}
 	sig := sema.NewAppendSignature(elmType)
 	emitCallDirect(symbol, args, sig)
 	return
@@ -630,7 +635,12 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 
 func emitMetaCallPanic(m *ir.MetaCallPanic) {
 	funcVal := "runtime.panic"
-	args := []ir.MetaExpr{m.Arg0}
+	arg0 := &ir.MaybeIfcConversion{
+		Pos:   sema.Pos(m),
+		Value: m.Arg0,
+		Type:  types.Eface,
+	}
+	args := []ir.MetaExpr{arg0}
 	emitCallDirect(funcVal, args, ir.BuiltinPanicSignature)
 	return
 }

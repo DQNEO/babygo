@@ -1621,7 +1621,12 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
 		paramTypes = append(paramTypes, a.ParamType)
-		args = append(args, a.Meta)
+		arg := &ir.MaybeIfcConversion{
+			Pos:   Pos(a.Meta),
+			Value: a.Meta,
+			Type:  a.ParamType,
+		}
+		args = append(args, arg)
 	}
 
 	meta.ParamTypes = paramTypes
