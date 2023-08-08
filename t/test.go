@@ -224,6 +224,8 @@ func testPrint() {
 var gmp map[string]string = make(map[string]string)
 
 func testMapForrange() {
+	syscall.Write(1, []uint8("testMapForrange start\n"))
+
 	mapExpr := make(map[string]int)
 
 	var a string
@@ -236,7 +238,9 @@ func testMapForrange() {
 	}
 
 	mapExpr["key1"] = 100
+	syscall.Write(1, []uint8("testMapForrange 243\n"))
 	mapExpr["key2"] = 200
+	syscall.Write(1, []uint8("testMapForrange 245\n"))
 	var i int
 	for a, b = range mapExpr {
 		i++
@@ -244,6 +248,8 @@ func testMapForrange() {
 		//		fmt.Printf("key=%s, ", a)
 		//		fmt.Printf("value=%d\n", b)
 	}
+
+	syscall.Write(1, []uint8("testMapForrange 252\n"))
 
 	//	for k, v := range mapExpr {
 	//		fmt.Printf("key=%s, ", k)
@@ -255,6 +261,8 @@ func testMapForrange() {
 		gString = a
 		gInt = b
 	}
+	syscall.Write(1, []uint8("testMapForrange end\n"))
+
 }
 
 func testGlobalMapOK() {

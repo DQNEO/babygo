@@ -27,6 +27,11 @@ f001=1
 f001=1
 test syscall.Write
 sum=5
+testMapForrange start
+testMapForrange 243
+testMapForrange 245
+testMapForrange 252
+testMapForrange end
 key1=>"value1"
 noexist=>""
 key1=>"value1"

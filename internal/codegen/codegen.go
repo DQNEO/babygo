@@ -303,9 +303,12 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 
 func emitMaybeIfcConversion(mc *ir.MaybeIfcConversion) {
 	emitExpr(mc.Value)
-	mayEmitConvertTooIfc(mc.Value, mc.Type)
-
+	emitComment(2, "mayEmitConvertTooIfc\n")
+	if !sema.IsNil(mc.Value) && mc.Type != nil && sema.IsInterface(mc.Type) && !sema.IsInterface(sema.GetTypeOfExpr(mc.Value)) {
+		emitConvertToInterface(sema.GetTypeOfExpr(mc.Value))
+	}
 }
+
 func emitZeroValue(t *types.Type) {
 	switch sema.Kind(t) {
 	case types.T_SLICE:
@@ -488,7 +491,6 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 	for i, arg := range args {
 		paramType := paramTypes[i]
 		emitExpr(arg)
-		//mayEmitConvertTooIfc(arg, paramType)
 		emitPop(sema.Kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 		printf("  pushq %%rsi # place to save\n")
@@ -647,8 +649,13 @@ func emitMetaCallPanic(m *ir.MetaCallPanic) {
 
 func emitMetaCallDelete(m *ir.MetaCallDelete) {
 	funcVal := "runtime.deleteMap"
-	args := []ir.MetaExpr{m.Arg0, m.Arg1}
 	sig := sema.NewDeleteSignature(m.Arg0)
+	mc := &ir.MaybeIfcConversion{
+		Pos:   sema.Pos(m),
+		Value: m.Arg1,
+		Type:  sig.ParamTypes[1],
+	}
+	args := []ir.MetaExpr{m.Arg0, mc}
 	emitCallDirect(funcVal, args, sig)
 	return
 
@@ -978,7 +985,12 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 	mp := m.X
 	key := m.Index
 
-	args := []ir.MetaExpr{mp, key}
+	mc := &ir.MaybeIfcConversion{
+		Pos:   sema.Pos(m.Index),
+		Value: key,
+		Type:  ir.RuntimeGetAddrForMapGetSignature.ParamTypes[1],
+	}
+	args := []ir.MetaExpr{mp, mc}
 	emitCallDirect("runtime.getAddrForMapGet", args, ir.RuntimeGetAddrForMapGetSignature)
 	// return values = [ptr, bool(stack top)]
 	emitPopBool("map get:  ok value")
@@ -1105,12 +1117,6 @@ func emitConvertToInterface(fromType *types.Type) {
 	emitDtypeLabelAddr(fromType)
 }
 
-func mayEmitConvertTooIfc(meta ir.MetaExpr, ctxType *types.Type) {
-	if !sema.IsNil(meta) && ctxType != nil && sema.IsInterface(ctxType) && !sema.IsInterface(sema.GetTypeOfExpr(meta)) {
-		emitConvertToInterface(sema.GetTypeOfExpr(meta))
-	}
-}
-
 type DtypeEntry struct {
 	id         int
 	serialized string
@@ -1201,7 +1207,12 @@ func emitAddrForMapSet(indexExpr *ir.MetaIndexExpr) {
 	// alloc heap for map value
 	//size := GetSizeOfType(elmType)
 	emitComment(2, "[emitAddrForMapSet]\n")
-	args := []ir.MetaExpr{indexExpr.X, indexExpr.Index}
+	keyExpr := &ir.MaybeIfcConversion{
+		Pos:   indexExpr.Pos,
+		Value: indexExpr.Index,
+		Type:  ir.RuntimeGetAddrForMapSetSignature.ParamTypes[1],
+	}
+	args := []ir.MetaExpr{indexExpr.X, keyExpr}
 	emitCallDirect("runtime.getAddrForMapSet", args, ir.RuntimeGetAddrForMapSetSignature)
 }
 
