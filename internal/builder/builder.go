@@ -8,6 +8,7 @@ import (
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
+	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/mylib"
@@ -26,7 +27,11 @@ func init() {
 
 }
 
-func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath string) error {
+func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath string, verbose bool) error {
+	if verbose {
+		util.Logf("building %s in %s\n", outFilePath, pkgPath)
+	}
+
 	err := exec.Command("/usr/bin/rm", "-fr", workdir).Run()
 	if err != nil {
 		return err
@@ -57,6 +62,9 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 			outputBaseName = workdir + "/" + normalizedPath
 		}
 
+		if verbose {
+			util.Logf("%s\n", self+" compile -o "+outputBaseName+" "+pp)
+		}
 		err = exec.Command(self, "compile", "-o", outputBaseName, pp).Run()
 		if err != nil {
 			panic("compile failed: " + self + " compile " + " -o " + outputBaseName + " " + pp)
@@ -100,7 +108,10 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 		panic("assembling init  failed: " + initAsmFile)
 	}
 	oFiles = append(oFiles, initOFile)
-	b.Link(outFilePath, oFiles)
+	err = b.Link(outFilePath, oFiles, verbose)
+	if err != nil {
+		panic("link error")
+	}
 	//fmt.Printf("%s\n", outFilePath)
 	return nil
 }
@@ -389,10 +400,13 @@ func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string
 
 }
 
-func (b *Builder) Link(outFilePath string, objFileNames []string) error {
+func (b *Builder) Link(outFilePath string, objFileNames []string, verbose bool) error {
 	var args []string = []string{"-o", outFilePath}
 	for _, f := range objFileNames {
 		args = append(args, f)
+	}
+	if verbose {
+		util.Logf("/usr/bin/ld " + args[0] + " " + args[1] + " " + args[2] + "...\n")
 	}
 	err := exec.Command("/usr/bin/ld", args...).Run()
 	return err

@@ -13,7 +13,7 @@ import (
 
 var Fout *os.File
 var labelid int
-var DebugCodeGen bool
+var DebugCodeGen bool = true
 
 var __func__ = "__func__"
 
@@ -287,7 +287,7 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 			return // do nothing
 		} else {
 			// Convert dynamic value to interface
-			emitConvertToInterface(fromType)
+			emitConvertToInterface(fromType, toType)
 			return
 		}
 	default:
@@ -1075,8 +1075,11 @@ func emitExpr(meta ir.MetaExpr) {
 }
 
 // convert stack top value to interface
-func emitConvertToInterface(fromType *types.Type) {
+func emitConvertToInterface(fromType *types.Type, toType *types.Type) {
 	emitComment(2, "ConversionToInterface\n")
+	if sema.HasIfcMethod(toType) {
+		emitComment(2, "@@@ toType has methods\n")
+	}
 	memSize := sema.GetSizeOfType(fromType)
 	// copy data to heap
 	emitCallMalloc(memSize)
@@ -1085,9 +1088,9 @@ func emitConvertToInterface(fromType *types.Type) {
 	emitDtypeLabelAddr(fromType)
 }
 
-func mayEmitConvertTooIfc(meta ir.MetaExpr, ctxType *types.Type) {
-	if !sema.IsNil(meta) && ctxType != nil && sema.IsInterface(ctxType) && !sema.IsInterface(sema.GetTypeOfExpr(meta)) {
-		emitConvertToInterface(sema.GetTypeOfExpr(meta))
+func mayEmitConvertTooIfc(meta ir.MetaExpr, trgtType *types.Type) {
+	if !sema.IsNil(meta) && trgtType != nil && sema.IsInterface(trgtType) && !sema.IsInterface(sema.GetTypeOfExpr(meta)) {
+		emitConvertToInterface(sema.GetTypeOfExpr(meta), trgtType)
 	}
 }
 

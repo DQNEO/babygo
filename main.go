@@ -62,9 +62,15 @@ func main() {
 
 	switch os.Args[1] {
 	case "build":
-		outFilePath := os.Args[3]
-		pkgPath := os.Args[4]
-		b.Build(os.Args[0], workdir, outFilePath, pkgPath)
+		args := os.Args[2:] // skip PROGRAM build
+		var verbose bool
+		if args[0] == "-x" {
+			verbose = true
+			args = args[1:]
+		}
+		outFilePath := args[1]
+		pkgPath := args[2]
+		b.Build(os.Args[0], workdir, outFilePath, pkgPath, verbose)
 	case "compile":
 		outputBaseName := os.Args[3]
 		pkgPath := os.Args[4]
@@ -75,7 +81,7 @@ func main() {
 	case "link":
 		outFilePath := os.Args[3]
 		objFileNames := os.Args[4:]
-		b.Link(outFilePath, objFileNames)
+		b.Link(outFilePath, objFileNames, true)
 	default:
 		showHelp()
 		return

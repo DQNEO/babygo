@@ -436,6 +436,25 @@ func IsInterface(t *types.Type) bool {
 	return Kind(t) == types.T_INTERFACE
 }
 
+func HasIfcMethod(t *types.Type) bool {
+	if !IsInterface(t) {
+		panic("type should be an interface")
+	}
+	ut := GetUnderlyingType(t)
+	astIfc, ok := ut.E.(*ast.InterfaceType)
+	if !ok {
+		panic("type should be an interface")
+	}
+
+	if astIfc.Methods == nil {
+		return false
+	}
+	if len(astIfc.Methods.List) > 0 {
+		return true
+	}
+	return true
+}
+
 func GetElementTypeOfCollectionType(t *types.Type) *types.Type {
 	ut := GetUnderlyingType(t)
 	switch Kind(ut) {
@@ -705,6 +724,22 @@ func IsOkSyntax(rhs ir.MetaExpr) bool {
 	return false
 }
 
+func registerIfcConversion(lhsType *types.Type, rhsType *types.Type) {
+	panic("@@@ CONVERSION " + SerializeType(rhsType, true) + " -> " + SerializeType(lhsType, true))
+
+}
+
+func checkIfcConversion(lhsType *types.Type, rhs ir.MetaExpr) bool {
+	rhsType := GetTypeOfExpr(rhs)
+	if !IsNil(rhs) && lhsType != nil && IsInterface(lhsType) && !IsInterface(rhsType) {
+		if HasIfcMethod(lhsType) {
+			// create conversion table
+			registerIfcConversion(lhsType, rhsType)
+		}
+		return true
+	}
+	return false
+}
 func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 	pos := s.Pos()
 	stok := s.Tok.String()
@@ -724,6 +759,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				}
 			}
 			rhsMeta := walkExpr(s.Rhs[0], ctx)
+			checkIfcConversion(GetTypeOfExpr(lhsMetas[0]), rhsMeta)
 			return &ir.MetaSingleAssign{
 				Pos: pos,
 				Lhs: lhsMetas[0],
