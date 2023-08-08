@@ -276,6 +276,8 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 		return m.Type
 	case *ir.MetaTypeAssertExpr:
 		return m.Type
+	case *ir.MaybeIfcConversion:
+		return m.Type
 	}
 	panic(fmt.Sprintf("bad type:%T\n", meta))
 }
@@ -1683,12 +1685,16 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 			ctx := &ir.EvalContext{Type: fieldType}
 			// attach type to nil : STRUCT{Key:nil}
 			valueMeta := walkExpr(kvExpr.Value, ctx)
-
+			mc := &ir.MaybeIfcConversion{
+				Pos:   kvExpr.Pos(),
+				Value: valueMeta,
+				Type:  fieldType,
+			}
 			metaElm := &ir.MetaStructLiteralElement{
 				Pos:       kvExpr.Pos(),
 				Field:     field,
 				FieldType: fieldType,
-				Value:     valueMeta,
+				Value:     mc,
 			}
 
 			metaElms = append(metaElms, metaElm)
@@ -1699,23 +1705,33 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		meta.Len = EvalInt(arrayType.Len)
 		meta.ElmType = E2T(arrayType.Elt)
 		ctx := &ir.EvalContext{Type: meta.ElmType}
-		var ms []ir.MetaExpr
+		var ms []*ir.MaybeIfcConversion
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
-			ms = append(ms, m)
+			mc := &ir.MaybeIfcConversion{
+				Pos:   Pos(v),
+				Value: m,
+				Type:  meta.ElmType,
+			}
+			ms = append(ms, mc)
 		}
-		meta.MetaElms = ms
+		meta.Elms = ms
 	case types.T_SLICE:
 		arrayType := ut.E.(*ast.ArrayType)
 		meta.Len = len(e.Elts)
 		meta.ElmType = E2T(arrayType.Elt)
 		ctx := &ir.EvalContext{Type: meta.ElmType}
-		var ms []ir.MetaExpr
+		var ms []*ir.MaybeIfcConversion
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
-			ms = append(ms, m)
+			mc := &ir.MaybeIfcConversion{
+				Pos:   Pos(v),
+				Value: m,
+				Type:  meta.ElmType,
+			}
+			ms = append(ms, mc)
 		}
-		meta.MetaElms = ms
+		meta.Elms = ms
 	}
 	return meta
 }
@@ -2106,7 +2122,8 @@ func Pos(node interface{}) token.Pos {
 		return n.Pos
 	case *ir.MetaGoStmt:
 		return n.Pos
-
+	case *ir.MaybeIfcConversion:
+		return n.Pos
 	}
 
 	panic(fmt.Sprintf("Unknown type:%T", node))

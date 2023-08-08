@@ -6,11 +6,17 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
+type MaybeIfcConversion struct {
+	Pos   token.Pos
+	Value MetaExpr
+	Type  *types.Type // Target Type
+}
+
 type MetaStructLiteralElement struct {
 	Pos       token.Pos
 	Field     *ast.Field
 	FieldType *types.Type
-	Value     MetaExpr
+	Value     *MaybeIfcConversion
 }
 
 type FuncValue struct {
@@ -185,9 +191,9 @@ type MetaCompositLit struct {
 	StructElements []*MetaStructLiteralElement // for "struct"
 
 	// for array or slice
-	Len      int
-	ElmType  *types.Type
-	MetaElms []MetaExpr
+	Len     int
+	ElmType *types.Type
+	Elms    []*MaybeIfcConversion
 }
 
 type MetaIdent struct {

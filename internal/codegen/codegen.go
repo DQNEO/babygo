@@ -296,6 +296,11 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 	}
 }
 
+func emitMaybeIfcConversion(mc *ir.MaybeIfcConversion) {
+	emitExpr(mc.Value)
+	mayEmitConvertTooIfc(mc.Value, mc.Type)
+
+}
 func emitZeroValue(t *types.Type) {
 	switch sema.Kind(t) {
 	case types.T_SLICE:
@@ -388,7 +393,6 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 
 		// push rhs value
 		emitExpr(metaElm.Value)
-		mayEmitConvertTooIfc(metaElm.Value, metaElm.FieldType)
 
 		// assign
 		emitStore(metaElm.FieldType, true, false)
@@ -401,13 +405,12 @@ func emitArrayLiteral(meta *ir.MetaCompositLit) {
 	memSize := elmSize * meta.Len
 
 	emitCallMalloc(memSize) // push
-	for i, elm := range meta.MetaElms {
+	for i, elm := range meta.Elms {
 		// push lhs address
 		emitPushStackTop(types.Uintptr, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		// push rhs value
 		emitExpr(elm)
-		mayEmitConvertTooIfc(elm, elmType)
 
 		// assign
 		emitStore(elmType, true, false)
@@ -1069,6 +1072,8 @@ func emitExpr(meta ir.MetaExpr) {
 		emitBinaryExpr(m)
 	case *ir.MetaTypeAssertExpr:
 		emitTypeAssertExpr(m) // can be Tuple
+	case *ir.MaybeIfcConversion:
+		emitMaybeIfcConversion(m)
 	default:
 		panic(fmt.Sprintf("meta type:%T", meta))
 	}
