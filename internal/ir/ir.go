@@ -10,7 +10,7 @@ type MetaStructLiteralElement struct {
 	Pos       token.Pos
 	Field     *ast.Field
 	FieldType *types.Type
-	ValueMeta MetaExpr
+	Value     MetaExpr
 }
 
 type FuncValue struct {

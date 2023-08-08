@@ -1688,7 +1688,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 				Pos:       kvExpr.Pos(),
 				Field:     field,
 				FieldType: fieldType,
-				ValueMeta: valueMeta,
+				Value:     valueMeta,
 			}
 
 			metaElms = append(metaElms, metaElm)

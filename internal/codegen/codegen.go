@@ -387,8 +387,8 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 		emitAddConst(fieldOffset, "address of struct field")
 
 		// push rhs value
-		emitExpr(metaElm.ValueMeta)
-		mayEmitConvertTooIfc(metaElm.ValueMeta, metaElm.FieldType)
+		emitExpr(metaElm.Value)
+		mayEmitConvertTooIfc(metaElm.Value, metaElm.FieldType)
 
 		// assign
 		emitStore(metaElm.FieldType, true, false)
