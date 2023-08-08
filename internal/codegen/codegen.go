@@ -1337,7 +1337,6 @@ func emitAssignToVar(vr *ir.Variable, rhs ir.MetaExpr) {
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 
 	emitExpr(rhs)
-	mayEmitConvertTooIfc(rhs, vr.Typ)
 	emitComment(2, "Assignment: emitStore(typeof(lhs))\n")
 	emitStore(vr.Typ, true, false)
 }

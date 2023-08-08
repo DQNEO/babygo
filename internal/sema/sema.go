@@ -839,7 +839,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 	}
 
 	_len := len(funcDef.Retvars)
-	var results []ir.MetaExpr
+	var results []*ir.MaybeIfcConversion
 	for i := 0; i < _len; i++ {
 		expr := s.Results[i]
 		retTyp := funcDef.Retvars[i].Typ
@@ -847,7 +847,12 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			Type: retTyp,
 		}
 		m := walkExpr(expr, ctx)
-		results = append(results, m)
+		mc := &ir.MaybeIfcConversion{
+			Pos:   Pos(expr),
+			Value: m,
+			Type:  retTyp,
+		}
+		results = append(results, mc)
 	}
 	return &ir.MetaReturnStmt{
 		Pos:     s.Pos(),

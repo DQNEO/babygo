@@ -89,7 +89,7 @@ type MetaTupleAssign struct {
 type MetaReturnStmt struct {
 	Pos     token.Pos
 	Fnc     *Func
-	Results []MetaExpr
+	Results []*MaybeIfcConversion
 }
 
 type MetaIfStmt struct {
