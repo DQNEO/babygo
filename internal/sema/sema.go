@@ -381,7 +381,7 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 
 func Kind(t *types.Type) types.TypeKind {
 	if t == nil {
-		panic("nil type is not expected")
+		panicPos("nil type is not expected", Pos(t.E))
 	}
 
 	ut := GetUnderlyingType(t)
@@ -658,6 +658,11 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
+				rhsMeta = &ir.MaybeIfcConversion{
+					Pos:   Pos(rhs),
+					Value: rhsMeta,
+					Type:  t,
+				}
 			}
 		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {
@@ -718,12 +723,22 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 			var ctx *ir.EvalContext
+			var t *types.Type
 			if !IsBlankIdentifierMeta(lhsMetas[0]) {
+				t = GetTypeOfExpr(lhsMetas[0])
 				ctx = &ir.EvalContext{
-					Type: GetTypeOfExpr(lhsMetas[0]),
+					Type: t,
 				}
 			}
 			rhsMeta := walkExpr(s.Rhs[0], ctx)
+			if t == nil {
+				t = GetTypeOfExpr(rhsMeta)
+			}
+			rhsMeta = &ir.MaybeIfcConversion{
+				Pos:   Pos(rhsMeta),
+				Value: rhsMeta,
+				Type:  t,
+			}
 			return &ir.MetaSingleAssign{
 				Pos: pos,
 				Lhs: lhsMetas[0],
@@ -2305,6 +2320,11 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
+				rhsMeta = &ir.MaybeIfcConversion{
+					Pos:   Pos(rhs),
+					Value: rhsMeta,
+					Type:  t,
+				}
 			}
 		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {

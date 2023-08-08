@@ -23,6 +23,11 @@ func assert(bol bool, msg string, caller string) {
 	}
 }
 
+func panicPos(s string, pos token.Pos) {
+	position := sema.Fset.Position(pos)
+	panic(fmt.Sprintf("%s\n\t%s", s, position.String()))
+}
+
 const ThrowFormat string = "%T"
 
 func throw(x interface{}) {
@@ -1356,14 +1361,17 @@ func emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 	//	rhs := metaSingle.rhs
 	if sema.IsBlankIdentifierMeta(lhs) {
 		emitExpr(rhs)
-		emitPop(sema.Kind(sema.GetTypeOfExpr(rhs)))
+		rhsType := sema.GetTypeOfExpr(rhs)
+		if rhsType == nil {
+			panicPos("rhs type should not be nil", sema.Pos(rhs))
+		}
+		emitPop(sema.Kind(rhsType))
 		return
 	}
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs)
-	mayEmitConvertTooIfc(rhs, sema.GetTypeOfExpr(lhs))
 	emitStore(sema.GetTypeOfExpr(lhs), true, false)
 }
 
@@ -1971,8 +1979,15 @@ func emitData(dotSize string, val ir.MetaExpr) {
 	if val == nil {
 		printf("  %s 0\n", dotSize)
 	} else {
-		v := val.(*ir.MetaBasicLit)
-		printf("  %s %s\n", dotSize, v.RawValue)
+		var lit *ir.MetaBasicLit
+		switch m := val.(type) {
+		case *ir.MetaBasicLit:
+			lit = m
+		case *ir.MaybeIfcConversion:
+			lit = m.Value.(*ir.MetaBasicLit)
+		}
+
+		printf("  %s %s\n", dotSize, lit.RawValue)
 	}
 }
 
@@ -1991,9 +2006,12 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 			// no value
 			emitZeroData(t)
 		} else {
-			lit, ok := metaVal.(*ir.MetaBasicLit)
-			if !ok {
-				panic("only BasicLit is supported")
+			var lit *ir.MetaBasicLit
+			switch m := metaVal.(type) {
+			case *ir.MetaBasicLit:
+				lit = m
+			case *ir.MaybeIfcConversion:
+				lit = m.Value.(*ir.MetaBasicLit)
 			}
 			sl := lit.StrVal
 			printf("  .quad %s\n", sl.Label)
@@ -2003,8 +2021,15 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 		if metaVal == nil {
 			printf("  .quad 0 # bool zero value\n")
 		} else {
-			m := metaVal.(*ir.MetaIdent)
-			switch m.Kind {
+			var i *ir.MetaIdent
+			switch m := metaVal.(type) {
+			case *ir.MetaIdent:
+				i = m
+			case *ir.MaybeIfcConversion:
+				i = m.Value.(*ir.MetaIdent)
+			}
+
+			switch i.Kind {
 			case "true":
 				printf("  .quad 1 # bool true\n")
 			case "false":
