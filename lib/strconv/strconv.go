@@ -49,7 +49,7 @@ func Atoi(gs string) int {
 	var isMinus bool
 	for _, b := range []uint8(gs) {
 		if b == '.' {
-			return -999 // @FIXME all no number should return error
+			panic("Unexpected")
 		}
 		if b == '-' {
 			isMinus = true
@@ -64,4 +64,44 @@ func Atoi(gs string) int {
 	}
 
 	return n
+}
+
+func ParseInt(s string, base int, bitSize int) (int, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+
+	if len(s) > 2 {
+		prefix := s[0:2]
+		switch prefix {
+		case "0x":
+			var n int
+			s2 := s[2:]
+			for _, b := range []uint8(s2) {
+				if b == '.' {
+					panic("Unexpected")
+				}
+				if '0' <= b && b <= '9' {
+					var x uint8 = b - uint8('0')
+					n = n * 16
+					n = n + int(x)
+					continue
+				} else if 'a' <= b && b <= 'f' {
+					var x uint8 = b - uint8('a') + 10
+					n = n * 16
+					n = n + int(x)
+					continue
+				}
+			}
+			return n, nil
+		case "0b":
+			// @TODO
+			return 0, nil
+		default:
+			i := Atoi(s)
+			return i, nil
+		}
+	}
+	i := Atoi(s)
+	return i, nil
 }

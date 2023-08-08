@@ -276,6 +276,8 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 		return m.Type
 	case *ir.MetaTypeAssertExpr:
 		return m.Type
+	case *ir.MaybeIfcConversion:
+		return m.Type
 	}
 	panic(fmt.Sprintf("bad type:%T\n", meta))
 }
@@ -379,7 +381,7 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 
 func Kind(t *types.Type) types.TypeKind {
 	if t == nil {
-		panic("nil type is not expected")
+		panicPos("nil type is not expected", Pos(t.E))
 	}
 
 	ut := GetUnderlyingType(t)
@@ -677,6 +679,11 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
+				rhsMeta = &ir.MaybeIfcConversion{
+					Pos:   Pos(rhs),
+					Value: rhsMeta,
+					Type:  t,
+				}
 			}
 		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {
@@ -729,9 +736,10 @@ func registerIfcConversion(lhsType *types.Type, rhsType *types.Type) {
 
 }
 
-func checkIfcConversion(lhsType *types.Type, rhs ir.MetaExpr) bool {
-	rhsType := GetTypeOfExpr(rhs)
-	if !IsNil(rhs) && lhsType != nil && IsInterface(lhsType) && !IsInterface(rhsType) {
+func checkIfcConversion(mc *ir.MaybeIfcConversion) bool {
+	rhsType := GetTypeOfExpr(mc)
+	lhsType := mc.Type
+	if !IsNil(mc) && lhsType != nil && IsInterface(lhsType) && !IsInterface(rhsType) {
 		if HasIfcMethod(lhsType) {
 			// create conversion table
 			registerIfcConversion(lhsType, rhsType)
@@ -740,6 +748,7 @@ func checkIfcConversion(lhsType *types.Type, rhs ir.MetaExpr) bool {
 	}
 	return false
 }
+
 func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 	pos := s.Pos()
 	stok := s.Tok.String()
@@ -753,13 +762,23 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 			var ctx *ir.EvalContext
+			var t *types.Type
 			if !IsBlankIdentifierMeta(lhsMetas[0]) {
+				t = GetTypeOfExpr(lhsMetas[0])
 				ctx = &ir.EvalContext{
-					Type: GetTypeOfExpr(lhsMetas[0]),
+					Type: t,
 				}
 			}
 			rhsMeta := walkExpr(s.Rhs[0], ctx)
-			checkIfcConversion(GetTypeOfExpr(lhsMetas[0]), rhsMeta)
+			if t == nil {
+				t = GetTypeOfExpr(rhsMeta)
+			}
+			rhsMeta = &ir.MaybeIfcConversion{
+				Pos:   Pos(rhsMeta),
+				Value: rhsMeta,
+				Type:  t,
+			}
+			checkIfcConversion(rhsMeta)
 			return &ir.MetaSingleAssign{
 				Pos: pos,
 				Lhs: lhsMetas[0],
@@ -875,7 +894,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 	}
 
 	_len := len(funcDef.Retvars)
-	var results []ir.MetaExpr
+	var results []*ir.MaybeIfcConversion
 	for i := 0; i < _len; i++ {
 		expr := s.Results[i]
 		retTyp := funcDef.Retvars[i].Typ
@@ -883,7 +902,12 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			Type: retTyp,
 		}
 		m := walkExpr(expr, ctx)
-		results = append(results, m)
+		mc := &ir.MaybeIfcConversion{
+			Pos:   Pos(expr),
+			Value: m,
+			Type:  retTyp,
+		}
+		results = append(results, mc)
 	}
 	return &ir.MetaReturnStmt{
 		Pos:     s.Pos(),
@@ -1637,7 +1661,12 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
 		paramTypes = append(paramTypes, a.ParamType)
-		args = append(args, a.Meta)
+		arg := &ir.MaybeIfcConversion{
+			Pos:   Pos(a.Meta),
+			Value: a.Meta,
+			Type:  a.ParamType,
+		}
+		args = append(args, arg)
 	}
 
 	meta.ParamTypes = paramTypes
@@ -1673,7 +1702,11 @@ func walkBasicLit(e *ast.BasicLit, ctx *ir.EvalContext) *ir.MetaBasicLit {
 		m.CharVal = int(char)
 		m.Type = types.Int32 // @TODO: This is not correct
 	case "INT":
-		m.IntVal = strconv.Atoi(m.RawValue)
+		ival, err := strconv.ParseInt(m.RawValue, 0, 64)
+		if err != nil {
+			panic("strconv.ParseInt failed")
+		}
+		m.IntVal = int(ival)
 		m.Type = types.Int // @TODO: This is not correct
 	case "STRING":
 		m.StrVal = registerStringLiteral(e)
@@ -1717,12 +1750,16 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 			ctx := &ir.EvalContext{Type: fieldType}
 			// attach type to nil : STRUCT{Key:nil}
 			valueMeta := walkExpr(kvExpr.Value, ctx)
-
+			mc := &ir.MaybeIfcConversion{
+				Pos:   kvExpr.Pos(),
+				Value: valueMeta,
+				Type:  fieldType,
+			}
 			metaElm := &ir.MetaStructLiteralElement{
 				Pos:       kvExpr.Pos(),
 				Field:     field,
 				FieldType: fieldType,
-				ValueMeta: valueMeta,
+				Value:     mc,
 			}
 
 			metaElms = append(metaElms, metaElm)
@@ -1733,23 +1770,33 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		meta.Len = EvalInt(arrayType.Len)
 		meta.ElmType = E2T(arrayType.Elt)
 		ctx := &ir.EvalContext{Type: meta.ElmType}
-		var ms []ir.MetaExpr
+		var ms []*ir.MaybeIfcConversion
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
-			ms = append(ms, m)
+			mc := &ir.MaybeIfcConversion{
+				Pos:   Pos(v),
+				Value: m,
+				Type:  meta.ElmType,
+			}
+			ms = append(ms, mc)
 		}
-		meta.MetaElms = ms
+		meta.Elms = ms
 	case types.T_SLICE:
 		arrayType := ut.E.(*ast.ArrayType)
 		meta.Len = len(e.Elts)
 		meta.ElmType = E2T(arrayType.Elt)
 		ctx := &ir.EvalContext{Type: meta.ElmType}
-		var ms []ir.MetaExpr
+		var ms []*ir.MaybeIfcConversion
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
-			ms = append(ms, m)
+			mc := &ir.MaybeIfcConversion{
+				Pos:   Pos(v),
+				Value: m,
+				Type:  meta.ElmType,
+			}
+			ms = append(ms, mc)
 		}
-		meta.MetaElms = ms
+		meta.Elms = ms
 	}
 	return meta
 }
@@ -2140,7 +2187,8 @@ func Pos(node interface{}) token.Pos {
 		return n.Pos
 	case *ir.MetaGoStmt:
 		return n.Pos
-
+	case *ir.MaybeIfcConversion:
+		return n.Pos
 	}
 
 	panic(fmt.Sprintf("Unknown type:%T", node))
@@ -2332,6 +2380,11 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
+				rhsMeta = &ir.MaybeIfcConversion{
+					Pos:   Pos(rhs),
+					Value: rhsMeta,
+					Type:  t,
+				}
 			}
 		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {

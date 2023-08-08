@@ -61,6 +61,15 @@ func isDecimal(ch uint8) bool {
 	return '0' <= ch && ch <= '9'
 }
 
+func isNumber(ch uint8) bool {
+	switch ch {
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'x', '_':
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Scanner) scanIdentifier() string {
 	var offset = s.offset
 	for isLetter(s.ch) || isDecimal(s.ch) {
@@ -71,7 +80,7 @@ func (s *Scanner) scanIdentifier() string {
 
 func (s *Scanner) scanNumber() string {
 	var offset = s.offset
-	for isDecimal(s.ch) {
+	for isNumber(s.ch) {
 		s.next()
 	}
 	return string(s.src[offset:s.offset])

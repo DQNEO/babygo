@@ -23,6 +23,11 @@ func assert(bol bool, msg string, caller string) {
 	}
 }
 
+func panicPos(s string, pos token.Pos) {
+	position := sema.Fset.Position(pos)
+	panic(fmt.Sprintf("%s\n\t%s", s, position.String()))
+}
+
 const ThrowFormat string = "%T"
 
 func throw(x interface{}) {
@@ -296,6 +301,14 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 	}
 }
 
+func emitMaybeIfcConversion(mc *ir.MaybeIfcConversion) {
+	emitExpr(mc.Value)
+	emitComment(2, "emitMaybeIfcConversion\n")
+	if !sema.IsNil(mc.Value) && mc.Type != nil && sema.IsInterface(mc.Type) && !sema.IsInterface(sema.GetTypeOfExpr(mc.Value)) {
+		emitConvertToInterface(sema.GetTypeOfExpr(mc.Value))
+	}
+}
+
 func emitZeroValue(t *types.Type) {
 	switch sema.Kind(t) {
 	case types.T_SLICE:
@@ -387,8 +400,7 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 		emitAddConst(fieldOffset, "address of struct field")
 
 		// push rhs value
-		emitExpr(metaElm.ValueMeta)
-		mayEmitConvertTooIfc(metaElm.ValueMeta, metaElm.FieldType)
+		emitExpr(metaElm.Value)
 
 		// assign
 		emitStore(metaElm.FieldType, true, false)
@@ -401,13 +413,12 @@ func emitArrayLiteral(meta *ir.MetaCompositLit) {
 	memSize := elmSize * meta.Len
 
 	emitCallMalloc(memSize) // push
-	for i, elm := range meta.MetaElms {
+	for i, elm := range meta.Elms {
 		// push lhs address
 		emitPushStackTop(types.Uintptr, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		// push rhs value
 		emitExpr(elm)
-		mayEmitConvertTooIfc(elm, elmType)
 
 		// assign
 		emitStore(elmType, true, false)
@@ -480,7 +491,6 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 	for i, arg := range args {
 		paramType := paramTypes[i]
 		emitExpr(arg)
-		mayEmitConvertTooIfc(arg, paramType)
 		emitPop(sema.Kind(paramType))
 		printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 		printf("  pushq %%rsi # place to save\n")
@@ -613,7 +623,12 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
-	args := []ir.MetaExpr{sliceArg, elemArg}
+	arg1 := &ir.MaybeIfcConversion{
+		Pos:   sema.Pos(m),
+		Value: elemArg,
+		Type:  elmType,
+	}
+	args := []ir.MetaExpr{sliceArg, arg1}
 	sig := sema.NewAppendSignature(elmType)
 	emitCallDirect(symbol, args, sig)
 	return
@@ -622,15 +637,25 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 
 func emitMetaCallPanic(m *ir.MetaCallPanic) {
 	funcVal := "runtime.panic"
-	args := []ir.MetaExpr{m.Arg0}
+	arg0 := &ir.MaybeIfcConversion{
+		Pos:   sema.Pos(m),
+		Value: m.Arg0,
+		Type:  types.Eface,
+	}
+	args := []ir.MetaExpr{arg0}
 	emitCallDirect(funcVal, args, ir.BuiltinPanicSignature)
 	return
 }
 
 func emitMetaCallDelete(m *ir.MetaCallDelete) {
 	funcVal := "runtime.deleteMap"
-	args := []ir.MetaExpr{m.Arg0, m.Arg1}
 	sig := sema.NewDeleteSignature(m.Arg0)
+	mc := &ir.MaybeIfcConversion{
+		Pos:   sema.Pos(m),
+		Value: m.Arg1,
+		Type:  sig.ParamTypes[1],
+	}
+	args := []ir.MetaExpr{m.Arg0, mc}
 	emitCallDirect(funcVal, args, sig)
 	return
 
@@ -716,7 +741,7 @@ func emitBasicLit(mt *ir.MetaBasicLit) {
 	case "CHAR":
 		printf("  pushq $%d # convert char literal to int\n", mt.CharVal)
 	case "INT":
-		printf("  pushq $%d # number literal\n", mt.IntVal)
+		printf("  pushq $%d # number literal %s\n", mt.IntVal, mt.RawValue)
 	case "STRING":
 		sl := mt.StrVal
 		if sl.Strlen == 0 {
@@ -960,7 +985,12 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 	mp := m.X
 	key := m.Index
 
-	args := []ir.MetaExpr{mp, key}
+	mc := &ir.MaybeIfcConversion{
+		Pos:   sema.Pos(m.Index),
+		Value: key,
+		Type:  ir.RuntimeGetAddrForMapGetSignature.ParamTypes[1],
+	}
+	args := []ir.MetaExpr{mp, mc}
 	emitCallDirect("runtime.getAddrForMapGet", args, ir.RuntimeGetAddrForMapGetSignature)
 	// return values = [ptr, bool(stack top)]
 	emitPopBool("map get:  ok value")
@@ -1069,6 +1099,8 @@ func emitExpr(meta ir.MetaExpr) {
 		emitBinaryExpr(m)
 	case *ir.MetaTypeAssertExpr:
 		emitTypeAssertExpr(m) // can be Tuple
+	case *ir.MaybeIfcConversion:
+		emitMaybeIfcConversion(m)
 	default:
 		panic(fmt.Sprintf("meta type:%T", meta))
 	}
@@ -1086,12 +1118,6 @@ func emitConvertToInterface(fromType *types.Type, toType *types.Type) {
 	emitStore(fromType, false, true) // heap addr pushed
 	// push dtype label's address
 	emitDtypeLabelAddr(fromType)
-}
-
-func mayEmitConvertTooIfc(meta ir.MetaExpr, trgtType *types.Type) {
-	if !sema.IsNil(meta) && trgtType != nil && sema.IsInterface(trgtType) && !sema.IsInterface(sema.GetTypeOfExpr(meta)) {
-		emitConvertToInterface(sema.GetTypeOfExpr(meta), trgtType)
-	}
 }
 
 type DtypeEntry struct {
@@ -1184,7 +1210,12 @@ func emitAddrForMapSet(indexExpr *ir.MetaIndexExpr) {
 	// alloc heap for map value
 	//size := GetSizeOfType(elmType)
 	emitComment(2, "[emitAddrForMapSet]\n")
-	args := []ir.MetaExpr{indexExpr.X, indexExpr.Index}
+	keyExpr := &ir.MaybeIfcConversion{
+		Pos:   indexExpr.Pos,
+		Value: indexExpr.Index,
+		Type:  ir.RuntimeGetAddrForMapSetSignature.ParamTypes[1],
+	}
+	args := []ir.MetaExpr{indexExpr.X, keyExpr}
 	emitCallDirect("runtime.getAddrForMapSet", args, ir.RuntimeGetAddrForMapSetSignature)
 }
 
@@ -1335,7 +1366,6 @@ func emitAssignToVar(vr *ir.Variable, rhs ir.MetaExpr) {
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 
 	emitExpr(rhs)
-	mayEmitConvertTooIfc(rhs, vr.Typ)
 	emitComment(2, "Assignment: emitStore(typeof(lhs))\n")
 	emitStore(vr.Typ, true, false)
 }
@@ -1355,14 +1385,17 @@ func emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 	//	rhs := metaSingle.rhs
 	if sema.IsBlankIdentifierMeta(lhs) {
 		emitExpr(rhs)
-		emitPop(sema.Kind(sema.GetTypeOfExpr(rhs)))
+		rhsType := sema.GetTypeOfExpr(rhs)
+		if rhsType == nil {
+			panicPos("rhs type should not be nil", sema.Pos(rhs))
+		}
+		emitPop(sema.Kind(rhsType))
 		return
 	}
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs)
-	mayEmitConvertTooIfc(rhs, sema.GetTypeOfExpr(lhs))
 	emitStore(sema.GetTypeOfExpr(lhs), true, false)
 }
 
@@ -1970,8 +2003,15 @@ func emitData(dotSize string, val ir.MetaExpr) {
 	if val == nil {
 		printf("  %s 0\n", dotSize)
 	} else {
-		v := val.(*ir.MetaBasicLit)
-		printf("  %s %s\n", dotSize, v.RawValue)
+		var lit *ir.MetaBasicLit
+		switch m := val.(type) {
+		case *ir.MetaBasicLit:
+			lit = m
+		case *ir.MaybeIfcConversion:
+			lit = m.Value.(*ir.MetaBasicLit)
+		}
+
+		printf("  %s %s\n", dotSize, lit.RawValue)
 	}
 }
 
@@ -1990,9 +2030,12 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 			// no value
 			emitZeroData(t)
 		} else {
-			lit, ok := metaVal.(*ir.MetaBasicLit)
-			if !ok {
-				panic("only BasicLit is supported")
+			var lit *ir.MetaBasicLit
+			switch m := metaVal.(type) {
+			case *ir.MetaBasicLit:
+				lit = m
+			case *ir.MaybeIfcConversion:
+				lit = m.Value.(*ir.MetaBasicLit)
 			}
 			sl := lit.StrVal
 			printf("  .quad %s\n", sl.Label)
@@ -2002,8 +2045,15 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 		if metaVal == nil {
 			printf("  .quad 0 # bool zero value\n")
 		} else {
-			m := metaVal.(*ir.MetaIdent)
-			switch m.Kind {
+			var i *ir.MetaIdent
+			switch m := metaVal.(type) {
+			case *ir.MetaIdent:
+				i = m
+			case *ir.MaybeIfcConversion:
+				i = m.Value.(*ir.MetaIdent)
+			}
+
+			switch i.Kind {
 			case "true":
 				printf("  .quad 1 # bool true\n")
 			case "false":
