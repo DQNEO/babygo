@@ -773,16 +773,16 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			if t == nil {
 				t = GetTypeOfExpr(rhsMeta)
 			}
-			rhsMeta = &ir.MaybeIfcConversion{
+			mc := &ir.MaybeIfcConversion{
 				Pos:   Pos(rhsMeta),
 				Value: rhsMeta,
 				Type:  t,
 			}
-			checkIfcConversion(rhsMeta)
+			checkIfcConversion(mc)
 			return &ir.MetaSingleAssign{
 				Pos: pos,
 				Lhs: lhsMetas[0],
-				Rhs: rhsMeta,
+				Rhs: mc,
 			}
 		} else if len(s.Lhs) == len(s.Rhs) {
 			panic("TBI 3404")

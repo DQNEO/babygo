@@ -31,7 +31,8 @@ func ifcm1() {
 
 func ifcm2() {
 	var msg = []uint8("hello ifc method !\n")
-	ifc.Write(msg)
+	//ifc.Write(msg)
+	_ = msg
 }
 
 func testIfcMethod() {
