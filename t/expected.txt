@@ -1,3 +1,4 @@
+hello ifc method !
 exec ok
 expected error.
 OK

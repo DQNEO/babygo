@@ -18,6 +18,27 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+type WriteCloser interface {
+	Write(p []byte) (n int, err error)
+	Close() error
+}
+
+var ifc WriteCloser
+
+func ifcm1() {
+	ifc = os.Stdout
+}
+
+func ifcm2() {
+	var msg = []uint8("hello ifc method !\n")
+	ifc.Write(msg)
+}
+
+func testIfcMethod() {
+	ifcm1()
+	ifcm2()
+}
+
 func testOSExec() {
 	err := exec.Command("touch", "/tmp/foo2.txt", "/tmp/bar2.txt").Run()
 	if err != nil {
@@ -2450,6 +2471,7 @@ func testMisc() {
 }
 
 func main() {
+	testIfcMethod()
 	testOSExec()
 	testOSReturnError()
 	testForeignConst()
