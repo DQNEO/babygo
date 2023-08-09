@@ -304,9 +304,19 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 func emitMaybeIfcConversion(mc *ir.MaybeIfcConversion) {
 	emitExpr(mc.Value)
 	emitComment(2, "emitMaybeIfcConversion\n")
-	if !sema.IsNil(mc.Value) && mc.Type != nil && sema.IsInterface(mc.Type) && !sema.IsInterface(sema.GetTypeOfExpr(mc.Value)) {
-		emitConvertToInterface(sema.GetTypeOfExpr(mc.Value), mc.Type)
+	if sema.IsNil(mc.Value) {
+		return
 	}
+	if mc.Type == nil {
+		return
+	}
+	if !sema.IsInterface(mc.Type) {
+		return
+	}
+	if sema.IsInterface(sema.GetTypeOfExpr(mc.Value)) {
+		return
+	}
+	emitConvertToInterface(sema.GetTypeOfExpr(mc.Value), mc.Type)
 }
 
 func emitZeroValue(t *types.Type) {
