@@ -988,12 +988,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 	// emit addr of map element
 	mp := m.X
 	key := m.Index
-
-	mc := &ir.MaybeIfcConversion{
-		Pos:   sema.Pos(m.Index),
-		Value: key,
-		Type:  ir.RuntimeGetAddrForMapGetSignature.ParamTypes[1],
-	}
+	mc := sema.CheckIfcConversion(m.Pos, key, ir.RuntimeGetAddrForMapGetSignature.ParamTypes[1])
 	args := []ir.MetaExpr{mp, mc}
 	emitCallDirect("runtime.getAddrForMapGet", args, ir.RuntimeGetAddrForMapGetSignature)
 	// return values = [ptr, bool(stack top)]
@@ -1216,11 +1211,7 @@ func emitAddrForMapSet(indexExpr *ir.MetaIndexExpr) {
 	// alloc heap for map value
 	//size := GetSizeOfType(elmType)
 	emitComment(2, "[emitAddrForMapSet]\n")
-	keyExpr := &ir.MaybeIfcConversion{
-		Pos:   indexExpr.Pos,
-		Value: indexExpr.Index,
-		Type:  ir.RuntimeGetAddrForMapSetSignature.ParamTypes[1],
-	}
+	keyExpr := sema.CheckIfcConversion(indexExpr.Pos, indexExpr.Index, ir.RuntimeGetAddrForMapSetSignature.ParamTypes[1])
 	args := []ir.MetaExpr{indexExpr.X, keyExpr}
 	emitCallDirect("runtime.getAddrForMapSet", args, ir.RuntimeGetAddrForMapSetSignature)
 }

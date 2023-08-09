@@ -95,7 +95,7 @@ type MetaTupleAssign struct {
 type MetaReturnStmt struct {
 	Pos     token.Pos
 	Fnc     *Func
-	Results []*MaybeIfcConversion
+	Results []MetaExpr
 }
 
 type MetaIfStmt struct {
@@ -199,7 +199,7 @@ type MetaCompositLit struct {
 	// for array or slice
 	Len     int
 	ElmType *types.Type
-	Elms    []*MaybeIfcConversion
+	Elms    []MetaExpr
 }
 
 type MetaIdent struct {

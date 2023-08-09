@@ -679,11 +679,7 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
-				rhsMeta = &ir.MaybeIfcConversion{
-					Pos:   Pos(rhs),
-					Value: rhsMeta,
-					Type:  t,
-				}
+				rhsMeta = CheckIfcConversion(Pos(rhs), rhsMeta, t)
 			}
 		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {
@@ -773,11 +769,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			if t == nil {
 				t = GetTypeOfExpr(rhsMeta)
 			}
-			mc := &ir.MaybeIfcConversion{
-				Pos:   Pos(rhsMeta),
-				Value: rhsMeta,
-				Type:  t,
-			}
+			mc := CheckIfcConversion(Pos(rhsMeta), rhsMeta, t)
 			//checkIfcConversion(mc)
 			return &ir.MetaSingleAssign{
 				Pos: pos,
@@ -894,7 +886,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 	}
 
 	_len := len(funcDef.Retvars)
-	var results []*ir.MaybeIfcConversion
+	var results []ir.MetaExpr
 	for i := 0; i < _len; i++ {
 		expr := s.Results[i]
 		retTyp := funcDef.Retvars[i].Typ
@@ -902,11 +894,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			Type: retTyp,
 		}
 		m := walkExpr(expr, ctx)
-		mc := &ir.MaybeIfcConversion{
-			Pos:   Pos(expr),
-			Value: m,
-			Type:  retTyp,
-		}
+		mc := CheckIfcConversion(Pos(expr), m, retTyp)
 		results = append(results, mc)
 	}
 	return &ir.MetaReturnStmt{
@@ -1661,11 +1649,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
 		paramTypes = append(paramTypes, a.ParamType)
-		arg := &ir.MaybeIfcConversion{
-			Pos:   Pos(a.Meta),
-			Value: a.Meta,
-			Type:  a.ParamType,
-		}
+		arg := CheckIfcConversion(Pos(a.Meta), a.Meta, a.ParamType)
 		args = append(args, arg)
 	}
 
@@ -1766,14 +1750,10 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		meta.Len = EvalInt(arrayType.Len)
 		meta.ElmType = E2T(arrayType.Elt)
 		ctx := &ir.EvalContext{Type: meta.ElmType}
-		var ms []*ir.MaybeIfcConversion
+		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
-			mc := &ir.MaybeIfcConversion{
-				Pos:   Pos(v),
-				Value: m,
-				Type:  meta.ElmType,
-			}
+			mc := CheckIfcConversion(Pos(v), m, meta.ElmType)
 			ms = append(ms, mc)
 		}
 		meta.Elms = ms
@@ -1782,14 +1762,10 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		meta.Len = len(e.Elts)
 		meta.ElmType = E2T(arrayType.Elt)
 		ctx := &ir.EvalContext{Type: meta.ElmType}
-		var ms []*ir.MaybeIfcConversion
+		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
-			mc := &ir.MaybeIfcConversion{
-				Pos:   Pos(v),
-				Value: m,
-				Type:  meta.ElmType,
-			}
+			mc := CheckIfcConversion(Pos(v), m, meta.ElmType)
 			ms = append(ms, mc)
 		}
 		meta.Elms = ms
@@ -2399,11 +2375,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
-				rhsMeta = &ir.MaybeIfcConversion{
-					Pos:   Pos(rhs),
-					Value: rhsMeta,
-					Type:  t,
-				}
+				rhsMeta = CheckIfcConversion(Pos(rhs), rhsMeta, t)
 			}
 		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {
