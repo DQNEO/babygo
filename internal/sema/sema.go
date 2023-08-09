@@ -736,7 +736,7 @@ func registerIfcConversion(lhsType *types.Type, rhsType *types.Type) {
 
 }
 
-func checkIfcConversion(mc *ir.MaybeIfcConversion) bool {
+func _checkIfcConversion(mc *ir.MaybeIfcConversion) bool {
 	rhsType := GetTypeOfExpr(mc)
 	lhsType := mc.Type
 	if !IsNil(mc) && lhsType != nil && IsInterface(lhsType) && !IsInterface(rhsType) {
@@ -778,7 +778,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				Value: rhsMeta,
 				Type:  t,
 			}
-			checkIfcConversion(mc)
+			//checkIfcConversion(mc)
 			return &ir.MetaSingleAssign{
 				Pos: pos,
 				Lhs: lhsMetas[0],
@@ -1750,11 +1750,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 			ctx := &ir.EvalContext{Type: fieldType}
 			// attach type to nil : STRUCT{Key:nil}
 			valueMeta := walkExpr(kvExpr.Value, ctx)
-			mc := &ir.MaybeIfcConversion{
-				Pos:   kvExpr.Pos(),
-				Value: valueMeta,
-				Type:  fieldType,
-			}
+			mc := CheckIfcConversion(kvExpr.Pos(), valueMeta, fieldType)
 			metaElm := &ir.MetaStructLiteralElement{
 				Pos:       kvExpr.Pos(),
 				Field:     field,
@@ -2189,9 +2185,32 @@ func Pos(node interface{}) token.Pos {
 		return n.Pos
 	case *ir.MaybeIfcConversion:
 		return n.Pos
+	case *ir.IfcConversion:
+		return n.Pos
 	}
 
 	panic(fmt.Sprintf("Unknown type:%T", node))
+}
+
+func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) ir.MetaExpr {
+	if IsNil(expr) {
+		return expr
+	}
+	if trgtType == nil {
+		return expr
+	}
+	if !IsInterface(trgtType) {
+		return expr
+	}
+	if IsInterface(GetTypeOfExpr(expr)) {
+		return expr
+	}
+
+	return &ir.IfcConversion{
+		Pos:   pos,
+		Value: expr,
+		Type:  trgtType,
+	}
 }
 
 func LookupForeignIdent(qi ir.QualifiedIdent, pos token.Pos) *ir.ExportedIdent {

@@ -12,11 +12,17 @@ type MaybeIfcConversion struct {
 	Type  *types.Type // Target Type
 }
 
+type IfcConversion struct {
+	Pos   token.Pos
+	Value MetaExpr
+	Type  *types.Type // Target Type
+}
+
 type MetaStructLiteralElement struct {
 	Pos       token.Pos
 	Field     *ast.Field
 	FieldType *types.Type
-	Value     *MaybeIfcConversion
+	Value     MetaExpr
 }
 
 type FuncValue struct {

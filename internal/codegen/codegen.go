@@ -301,6 +301,12 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 	}
 }
 
+func emitIfcConversion(ic *ir.IfcConversion) {
+	emitExpr(ic.Value)
+	emitComment(2, "emitIfcConversion\n")
+	emitConvertToInterface(sema.GetTypeOfExpr(ic.Value), ic.Type)
+}
+
 func emitMaybeIfcConversion(mc *ir.MaybeIfcConversion) {
 	emitExpr(mc.Value)
 	emitComment(2, "emitMaybeIfcConversion\n")
@@ -633,11 +639,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
-	arg1 := &ir.MaybeIfcConversion{
-		Pos:   sema.Pos(m),
-		Value: elemArg,
-		Type:  elmType,
-	}
+	arg1 := sema.CheckIfcConversion(sema.Pos(m), elemArg, elmType)
 	args := []ir.MetaExpr{sliceArg, arg1}
 	sig := sema.NewAppendSignature(elmType)
 	emitCallDirect(symbol, args, sig)
@@ -647,11 +649,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 
 func emitMetaCallPanic(m *ir.MetaCallPanic) {
 	funcVal := "runtime.panic"
-	arg0 := &ir.MaybeIfcConversion{
-		Pos:   sema.Pos(m),
-		Value: m.Arg0,
-		Type:  types.Eface,
-	}
+	arg0 := sema.CheckIfcConversion(sema.Pos(m), m.Arg0, types.Eface)
 	args := []ir.MetaExpr{arg0}
 	emitCallDirect(funcVal, args, ir.BuiltinPanicSignature)
 	return
@@ -660,11 +658,7 @@ func emitMetaCallPanic(m *ir.MetaCallPanic) {
 func emitMetaCallDelete(m *ir.MetaCallDelete) {
 	funcVal := "runtime.deleteMap"
 	sig := sema.NewDeleteSignature(m.Arg0)
-	mc := &ir.MaybeIfcConversion{
-		Pos:   sema.Pos(m),
-		Value: m.Arg1,
-		Type:  sig.ParamTypes[1],
-	}
+	mc := sema.CheckIfcConversion(sema.Pos(m), m.Arg1, sig.ParamTypes[1])
 	args := []ir.MetaExpr{m.Arg0, mc}
 	emitCallDirect(funcVal, args, sig)
 	return
@@ -1111,6 +1105,8 @@ func emitExpr(meta ir.MetaExpr) {
 		emitTypeAssertExpr(m) // can be Tuple
 	case *ir.MaybeIfcConversion:
 		emitMaybeIfcConversion(m)
+	case *ir.IfcConversion:
+		emitIfcConversion(m)
 	default:
 		panic(fmt.Sprintf("meta type:%T", meta))
 	}
