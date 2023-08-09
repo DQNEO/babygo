@@ -72,9 +72,10 @@ func main() {
 		pkgPath := args[2]
 		b.Build(os.Args[0], workdir, outFilePath, pkgPath, verbose)
 	case "compile":
+		var verbose bool = true
 		outputBaseName := os.Args[3]
 		pkgPath := os.Args[4]
-		b.BuildOne(workdir, outputBaseName, pkgPath)
+		b.BuildOne(workdir, outputBaseName, pkgPath, verbose)
 	case "list":
 		pkgPath := os.Args[3]
 		b.ListDepth(workdir, pkgPath, os.Stdout)

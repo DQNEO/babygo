@@ -307,24 +307,6 @@ func emitIfcConversion(ic *ir.IfcConversion) {
 	emitConvertToInterface(sema.GetTypeOfExpr(ic.Value), ic.Type)
 }
 
-func emitMaybeIfcConversion(mc *ir.MaybeIfcConversion) {
-	emitExpr(mc.Value)
-	emitComment(2, "emitMaybeIfcConversion\n")
-	if sema.IsNil(mc.Value) {
-		return
-	}
-	if mc.Type == nil {
-		return
-	}
-	if !sema.IsInterface(mc.Type) {
-		return
-	}
-	if sema.IsInterface(sema.GetTypeOfExpr(mc.Value)) {
-		return
-	}
-	emitConvertToInterface(sema.GetTypeOfExpr(mc.Value), mc.Type)
-}
-
 func emitZeroValue(t *types.Type) {
 	switch sema.Kind(t) {
 	case types.T_SLICE:
@@ -1098,8 +1080,6 @@ func emitExpr(meta ir.MetaExpr) {
 		emitBinaryExpr(m)
 	case *ir.MetaTypeAssertExpr:
 		emitTypeAssertExpr(m) // can be Tuple
-	case *ir.MaybeIfcConversion:
-		emitMaybeIfcConversion(m)
 	case *ir.IfcConversion:
 		emitIfcConversion(m)
 	default:
@@ -2004,8 +1984,6 @@ func emitData(dotSize string, val ir.MetaExpr) {
 		switch m := val.(type) {
 		case *ir.MetaBasicLit:
 			lit = m
-		case *ir.MaybeIfcConversion:
-			lit = m.Value.(*ir.MetaBasicLit)
 		}
 
 		printf("  %s %s\n", dotSize, lit.RawValue)
@@ -2031,8 +2009,6 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 			switch m := metaVal.(type) {
 			case *ir.MetaBasicLit:
 				lit = m
-			case *ir.MaybeIfcConversion:
-				lit = m.Value.(*ir.MetaBasicLit)
 			}
 			sl := lit.StrVal
 			printf("  .quad %s\n", sl.Label)
@@ -2046,8 +2022,6 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 			switch m := metaVal.(type) {
 			case *ir.MetaIdent:
 				i = m
-			case *ir.MaybeIfcConversion:
-				i = m.Value.(*ir.MetaIdent)
 			}
 
 			switch i.Kind {

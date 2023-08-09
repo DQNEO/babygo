@@ -337,7 +337,7 @@ func (b *Builder) ListDepth(workdir string, pkgPath string, w *os.File) []string
 	return sortedPaths
 }
 
-func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string) {
+func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string, verbose bool) {
 	b.filesCache = make(map[string][]string)
 	b.permanentTree = make(map[string]*compiler.PackageToCompile)
 

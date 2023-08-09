@@ -6,6 +6,7 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
+	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -276,7 +277,7 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 		return m.Type
 	case *ir.MetaTypeAssertExpr:
 		return m.Type
-	case *ir.MaybeIfcConversion:
+	case *ir.IfcConversion:
 		return m.Type
 	}
 	panic(fmt.Sprintf("bad type:%T\n", meta))
@@ -452,9 +453,13 @@ func HasIfcMethod(t *types.Type) bool {
 		return false
 	}
 	if len(astIfc.Methods.List) > 0 {
+		util.Logf("HasIfcMethod: true\n")
+		for _, m := range astIfc.Methods.List {
+			util.Logf("  %s\n", m.Names[0].Name)
+		}
 		return true
 	}
-	return true
+	return false
 }
 
 func GetElementTypeOfCollectionType(t *types.Type) *types.Type {
@@ -727,22 +732,9 @@ func IsOkSyntax(rhs ir.MetaExpr) bool {
 	return false
 }
 
-func registerIfcConversion(lhsType *types.Type, rhsType *types.Type) {
-	panic("@@@ CONVERSION " + SerializeType(rhsType, true) + " -> " + SerializeType(lhsType, true))
+func registerIfcConversion(lhsType *types.Type, rhsType *types.Type, pos token.Pos) {
+	util.Logf("@@@ CONVERSION " + SerializeType(rhsType, true) + " -> " + SerializeType(lhsType, true) + "\n")
 
-}
-
-func _checkIfcConversion(mc *ir.MaybeIfcConversion) bool {
-	rhsType := GetTypeOfExpr(mc)
-	lhsType := mc.Type
-	if !IsNil(mc) && lhsType != nil && IsInterface(lhsType) && !IsInterface(rhsType) {
-		if HasIfcMethod(lhsType) {
-			// create conversion table
-			registerIfcConversion(lhsType, rhsType)
-		}
-		return true
-	}
-	return false
 }
 
 func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
@@ -2159,8 +2151,6 @@ func Pos(node interface{}) token.Pos {
 		return n.Pos
 	case *ir.MetaGoStmt:
 		return n.Pos
-	case *ir.MaybeIfcConversion:
-		return n.Pos
 	case *ir.IfcConversion:
 		return n.Pos
 	}
@@ -2180,6 +2170,11 @@ func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) i
 	}
 	if IsInterface(GetTypeOfExpr(expr)) {
 		return expr
+	}
+
+	if HasIfcMethod(trgtType) {
+		// create conversion table
+		registerIfcConversion(trgtType, GetTypeOfExpr(expr), pos)
 	}
 
 	return &ir.IfcConversion{
