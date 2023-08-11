@@ -1003,7 +1003,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 // 1 or 2 values
 func emitTypeAssertExpr(meta *ir.MetaTypeAssertExpr) {
 	emitExpr(meta.X)
-	emitDtypeLabelAddr(meta.Type)
+	emitDtypeLabelAddr(meta.Type, sema.GetTypeOfExpr(meta.X))
 	emitCompareDtypes()
 
 	emitPopBool("type assertion ok value")
@@ -1098,7 +1098,7 @@ func emitConvertToInterface(fromType *types.Type, toType *types.Type) {
 	emitCallMalloc(memSize)
 	emitStore(fromType, false, true) // heap addr pushed
 	// push dtype label's address
-	emitDtypeLabelAddr(fromType)
+	emitDtypeLabelAddr(fromType, toType)
 }
 
 // Check type identity by comparing its serialization, not id or address of dtype label.
@@ -1151,8 +1151,8 @@ func emitCompareDtypes() {
 	printf("  %s:\n", labelEnd)
 }
 
-func emitDtypeLabelAddr(t *types.Type) {
-	de := sema.GetDtypeEntry(t)
+func emitDtypeLabelAddr(t *types.Type, it *types.Type) {
+	de := sema.GetDtypeEntry(t, it)
 	dtypeLabel := de.Label
 	sr := de.Serialized
 	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, sr)
@@ -1775,7 +1775,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 			if t == nil { // case nil:
 				printf("  pushq $0 # nil\n")
 			} else { // case T:s
-				emitDtypeLabelAddr(t)
+				emitDtypeLabelAddr(t, sema.GetTypeOfExpr(meta.Subject))
 			}
 			emitCompareDtypes()
 			emitPopBool(" of switch-case comparison")
@@ -2118,7 +2118,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 }
 
 func emitDynamicTypes(mapDtypes map[string]*sema.DtypeEntry) {
-	printf("# ------- Dynamic Types ------\n")
+	printf("# ------- Dynamic Types (len = %d)------\n", len(mapDtypes))
 	printf(".data\n")
 
 	dtypes := make([]string, len(mapDtypes)+1, len(mapDtypes)+1)
