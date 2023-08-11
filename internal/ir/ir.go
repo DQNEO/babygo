@@ -6,12 +6,6 @@ import (
 	"github.com/DQNEO/babygo/lib/token"
 )
 
-type _MaybeIfcConversion struct {
-	Pos   token.Pos
-	Value MetaExpr
-	Type  *types.Type // Target Type
-}
-
 type IfcConversion struct {
 	Pos   token.Pos
 	Value MetaExpr
