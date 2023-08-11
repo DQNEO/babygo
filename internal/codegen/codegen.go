@@ -6,6 +6,7 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
+	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
@@ -1154,7 +1155,7 @@ func emitCompareDtypes() {
 func emitDtypeLabelAddr(t *types.Type, it *types.Type) {
 	de := sema.GetDtypeEntry(t, it)
 	dtypeLabel := de.Label
-	sr := de.Serialized
+	sr := de.DSerialized
 	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, sr)
 	printf("  pushq %%rax           # dtype label address\n")
 }
@@ -2133,12 +2134,29 @@ func emitDynamicTypes(mapDtypes map[string]*sema.DtypeEntry) {
 		key := dtypes[id]
 		ent := mapDtypes[key]
 
+		printf(".string.dtype.%d:\n", id)
+		printf("  .string \"%s\"\n", ent.DSerialized)
 		printf("%s: # %s\n", ent.Label, key)
 		printf("  .quad %d\n", id)
 		printf("  .quad .string.dtype.%d\n", id)
-		printf("  .quad %d\n", len(ent.Serialized))
-		printf(".string.dtype.%d:\n", id)
-		printf("  .string \"%s\"\n", ent.Serialized)
+		printf("  .quad %d\n", len(ent.DSerialized))
+
+		//@TODO emit interface methods table
+		iType := ent.Itype
+		ut := sema.GetUnderlyingType(iType)
+
+		it, ok := ut.E.(*ast.InterfaceType)
+		if !ok {
+			panic("not interface type:" + ent.ISeralized)
+		}
+		if it.Methods == nil {
+			continue
+		}
+		for _, m := range it.Methods.List {
+			dmethod := sema.LookupMethod(ent.Dtype, m.Names[0])
+			sym := sema.GetMethodSymbol(dmethod)
+			printf("  .quad %s # smethod %s\n", sym, m.Names[0].Name)
+		}
 	}
 	printf("\n")
 }

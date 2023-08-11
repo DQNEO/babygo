@@ -628,7 +628,7 @@ func registerMethod(pkgName string, method *ir.Method) {
 }
 
 // @TODO: enable to lookup ifc method
-func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
+func LookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 	rcvType := rcvT.E
 	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
 	if isPtr {
@@ -641,11 +641,11 @@ func lookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 		typeObj = typ.Obj
 		pkgName := typeObj.Data.(string)
 		namedTypeId = pkgName + "." + typ.Name
-		//util.Logf("[lookupMethod] ident: namedTypeId=%s\n", namedTypeId)
+		//util.Logf("[LookupMethod] ident: namedTypeId=%s\n", namedTypeId)
 	case *ast.SelectorExpr:
 		qi := Selector2QI(typ)
 		namedTypeId = string(qi)
-		//util.Logf("[lookupMethod] selector: namedTypeId=%s\n", namedTypeId)
+		//util.Logf("[LookupMethod] selector: namedTypeId=%s\n", namedTypeId)
 	default:
 		panic(rcvType)
 	}
@@ -1374,7 +1374,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 			_, isIdent := typ.X.(*ast.Ident)
 			if isIdent {
 				typeOfLeft = origType
-				method := lookupMethod(typeOfLeft, e.Sel)
+				method := LookupMethod(typeOfLeft, e.Sel)
 				funcType := method.FuncType
 				if funcType.Results == nil || len(funcType.Results.List) == 0 {
 					return nil, nil, 0, needDeref
@@ -1384,7 +1384,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 			}
 		}
 	default: // obj.method
-		method := lookupMethod(typeOfLeft, e.Sel)
+		method := LookupMethod(typeOfLeft, e.Sel)
 		funcType := method.FuncType
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, false
@@ -1399,7 +1399,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 		return E2T(field.Type), field, offset, needDeref
 	}
 	if field == nil { // try to find method
-		method := lookupMethod(typeOfLeft, e.Sel)
+		method := LookupMethod(typeOfLeft, e.Sel)
 		funcType := method.FuncType
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, needDeref
@@ -1600,7 +1600,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			receiver = fn.X
 			receiverMeta = walkExpr(fn.X, nil)
 			receiverType := GetTypeOfExpr(receiverMeta)
-			method := lookupMethod(receiverType, fn.Sel)
+			method := LookupMethod(receiverType, fn.Sel)
 			funcType = method.FuncType
 			funcVal = NewFuncValueFromSymbol(GetMethodSymbol(method))
 
@@ -2751,10 +2751,12 @@ var TypeId int
 var TypesMap map[string]*DtypeEntry
 
 type DtypeEntry struct {
-	Id         int
-	Serialized string
-	ISeralized string
-	Label      string
+	Id          int
+	DSerialized string
+	ISeralized  string
+	Itype       *types.Type
+	Dtype       *types.Type
+	Label       string
 }
 
 // "**[1][]*int" => ".dtype.8"
@@ -2769,10 +2771,12 @@ func RegisterDtype(dtype *types.Type, itype *types.Type) {
 
 	id := TypeId
 	e := &DtypeEntry{
-		Id:         id,
-		Serialized: ds,
-		ISeralized: is,
-		Label:      "." + "dtype." + strconv.Itoa(id),
+		Id:          id,
+		DSerialized: ds,
+		ISeralized:  is,
+		Itype:       itype,
+		Dtype:       dtype,
+		Label:       "." + "dtype." + strconv.Itoa(id),
 	}
 	TypesMap[key] = e
 	TypeId++
