@@ -1101,35 +1101,6 @@ func emitConvertToInterface(fromType *types.Type, toType *types.Type) {
 	emitDtypeLabelAddr(fromType)
 }
 
-type DtypeEntry struct {
-	id         int
-	serialized string
-	label      string
-}
-
-var TypeId int
-var TypesMap map[string]*DtypeEntry
-
-// "**[1][]*int" => ".dtype.8"
-func getDtypeLabel(t *types.Type) *DtypeEntry {
-	serializedType := sema.SerializeType(t, true)
-	ent, ok := TypesMap[serializedType]
-	if ok {
-		return ent
-	}
-
-	id := TypeId
-	ent = &DtypeEntry{
-		id:         id,
-		serialized: serializedType,
-		label:      "." + "dtype." + strconv.Itoa(id),
-	}
-	TypesMap[serializedType] = ent
-	TypeId++
-
-	return ent
-}
-
 // Check type identity by comparing its serialization, not id or address of dtype label.
 // pop pop, compare and push 1(match) or 0(not match)
 func emitCompareDtypes() {
@@ -1181,9 +1152,9 @@ func emitCompareDtypes() {
 }
 
 func emitDtypeLabelAddr(t *types.Type) {
-	de := getDtypeLabel(t)
-	dtypeLabel := de.label
-	sr := de.serialized
+	de := sema.GetDtypeLabel(t)
+	dtypeLabel := de.Label
+	sr := de.Serialized
 	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, sr)
 	printf("  pushq %%rax           # dtype label address\n")
 }
@@ -2088,8 +2059,8 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 
 func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	Fout = fout
-	TypesMap = make(map[string]*DtypeEntry)
-	TypeId = 1
+	sema.TypesMap = make(map[string]*sema.DtypeEntry)
+	sema.TypeId = 1
 	labelid = 1
 
 	printf("#--- string literals\n")
@@ -2140,15 +2111,15 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 		}
 	}
 
-	emitDynamicTypes(TypesMap)
+	emitDynamicTypes(sema.TypesMap)
 	printf("\n")
 
 	Fout = nil
-	TypesMap = nil
-	TypeId = 0
+	sema.TypesMap = nil
+	sema.TypeId = 0
 }
 
-func emitDynamicTypes(mapDtypes map[string]*DtypeEntry) {
+func emitDynamicTypes(mapDtypes map[string]*sema.DtypeEntry) {
 	printf("# ------- Dynamic Types ------\n")
 	printf(".data\n")
 
@@ -2156,7 +2127,7 @@ func emitDynamicTypes(mapDtypes map[string]*DtypeEntry) {
 
 	// sort map in order to assure the deterministic results
 	for key, ent := range mapDtypes {
-		dtypes[ent.id] = key
+		dtypes[ent.Id] = key
 	}
 
 	// skip id=0
@@ -2164,12 +2135,12 @@ func emitDynamicTypes(mapDtypes map[string]*DtypeEntry) {
 		key := dtypes[id]
 		ent := mapDtypes[key]
 
-		printf("%s: # %s\n", ent.label, key)
+		printf("%s: # %s\n", ent.Label, key)
 		printf("  .quad %d\n", id)
 		printf("  .quad .string.dtype.%d\n", id)
-		printf("  .quad %d\n", len(ent.serialized))
+		printf("  .quad %d\n", len(ent.Serialized))
 		printf(".string.dtype.%d:\n", id)
-		printf("  .string \"%s\"\n", ent.serialized)
+		printf("  .string \"%s\"\n", ent.Serialized)
 	}
 	printf("\n")
 }

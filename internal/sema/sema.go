@@ -2732,3 +2732,32 @@ func GetConstRawValue(cnstExpr ir.MetaExpr) string {
 		panic("TBI")
 	}
 }
+
+var TypeId int
+var TypesMap map[string]*DtypeEntry
+
+type DtypeEntry struct {
+	Id         int
+	Serialized string
+	Label      string
+}
+
+// "**[1][]*int" => ".dtype.8"
+func GetDtypeLabel(t *types.Type) *DtypeEntry {
+	serializedType := SerializeType(t, true)
+	ent, ok := TypesMap[serializedType]
+	if ok {
+		return ent
+	}
+
+	id := TypeId
+	ent = &DtypeEntry{
+		Id:         id,
+		Serialized: serializedType,
+		Label:      "." + "dtype." + strconv.Itoa(id),
+	}
+	TypesMap[serializedType] = ent
+	TypeId++
+
+	return ent
+}
