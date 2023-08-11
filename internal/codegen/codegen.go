@@ -1110,24 +1110,24 @@ type DtypeEntry struct {
 var TypeId int
 var TypesMap map[string]*DtypeEntry
 
-// "**[1][]*int" => "dtype.8"
-func getDtypeLabel(serializedType string) string {
-	s := serializedType
-	ent, ok := TypesMap[s]
+// "**[1][]*int" => ".dtype.8"
+func getDtypeLabel(t *types.Type) *DtypeEntry {
+	serializedType := sema.SerializeType(t, true)
+	ent, ok := TypesMap[serializedType]
 	if ok {
-		return ent.label
-	} else {
-		id := TypeId
-		ent = &DtypeEntry{
-			id:         id,
-			serialized: serializedType,
-			label:      "." + "dtype." + strconv.Itoa(id),
-		}
-		TypesMap[s] = ent
-		TypeId++
+		return ent
 	}
 
-	return ent.label
+	id := TypeId
+	ent = &DtypeEntry{
+		id:         id,
+		serialized: serializedType,
+		label:      "." + "dtype." + strconv.Itoa(id),
+	}
+	TypesMap[serializedType] = ent
+	TypeId++
+
+	return ent
 }
 
 // Check type identity by comparing its serialization, not id or address of dtype label.
@@ -1181,9 +1181,10 @@ func emitCompareDtypes() {
 }
 
 func emitDtypeLabelAddr(t *types.Type) {
-	serializedType := sema.SerializeType(t, true)
-	dtypeLabel := getDtypeLabel(serializedType)
-	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, serializedType)
+	de := getDtypeLabel(t)
+	dtypeLabel := de.label
+	sr := de.serialized
+	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, sr)
 	printf("  pushq %%rax           # dtype label address\n")
 }
 
@@ -2151,16 +2152,16 @@ func emitDynamicTypes(mapDtypes map[string]*DtypeEntry) {
 	printf("# ------- Dynamic Types ------\n")
 	printf(".data\n")
 
-	sliceTypeMap := make([]string, len(mapDtypes)+1, len(mapDtypes)+1)
+	dtypes := make([]string, len(mapDtypes)+1, len(mapDtypes)+1)
 
 	// sort map in order to assure the deterministic results
 	for key, ent := range mapDtypes {
-		sliceTypeMap[ent.id] = key
+		dtypes[ent.id] = key
 	}
 
 	// skip id=0
-	for id := 1; id < len(sliceTypeMap); id++ {
-		key := sliceTypeMap[id]
+	for id := 1; id < len(dtypes); id++ {
+		key := dtypes[id]
 		ent := mapDtypes[key]
 
 		printf("%s: # %s\n", ent.label, key)
