@@ -1117,6 +1117,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 			var typ *types.Type
 			if !isNilIdent(e) {
 				typ = E2T(e)
+				RegisterDtype(typ)
 			}
 			typs = append(typs, typ) // universe nil can be appended
 		}
@@ -1416,6 +1417,12 @@ func walkConversion(pos token.Pos, toType *types.Type, arg0 ir.MetaExpr) ir.Meta
 		Pos:  pos,
 		Type: toType,
 		Arg0: arg0,
+	}
+	fromType := GetTypeOfExpr(arg0)
+	fromKind := Kind(fromType)
+	toKind := Kind(toType)
+	if toKind == types.T_INTERFACE && fromKind != types.T_INTERFACE {
+		RegisterDtype(fromType)
 	}
 	return meta
 }
@@ -1919,6 +1926,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *ir.EvalContext) *ir.MetaType
 	}
 	meta.X = walkExpr(e.X, nil)
 	meta.Type = E2T(e.Type)
+	RegisterDtype(meta.Type)
 	return meta
 }
 
@@ -2168,7 +2176,8 @@ func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) i
 	if !IsInterface(trgtType) {
 		return expr
 	}
-	if IsInterface(GetTypeOfExpr(expr)) {
+	fromType := GetTypeOfExpr(expr)
+	if IsInterface(fromType) {
 		return expr
 	}
 
@@ -2176,6 +2185,8 @@ func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) i
 		// create conversion table
 		registerIfcConversion(trgtType, GetTypeOfExpr(expr), pos)
 	}
+
+	RegisterDtype(fromType)
 
 	return &ir.IfcConversion{
 		Pos:   pos,
@@ -2221,6 +2232,9 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	pkg.StringIndex = 0
 	pkg.StringLiterals = nil
 	CurrentPkg = pkg
+
+	TypesMap = make(map[string]*DtypeEntry)
+	TypeId = 1
 
 	var hasInitFunc bool
 	var typs []*types.Type
@@ -2743,11 +2757,11 @@ type DtypeEntry struct {
 }
 
 // "**[1][]*int" => ".dtype.8"
-func GetDtypeLabel(t *types.Type) *DtypeEntry {
+func RegisterDtype(t *types.Type) {
 	serializedType := SerializeType(t, true)
 	ent, ok := TypesMap[serializedType]
 	if ok {
-		return ent
+		return
 	}
 
 	id := TypeId
@@ -2758,6 +2772,13 @@ func GetDtypeLabel(t *types.Type) *DtypeEntry {
 	}
 	TypesMap[serializedType] = ent
 	TypeId++
+}
 
+func GetDtypeEntry(t *types.Type) *DtypeEntry {
+	serializedType := SerializeType(t, true)
+	ent, ok := TypesMap[serializedType]
+	if !ok {
+		panic("dtype is not set:" + serializedType)
+	}
 	return ent
 }

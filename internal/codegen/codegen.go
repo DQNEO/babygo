@@ -1152,7 +1152,7 @@ func emitCompareDtypes() {
 }
 
 func emitDtypeLabelAddr(t *types.Type) {
-	de := sema.GetDtypeLabel(t)
+	de := sema.GetDtypeEntry(t)
 	dtypeLabel := de.Label
 	sr := de.Serialized
 	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, sr)
@@ -2059,8 +2059,6 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 
 func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	Fout = fout
-	sema.TypesMap = make(map[string]*sema.DtypeEntry)
-	sema.TypeId = 1
 	labelid = 1
 
 	printf("#--- string literals\n")
