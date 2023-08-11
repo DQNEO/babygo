@@ -1,8 +1,14 @@
+// go build -o ifc-call -gcflags='-N -l' example/ifc-method/main.go
 package main
 
-import "os"
+import (
+	"io"
+	"os"
+)
+
+var msg = []uint8("hello world!\n")
+var w io.Writer = os.Stdout
 
 func main() {
-	var msg = []uint8("hello world!\n")
-	os.Stdout.Write(msg)
+	w.Write(msg)
 }
