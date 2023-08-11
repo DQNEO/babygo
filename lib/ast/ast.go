@@ -31,7 +31,7 @@ type Object struct {
 }
 
 type Expr interface {
-	//Pos() token.Pos
+	Pos() token.Pos
 }
 
 type Field struct {
@@ -266,7 +266,9 @@ func pos(expr interface{}) token.Pos {
 	panic(fmt.Sprintf("Unknown type:%T", expr))
 }
 
-type Stmt interface{}
+type Stmt interface {
+	Pos() token.Pos
+}
 
 type DeclStmt struct {
 	Decl Decl
