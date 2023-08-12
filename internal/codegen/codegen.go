@@ -480,20 +480,39 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 	var totalParamSize int
 	var offsets []int
-	for _, paramType := range paramTypes {
+	for i, paramType := range paramTypes {
 		offsets = append(offsets, totalParamSize)
-		totalParamSize += sema.GetSizeOfType(paramType)
+		var size int
+		if fv.IfcMethodCal && i == 0 {
+			size = sema.GetSizeOfType(types.Uintptr)
+		} else {
+			size = sema.GetSizeOfType(paramType)
+		}
+		totalParamSize += size
 	}
 
 	emitAllocReturnVarsArea(getTotalSizeOfType(returnTypes))
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for i, arg := range args {
-		paramType := paramTypes[i]
-		emitExpr(arg)
-		emitPop(sema.Kind(paramType))
-		printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
-		printf("  pushq %%rsi # place to save\n")
-		emitRegiToMem(paramType)
+		if i == 0 && fv.IfcMethodCal {
+			// tweak recevier
+			paramType := paramTypes[i]
+			emitExpr(arg)
+			emitPop(sema.Kind(paramType))
+			printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
+			printf("  pushq %%rsi # place to save\n")
+			printf("  popq %%rsi # place to save\n")
+			printf("  movq 0(%%rcx), %%rcx # load eface.data\n", 0)
+			printf("  movq %%rcx, %d(%%rsi) # store eface.data\n", 0)
+			printf("  movq %%rax, %%r12 # copy eface.dtype\n", 0) //@TODO %r12 can be overwritten by another expr
+		} else {
+			paramType := paramTypes[i]
+			emitExpr(arg)
+			emitPop(sema.Kind(paramType))
+			printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
+			printf("  pushq %%rsi # place to save\n")
+			emitRegiToMem(paramType)
+		}
 	}
 
 	emitCallQ(fv, totalParamSize, returnTypes)
@@ -524,9 +543,36 @@ func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) 
 		}
 		printf("  callq %s\n", fv.Symbol)
 	} else {
-		emitExpr(fv.Expr)
-		printf("  popq %%rax\n")
-		printf("  callq *%%rax\n")
+		if fv.IfcMethodCal {
+			emitComment(2, "fv.IfcMethodCal\n")
+			printf("  movq %%r12, %%rax # eface.dtype\n")
+			printf("  addq $24, %%rax # addr(eface.dtype)  8*3 \n")
+			ut := sema.GetUnderlyingType(fv.IfcType)
+			astIfc, ok := ut.E.(*ast.InterfaceType)
+			if !ok {
+				panic("type should be an interface")
+
+			}
+
+			var methodId int
+
+			for i, m := range astIfc.Methods.List {
+				if m.Names[0].Name == fv.MethodName {
+					methodId = i
+				}
+			}
+			methodOffset := methodId
+			printf("  addq $%d, %%rax # addr(eface.dtype)  8 * methodId \n", methodOffset*8)
+			printf("  movq (%%rax), %%rax # load method addr\n")
+			printf("  callq *%%rax\n")
+
+		} else {
+
+			emitExpr(fv.Expr)
+			printf("  popq %%rax\n")
+			printf("  callq *%%rax\n")
+
+		}
 	}
 
 	emitFreeParametersArea(totalParamSize)
@@ -2155,7 +2201,7 @@ func emitDynamicTypes(mapDtypes map[string]*sema.DtypeEntry) {
 		for _, m := range it.Methods.List {
 			dmethod := sema.LookupMethod(ent.Dtype, m.Names[0])
 			sym := sema.GetMethodSymbol(dmethod)
-			printf("  .quad %s # smethod %s\n", sym, m.Names[0].Name)
+			printf("  .quad %s # method %s\n", sym, m.Names[0].Name)
 		}
 	}
 	printf("\n")

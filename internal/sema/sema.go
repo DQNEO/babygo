@@ -1603,7 +1603,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			method := LookupMethod(receiverType, fn.Sel)
 			funcType = method.FuncType
 			funcVal = NewFuncValueFromSymbol(GetMethodSymbol(method))
-
+			funcVal.MethodName = fn.Sel.Name
 			if Kind(receiverType) == types.T_POINTER {
 				if method.IsPtrMethod {
 					// p.mp() => as it is
@@ -1611,6 +1611,10 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 					// p.mv()
 					panic("TBI 4190")
 				}
+			} else if Kind(receiverType) == types.T_INTERFACE {
+				funcVal.IfcMethodCal = true
+				funcVal.IfcType = receiverType
+				funcVal.IsDirect = false
 			} else {
 				if method.IsPtrMethod {
 					// v.mp() => (&v).mp()

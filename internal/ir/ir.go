@@ -20,9 +20,12 @@ type MetaStructLiteralElement struct {
 }
 
 type FuncValue struct {
-	IsDirect bool     // direct or indirect
-	Symbol   string   // for direct call
-	Expr     MetaExpr // for indirect call
+	IsDirect     bool     // direct or indirect
+	Symbol       string   // for direct call
+	Expr         MetaExpr // for indirect call
+	IfcMethodCal bool
+	MethodName   string
+	IfcType      *types.Type
 }
 
 type EvalContext struct {
