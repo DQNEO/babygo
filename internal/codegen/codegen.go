@@ -661,7 +661,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
-	arg1 := sema.CheckIfcConversion(sema.Pos(m), elemArg, elmType)
+	arg1 := sema.CheckIfcConversion(m.Pos(), elemArg, elmType)
 	args := []ir.MetaExpr{sliceArg, arg1}
 	sig := sema.NewAppendSignature(elmType)
 	emitCallDirect(symbol, args, sig)
@@ -671,7 +671,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 
 func emitMetaCallPanic(m *ir.MetaCallPanic) {
 	funcVal := "runtime.panic"
-	arg0 := sema.CheckIfcConversion(sema.Pos(m), m.Arg0, types.Eface)
+	arg0 := sema.CheckIfcConversion(m.Pos(), m.Arg0, types.Eface)
 	args := []ir.MetaExpr{arg0}
 	emitCallDirect(funcVal, args, ir.BuiltinPanicSignature)
 	return
@@ -680,7 +680,7 @@ func emitMetaCallPanic(m *ir.MetaCallPanic) {
 func emitMetaCallDelete(m *ir.MetaCallDelete) {
 	funcVal := "runtime.deleteMap"
 	sig := sema.NewDeleteSignature(m.Arg0)
-	mc := sema.CheckIfcConversion(sema.Pos(m), m.Arg1, sig.ParamTypes[1])
+	mc := sema.CheckIfcConversion(m.Pos(), m.Arg1, sig.ParamTypes[1])
 	args := []ir.MetaExpr{m.Arg0, mc}
 	emitCallDirect(funcVal, args, sig)
 	return
@@ -1073,7 +1073,7 @@ func emitTypeAssertExpr(meta *ir.MetaTypeAssertExpr) {
 }
 
 func emitExpr(meta ir.MetaExpr) {
-	loc := getLoc(sema.Pos(meta))
+	loc := getLoc(meta.Pos())
 	if loc == "" {
 		printf("  # noloc %T\n", meta)
 	} else {
@@ -1376,7 +1376,7 @@ func emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 		emitExpr(rhs)
 		rhsType := sema.GetTypeOfExpr(rhs)
 		if rhsType == nil {
-			panicPos("rhs type should not be nil", sema.Pos(rhs))
+			panicPos("rhs type should not be nil", rhs.Pos())
 		}
 		emitPop(sema.Kind(rhsType))
 		return
@@ -1904,7 +1904,7 @@ func emitGoStmt(m *ir.MetaGoStmt) {
 }
 
 func emitStmt(meta ir.MetaStmt) {
-	loc := getLoc(sema.Pos(meta))
+	loc := getLoc(meta.Pos())
 	if loc == "" {
 		printf("  # noloc %T\n", meta)
 	} else {

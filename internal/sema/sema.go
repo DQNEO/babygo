@@ -376,7 +376,7 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 
 func Kind(t *types.Type) types.TypeKind {
 	if t == nil {
-		panicPos("nil type is not expected", Pos(t.E))
+		panicPos("nil type is not expected", t.E.Pos())
 	}
 
 	ut := GetUnderlyingType(t)
@@ -687,7 +687,7 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
-				rhsMeta = CheckIfcConversion(Pos(rhs), rhsMeta, t)
+				rhsMeta = CheckIfcConversion(rhs.Pos(), rhsMeta, t)
 			}
 		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {
@@ -759,7 +759,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			if t == nil {
 				t = GetTypeOfExpr(rhsMeta)
 			}
-			mc := CheckIfcConversion(Pos(rhsMeta), rhsMeta, t)
+			mc := CheckIfcConversion(rhsMeta.Pos(), rhsMeta, t)
 			//checkIfcConversion(mc)
 			return &ir.MetaSingleAssign{
 				Tpos: pos,
@@ -884,7 +884,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			Type: retTyp,
 		}
 		m := walkExpr(expr, ctx)
-		mc := CheckIfcConversion(Pos(expr), m, retTyp)
+		mc := CheckIfcConversion(expr.Pos(), m, retTyp)
 		results = append(results, mc)
 	}
 	return &ir.MetaReturnStmt{
@@ -1629,7 +1629,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
 		paramTypes = append(paramTypes, a.ParamType)
-		arg := CheckIfcConversion(Pos(a.Meta), a.Meta, a.ParamType)
+		arg := CheckIfcConversion(a.Meta.Pos(), a.Meta, a.ParamType)
 		args = append(args, arg)
 	}
 
@@ -1733,7 +1733,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
-			mc := CheckIfcConversion(Pos(v), m, meta.ElmType)
+			mc := CheckIfcConversion(v.Pos(), m, meta.ElmType)
 			ms = append(ms, mc)
 		}
 		meta.Elms = ms
@@ -1745,7 +1745,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
-			mc := CheckIfcConversion(Pos(v), m, meta.ElmType)
+			mc := CheckIfcConversion(v.Pos(), m, meta.ElmType)
 			ms = append(ms, mc)
 		}
 		meta.Elms = ms
@@ -1767,7 +1767,7 @@ func walkUnaryExpr(e *ast.UnaryExpr, ctx *ir.EvalContext) *ir.MetaUnaryExpr {
 	case "&":
 		xTyp := GetTypeOfExpr(meta.X)
 		ptrType := &ast.StarExpr{
-			Star: Pos(e),
+			Star: e.Pos(),
 			X:    xTyp.E,
 		}
 		meta.Type = E2T(ptrType)
@@ -1792,7 +1792,7 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *ir.EvalContext) *ir.MetaBinaryExpr {
 		meta.X = walkExpr(e.X, nil) // left
 		xTyp := GetTypeOfExpr(meta.X)
 		if xTyp == nil {
-			panicPos("xTyp should not be nil", Pos(e))
+			panicPos("xTyp should not be nil", e.Pos())
 		}
 		yCtx := &ir.EvalContext{Type: xTyp}
 		meta.Y = walkExpr(e.Y, yCtx) // right
@@ -1945,157 +1945,6 @@ func walkExpr(expr ast.Expr, ctx *ir.EvalContext) ir.MetaExpr {
 	default:
 		panic(fmt.Sprintf("unknown type %T", expr))
 	}
-}
-
-func Pos(node interface{}) token.Pos {
-	switch n := node.(type) {
-	// Expr
-	case *ast.Ident:
-		return n.Pos()
-	case *ast.Ellipsis:
-		return n.Pos()
-	case *ast.BasicLit:
-		return n.Pos()
-	case *ast.CompositeLit:
-		return n.Pos()
-	case *ast.ParenExpr:
-		return n.Pos()
-	case *ast.SelectorExpr:
-		return n.Pos()
-	case *ast.IndexExpr:
-		return n.Pos()
-	case *ast.SliceExpr:
-		return n.Pos()
-	case *ast.TypeAssertExpr:
-		return n.Pos()
-	case *ast.CallExpr:
-		return n.Pos()
-	case *ast.StarExpr:
-		return n.Pos()
-	case *ast.UnaryExpr:
-		return n.Pos()
-	case *ast.BinaryExpr:
-		return n.Pos()
-	case *ast.KeyValueExpr:
-		return n.Pos()
-	case *ast.ArrayType:
-		return n.Pos()
-	case *ast.MapType:
-		return n.Pos()
-	case *ast.StructType:
-		return n.Pos()
-	case *ast.FuncType:
-		return n.Pos()
-	case *ast.InterfaceType:
-		return n.Pos()
-
-	// Stmt
-	case *ast.DeclStmt:
-		return n.Pos()
-	case *ast.ExprStmt:
-		return n.Pos()
-	case *ast.IncDecStmt:
-		return n.Pos()
-	case *ast.AssignStmt:
-		return n.Pos()
-	case *ast.GoStmt:
-		return n.Pos()
-	case *ast.ReturnStmt:
-		return n.Pos()
-	case *ast.BranchStmt:
-		return n.Pos()
-	case *ast.BlockStmt:
-		return n.Pos()
-	case *ast.IfStmt:
-		return n.Pos()
-	case *ast.CaseClause:
-		return n.Pos()
-	case *ast.SwitchStmt:
-		return n.Pos()
-	case *ast.TypeSwitchStmt:
-		return n.Pos()
-	case *ast.ForStmt:
-		return n.Pos()
-	case *ast.RangeStmt:
-		return n.Pos()
-	// IR
-	case *ir.MetaBasicLit:
-		return n.Pos()
-	case *ir.MetaCompositLit:
-		return n.Pos()
-	case *ir.MetaIdent:
-		return n.Pos()
-	case *ir.MetaSelectorExpr:
-		return n.Pos()
-	case *ir.MetaForeignFuncWrapper:
-		return n.Pos()
-	case *ir.MetaConversionExpr:
-		return n.Pos()
-	case *ir.MetaCallLen:
-		return n.Pos()
-	case *ir.MetaCallCap:
-		return n.Pos()
-	case *ir.MetaCallNew:
-		return n.Pos()
-	case *ir.MetaCallMake:
-		return n.Pos()
-	case *ir.MetaCallAppend:
-		return n.Pos()
-	case *ir.MetaCallPanic:
-		return n.Pos()
-	case *ir.MetaCallDelete:
-		return n.Pos()
-	case *ir.MetaCallExpr:
-		return n.Pos()
-	case *ir.MetaIndexExpr:
-		return n.Pos()
-	case *ir.MetaSliceExpr:
-		return n.Pos()
-	case *ir.MetaStarExpr:
-		return n.Pos()
-	case *ir.MetaUnaryExpr:
-		return n.Pos()
-	case *ir.MetaBinaryExpr:
-		return n.Pos()
-	case *ir.MetaTypeAssertExpr:
-		return n.Pos()
-	case *ir.MetaBlockStmt:
-		return n.Pos()
-	case *ir.MetaExprStmt:
-		return n.Pos()
-	case *ir.MetaVarDecl:
-		return n.Pos()
-	case *ir.MetaSingleAssign:
-		return n.Pos()
-	case *ir.MetaTupleAssign:
-		return n.Pos()
-	case *ir.MetaReturnStmt:
-		return n.Pos()
-	case *ir.MetaIfStmt:
-		return n.Pos()
-	case *ir.MetaForContainer:
-		return n.Pos()
-	case *ir.MetaForForStmt:
-		return n.Pos()
-	case *ir.MetaForRangeStmt:
-		return n.Pos()
-	case *ir.MetaBranchStmt:
-		return n.Pos()
-	case *ir.MetaSwitchStmt:
-		return n.Pos()
-	case *ir.MetaCaseClause:
-		return n.Pos()
-	case *ir.MetaTypeSwitchStmt:
-		return n.Pos()
-	case *ir.MetaTypeSwitchCaseClose:
-		return n.Pos()
-	case *ir.MetaGoStmt:
-		return n.Pos()
-	case *ir.IfcConversion:
-		return n.Pos()
-	}
-
-	panic(fmt.Sprintf("Unknown type:%T", node))
 }
 
 func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) ir.MetaExpr {
@@ -2312,7 +2161,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
-				rhsMeta = CheckIfcConversion(Pos(rhs), rhsMeta, t)
+				rhsMeta = CheckIfcConversion(rhs.Pos(), rhsMeta, t)
 			}
 		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {
