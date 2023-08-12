@@ -204,7 +204,7 @@ func IsNil(meta ir.MetaExpr) bool {
 
 func NewNumberLiteral(x int) *ir.MetaBasicLit {
 	return &ir.MetaBasicLit{
-		Pos:    1,
+		Tpos:   1,
 		Type:   types.Int,
 		Kind:   "INT",
 		IntVal: x,
@@ -1215,8 +1215,8 @@ func walkStmt(stmt ast.Stmt) ir.MetaStmt {
 		throw(stmt)
 	}
 
-	assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	assert(mt != nil, "meta should not be nil", __func__)
+	assert(mt.Pos() != 0, "mt.Pos() should not be zero", __func__)
 	return mt
 }
 
@@ -1226,7 +1226,7 @@ func isUniverseNil(m *ir.MetaIdent) bool {
 
 func WalkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
 	meta := &ir.MetaIdent{
-		Pos:  e.Pos(),
+		Tpos: e.Pos(),
 		Name: e.Name,
 	}
 	logfncname := "(toplevel)"
@@ -1294,7 +1294,7 @@ func WalkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
 
 func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelectorExpr {
 	meta := &ir.MetaSelectorExpr{
-		Pos: e.Pos(),
+		Tpos: e.Pos(),
 	}
 	if isQI(e) {
 		meta.IsQI = true
@@ -1304,8 +1304,8 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		ei := LookupForeignIdent(qi, e.Pos())
 		if ei.Func != nil { // fun
 			foreignMeta := &ir.MetaForeignFuncWrapper{
-				Pos: e.Pos(),
-				QI:  qi,
+				Tpos: e.Pos(),
+				QI:   qi,
 			}
 			meta.ForeignValue = foreignMeta
 			meta.Type = E2T(ei.Func.Decl.Type)
@@ -1391,7 +1391,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 func walkConversion(pos token.Pos, toType *types.Type, arg0 ir.MetaExpr) ir.MetaExpr {
 
 	meta := &ir.MetaConversionExpr{
-		Pos:  pos,
+		Tpos: pos,
 		Type: toType,
 		Arg0: arg0,
 	}
@@ -1416,7 +1416,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	}
 
 	meta := &ir.MetaCallExpr{
-		Pos: e.Pos(),
+		Tpos: e.Pos(),
 	}
 
 	meta.HasEllipsis = e.Ellipsis != token.NoPos
@@ -1446,14 +1446,14 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		case universe.Len:
 			a0 := walkExpr(e.Args[0], nil)
 			return &ir.MetaCallLen{
-				Pos:  e.Pos(),
+				Tpos: e.Pos(),
 				Type: types.Int,
 				Arg0: a0,
 			}
 		case universe.Cap:
 			a0 := walkExpr(e.Args[0], nil)
 			return &ir.MetaCallCap{
-				Pos:  e.Pos(),
+				Tpos: e.Pos(),
 				Type: types.Int,
 				Arg0: a0,
 			}
@@ -1466,7 +1466,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			}
 			typ := E2T(ptrType)
 			return &ir.MetaCallNew{
-				Pos:      e.Pos(),
+				Tpos:     e.Pos(),
 				Type:     typ,
 				TypeArg0: typeArg0,
 			}
@@ -1485,7 +1485,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 				a2 = walkExpr(e.Args[2], ctx)
 			}
 			return &ir.MetaCallMake{
-				Pos:      e.Pos(),
+				Tpos:     e.Pos(),
 				Type:     typ,
 				TypeArg0: typeArg0,
 				Arg1:     a1,
@@ -1496,7 +1496,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			a1 := walkExpr(e.Args[1], nil)
 			typ := GetTypeOfExpr(a0)
 			return &ir.MetaCallAppend{
-				Pos:  e.Pos(),
+				Tpos: e.Pos(),
 				Type: typ,
 				Arg0: a0,
 				Arg1: a1,
@@ -1504,7 +1504,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		case universe.Panic:
 			a0 := walkExpr(e.Args[0], nil)
 			return &ir.MetaCallPanic{
-				Pos:  e.Pos(),
+				Tpos: e.Pos(),
 				Type: nil,
 				Arg0: a0,
 			}
@@ -1512,7 +1512,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			a0 := walkExpr(e.Args[0], nil)
 			a1 := walkExpr(e.Args[1], nil)
 			return &ir.MetaCallDelete{
-				Pos:  e.Pos(),
+				Tpos: e.Pos(),
 				Type: nil,
 				Arg0: a0,
 				Arg1: a1,
@@ -1640,7 +1640,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 
 func walkBasicLit(e *ast.BasicLit, ctx *ir.EvalContext) *ir.MetaBasicLit {
 	m := &ir.MetaBasicLit{
-		Pos:      e.Pos(),
+		Tpos:     e.Pos(),
 		Kind:     e.Kind.String(),
 		RawValue: e.Value,
 	}
@@ -1697,7 +1697,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		unexpectedKind(Kind(typ))
 	}
 	meta := &ir.MetaCompositLit{
-		Pos:  e.Pos(),
+		Tpos: e.Pos(),
 		Kind: knd,
 		Type: typ,
 	}
@@ -1716,7 +1716,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 			valueMeta := walkExpr(kvExpr.Value, ctx)
 			mc := CheckIfcConversion(kvExpr.Pos(), valueMeta, fieldType)
 			metaElm := &ir.MetaStructLiteralElement{
-				Pos:       kvExpr.Pos(),
+				Tpos:      kvExpr.Pos(),
 				Field:     field,
 				FieldType: fieldType,
 				Value:     mc,
@@ -1755,8 +1755,8 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 
 func walkUnaryExpr(e *ast.UnaryExpr, ctx *ir.EvalContext) *ir.MetaUnaryExpr {
 	meta := &ir.MetaUnaryExpr{
-		Pos: e.Pos(),
-		Op:  e.Op.String(),
+		Tpos: e.Pos(),
+		Op:   e.Op.String(),
 	}
 	meta.X = walkExpr(e.X, nil)
 	switch meta.Op {
@@ -1778,8 +1778,8 @@ func walkUnaryExpr(e *ast.UnaryExpr, ctx *ir.EvalContext) *ir.MetaUnaryExpr {
 
 func walkBinaryExpr(e *ast.BinaryExpr, ctx *ir.EvalContext) *ir.MetaBinaryExpr {
 	meta := &ir.MetaBinaryExpr{
-		Pos: e.Pos(),
-		Op:  e.Op.String(),
+		Tpos: e.Pos(),
+		Op:   e.Op.String(),
 	}
 	if isNilIdent(e.X) {
 		// Y should be typed
@@ -1813,7 +1813,7 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *ir.EvalContext) *ir.MetaBinaryExpr {
 
 func walkIndexExpr(e *ast.IndexExpr, ctx *ir.EvalContext) *ir.MetaIndexExpr {
 	meta := &ir.MetaIndexExpr{
-		Pos: e.Pos(),
+		Tpos: e.Pos(),
 	}
 	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	meta.X = walkExpr(e.X, nil)
@@ -1831,7 +1831,7 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *ir.EvalContext) *ir.MetaIndexExpr {
 
 func walkSliceExpr(e *ast.SliceExpr, ctx *ir.EvalContext) *ir.MetaSliceExpr {
 	meta := &ir.MetaSliceExpr{
-		Pos: e.Pos(),
+		Tpos: e.Pos(),
 	}
 
 	// For convenience, any of the indices may be omitted.
@@ -1873,7 +1873,7 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *ir.EvalContext) *ir.MetaSliceExpr {
 
 func walkStarExpr(e *ast.StarExpr, ctx *ir.EvalContext) *ir.MetaStarExpr {
 	meta := &ir.MetaStarExpr{
-		Pos: e.Pos(),
+		Tpos: e.Pos(),
 	}
 	meta.X = walkExpr(e.X, nil)
 	xType := GetTypeOfExpr(meta.X)
@@ -1884,7 +1884,7 @@ func walkStarExpr(e *ast.StarExpr, ctx *ir.EvalContext) *ir.MetaStarExpr {
 
 func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *ir.EvalContext) *ir.MetaTypeAssertExpr {
 	meta := &ir.MetaTypeAssertExpr{
-		Pos: e.Pos(),
+		Tpos: e.Pos(),
 	}
 	if ctx != nil && ctx.MaybeOK {
 		meta.NeedsOK = true
@@ -2020,45 +2020,45 @@ func Pos(node interface{}) token.Pos {
 		return n.Pos()
 	// IR
 	case *ir.MetaBasicLit:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaCompositLit:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaIdent:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaSelectorExpr:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaForeignFuncWrapper:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaConversionExpr:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaCallLen:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaCallCap:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaCallNew:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaCallMake:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaCallAppend:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaCallPanic:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaCallDelete:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaCallExpr:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaIndexExpr:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaSliceExpr:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaStarExpr:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaUnaryExpr:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaBinaryExpr:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaTypeAssertExpr:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaBlockStmt:
 		return n.Pos()
 	case *ir.MetaExprStmt:
@@ -2092,7 +2092,7 @@ func Pos(node interface{}) token.Pos {
 	case *ir.MetaGoStmt:
 		return n.Pos()
 	case *ir.IfcConversion:
-		return n.Pos
+		return n.Pos()
 	}
 
 	panic(fmt.Sprintf("Unknown type:%T", node))
@@ -2116,7 +2116,7 @@ func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) i
 	RegisterDtype(fromType, trgtType)
 
 	return &ir.IfcConversion{
-		Pos:   pos,
+		Tpos:  pos,
 		Value: expr,
 		Type:  trgtType,
 	}
@@ -2270,6 +2270,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			panic("const decl value should be literal:" + lhsIdent.Name)
 		}
 		cnst := &ir.Const{
+			Tpos:         lhsIdent.Pos(),
 			Name:         lhsIdent.Name,
 			IsGlobal:     true,
 			GlobalSymbol: CurrentPkg.Name + "." + lhsIdent.Name,

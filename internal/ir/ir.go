@@ -7,13 +7,13 @@ import (
 )
 
 type IfcConversion struct {
-	Pos   token.Pos
+	Tpos  token.Pos
 	Value MetaExpr
 	Type  *types.Type // Target Type
 }
 
 type MetaStructLiteralElement struct {
-	Pos       token.Pos
+	Tpos      token.Pos
 	Field     *ast.Field
 	FieldType *types.Type
 	Value     MetaExpr
@@ -192,10 +192,12 @@ func (s *MetaTypeSwitchStmt) Pos() token.Pos      { return s.Tpos }
 func (s *MetaTypeSwitchCaseClose) Pos() token.Pos { return s.Tpos }
 func (s *MetaGoStmt) Pos() token.Pos              { return s.Tpos }
 
-type MetaExpr interface{}
+type MetaExpr interface {
+	Pos() token.Pos
+}
 
 type MetaBasicLit struct {
-	Pos      token.Pos
+	Tpos     token.Pos
 	Type     *types.Type
 	Kind     string
 	RawValue string // for emitting .data data
@@ -205,7 +207,7 @@ type MetaBasicLit struct {
 }
 
 type MetaCompositLit struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type // type of the composite
 	Kind string      // "struct", "array", "slice" // @TODO "map"
 
@@ -219,7 +221,7 @@ type MetaCompositLit struct {
 }
 
 type MetaIdent struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type
 	Kind string // "blank|nil|true|false|var|con|fun|typ"
 	Name string
@@ -230,12 +232,12 @@ type MetaIdent struct {
 }
 
 type MetaForeignFuncWrapper struct {
-	Pos token.Pos
-	QI  QualifiedIdent
+	Tpos token.Pos
+	QI   QualifiedIdent
 }
 
 type MetaSelectorExpr struct {
-	Pos            token.Pos
+	Tpos           token.Pos
 	IsQI           bool
 	QI             QualifiedIdent
 	Type           *types.Type
@@ -252,7 +254,7 @@ type MetaSelectorExpr struct {
 
 // general funcall
 type MetaCallExpr struct {
-	Pos         token.Pos
+	Tpos        token.Pos
 	Type        *types.Type   // result type
 	Types       []*types.Type // result types when tuple
 	ParamTypes  []*types.Type // param types to accept
@@ -262,25 +264,25 @@ type MetaCallExpr struct {
 }
 
 type MetaCallLen struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type // result type
 	Arg0 MetaExpr
 }
 
 type MetaCallCap struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type // result type
 	Arg0 MetaExpr
 }
 
 type MetaCallNew struct {
-	Pos      token.Pos
+	Tpos     token.Pos
 	Type     *types.Type // result type
 	TypeArg0 *types.Type
 }
 
 type MetaCallMake struct {
-	Pos      token.Pos
+	Tpos     token.Pos
 	Type     *types.Type // result type
 	TypeArg0 *types.Type
 	Arg1     MetaExpr
@@ -288,33 +290,33 @@ type MetaCallMake struct {
 }
 
 type MetaCallAppend struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type // result type
 	Arg0 MetaExpr
 	Arg1 MetaExpr
 }
 
 type MetaCallPanic struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type // result type
 	Arg0 MetaExpr
 }
 
 type MetaCallDelete struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type // result type
 	Arg0 MetaExpr
 	Arg1 MetaExpr
 }
 
 type MetaConversionExpr struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type // To type
 	Arg0 MetaExpr
 }
 
 type MetaIndexExpr struct {
-	Pos     token.Pos
+	Tpos    token.Pos
 	IsMap   bool // mp[k]
 	NeedsOK bool // when map, is it ok syntax ?
 	Index   MetaExpr
@@ -323,7 +325,7 @@ type MetaIndexExpr struct {
 }
 
 type MetaSliceExpr struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type
 	Low  MetaExpr
 	High MetaExpr
@@ -331,18 +333,18 @@ type MetaSliceExpr struct {
 	X    MetaExpr
 }
 type MetaStarExpr struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type
 	X    MetaExpr
 }
 type MetaUnaryExpr struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	X    MetaExpr
 	Type *types.Type
 	Op   string
 }
 type MetaBinaryExpr struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Type *types.Type
 	Op   string
 	X    MetaExpr
@@ -350,11 +352,35 @@ type MetaBinaryExpr struct {
 }
 
 type MetaTypeAssertExpr struct {
-	Pos     token.Pos
+	Tpos    token.Pos
 	NeedsOK bool
 	X       MetaExpr
 	Type    *types.Type
 }
+
+func (e *MetaBasicLit) Pos() token.Pos             { return e.Tpos }
+func (e *MetaCompositLit) Pos() token.Pos          { return e.Tpos }
+func (e *MetaIdent) Pos() token.Pos                { return e.Tpos }
+func (e *MetaForeignFuncWrapper) Pos() token.Pos   { return e.Tpos }
+func (e *MetaSelectorExpr) Pos() token.Pos         { return e.Tpos }
+func (e *MetaCallExpr) Pos() token.Pos             { return e.Tpos }
+func (e *MetaCallLen) Pos() token.Pos              { return e.Tpos }
+func (e *MetaCallCap) Pos() token.Pos              { return e.Tpos }
+func (e *MetaCallNew) Pos() token.Pos              { return e.Tpos }
+func (e *MetaCallMake) Pos() token.Pos             { return e.Tpos }
+func (e *MetaCallAppend) Pos() token.Pos           { return e.Tpos }
+func (e *MetaCallPanic) Pos() token.Pos            { return e.Tpos }
+func (e *MetaCallDelete) Pos() token.Pos           { return e.Tpos }
+func (e *MetaConversionExpr) Pos() token.Pos       { return e.Tpos }
+func (e *MetaIndexExpr) Pos() token.Pos            { return e.Tpos }
+func (e *MetaSliceExpr) Pos() token.Pos            { return e.Tpos }
+func (e *MetaStarExpr) Pos() token.Pos             { return e.Tpos }
+func (e *MetaUnaryExpr) Pos() token.Pos            { return e.Tpos }
+func (e *MetaBinaryExpr) Pos() token.Pos           { return e.Tpos }
+func (e *MetaTypeAssertExpr) Pos() token.Pos       { return e.Tpos }
+func (e *IfcConversion) Pos() token.Pos            { return e.Tpos }
+func (e *MetaStructLiteralElement) Pos() token.Pos { return e.Tpos }
+func (e *Const) Pos() token.Pos                    { return e.Tpos }
 
 type Signature struct {
 	ParamTypes  []*types.Type
@@ -392,6 +418,7 @@ type Variable struct {
 }
 
 type Const struct {
+	Tpos         token.Pos
 	Name         string
 	IsGlobal     bool
 	GlobalSymbol string // "pkg.Foo"
