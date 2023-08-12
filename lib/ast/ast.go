@@ -277,11 +277,7 @@ type GoStmt struct {
 }
 
 func (s *DeclStmt) Pos() token.Pos { return s.Decl.Pos() }
-func (s *ExprStmt) Pos() token.Pos {
-	x := s.X
-	ps := x.Pos()
-	return ps
-}
+func (s *ExprStmt) Pos() token.Pos { return s.X.Pos() }
 
 func (s *IncDecStmt) Pos() token.Pos     { return s.X.Pos() }
 func (s *AssignStmt) Pos() token.Pos     { return s.Lhs[0].Pos() }
