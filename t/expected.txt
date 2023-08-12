@@ -1,4 +1,10 @@
-hello ifc method !
+testIfcMethod2
+expect MyFile:Write
+MyFile:Write
+MyFile:Close
+expect hello ifc method 2
+hello ifc method 2
+hello ifc method 3
 0xff == 255
 exec ok
 expected error.

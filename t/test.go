@@ -25,18 +25,48 @@ type WriteCloser interface {
 
 var ifc WriteCloser
 
+type MyFile struct {
+	i int
+}
+
+func (m *MyFile) Write(p []byte) (int, error) {
+	writeln("MyFile:Write")
+	return 0, nil
+}
+
+func (m *MyFile) Close() error {
+	writeln("MyFile:Close")
+	return nil
+}
+
+func testIfcMethod2() {
+	writeln("testIfcMethod2")
+	var m WriteCloser
+	m = &MyFile{i: 1}
+	writeln("expect MyFile:Write")
+	m.Write(nil)
+	m.Close()
+}
+
 func ifcm1() {
 	ifc = os.Stdout
 }
 
 func ifcm2() {
-	var msg = []uint8("hello ifc method !\n")
+	writeln("expect hello ifc method 2")
+	var msg = []uint8("hello ifc method 2\n")
 	ifc.Write(msg)
+}
+
+func ifcm3() {
+	var msg = []uint8("hello ifc method 3\n")
+	os.Stdout.Write(msg)
 }
 
 func testIfcMethod() {
 	ifcm1()
 	ifcm2()
+	ifcm3()
 }
 
 func testHexDigit() {
@@ -2486,6 +2516,7 @@ func testMisc() {
 }
 
 func main() {
+	testIfcMethod2()
 	testIfcMethod()
 	testHexDigit()
 	testOSExec()
