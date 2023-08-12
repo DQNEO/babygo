@@ -19,12 +19,7 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
-type WriteCloser interface {
-	Write(p []byte) (n int, err error)
-	Close() error
-}
-
-var ifc WriteCloser
+var ifc io.WriteCloser
 
 type MyFile struct {
 	i int
@@ -38,6 +33,11 @@ func (m *MyFile) Write(p []byte) (int, error) {
 func (m *MyFile) Close() error {
 	writeln("MyFile:Close")
 	return nil
+}
+
+type WriteCloser interface {
+	Write(p []byte) (n int, err error)
+	Close() error
 }
 
 func testIfcMethod2() {
