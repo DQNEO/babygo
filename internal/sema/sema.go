@@ -1183,63 +1183,39 @@ func walkGoStmt(s *ast.GoStmt) *ir.MetaGoStmt {
 
 func walkStmt(stmt ast.Stmt) ir.MetaStmt {
 	var mt ir.MetaStmt
+	assert(stmt.Pos() != 0, "stmt.Pos() should not be zero", __func__)
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkBlockStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.ExprStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkExprStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.DeclStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkDeclStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.AssignStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkAssignStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.IncDecStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkIncDecStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.ReturnStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkReturnStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.IfStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkIfStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.ForStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkForStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.RangeStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkRangeStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.BranchStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkBranchStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.SwitchStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkSwitchStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.TypeSwitchStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkTypeSwitchStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	case *ast.GoStmt:
-		assert(Pos(s) != 0, "s.Pos() should not be zero", __func__)
 		mt = walkGoStmt(s)
-		assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	default:
 		throw(stmt)
 	}
 
+	assert(Pos(mt) != 0, "mt.Pos() should not be zero", __func__)
 	assert(mt != nil, "meta should not be nil", __func__)
 	return mt
 }
