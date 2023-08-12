@@ -1,7 +1,6 @@
 package ast
 
 import (
-	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/token"
 )
 
@@ -160,15 +159,15 @@ func (x *CompositeLit) Pos() token.Pos {
 	return x.Lbrace
 }
 func (x *ParenExpr) Pos() token.Pos      { return x.Lparen }
-func (x *SelectorExpr) Pos() token.Pos   { return pos(x.X) }
-func (x *IndexExpr) Pos() token.Pos      { return pos(x.X) }
-func (x *SliceExpr) Pos() token.Pos      { return pos(x.X) }
-func (x *TypeAssertExpr) Pos() token.Pos { return pos(x.X) }
-func (x *CallExpr) Pos() token.Pos       { return pos(x.Fun) }
+func (x *SelectorExpr) Pos() token.Pos   { return x.X.Pos() }
+func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
+func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
+func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
+func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
 func (x *StarExpr) Pos() token.Pos       { return x.Star }
 func (x *UnaryExpr) Pos() token.Pos      { return x.OpPos }
-func (x *BinaryExpr) Pos() token.Pos     { return pos(x.X) }
-func (x *KeyValueExpr) Pos() token.Pos   { return pos(x.Key) }
+func (x *BinaryExpr) Pos() token.Pos     { return x.X.Pos() }
+func (x *KeyValueExpr) Pos() token.Pos   { return x.Key.Pos() }
 func (x *ArrayType) Pos() token.Pos      { return x.Lbrack }
 func (x *StructType) Pos() token.Pos     { return x.Struct }
 func (x *FuncType) Pos() token.Pos {
@@ -184,87 +183,6 @@ func (x *Field) Pos() token.Pos {
 
 func (x *InterfaceType) Pos() token.Pos { return x.Interface }
 func (x *MapType) Pos() token.Pos       { return x.Map }
-
-func pos(expr interface{}) token.Pos {
-	switch e := expr.(type) {
-	// Expr
-	case *Ident:
-		return e.Pos()
-	case *Ellipsis:
-		return e.Pos()
-	case *BasicLit:
-		return e.Pos()
-	case *CompositeLit:
-		return e.Pos()
-	case *ParenExpr:
-		return e.Pos()
-	case *SelectorExpr:
-		return e.Pos()
-	case *IndexExpr:
-		return e.Pos()
-	case *SliceExpr:
-		return e.Pos()
-	case *TypeAssertExpr:
-		return e.Pos()
-	case *CallExpr:
-		return e.Pos()
-	case *StarExpr:
-		return e.Pos()
-	case *UnaryExpr:
-		return e.Pos()
-	case *BinaryExpr:
-		return e.Pos()
-	case *KeyValueExpr:
-		return e.Pos()
-	case *ArrayType:
-		return e.Pos()
-	case *MapType:
-		return e.Pos()
-	case *StructType:
-		return e.Pos()
-	case *FuncType:
-		return e.Pos()
-	case *InterfaceType:
-		return e.Pos()
-
-	// Stmt
-	case *DeclStmt:
-		return e.Pos()
-	case *ExprStmt:
-		return e.Pos()
-	case *IncDecStmt:
-		return e.Pos()
-	case *AssignStmt:
-		return e.Pos()
-	case *GoStmt:
-		return e.Pos()
-	case *ReturnStmt:
-		return e.Pos()
-	case *BranchStmt:
-		return e.Pos()
-	case *BlockStmt:
-		return e.Pos()
-	case *IfStmt:
-		return e.Pos()
-	case *CaseClause:
-		return e.Pos()
-	case *SwitchStmt:
-		return e.Pos()
-	case *TypeSwitchStmt:
-		return e.Pos()
-	case *ForStmt:
-		return e.Pos()
-	case *RangeStmt:
-		return e.Pos()
-
-	// Decl
-	case *GenDecl:
-		return e.Pos()
-	case *FuncDecl:
-		return e.Pos()
-	}
-	panic(fmt.Sprintf("Unknown type:%T", expr))
-}
 
 type Stmt interface {
 	Pos() token.Pos
@@ -358,15 +276,15 @@ type GoStmt struct {
 	Call *CallExpr
 }
 
-func (s *DeclStmt) Pos() token.Pos { return pos(s.Decl) }
+func (s *DeclStmt) Pos() token.Pos { return s.Decl.Pos() }
 func (s *ExprStmt) Pos() token.Pos {
 	x := s.X
 	ps := x.Pos()
 	return ps
 }
 
-func (s *IncDecStmt) Pos() token.Pos     { return pos(s.X) }
-func (s *AssignStmt) Pos() token.Pos     { return pos(s.Lhs[0]) }
+func (s *IncDecStmt) Pos() token.Pos     { return s.X.Pos() }
+func (s *AssignStmt) Pos() token.Pos     { return s.Lhs[0].Pos() }
 func (s *GoStmt) Pos() token.Pos         { return s.Go }
 func (s *ReturnStmt) Pos() token.Pos     { return s.Return }
 func (s *BranchStmt) Pos() token.Pos     { return s.TokPos }
@@ -404,6 +322,7 @@ func (s *TypeSpec) Pos() token.Pos  { return s.Name.Pos() }
 // Pseudo interface for *ast.Decl
 // *GenDecl | *FuncDecl
 type Decl interface {
+	Pos() token.Pos
 }
 
 type Spec interface{}
