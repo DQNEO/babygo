@@ -2237,8 +2237,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	pkg.StringLiterals = nil
 	CurrentPkg = pkg
 
-	TypesMap = make(map[string]*DtypeEntry)
-	TypeId = 1
+	ITab = make(map[string]*ITabEntry)
+	ITabID = 1
 
 	var hasInitFunc bool
 	var typs []*types.Type
@@ -2760,10 +2760,10 @@ func GetConstRawValue(cnstExpr ir.MetaExpr) string {
 	}
 }
 
-var TypeId int
-var TypesMap map[string]*DtypeEntry
+var ITabID int
+var ITab map[string]*ITabEntry
 
-type DtypeEntry struct {
+type ITabEntry struct {
 	Id          int
 	DSerialized string
 	ISeralized  string
@@ -2777,31 +2777,43 @@ func RegisterDtype(dtype *types.Type, itype *types.Type) {
 	ds := SerializeType(dtype, true)
 	is := SerializeType(itype, true)
 	key := ds + "-" + is
-	_, ok := TypesMap[key]
+	_, ok := ITab[key]
 	if ok {
 		return
 	}
 
-	id := TypeId
-	e := &DtypeEntry{
+	id := ITabID
+	e := &ITabEntry{
 		Id:          id,
 		DSerialized: ds,
 		ISeralized:  is,
 		Itype:       itype,
 		Dtype:       dtype,
-		Label:       "." + "dtype_" + strconv.Itoa(id),
+		Label:       "." + "itab_" + strconv.Itoa(id),
 	}
-	TypesMap[key] = e
-	TypeId++
+	ITab[key] = e
+	ITabID++
 }
 
-func GetDtypeEntry(t *types.Type, it *types.Type) *DtypeEntry {
+func GetITabEntry(t *types.Type, it *types.Type) *ITabEntry {
 	ds := SerializeType(t, true)
 	is := SerializeType(it, true)
 	key := ds + "-" + is
-	ent, ok := TypesMap[key]
+	ent, ok := ITab[key]
 	if !ok {
 		panic("dtype is not set:" + key)
 	}
 	return ent
+}
+
+func GetInterfaceMethods(iType *types.Type) []*ast.Field {
+	ut := GetUnderlyingType(iType)
+	it, ok := ut.E.(*ast.InterfaceType)
+	if !ok {
+		panic("not interface type")
+	}
+	if it.Methods == nil {
+		return nil
+	}
+	return it.Methods.List
 }

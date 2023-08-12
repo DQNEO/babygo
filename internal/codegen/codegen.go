@@ -6,7 +6,6 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
-	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
@@ -547,22 +546,16 @@ func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) 
 			emitComment(2, "fv.IfcMethodCal\n")
 			printf("  movq %%r12, %%rax # eface.dtype\n")
 			printf("  addq $24, %%rax # addr(eface.dtype)  8*3 \n")
-			ut := sema.GetUnderlyingType(fv.IfcType)
-			astIfc, ok := ut.E.(*ast.InterfaceType)
-			if !ok {
-				panic("type should be an interface")
-
-			}
 
 			var methodId int
-
-			for i, m := range astIfc.Methods.List {
+			methods := sema.GetInterfaceMethods(fv.IfcType)
+			for i, m := range methods {
 				if m.Names[0].Name == fv.MethodName {
 					methodId = i
 				}
 			}
-			methodOffset := methodId
-			printf("  addq $%d, %%rax # addr(eface.dtype)  8 * methodId \n", methodOffset*8)
+			methodOffset := methodId * 8
+			printf("  addq $%d, %%rax # addr(eface.dtype)  8 * methodId \n", methodOffset)
 			printf("  movq (%%rax), %%rax # load method addr\n")
 			printf("  callq *%%rax\n")
 
@@ -1199,7 +1192,7 @@ func emitCompareDtypes() {
 }
 
 func emitDtypeLabelAddr(t *types.Type, it *types.Type) {
-	de := sema.GetDtypeEntry(t, it)
+	de := sema.GetITabEntry(t, it)
 	dtypeLabel := de.Label
 	sr := de.DSerialized
 	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, sr)
@@ -2156,29 +2149,29 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 		}
 	}
 
-	emitDynamicTypes(sema.TypesMap)
+	emitInterfaceTables(sema.ITab)
 	printf("\n")
 
 	Fout = nil
-	sema.TypesMap = nil
-	sema.TypeId = 0
+	sema.ITab = nil
+	sema.ITabID = 0
 }
 
-func emitDynamicTypes(mapDtypes map[string]*sema.DtypeEntry) {
-	printf("# ------- Dynamic Types (len = %d)------\n", len(mapDtypes))
+func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
+	printf("# ------- Dynamic Types (len = %d)------\n", len(itab))
 	printf(".data\n")
 
-	dtypes := make([]string, len(mapDtypes)+1, len(mapDtypes)+1)
+	entries := make([]string, len(itab)+1, len(itab)+1)
 
 	// sort map in order to assure the deterministic results
-	for key, ent := range mapDtypes {
-		dtypes[ent.Id] = key
+	for key, ent := range itab {
+		entries[ent.Id] = key
 	}
 
 	// skip id=0
-	for id := 1; id < len(dtypes); id++ {
-		key := dtypes[id]
-		ent := mapDtypes[key]
+	for id := 1; id < len(entries); id++ {
+		key := entries[id]
+		ent := itab[key]
 
 		printf(".string_dtype_%d:\n", id)
 		printf("  .string \"%s\"\n", ent.DSerialized)
@@ -2187,21 +2180,8 @@ func emitDynamicTypes(mapDtypes map[string]*sema.DtypeEntry) {
 		printf("  .quad .string_dtype_%d\n", id)
 		printf("  .quad %d\n", len(ent.DSerialized))
 
-		iType := ent.Itype
-		ut := sema.GetUnderlyingType(iType)
-
-		it, ok := ut.E.(*ast.InterfaceType)
-		if !ok {
-			panic("not interface type:" + ent.ISeralized)
-		}
-		if it.Methods == nil {
-			printf("  # no methods\n")
-			continue
-		}
-		if len(it.Methods.List) == 0 {
-			printf("  # zero methods\n")
-		}
-		for _, m := range it.Methods.List {
+		methods := sema.GetInterfaceMethods(ent.Itype)
+		for _, m := range methods {
 			dmethod := sema.LookupMethod(ent.Dtype, m.Names[0])
 			sym := sema.GetMethodSymbol(dmethod)
 			printf("  .quad %s # method %s\n", sym, m.Names[0].Name)
