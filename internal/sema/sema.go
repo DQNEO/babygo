@@ -1871,18 +1871,6 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *ir.EvalContext) *ir.MetaSliceExpr {
 	return meta
 }
 
-// [N]T(e)
-func walkArrayType(e *ast.ArrayType) {
-	// BasicLit in N should be walked
-	// e.g. A[5], A[len("foo")]
-	if e.Len != nil {
-		walkExpr(e.Len, nil)
-	}
-}
-func walkMapType(e *ast.MapType) {
-	// first argument of builtin func
-	// do nothing
-}
 func walkStarExpr(e *ast.StarExpr, ctx *ir.EvalContext) *ir.MetaStarExpr {
 	meta := &ir.MetaStarExpr{
 		Pos: e.Pos(),
@@ -1892,10 +1880,6 @@ func walkStarExpr(e *ast.StarExpr, ctx *ir.EvalContext) *ir.MetaStarExpr {
 	origType := xType.E.(*ast.StarExpr)
 	meta.Type = E2T(origType.X)
 	return meta
-}
-
-func walkInterfaceType(e *ast.InterfaceType) {
-	// interface{}(e)  conversion. Nothing to do.
 }
 
 func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *ir.EvalContext) *ir.MetaTypeAssertExpr {
