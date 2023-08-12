@@ -667,8 +667,8 @@ func LookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 func walkExprStmt(s *ast.ExprStmt) *ir.MetaExprStmt {
 	m := walkExpr(s.X, nil)
 	return &ir.MetaExprStmt{
-		X:   m,
-		Pos: s.Pos(),
+		X:    m,
+		Tpos: s.Pos(),
 	}
 }
 
@@ -707,12 +707,12 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 		SetVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
 		lhsMeta := WalkIdent(lhsIdent, nil)
 		single := &ir.MetaSingleAssign{
-			Pos: lhsIdent.Pos(),
-			Lhs: lhsMeta,
-			Rhs: rhsMeta,
+			Tpos: lhsIdent.Pos(),
+			Lhs:  lhsMeta,
+			Rhs:  rhsMeta,
 		}
 		return &ir.MetaVarDecl{
-			Pos:     lhsIdent.Pos(),
+			Tpos:    lhsIdent.Pos(),
 			Single:  single,
 			LhsType: t,
 		}
@@ -762,9 +762,9 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			mc := CheckIfcConversion(Pos(rhsMeta), rhsMeta, t)
 			//checkIfcConversion(mc)
 			return &ir.MetaSingleAssign{
-				Pos: pos,
-				Lhs: lhsMetas[0],
-				Rhs: mc,
+				Tpos: pos,
+				Lhs:  lhsMetas[0],
+				Rhs:  mc,
 			}
 		} else if len(s.Lhs) == len(s.Rhs) {
 			panic("TBI 3404")
@@ -782,7 +782,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 			return &ir.MetaTupleAssign{
-				Pos:      pos,
+				Tpos:     pos,
 				IsOK:     isOK,
 				Lhss:     lhsMetas,
 				Rhs:      rhsMeta,
@@ -807,9 +807,9 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			}
 
 			return &ir.MetaSingleAssign{
-				Pos: pos,
-				Lhs: lhsMetas[0],
-				Rhs: rhsMeta,
+				Tpos: pos,
+				Lhs:  lhsMetas[0],
+				Rhs:  rhsMeta,
 			}
 		} else if len(s.Lhs) == len(s.Rhs) {
 			panic("TBI 3447")
@@ -834,7 +834,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 			return &ir.MetaTupleAssign{
-				Pos:      pos,
+				Tpos:     pos,
 				IsOK:     isOK,
 				Lhss:     lhsMetas,
 				Rhs:      rhsMeta,
@@ -859,9 +859,9 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 		rhsMeta := walkExpr(binaryExpr, nil)
 		lhsMeta := walkExpr(s.Lhs[0], nil)
 		return &ir.MetaSingleAssign{
-			Pos: pos,
-			Lhs: lhsMeta,
-			Rhs: rhsMeta,
+			Tpos: pos,
+			Lhs:  lhsMeta,
+			Rhs:  rhsMeta,
 		}
 	default:
 		panic("TBI 3497 ")
@@ -888,7 +888,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 		results = append(results, mc)
 	}
 	return &ir.MetaReturnStmt{
-		Pos:     s.Pos(),
+		Tpos:    s.Pos(),
 		Fnc:     funcDef,
 		Results: results,
 	}
@@ -909,7 +909,7 @@ func walkIfStmt(s *ast.IfStmt) *ir.MetaIfStmt {
 		mElse = walkStmt(s.Else)
 	}
 	return &ir.MetaIfStmt{
-		Pos:  s.Pos(),
+		Tpos: s.Pos(),
 		Init: mInit,
 		Cond: condMeta,
 		Body: mtBlock,
@@ -919,7 +919,7 @@ func walkIfStmt(s *ast.IfStmt) *ir.MetaIfStmt {
 
 func walkBlockStmt(s *ast.BlockStmt) *ir.MetaBlockStmt {
 	mt := &ir.MetaBlockStmt{
-		Pos: s.Pos(),
+		Tpos: s.Pos(),
 	}
 	for _, stmt := range s.List {
 		meta := walkStmt(stmt)
@@ -930,7 +930,7 @@ func walkBlockStmt(s *ast.BlockStmt) *ir.MetaBlockStmt {
 
 func walkForStmt(s *ast.ForStmt) *ir.MetaForContainer {
 	meta := &ir.MetaForContainer{
-		Pos:     s.Pos(),
+		Tpos:    s.Pos(),
 		Outer:   currentFor,
 		ForStmt: &ir.MetaForForStmt{},
 	}
@@ -951,7 +951,7 @@ func walkForStmt(s *ast.ForStmt) *ir.MetaForContainer {
 }
 func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 	meta := &ir.MetaForContainer{
-		Pos:   s.Pos(),
+		Tpos:  s.Pos(),
 		Outer: currentFor,
 	}
 	currentFor = meta
@@ -964,7 +964,7 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 	switch Kind(collectionType) {
 	case types.T_SLICE, types.T_ARRAY:
 		meta.ForRangeStmt = &ir.MetaForRangeStmt{
-			Pos:      s.Pos(),
+			Tpos:     s.Pos(),
 			IsMap:    false,
 			LenVar:   registerLocalVariable(currentFunc, ".range.len", types.Int),
 			Indexvar: registerLocalVariable(currentFunc, ".range.index", types.Int),
@@ -972,7 +972,7 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 		}
 	case types.T_MAP:
 		meta.ForRangeStmt = &ir.MetaForRangeStmt{
-			Pos:     s.Pos(),
+			Tpos:    s.Pos(),
 			IsMap:   true,
 			MapVar:  registerLocalVariable(currentFunc, ".range.map", types.Uintptr),
 			ItemVar: registerLocalVariable(currentFunc, ".range.item", types.Uintptr),
@@ -1025,15 +1025,15 @@ func walkIncDecStmt(s *ast.IncDecStmt) *ir.MetaSingleAssign {
 	rhsMeta := walkExpr(newRhs, nil)
 	lhsMeta := walkExpr(s.X, nil)
 	return &ir.MetaSingleAssign{
-		Pos: s.Pos(),
-		Lhs: lhsMeta,
-		Rhs: rhsMeta,
+		Tpos: s.Pos(),
+		Lhs:  lhsMeta,
+		Rhs:  rhsMeta,
 	}
 }
 
 func walkSwitchStmt(s *ast.SwitchStmt) *ir.MetaSwitchStmt {
 	meta := &ir.MetaSwitchStmt{
-		Pos: s.Pos(),
+		Tpos: s.Pos(),
 	}
 	if s.Init != nil {
 		meta.Init = walkStmt(s.Init)
@@ -1054,7 +1054,7 @@ func walkSwitchStmt(s *ast.SwitchStmt) *ir.MetaSwitchStmt {
 
 func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 	typeSwitch := &ir.MetaTypeSwitchStmt{
-		Pos: e.Pos(),
+		Tpos: e.Pos(),
 	}
 	var assignIdent *ast.Ident
 
@@ -1079,7 +1079,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 	for _, _case := range e.Body.List {
 		cc := _case.(*ast.CaseClause)
 		tscc := &ir.MetaTypeSwitchCaseClose{
-			Pos: cc.Pos(),
+			Tpos: cc.Pos(),
 		}
 		cases = append(cases, tscc)
 
@@ -1148,7 +1148,7 @@ func walkCaseClause(s *ast.CaseClause) *ir.MetaCaseClause {
 		body = append(body, metaStmt)
 	}
 	return &ir.MetaCaseClause{
-		Pos:      s.Pos(),
+		Tpos:     s.Pos(),
 		ListMeta: listMeta,
 		Body:     body,
 	}
@@ -1167,7 +1167,7 @@ func walkBranchStmt(s *ast.BranchStmt) *ir.MetaBranchStmt {
 	}
 
 	return &ir.MetaBranchStmt{
-		Pos:              s.Pos(),
+		Tpos:             s.Pos(),
 		ContainerForStmt: currentFor,
 		ContinueOrBreak:  continueOrBreak,
 	}
@@ -1176,8 +1176,8 @@ func walkBranchStmt(s *ast.BranchStmt) *ir.MetaBranchStmt {
 func walkGoStmt(s *ast.GoStmt) *ir.MetaGoStmt {
 	fun := walkExpr(s.Call.Fun, nil)
 	return &ir.MetaGoStmt{
-		Pos: s.Pos(),
-		Fun: fun,
+		Tpos: s.Pos(),
+		Fun:  fun,
 	}
 }
 
@@ -2060,37 +2060,37 @@ func Pos(node interface{}) token.Pos {
 	case *ir.MetaTypeAssertExpr:
 		return n.Pos
 	case *ir.MetaBlockStmt:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaExprStmt:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaVarDecl:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaSingleAssign:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaTupleAssign:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaReturnStmt:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaIfStmt:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaForContainer:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaForForStmt:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaForRangeStmt:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaBranchStmt:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaSwitchStmt:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaCaseClause:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaTypeSwitchStmt:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaTypeSwitchCaseClose:
-		return n.Pos
+		return n.Pos()
 	case *ir.MetaGoStmt:
-		return n.Pos
+		return n.Pos()
 	case *ir.IfcConversion:
 		return n.Pos
 	}

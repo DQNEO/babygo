@@ -57,32 +57,34 @@ type NamedType struct {
 	MethodSet map[string]*Method
 }
 
-type MetaStmt interface{}
+type MetaStmt interface {
+	Pos() token.Pos
+}
 
 type MetaBlockStmt struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	List []MetaStmt
 }
 
 type MetaExprStmt struct {
-	Pos token.Pos
-	X   MetaExpr
+	Tpos token.Pos
+	X    MetaExpr
 }
 
 type MetaVarDecl struct {
-	Pos     token.Pos
+	Tpos    token.Pos
 	Single  *MetaSingleAssign
 	LhsType *types.Type
 }
 
 type MetaSingleAssign struct {
-	Pos token.Pos
-	Lhs MetaExpr
-	Rhs MetaExpr // can be nil
+	Tpos token.Pos
+	Lhs  MetaExpr
+	Rhs  MetaExpr // can be nil
 }
 
 type MetaTupleAssign struct {
-	Pos      token.Pos
+	Tpos     token.Pos
 	IsOK     bool // OK or funcall
 	Lhss     []MetaExpr
 	Rhs      MetaExpr
@@ -90,13 +92,13 @@ type MetaTupleAssign struct {
 }
 
 type MetaReturnStmt struct {
-	Pos     token.Pos
+	Tpos    token.Pos
 	Fnc     *Func
 	Results []MetaExpr
 }
 
 type MetaIfStmt struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Init MetaStmt
 	Cond MetaExpr
 	Body *MetaBlockStmt
@@ -104,7 +106,7 @@ type MetaIfStmt struct {
 }
 
 type MetaForContainer struct {
-	Pos       token.Pos
+	Tpos      token.Pos
 	LabelPost string // for continue
 	LabelExit string // for break
 	Outer     *MetaForContainer
@@ -115,14 +117,14 @@ type MetaForContainer struct {
 }
 
 type MetaForForStmt struct {
-	Pos  token.Pos
+	Tpos token.Pos
 	Init MetaStmt
 	Cond MetaExpr
 	Post MetaStmt
 }
 
 type MetaForRangeStmt struct {
-	Pos      token.Pos
+	Tpos     token.Pos
 	IsMap    bool
 	LenVar   *Variable
 	Indexvar *Variable
@@ -134,26 +136,26 @@ type MetaForRangeStmt struct {
 }
 
 type MetaBranchStmt struct {
-	Pos              token.Pos
+	Tpos             token.Pos
 	ContainerForStmt *MetaForContainer
 	ContinueOrBreak  int // 1: continue, 2:break
 }
 
 type MetaSwitchStmt struct {
-	Pos   token.Pos
+	Tpos  token.Pos
 	Init  MetaStmt
 	Cases []*MetaCaseClause
 	Tag   MetaExpr
 }
 
 type MetaCaseClause struct {
-	Pos      token.Pos
+	Tpos     token.Pos
 	ListMeta []MetaExpr
 	Body     []MetaStmt
 }
 
 type MetaTypeSwitchStmt struct {
-	Pos             token.Pos
+	Tpos            token.Pos
 	Subject         MetaExpr
 	SubjectVariable *Variable
 	AssignObj       *ast.Object
@@ -161,7 +163,7 @@ type MetaTypeSwitchStmt struct {
 }
 
 type MetaTypeSwitchCaseClose struct {
-	Pos      token.Pos
+	Tpos     token.Pos
 	Variable *Variable
 	//VariableType *Type
 	Types []*types.Type
@@ -169,9 +171,26 @@ type MetaTypeSwitchCaseClose struct {
 }
 
 type MetaGoStmt struct {
-	Pos token.Pos
-	Fun MetaExpr
+	Tpos token.Pos
+	Fun  MetaExpr
 }
+
+func (s *MetaBlockStmt) Pos() token.Pos           { return s.Tpos }
+func (s *MetaExprStmt) Pos() token.Pos            { return s.Tpos }
+func (s *MetaVarDecl) Pos() token.Pos             { return s.Tpos }
+func (s *MetaSingleAssign) Pos() token.Pos        { return s.Tpos }
+func (s *MetaTupleAssign) Pos() token.Pos         { return s.Tpos }
+func (s *MetaReturnStmt) Pos() token.Pos          { return s.Tpos }
+func (s *MetaIfStmt) Pos() token.Pos              { return s.Tpos }
+func (s *MetaForContainer) Pos() token.Pos        { return s.Tpos }
+func (s *MetaForForStmt) Pos() token.Pos          { return s.Tpos }
+func (s *MetaForRangeStmt) Pos() token.Pos        { return s.Tpos }
+func (s *MetaBranchStmt) Pos() token.Pos          { return s.Tpos }
+func (s *MetaSwitchStmt) Pos() token.Pos          { return s.Tpos }
+func (s *MetaCaseClause) Pos() token.Pos          { return s.Tpos }
+func (s *MetaTypeSwitchStmt) Pos() token.Pos      { return s.Tpos }
+func (s *MetaTypeSwitchCaseClose) Pos() token.Pos { return s.Tpos }
+func (s *MetaGoStmt) Pos() token.Pos              { return s.Tpos }
 
 type MetaExpr interface{}
 
