@@ -6,7 +6,6 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
-	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -453,10 +452,6 @@ func HasIfcMethod(t *types.Type) bool {
 		return false
 	}
 	if len(astIfc.Methods.List) > 0 {
-		util.Logf("HasIfcMethod: true\n")
-		for _, m := range astIfc.Methods.List {
-			util.Logf("  %s\n", m.Names[0].Name)
-		}
 		return true
 	}
 	return false
@@ -730,11 +725,6 @@ func IsOkSyntax(rhs ir.MetaExpr) bool {
 		return true
 	}
 	return false
-}
-
-func registerIfcConversion(lhsType *types.Type, rhsType *types.Type, pos token.Pos) {
-	util.Logf("@@@ CONVERSION " + SerializeType(rhsType, true) + " -> " + SerializeType(lhsType, true) + "\n")
-
 }
 
 func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
@@ -2183,11 +2173,6 @@ func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) i
 	fromType := GetTypeOfExpr(expr)
 	if IsInterface(fromType) {
 		return expr
-	}
-
-	if HasIfcMethod(trgtType) {
-		// create conversion table
-		registerIfcConversion(trgtType, GetTypeOfExpr(expr), pos)
 	}
 
 	RegisterDtype(fromType, trgtType)
