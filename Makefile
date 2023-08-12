@@ -18,39 +18,39 @@ $(tmp)/p:  src/*/* internal/*/* lib/*/*  $(tmp)
 	cp *.go pre/
 	cp -ar internal pre/
 	find pre -name '*.go' | xargs sed -e 's#github.com/DQNEO/babygo/lib/ast#go/ast#' -e 's#github.com/DQNEO/babygo/lib/token#go/token#' -e 's#github.com/DQNEO/babygo/lib/parser#go/parser#' -e 's#babygo/internal#babygo/pre/internal#g' -i
-	go build -o $@ ./pre
+	go build -x -o $@ ./pre
 
 # babygo 1gen compiler (a rich binary)
 $(tmp)/b: *.go lib/*/* src/*/* $(tmp)
-	go build -o $@ .
+	go build -x -o $@ .
 
 # babygo 2gen compiler (a thin binary) by p compiler
 $(tmp)/pb: $(tmp)/p *.go src/*/* lib/*/*
-	 WORKDIR=$@.d $< build -o $@ ./
+	 WORKDIR=$@.d $< build -x -o $@ ./
 
 # babygo 2gen compiler (a thin binary) by babygo 1gen compiler compiling babygo
 $(tmp)/bb: $(tmp)/b
-	 WORKDIR=$@.d $< build -o $@ ./
+	 WORKDIR=$@.d $< build -x -o $@ ./
 
 # babygo 3gen compiler (a thin binary) by babygo 2gen compiler compiling babygo
 $(tmp)/bbb: $(tmp)/bb
-	 WORKDIR=$@.d $< build -o $@ ./
+	 WORKDIR=$@.d $< build -x -o $@ ./
 
 # test binary made by p
 $(tmp)/pt: $(tmp)/p t/*.go src/*/* lib/*/*
-	 WORKDIR=$@.d $< build -o $@ ./t
+	 WORKDIR=$@.d $< build -x -o $@ ./t
 
 # test binary made by babygo 1 gen compiler
 $(tmp)/bt: $(tmp)/b t/*.go
-	 WORKDIR=$@.d $< build -o $@ ./t
+	 WORKDIR=$@.d $< build -x -o $@ ./t
 
 # test binary made by pb
 $(tmp)/pbt: $(tmp)/pb t/*.go
-	 WORKDIR=$@.d $< build -o $@ ./t
+	 WORKDIR=$@.d $< build -x -o $@ ./t
 
 # test binary made by bb
 $(tmp)/bbt: $(tmp)/bb t/*.go
-	 WORKDIR=$@.d $< build -o $@ ./t
+	 WORKDIR=$@.d $< build -x -o $@ ./t
 
 # make test expectations
 t/expected.txt: t/*.go lib/*/*
