@@ -483,7 +483,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 		offsets = append(offsets, totalParamSize)
 		var size int
 		if fv.IfcMethodCal && i == 0 {
-			size = sema.GetSizeOfType(types.Uintptr)
+			size = sema.GetSizeOfType(types.Uintptr) // @FIXME
 		} else {
 			size = sema.GetSizeOfType(paramType)
 		}
