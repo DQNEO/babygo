@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"reflect"
@@ -63,10 +64,17 @@ func ifcm3() {
 	os.Stdout.Write(msg)
 }
 
+func ifcm4() {
+	var msg = []uint8("hello io.Writer\n")
+	var w io.Writer = os.Stdout
+	w.Write(msg)
+}
+
 func testIfcMethod() {
 	ifcm1()
 	ifcm2()
 	ifcm3()
+	ifcm4()
 }
 
 func testHexDigit() {
