@@ -2669,7 +2669,16 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 	case *ast.Ellipsis: // x ...T
 		return "..." + SerializeType(E2T(e.Elt), showPkgPrefix)
 	case *ast.InterfaceType:
-		return "interface{}" // @TODO list methods
+		if e.Methods == nil {
+			return "interface{}"
+		}
+		r := "interface{ "
+		for _, m := range e.Methods.List {
+			name := m.Names[0].Name
+			r += name + "(); " // @TODO write types of params/results
+		}
+		r += " }"
+		return r
 	case *ast.MapType:
 		return "map[" + SerializeType(E2T(e.Key), showPkgPrefix) + "]" + SerializeType(E2T(e.Value), showPkgPrefix)
 	case *ast.SelectorExpr:
@@ -2780,7 +2789,7 @@ func RegisterDtype(dtype *types.Type, itype *types.Type) {
 		ISeralized:  is,
 		Itype:       itype,
 		Dtype:       dtype,
-		Label:       "." + "dtype." + strconv.Itoa(id),
+		Label:       "." + "dtype_" + strconv.Itoa(id),
 	}
 	TypesMap[key] = e
 	TypeId++

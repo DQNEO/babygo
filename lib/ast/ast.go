@@ -358,8 +358,13 @@ type GoStmt struct {
 	Call *CallExpr
 }
 
-func (s *DeclStmt) Pos() token.Pos       { return pos(s.Decl) }
-func (s *ExprStmt) Pos() token.Pos       { return pos(s.X) }
+func (s *DeclStmt) Pos() token.Pos { return pos(s.Decl) }
+func (s *ExprStmt) Pos() token.Pos {
+	x := s.X
+	ps := x.Pos()
+	return ps
+}
+
 func (s *IncDecStmt) Pos() token.Pos     { return pos(s.X) }
 func (s *AssignStmt) Pos() token.Pos     { return pos(s.Lhs[0]) }
 func (s *GoStmt) Pos() token.Pos         { return s.Go }

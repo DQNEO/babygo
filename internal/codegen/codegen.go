@@ -2180,14 +2180,13 @@ func emitDynamicTypes(mapDtypes map[string]*sema.DtypeEntry) {
 		key := dtypes[id]
 		ent := mapDtypes[key]
 
-		printf(".string.dtype.%d:\n", id)
+		printf(".string_dtype_%d:\n", id)
 		printf("  .string \"%s\"\n", ent.DSerialized)
 		printf("%s: # %s\n", ent.Label, key)
 		printf("  .quad %d\n", id)
-		printf("  .quad .string.dtype.%d\n", id)
+		printf("  .quad .string_dtype_%d\n", id)
 		printf("  .quad %d\n", len(ent.DSerialized))
 
-		//@TODO emit interface methods table
 		iType := ent.Itype
 		ut := sema.GetUnderlyingType(iType)
 
@@ -2196,7 +2195,11 @@ func emitDynamicTypes(mapDtypes map[string]*sema.DtypeEntry) {
 			panic("not interface type:" + ent.ISeralized)
 		}
 		if it.Methods == nil {
+			printf("  # no methods\n")
 			continue
+		}
+		if len(it.Methods.List) == 0 {
+			printf("  # zero methods\n")
 		}
 		for _, m := range it.Methods.List {
 			dmethod := sema.LookupMethod(ent.Dtype, m.Names[0])
