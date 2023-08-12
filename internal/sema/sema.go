@@ -1923,73 +1923,40 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *ir.EvalContext) *ir.MetaType
 //   - the expr is nil
 //   - the target type is interface and expr is not.
 func walkExpr(expr ast.Expr, ctx *ir.EvalContext) ir.MetaExpr {
+	assert(expr.Pos() != 0, "e.Pos() should not be zero", __func__)
 	switch e := expr.(type) {
 	case *ast.BasicLit:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkBasicLit(e, ctx)
 	case *ast.CompositeLit:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkCompositeLit(e, ctx)
 	case *ast.Ident:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return WalkIdent(e, ctx)
 	case *ast.SelectorExpr:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkSelectorExpr(e, ctx)
 	case *ast.CallExpr:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkCallExpr(e, ctx)
 	case *ast.IndexExpr:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkIndexExpr(e, ctx)
 	case *ast.SliceExpr:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkSliceExpr(e, ctx)
 	case *ast.StarExpr:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkStarExpr(e, ctx)
 	case *ast.UnaryExpr:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkUnaryExpr(e, ctx)
 	case *ast.BinaryExpr:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkBinaryExpr(e, ctx)
 	case *ast.TypeAssertExpr:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkTypeAssertExpr(e, ctx)
 	case *ast.ParenExpr:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return walkExpr(e.X, ctx)
-	case *ast.KeyValueExpr:
-		// MYSTRUCT{key:value}
-		// key is not an expression in struct literals.
-		// Actually struct case is handled in walkCompositeLit().
-		// In map, array or slice types, key can be an expression.
-		// // map
-		// expr := "hello"
-		// a := map[string]int{expr: 0}
-		// fmt.Println(a) // => map[hello:0]
-
-		//const key = 1
-		//s := []bool{key: true}
-		//fmt.Println(s) // => map[hello:0]
-
-		// const key = 1
-		// s := []bool{key: true} // => [false true]
-		panic("the compiler should no reach here")
-
 	// Each one below is not an expr but a type
 	case *ast.ArrayType: // type
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return nil
 	case *ast.MapType: // type
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return nil
 	case *ast.InterfaceType: // type
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return nil
 	case *ast.FuncType:
-		assert(Pos(e) != 0, "e.Pos() should not be zero", __func__)
 		return nil // @TODO walk
 	default:
 		panic(fmt.Sprintf("unknown type %T", expr))
