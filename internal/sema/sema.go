@@ -2659,8 +2659,8 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 		}
 		r := "interface{ "
 		for _, m := range e.Methods.List {
-			name := m.Names[0].Name
-			r += name + "(); " // @TODO write types of params/results
+			mdcl := RestoreMethodDecl(m)
+			r += mdcl + ";"
 		}
 		r += " }"
 		return r
@@ -2670,7 +2670,7 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 		qi := Selector2QI(e)
 		return string(qi)
 	case *ast.FuncType:
-		return "func()"
+		return "func()" // @FIXME
 	default:
 		panic(t)
 	}
@@ -2684,6 +2684,40 @@ func FuncTypeToSignature(funcType *ast.FuncType) *ir.Signature {
 		ParamTypes:  p,
 		ReturnTypes: r,
 	}
+}
+
+func RestoreMethodDecl(m *ast.Field) string {
+	var p string
+	var r string
+	name := m.Names[0].Name
+	funcType, ok := m.Type.(*ast.FuncType)
+	if !ok {
+		panic("[SerializeType] Invalid type")
+	}
+	if funcType.Params != nil && len(funcType.Params.List) > 0 {
+		for _, field := range funcType.Params.List {
+			//name := field.Names[0].Name
+			if p != "" {
+				p += ","
+			}
+			typ := E2T(field.Type)
+			p += SerializeType(typ, false)
+		}
+	}
+
+	if funcType.Results != nil && len(funcType.Results.List) > 0 {
+		for _, field := range funcType.Results.List {
+			//name := field.Names[0].Name
+			if r != "" {
+				r += ","
+			}
+			typ := E2T(field.Type)
+			r += SerializeType(typ, false)
+		}
+	}
+
+	decl := fmt.Sprintf("%s(%s) (%s)", name, p, r)
+	return decl
 }
 
 func RestoreFuncDecl(fnc *ir.Func) string {
