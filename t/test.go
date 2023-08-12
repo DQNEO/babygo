@@ -91,6 +91,13 @@ func testOSReturnError() {
 	}
 
 	writeln("expected error.")
+	errMsg0 := err.Error()
+	if errMsg0 == "open /no/exist/file: no such file or directory" {
+		writeln("OK")
+	} else {
+		writeln("NG")
+	}
+
 	perr, ok := err.(*os.PathError)
 	if !ok {
 		writeln("Not expected type")

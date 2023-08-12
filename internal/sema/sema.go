@@ -350,11 +350,6 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 		switch e.Obj {
 		case universe.Uintptr, universe.Int, universe.Int32, universe.String, universe.Uint8, universe.Uint16, universe.Bool:
 			return t
-		case universe.Error:
-			return E2T(&ast.InterfaceType{
-				Methods:   nil, //  @FIXME
-				Interface: 1,
-			})
 		}
 		if e.Obj.Decl == nil {
 			panic("e.Obj.Decl should not be nil: Obj.Name=" + e.Obj.Name)
@@ -634,9 +629,22 @@ func LookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 	switch typ := rcvType.(type) {
 	case *ast.Ident:
 		typeObj = typ.Obj
-		pkgName := typeObj.Data.(string)
-		namedTypeId = pkgName + "." + typ.Name
-		//util.Logf("[LookupMethod] ident: namedTypeId=%s\n", namedTypeId)
+		if typeObj == universe.Error {
+			namedTypeId = "error"
+			return &ir.Method{
+				PkgName: "",
+				RcvNamedType: &ast.Ident{
+					Name: "",
+				},
+				IsPtrMethod: false,
+				Name:        "error",
+				FuncType:    universe.ErrorMethodFuncType,
+			}
+		} else {
+			pkgName := typeObj.Data.(string)
+			namedTypeId = pkgName + "." + typ.Name
+			//util.Logf("[LookupMethod] ident: namedTypeId=%s\n", namedTypeId)
+		}
 	case *ast.SelectorExpr:
 		qi := Selector2QI(typ)
 		namedTypeId = string(qi)
@@ -1376,6 +1384,9 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 	default: // obj.method
 		method := LookupMethod(typeOfLeft, e.Sel)
 		funcType := method.FuncType
+		if funcType == nil {
+			panic("funcType should not be nil:" + method.Name)
+		}
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, false
 		}

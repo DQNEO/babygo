@@ -2181,6 +2181,9 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 		printf("  .quad %d\n", len(ent.DSerialized))
 
 		methods := sema.GetInterfaceMethods(ent.Itype)
+		if len(methods) == 0 {
+			printf("  # no methods for %s\n", sema.SerializeType(ent.Itype, true))
+		}
 		for _, m := range methods {
 			dmethod := sema.LookupMethod(ent.Dtype, m.Names[0])
 			sym := sema.GetMethodSymbol(dmethod)
