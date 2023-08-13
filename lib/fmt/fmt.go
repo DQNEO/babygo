@@ -8,7 +8,15 @@ import (
 	"github.com/DQNEO/babygo/lib/strconv"
 )
 
-func (p *printer) doPrintf(format string, a ...interface{}) {
+type pp struct {
+	buf []byte
+}
+
+func newPrinter() *pp {
+	return &pp{}
+}
+
+func (p *pp) doPrintf(format string, a ...interface{}) {
 	var r []uint8
 	var inPercent bool
 	var argIndex int
@@ -80,15 +88,7 @@ func (p *printer) doPrintf(format string, a ...interface{}) {
 	p.buf = r
 }
 
-type printer struct {
-	buf []byte
-}
-
-func newPrinter() *printer {
-	return &printer{}
-}
-
-func (p *printer) doPrint(a []interface{}) {
+func (p *pp) doPrint(a []interface{}) {
 	for _, i := range a {
 		s, ok := i.(string)
 		if !ok {
@@ -101,7 +101,7 @@ func (p *printer) doPrint(a []interface{}) {
 	}
 }
 
-func (p *printer) doPrintln(a []interface{}) {
+func (p *pp) doPrintln(a []interface{}) {
 	for _, i := range a {
 		s, ok := i.(string)
 		if !ok {
@@ -115,24 +115,8 @@ func (p *printer) doPrintln(a []interface{}) {
 	p.buf = append(p.buf, '\n')
 }
 
-func (p *printer) free() {
+func (p *pp) free() {
 	p.buf = nil
-}
-
-func Fprint(w io.Writer, a ...interface{}) (int, error) {
-	p := newPrinter()
-	p.doPrint(a)
-	n, err := w.Write(p.buf)
-	p.free()
-	return n, err
-}
-
-func Fprintln(w io.Writer, a ...interface{}) (int, error) {
-	p := newPrinter()
-	p.doPrintln(a)
-	n, err := w.Write(p.buf)
-	p.free()
-	return n, err
 }
 
 func Fprintf(w io.Writer, format string, a ...interface{}) (int, error) {
@@ -140,16 +124,6 @@ func Fprintf(w io.Writer, format string, a ...interface{}) (int, error) {
 	p.doPrintf(format, a...)
 	n, err := w.Write(p.buf)
 	p.free()
-	return n, err
-}
-
-func Print(a ...interface{}) (int, error) {
-	n, err := Fprint(os.Stdout, a...)
-	return n, err
-}
-
-func Println(a ...interface{}) (int, error) {
-	n, err := Fprintln(os.Stdout, a...)
 	return n, err
 }
 
@@ -164,4 +138,30 @@ func Sprintf(format string, a ...interface{}) string {
 	s := string(p.buf)
 	p.free()
 	return s
+}
+
+func Fprint(w io.Writer, a ...interface{}) (int, error) {
+	p := newPrinter()
+	p.doPrint(a)
+	n, err := w.Write(p.buf)
+	p.free()
+	return n, err
+}
+
+func Print(a ...interface{}) (int, error) {
+	n, err := Fprint(os.Stdout, a...)
+	return n, err
+}
+
+func Fprintln(w io.Writer, a ...interface{}) (int, error) {
+	p := newPrinter()
+	p.doPrintln(a)
+	n, err := w.Write(p.buf)
+	p.free()
+	return n, err
+}
+
+func Println(a ...interface{}) (int, error) {
+	n, err := Fprintln(os.Stdout, a...)
+	return n, err
 }
