@@ -88,8 +88,12 @@ func newPrinter() *printer {
 	return &printer{}
 }
 
-func (p *printer) doPrint(a []string) {
-	for _, s := range a {
+func (p *printer) doPrint(a []interface{}) {
+	for _, i := range a {
+		s, ok := i.(string)
+		if !ok {
+			panic("only string is supported")
+		}
 		bytes := []byte(s)
 		for _, b := range bytes {
 			p.buf = append(p.buf, b)
@@ -97,8 +101,12 @@ func (p *printer) doPrint(a []string) {
 	}
 }
 
-func (p *printer) doPrintln(a []string) {
-	for _, s := range a {
+func (p *printer) doPrintln(a []interface{}) {
+	for _, i := range a {
+		s, ok := i.(string)
+		if !ok {
+			panic("only string is supported")
+		}
 		bytes := []byte(s)
 		for _, b := range bytes {
 			p.buf = append(p.buf, b)
@@ -111,7 +119,7 @@ func (p *printer) free() {
 	p.buf = nil
 }
 
-func Fprint(w io.Writer, a ...string) (int, error) {
+func Fprint(w io.Writer, a ...interface{}) (int, error) {
 	p := newPrinter()
 	p.doPrint(a)
 	n, err := w.Write(p.buf)
@@ -119,7 +127,7 @@ func Fprint(w io.Writer, a ...string) (int, error) {
 	return n, err
 }
 
-func Fprintln(w io.Writer, a ...string) (int, error) {
+func Fprintln(w io.Writer, a ...interface{}) (int, error) {
 	p := newPrinter()
 	p.doPrintln(a)
 	n, err := w.Write(p.buf)
@@ -127,12 +135,12 @@ func Fprintln(w io.Writer, a ...string) (int, error) {
 	return n, err
 }
 
-func Print(a ...string) (int, error) {
+func Print(a ...interface{}) (int, error) {
 	n, err := Fprint(os.Stdout, a...)
 	return n, err
 }
 
-func Println(a ...string) (int, error) {
+func Println(a ...interface{}) (int, error) {
 	n, err := Fprintln(os.Stdout, a...)
 	return n, err
 }
