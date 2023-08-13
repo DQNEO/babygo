@@ -1,12 +1,12 @@
 package fmt
 
 import (
+	"io"
 	"os"
 	"reflect"
 
 	"github.com/DQNEO/babygo/lib/strconv"
 )
-import "syscall"
 
 func Sprintf(format string, a ...interface{}) string {
 	var r []uint8
@@ -85,11 +85,10 @@ func Sprintf(format string, a ...interface{}) string {
 }
 
 func Printf(format string, a ...interface{}) {
-	var s = Sprintf(format, a...)
-	syscall.Write(1, []uint8(s))
+	Fprintf(os.Stdout, format, a...)
 }
 
-func Fprintf(w *os.File, format string, a ...interface{}) {
+func Fprintf(w io.Writer, format string, a ...interface{}) {
 	var s = Sprintf(format, a...)
 	w.Write([]uint8(s))
 }
