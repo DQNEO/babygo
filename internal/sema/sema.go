@@ -244,6 +244,8 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 		return m.Type
 	case *ir.MetaIdent:
 		return m.Type
+	case *ir.Variable:
+		return m.Typ
 	case *ir.MetaSelectorExpr:
 		return m.Type
 	case *ir.MetaConversionExpr:
@@ -871,12 +873,38 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 
 func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 	funcDef := currentFunc
-	if len(funcDef.Retvars) != len(s.Results) {
-		panic("length of return and func type do not match")
+
+	if len(funcDef.Retvars) > 1 && len(s.Results) == 1 {
+		// Tuple assign:
+		// return f()
+		funcall, ok := s.Results[0].(*ast.CallExpr)
+		if !ok {
+			panic("syntax error in return statement")
+		}
+		m := walkExpr(funcall, nil)
+		tupleTypes := GetTupleTypes(m)
+		assert(len(funcDef.Retvars) == len(tupleTypes), "number of return exprs should match", __func__)
+		var lhss []ir.MetaExpr
+		for _, v := range funcDef.Retvars {
+			lhss = append(lhss, v)
+		}
+		//@TODO: CheckIfcConversion
+		ta := &ir.MetaTupleAssign{
+			Tpos:     s.Pos(),
+			IsOK:     false,
+			Lhss:     lhss,
+			Rhs:      m,
+			RhsTypes: tupleTypes,
+		}
+		return &ir.MetaReturnStmt{
+			Tpos:        s.Pos(),
+			IsTuple:     true,
+			TupleAssign: ta,
+		}
 	}
 
 	_len := len(funcDef.Retvars)
-	var results []ir.MetaExpr
+	var sas []*ir.MetaSingleAssign
 	for i := 0; i < _len; i++ {
 		expr := s.Results[i]
 		retTyp := funcDef.Retvars[i].Typ
@@ -885,12 +913,17 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 		}
 		m := walkExpr(expr, ctx)
 		mc := CheckIfcConversion(expr.Pos(), m, retTyp)
-		results = append(results, mc)
+		as := &ir.MetaSingleAssign{
+			Tpos: s.Pos(),
+			Lhs:  funcDef.Retvars[i],
+			Rhs:  mc,
+		}
+		sas = append(sas, as)
 	}
 	return &ir.MetaReturnStmt{
-		Tpos:    s.Pos(),
-		Fnc:     funcDef,
-		Results: results,
+		Tpos:              s.Pos(),
+		IsTuple:           false,
+		SingleAssignments: sas,
 	}
 }
 

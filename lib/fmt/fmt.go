@@ -130,8 +130,7 @@ func Fprintf(w io.Writer, format string, a ...interface{}) (int, error) {
 }
 
 func Printf(format string, a ...interface{}) (int, error) {
-	n, err := Fprintf(os.Stdout, format, a...)
-	return n, err
+	return Fprintf(os.Stdout, format, a...)
 }
 
 func Sprintf(format string, a ...interface{}) string {
@@ -151,8 +150,7 @@ func Fprint(w io.Writer, a ...interface{}) (int, error) {
 }
 
 func Print(a ...interface{}) (int, error) {
-	n, err := Fprint(os.Stdout, a...)
-	return n, err
+	return Fprint(os.Stdout, a...)
 }
 
 func Fprintln(w io.Writer, a ...interface{}) (int, error) {
@@ -164,6 +162,5 @@ func Fprintln(w io.Writer, a ...interface{}) (int, error) {
 }
 
 func Println(a ...interface{}) (int, error) {
-	n, err := Fprintln(os.Stdout, a...)
-	return n, err
+	return Fprintln(os.Stdout, a...)
 }

@@ -92,9 +92,10 @@ type MetaTupleAssign struct {
 }
 
 type MetaReturnStmt struct {
-	Tpos    token.Pos
-	Fnc     *Func
-	Results []MetaExpr
+	Tpos              token.Pos
+	IsTuple           bool
+	SingleAssignments []*MetaSingleAssign
+	TupleAssign       *MetaTupleAssign
 }
 
 type MetaIfStmt struct {
@@ -380,6 +381,7 @@ func (e *MetaBinaryExpr) Pos() token.Pos           { return e.Tpos }
 func (e *MetaTypeAssertExpr) Pos() token.Pos       { return e.Tpos }
 func (e *IfcConversion) Pos() token.Pos            { return e.Tpos }
 func (e *MetaStructLiteralElement) Pos() token.Pos { return e.Tpos }
+func (e *Variable) Pos() token.Pos                 { return e.Tpos }
 func (e *Const) Pos() token.Pos                    { return e.Tpos }
 
 type Signature struct {
@@ -409,7 +411,9 @@ type Method struct {
 	Name         string
 	FuncType     *ast.FuncType
 }
+
 type Variable struct {
+	Tpos         token.Pos
 	Name         string
 	IsGlobal     bool
 	GlobalSymbol string

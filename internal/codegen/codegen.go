@@ -213,6 +213,8 @@ func emitListHeadAddr(list ir.MetaExpr) {
 func emitAddr(meta ir.MetaExpr) {
 	emitComment(2, "[emitAddr] %T\n", meta)
 	switch m := meta.(type) {
+	case *ir.Variable:
+		emitVariableAddr(m)
 	case *ir.MetaIdent:
 		switch m.Kind {
 		case "var":
@@ -575,15 +577,14 @@ func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) 
 
 // callee
 func emitReturnStmt(meta *ir.MetaReturnStmt) {
-	funcDef := meta.Fnc
-	if len(funcDef.Retvars) != len(meta.Results) {
-		panic("length of return and func type do not match")
+	if meta.IsTuple {
+		emitFuncallAssignment(meta.TupleAssign)
+	} else {
+		for _, sa := range meta.SingleAssignments {
+			emitSingleAssign(sa)
+		}
 	}
 
-	_len := len(meta.Results)
-	for i := 0; i < _len; i++ {
-		emitAssignToVar(funcDef.Retvars[i], meta.Results[i])
-	}
 	printf("  leave\n")
 	printf("  ret\n")
 }
@@ -1369,7 +1370,11 @@ func emitAssignZeroValue(lhs ir.MetaExpr, lhsType *types.Type) {
 
 }
 
-func emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
+func emitSingleAssign(a *ir.MetaSingleAssign) {
+	_emitSingleAssign(a.Lhs, a.Rhs)
+}
+
+func _emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 	//	lhs := metaSingle.lhs
 	//	rhs := metaSingle.rhs
 	if sema.IsBlankIdentifierMeta(lhs) {
@@ -1404,7 +1409,7 @@ func emitDeclStmt(meta *ir.MetaVarDecl) {
 		// Assign zero value to LHS
 		emitAssignZeroValue(meta.Single.Lhs, meta.LhsType)
 	} else {
-		emitSingleAssign(meta.Single.Lhs, meta.Single.Rhs)
+		emitSingleAssign(meta.Single)
 	}
 }
 
@@ -1918,7 +1923,7 @@ func emitStmt(meta ir.MetaStmt) {
 	case *ir.MetaVarDecl:
 		emitDeclStmt(m)
 	case *ir.MetaSingleAssign:
-		emitSingleAssign(m.Lhs, m.Rhs)
+		emitSingleAssign(m)
 	case *ir.MetaTupleAssign:
 		if m.IsOK {
 			emitOkAssignment(m)
@@ -2138,7 +2143,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 		switch typeKind {
 		case types.T_POINTER, types.T_MAP, types.T_INTERFACE:
 			printf("  # init global %s:\n", vr.Name.Name)
-			emitSingleAssign(vr.MetaVar, vr.MetaVal)
+			_emitSingleAssign(vr.MetaVar, vr.MetaVal)
 		}
 	}
 	printf("  ret\n")
