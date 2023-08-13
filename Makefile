@@ -18,11 +18,11 @@ $(tmp)/p:  src/*/* internal/*/* lib/*/*  $(tmp)
 	cp *.go pre/
 	cp -ar internal pre/
 	find pre -name '*.go' | xargs sed -e 's#github.com/DQNEO/babygo/lib/ast#go/ast#' -e 's#github.com/DQNEO/babygo/lib/token#go/token#' -e 's#github.com/DQNEO/babygo/lib/parser#go/parser#' -e 's#babygo/internal#babygo/pre/internal#g' -i
-	go build -x -o $@ ./pre
+	go build -o $@ ./pre
 
 # babygo 1gen compiler (a rich binary)
 $(tmp)/b: *.go lib/*/* src/*/* $(tmp)
-	go build -x -o $@ .
+	go build -o $@ .
 
 # babygo 2gen compiler (a thin binary) by p compiler
 $(tmp)/pb: $(tmp)/p *.go src/*/* lib/*/*
