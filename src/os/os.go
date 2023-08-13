@@ -143,7 +143,7 @@ func (f *File) Write(p []byte) (int, error) {
 		e := &PathError{Err: "Write failed"} // @TODO use appropriate error type
 		return 0, e
 	}
-	return 0, nil
+	return n, nil
 }
 
 func ReadFile(filename string) ([]uint8, error) {

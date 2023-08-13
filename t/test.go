@@ -20,7 +20,11 @@ import (
 )
 
 func testFmtPrint() {
-	fmt.Print("I am fmt.Print\n")
+	n, err := fmt.Print("I am fmt.Print\n") // n=15
+	if err != nil {
+		panic("fmt.Print failed")
+	}
+	fmt.Printf("bytes written=%d\n", n)
 	fmt.Println("I am fmt.Println")
 }
 
