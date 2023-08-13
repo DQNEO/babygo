@@ -1,3 +1,5 @@
+I am fmt.Print
+I am fmt.Println
 testIfcMethod2
 expect MyFile:Write
 MyFile:Write

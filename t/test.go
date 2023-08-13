@@ -19,6 +19,11 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func testFmtPrint() {
+	fmt.Print("I am fmt.Print\n")
+	fmt.Println("I am fmt.Println")
+}
+
 var ifc io.WriteCloser
 
 type MyFile struct {
@@ -2531,6 +2536,7 @@ func testMisc() {
 }
 
 func main() {
+	testFmtPrint()
 	testIfcMethod2()
 	testIfcMethod()
 	testHexDigit()

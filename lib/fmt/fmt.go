@@ -80,6 +80,25 @@ func Sprintf(format string, a ...interface{}) string {
 	return string(r)
 }
 
+func Fprint(w io.Writer, a string) {
+	b := []byte(a)
+	w.Write(b)
+}
+
+func Fprintln(w io.Writer, a string) {
+	b := []byte(a)
+	b = append(b, '\n')
+	w.Write(b)
+}
+
+func Print(a string) {
+	Fprint(os.Stdout, a)
+}
+
+func Println(a string) {
+	Fprintln(os.Stdout, a)
+}
+
 func Printf(format string, a ...interface{}) {
 	Fprintf(os.Stdout, format, a...)
 }
