@@ -13,12 +13,8 @@ func Sprintf(format string, a ...interface{}) string {
 	var inPercent bool
 	var argIndex int
 
-	//syscall.Write(1, []uint8("# @@@ Sprintf start. format=" + format + "\n"))
-
 	for _, c := range []uint8(format) {
-		//syscall.Write(1, []uint8{c})
 		if inPercent {
-			//syscall.Write(1, []uint8("@inPercent@"))
 			if c == '%' { // "%%"
 				r = append(r, '%')
 			} else {
