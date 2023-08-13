@@ -1416,9 +1416,9 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8
 
 	text, err := readSource(filename)
 	if err != nil {
-		msg := err.(*os.PathError).Error()
-		newErr := &ParserError{msg: msg}
-		return nil, newErr
+		msg := err.Error()
+		e := &ParserError{msg: msg}
+		return nil, e
 	}
 	var p = &parser{}
 	packagePos := token.Pos(fset.Base)
