@@ -554,8 +554,8 @@ func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) 
 					methodId = i
 				}
 			}
-			methodOffset := methodId * 8
-			printf("  addq $%d, %%rax # addr(eface.dtype)  8 * methodId \n", methodOffset)
+			methodOffset := methodId*8*3 + 16
+			printf("  addq $%d, %%rax # addr(eface.dtype)\n", methodOffset)
 			printf("  movq (%%rax), %%rax # load method addr\n")
 			printf("  callq *%%rax\n")
 
@@ -2184,10 +2184,18 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 		if len(methods) == 0 {
 			printf("  # no methods for %s\n", sema.SerializeType(ent.Itype, true))
 		}
-		for _, m := range methods {
+		for mi, m := range methods {
 			dmethod := sema.LookupMethod(ent.Dtype, m.Names[0])
 			sym := sema.GetMethodSymbol(dmethod)
-			printf("  .quad %s # method %s\n", sym, m.Names[0].Name)
+			printf("  .quad .method_name_%d_%d # %s \n", id, mi, m.Names[0].Name)
+			printf("  .quad %d # method name len\n", len(m.Names[0].Name))
+			printf("  .quad %s # method ref %s\n", sym, m.Names[0].Name)
+		}
+		printf("  .quad 0 # End of methods\n")
+
+		for mi, m := range methods {
+			printf(".method_name_%d_%d:\n", id, mi)
+			printf("  .string \"%s\"\n", m.Names[0].Name)
 		}
 	}
 	printf("\n")

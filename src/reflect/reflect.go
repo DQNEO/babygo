@@ -7,12 +7,17 @@ type Type struct {
 }
 
 type iface struct {
-	typ        *rtype         // dynamic type
-	data       unsafe.Pointer // pointer to the actual data of the dynamic type
-	methodRef1 unsafe.Pointer // a pointer to a method def e.g. os.$File.Write
-	methodRef2 unsafe.Pointer
-	methodRef3 unsafe.Pointer
-	// methodRef4 ...
+	typ         *rtype         // dynamic type
+	data        unsafe.Pointer // pointer to the actual data of the dynamic type
+	methodName1 string
+	methodRef1  unsafe.Pointer // a pointer to a method def e.g. os.$File.Write
+	methodName2 string
+	methodRef2  unsafe.Pointer
+	// methodName3
+	// methodRef3
+	// ...
+	// ...
+	NullPointer uintptr // always 0
 }
 
 type rtype struct {
