@@ -1416,8 +1416,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint8
 
 	text, err := readSource(filename)
 	if err != nil {
-		msg := err.Error()
-		e := &ParserError{msg: msg}
+		e := &ParserError{err: err}
 		return nil, e
 	}
 	var p = &parser{}
@@ -1438,9 +1437,9 @@ func (p *parser) panic(caller string, x string) {
 }
 
 type ParserError struct {
-	msg string
+	err error
 }
 
 func (err *ParserError) Error() string {
-	return err.msg
+	return err.Error()
 }
