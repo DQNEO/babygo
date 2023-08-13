@@ -623,17 +623,17 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 	switch sema.Kind(typeArg) {
 	case types.T_MAP:
 		mapValueType := sema.GetElementTypeOfCollectionType(typeArg)
-		valueSize := sema.NewNumberLiteral(sema.GetSizeOfType(mapValueType))
+		valueSize := sema.NewNumberLiteral(sema.GetSizeOfType(mapValueType), m.Pos())
 		// A new, empty map value is made using the built-in function make,
 		// which takes the map type and an optional capacity hint as arguments:
-		length := sema.NewNumberLiteral(0)
+		length := sema.NewNumberLiteral(0, m.Pos())
 		emitCallDirect("runtime.makeMap", []ir.MetaExpr{length, valueSize}, ir.RuntimeMakeMapSignature)
 		return
 	case types.T_SLICE:
 		// make([]T, ...)
 		elmType := sema.GetElementTypeOfCollectionType(typeArg)
 		elmSize := sema.GetSizeOfType(elmType)
-		numlit := sema.NewNumberLiteral(elmSize)
+		numlit := sema.NewNumberLiteral(elmSize, m.Pos())
 		args := []ir.MetaExpr{numlit, m.Arg1, m.Arg2}
 		emitCallDirect("runtime.makeSlice", args, ir.RuntimeMakeSliceSignature)
 		return

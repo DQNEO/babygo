@@ -202,9 +202,9 @@ func IsNil(meta ir.MetaExpr) bool {
 	return isUniverseNil(m)
 }
 
-func NewNumberLiteral(x int) *ir.MetaBasicLit {
+func NewNumberLiteral(x int, pos token.Pos) *ir.MetaBasicLit {
 	return &ir.MetaBasicLit{
-		Tpos:   1,
+		Tpos:   pos,
 		Type:   types.Int,
 		Kind:   "INT",
 		IntVal: x,
