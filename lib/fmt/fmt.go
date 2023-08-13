@@ -8,8 +8,10 @@ import (
 	"github.com/DQNEO/babygo/lib/strconv"
 )
 
+type buffer []byte
+
 type pp struct {
-	buf []byte
+	buf buffer
 }
 
 func newPrinter() *pp {
