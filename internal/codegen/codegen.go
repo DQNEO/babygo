@@ -1350,16 +1350,6 @@ func emitRegiToMem(t *types.Type) {
 	}
 }
 
-func emitAssignToVar(vr *ir.Variable, rhs ir.MetaExpr) {
-	emitComment(2, "Assignment: emitVariableAddr(lhs)\n")
-	emitVariableAddr(vr)
-	emitComment(2, "Assignment: emitExpr(rhs)\n")
-
-	emitExpr(rhs)
-	emitComment(2, "Assignment: emitStore(typeof(lhs))\n")
-	emitStore(vr.Type, true, false)
-}
-
 func emitAssignZeroValue(lhs ir.MetaExpr, lhsType *types.Type) {
 	emitComment(2, "emitAssignZeroValue\n")
 	emitComment(2, "lhs addresss\n")
@@ -1535,8 +1525,8 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 
 	emitComment(2, "ForRangeStmt map Initialization\n")
 
-	// _mp = EXPR
-	emitAssignToVar(meta.ForRangeStmt.MapVar, meta.ForRangeStmt.X)
+	// _mp = EXPRs
+	_emitSingleAssign(meta.ForRangeStmt.MapVar, meta.ForRangeStmt.X)
 
 	//  if _mp == nil then exit
 	emitVariable(meta.ForRangeStmt.MapVar) // value of _mp
