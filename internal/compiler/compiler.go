@@ -141,7 +141,10 @@ func Compile(universe *ast.Scope, fset *token.FileSet, pkgc *PackageToCompile, o
 	sema.Clear()
 
 	// Do assembling
-	exec.Command("/usr/bin/as", "-o", outObjPath, outAsmPath).Run()
+	out, err := exec.Command("/usr/bin/as", "-o", outObjPath, outAsmPath).CombinedOutput()
+	if err != nil {
+		panic(string(out))
+	}
 	return apkg
 }
 

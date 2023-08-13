@@ -65,9 +65,9 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 		if verbose {
 			util.Logf("%s\n", self+" compile -o "+outputBaseName+" "+pp)
 		}
-		err = exec.Command(self, "compile", "-o", outputBaseName, pp).Run()
+		out, err := exec.Command(self, "compile", "-o", outputBaseName, pp).CombinedOutput()
 		if err != nil {
-			panic("compile failed: " + self + " compile " + " -o " + outputBaseName + " " + pp)
+			panic(string(out))
 		}
 		outObjPath := outputBaseName + ".o"
 		oFiles = append(oFiles, outObjPath)
@@ -103,16 +103,13 @@ func (b *Builder) Build(self string, workdir string, outFilePath string, pkgPath
 
 	// Assemble INIT
 	initOFile := workdir + "/" + "__INIT__.o"
-	err = exec.Command("/usr/bin/as", "-o", initOFile, initAsmFile).Run()
+	out, err := exec.Command("/usr/bin/as", "-o", initOFile, initAsmFile).CombinedOutput()
 	if err != nil {
-		panic("assembling init  failed: " + initAsmFile)
+		panic(string(out))
 	}
 	oFiles = append(oFiles, initOFile)
-	err = b.Link(outFilePath, oFiles, verbose)
-	if err != nil {
-		panic("link error")
-	}
-	//fmt.Printf("%s\n", outFilePath)
+	b.Link(outFilePath, oFiles, verbose)
+
 	return nil
 }
 
@@ -400,7 +397,7 @@ func (b *Builder) BuildOne(workdir string, outputBaseName string, pkgPath string
 
 }
 
-func (b *Builder) Link(outFilePath string, objFileNames []string, verbose bool) error {
+func (b *Builder) Link(outFilePath string, objFileNames []string, verbose bool) {
 	var args []string = []string{"-o", outFilePath}
 	for _, f := range objFileNames {
 		args = append(args, f)
@@ -408,8 +405,10 @@ func (b *Builder) Link(outFilePath string, objFileNames []string, verbose bool) 
 	if verbose {
 		util.Logf("/usr/bin/ld " + args[0] + " " + args[1] + " " + args[2] + "...\n")
 	}
-	err := exec.Command("/usr/bin/ld", args...).Run()
-	return err
+	out, err := exec.Command("/usr/bin/ld", args...).CombinedOutput()
+	if err != nil {
+		panic(string(out))
+	}
 }
 
 func normalizeImportPath(importPath string) string {

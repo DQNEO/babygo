@@ -27,6 +27,12 @@ func (err *ExitError) Error() string {
 	return "[ExitError] Command failed"
 }
 
+func (c *Cmd) CombinedOutput() ([]byte, error) {
+	err := c.Run()
+	var buf = []byte("<NONE>")
+	return buf, err
+}
+
 func (c *Cmd) Run() error {
 	err := c.Start()
 	if err != nil {
