@@ -172,7 +172,7 @@ func emitLoadAndPush(t *types.Type) {
 
 func emitVariable(variable *ir.Variable) {
 	emitVariableAddr(variable)
-	emitLoadAndPush(variable.Typ)
+	emitLoadAndPush(variable.Type)
 }
 
 func emitFuncAddr(funcQI ir.QualifiedIdent) {
@@ -1357,7 +1357,7 @@ func emitAssignToVar(vr *ir.Variable, rhs ir.MetaExpr) {
 
 	emitExpr(rhs)
 	emitComment(2, "Assignment: emitStore(typeof(lhs))\n")
-	emitStore(vr.Typ, true, false)
+	emitStore(vr.Type, true, false)
 }
 
 func emitAssignZeroValue(lhs ir.MetaExpr, lhsType *types.Type) {
@@ -1867,10 +1867,10 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 				printf("  popq %%rax # ifc.dtype\n")
 				printf("  popq %%rcx # ifc.data\n")
 				printf("  pushq %%rcx # ifc.data\n")
-				emitLoadAndPush(c.Variable.Typ)
+				emitLoadAndPush(c.Variable.Type)
 
 				// assign
-				emitStore(c.Variable.Typ, true, false)
+				emitStore(c.Variable.Type, true, false)
 			}
 		}
 

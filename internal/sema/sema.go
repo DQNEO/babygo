@@ -245,7 +245,7 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 	case *ir.MetaIdent:
 		return m.Type
 	case *ir.Variable:
-		return m.Typ
+		return m.Type
 	case *ir.MetaSelectorExpr:
 		return m.Type
 	case *ir.MetaConversionExpr:
@@ -553,7 +553,7 @@ func newGlobalVariable(pkgName string, name string, t *types.Type) *ir.Variable 
 		Name:         name,
 		IsGlobal:     true,
 		GlobalSymbol: pkgName + "." + name,
-		Typ:          t,
+		Type:         t,
 	}
 }
 
@@ -562,7 +562,7 @@ func newLocalVariable(name string, localoffset int, t *types.Type) *ir.Variable 
 		Name:        name,
 		IsGlobal:    false,
 		LocalOffset: localoffset,
-		Typ:         t,
+		Type:        t,
 	}
 }
 
@@ -907,7 +907,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 	var sas []*ir.MetaSingleAssign
 	for i := 0; i < _len; i++ {
 		expr := s.Results[i]
-		retTyp := funcDef.Retvars[i].Typ
+		retTyp := funcDef.Retvars[i].Type
 		ctx := &ir.EvalContext{
 			Type: retTyp,
 		}
@@ -1296,7 +1296,7 @@ func WalkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
 				panic("ident.Obj.Data should not be nil: name=" + meta.Name)
 			}
 			meta.Variable = e.Obj.Data.(*ir.Variable)
-			meta.Type = meta.Variable.Typ
+			meta.Type = meta.Variable.Type
 		case ast.Con:
 			meta.Kind = "con"
 			if e.Obj.Data == nil {

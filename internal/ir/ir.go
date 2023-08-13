@@ -418,7 +418,7 @@ type Variable struct {
 	IsGlobal     bool
 	GlobalSymbol string
 	LocalOffset  int
-	Typ          *types.Type
+	Type         *types.Type
 }
 
 type Const struct {
