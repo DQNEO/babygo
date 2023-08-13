@@ -1,6 +1,8 @@
 I am fmt.Print
 bytes written=15
 I am fmt.Println
+Printfoobarpiyo
+Printfoobarpiyo
 testIfcMethod2
 expect MyFile:Write
 MyFile:Write

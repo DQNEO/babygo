@@ -80,26 +80,41 @@ func Sprintf(format string, a ...interface{}) string {
 	return string(r)
 }
 
-func Fprint(w io.Writer, a string) (int, error) {
-	b := []byte(a)
-	n, err := w.Write(b)
+func Fprint(w io.Writer, a ...string) (int, error) {
+	var sum int
+	for _, s := range a {
+		b := []byte(s)
+		n, err := w.Write(b)
+		sum += n
+		if err != nil {
+			return sum, err
+		}
+	}
+	return sum, nil
+}
+
+func Fprintln(w io.Writer, a ...string) (int, error) {
+	var sum int
+	for _, s := range a {
+		b := []byte(s)
+		n, err := w.Write(b)
+		sum += n
+		if err != nil {
+			return sum, err
+		}
+	}
+	n, err := w.Write([]byte("\n"))
+	sum += n
+	return sum, err
+}
+
+func Print(a ...string) (int, error) {
+	n, err := Fprint(os.Stdout, a...)
 	return n, err
 }
 
-func Fprintln(w io.Writer, a string) (int, error) {
-	b := []byte(a)
-	b = append(b, '\n')
-	n, err := w.Write(b)
-	return n, err
-}
-
-func Print(a string) (int, error) {
-	n, err := Fprint(os.Stdout, a)
-	return n, err
-}
-
-func Println(a string) (int, error) {
-	n, err := Fprintln(os.Stdout, a)
+func Println(a ...string) (int, error) {
+	n, err := Fprintln(os.Stdout, a...)
 	return n, err
 }
 
