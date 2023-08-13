@@ -97,6 +97,16 @@ func (p *printer) doPrint(a []string) {
 	}
 }
 
+func (p *printer) doPrintln(a []string) {
+	for _, s := range a {
+		bytes := []byte(s)
+		for _, b := range bytes {
+			p.buf = append(p.buf, b)
+		}
+	}
+	p.buf = append(p.buf, '\n')
+}
+
 func (p *printer) free() {
 	p.buf = nil
 }
@@ -110,18 +120,11 @@ func Fprint(w io.Writer, a ...string) (int, error) {
 }
 
 func Fprintln(w io.Writer, a ...string) (int, error) {
-	var sum int
-	for _, s := range a {
-		b := []byte(s)
-		n, err := w.Write(b)
-		sum += n
-		if err != nil {
-			return sum, err
-		}
-	}
-	n, err := w.Write([]byte("\n"))
-	sum += n
-	return sum, err
+	p := newPrinter()
+	p.doPrintln(a)
+	n, err := w.Write(p.buf)
+	p.free()
+	return n, err
 }
 
 func Print(a ...string) (int, error) {
