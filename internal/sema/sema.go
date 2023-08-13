@@ -1004,12 +1004,18 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 			X:        metaX,
 		}
 	case types.T_MAP:
+		mapVar := registerLocalVariable(currentFunc, ".range.map", types.Uintptr)
+		mapVarAssign := &ir.MetaSingleAssign{
+			Tpos: s.Pos(),
+			Lhs:  mapVar,
+			Rhs:  metaX,
+		}
 		meta.ForRangeStmt = &ir.MetaForRangeStmt{
-			Tpos:    s.Pos(),
-			IsMap:   true,
-			MapVar:  registerLocalVariable(currentFunc, ".range.map", types.Uintptr),
-			ItemVar: registerLocalVariable(currentFunc, ".range.item", types.Uintptr),
-			X:       metaX,
+			Tpos:         s.Pos(),
+			IsMap:        true,
+			MapVar:       mapVar,
+			ItemVar:      registerLocalVariable(currentFunc, ".range.item", types.Uintptr),
+			MapVarAssign: mapVarAssign,
 		}
 	default:
 		throw(collectionType)

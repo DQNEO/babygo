@@ -1526,7 +1526,7 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 	emitComment(2, "ForRangeStmt map Initialization\n")
 
 	// _mp = EXPRs
-	_emitSingleAssign(meta.ForRangeStmt.MapVar, meta.ForRangeStmt.X)
+	emitSingleAssign(meta.ForRangeStmt.MapVarAssign)
 
 	//  if _mp == nil then exit
 	emitVariable(meta.ForRangeStmt.MapVar) // value of _mp

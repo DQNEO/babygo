@@ -125,15 +125,16 @@ type MetaForForStmt struct {
 }
 
 type MetaForRangeStmt struct {
-	Tpos     token.Pos
-	IsMap    bool
-	LenVar   *Variable
-	Indexvar *Variable
-	MapVar   *Variable // map
-	ItemVar  *Variable // map element
-	X        MetaExpr
-	Key      MetaExpr
-	Value    MetaExpr
+	Tpos         token.Pos
+	IsMap        bool
+	LenVar       *Variable
+	Indexvar     *Variable
+	MapVar       *Variable // map
+	ItemVar      *Variable // map element
+	X            MetaExpr
+	Key          MetaExpr
+	Value        MetaExpr
+	MapVarAssign *MetaSingleAssign
 }
 
 type MetaBranchStmt struct {
