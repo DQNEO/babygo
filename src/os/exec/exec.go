@@ -29,7 +29,7 @@ func (err *ExitError) Error() string {
 
 func (c *Cmd) CombinedOutput() ([]byte, error) {
 	err := c.Run()
-	var buf = []byte("<NONE>")
+	var buf = []byte("<NONE>") // @TODO Implement me
 	return buf, err
 }
 
