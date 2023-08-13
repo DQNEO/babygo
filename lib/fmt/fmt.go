@@ -8,7 +8,7 @@ import (
 	"github.com/DQNEO/babygo/lib/strconv"
 )
 
-func Sprintf(format string, a ...interface{}) string {
+func (p *printer) doPrintf(format string, a ...interface{}) {
 	var r []uint8
 	var inPercent bool
 	var argIndex int
@@ -77,7 +77,7 @@ func Sprintf(format string, a ...interface{}) string {
 		}
 	}
 
-	return string(r)
+	p.buf = r
 }
 
 type printer struct {
@@ -135,6 +135,14 @@ func Fprintln(w io.Writer, a ...interface{}) (int, error) {
 	return n, err
 }
 
+func Fprintf(w io.Writer, format string, a ...interface{}) (int, error) {
+	p := newPrinter()
+	p.doPrintf(format, a...)
+	n, err := w.Write(p.buf)
+	p.free()
+	return n, err
+}
+
 func Print(a ...interface{}) (int, error) {
 	n, err := Fprint(os.Stdout, a...)
 	return n, err
@@ -150,8 +158,10 @@ func Printf(format string, a ...interface{}) (int, error) {
 	return n, err
 }
 
-func Fprintf(w io.Writer, format string, a ...interface{}) (int, error) {
-	var s = Sprintf(format, a...)
-	n, err := w.Write([]uint8(s))
-	return n, err
+func Sprintf(format string, a ...interface{}) string {
+	p := newPrinter()
+	p.doPrintf(format, a...)
+	s := string(p.buf)
+	p.free()
+	return s
 }
