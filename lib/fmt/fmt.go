@@ -80,17 +80,33 @@ func Sprintf(format string, a ...interface{}) string {
 	return string(r)
 }
 
-func Fprint(w io.Writer, a ...string) (int, error) {
-	var sum int
+type printer struct {
+	buf []byte
+}
+
+func newPrinter() *printer {
+	return &printer{}
+}
+
+func (p *printer) doPrint(a []string) {
 	for _, s := range a {
-		b := []byte(s)
-		n, err := w.Write(b)
-		sum += n
-		if err != nil {
-			return sum, err
+		bytes := []byte(s)
+		for _, b := range bytes {
+			p.buf = append(p.buf, b)
 		}
 	}
-	return sum, nil
+}
+
+func (p *printer) free() {
+	p.buf = nil
+}
+
+func Fprint(w io.Writer, a ...string) (int, error) {
+	p := newPrinter()
+	p.doPrint(a)
+	n, err := w.Write(p.buf)
+	p.free()
+	return n, err
 }
 
 func Fprintln(w io.Writer, a ...string) (int, error) {
