@@ -36,7 +36,7 @@ func newPrinter() *pp {
 
 func Fprintf(w io.Writer, format string, a ...interface{}) (int, error) {
 	p := newPrinter()
-	p.doPrintf(format, a...)
+	p.doPrintf(format, a)
 	n, err := w.Write(p.buf)
 	p.free()
 	return n, err
@@ -48,7 +48,7 @@ func Printf(format string, a ...interface{}) (int, error) {
 
 func Sprintf(format string, a ...interface{}) string {
 	p := newPrinter()
-	p.doPrintf(format, a...)
+	p.doPrintf(format, a)
 	s := string(p.buf)
 	p.free()
 	return s
@@ -107,33 +107,25 @@ func (p *pp) fmtInteger(v int, verb byte) {
 func (p *pp) printArg(arg interface{}, verb byte) {
 	switch verb {
 	case 'T':
-		t := reflect.TypeOf(arg)
-		var str string
-		if t == nil {
-			// ?
-		} else {
-			str = t.String()
-		}
+		str := reflect.TypeOf(arg).String()
 		p.buf.writeString(str)
 		return
 	}
 
 	// Some types can be done without reflection.
 	switch f := arg.(type) {
-	case string:
-		p.fmtString(f, verb)
 	case int:
 		p.fmtInteger(f, verb)
 	case uintptr:
 		p.fmtInteger(int(f), verb)
+	case string:
+		p.fmtString(f, verb)
 	default:
 		p.buf.writeString("unknown type")
-		//panic(arg)
-		//panic("TBI:pp.printArg")
 	}
 }
 
-func (p *pp) doPrintf(format string, a ...interface{}) {
+func (p *pp) doPrintf(format string, a []interface{}) {
 	var inPercent bool
 	var argNum int
 
@@ -142,8 +134,7 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 			if c == '%' { // "%%"
 				p.buf.writeByte('%')
 			} else {
-				arg := a[argNum]
-				p.printArg(arg, c)
+				p.printArg(a[argNum], c)
 				argNum++
 			}
 			inPercent = false
