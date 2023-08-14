@@ -22,6 +22,61 @@ func newPrinter() *pp {
 	return &pp{}
 }
 
+func Fprintf(w io.Writer, format string, a ...interface{}) (int, error) {
+	p := newPrinter()
+	p.doPrintf(format, a...)
+	n, err := w.Write(p.buf)
+	p.free()
+	return n, err
+}
+
+func Printf(format string, a ...interface{}) (int, error) {
+	return Fprintf(os.Stdout, format, a...)
+}
+
+func Sprintf(format string, a ...interface{}) string {
+	p := newPrinter()
+	p.doPrintf(format, a...)
+	s := string(p.buf)
+	p.free()
+	return s
+}
+
+func Fprint(w io.Writer, a ...interface{}) (int, error) {
+	p := newPrinter()
+	p.doPrint(a)
+	n, err := w.Write(p.buf)
+	p.free()
+	return n, err
+}
+
+func Print(a ...interface{}) (int, error) {
+	return Fprint(os.Stdout, a...)
+}
+
+func Fprintln(w io.Writer, a ...interface{}) (int, error) {
+	p := newPrinter()
+	p.doPrintln(a)
+	n, err := w.Write(p.buf)
+	p.free()
+	return n, err
+}
+
+func Println(a ...interface{}) (int, error) {
+	return Fprintln(os.Stdout, a...)
+}
+
+func (p *pp) printArg(arg interface{}, verb byte) {
+	s, ok := arg.(string)
+	if !ok {
+		panic("only string is supported")
+	}
+	bytes := []byte(s)
+	for _, b := range bytes {
+		p.buf.writeByte(b)
+	}
+}
+
 func (p *pp) doPrintf(format string, a ...interface{}) {
 	var r []uint8
 	var inPercent bool
@@ -96,61 +151,6 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 
 func (p *pp) free() {
 	p.buf = nil
-}
-
-func Fprintf(w io.Writer, format string, a ...interface{}) (int, error) {
-	p := newPrinter()
-	p.doPrintf(format, a...)
-	n, err := w.Write(p.buf)
-	p.free()
-	return n, err
-}
-
-func Printf(format string, a ...interface{}) (int, error) {
-	return Fprintf(os.Stdout, format, a...)
-}
-
-func Sprintf(format string, a ...interface{}) string {
-	p := newPrinter()
-	p.doPrintf(format, a...)
-	s := string(p.buf)
-	p.free()
-	return s
-}
-
-func Fprint(w io.Writer, a ...interface{}) (int, error) {
-	p := newPrinter()
-	p.doPrint(a)
-	n, err := w.Write(p.buf)
-	p.free()
-	return n, err
-}
-
-func Print(a ...interface{}) (int, error) {
-	return Fprint(os.Stdout, a...)
-}
-
-func Fprintln(w io.Writer, a ...interface{}) (int, error) {
-	p := newPrinter()
-	p.doPrintln(a)
-	n, err := w.Write(p.buf)
-	p.free()
-	return n, err
-}
-
-func Println(a ...interface{}) (int, error) {
-	return Fprintln(os.Stdout, a...)
-}
-
-func (p *pp) printArg(arg interface{}, verb byte) {
-	s, ok := arg.(string)
-	if !ok {
-		panic("only string is supported")
-	}
-	bytes := []byte(s)
-	for _, b := range bytes {
-		p.buf.writeByte(b)
-	}
 }
 
 func (p *pp) doPrint(a []interface{}) {
