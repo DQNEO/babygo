@@ -10,12 +10,24 @@ import (
 
 type buffer []byte
 
-type pp struct {
-	buf buffer
+func (b *buffer) write(p []byte) {
+	for _, c := range p {
+		*b = append(*b, c)
+	}
+}
+
+func (b *buffer) writeString(s string) {
+	for _, c := range []byte(s) {
+		*b = append(*b, c)
+	}
 }
 
 func (b *buffer) writeByte(c byte) {
 	*b = append(*b, c)
+}
+
+type pp struct {
+	buf buffer
 }
 
 func newPrinter() *pp {
@@ -109,9 +121,7 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 					default:
 						str = "unknown type"
 					}
-					for _, _c := range []uint8(str) {
-						p.buf.writeByte(_c)
-					}
+					p.buf.writeString(str)
 				case 'd', 'p': // %d
 					switch _arg := arg.(type) {
 					case string: // ("%d", "xyz")
@@ -124,9 +134,7 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 					default:
 						str = "unknown type"
 					}
-					for _, _c := range []uint8(str) {
-						p.buf.writeByte(_c)
-					}
+					p.buf.writeString(str)
 				case 'T':
 					t := reflect.TypeOf(arg)
 					if t == nil {
@@ -134,9 +142,7 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 					} else {
 						str = t.String()
 					}
-					for _, _c := range []uint8(str) {
-						p.buf.writeByte(_c)
-					}
+					p.buf.writeString(str)
 				default:
 					panic("Sprintf: Unknown format:" + string([]uint8{uint8(sign)}))
 				}
