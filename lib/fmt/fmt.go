@@ -152,8 +152,8 @@ func (p *pp) doPrint(a []interface{}) {
 }
 
 func (p *pp) doPrintln(a []interface{}) {
-	for argNum, i := range a {
-		s, ok := i.(string)
+	for argNum, arg := range a {
+		s, ok := arg.(string)
 		if !ok {
 			panic("only string is supported")
 		}
