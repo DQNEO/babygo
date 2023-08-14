@@ -67,25 +67,31 @@ func Println(a ...interface{}) (int, error) {
 }
 
 func (p *pp) printArg(arg interface{}, verb byte) {
-	s, ok := arg.(string)
-	if !ok {
-		panic("only string is supported")
-	}
-	bytes := []byte(s)
-	for _, b := range bytes {
-		p.buf.writeByte(b)
+	switch f := arg.(type) {
+	case string:
+		bytes := []byte(f)
+		for _, b := range bytes {
+			p.buf.writeByte(b)
+		}
+	case int:
+		str := strconv.Itoa(f)
+		bytes := []byte(str)
+		for _, b := range bytes {
+			p.buf.writeByte(b)
+		}
+	default:
+		panic("TBI:pp.printArg")
 	}
 }
 
 func (p *pp) doPrintf(format string, a ...interface{}) {
-	var r []uint8
 	var inPercent bool
 	var argIndex int
 
 	for _, c := range []uint8(format) {
 		if inPercent {
 			if c == '%' { // "%%"
-				r = append(r, '%')
+				p.buf.writeByte('%')
 			} else {
 				arg := a[argIndex]
 				var sign uint8 = c
@@ -104,7 +110,7 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 						str = "unknown type"
 					}
 					for _, _c := range []uint8(str) {
-						r = append(r, _c)
+						p.buf.writeByte(_c)
 					}
 				case 'd', 'p': // %d
 					switch _arg := arg.(type) {
@@ -119,7 +125,7 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 						str = "unknown type"
 					}
 					for _, _c := range []uint8(str) {
-						r = append(r, _c)
+						p.buf.writeByte(_c)
 					}
 				case 'T':
 					t := reflect.TypeOf(arg)
@@ -129,7 +135,7 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 						str = t.String()
 					}
 					for _, _c := range []uint8(str) {
-						r = append(r, _c)
+						p.buf.writeByte(_c)
 					}
 				default:
 					panic("Sprintf: Unknown format:" + string([]uint8{uint8(sign)}))
@@ -141,12 +147,10 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 			if c == '%' {
 				inPercent = true
 			} else {
-				r = append(r, c)
+				p.buf.writeByte(c)
 			}
 		}
 	}
-
-	p.buf = r
 }
 
 func (p *pp) free() {
