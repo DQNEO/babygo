@@ -78,19 +78,21 @@ func Println(a ...interface{}) (int, error) {
 	return Fprintln(os.Stdout, a...)
 }
 
+func (p *pp) fmtString(v string, verb byte) {
+	p.buf.writeString(v)
+}
+
+func (p *pp) fmtInteger(v int, verb byte) {
+	str := strconv.Itoa(v)
+	p.buf.writeString(str)
+}
+
 func (p *pp) printArg(arg interface{}, verb byte) {
 	switch f := arg.(type) {
 	case string:
-		bytes := []byte(f)
-		for _, b := range bytes {
-			p.buf.writeByte(b)
-		}
+		p.fmtString(f, verb)
 	case int:
-		str := strconv.Itoa(f)
-		bytes := []byte(str)
-		for _, b := range bytes {
-			p.buf.writeByte(b)
-		}
+		p.fmtInteger(f, verb)
 	default:
 		panic("TBI:pp.printArg")
 	}
@@ -98,14 +100,14 @@ func (p *pp) printArg(arg interface{}, verb byte) {
 
 func (p *pp) doPrintf(format string, a ...interface{}) {
 	var inPercent bool
-	var argIndex int
+	var argNum int
 
 	for _, c := range []uint8(format) {
 		if inPercent {
 			if c == '%' { // "%%"
 				p.buf.writeByte('%')
 			} else {
-				arg := a[argIndex]
+				arg := a[argNum]
 				var sign uint8 = c
 				var str string
 				switch sign {
@@ -146,7 +148,8 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 				default:
 					panic("Sprintf: Unknown format:" + string([]uint8{uint8(sign)}))
 				}
-				argIndex++
+
+				argNum++
 			}
 			inPercent = false
 		} else {
