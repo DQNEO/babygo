@@ -501,8 +501,6 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 			emitExpr(arg)
 			emitPop(sema.Kind(paramType))
 			printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
-			printf("  pushq %%rsi # place to save\n")
-			printf("  popq %%rsi # place to save\n")
 			printf("  movq 0(%%rcx), %%rcx # load eface.data\n", 0)
 			printf("  movq %%rcx, %d(%%rsi) # store eface.data\n", 0)
 			printf("  movq %%rax, %%r12 # copy eface.dtype\n", 0) //@TODO %r12 can be overwritten by another expr
