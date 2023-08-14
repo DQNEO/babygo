@@ -14,6 +14,10 @@ type pp struct {
 	buf buffer
 }
 
+func (b *buffer) writeByte(c byte) {
+	*b = append(*b, c)
+}
+
 func newPrinter() *pp {
 	return &pp{}
 }
@@ -158,12 +162,12 @@ func (p *pp) doPrintln(a []interface{}) {
 			panic("only string is supported")
 		}
 		if argNum > 0 {
-			p.buf = append(p.buf, ' ')
+			p.buf.writeByte(' ')
 		}
 		bytes := []byte(s)
 		for _, b := range bytes {
 			p.buf = append(p.buf, b)
 		}
 	}
-	p.buf = append(p.buf, '\n')
+	p.buf.writeByte('\n')
 }
