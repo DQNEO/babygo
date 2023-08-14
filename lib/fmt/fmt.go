@@ -79,22 +79,57 @@ func Println(a ...interface{}) (int, error) {
 }
 
 func (p *pp) fmtString(v string, verb byte) {
-	p.buf.writeString(v)
+	switch verb {
+	case 'v', 's':
+		p.buf.writeString(v)
+	case 'd', 'p':
+		str := "%!d(string=" + v + ")" // %!d(string=xyz)
+		p.buf.writeString(str)
+	default:
+		panic("*pp.fmtString: TBI")
+	}
 }
 
 func (p *pp) fmtInteger(v int, verb byte) {
-	str := strconv.Itoa(v)
-	p.buf.writeString(str)
+	switch verb {
+	case 's':
+		strNumber := strconv.Itoa(v)
+		str := "%!s(int=" + strNumber + ")" // %!s(int=123)
+		p.buf.writeString(str)
+	case 'v', 'd', 'p':
+		str := strconv.Itoa(v)
+		p.buf.writeString(str)
+	default:
+		panic("*pp.fmtInteger: TBI")
+	}
 }
 
 func (p *pp) printArg(arg interface{}, verb byte) {
+	switch verb {
+	case 'T':
+		t := reflect.TypeOf(arg)
+		var str string
+		if t == nil {
+			// ?
+		} else {
+			str = t.String()
+		}
+		p.buf.writeString(str)
+		return
+	}
+
+	// Some types can be done without reflection.
 	switch f := arg.(type) {
 	case string:
 		p.fmtString(f, verb)
 	case int:
 		p.fmtInteger(f, verb)
+	case uintptr:
+		p.fmtInteger(int(f), verb)
 	default:
-		panic("TBI:pp.printArg")
+		p.buf.writeString("unknown type")
+		//panic(arg)
+		//panic("TBI:pp.printArg")
 	}
 }
 
@@ -108,47 +143,7 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 				p.buf.writeByte('%')
 			} else {
 				arg := a[argNum]
-				var sign uint8 = c
-				var str string
-				switch sign {
-				case '#':
-					// skip for now
-				case 's': // %s
-					switch _arg := arg.(type) {
-					case string: // ("%s", "xyz")
-						str = _arg
-					case int: // ("%s", 123)
-						strNumber := strconv.Itoa(_arg)
-						str = "%!s(int=" + strNumber + ")" // %!s(int=123)
-					default:
-						str = "unknown type"
-					}
-					p.buf.writeString(str)
-				case 'd', 'p': // %d
-					switch _arg := arg.(type) {
-					case string: // ("%d", "xyz")
-						str = "%!d(string=" + _arg + ")" // %!d(string=xyz)
-					case int: // ("%d", 123)
-						str = strconv.Itoa(_arg)
-					case uintptr: // ("%d", 123)
-						intVal := int(_arg)
-						str = strconv.Itoa(intVal)
-					default:
-						str = "unknown type"
-					}
-					p.buf.writeString(str)
-				case 'T':
-					t := reflect.TypeOf(arg)
-					if t == nil {
-						// ?
-					} else {
-						str = t.String()
-					}
-					p.buf.writeString(str)
-				default:
-					panic("Sprintf: Unknown format:" + string([]uint8{uint8(sign)}))
-				}
-
+				p.printArg(arg, c)
 				argNum++
 			}
 			inPercent = false
