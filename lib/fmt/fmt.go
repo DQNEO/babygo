@@ -90,33 +90,6 @@ func (p *pp) doPrintf(format string, a ...interface{}) {
 	p.buf = r
 }
 
-func (p *pp) doPrint(a []interface{}) {
-	for _, i := range a {
-		s, ok := i.(string)
-		if !ok {
-			panic("only string is supported")
-		}
-		bytes := []byte(s)
-		for _, b := range bytes {
-			p.buf = append(p.buf, b)
-		}
-	}
-}
-
-func (p *pp) doPrintln(a []interface{}) {
-	for _, i := range a {
-		s, ok := i.(string)
-		if !ok {
-			panic("only string is supported")
-		}
-		bytes := []byte(s)
-		for _, b := range bytes {
-			p.buf = append(p.buf, b)
-		}
-	}
-	p.buf = append(p.buf, '\n')
-}
-
 func (p *pp) free() {
 	p.buf = nil
 }
@@ -163,4 +136,34 @@ func Fprintln(w io.Writer, a ...interface{}) (int, error) {
 
 func Println(a ...interface{}) (int, error) {
 	return Fprintln(os.Stdout, a...)
+}
+
+func (p *pp) doPrint(a []interface{}) {
+	for _, i := range a {
+		s, ok := i.(string)
+		if !ok {
+			panic("only string is supported")
+		}
+		bytes := []byte(s)
+		for _, b := range bytes {
+			p.buf = append(p.buf, b)
+		}
+	}
+}
+
+func (p *pp) doPrintln(a []interface{}) {
+	for argNum, i := range a {
+		s, ok := i.(string)
+		if !ok {
+			panic("only string is supported")
+		}
+		if argNum > 0 {
+			p.buf = append(p.buf, ' ')
+		}
+		bytes := []byte(s)
+		for _, b := range bytes {
+			p.buf = append(p.buf, b)
+		}
+	}
+	p.buf = append(p.buf, '\n')
 }

@@ -3,8 +3,8 @@ hello defer
 I am fmt.Print
 bytes written=15
 I am fmt.Println
-Printfoobarpiyo
-Printfoobarpiyo
+fmt.Print:foobarpiyo
+fmt.Println foo bar piyo
 hello defer
 testIfcMethod2
 expect MyFile:Write

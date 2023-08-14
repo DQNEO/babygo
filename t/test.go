@@ -37,8 +37,8 @@ func testFmtPrint() {
 	fmt.Printf("bytes written=%d\n", n)
 	fmt.Println("I am fmt.Println")
 
-	fmt.Print("Print", "foo", "bar", "piyo", "\n")
-	fmt.Println("Print", "foo", "bar", "piyo")
+	fmt.Print("fmt.Print:", "foo", "bar", "piyo", "\n")
+	fmt.Println("fmt.Println", "foo", "bar", "piyo")
 }
 
 var ifc io.WriteCloser
