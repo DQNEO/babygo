@@ -276,12 +276,18 @@ type GoStmt struct {
 	Call *CallExpr
 }
 
+type DeferStmt struct {
+	Defer token.Pos
+	Call  *CallExpr
+}
+
 func (s *DeclStmt) Pos() token.Pos { return s.Decl.Pos() }
 func (s *ExprStmt) Pos() token.Pos { return s.X.Pos() }
 
 func (s *IncDecStmt) Pos() token.Pos     { return s.X.Pos() }
 func (s *AssignStmt) Pos() token.Pos     { return s.Lhs[0].Pos() }
 func (s *GoStmt) Pos() token.Pos         { return s.Go }
+func (s *DeferStmt) Pos() token.Pos      { return s.Defer }
 func (s *ReturnStmt) Pos() token.Pos     { return s.Return }
 func (s *BranchStmt) Pos() token.Pos     { return s.TokPos }
 func (s *BlockStmt) Pos() token.Pos      { return s.Lbrace }

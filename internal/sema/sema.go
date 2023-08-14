@@ -1220,6 +1220,24 @@ func walkGoStmt(s *ast.GoStmt) *ir.MetaGoStmt {
 	}
 }
 
+func walkDeferStmt(s *ast.DeferStmt) *ir.MetaDeferStmt {
+	funcDef := currentFunc
+	fun := walkExpr(s.Call.Fun, nil)
+	deferVar := registerLocalVariable(funcDef, ".defer.var", types.Uintptr)
+	funcDef.HasDefer = true
+	funcDef.DeferVar = deferVar
+	singleAssing := &ir.MetaSingleAssign{
+		Tpos: s.Pos(),
+		Lhs:  deferVar,
+		Rhs:  fun,
+	}
+	return &ir.MetaDeferStmt{
+		Tpos:       s.Pos(),
+		Fun:        fun,
+		FuncAssign: singleAssing,
+	}
+}
+
 func walkStmt(stmt ast.Stmt) ir.MetaStmt {
 	var mt ir.MetaStmt
 	assert(stmt.Pos() != 0, "stmt.Pos() should not be zero", __func__)
@@ -1250,6 +1268,8 @@ func walkStmt(stmt ast.Stmt) ir.MetaStmt {
 		mt = walkTypeSwitchStmt(s)
 	case *ast.GoStmt:
 		mt = walkGoStmt(s)
+	case *ast.DeferStmt:
+		mt = walkDeferStmt(s)
 	default:
 		throw(stmt)
 	}

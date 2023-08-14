@@ -19,7 +19,17 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+func hello_defer() {
+	writeln("hello defer")
+}
+
+func testDefer() {
+	defer hello_defer()
+	writeln("testDefer start")
+}
+
 func testFmtPrint() {
+	defer hello_defer()
 	n, err := fmt.Print("I am fmt.Print\n") // n=15
 	if err != nil {
 		panic("fmt.Print failed")
@@ -2543,6 +2553,7 @@ func testMisc() {
 }
 
 func main() {
+	testDefer()
 	testFmtPrint()
 	testIfcMethod2()
 	testIfcMethod()

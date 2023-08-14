@@ -1,8 +1,11 @@
+testDefer start
+hello defer
 I am fmt.Print
 bytes written=15
 I am fmt.Println
 Printfoobarpiyo
 Printfoobarpiyo
+hello defer
 testIfcMethod2
 expect MyFile:Write
 MyFile:Write

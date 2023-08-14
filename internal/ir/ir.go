@@ -177,6 +177,12 @@ type MetaGoStmt struct {
 	Fun  MetaExpr
 }
 
+type MetaDeferStmt struct {
+	Tpos       token.Pos
+	Fun        MetaExpr
+	FuncAssign *MetaSingleAssign
+}
+
 func (s *MetaBlockStmt) Pos() token.Pos           { return s.Tpos }
 func (s *MetaExprStmt) Pos() token.Pos            { return s.Tpos }
 func (s *MetaVarDecl) Pos() token.Pos             { return s.Tpos }
@@ -193,6 +199,7 @@ func (s *MetaCaseClause) Pos() token.Pos          { return s.Tpos }
 func (s *MetaTypeSwitchStmt) Pos() token.Pos      { return s.Tpos }
 func (s *MetaTypeSwitchCaseClose) Pos() token.Pos { return s.Tpos }
 func (s *MetaGoStmt) Pos() token.Pos              { return s.Tpos }
+func (s *MetaDeferStmt) Pos() token.Pos           { return s.Tpos }
 
 type MetaExpr interface {
 	Pos() token.Pos
@@ -403,6 +410,8 @@ type Func struct {
 	Method    *Method
 	Decl      *ast.FuncDecl
 	Signature *Signature
+	HasDefer  bool
+	DeferVar  *Variable
 }
 
 type Method struct {

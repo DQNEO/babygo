@@ -801,6 +801,17 @@ func makeExpr(s ast.Stmt) ast.Expr {
 	return s.(*ast.ExprStmt).X
 }
 
+func (p *parser) parseDeferStmt() ast.Stmt {
+	pos := p.pos
+	p.expect("defer", __func__)
+	expr := p.parsePrimaryExpr(false)
+	p.expectSemi(__func__)
+	return &ast.DeferStmt{
+		Defer: pos,
+		Call:  expr.(*ast.CallExpr),
+	}
+}
+
 func (p *parser) parseGoStmt() ast.Stmt {
 	pos := p.pos
 	p.expect("go", __func__)
@@ -1084,6 +1095,8 @@ func (p *parser) parseStmt() ast.Stmt {
 		s = p.parseForStmt()
 	case "go":
 		s = p.parseGoStmt()
+	case "defer":
+		s = p.parseDeferStmt()
 	default:
 		p.panic(__func__, "TBI 3:"+p.tok)
 	}

@@ -1898,6 +1898,10 @@ func emitGoStmt(m *ir.MetaGoStmt) {
 	printf("  callq runtime.mstart0\n")
 }
 
+func emitDeferStmt(m *ir.MetaDeferStmt) {
+	emitSingleAssign(m.FuncAssign)
+}
+
 func emitStmt(meta ir.MetaStmt) {
 	loc := getLoc(meta.Pos())
 	if loc == "" {
@@ -1942,6 +1946,8 @@ func emitStmt(meta ir.MetaStmt) {
 		emitBranchStmt(m)
 	case *ir.MetaGoStmt:
 		emitGoStmt(m)
+	case *ir.MetaDeferStmt:
+		emitDeferStmt(m)
 	default:
 		panic(fmt.Sprintf("unknown type:%T", meta))
 	}
@@ -1950,6 +1956,8 @@ func emitStmt(meta ir.MetaStmt) {
 func emitRevertStackTop(t *types.Type) {
 	printf("  addq $%d, %%rsp # revert stack top\n", sema.GetSizeOfType(t))
 }
+
+var deferLabelId int = 1
 
 func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	printf("\n")
@@ -1973,6 +1981,15 @@ func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	for _, m := range fnc.Stmts {
 		emitStmt(m)
 	}
+
+	if fnc.HasDefer {
+		printf(".L.defer.%d:\n", deferLabelId)
+		deferLabelId++
+		emitVariable(fnc.DeferVar) // defer func addr
+		printf("  popq %%rax # defer func addr\n")
+		printf("  callq *%%rax # defer func addr\n")
+	}
+
 	printf("  leave\n")
 	printf("  ret\n")
 }
