@@ -142,32 +142,29 @@ func Println(a ...interface{}) (int, error) {
 	return Fprintln(os.Stdout, a...)
 }
 
+func (p *pp) printArg(arg interface{}, verb byte) {
+	s, ok := arg.(string)
+	if !ok {
+		panic("only string is supported")
+	}
+	bytes := []byte(s)
+	for _, b := range bytes {
+		p.buf.writeByte(b)
+	}
+}
+
 func (p *pp) doPrint(a []interface{}) {
-	for _, i := range a {
-		s, ok := i.(string)
-		if !ok {
-			panic("only string is supported")
-		}
-		bytes := []byte(s)
-		for _, b := range bytes {
-			p.buf = append(p.buf, b)
-		}
+	for _, arg := range a {
+		p.printArg(arg, 'v')
 	}
 }
 
 func (p *pp) doPrintln(a []interface{}) {
 	for argNum, arg := range a {
-		s, ok := arg.(string)
-		if !ok {
-			panic("only string is supported")
-		}
 		if argNum > 0 {
 			p.buf.writeByte(' ')
 		}
-		bytes := []byte(s)
-		for _, b := range bytes {
-			p.buf = append(p.buf, b)
-		}
+		p.printArg(arg, 'v')
 	}
 	p.buf.writeByte('\n')
 }
