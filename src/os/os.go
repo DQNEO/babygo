@@ -180,6 +180,34 @@ type Process struct {
 	Pid int
 }
 
+func (p *Process) Wait() (int, error) {
+	return p.wait()
+}
+
+func (p *Process) wait() (int, error) {
+	status := wait4(p.Pid)
+	if status != 0 {
+		return 0, &ExitError{Status: status}
+	}
+	return 0, nil
+}
+
+type ExitError struct {
+	Status int
+}
+
+func (err *ExitError) Error() string {
+	return "[ExitError] Command failed"
+}
+
+func wait4(pid int) int {
+	var status int
+	stat_addr := uintptr(unsafe.Pointer(&status))
+	r1, _, _ := syscall.Syscall(syscall.SYS_WAIT4, uintptr(pid), stat_addr, uintptr(0))
+	_ = r1
+	return status
+}
+
 func startProcess(path string, args []string, attr unsafe.Pointer) (*Process, error) {
 	pid, _, err := syscall.StartProcess(path, args, attr)
 	p := &Process{Pid: pid}

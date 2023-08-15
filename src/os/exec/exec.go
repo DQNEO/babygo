@@ -2,8 +2,6 @@ package exec
 
 import (
 	"os"
-	"syscall"
-	"unsafe"
 )
 
 type Cmd struct {
@@ -17,14 +15,6 @@ func Command(name string, arg ...string) *Cmd {
 		Name: name,
 		Args: arg,
 	}
-}
-
-type ExitError struct {
-	Status int
-}
-
-func (err *ExitError) Error() string {
-	return "[ExitError] Command failed"
 }
 
 func (c *Cmd) CombinedOutput() ([]byte, error) {
@@ -51,18 +41,7 @@ func (c *Cmd) Start() error {
 }
 
 func (c *Cmd) Wait() error {
-	
-	status := wait4(c.Process.Pid)
-	if status != 0 {
-		return &ExitError{Status: status}
-	}
-	return nil
-}
-
-func wait4(pid uintptr) int {
-	var status int
-	stat_addr := uintptr(unsafe.Pointer(&status))
-	r1, _, _ := syscall.Syscall(syscall.SYS_WAIT4, pid, stat_addr, uintptr(0))
-	_ = r1
-	return status
+	state, err := c.Process.Wait()
+	_ = state
+	return err
 }
