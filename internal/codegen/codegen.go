@@ -2162,7 +2162,6 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 	emitInterfaceTables(sema.ITab)
 	printf("\n")
 
-	Fout = nil
 	sema.ITab = nil
 	sema.ITabID = 0
 }
