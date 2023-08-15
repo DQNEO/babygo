@@ -176,14 +176,19 @@ func Environ() []string {
 	return syscall.Environ()
 }
 
-func startProcess(path string, args []string, attr unsafe.Pointer) (uintptr, error) {
-	pid, _, err := syscall.StartProcess(path, args, attr)
-	return pid, err
+type Process struct {
+	Pid int
 }
 
-func StartProcess(path string, args []string, attr unsafe.Pointer) (uintptr, error) {
-	pid, err := startProcess(path, args, attr)
-	return pid, err
+func startProcess(path string, args []string, attr unsafe.Pointer) (*Process, error) {
+	pid, _, err := syscall.StartProcess(path, args, attr)
+	p := &Process{Pid: pid}
+	return p, err
+}
+
+func StartProcess(path string, args []string, attr unsafe.Pointer) (*Process, error) {
+	p, err := startProcess(path, args, attr)
+	return p, err
 }
 
 func Exit(status int) {

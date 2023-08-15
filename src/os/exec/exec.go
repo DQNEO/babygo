@@ -7,9 +7,9 @@ import (
 )
 
 type Cmd struct {
-	Name     string
-	Args     []string
-	childPid uintptr
+	Name    string
+	Args    []string
+	Process *os.Process
 }
 
 func Command(name string, arg ...string) *Cmd {
@@ -42,16 +42,17 @@ func (c *Cmd) Run() error {
 }
 
 func (c *Cmd) Start() error {
-	pid, err := os.StartProcess(c.Name, c.Args, nil)
+	p, err := os.StartProcess(c.Name, c.Args, nil)
 	if err != nil {
 		return err
 	}
-	c.childPid = pid
+	c.Process = p
 	return nil
 }
 
 func (c *Cmd) Wait() error {
-	status := wait4(c.childPid)
+	
+	status := wait4(c.Process.Pid)
 	if status != 0 {
 		return &ExitError{Status: status}
 	}
