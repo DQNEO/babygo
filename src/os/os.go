@@ -186,7 +186,7 @@ func (p *Process) Wait() (int, error) {
 
 func (p *Process) wait() (int, error) {
 	var st int
-	status := syscall.Wait4(p.Pid, &st)
+	status, _ := syscall.Wait4(p.Pid, &st, 0, 0)
 	if status != 0 {
 		return 0, &ExitError{Status: status}
 	}
