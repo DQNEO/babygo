@@ -76,6 +76,13 @@ func (err *Err) Error() string {
 	return err.Msg
 }
 
+func Wait4(pid int, st *int) int {
+	stat_addr := uintptr(unsafe.Pointer(st))
+	r1, _, _ := Syscall(SYS_WAIT4, uintptr(pid), stat_addr, uintptr(0))
+	_ = r1
+	return *st
+}
+
 func StartProcess(path string, args []string, attr unsafe.Pointer) (uintptr, uintptr, error) {
 	pid, err := forkExec(path, args, attr)
 	return pid, 0, err
