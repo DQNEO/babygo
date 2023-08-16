@@ -61,6 +61,10 @@ var Int32 *Type = &Type{
 		Obj:     universe.Int32,
 		NamePos: 1,
 	},
+	GoType: &Basic{
+		Knd:  GInt32,
+		name: "int32",
+	},
 }
 
 var Uintptr *Type = &Type{
@@ -69,12 +73,21 @@ var Uintptr *Type = &Type{
 		Obj:     universe.Uintptr,
 		NamePos: 1,
 	},
+	GoType: &Basic{
+		Knd:  GUintptr,
+		name: "uintptr",
+	},
 }
+
 var Uint8 *Type = &Type{
 	E: &ast.Ident{
 		Name:    "uint8",
 		Obj:     universe.Uint8,
 		NamePos: 1,
+	},
+	GoType: &Basic{
+		Knd:  GUint8,
+		name: "uint8",
 	},
 }
 
@@ -84,12 +97,20 @@ var Uint16 *Type = &Type{
 		Obj:     universe.Uint16,
 		NamePos: 1,
 	},
+	GoType: &Basic{
+		Knd:  GUint16,
+		name: "uint16",
+	},
 }
 var String *Type = &Type{
 	E: &ast.Ident{
 		Name:    "string",
 		Obj:     universe.String,
 		NamePos: 1,
+	},
+	GoType: &Basic{
+		Knd:  GString,
+		name: "string",
 	},
 }
 
