@@ -109,7 +109,7 @@ func testHexDigit() {
 func testOSExec() {
 	err := exec.Command("touch", "/tmp/foo2.txt", "/tmp/bar2.txt").Run()
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 	writeln("exec ok")
 }

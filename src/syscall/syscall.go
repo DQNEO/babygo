@@ -76,11 +76,13 @@ func (err *Err) Error() string {
 	return err.Msg
 }
 
-func Wait4(pid int, st *int, option int, rusage int) (int, error) {
+type WaitStatus int
+
+func Wait4(pid int, st *WaitStatus, option int, rusage *int) (int, error) {
 	stat_addr := uintptr(unsafe.Pointer(st))
 	r1, _, _ := Syscall(SYS_WAIT4, uintptr(pid), stat_addr, uintptr(0))
 	_ = r1
-	return *st, nil
+	return r1, nil
 }
 
 func StartProcess(path string, args []string, attr unsafe.Pointer) (uintptr, uintptr, error) {
