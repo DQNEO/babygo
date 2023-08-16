@@ -107,12 +107,12 @@ const code = `package main
 
 import "fmt"
 
+type MyInt int
 func main() {
-	var ifc interface{} =  100
-	v, ok := ifc.(int)
-	fmt.Println(v, ok)
-	ifc, ifc = ifc.(int)
-
+	const c = 10
+	var i MyInt = c
+	var ifc interface{} = i
+	fmt.Println(i, ifc)
 }
 
 `
@@ -144,13 +144,14 @@ func handsOn() {
 		log.Fatal(err)
 	}
 
+	fmt.Println("=== ast.Inspect ...")
 	ast.Inspect(f, func(node ast.Node) bool {
 		if expr, ok := node.(ast.Expr); ok {
 			typeAndValue, ok := info.Types[expr]
 			if ok {
 				typ := typeAndValue.Type
 				val := typeAndValue.Value
-				fmt.Printf("[%s] typeAndValue = expr=%s\n", fset.Position(node.Pos()), expr)
+				fmt.Printf("[%s] typeAndValue=%s\n", fset.Position(node.Pos()), typeAndValue)
 				fmt.Printf("      type of expr=%T\n", expr)
 				fmt.Printf("      type of type=%T  %s\n", typ, typ)
 				fmt.Printf("      type of val=%T %s\n", val, val)
@@ -162,10 +163,11 @@ func handsOn() {
 			fmt.Printf("[%s] ident found %s\n", fset.Position(ident.Pos()), ident)
 			obj := info.ObjectOf(ident)
 			if obj == nil {
+				fmt.Println("    not Object")
 				return true
 			}
 			typ := obj.Type()
-			fmt.Printf("    types obj=%s, object.Type=%s\n", obj, typ)
+			fmt.Printf("    T of Type='%T' obj='%s', object.Type='%s'\n", typ, obj, typ)
 
 			typeAndValue, ok := info.Types[ident]
 			if ok {
