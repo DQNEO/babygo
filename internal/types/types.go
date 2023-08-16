@@ -5,14 +5,6 @@ import (
 	"github.com/DQNEO/babygo/lib/ast"
 )
 
-type GoType interface {
-	// Underlying returns the underlying type of a type.
-	Underlying() Type
-
-	// String returns a string representation of a type.
-	String() string
-}
-
 type Type struct {
 	E       ast.Expr // original
 	PkgName string
@@ -44,6 +36,10 @@ var Bool *Type = &Type{
 		Obj:     universe.Bool,
 		NamePos: 1,
 	},
+	GoType: &Basic{
+		Knd:  GBool,
+		name: "bool",
+	},
 }
 
 var Int *Type = &Type{
@@ -51,6 +47,10 @@ var Int *Type = &Type{
 		Name:    "int",
 		Obj:     universe.Int,
 		NamePos: 1,
+	},
+	GoType: &Basic{
+		Knd:  GInt,
+		name: "int",
 	},
 }
 
@@ -101,3 +101,45 @@ var Eface *Type = &Type{
 }
 
 var GeneralSliceType *Type = &Type{}
+
+const GBool = 1
+const GInt = 2
+const GInt8 = 3
+const GInt16 = 4
+const GInt32 = 5
+const GInt64 = 6
+const GUint = 7
+const GUint8 = 8
+const GUint16 = 9
+const GUint32 = 10
+const GUint64 = 11
+const GUintptr = 12
+const GFloat32 = 13
+const GFloat64 = 14
+const GComplex64 = 15
+const GComplex128 = 16
+const GString = 17
+const GUnsafePointer = 18
+
+// GoType emulates go/types.Type
+type GoType interface {
+	// Underlying returns the underlying type of a type.
+	Underlying() GoType
+
+	// String returns a string representation of a type.
+	String() string
+}
+
+type Basic struct {
+	Knd  int
+	name string
+}
+
+// Kind returns the kind of basic type b.
+func (b *Basic) Kind() int { return b.Knd }
+
+// Name returns the name of basic type b.
+func (b *Basic) Name() string { return b.name }
+
+func (t *Basic) Underlying() GoType { return t }
+func (b *Basic) String() string     { return b.name }
