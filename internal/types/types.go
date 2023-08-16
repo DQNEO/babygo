@@ -5,10 +5,19 @@ import (
 	"github.com/DQNEO/babygo/lib/ast"
 )
 
+type GoType interface {
+	// Underlying returns the underlying type of a type.
+	Underlying() Type
+
+	// String returns a string representation of a type.
+	String() string
+}
+
 type Type struct {
 	E       ast.Expr // original
 	PkgName string
 	Name    string
+	GoType  GoType
 }
 
 type TypeKind string
