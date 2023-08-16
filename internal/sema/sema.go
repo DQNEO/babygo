@@ -308,6 +308,33 @@ func GetTupleTypes(rhsMeta ir.MetaExpr) []*types.Type {
 	}
 }
 
+func E2G(typeExpr ast.Expr) types.GoType {
+	switch t := typeExpr.(type) {
+	case *ast.Ident:
+		obj := t.Obj
+		switch obj {
+		case universe.Uintptr:
+			return types.Uintptr.GoType
+		case universe.Int:
+			return types.Int.GoType
+		case universe.Int32:
+			return types.Int32.GoType
+		case universe.String:
+			return types.String.GoType
+		case universe.Uint8:
+			return types.Uint8.GoType
+		case universe.Uint16:
+			return types.Uint16.GoType
+		case universe.Bool:
+			return types.Bool.GoType
+		case universe.Error:
+			//@TODO: return Error type
+			return nil
+		}
+	}
+	return nil
+}
+
 func E2T(typeExpr ast.Expr) *types.Type {
 	if typeExpr == nil {
 		panic("nil is not allowed")
@@ -319,8 +346,10 @@ func E2T(typeExpr ast.Expr) *types.Type {
 		typeExpr = e.X
 		return E2T(typeExpr)
 	}
+	g := E2G(typeExpr)
 	return &types.Type{
-		E: typeExpr,
+		E:      typeExpr,
+		GoType: g,
 	}
 }
 
