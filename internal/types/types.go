@@ -164,3 +164,70 @@ func (b *Basic) Name() string { return b.name }
 
 func (t *Basic) Underlying() GoType { return t }
 func (b *Basic) String() string     { return b.name }
+
+// An Array represents an array type.
+type Array struct {
+	len  int
+	elem GoType
+}
+
+// NewArray returns a new array type for the given element type and length.
+// A negative length indicates an unknown length.
+func NewArray(elem GoType, len int) *Array { return &Array{len: len, elem: elem} }
+
+// Len returns the length of array a.
+// A negative result indicates an unknown length.
+func (a *Array) Len() int { return a.len }
+
+// Elem returns element type of array a.
+func (a *Array) Elem() GoType { return a.elem }
+
+func (t *Array) Underlying() GoType { return t }
+func (t *Array) String() string     { return "@TBI" }
+
+type Slice struct {
+	elem GoType
+}
+
+// NewSlice returns a new slice type for the given element type.
+func NewSlice(elem GoType) *Slice { return &Slice{elem: elem} }
+
+// Elem returns the element GoType of slice s.
+func (s *Slice) Elem() GoType { return s.elem }
+
+func (t *Slice) Underlying() GoType { return t }
+func (t *Slice) String() string     { return "@TBI" }
+
+// A Pointer represents a pointer type.
+type Pointer struct {
+	base GoType // element GoType
+}
+
+// NewPointer returns a new pointer GoType for the given element (base) GoType.
+func NewPointer(elem GoType) *Pointer { return &Pointer{base: elem} }
+
+// Elem returns the element GoType for the given pointer p.
+func (p *Pointer) Elem() GoType { return p.base }
+
+func (t *Pointer) Underlying() GoType { return t }
+func (t *Pointer) String() string     { return "@TBI" }
+
+// A Map represents a map type.
+type Map struct {
+	key  GoType
+	elem GoType
+}
+
+// NewMap returns a new map for the given key and element types.
+func NewMap(key GoType, elem GoType) *Map {
+	return &Map{key: key, elem: elem}
+}
+
+// Key returns the key type of map m.
+func (m *Map) Key() GoType { return m.key }
+
+// Elem returns the element type of map m.
+func (m *Map) Elem() GoType { return m.elem }
+
+func (t *Map) Underlying() GoType { return t }
+func (t *Map) String() string     { return "@TBI" }

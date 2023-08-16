@@ -331,7 +331,25 @@ func E2G(typeExpr ast.Expr) types.GoType {
 			//@TODO: return Error type
 			return nil
 		}
+	case *ast.ArrayType:
+		if t.Len == nil {
+			return types.NewSlice(E2G(t.Elt))
+		} else {
+			return types.NewArray(E2G(t.Elt), EvalInt(t.Len))
+		}
+	case *ast.StructType:
+	case *ast.StarExpr:
+		return types.NewPointer(E2G(t.X))
+	case *ast.Ellipsis:
+		return types.NewSlice(E2G(t.Elt))
+	case *ast.MapType:
+		return types.NewMap(E2G(t.Key), E2G(t.Value))
+	case *ast.InterfaceType:
+	case *ast.FuncType:
 	}
+
+	//	panic("should not reach here")
+
 	return nil
 }
 
@@ -2453,11 +2471,14 @@ func setStructFieldOffset(field *ast.Field, offset int) {
 }
 
 func EvalInt(expr ast.Expr) int {
+	if expr == nil {
+		panic("EvanInt: nil is not expected")
+	}
 	switch e := expr.(type) {
 	case *ast.BasicLit:
 		return strconv.Atoi(e.Value)
 	}
-	panic("Unknown type")
+	panic(fmt.Sprintf("Unknown type:%T", expr))
 }
 
 func SerializeType(t *types.Type, showPkgPrefix bool) string {
