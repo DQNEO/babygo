@@ -19,6 +19,10 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+type MyIfc interface {
+	M() MyIfc
+}
+
 func hello_defer() {
 	writeln("hello defer")
 }

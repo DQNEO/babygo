@@ -267,8 +267,8 @@ func (t *Tuple) Underlying() GoType { return t }
 func (t *Tuple) String() string     { return "@TBI" }
 
 type Signature struct {
-	params  *Tuple
-	results *Tuple
+	Params  *Tuple
+	Results *Tuple
 }
 
 func (t *Signature) Underlying() GoType { return t }
@@ -287,15 +287,15 @@ func (t *Struct) String() string     { return "@TBI" }
 
 type Named struct {
 	name       string
-	underlying GoType
+	underlying ast.Expr
 }
 
-func NewNamed(name string, typ GoType) *Named {
+func NewNamed(name string, typ ast.Expr) *Named {
 	return &Named{
 		name:       name,
 		underlying: typ,
 	}
 }
 
-func (t *Named) Underlying() GoType { return t.underlying }
+func (t *Named) Underlying() GoType { return nil }
 func (t *Named) String() string     { return "@TBI" }

@@ -6,6 +6,7 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
+	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -296,6 +297,19 @@ func FieldList2Types(fieldList *ast.FieldList) []*types.Type {
 	return r
 }
 
+func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
+	if fieldList == nil {
+		return nil
+	}
+	var r = &types.Tuple{}
+	for _, e2 := range fieldList.List {
+		util.Logf("%s:[FieldList2Tuple] handling %T\n", Fset.Position(fieldList.Opening).String(), e2.Type)
+		var t types.GoType = E2G(e2.Type)
+		r.Types = append(r.Types, t)
+	}
+	return r
+}
+
 func GetTupleTypes(rhsMeta ir.MetaExpr) []*types.Type {
 	if IsOkSyntax(rhsMeta) {
 		return []*types.Type{GetTypeOfExpr(rhsMeta), types.Bool}
@@ -335,8 +349,8 @@ func E2G(typeExpr ast.Expr) types.GoType {
 			case *ast.TypeSpec:
 				typeSpec := dcl
 				specType := typeSpec.Type
-				ut := E2G(specType)
-				return types.NewNamed(t.Name, ut)
+				//ut := E2G(specType)
+				return types.NewNamed(dcl.Name.Name, specType)
 			default:
 				panicPos(fmt.Sprintf("Unexpeced:%T ident=%s", t.Obj.Decl, t.Name), t.Pos())
 			}
@@ -369,11 +383,14 @@ func E2G(typeExpr ast.Expr) types.GoType {
 		}
 		return types.NewInterfaceType(methods)
 	case *ast.FuncType:
-		p := t.Params
-		r := t.Results
-		_ = p
-		_ = r
 		sig := &types.Signature{}
+		if t.Params != nil {
+			sig.Params = FieldList2Tuple(t.Params)
+		}
+		if t.Results != nil {
+			sig.Results = FieldList2Tuple(t.Results)
+		}
+		util.Logf("%s:[E2G] handling *ast.FuncType\n", Fset.Position(t.Pos()).String())
 		return types.NewFunc(sig)
 	case *ast.ParenExpr:
 		typeExpr = t.X
