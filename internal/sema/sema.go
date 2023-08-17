@@ -337,6 +337,8 @@ func E2G(typeExpr ast.Expr) types.GoType {
 				specType := typeSpec.Type
 				ut := E2G(specType)
 				return types.NewNamed(t.Name, ut)
+			default:
+				panicPos(fmt.Sprintf("Unexpeced:%T ident=%s", t.Obj.Decl, t.Name), t.Pos())
 			}
 			return nil // @TODO ??
 		}
