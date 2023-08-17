@@ -328,8 +328,8 @@ func E2G(typeExpr ast.Expr) types.GoType {
 		case universe.Bool:
 			return types.Bool.GoType
 		case universe.Error:
-			//@TODO: return Error type
-			return nil
+			dcl := universe.Error.Decl.(*ast.TypeSpec)
+			return E2G(dcl.Type)
 		default:
 			switch dcl := t.Obj.Decl.(type) {
 			case *ast.TypeSpec:
@@ -358,6 +358,15 @@ func E2G(typeExpr ast.Expr) types.GoType {
 		return types.NewMap(E2G(t.Key), E2G(t.Value))
 	case *ast.InterfaceType:
 		var methods []*types.Func
+		if t.Methods != nil {
+			for _, m := range t.Methods.List {
+				f := &types.Func{
+					Typ:  E2G(m.Type),
+					Name: m.Names[0].Name,
+				}
+				methods = append(methods, f)
+			}
+		}
 		return types.NewInterfaceType(methods)
 	case *ast.FuncType:
 		p := t.Params

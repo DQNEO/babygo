@@ -159,7 +159,7 @@ type Basic struct {
 // Kind returns the kind of basic type b.
 func (b *Basic) Kind() int { return b.Knd }
 
-// Name returns the name of basic type b.
+// Name returns the Name of basic type b.
 func (b *Basic) Name() string { return b.name }
 
 func (t *Basic) Underlying() GoType { return t }
@@ -246,19 +246,29 @@ func (t *Interface) Underlying() GoType { return t }
 func (t *Interface) String() string     { return "@TBI" }
 
 type Func struct {
-	Sig GoType
+	Typ  GoType
+	Name string
 }
 
 func NewFunc(sig *Signature) *Func {
 	return &Func{
-		Sig: sig,
+		Typ: sig,
 	}
 }
 
-func (t *Func) Underlying() GoType { return t.Sig }
-func (t *Func) String() string     { return t.Sig.String() }
+func (t *Func) Underlying() GoType { return t.Typ }
+func (t *Func) String() string     { return t.Typ.String() }
+
+type Tuple struct {
+	Types []GoType
+}
+
+func (t *Tuple) Underlying() GoType { return t }
+func (t *Tuple) String() string     { return "@TBI" }
 
 type Signature struct {
+	params  *Tuple
+	results *Tuple
 }
 
 func (t *Signature) Underlying() GoType { return t }
