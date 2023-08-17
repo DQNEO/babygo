@@ -330,6 +330,15 @@ func E2G(typeExpr ast.Expr) types.GoType {
 		case universe.Error:
 			//@TODO: return Error type
 			return nil
+		default:
+			switch dcl := t.Obj.Decl.(type) {
+			case *ast.TypeSpec:
+				typeSpec := dcl
+				specType := typeSpec.Type
+				ut := E2G(specType)
+				return types.NewNamed(t.Name, ut)
+			}
+			return nil // @TODO ??
 		}
 	case *ast.ArrayType:
 		if t.Len == nil {
@@ -338,6 +347,7 @@ func E2G(typeExpr ast.Expr) types.GoType {
 			return types.NewArray(E2G(t.Elt), EvalInt(t.Len))
 		}
 	case *ast.StructType:
+		return types.NewStruct(nil)
 	case *ast.StarExpr:
 		return types.NewPointer(E2G(t.X))
 	case *ast.Ellipsis:
@@ -345,7 +355,18 @@ func E2G(typeExpr ast.Expr) types.GoType {
 	case *ast.MapType:
 		return types.NewMap(E2G(t.Key), E2G(t.Value))
 	case *ast.InterfaceType:
+		var methods []*types.Func
+		return types.NewInterfaceType(methods)
 	case *ast.FuncType:
+		p := t.Params
+		r := t.Results
+		_ = p
+		_ = r
+		sig := &types.Signature{}
+		return types.NewFunc(sig)
+	case *ast.ParenExpr:
+		typeExpr = t.X
+		return E2G(typeExpr)
 	}
 
 	//	panic("should not reach here")

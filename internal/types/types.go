@@ -231,3 +231,61 @@ func (m *Map) Elem() GoType { return m.elem }
 
 func (t *Map) Underlying() GoType { return t }
 func (t *Map) String() string     { return "@TBI" }
+
+type Interface struct {
+	Methods []*Func
+}
+
+func NewInterfaceType(methods []*Func) *Interface {
+	i := &Interface{}
+	i.Methods = methods
+	return i
+}
+
+func (t *Interface) Underlying() GoType { return t }
+func (t *Interface) String() string     { return "@TBI" }
+
+type Func struct {
+	Sig GoType
+}
+
+func NewFunc(sig *Signature) *Func {
+	return &Func{
+		Sig: sig,
+	}
+}
+
+func (t *Func) Underlying() GoType { return t.Sig }
+func (t *Func) String() string     { return t.Sig.String() }
+
+type Signature struct {
+}
+
+func (t *Signature) Underlying() GoType { return t }
+func (t *Signature) String() string     { return "@TBI" }
+
+type Struct struct {
+	fields []interface{} // fields != nil indicates the struct is set up (possibly with len(fields) == 0)
+}
+
+func NewStruct(fields []interface{}) *Struct {
+	return &Struct{}
+}
+
+func (t *Struct) Underlying() GoType { return t }
+func (t *Struct) String() string     { return "@TBI" }
+
+type Named struct {
+	name       string
+	underlying GoType
+}
+
+func NewNamed(name string, typ GoType) *Named {
+	return &Named{
+		name:       name,
+		underlying: typ,
+	}
+}
+
+func (t *Named) Underlying() GoType { return t.underlying }
+func (t *Named) String() string     { return "@TBI" }
