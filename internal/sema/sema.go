@@ -1731,7 +1731,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 						OpPos: 1,
 					}
 					eTyp := &ast.StarExpr{
-						X:    receiver,
+						X:    receiverType.E,
 						Star: 1,
 					}
 					receiverMeta = &ir.MetaUnaryExpr{
