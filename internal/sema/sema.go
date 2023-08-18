@@ -2251,8 +2251,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	var varSpecs []*ast.ValueSpec
 	var constSpecs []*ast.ValueSpec
 
-	var exportedTpyes []*types.Type
-
 	for _, decl := range pkg.Decls {
 		switch dcl := decl.(type) {
 		case *ast.GenDecl:
@@ -2294,7 +2292,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		gt := t.GoType.(*types.Named)
 		gt.PkgName = pkg.Name
 		typs = append(typs, t)
-		exportedTpyes = append(exportedTpyes, t)
 		switch Kind(t) {
 		case types.T_STRUCT:
 			//structType := GetUnderlyingType(t)
