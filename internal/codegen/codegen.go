@@ -194,8 +194,8 @@ func emitVariableAddr(variable *ir.Variable) {
 }
 
 func emitListHeadAddr(list ir.MetaExpr) {
-	t := sema.GetTypeOfExpr(list)
-	switch sema.Kind(t) {
+	t := sema.GetGoTypeOfExpr(list)
+	switch sema.Kind2(t) {
 	case types.T_ARRAY:
 		emitAddr(list) // array head
 	case types.T_SLICE:
@@ -207,7 +207,7 @@ func emitListHeadAddr(list ir.MetaExpr) {
 		emitPopString()
 		printf("  pushq %%rax # string.ptr\n")
 	default:
-		unexpectedKind(sema.Kind(t))
+		unexpectedKind(sema.Kind2(t))
 	}
 }
 
@@ -227,7 +227,7 @@ func emitAddr(meta ir.MetaExpr) {
 			panic("Unexpected kind")
 		}
 	case *ir.MetaIndexExpr:
-		if sema.Kind(sema.GetTypeOfExpr(m.X)) == types.T_MAP {
+		if sema.Kind2(sema.GetGoTypeOfExpr(m.X)) == types.T_MAP {
 			emitAddrForMapSet(m)
 		} else {
 			elmType := sema.GetTypeOfExpr(m)

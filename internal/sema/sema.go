@@ -567,6 +567,8 @@ func Kind2(gType types.GoType) types.TypeKind {
 		return types.T_INTERFACE
 	case *types.Func:
 		return types.T_FUNC
+	case *types.Signature:
+		return types.T_FUNC
 	case *types.Tuple:
 		panic(fmt.Sprintf("Tuple is not expected: type %T\n", gType))
 	case *types.Named:
@@ -2292,8 +2294,10 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		exportedTpyes = append(exportedTpyes, t)
 		switch Kind(t) {
 		case types.T_STRUCT:
-			structType := GetUnderlyingType(t)
-			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
+			//structType := GetUnderlyingType(t)
+			st := t.GoType.Underlying().Underlying()
+			calcStructSizeAndSetFieldOffset2(st.(*types.Struct))
+			//			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		case types.T_INTERFACE:
 			// register ifc method
 			it := typeSpec.Type.(*ast.InterfaceType)
@@ -2573,38 +2577,7 @@ func GetSizeOfType2(t types.GoType) int {
 }
 
 func GetSizeOfType(t *types.Type) int {
-	//ut := GetUnderlyingType(t)
-	switch Kind(t) {
-	case types.T_SLICE:
-		return SizeOfSlice
-	case types.T_STRING:
-		return SizeOfString
-	case types.T_INT:
-		return SizeOfInt
-	case types.T_UINTPTR, types.T_POINTER, types.T_MAP:
-		return SizeOfPtr
-	case types.T_UINT8:
-		return SizeOfUint8
-	case types.T_UINT16:
-		return SizeOfUint16
-	case types.T_BOOL:
-		return SizeOfInt
-	case types.T_INTERFACE:
-		return SizeOfInterface
-	case types.T_ARRAY:
-		ut := GetUnderlyingType(t)
-		arrayType := ut.E.(*ast.ArrayType)
-		elmSize := GetSizeOfType(E2T(arrayType.Elt))
-		return elmSize * EvalInt(arrayType.Len)
-	case types.T_STRUCT:
-		ut := GetUnderlyingType(t)
-		return calcStructSizeAndSetFieldOffset(ut.E.(*ast.StructType))
-	case types.T_FUNC:
-		return SizeOfPtr
-	default:
-		unexpectedKind(Kind(t))
-	}
-	return 0
+	return GetSizeOfType2(t.GoType)
 }
 
 func calcStructSizeAndSetFieldOffset2(structType *types.Struct) int {
