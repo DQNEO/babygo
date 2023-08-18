@@ -2610,6 +2610,14 @@ func EvalInt(expr ast.Expr) int {
 	panic(fmt.Sprintf("Unknown type:%T", expr))
 }
 
+func SerializeType2(goType types.GoType, showPkgPrefix bool) string {
+	switch g := goType.(type) {
+	case *types.Basic:
+		return g.Name()
+	}
+	return ""
+}
+
 func SerializeType(t *types.Type, showPkgPrefix bool) string {
 	if t == nil {
 		panic("nil type is not expected")
@@ -2619,6 +2627,10 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 	}
 	if t.GoType == nil {
 		panic("t.Gotype should not be nil")
+	}
+	switch t.GoType.(type) {
+	case *types.Basic:
+		return SerializeType2(t.GoType, showPkgPrefix)
 	}
 	if t.Name != "" {
 		return t.PkgName + "." + t.Name
@@ -2632,18 +2644,6 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 			panic(e.Obj)
 		} else if e.Obj.Kind == ast.Typ {
 			switch e.Obj {
-			case universe.Uintptr:
-				return types.Uintptr.GoType.String()
-			case universe.Int:
-				return types.Int.GoType.String()
-			case universe.String:
-				return types.String.GoType.String()
-			case universe.Uint8:
-				return types.Uint8.GoType.String()
-			case universe.Uint16:
-				return types.Uint16.GoType.String()
-			case universe.Bool:
-				return types.Bool.GoType.String()
 			case universe.Error:
 				return "error"
 			default:
