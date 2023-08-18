@@ -92,8 +92,8 @@ func emitPopSlice() {
 	printf("  popq %%rdx # slice.cap\n")
 }
 
-func emitPushStackTop(condType *types.Type, offset int, comment string) {
-	knd := sema.Kind2(condType.GoType)
+func emitPushStackTop(t types.GoType, offset int, comment string) {
+	knd := sema.Kind2(t)
 	switch knd {
 	case types.T_STRING:
 		printf("  movq %d+8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", offset, comment)
@@ -395,7 +395,7 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 	metaElms := meta.StructElements
 	for _, metaElm := range metaElms {
 		// push lhs address
-		emitPushStackTop(types.Uintptr, 0, "address of struct heaad")
+		emitPushStackTop(types.Uintptr.GoType, 0, "address of struct heaad")
 
 		fieldOffset := sema.GetStructFieldOffset(metaElm.Field)
 		emitAddConst(fieldOffset, "address of struct field")
@@ -416,7 +416,7 @@ func emitArrayLiteral(meta *ir.MetaCompositLit) {
 	emitCallMalloc(memSize) // push
 	for i, elm := range meta.Elms {
 		// push lhs address
-		emitPushStackTop(types.Uintptr, 0, "malloced address")
+		emitPushStackTop(types.Uintptr.GoType, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		// push rhs value
 		emitExpr(elm)
@@ -1732,7 +1732,7 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 				ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpstrings"))
 				emitAllocReturnVarsAreaFF(ff)
 
-				emitPushStackTop(condType, sema.SizeOfInt, "switch expr")
+				emitPushStackTop(condType.GoType, sema.SizeOfInt, "switch expr")
 				emitExpr(m)
 
 				emitCallFF(ff)
@@ -1741,12 +1741,12 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 
 				emitAllocReturnVarsAreaFF(ff)
 
-				emitPushStackTop(condType, sema.SizeOfInt, "switch expr")
+				emitPushStackTop(condType.GoType, sema.SizeOfInt, "switch expr")
 				emitExpr(m)
 
 				emitCallFF(ff)
 			case types.T_INT, types.T_UINT8, types.T_UINT16, types.T_UINTPTR, types.T_POINTER:
-				emitPushStackTop(condType, 0, "switch expr")
+				emitPushStackTop(condType.GoType, 0, "switch expr")
 				emitExpr(m)
 				emitCompExpr("sete")
 			default:
