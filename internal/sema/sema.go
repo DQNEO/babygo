@@ -2501,6 +2501,7 @@ const SizeOfInterface int = 16
 
 func GetSizeOfType2(t types.GoType) int {
 	t = t.Underlying()
+	t = t.Underlying()
 	switch Kind2(t) {
 	case types.T_SLICE:
 		return SizeOfSlice
@@ -2519,13 +2520,11 @@ func GetSizeOfType2(t types.GoType) int {
 	case types.T_INTERFACE:
 		return SizeOfInterface
 	case types.T_ARRAY:
-		ut := t.Underlying()
-		arrayType := ut.(*types.Array)
+		arrayType := t.(*types.Array)
 		elmSize := GetSizeOfType2(arrayType.Elem())
 		return elmSize * arrayType.Len()
 	case types.T_STRUCT:
-		ut := t.Underlying()
-		return calcStructSizeAndSetFieldOffset2(ut.(*types.Struct))
+		return calcStructSizeAndSetFieldOffset2(t.(*types.Struct))
 	case types.T_FUNC:
 		return SizeOfPtr
 	default:
