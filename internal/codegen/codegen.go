@@ -327,11 +327,11 @@ func emitZeroValue(t *types.Type) {
 	case types.T_UINTPTR, types.T_POINTER, types.T_MAP, types.T_FUNC:
 		printf("  pushq $0 # %s zero value (nil pointer)\n", string(sema.Kind(t)))
 	case types.T_ARRAY:
-		size := sema.GetSizeOfType(t)
+		size := sema.GetSizeOfType2(t.GoType)
 		emitComment(2, "zero value of an array. size=%d (allocating on heap)\n", size)
 		emitCallMalloc(size)
 	case types.T_STRUCT:
-		structSize := sema.GetSizeOfType(t)
+		structSize := sema.GetSizeOfType2(t.GoType)
 		emitComment(2, "zero value of a struct. size=%d (allocating on heap)\n", structSize)
 		emitCallMalloc(structSize)
 	default:

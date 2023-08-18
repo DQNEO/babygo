@@ -2499,6 +2499,41 @@ const SizeOfUint16 int = 2
 const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
+func GetSizeOfType2(t types.GoType) int {
+	t = t.Underlying()
+	switch Kind2(t) {
+	case types.T_SLICE:
+		return SizeOfSlice
+	case types.T_STRING:
+		return SizeOfString
+	case types.T_INT:
+		return SizeOfInt
+	case types.T_UINTPTR, types.T_POINTER, types.T_MAP:
+		return SizeOfPtr
+	case types.T_UINT8:
+		return SizeOfUint8
+	case types.T_UINT16:
+		return SizeOfUint16
+	case types.T_BOOL:
+		return SizeOfInt
+	case types.T_INTERFACE:
+		return SizeOfInterface
+	case types.T_ARRAY:
+		ut := t.Underlying()
+		arrayType := ut.(*types.Array)
+		elmSize := GetSizeOfType2(arrayType.Elem())
+		return elmSize * arrayType.Len()
+	case types.T_STRUCT:
+		ut := t.Underlying()
+		return calcStructSizeAndSetFieldOffset2(ut.(*types.Struct))
+	case types.T_FUNC:
+		return SizeOfPtr
+	default:
+		unexpectedKind(Kind2(t))
+	}
+	return 0
+}
+
 func GetSizeOfType(t *types.Type) int {
 	//ut := GetUnderlyingType(t)
 	switch Kind(t) {
@@ -2532,6 +2567,16 @@ func GetSizeOfType(t *types.Type) int {
 		unexpectedKind(Kind(t))
 	}
 	return 0
+}
+
+func calcStructSizeAndSetFieldOffset2(structType *types.Struct) int {
+	var offset int = 0
+	for _, field := range structType.AstFields.List {
+		setStructFieldOffset(field, offset)
+		size := GetSizeOfType2(E2G(field.Type))
+		offset += size
+	}
+	return offset
 }
 
 func calcStructSizeAndSetFieldOffset(structType *ast.StructType) int {
