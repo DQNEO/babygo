@@ -248,7 +248,7 @@ func emitAddr(meta ir.MetaExpr) {
 			emitAddConst(m.Offset, "struct head address + struct.field offset")
 		}
 	case *ir.MetaCompositLit:
-		knd := sema.Kind(sema.GetTypeOfExpr(m))
+		knd := sema.Kind2(sema.GetGoTypeOfExpr(m))
 		switch knd {
 		case types.T_STRUCT:
 			// result of evaluation of a struct literal is its address
@@ -340,8 +340,8 @@ func emitZeroValue(t types.GoType) {
 }
 
 func emitLen(arg ir.MetaExpr) {
-	t := sema.GetTypeOfExpr(arg)
-	switch sema.Kind(t) {
+	t := sema.GetGoTypeOfExpr(arg)
+	switch sema.Kind2(t) {
 	case types.T_ARRAY:
 		arrayLen := sema.GetArrayLen(t)
 		printf("  pushq $%d # array len\n", arrayLen)
@@ -363,8 +363,9 @@ func emitLen(arg ir.MetaExpr) {
 }
 
 func emitCap(arg ir.MetaExpr) {
-	t := sema.GetTypeOfExpr(arg)
-	switch sema.Kind(t) {
+	t := sema.GetGoTypeOfExpr(arg)
+	knd := sema.Kind2(t)
+	switch knd {
 	case types.T_ARRAY:
 		arrayLen := sema.GetArrayLen(t)
 		printf("  pushq $%d # array len\n", arrayLen)
@@ -375,7 +376,7 @@ func emitCap(arg ir.MetaExpr) {
 	case types.T_STRING:
 		panic("cap() cannot accept string type")
 	default:
-		unexpectedKind(sema.Kind(sema.GetTypeOfExpr(arg)))
+		unexpectedKind(knd)
 	}
 }
 

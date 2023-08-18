@@ -476,9 +476,10 @@ func E2T(typeExpr ast.Expr) *types.Type {
 	}
 }
 
-func GetArrayLen(t *types.Type) int {
-	arrayType := t.E.(*ast.ArrayType)
-	return EvalInt(arrayType.Len)
+func GetArrayLen(t types.GoType) int {
+	t = t.Underlying()
+	arrayType := t.(*types.Array)
+	return arrayType.Len()
 }
 
 func GetUnderlyingStructType(t *types.Type) *ast.StructType {
