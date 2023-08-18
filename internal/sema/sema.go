@@ -361,7 +361,7 @@ func E2G(typeExpr ast.Expr) types.GoType {
 				typeSpec := dcl
 				specType := typeSpec.Type
 				ut := E2G(specType)
-				return types.NewNamed(dcl.Name.Name, ut)
+				return types.NewNamed(dcl.Name.Name, ut.Underlying())
 			default:
 				panicPos(fmt.Sprintf("Unexpeced:%T ident=%s", t.Obj.Decl, t.Name), t.Pos())
 			}
@@ -2500,7 +2500,6 @@ const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
 func GetSizeOfType2(t types.GoType) int {
-	t = t.Underlying()
 	t = t.Underlying()
 	switch Kind2(t) {
 	case types.T_SLICE:
