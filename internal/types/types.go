@@ -239,13 +239,14 @@ func (t *Map) Underlying() GoType { return t }
 func (t *Map) String() string     { return "@TBI" }
 
 type Interface struct {
-	//Methods  []*Func
+	Methods  []*Func
 	EMethods *ast.FieldList
 }
 
-func NewInterfaceType(methods *ast.FieldList) *Interface {
-	i := &Interface{}
-	i.EMethods = methods
+func NewInterfaceType(methods []*Func) *Interface {
+	i := &Interface{
+		Methods: methods,
+	}
 	return i
 }
 

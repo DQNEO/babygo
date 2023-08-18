@@ -315,8 +315,14 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 	}
 	var r = &types.Tuple{}
 	for _, e2 := range fieldList.List {
-		//util.Logf("%s:[FieldList2Tuple] handling %T\n", Fset.Position(fieldList.Opening).String(), e2.Type)
-		var t types.GoType = E2G(e2.Type)
+		ident, isIdent := e2.Type.(*ast.Ident)
+		var t types.GoType
+		if isIdent && ident.Name == inNamed {
+			t = inNamedType
+		} else {
+			t = E2G(e2.Type)
+		}
+
 		r.Types = append(r.Types, t)
 	}
 	return r
@@ -367,9 +373,10 @@ func E2G(typeExpr ast.Expr) types.GoType {
 				gt := types.NewNamed(typeSpec.Name.Name, nil)
 				inNamed = typeSpec.Name.Name
 				inNamedType = gt
-				//				inNamed = gt
 				ut := E2G(typeSpec.Type)
 				gt.Uunderlying = ut
+				inNamedType = nil
+				inNamed = ""
 				return gt
 			default:
 				panicPos(fmt.Sprintf("Unexpeced:%T ident=%s", t.Obj.Decl, t.Name), t.Pos())
@@ -387,7 +394,6 @@ func E2G(typeExpr ast.Expr) types.GoType {
 		var astFields []*ast.Field
 		if t.Fields != nil {
 			for _, fld := range t.Fields.List {
-				util.Logf("[E2G] struct field %s\n", fld.Names[0].Name)
 				astFields = append(astFields, fld)
 				ft := E2G(fld.Type)
 				v := &types.Var{
@@ -403,8 +409,6 @@ func E2G(typeExpr ast.Expr) types.GoType {
 			ident, ok := t.X.(*ast.Ident)
 			if ok && ident.Name == inNamed {
 				p := types.NewPointer(inNamedType)
-				inNamedType = nil
-				inNamed = ""
 				return p
 			}
 		}
@@ -414,16 +418,19 @@ func E2G(typeExpr ast.Expr) types.GoType {
 	case *ast.MapType:
 		return types.NewMap(E2G(t.Key), E2G(t.Value))
 	case *ast.InterfaceType:
-		//if t.Methods != nil {
-		//	for _, m := range t.Methods.List {
-		//		f := &types.Func{
-		//			Typ:  E2G(m.Type),
-		//			Name: m.Names[0].Name,
-		//		}
-		//		methods = append(methods, f)
-		//	}
-		//}
-		return types.NewInterfaceType(t.Methods)
+		var methods []*types.Func
+		if t.Methods != nil {
+			for _, m := range t.Methods.List {
+				methodName := m.Names[0].Name
+				t := E2G(m.Type)
+				f := &types.Func{
+					Typ:  t,
+					Name: methodName,
+				}
+				methods = append(methods, f)
+			}
+		}
+		return types.NewInterfaceType(methods)
 	case *ast.FuncType:
 		sig := &types.Signature{}
 		if t.Params != nil {
