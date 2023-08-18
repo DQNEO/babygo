@@ -93,7 +93,8 @@ func emitPopSlice() {
 }
 
 func emitPushStackTop(condType *types.Type, offset int, comment string) {
-	switch sema.Kind2(condType) {
+	knd := sema.Kind2(condType.GoType)
+	switch knd {
 	case types.T_STRING:
 		printf("  movq %d+8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", offset, comment)
 		printf("  movq %d+0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", offset, comment)
@@ -103,7 +104,7 @@ func emitPushStackTop(condType *types.Type, offset int, comment string) {
 		printf("  movq %d(%%rsp), %%rax # copy stack top value (%s) \n", offset, comment)
 		printf("  pushq %%rax\n")
 	default:
-		unexpectedKind(sema.Kind(condType))
+		unexpectedKind(knd)
 	}
 }
 

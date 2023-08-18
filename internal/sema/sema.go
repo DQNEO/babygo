@@ -484,10 +484,9 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 	return nil
 }
 
-func Kind2(t *types.Type) types.TypeKind {
-	gType := t.GoType
+func Kind2(gType types.GoType) types.TypeKind {
 	if gType == nil {
-		panic(fmt.Sprintf("[Kind2] Unexpected nil: %T\n", t.E))
+		panic(fmt.Sprintf("[Kind2] Unexpected nil:\n"))
 	}
 
 	switch gt := gType.(type) {
@@ -508,7 +507,7 @@ func Kind2(t *types.Type) types.TypeKind {
 		case types.GString:
 			return types.T_STRING
 		default:
-			panicPos("TBI: unknown gt.Kind", t.E.Pos())
+			panicPos("TBI: unknown gt.Kind", 1)
 		}
 	case *types.Array:
 		return types.T_ARRAY
@@ -525,14 +524,14 @@ func Kind2(t *types.Type) types.TypeKind {
 	case *types.Func:
 		return types.T_FUNC
 	case *types.Tuple:
-		panicPos(fmt.Sprintf("Tuple is not expected: type %T\n", gType), t.E.Pos())
+		panic(fmt.Sprintf("Tuple is not expected: type %T\n", gType))
 	case *types.Named:
 		ut := gt.Underlying()
 		if ut == nil {
-			panicPos(fmt.Sprintf("nil is not expected: NamedType %s\n", gt.String()), t.E.Pos())
+			panic(fmt.Sprintf("nil is not expected: NamedType %s\n", gt.String()))
 		}
-		t := &types.Type{GoType: ut}
-		return Kind2(t)
+		//t := &types.Type{GoType: ut}
+		return Kind2(ut)
 	default:
 		panic(fmt.Sprintf("[Kind2] Unexpected type: %T\n", gType))
 		//panicPos(fmt.Sprintf("Unexpected type %T\n", gType), t.E.Pos())
@@ -547,56 +546,7 @@ func Kind(t *types.Type) types.TypeKind {
 	if t.GoType == nil {
 		panic(fmt.Sprintf("[Kind] Unexpected GoType nil: %T %s\n", t.E, t.Name))
 	}
-	return Kind2(t)
-
-	ut := GetUnderlyingType(t)
-	if ut == types.GeneralSliceType {
-		return types.T_SLICE
-	}
-
-	switch e := ut.E.(type) {
-	case *ast.Ident:
-		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ", __func__)
-		switch e.Obj {
-		case universe.Uintptr:
-			return types.T_UINTPTR
-		case universe.Int:
-			return types.T_INT
-		case universe.Int32:
-			return types.T_INT32
-		case universe.String:
-			return types.T_STRING
-		case universe.Uint8:
-			return types.T_UINT8
-		case universe.Uint16:
-			return types.T_UINT16
-		case universe.Bool:
-			return types.T_BOOL
-		case universe.Error:
-			return types.T_INTERFACE
-		default:
-			panic("Unexpected type")
-		}
-	case *ast.StructType:
-		return types.T_STRUCT
-	case *ast.ArrayType:
-		if e.Len == nil {
-			return types.T_SLICE
-		} else {
-			return types.T_ARRAY
-		}
-	case *ast.StarExpr:
-		return types.T_POINTER
-	case *ast.Ellipsis: // x ...T
-		return types.T_SLICE // @TODO is this right ?
-	case *ast.MapType:
-		return types.T_MAP
-	case *ast.InterfaceType:
-		return types.T_INTERFACE
-	case *ast.FuncType:
-		return types.T_FUNC
-	}
-	panic("should not reach here")
+	return Kind2(t.GoType)
 }
 
 func IsInterface(t *types.Type) bool {
