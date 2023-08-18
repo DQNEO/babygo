@@ -114,14 +114,20 @@ var String *Type = &Type{
 	},
 }
 
+var EmptyInterface = &Interface{}
+
 // Eface means the empty interface type
 var Eface *Type = &Type{
 	E: &ast.InterfaceType{
 		Interface: 1,
 	},
+	GoType: EmptyInterface,
 }
 
-var GeneralSliceType *Type = &Type{}
+var GGeneralSliceType = &Slice{}
+var GeneralSliceType *Type = &Type{
+	GoType: GGeneralSliceType,
+}
 
 const GBool = 1
 const GInt = 2

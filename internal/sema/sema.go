@@ -486,6 +486,10 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 
 func Kind2(t *types.Type) types.TypeKind {
 	gType := t.GoType
+	if gType == nil {
+		panic(fmt.Sprintf("[Kind2] Unexpected nil: %T\n", t.E))
+	}
+
 	switch gt := gType.(type) {
 	case *types.Basic:
 		switch gt.Kind() {
@@ -510,12 +514,16 @@ func Kind2(t *types.Type) types.TypeKind {
 		return types.T_ARRAY
 	case *types.Slice:
 		return types.T_SLICE
+	case *types.Struct:
+		return types.T_STRUCT
 	case *types.Pointer:
 		return types.T_POINTER
 	case *types.Map:
 		return types.T_MAP
 	case *types.Interface:
 		return types.T_INTERFACE
+	case *types.Func:
+		return types.T_FUNC
 	case *types.Tuple:
 		panicPos(fmt.Sprintf("Tuple is not expected: type %T\n", gType), t.E.Pos())
 	case *types.Named:
@@ -525,8 +533,6 @@ func Kind2(t *types.Type) types.TypeKind {
 		}
 		t := &types.Type{GoType: ut}
 		return Kind2(t)
-	case nil:
-		panic(fmt.Sprintf("[Kind2] Unexpected nil: %s\n", t.Name))
 	default:
 		panic(fmt.Sprintf("[Kind2] Unexpected type: %T\n", gType))
 		//panicPos(fmt.Sprintf("Unexpected type %T\n", gType), t.E.Pos())
@@ -538,6 +544,10 @@ func Kind(t *types.Type) types.TypeKind {
 	if t == nil {
 		panicPos("nil type is not expected", t.E.Pos())
 	}
+	if t.GoType == nil {
+		panic(fmt.Sprintf("[Kind] Unexpected GoType nil: %T %s\n", t.E, t.Name))
+	}
+	return Kind2(t)
 
 	ut := GetUnderlyingType(t)
 	if ut == types.GeneralSliceType {
@@ -2535,8 +2545,8 @@ const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
 func GetSizeOfType(t *types.Type) int {
-	ut := GetUnderlyingType(t)
-	switch Kind(ut) {
+	//ut := GetUnderlyingType(t)
+	switch Kind(t) {
 	case types.T_SLICE:
 		return SizeOfSlice
 	case types.T_STRING:
@@ -2554,10 +2564,12 @@ func GetSizeOfType(t *types.Type) int {
 	case types.T_INTERFACE:
 		return SizeOfInterface
 	case types.T_ARRAY:
+		ut := GetUnderlyingType(t)
 		arrayType := ut.E.(*ast.ArrayType)
 		elmSize := GetSizeOfType(E2T(arrayType.Elt))
 		return elmSize * EvalInt(arrayType.Len)
 	case types.T_STRUCT:
+		ut := GetUnderlyingType(t)
 		return calcStructSizeAndSetFieldOffset(ut.E.(*ast.StructType))
 	case types.T_FUNC:
 		return SizeOfPtr
