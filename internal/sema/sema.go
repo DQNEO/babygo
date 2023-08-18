@@ -6,6 +6,7 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
+	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -333,6 +334,9 @@ func GetTupleTypes(rhsMeta ir.MetaExpr) []*types.Type {
 	}
 }
 
+var inNamed string
+var inNamedType *types.Named
+
 func E2G(typeExpr ast.Expr) types.GoType {
 	switch t := typeExpr.(type) {
 	case *ast.Ident:
@@ -359,9 +363,14 @@ func E2G(typeExpr ast.Expr) types.GoType {
 			switch dcl := t.Obj.Decl.(type) {
 			case *ast.TypeSpec:
 				typeSpec := dcl
-				specType := typeSpec.Type
-				ut := E2G(specType)
-				return types.NewNamed(dcl.Name.Name, ut.Underlying())
+				util.Logf("[E2G] type %s\n", typeSpec.Name.Name)
+				gt := types.NewNamed(typeSpec.Name.Name, nil)
+				inNamed = typeSpec.Name.Name
+				inNamedType = gt
+				//				inNamed = gt
+				ut := E2G(typeSpec.Type)
+				gt.Uunderlying = ut
+				return gt
 			default:
 				panicPos(fmt.Sprintf("Unexpeced:%T ident=%s", t.Obj.Decl, t.Name), t.Pos())
 			}
@@ -374,8 +383,31 @@ func E2G(typeExpr ast.Expr) types.GoType {
 			return types.NewArray(E2G(t.Elt), EvalInt(t.Len))
 		}
 	case *ast.StructType:
-		return types.NewStruct(t.Fields)
+		var fields []*types.Var
+		var astFields []*ast.Field
+		if t.Fields != nil {
+			for _, fld := range t.Fields.List {
+				util.Logf("[E2G] struct field %s\n", fld.Names[0].Name)
+				astFields = append(astFields, fld)
+				ft := E2G(fld.Type)
+				v := &types.Var{
+					Name: fld.Names[0].Name,
+					Typ:  ft,
+				}
+				fields = append(fields, v)
+			}
+		}
+		return types.NewStruct(fields, astFields)
 	case *ast.StarExpr:
+		if inNamedType != nil {
+			ident, ok := t.X.(*ast.Ident)
+			if ok && ident.Name == inNamed {
+				p := types.NewPointer(inNamedType)
+				inNamedType = nil
+				inNamed = ""
+				return p
+			}
+		}
 		return types.NewPointer(E2G(t.X))
 	case *ast.Ellipsis:
 		return types.NewSlice(E2G(t.Elt))
@@ -2501,6 +2533,7 @@ const SizeOfInterface int = 16
 
 func GetSizeOfType2(t types.GoType) int {
 	t = t.Underlying()
+	t = t.Underlying()
 	switch Kind2(t) {
 	case types.T_SLICE:
 		return SizeOfSlice
@@ -2569,9 +2602,9 @@ func GetSizeOfType(t *types.Type) int {
 
 func calcStructSizeAndSetFieldOffset2(structType *types.Struct) int {
 	var offset int = 0
-	for _, field := range structType.AstFields.List {
-		setStructFieldOffset(field, offset)
-		size := GetSizeOfType2(E2G(field.Type))
+	for i, field := range structType.Fields {
+		setStructFieldOffset(structType.AstFields[i], offset)
+		size := GetSizeOfType2(field.Typ)
 		offset += size
 	}
 	return offset

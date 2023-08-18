@@ -287,13 +287,14 @@ type Var struct {
 }
 
 type Struct struct {
-	fields    []*Var // fields != nil indicates the struct is set up (possibly with len(fields) == 0)
-	AstFields *ast.FieldList
+	Fields    []*Var // Fields != nil indicates the struct is set up (possibly with len(Fields) == 0)
+	AstFields []*ast.Field
 }
 
-func NewStruct(fields *ast.FieldList) *Struct {
+func NewStruct(fields []*Var, astFields []*ast.Field) *Struct {
 	return &Struct{
-		AstFields: fields,
+		Fields:    fields,
+		AstFields: astFields,
 	}
 }
 
@@ -301,16 +302,16 @@ func (t *Struct) Underlying() GoType { return t }
 func (t *Struct) String() string     { return "@TBI" }
 
 type Named struct {
-	name       string
-	underlying GoType
+	name        string
+	Uunderlying GoType
 }
 
 func NewNamed(name string, typ GoType) *Named {
 	return &Named{
-		name:       name,
-		underlying: typ,
+		name:        name,
+		Uunderlying: typ,
 	}
 }
 
-func (t *Named) Underlying() GoType { return t.underlying }
+func (t *Named) Underlying() GoType { return t.Uunderlying }
 func (t *Named) String() string     { return t.name }
