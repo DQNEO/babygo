@@ -2633,7 +2633,11 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 		return SerializeType2(t.GoType, showPkgPrefix)
 	}
 	if t.Name != "" {
-		return t.PkgName + "." + t.Name
+		if showPkgPrefix {
+			return t.PkgName + "." + t.Name
+		} else {
+			return t.Name
+		}
 	}
 	switch e := t.E.(type) {
 	case *ast.Ident:
