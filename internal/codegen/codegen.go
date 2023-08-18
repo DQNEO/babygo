@@ -291,7 +291,7 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 		return
 	case types.T_INTERFACE:
 		emitExpr(arg0)
-		if sema.IsInterface(fromType) {
+		if sema.IsInterface(fromType.GoType) {
 			return // do nothing
 		} else {
 			// Convert dynamic value to interface
@@ -310,8 +310,8 @@ func emitIfcConversion(ic *ir.IfcConversion) {
 	emitConvertToInterface(sema.GetTypeOfExpr(ic.Value), ic.Type)
 }
 
-func emitZeroValue(t *types.Type) {
-	switch sema.Kind(t) {
+func emitZeroValue(t types.GoType) {
+	switch sema.Kind2(t) {
 	case types.T_SLICE:
 		printf("  pushq $0 # slice cap\n")
 		printf("  pushq $0 # slice len\n")
@@ -323,19 +323,19 @@ func emitZeroValue(t *types.Type) {
 		printf("  pushq $0 # interface data\n")
 		printf("  pushq $0 # interface dtype\n")
 	case types.T_INT, types.T_UINT8, types.T_BOOL:
-		printf("  pushq $0 # %s zero value (number)\n", string(sema.Kind(t)))
+		printf("  pushq $0 # %s zero value (number)\n", string(sema.Kind2(t)))
 	case types.T_UINTPTR, types.T_POINTER, types.T_MAP, types.T_FUNC:
-		printf("  pushq $0 # %s zero value (nil pointer)\n", string(sema.Kind(t)))
+		printf("  pushq $0 # %s zero value (nil pointer)\n", string(sema.Kind2(t)))
 	case types.T_ARRAY:
-		size := sema.GetSizeOfType2(t.GoType)
+		size := sema.GetSizeOfType2(t)
 		emitComment(2, "zero value of an array. size=%d (allocating on heap)\n", size)
 		emitCallMalloc(size)
 	case types.T_STRUCT:
-		structSize := sema.GetSizeOfType2(t.GoType)
+		structSize := sema.GetSizeOfType2(t)
 		emitComment(2, "zero value of a struct. size=%d (allocating on heap)\n", structSize)
 		emitCallMalloc(structSize)
 	default:
-		unexpectedKind(sema.Kind(t))
+		unexpectedKind(sema.Kind2(t))
 	}
 }
 
@@ -391,7 +391,7 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 	// allocate heap area with zero value
 	emitComment(2, "emitStructLiteral\n")
 	structType := meta.Type
-	emitZeroValue(structType) // push address of the new storage
+	emitZeroValue(structType.GoType) // push address of the new storage
 	metaElms := meta.StructElements
 	for _, metaElm := range metaElms {
 		// push lhs address
@@ -700,11 +700,11 @@ func emitIdent(meta *ir.MetaIdent) {
 			panic("untyped nil is not allowed. Probably the type is not set in walk phase. pkg=" + sema.CurrentPkg.Name)
 		}
 		// emit zero value of the type
-		switch sema.Kind(metaType) {
+		switch sema.Kind2(metaType.GoType) {
 		case types.T_SLICE, types.T_POINTER, types.T_INTERFACE, types.T_MAP:
-			emitZeroValue(metaType)
+			emitZeroValue(metaType.GoType)
 		default:
-			unexpectedKind(sema.Kind(metaType))
+			unexpectedKind(sema.Kind2(metaType.GoType))
 		}
 	case "var":
 		emitAddr(meta)
@@ -772,7 +772,7 @@ func emitBasicLit(mt *ir.MetaBasicLit) {
 		sl := mt.StrVal
 		if sl.Strlen == 0 {
 			// zero value
-			emitZeroValue(types.String)
+			emitZeroValue(types.String.GoType)
 		} else {
 			printf("  pushq $%d # str len\n", sl.Strlen)
 			printf("  leaq %s(%%rip), %%rax # str ptr\n", sl.Label)
@@ -1032,7 +1032,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 	// if not matched
 	printf("  %s:\n", labelElse)
 	emitPop(types.T_POINTER) // destroy nil
-	emitZeroValue(valueType)
+	emitZeroValue(valueType.GoType)
 	if okContext {
 		printf("  pushq $0 # ok = false\n")
 	}
@@ -1064,7 +1064,7 @@ func emitTypeAssertExpr(meta *ir.MetaTypeAssertExpr) {
 	// if not matched
 	printf("  %s:\n", labelElse)
 	printf("  popq %%rax # drop ifc.data\n")
-	emitZeroValue(meta.Type)
+	emitZeroValue(meta.Type.GoType)
 	if meta.NeedsOK {
 		printf("  pushq $0 # ok = false\n")
 	}
@@ -1354,7 +1354,7 @@ func emitAssignZeroValue(lhs ir.MetaExpr, lhsType *types.Type) {
 	emitComment(2, "lhs addresss\n")
 	emitAddr(lhs)
 	emitComment(2, "emitZeroValue\n")
-	emitZeroValue(lhsType)
+	emitZeroValue(lhsType.GoType)
 	emitStore(lhsType.GoType, true, false)
 
 }
@@ -1633,7 +1633,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	emitComment(2, "  assign 0 to indexvar\n")
 	// indexvar = 0
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
-	emitZeroValue(types.Int)
+	emitZeroValue(types.Int.GoType)
 	emitStore(types.Int.GoType, true, false)
 
 	// init key variable with 0
@@ -1641,7 +1641,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	if keyMeta != nil {
 		if !sema.IsBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta) // lhs
-			emitZeroValue(types.Int)
+			emitZeroValue(types.Int.GoType)
 			emitStore(types.Int.GoType, true, false)
 		}
 	}

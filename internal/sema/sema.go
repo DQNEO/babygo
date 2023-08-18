@@ -595,12 +595,12 @@ func Kind(t *types.Type) types.TypeKind {
 	return Kind2(t.GoType)
 }
 
-func IsInterface(t *types.Type) bool {
-	return Kind(t) == types.T_INTERFACE
+func IsInterface(t types.GoType) bool {
+	return Kind2(t) == types.T_INTERFACE
 }
 
 func HasIfcMethod(t *types.Type) bool {
-	if !IsInterface(t) {
+	if !IsInterface(t.GoType) {
 		panic("type should be an interface")
 	}
 	ut := GetUnderlyingType(t)
@@ -2181,11 +2181,11 @@ func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) i
 	if trgtType == nil {
 		return expr
 	}
-	if !IsInterface(trgtType) {
+	if !IsInterface(trgtType.GoType) {
 		return expr
 	}
 	fromType := GetTypeOfExpr(expr)
-	if IsInterface(fromType) {
+	if IsInterface(fromType.GoType) {
 		return expr
 	}
 
