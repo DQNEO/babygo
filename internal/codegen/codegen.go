@@ -487,9 +487,9 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 		offsets = append(offsets, totalParamSize)
 		var size int
 		if fv.IfcMethodCal && i == 0 {
-			size = sema.GetSizeOfType(types.Uintptr) // @FIXME
+			size = sema.GetSizeOfType2(types.Uintptr.GoType) // @FIXME
 		} else {
-			size = sema.GetSizeOfType(paramType)
+			size = sema.GetSizeOfType2(paramType.GoType)
 		}
 		totalParamSize += size
 	}
@@ -526,7 +526,7 @@ func emitAllocReturnVarsAreaFF(ff *ir.Func) {
 func getTotalSizeOfType(types []*types.Type) int {
 	var r int
 	for _, t := range types {
-		r += sema.GetSizeOfType(t)
+		r += sema.GetSizeOfType2(t.GoType)
 	}
 	return r
 }
@@ -614,13 +614,13 @@ func emitFreeAndPushReturnedValue(returnTypes []*types.Type) {
 
 func emitMetaCallNew(m *ir.MetaCallNew) {
 	// size to malloc
-	size := sema.GetSizeOfType(m.TypeArg0)
+	size := sema.GetSizeOfType2(m.TypeArg0.GoType)
 	emitCallMalloc(size)
 }
 
 func emitMetaCallMake(m *ir.MetaCallMake) {
 	typeArg := m.TypeArg0
-	switch sema.Kind(typeArg) {
+	switch sema.Kind2(typeArg.GoType) {
 	case types.T_MAP:
 		mapValueType := sema.GetElementTypeOfCollectionType(typeArg)
 		valueSize := sema.NewNumberLiteral(sema.GetSizeOfType(mapValueType), m.Pos())
