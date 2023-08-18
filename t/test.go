@@ -23,6 +23,10 @@ type MyIfc interface {
 	M() MyIfc
 }
 
+type MySelfRefStruct struct {
+	M *MySelfRefStruct
+}
+
 func hello_defer() {
 	writeln("hello defer")
 }

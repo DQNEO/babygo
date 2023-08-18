@@ -233,12 +233,13 @@ func (t *Map) Underlying() GoType { return t }
 func (t *Map) String() string     { return "@TBI" }
 
 type Interface struct {
-	Methods []*Func
+	//Methods  []*Func
+	EMethods *ast.FieldList
 }
 
-func NewInterfaceType(methods []*Func) *Interface {
+func NewInterfaceType(methods *ast.FieldList) *Interface {
 	i := &Interface{}
-	i.Methods = methods
+	i.EMethods = methods
 	return i
 }
 
@@ -287,15 +288,15 @@ func (t *Struct) String() string     { return "@TBI" }
 
 type Named struct {
 	name       string
-	underlying ast.Expr
+	underlying GoType
 }
 
-func NewNamed(name string, typ ast.Expr) *Named {
+func NewNamed(name string, typ GoType) *Named {
 	return &Named{
 		name:       name,
 		underlying: typ,
 	}
 }
 
-func (t *Named) Underlying() GoType { return nil }
-func (t *Named) String() string     { return "@TBI" }
+func (t *Named) Underlying() GoType { return t.underlying }
+func (t *Named) String() string     { return t.name }

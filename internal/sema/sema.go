@@ -6,7 +6,6 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
-	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -238,51 +237,58 @@ func GetPackageSymbol(pkgName string, subsymbol string) string {
 
 // Types of an expr in Single value context
 func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
+	var t *types.Type
 	switch m := meta.(type) {
 	case *ir.MetaBasicLit:
-		return m.Type
+		t = m.Type
 	case *ir.MetaCompositLit:
-		return m.Type
+		t = m.Type
 	case *ir.MetaIdent:
-		return m.Type
+		t = m.Type
 	case *ir.Variable:
-		return m.Type
+		t = m.Type
 	case *ir.MetaSelectorExpr:
-		return m.Type
+		t = m.Type
 	case *ir.MetaConversionExpr:
-		return m.Type
+		t = m.Type
 	case *ir.MetaCallLen:
-		return m.Type
+		t = m.Type
 	case *ir.MetaCallCap:
-		return m.Type
+		t = m.Type
 	case *ir.MetaCallNew:
-		return m.Type
+		t = m.Type
 	case *ir.MetaCallMake:
-		return m.Type
+		t = m.Type
 	case *ir.MetaCallAppend:
-		return m.Type
+		t = m.Type
 	case *ir.MetaCallPanic:
-		return m.Type
+		t = m.Type
 	case *ir.MetaCallDelete:
-		return m.Type
+		t = m.Type
 	case *ir.MetaCallExpr: // funcall
-		return m.Type // can be nil (e.g. panic()). if Tuple , m.Types has Types
+		t = m.Type // can be nil (e.g. panic()). if Tuple , m.Types has Types
 	case *ir.MetaIndexExpr:
-		return m.Type
+		t = m.Type
 	case *ir.MetaSliceExpr:
-		return m.Type
+		t = m.Type
 	case *ir.MetaStarExpr:
-		return m.Type
+		t = m.Type
 	case *ir.MetaUnaryExpr:
-		return m.Type
+		t = m.Type
 	case *ir.MetaBinaryExpr:
-		return m.Type
+		t = m.Type
 	case *ir.MetaTypeAssertExpr:
-		return m.Type
+		t = m.Type
 	case *ir.IfcConversion:
-		return m.Type
+		t = m.Type
 	}
-	panic(fmt.Sprintf("bad type:%T\n", meta))
+	if t == nil {
+		panic(fmt.Sprintf("bad type:%T\n", meta))
+	}
+	if t.GoType == nil {
+		panic(fmt.Sprintf("GoType is not set:%T\n", meta))
+	}
+	return t
 }
 
 func FieldList2Types(fieldList *ast.FieldList) []*types.Type {
@@ -303,7 +309,7 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 	}
 	var r = &types.Tuple{}
 	for _, e2 := range fieldList.List {
-		util.Logf("%s:[FieldList2Tuple] handling %T\n", Fset.Position(fieldList.Opening).String(), e2.Type)
+		//util.Logf("%s:[FieldList2Tuple] handling %T\n", Fset.Position(fieldList.Opening).String(), e2.Type)
 		var t types.GoType = E2G(e2.Type)
 		r.Types = append(r.Types, t)
 	}
@@ -349,12 +355,12 @@ func E2G(typeExpr ast.Expr) types.GoType {
 			case *ast.TypeSpec:
 				typeSpec := dcl
 				specType := typeSpec.Type
-				//ut := E2G(specType)
-				return types.NewNamed(dcl.Name.Name, specType)
+				ut := E2G(specType)
+				return types.NewNamed(dcl.Name.Name, ut)
 			default:
 				panicPos(fmt.Sprintf("Unexpeced:%T ident=%s", t.Obj.Decl, t.Name), t.Pos())
 			}
-			return nil // @TODO ??
+			panic("Unexpected flow")
 		}
 	case *ast.ArrayType:
 		if t.Len == nil {
@@ -371,17 +377,16 @@ func E2G(typeExpr ast.Expr) types.GoType {
 	case *ast.MapType:
 		return types.NewMap(E2G(t.Key), E2G(t.Value))
 	case *ast.InterfaceType:
-		var methods []*types.Func
-		if t.Methods != nil {
-			for _, m := range t.Methods.List {
-				f := &types.Func{
-					Typ:  E2G(m.Type),
-					Name: m.Names[0].Name,
-				}
-				methods = append(methods, f)
-			}
-		}
-		return types.NewInterfaceType(methods)
+		//if t.Methods != nil {
+		//	for _, m := range t.Methods.List {
+		//		f := &types.Func{
+		//			Typ:  E2G(m.Type),
+		//			Name: m.Names[0].Name,
+		//		}
+		//		methods = append(methods, f)
+		//	}
+		//}
+		return types.NewInterfaceType(t.Methods)
 	case *ast.FuncType:
 		sig := &types.Signature{}
 		if t.Params != nil {
@@ -390,14 +395,21 @@ func E2G(typeExpr ast.Expr) types.GoType {
 		if t.Results != nil {
 			sig.Results = FieldList2Tuple(t.Results)
 		}
-		util.Logf("%s:[E2G] handling *ast.FuncType\n", Fset.Position(t.Pos()).String())
+		//util.Logf("%s:[E2G] handling *ast.FuncType\n", Fset.Position(t.Pos()).String())
 		return types.NewFunc(sig)
 	case *ast.ParenExpr:
 		typeExpr = t.X
 		return E2G(typeExpr)
+	case *ast.SelectorExpr:
+		if isQI(t) { // e.g. unsafe.Pointer
+			ei := LookupForeignIdent(Selector2QI(t), t.Pos())
+			return ei.Type.GoType
+		} else {
+			panic("@TBI")
+		}
 	}
 
-	//	panic("should not reach here")
+	panic(fmt.Sprintf("should not reach here: %T\n", typeExpr))
 
 	return nil
 }
@@ -470,6 +482,56 @@ func GetUnderlyingType(t *types.Type) *types.Type {
 	}
 	throw(t.E)
 	return nil
+}
+
+func Kind2(t *types.Type) types.TypeKind {
+	gType := t.GoType
+	switch gt := gType.(type) {
+	case *types.Basic:
+		switch gt.Kind() {
+		case types.GBool:
+			return types.T_BOOL
+		case types.GInt:
+			return types.T_INT
+		case types.GInt32:
+			return types.T_INT32
+		case types.GUint8:
+			return types.T_UINT8
+		case types.GUint16:
+			return types.T_UINT16
+		case types.GUintptr:
+			return types.T_UINTPTR
+		case types.GString:
+			return types.T_STRING
+		default:
+			panicPos("TBI: unknown gt.Kind", t.E.Pos())
+		}
+	case *types.Array:
+		return types.T_ARRAY
+	case *types.Slice:
+		return types.T_SLICE
+	case *types.Pointer:
+		return types.T_POINTER
+	case *types.Map:
+		return types.T_MAP
+	case *types.Interface:
+		return types.T_INTERFACE
+	case *types.Tuple:
+		panicPos(fmt.Sprintf("Tuple is not expected: type %T\n", gType), t.E.Pos())
+	case *types.Named:
+		ut := gt.Underlying()
+		if ut == nil {
+			panicPos(fmt.Sprintf("nil is not expected: NamedType %s\n", gt.String()), t.E.Pos())
+		}
+		t := &types.Type{GoType: ut}
+		return Kind2(t)
+	case nil:
+		panic(fmt.Sprintf("[Kind2] Unexpected nil: %s\n", t.Name))
+	default:
+		panic(fmt.Sprintf("[Kind2] Unexpected type: %T\n", gType))
+		//panicPos(fmt.Sprintf("Unexpected type %T\n", gType), t.E.Pos())
+	}
+	return "UNKNOWN_KIND"
 }
 
 func Kind(t *types.Type) types.TypeKind {
@@ -2046,6 +2108,10 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *ir.EvalContext) *ir.MetaType
 	}
 	meta.X = walkExpr(e.X, nil)
 	meta.Type = E2T(e.Type)
+	if meta.Type.GoType == nil {
+		panic(fmt.Sprintf("[walkTypeAssertExpr] GoType is not set:%T\n", e.Type))
+	}
+
 	RegisterDtype(meta.Type, GetTypeOfExpr(meta.X))
 	return meta
 }

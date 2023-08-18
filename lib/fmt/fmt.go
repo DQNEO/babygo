@@ -107,7 +107,13 @@ func (p *pp) fmtInteger(v int, verb byte) {
 func (p *pp) printArg(arg interface{}, verb byte) {
 	switch verb {
 	case 'T':
-		str := reflect.TypeOf(arg).String()
+		typ := reflect.TypeOf(arg)
+		var str string
+		if typ == nil {
+			str = "nil"
+		} else {
+			str = typ.String()
+		}
 		p.buf.writeString(str)
 		return
 	}
