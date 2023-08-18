@@ -281,12 +281,20 @@ type Signature struct {
 func (t *Signature) Underlying() GoType { return t }
 func (t *Signature) String() string     { return "@TBI" }
 
-type Struct struct {
-	fields []interface{} // fields != nil indicates the struct is set up (possibly with len(fields) == 0)
+type Var struct {
+	Name string
+	Typ  GoType
 }
 
-func NewStruct(fields []interface{}) *Struct {
-	return &Struct{}
+type Struct struct {
+	fields    []*Var // fields != nil indicates the struct is set up (possibly with len(fields) == 0)
+	AstFields *ast.FieldList
+}
+
+func NewStruct(fields *ast.FieldList) *Struct {
+	return &Struct{
+		AstFields: fields,
+	}
 }
 
 func (t *Struct) Underlying() GoType { return t }

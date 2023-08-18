@@ -374,7 +374,7 @@ func E2G(typeExpr ast.Expr) types.GoType {
 			return types.NewArray(E2G(t.Elt), EvalInt(t.Len))
 		}
 	case *ast.StructType:
-		return types.NewStruct(nil)
+		return types.NewStruct(t.Fields)
 	case *ast.StarExpr:
 		return types.NewPointer(E2G(t.X))
 	case *ast.Ellipsis:
