@@ -2617,6 +2617,9 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 	if t == types.GeneralSliceType {
 		panic("TBD: GeneralSlice")
 	}
+	if t.GoType == nil {
+		panic("t.Gotype should not be nil")
+	}
 	if t.Name != "" {
 		return t.PkgName + "." + t.Name
 	}
@@ -2630,17 +2633,17 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 		} else if e.Obj.Kind == ast.Typ {
 			switch e.Obj {
 			case universe.Uintptr:
-				return "uintptr"
+				return types.Uintptr.GoType.String()
 			case universe.Int:
-				return "int"
+				return types.Int.GoType.String()
 			case universe.String:
-				return "string"
+				return types.String.GoType.String()
 			case universe.Uint8:
-				return "uint8"
+				return types.Uint8.GoType.String()
 			case universe.Uint16:
-				return "uint16"
+				return types.Uint16.GoType.String()
 			case universe.Bool:
-				return "bool"
+				return types.Bool.GoType.String()
 			case universe.Error:
 				return "error"
 			default:
