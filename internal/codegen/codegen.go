@@ -1318,7 +1318,7 @@ func emitStore(t *types.Type, rhsTop bool, pushLhs bool) {
 
 func emitRegiToMem(t *types.Type) {
 	printf("  popq %%rsi # place to save\n")
-	k := sema.Kind(t)
+	k := sema.Kind2(t.GoType)
 	switch k {
 	case types.T_SLICE:
 		printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
