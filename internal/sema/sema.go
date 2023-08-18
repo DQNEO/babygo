@@ -2291,6 +2291,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		t := E2T(eType)
 		t.PkgName = pkg.Name
 		t.Name = typeSpec.Name.Name
+		gt := t.GoType.(*types.Named)
+		gt.PkgName = pkg.Name
 		typs = append(typs, t)
 		exportedTpyes = append(exportedTpyes, t)
 		switch Kind(t) {

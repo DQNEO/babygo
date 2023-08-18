@@ -305,6 +305,7 @@ func (t *Struct) String() string     { return "@TBI" }
 type Named struct {
 	name        string
 	Uunderlying GoType
+	PkgName     string
 }
 
 func NewNamed(name string, typ GoType) *Named {
