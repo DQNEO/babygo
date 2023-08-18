@@ -404,13 +404,13 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 		emitExpr(metaElm.Value)
 
 		// assign
-		emitStore(metaElm.FieldType, true, false)
+		emitStore(metaElm.FieldType.GoType, true, false)
 	}
 }
 
 func emitArrayLiteral(meta *ir.MetaCompositLit) {
 	elmType := meta.ElmType
-	elmSize := sema.GetSizeOfType(elmType)
+	elmSize := sema.GetSizeOfType2(elmType.GoType)
 	memSize := elmSize * meta.Len
 
 	emitCallMalloc(memSize) // push
@@ -422,7 +422,7 @@ func emitArrayLiteral(meta *ir.MetaCompositLit) {
 		emitExpr(elm)
 
 		// assign
-		emitStore(elmType, true, false)
+		emitStore(elmType.GoType, true, false)
 	}
 }
 
@@ -511,7 +511,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 			emitPop(sema.Kind(paramType))
 			printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 			printf("  pushq %%rsi # place to save\n")
-			emitRegiToMem(paramType)
+			emitRegiToMem(paramType.GoType)
 		}
 	}
 
@@ -1136,7 +1136,7 @@ func emitConvertToInterface(fromType *types.Type, toType *types.Type) {
 	memSize := sema.GetSizeOfType(fromType)
 	// copy data to heap
 	emitCallMalloc(memSize)
-	emitStore(fromType, false, true) // heap addr pushed
+	emitStore(fromType.GoType, false, true) // heap addr pushed
 	// push dtype label's address
 	emitDtypeLabelAddr(fromType, toType)
 }
@@ -1298,8 +1298,8 @@ func emitPop(knd types.TypeKind) {
 	}
 }
 
-func emitStore(t *types.Type, rhsTop bool, pushLhs bool) {
-	knd := sema.Kind(t)
+func emitStore(t types.GoType, rhsTop bool, pushLhs bool) {
+	knd := sema.Kind2(t)
 	emitComment(2, "emitStore(%s)\n", knd)
 	if rhsTop {
 		emitPop(knd) // rhs
@@ -1316,9 +1316,9 @@ func emitStore(t *types.Type, rhsTop bool, pushLhs bool) {
 	emitRegiToMem(t)
 }
 
-func emitRegiToMem(t *types.Type) {
+func emitRegiToMem(t types.GoType) {
 	printf("  popq %%rsi # place to save\n")
-	k := sema.Kind2(t.GoType)
+	k := sema.Kind2(t)
 	switch k {
 	case types.T_SLICE:
 		printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
@@ -1339,7 +1339,7 @@ func emitRegiToMem(t *types.Type) {
 	case types.T_UINT8:
 		printf("  movb %%al, %d(%%rsi) # assign byte\n", 0)
 	case types.T_STRUCT, types.T_ARRAY:
-		printf("  pushq $%d # size\n", sema.GetSizeOfType(t))
+		printf("  pushq $%d # size\n", sema.GetSizeOfType2(t))
 		printf("  pushq %%rsi # dst lhs\n")
 		printf("  pushq %%rax # src rhs\n")
 		ff := sema.LookupForeignFunc(sema.NewQI("runtime", "memcopy"))
@@ -1355,7 +1355,7 @@ func emitAssignZeroValue(lhs ir.MetaExpr, lhsType *types.Type) {
 	emitAddr(lhs)
 	emitComment(2, "emitZeroValue\n")
 	emitZeroValue(lhsType)
-	emitStore(lhsType, true, false)
+	emitStore(lhsType.GoType, true, false)
 
 }
 
@@ -1379,7 +1379,7 @@ func _emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs)
-	emitStore(sema.GetTypeOfExpr(lhs), true, false)
+	emitStore(sema.GetGoTypeOfExpr(lhs), true, false)
 }
 
 func emitBlockStmt(s *ir.MetaBlockStmt) {
@@ -1420,7 +1420,7 @@ func emitOkAssignment(meta *ir.MetaTupleAssign) {
 		} else {
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
-			emitStore(sema.GetTypeOfExpr(lhsMeta), false, false)
+			emitStore(sema.GetGoTypeOfExpr(lhsMeta), false, false)
 		}
 
 	}
@@ -1448,7 +1448,7 @@ func emitFuncallAssignment(meta *ir.MetaTupleAssign) {
 			}
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
-			emitStore(sema.GetTypeOfExpr(lhsMeta), false, false)
+			emitStore(sema.GetGoTypeOfExpr(lhsMeta), false, false)
 		}
 	}
 }
@@ -1535,9 +1535,9 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 
 	// item = mp.first
 	emitVariableAddr(meta.ForRangeStmt.ItemVar)
-	emitVariable(meta.ForRangeStmt.MapVar) // value of _mp
-	emitLoadAndPush(types.Uintptr.GoType)  // value of _mp.first
-	emitStore(types.Uintptr, true, false)  // assign
+	emitVariable(meta.ForRangeStmt.MapVar)       // value of _mp
+	emitLoadAndPush(types.Uintptr.GoType)        // value of _mp.first
+	emitStore(types.Uintptr.GoType, true, false) // assign
 
 	// Condition
 	// if item != nil; then
@@ -1571,7 +1571,7 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 			printf("  movq 16(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
 			emitLoadAndPush(sema.GetGoTypeOfExpr(keyMeta)) // load dynamic data
-			emitStore(sema.GetTypeOfExpr(keyMeta), true, false)
+			emitStore(sema.GetGoTypeOfExpr(keyMeta), true, false)
 		}
 	}
 
@@ -1592,7 +1592,7 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 			printf("  movq 24(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
 			emitLoadAndPush(sema.GetGoTypeOfExpr(valueMeta)) // load dynamic data
-			emitStore(sema.GetTypeOfExpr(valueMeta), true, false)
+			emitStore(sema.GetGoTypeOfExpr(valueMeta), true, false)
 		}
 	}
 
@@ -1607,7 +1607,7 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 	emitVariableAddr(meta.ForRangeStmt.ItemVar) // lhs
 	emitVariable(meta.ForRangeStmt.ItemVar)     // item
 	emitLoadAndPush(types.Uintptr.GoType)       // item.next
-	emitStore(types.Uintptr, true, false)
+	emitStore(types.Uintptr.GoType, true, false)
 
 	printf("  jmp %s\n", labelCond)
 
@@ -1628,13 +1628,13 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	// lenvar = len(s.X)
 	emitVariableAddr(meta.ForRangeStmt.LenVar)
 	emitLen(meta.ForRangeStmt.X)
-	emitStore(types.Int, true, false)
+	emitStore(types.Int.GoType, true, false)
 
 	emitComment(2, "  assign 0 to indexvar\n")
 	// indexvar = 0
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
 	emitZeroValue(types.Int)
-	emitStore(types.Int, true, false)
+	emitStore(types.Int.GoType, true, false)
 
 	// init key variable with 0
 	keyMeta := meta.ForRangeStmt.Key
@@ -1642,7 +1642,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 		if !sema.IsBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta) // lhs
 			emitZeroValue(types.Int)
-			emitStore(types.Int, true, false)
+			emitStore(types.Int.GoType, true, false)
 		}
 	}
 
@@ -1672,7 +1672,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	emitListElementAddr(meta.ForRangeStmt.X, elemType)
 
 	emitLoadAndPush(elemType.GoType)
-	emitStore(elemType, true, false)
+	emitStore(elemType.GoType, true, false)
 
 	// Body
 	emitComment(2, "ForRangeStmt Body\n")
@@ -1685,7 +1685,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	emitVariableAddr(meta.ForRangeStmt.Indexvar) // rhs
 	emitLoadAndPush(types.Int.GoType)
 	emitAddConst(1, "indexvar value ++")
-	emitStore(types.Int, true, false)
+	emitStore(types.Int.GoType, true, false)
 
 	// incr key variable
 	if keyMeta != nil {
@@ -1693,7 +1693,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 			emitAddr(keyMeta)                            // lhs
 			emitVariableAddr(meta.ForRangeStmt.Indexvar) // rhs
 			emitLoadAndPush(types.Int.GoType)
-			emitStore(types.Int, true, false)
+			emitStore(types.Int.GoType, true, false)
 		}
 	}
 
@@ -1786,7 +1786,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 	// subjectVariable = subject
 	emitVariableAddr(meta.SubjectVariable)
 	emitExpr(meta.Subject)
-	emitStore(types.Eface, true, false)
+	emitStore(types.EmptyInterface, true, false)
 
 	cases := meta.Cases
 	var labels = make([]string, len(cases), len(cases))
@@ -1859,7 +1859,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 				emitLoadAndPush(c.Variable.Type.GoType)
 
 				// assign
-				emitStore(c.Variable.Type, true, false)
+				emitStore(c.Variable.Type.GoType, true, false)
 			}
 		}
 

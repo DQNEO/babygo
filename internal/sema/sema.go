@@ -2590,16 +2590,6 @@ func calcStructSizeAndSetFieldOffset2(structType *types.Struct) int {
 	return offset
 }
 
-func calcStructSizeAndSetFieldOffset(structType *ast.StructType) int {
-	var offset int = 0
-	for _, field := range structType.Fields.List {
-		setStructFieldOffset(field, offset)
-		size := GetSizeOfType(E2T(field.Type))
-		offset += size
-	}
-	return offset
-}
-
 func GetStructFieldOffset(field *ast.Field) int {
 	return mapFieldOffset[unsafe.Pointer(field)]
 }
