@@ -130,10 +130,10 @@ func emitAddConst(addValue int, comment string) {
 }
 
 // "Load" means copy data from memory to registers
-func emitLoadAndPush(t *types.Type) {
+func emitLoadAndPush(t types.GoType) {
 	assert(t != nil, "type should not be nil", __func__)
-	emitPopAddress(string(sema.Kind(t)))
-	switch sema.Kind(t) {
+	emitPopAddress(string(sema.Kind2(t)))
+	switch sema.Kind2(t) {
 	case types.T_SLICE:
 		printf("  movq %d(%%rax), %%rdx\n", 16)
 		printf("  movq %d(%%rax), %%rcx\n", 8)
@@ -167,13 +167,13 @@ func emitLoadAndPush(t *types.Type) {
 		// pure proxy
 		printf("  pushq %%rax\n")
 	default:
-		unexpectedKind(sema.Kind(t))
+		unexpectedKind(sema.Kind2(t))
 	}
 }
 
 func emitVariable(variable *ir.Variable) {
 	emitVariableAddr(variable)
-	emitLoadAndPush(variable.Type)
+	emitLoadAndPush(variable.Type.GoType)
 }
 
 func emitFuncAddr(funcQI ir.QualifiedIdent) {
@@ -708,16 +708,16 @@ func emitIdent(meta *ir.MetaIdent) {
 		}
 	case "var":
 		emitAddr(meta)
-		emitLoadAndPush(sema.GetTypeOfExpr(meta))
+		emitLoadAndPush(sema.GetGoTypeOfExpr(meta))
 	case "con":
-		if meta.Const.IsGlobal && sema.Kind(meta.Type) == types.T_STRING {
+		if meta.Const.IsGlobal && sema.Kind2(meta.Type.GoType) == types.T_STRING {
 			// Treat like a global variable.
 			// emit addr
 			printf("  leaq %s(%%rip), %%rax # global const \"%s\"\n", meta.Const.GlobalSymbol, meta.Const.Name)
 			printf("  pushq %%rax # global const address\n")
 
 			// load and push
-			emitLoadAndPush(meta.Type)
+			emitLoadAndPush(meta.Type.GoType)
 		} else {
 			// emit literal directly
 			emitBasicLit(meta.Const.Literal)
@@ -735,14 +735,14 @@ func emitIndexExpr(meta *ir.MetaIndexExpr) {
 		emitMapGet(meta, meta.NeedsOK)
 	} else {
 		emitAddr(meta)
-		emitLoadAndPush(sema.GetTypeOfExpr(meta))
+		emitLoadAndPush(sema.GetGoTypeOfExpr(meta))
 	}
 }
 
 // 1 value
 func emitStarExpr(meta *ir.MetaStarExpr) {
 	emitAddr(meta)
-	emitLoadAndPush(sema.GetTypeOfExpr(meta))
+	emitLoadAndPush(sema.GetGoTypeOfExpr(meta))
 }
 
 // 1 value X.Sel
@@ -753,7 +753,7 @@ func emitSelectorExpr(meta *ir.MetaSelectorExpr) {
 	} else {
 		// strct.field
 		emitAddr(meta)
-		emitLoadAndPush(sema.GetTypeOfExpr(meta))
+		emitLoadAndPush(sema.GetGoTypeOfExpr(meta))
 	}
 }
 
@@ -1022,7 +1022,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 	printf("  jne %s # jmp if false\n", labelElse)
 
 	// if matched
-	emitLoadAndPush(valueType)
+	emitLoadAndPush(valueType.GoType)
 	if okContext {
 		printf("  pushq $1 # ok = true\n")
 	}
@@ -1055,7 +1055,7 @@ func emitTypeAssertExpr(meta *ir.MetaTypeAssertExpr) {
 	printf("  jne %s # jmp if false\n", labelElse)
 
 	// if matched
-	emitLoadAndPush(meta.Type) // load dynamic data
+	emitLoadAndPush(meta.Type.GoType) // load dynamic data
 	if meta.NeedsOK {
 		printf("  pushq $1 # ok = true\n")
 	}
@@ -1536,7 +1536,7 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 	// item = mp.first
 	emitVariableAddr(meta.ForRangeStmt.ItemVar)
 	emitVariable(meta.ForRangeStmt.MapVar) // value of _mp
-	emitLoadAndPush(types.Uintptr)         // value of _mp.first
+	emitLoadAndPush(types.Uintptr.GoType)  // value of _mp.first
 	emitStore(types.Uintptr, true, false)  // assign
 
 	// Condition
@@ -1570,7 +1570,7 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 16(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(sema.GetTypeOfExpr(keyMeta)) // load dynamic data
+			emitLoadAndPush(sema.GetGoTypeOfExpr(keyMeta)) // load dynamic data
 			emitStore(sema.GetTypeOfExpr(keyMeta), true, false)
 		}
 	}
@@ -1591,7 +1591,7 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 24(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(sema.GetTypeOfExpr(valueMeta)) // load dynamic data
+			emitLoadAndPush(sema.GetGoTypeOfExpr(valueMeta)) // load dynamic data
 			emitStore(sema.GetTypeOfExpr(valueMeta), true, false)
 		}
 	}
@@ -1606,7 +1606,7 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 	printf("  %s:\n", labelPost)                // used for "continue"
 	emitVariableAddr(meta.ForRangeStmt.ItemVar) // lhs
 	emitVariable(meta.ForRangeStmt.ItemVar)     // item
-	emitLoadAndPush(types.Uintptr)              // item.next
+	emitLoadAndPush(types.Uintptr.GoType)       // item.next
 	emitStore(types.Uintptr, true, false)
 
 	printf("  jmp %s\n", labelCond)
@@ -1655,9 +1655,9 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	printf("  %s:\n", labelCond)
 
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
-	emitLoadAndPush(types.Int)
+	emitLoadAndPush(types.Int.GoType)
 	emitVariableAddr(meta.ForRangeStmt.LenVar)
-	emitLoadAndPush(types.Int)
+	emitLoadAndPush(types.Int.GoType)
 	emitCompExpr("setl")
 	emitPopBool(" indexvar < lenvar")
 	printf("  cmpq $1, %%rax\n")
@@ -1668,10 +1668,10 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	emitAddr(meta.ForRangeStmt.Value) // lhs
 
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
-	emitLoadAndPush(types.Int) // index value
+	emitLoadAndPush(types.Int.GoType) // index value
 	emitListElementAddr(meta.ForRangeStmt.X, elemType)
 
-	emitLoadAndPush(elemType)
+	emitLoadAndPush(elemType.GoType)
 	emitStore(elemType, true, false)
 
 	// Body
@@ -1683,7 +1683,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	printf("  %s:\n", labelPost)                 // used for "continue"
 	emitVariableAddr(meta.ForRangeStmt.Indexvar) // lhs
 	emitVariableAddr(meta.ForRangeStmt.Indexvar) // rhs
-	emitLoadAndPush(types.Int)
+	emitLoadAndPush(types.Int.GoType)
 	emitAddConst(1, "indexvar value ++")
 	emitStore(types.Int, true, false)
 
@@ -1692,7 +1692,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 		if !sema.IsBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta)                            // lhs
 			emitVariableAddr(meta.ForRangeStmt.Indexvar) // rhs
-			emitLoadAndPush(types.Int)
+			emitLoadAndPush(types.Int.GoType)
 			emitStore(types.Int, true, false)
 		}
 	}
@@ -1852,11 +1852,11 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 
 				// push rhs
 				emitVariableAddr(meta.SubjectVariable)
-				emitLoadAndPush(types.Eface)
+				emitLoadAndPush(types.EmptyInterface)
 				printf("  popq %%rax # ifc.dtype\n")
 				printf("  popq %%rcx # ifc.data\n")
 				printf("  pushq %%rcx # ifc.data\n")
-				emitLoadAndPush(c.Variable.Type)
+				emitLoadAndPush(c.Variable.Type.GoType)
 
 				// assign
 				emitStore(c.Variable.Type, true, false)

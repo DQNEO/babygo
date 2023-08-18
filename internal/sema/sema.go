@@ -235,6 +235,11 @@ func GetPackageSymbol(pkgName string, subsymbol string) string {
 	return pkgName + "." + subsymbol
 }
 
+func GetGoTypeOfExpr(meta ir.MetaExpr) types.GoType {
+	t := GetTypeOfExpr(meta)
+	return t.GoType
+}
+
 // Types of an expr in Single value context
 func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 	var t *types.Type
