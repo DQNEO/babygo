@@ -466,7 +466,7 @@ type AnalyzedPackage struct {
 	Path           string
 	Name           string
 	Imports        []string
-	Types          []*types.Type
+	Types          []types.GoType
 	Consts         []*PackageVarConst
 	Funcs          []*Func
 	Vars           []*PackageVarConst

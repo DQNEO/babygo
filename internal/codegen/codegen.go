@@ -7,7 +7,6 @@ import (
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/util"
-	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
@@ -1021,7 +1020,7 @@ func emitSliceExpr(meta *ir.MetaSliceExpr) {
 
 // 1 or 2 values
 func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
-	valueType := sema.GetTypeOfExpr(m)
+	valueType := sema.GetTypeOfExpr2(m)
 
 	emitComment(2, "MAP GET for map[string]string\n")
 	// emit addr of map element
@@ -1039,7 +1038,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 	printf("  jne %s # jmp if false\n", labelElse)
 
 	// if matched
-	emitLoadAndPush(valueType.GoType)
+	emitLoadAndPush(valueType)
 	if okContext {
 		printf("  pushq $1 # ok = true\n")
 	}
@@ -1049,7 +1048,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 	// if not matched
 	printf("  %s:\n", labelElse)
 	emitPop(types.T_POINTER) // destroy nil
-	emitZeroValue(valueType.GoType)
+	emitZeroValue(valueType)
 	if okContext {
 		printf("  pushq $0 # ok = false\n")
 	}
@@ -1387,11 +1386,11 @@ func _emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 	//	rhs := metaSingle.rhs
 	if sema.IsBlankIdentifierMeta(lhs) {
 		emitExpr(rhs)
-		rhsType := sema.GetTypeOfExpr(rhs)
+		rhsType := sema.GetTypeOfExpr2(rhs)
 		if rhsType == nil {
 			panicPos("rhs type should not be nil", rhs.Pos())
 		}
-		emitPop(sema.Kind(rhsType))
+		emitPop(sema.Kind2(rhsType))
 		return
 	}
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
@@ -1731,7 +1730,7 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 		panic("Omitted tag is not supported yet")
 	}
 	emitExpr(s.Tag)
-	condType := sema.GetTypeOfExpr(s.Tag)
+	condType := sema.GetTypeOfExpr2(s.Tag)
 	cases := s.Cases
 	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
@@ -1745,13 +1744,13 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 			continue
 		}
 		for _, m := range cc.ListMeta {
-			assert(sema.GetSizeOfType(condType) <= 8 || sema.Kind(condType) == types.T_STRING, "should be one register size or string", __func__)
-			switch sema.Kind(condType) {
+			assert(sema.GetSizeOfType2(condType) <= 8 || sema.Kind2(condType) == types.T_STRING, "should be one register size or string", __func__)
+			switch sema.Kind2(condType) {
 			case types.T_STRING:
 				ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpstrings"))
 				emitAllocReturnVarsAreaFF(ff)
 
-				emitPushStackTop(condType.GoType, sema.SizeOfInt, "switch expr")
+				emitPushStackTop(condType, sema.SizeOfInt, "switch expr")
 				emitExpr(m)
 
 				emitCallFF(ff)
@@ -1760,16 +1759,16 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 
 				emitAllocReturnVarsAreaFF(ff)
 
-				emitPushStackTop(condType.GoType, sema.SizeOfInt, "switch expr")
+				emitPushStackTop(condType, sema.SizeOfInt, "switch expr")
 				emitExpr(m)
 
 				emitCallFF(ff)
 			case types.T_INT, types.T_UINT8, types.T_UINT16, types.T_UINTPTR, types.T_POINTER:
-				emitPushStackTop(condType.GoType, 0, "switch expr")
+				emitPushStackTop(condType, 0, "switch expr")
 				emitExpr(m)
 				emitCompExpr("sete")
 			default:
-				unexpectedKind(sema.Kind(condType))
+				unexpectedKind(sema.Kind2(condType))
 			}
 
 			emitPopBool(" of switch-case comparison")
@@ -1971,8 +1970,8 @@ func emitStmt(meta ir.MetaStmt) {
 	}
 }
 
-func emitRevertStackTop(t *types.Type) {
-	printf("  addq $%d, %%rsp # revert stack top\n", sema.GetSizeOfType(t))
+func emitRevertStackTop(t types.GoType) {
+	printf("  addq $%d, %%rsp # revert stack top\n", sema.GetSizeOfType2(t))
 }
 
 var deferLabelId int = 1
@@ -2111,10 +2110,10 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 	}
 	// Type, Con, Var, Func
 	for _, typ := range pkg.Types {
-		ut := sema.GetUnderlyingType(typ)
-		utAsString := sema.SerializeType(ut.GoType, true, true, pkg.Name)
-		ident := typ.E.(*ast.Ident)
-		fmt.Fprintf(fout, "type %s %s\n", ident.Name, utAsString)
+		ut := typ.Underlying()
+		utAsString := sema.SerializeType(ut, true, true, pkg.Name)
+		named := typ.(*types.Named)
+		fmt.Fprintf(fout, "type %s %s\n", named.String(), utAsString)
 	}
 	for _, vr := range pkg.Vars {
 		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type.GoType, true, true, pkg.Name))

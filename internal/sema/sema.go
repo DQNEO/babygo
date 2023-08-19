@@ -2265,7 +2265,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	ITabID = 1
 
 	var hasInitFunc bool
-	var typs []*types.Type
+	var typs []types.GoType
 	var funcs []*ir.Func
 	var consts []*ir.PackageVarConst
 	var vars []*ir.PackageVarConst
@@ -2306,16 +2306,12 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		eType := &ast.Ident{
 			Name:    typeSpec.Name.Name,
 			NamePos: typeSpec.Pos(),
-			Obj: &ast.Object{
-				Kind: ast.Typ,
-				Decl: typeSpec,
-				Data: pkg.Name,
-			},
+			Obj:     typeSpec.Name.Obj,
 		}
 		t := E2T(eType)
 		gt := t.GoType.(*types.Named)
 		gt.PkgName = pkg.Name
-		typs = append(typs, t)
+		typs = append(typs, gt)
 		switch Kind(t) {
 		case types.T_STRUCT:
 			//structType := GetUnderlyingType(t)
@@ -2646,7 +2642,11 @@ func SerializeType(goType types.GoType, showPkgPrefix bool, showOnlyForeignPrefi
 				if g.PkgName == currentPkgName {
 					return g.String()
 				} else {
-					return g.PkgName + "." + g.String()
+					if g.PkgName != "" {
+						return g.PkgName + "." + g.String()
+					} else {
+						return g.String()
+					}
 				}
 			} else {
 				return g.PkgName + "." + g.String()
