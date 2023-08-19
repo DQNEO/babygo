@@ -360,7 +360,7 @@ func emitLen(arg ir.MetaExpr) {
 		emitCallDirect("runtime.lenMap", []ir.MetaExpr{arg}, sig)
 
 	default:
-		unexpectedKind(sema.Kind(sema.GetTypeOfExpr(arg)))
+		unexpectedKind(sema.Kind2(t))
 	}
 }
 
@@ -637,8 +637,8 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 	typeArg := m.TypeArg0
 	switch sema.Kind2(typeArg.GoType) {
 	case types.T_MAP:
-		mapValueType := sema.GetElementTypeOfCollectionType(typeArg)
-		valueSize := sema.NewNumberLiteral(sema.GetSizeOfType2(mapValueType.GoType), m.Pos())
+		mapValueType := sema.GetElementTypeOfCollectionType2(typeArg.GoType)
+		valueSize := sema.NewNumberLiteral(sema.GetSizeOfType2(mapValueType), m.Pos())
 		// A new, empty map value is made using the built-in function make,
 		// which takes the map type and an optional capacity hint as arguments:
 		length := sema.NewNumberLiteral(0, m.Pos())
@@ -646,8 +646,8 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 		return
 	case types.T_SLICE:
 		// make([]T, ...)
-		elmType := sema.GetElementTypeOfCollectionType(typeArg)
-		elmSize := sema.GetSizeOfType2(elmType.GoType)
+		elmType := sema.GetElementTypeOfCollectionType2(typeArg.GoType)
+		elmSize := sema.GetSizeOfType2(elmType)
 		numlit := sema.NewNumberLiteral(elmSize, m.Pos())
 		args := []ir.MetaExpr{numlit, m.Arg1, m.Arg2}
 		emitCallDirect("runtime.makeSlice", args, ir.RuntimeMakeSliceSignature)
@@ -661,8 +661,8 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	sliceArg := m.Arg0
 	elemArg := m.Arg1
-	elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
-	elmSize := sema.GetSizeOfType2(elmType.GoType)
+	elmTypeG := sema.GetElementTypeOfCollectionType2(sema.GetTypeOfExpr2(sliceArg))
+	elmSize := sema.GetSizeOfType2(elmTypeG)
 
 	var symbol string
 	switch elmSize {
@@ -677,6 +677,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
+	elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
 	arg1 := sema.CheckIfcConversion(m.Pos(), elemArg, elmType)
 	args := []ir.MetaExpr{sliceArg, arg1}
 	sig := sema.NewAppendSignature(elmType)
@@ -857,7 +858,7 @@ func emitBinaryExpr(meta *ir.MetaBinaryExpr) {
 		emitTrue()
 		printf("  %s:\n", labelExit)
 	case "+":
-		if sema.Kind(sema.GetTypeOfExpr(meta.X)) == types.T_STRING {
+		if sema.Kind2(sema.GetTypeOfExpr2(meta.X)) == types.T_STRING {
 			emitCatStrings(meta.X, meta.Y)
 		} else {
 			emitExpr(meta.X) // left
@@ -954,9 +955,9 @@ func emitCompositeLit(meta *ir.MetaCompositLit) {
 // 1 value list[low:high]
 func emitSliceExpr(meta *ir.MetaSliceExpr) {
 	list := meta.X
-	listType := sema.GetTypeOfExpr(list)
+	listType := sema.GetTypeOfExpr2(list)
 
-	switch sema.Kind(listType) {
+	switch sema.Kind2(listType) {
 	case types.T_SLICE, types.T_ARRAY:
 		if meta.Max == nil {
 			// new cap = cap(operand) - low
@@ -1010,12 +1011,12 @@ func emitSliceExpr(meta *ir.MetaSliceExpr) {
 		printf("  pushq %%rax # len\n")
 		// no cap
 	default:
-		unexpectedKind(sema.Kind(listType))
+		unexpectedKind(sema.Kind2(listType))
 	}
 
 	emitExpr(meta.Low) // index number
-	elmType := sema.GetElementTypeOfCollectionType(listType)
-	emitListElementAddr(list, elmType.GoType)
+	elmType := sema.GetElementTypeOfCollectionType2(listType)
+	emitListElementAddr(list, elmType)
 }
 
 // 1 or 2 values
@@ -1247,9 +1248,9 @@ func emitCompStrings(left ir.MetaExpr, right ir.MetaExpr) {
 }
 
 func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
-	if sema.Kind(sema.GetTypeOfExpr(left)) == types.T_STRING {
+	if sema.Kind2(sema.GetTypeOfExpr2(left)) == types.T_STRING {
 		emitCompStrings(left, right)
-	} else if sema.Kind(sema.GetTypeOfExpr(left)) == types.T_INTERFACE {
+	} else if sema.Kind2(sema.GetTypeOfExpr2(left)) == types.T_INTERFACE {
 		//var t = GetTypeOfExpr(left)
 		ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)

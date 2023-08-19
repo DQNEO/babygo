@@ -628,6 +628,25 @@ func HasIfcMethod(t types.GoType) bool {
 	return false
 }
 
+func GetElementTypeOfCollectionType2(t types.GoType) types.GoType {
+	ut := t.Underlying()
+	switch gt := ut.(type) {
+	case *types.Array:
+		return gt.Elem()
+	case *types.Slice:
+		return gt.Elem()
+	case *types.Basic:
+		if gt.String() != "string" {
+			panic("only string is allowed here")
+		}
+		return types.Uint8.GoType
+	case *types.Map:
+		return gt.Elem()
+	}
+
+	panic("Unexpected type")
+}
+
 func GetElementTypeOfCollectionType(t *types.Type) *types.Type {
 	ut := GetUnderlyingType(t)
 	switch Kind(ut) {
