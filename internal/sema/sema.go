@@ -722,7 +722,7 @@ func LookupStructField(structType *ast.StructType, selName string) *ast.Field {
 
 func registerParamVariable(fnc *ir.Func, name string, t *types.Type) *ir.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
-	size := GetSizeOfType(t)
+	size := GetSizeOfType2(t.GoType)
 	fnc.Argsarea += size
 	fnc.Params = append(fnc.Params, vr)
 	return vr
@@ -730,7 +730,7 @@ func registerParamVariable(fnc *ir.Func, name string, t *types.Type) *ir.Variabl
 
 func registerReturnVariable(fnc *ir.Func, name string, t *types.Type) *ir.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
-	size := GetSizeOfType(t)
+	size := GetSizeOfType2(t.GoType)
 	fnc.Argsarea += size
 	fnc.Retvars = append(fnc.Retvars, vr)
 	return vr
@@ -738,7 +738,7 @@ func registerReturnVariable(fnc *ir.Func, name string, t *types.Type) *ir.Variab
 
 func registerLocalVariable(fnc *ir.Func, name string, t *types.Type) *ir.Variable {
 	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
-	fnc.Localarea -= GetSizeOfType(t)
+	fnc.Localarea -= GetSizeOfType2(t.GoType)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
 	fnc.LocalVars = append(fnc.LocalVars, vr)
 	return vr
