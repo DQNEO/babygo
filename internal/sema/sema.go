@@ -2285,6 +2285,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			Obj: &ast.Object{
 				Kind: ast.Typ,
 				Decl: typeSpec,
+				Data: pkg.Name,
 			},
 		}
 		t := E2T(eType)
