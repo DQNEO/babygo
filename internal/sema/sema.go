@@ -161,7 +161,7 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 
 	var metaArgs []*argAndParamType
 	for _, arg := range args {
-		ctx := &ir.EvalContext{Type: arg.paramType}
+		ctx := &ir.EvalContext{Type: arg.paramType.GoType}
 		m := walkExpr(arg.e, ctx)
 		a := &argAndParamType{
 			Meta:      m,
@@ -914,7 +914,7 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 			t = E2T(spec.Type)
 			if len(spec.Values) > 0 {
 				rhs := spec.Values[0]
-				ctx := &ir.EvalContext{Type: t}
+				ctx := &ir.EvalContext{Type: t.GoType}
 				rhsMeta = walkExpr(rhs, ctx)
 				rhsMeta = CheckIfcConversion(rhs.Pos(), rhsMeta, t.GoType)
 			}
@@ -981,7 +981,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			if !IsBlankIdentifierMeta(lhsMetas[0]) {
 				t = GetTypeOfExpr(lhsMetas[0])
 				ctx = &ir.EvalContext{
-					Type: t,
+					Type: t.GoType,
 				}
 			}
 			rhsMeta := walkExpr(s.Rhs[0], ctx)
@@ -1136,7 +1136,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 		expr := s.Results[i]
 		retTyp := funcDef.Retvars[i].Type
 		ctx := &ir.EvalContext{
-			Type: retTyp,
+			Type: retTyp.GoType,
 		}
 		m := walkExpr(expr, ctx)
 		mc := CheckIfcConversion(expr.Pos(), m, retTyp.GoType)
@@ -1533,7 +1533,7 @@ func WalkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
 	case universe.Nil:
 		assert(ctx != nil, "ctx of nil is not passed", __func__)
 		assert(ctx.Type != nil, "ctx.Type of nil is not passed", __func__)
-		meta.Type = ctx.Type
+		meta.Type = G2T(ctx.Type)
 		meta.Kind = "nil"
 	case universe.True:
 		meta.Kind = "true"
@@ -1695,7 +1695,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		assert(len(e.Args) == 1, "convert must take only 1 argument", __func__)
 		toType := E2T(e.Fun)
 		ctx := &ir.EvalContext{
-			Type: toType,
+			Type: toType.GoType,
 		}
 		arg0 := walkExpr(e.Args[0], ctx)
 		return walkConversion(e.Pos(), toType, arg0)
@@ -1760,7 +1760,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			walkExpr(e.Args[0], nil) // Do we need this ?
 			typeArg0 := E2T(e.Args[0])
 			typ := typeArg0
-			ctx := &ir.EvalContext{Type: types.Int}
+			ctx := &ir.EvalContext{Type: types.Int.GoType}
 			var a1 ir.MetaExpr
 			var a2 ir.MetaExpr
 			if len(e.Args) > 1 {
@@ -1997,7 +1997,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 			fieldName := kvExpr.Key.(*ast.Ident)
 			field := LookupStructField(GetUnderlyingStructType(structType), fieldName.Name)
 			fieldType := E2T(field.Type)
-			ctx := &ir.EvalContext{Type: fieldType}
+			ctx := &ir.EvalContext{Type: fieldType.GoType}
 			// attach type to nil : STRUCT{Key:nil}
 			valueMeta := walkExpr(kvExpr.Value, ctx)
 			mc := CheckIfcConversion(kvExpr.Pos(), valueMeta, fieldType.GoType)
@@ -2015,7 +2015,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		arrayType := ut.E.(*ast.ArrayType)
 		meta.Len = EvalInt(arrayType.Len)
 		meta.ElmType = E2T(arrayType.Elt)
-		ctx := &ir.EvalContext{Type: meta.ElmType}
+		ctx := &ir.EvalContext{Type: meta.ElmType.GoType}
 		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
@@ -2027,7 +2027,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		arrayType := ut.E.(*ast.ArrayType)
 		meta.Len = len(e.Elts)
 		meta.ElmType = E2T(arrayType.Elt)
-		ctx := &ir.EvalContext{Type: meta.ElmType}
+		ctx := &ir.EvalContext{Type: meta.ElmType.GoType}
 		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
@@ -2070,7 +2070,7 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *ir.EvalContext) *ir.MetaBinaryExpr {
 	if isNilIdent(e.X) {
 		// Y should be typed
 		meta.Y = walkExpr(e.Y, nil) // right
-		xCtx := &ir.EvalContext{Type: GetTypeOfExpr(meta.Y)}
+		xCtx := &ir.EvalContext{Type: GetTypeOfExpr2(meta.Y)}
 
 		meta.X = walkExpr(e.X, xCtx) // left
 	} else {
@@ -2080,7 +2080,7 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *ir.EvalContext) *ir.MetaBinaryExpr {
 		if xTyp == nil {
 			panicPos("xTyp should not be nil", e.Pos())
 		}
-		yCtx := &ir.EvalContext{Type: xTyp}
+		yCtx := &ir.EvalContext{Type: xTyp.GoType}
 		meta.Y = walkExpr(e.Y, yCtx) // right
 	}
 	switch meta.Op {
@@ -2392,7 +2392,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		var t *types.Type
 		if spec.Type != nil { // const x T = e
 			t = E2T(spec.Type)
-			ctx := &ir.EvalContext{Type: t}
+			ctx := &ir.EvalContext{Type: t.GoType}
 			rhsMeta = walkExpr(rhs, ctx)
 		} else { // const x = e
 			rhsMeta = walkExpr(rhs, nil)
@@ -2446,7 +2446,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			t = E2T(spec.Type)
 			if len(spec.Values) > 0 {
 				rhs := spec.Values[0]
-				ctx := &ir.EvalContext{Type: t}
+				ctx := &ir.EvalContext{Type: t.GoType}
 				rhsMeta = walkExpr(rhs, ctx)
 				rhsMeta = CheckIfcConversion(rhs.Pos(), rhsMeta, t.GoType)
 			}

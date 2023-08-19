@@ -30,7 +30,7 @@ type FuncValue struct {
 
 type EvalContext struct {
 	MaybeOK bool
-	Type    *types.Type
+	Type    types.GoType
 }
 
 // --- walk ---
