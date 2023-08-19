@@ -2696,8 +2696,8 @@ func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool
 		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	case *types.Interface:
 		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
-
-		//		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+	case *types.Func:
+		return "func()" // @FIXME
 	}
 
 	switch e := t.E.(type) {
@@ -2714,23 +2714,15 @@ func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool
 		}
 		return r + "}"
 	case *ast.ArrayType:
-		if e.Len == nil {
-			if e.Elt == nil {
-				panic(e)
-			}
-			return "[]" + SerializeType(E2T(e.Elt), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
-		} else {
-			return "[" + strconv.Itoa(EvalInt(e.Len)) + "]" + SerializeType(E2T(e.Elt), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
-		}
+		panic("should not reach here")
 	case *ast.StarExpr:
-		return "*" + SerializeType(E2T(e.X), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		panic("should not reach here")
 	case *ast.Ellipsis: // x ...T
-		return "..." + SerializeType(E2T(e.Elt), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		panic("should not reach here")
 	case *ast.MapType:
 		return "map[" + SerializeType(E2T(e.Key), showPkgPrefix, showOnlyForeignPrefix, currentPkgName) + "]" + SerializeType(E2T(e.Value), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	case *ast.SelectorExpr:
-		qi := Selector2QI(e)
-		return string(qi)
+		panic("should not reach here")
 	case *ast.FuncType:
 		return "func()" // @FIXME
 	default:
