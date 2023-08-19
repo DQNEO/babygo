@@ -142,7 +142,10 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
 		param := params[len(args)]
-		elp := param.Type.(*ast.Ellipsis)
+		elp, ok := param.Type.(*ast.Ellipsis)
+		if !ok {
+			panicPos("Should be Ellipsis", param.Type.Pos())
+		}
 		paramType := E2T(elp)
 		iNil := &ast.Ident{
 			Obj:     universe.Nil,
@@ -421,7 +424,9 @@ func E2G(typeExpr ast.Expr) types.GoType {
 		}
 		return types.NewPointer(E2G(t.X))
 	case *ast.Ellipsis:
-		return types.NewSlice(E2G(t.Elt))
+		slc := types.NewSlice(E2G(t.Elt))
+		slc.Elp = true
+		return slc
 	case *ast.MapType:
 		return types.NewMap(E2G(t.Key), E2G(t.Value))
 	case *ast.InterfaceType:
@@ -831,7 +836,7 @@ func LookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 
 	namedType, ok := namedTypes[namedTypeId]
 	if !ok {
-		panicPos(typeObj.Name+" has no methodSet", methodName.Pos())
+		panicPos(namedTypeId+" has no methodSet", methodName.Pos())
 	}
 	method, ok := namedType.MethodSet[methodName.Name]
 	if !ok {
@@ -2639,7 +2644,31 @@ func SerializeType2(goType types.GoType, showPkgPrefix bool, showOnlyForeignPref
 		} else {
 			return g.String()
 		}
+	case *types.Pointer:
+		return "*" + SerializeType2(g.Elem(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+	case *types.Array:
+		return "[" + strconv.Itoa(g.Len()) + "]" + SerializeType2(g.Elem(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+	case *types.Slice:
+		if g.Elp {
+			return "..." + SerializeType2(g.Elem(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		} else {
+			return "[]" + SerializeType2(g.Elem(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		}
+	case *types.Func:
+		return "func()"
+	case *types.Interface:
+		if len(g.Methods) == 0 {
+			return "interface{}"
+		}
+		r := "interface{ "
+		for _, m := range g.Methods {
+			mdcl := RestoreMethodDecl(m, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+			r += mdcl + "; "
+		}
+		r += " }"
+		return r
 	}
+	panic(fmt.Sprintf("@TBI: GoType=%T", goType))
 	return ""
 }
 
@@ -2653,11 +2682,22 @@ func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool
 	if t.GoType == nil {
 		panic("t.Gotype should not be nil")
 	}
-	switch t.GoType.(type) {
+	switch g := t.GoType.(type) {
 	case *types.Named:
+		_ = g
 		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	case *types.Basic:
 		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+	case *types.Pointer:
+		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+	case *types.Array:
+		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+	case *types.Slice:
+		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+	case *types.Interface:
+		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+
+		//		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	}
 
 	switch e := t.E.(type) {
@@ -2686,17 +2726,6 @@ func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool
 		return "*" + SerializeType(E2T(e.X), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	case *ast.Ellipsis: // x ...T
 		return "..." + SerializeType(E2T(e.Elt), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
-	case *ast.InterfaceType:
-		if e.Methods == nil {
-			return "interface{}"
-		}
-		r := "interface{ "
-		for _, m := range e.Methods.List {
-			mdcl := RestoreMethodDecl(m, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
-			r += mdcl + ";"
-		}
-		r += " }"
-		return r
 	case *ast.MapType:
 		return "map[" + SerializeType(E2T(e.Key), showPkgPrefix, showOnlyForeignPrefix, currentPkgName) + "]" + SerializeType(E2T(e.Value), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	case *ast.SelectorExpr:
@@ -2719,33 +2748,32 @@ func FuncTypeToSignature(funcType *ast.FuncType) *ir.Signature {
 	}
 }
 
-func RestoreMethodDecl(m *ast.Field, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
+func RestoreMethodDecl(m *types.Func, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
 	var p string
 	var r string
-	name := m.Names[0].Name
-	funcType, ok := m.Type.(*ast.FuncType)
+	name := m.Name
+	fun, ok := m.Typ.(*types.Func)
 	if !ok {
-		panic("[SerializeType] Invalid type")
+		panic(fmt.Sprintf("[SerializeType] Invalid type:%T\n", m.Typ))
 	}
-	if funcType.Params != nil && len(funcType.Params.List) > 0 {
-		for _, field := range funcType.Params.List {
+	sig := fun.Typ.(*types.Signature)
+	if sig.Params != nil && len(sig.Params.Types) > 0 {
+		for _, t := range sig.Params.Types {
 			//name := field.Names[0].Name
 			if p != "" {
 				p += ","
 			}
-			typ := E2T(field.Type)
-			p += SerializeType(typ, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+			p += SerializeType2(t, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 		}
 	}
 
-	if funcType.Results != nil && len(funcType.Results.List) > 0 {
-		for _, field := range funcType.Results.List {
+	if sig.Results != nil && len(sig.Results.Types) > 0 {
+		for _, t := range sig.Results.Types {
 			//name := field.Names[0].Name
 			if r != "" {
 				r += ","
 			}
-			typ := E2T(field.Type)
-			r += SerializeType(typ, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+			r += SerializeType2(t, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 		}
 	}
 

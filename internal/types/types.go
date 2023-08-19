@@ -191,6 +191,7 @@ func (t *Array) String() string     { return "@TBI" }
 
 type Slice struct {
 	elem GoType
+	Elp  bool
 }
 
 // NewSlice returns a new slice type for the given element type.
@@ -237,8 +238,8 @@ func (t *Map) Underlying() GoType { return t }
 func (t *Map) String() string     { return "@TBI" }
 
 type Interface struct {
-	Methods  []*Func
-	EMethods *ast.FieldList
+	Methods []*Func
+	//EMethods *ast.FieldList
 }
 
 func NewInterfaceType(methods []*Func) *Interface {
