@@ -6,6 +6,7 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
+	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -2087,7 +2088,7 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 	}
 
 	fmt.Fprintf(fout, "package %s\n", pkg.Name)
-
+	util.Logf("package %s\n", pkg.Name)
 	// list import
 	for _, im := range pkg.Imports {
 		fmt.Fprintf(fout, "import \"%s\"\n", im)
@@ -2096,16 +2097,18 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 	for _, typ := range pkg.Types {
 		ut := sema.GetUnderlyingType(typ)
 		ident := typ.E.(*ast.Ident)
-		fmt.Fprintf(fout, "type %s %s\n", ident.Name, sema.SerializeType(ut, false))
+		utAsString := sema.SerializeType(ut, true, true, pkg.Name)
+		fmt.Fprintf(fout, "type %s %s\n", ident.Name, utAsString)
+		util.Logf("type %s %s\n", ident.Name, utAsString)
 	}
 	for _, vr := range pkg.Vars {
-		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, false))
+		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, true, true, pkg.Name))
 	}
 	for _, cnst := range pkg.Consts {
-		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type, false), sema.GetConstRawValue(cnst.MetaVal))
+		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type, true, true, pkg.Name), sema.GetConstRawValue(cnst.MetaVal))
 	}
 	for _, fnc := range pkg.Funcs {
-		fmt.Fprintf(fout, "%s\n", sema.RestoreFuncDecl(fnc))
+		fmt.Fprintf(fout, "%s\n", sema.RestoreFuncDecl(fnc, true, true, pkg.Name))
 	}
 
 	fout.Close()
@@ -2195,7 +2198,7 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 
 		methods := sema.GetInterfaceMethods(ent.Itype)
 		if len(methods) == 0 {
-			printf("  # no methods for %s\n", sema.SerializeType(ent.Itype, true))
+			printf("  # no methods\n")
 		}
 		for mi, m := range methods {
 			dmethod := sema.LookupMethod(ent.Dtype, m.Names[0])

@@ -6,7 +6,6 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
-	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -347,6 +346,9 @@ func E2G(typeExpr ast.Expr) types.GoType {
 	switch t := typeExpr.(type) {
 	case *ast.Ident:
 		obj := t.Obj
+		if obj == nil {
+			panicPos("t.Obj should not be nil", typeExpr.Pos())
+		}
 		switch obj {
 		case universe.Uintptr:
 			return types.Uintptr.GoType
@@ -369,8 +371,11 @@ func E2G(typeExpr ast.Expr) types.GoType {
 			switch dcl := t.Obj.Decl.(type) {
 			case *ast.TypeSpec:
 				typeSpec := dcl
-				util.Logf("[E2G] type %s\n", typeSpec.Name.Name)
+				//util.Logf("[E2G] type %s\n", typeSpec.Name.Name)
 				gt := types.NewNamed(typeSpec.Name.Name, nil)
+				if typeSpec.Name.Obj.Data != nil {
+					gt.PkgName = typeSpec.Name.Obj.Data.(string)
+				}
 				inNamed = typeSpec.Name.Name
 				inNamedType = gt
 				ut := E2G(typeSpec.Type)
@@ -740,7 +745,9 @@ func isQI(e *ast.SelectorExpr) bool {
 	if !isIdent {
 		return false
 	}
-	assert(ident.Obj != nil, "ident.Obj is nil:"+ident.Name, __func__)
+	if ident.Obj == nil {
+		panicPos("ident.Obj should not be nil:"+ident.Name, e.Pos())
+	}
 	return ident.Obj.Kind == ast.Pkg
 }
 
@@ -2617,7 +2624,7 @@ func SerializeType2(goType types.GoType, showPkgPrefix bool) string {
 	return ""
 }
 
-func SerializeType(t *types.Type, showPkgPrefix bool) string {
+func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
 	if t == nil {
 		panic("nil type is not expected")
 	}
@@ -2627,7 +2634,22 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 	if t.GoType == nil {
 		panic("t.Gotype should not be nil")
 	}
-	switch t.GoType.(type) {
+	switch g := t.GoType.(type) {
+	case *types.Named:
+		_ = g
+		if showPkgPrefix {
+			if showOnlyForeignPrefix {
+				if g.PkgName == currentPkgName {
+					return g.String()
+				} else {
+					return g.PkgName + "." + g.String()
+				}
+			} else {
+				return g.PkgName + "." + g.String()
+			}
+		} else {
+			return g.String()
+		}
 	case *types.Basic:
 		return SerializeType2(t.GoType, showPkgPrefix)
 	}
@@ -2661,7 +2683,7 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 			for _, field := range e.Fields.List {
 				name := field.Names[0].Name
 				typ := E2T(field.Type)
-				r += fmt.Sprintf("%s %s;", name, SerializeType(typ, showPkgPrefix))
+				r += fmt.Sprintf("%s %s;", name, SerializeType(typ, showPkgPrefix, showOnlyForeignPrefix, currentPkgName))
 			}
 		}
 		return r + "}"
@@ -2670,27 +2692,27 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 			if e.Elt == nil {
 				panic(e)
 			}
-			return "[]" + SerializeType(E2T(e.Elt), showPkgPrefix)
+			return "[]" + SerializeType(E2T(e.Elt), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 		} else {
-			return "[" + strconv.Itoa(EvalInt(e.Len)) + "]" + SerializeType(E2T(e.Elt), showPkgPrefix)
+			return "[" + strconv.Itoa(EvalInt(e.Len)) + "]" + SerializeType(E2T(e.Elt), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 		}
 	case *ast.StarExpr:
-		return "*" + SerializeType(E2T(e.X), showPkgPrefix)
+		return "*" + SerializeType(E2T(e.X), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	case *ast.Ellipsis: // x ...T
-		return "..." + SerializeType(E2T(e.Elt), showPkgPrefix)
+		return "..." + SerializeType(E2T(e.Elt), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	case *ast.InterfaceType:
 		if e.Methods == nil {
 			return "interface{}"
 		}
 		r := "interface{ "
 		for _, m := range e.Methods.List {
-			mdcl := RestoreMethodDecl(m)
+			mdcl := RestoreMethodDecl(m, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 			r += mdcl + ";"
 		}
 		r += " }"
 		return r
 	case *ast.MapType:
-		return "map[" + SerializeType(E2T(e.Key), showPkgPrefix) + "]" + SerializeType(E2T(e.Value), showPkgPrefix)
+		return "map[" + SerializeType(E2T(e.Key), showPkgPrefix, showOnlyForeignPrefix, currentPkgName) + "]" + SerializeType(E2T(e.Value), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	case *ast.SelectorExpr:
 		qi := Selector2QI(e)
 		return string(qi)
@@ -2711,7 +2733,7 @@ func FuncTypeToSignature(funcType *ast.FuncType) *ir.Signature {
 	}
 }
 
-func RestoreMethodDecl(m *ast.Field) string {
+func RestoreMethodDecl(m *ast.Field, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
 	var p string
 	var r string
 	name := m.Names[0].Name
@@ -2726,7 +2748,7 @@ func RestoreMethodDecl(m *ast.Field) string {
 				p += ","
 			}
 			typ := E2T(field.Type)
-			p += SerializeType(typ, false)
+			p += SerializeType(typ, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 		}
 	}
 
@@ -2737,7 +2759,7 @@ func RestoreMethodDecl(m *ast.Field) string {
 				r += ","
 			}
 			typ := E2T(field.Type)
-			r += SerializeType(typ, false)
+			r += SerializeType(typ, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 		}
 	}
 
@@ -2745,20 +2767,20 @@ func RestoreMethodDecl(m *ast.Field) string {
 	return decl
 }
 
-func RestoreFuncDecl(fnc *ir.Func) string {
+func RestoreFuncDecl(fnc *ir.Func, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
 	var p string
 	var r string
 	for _, t := range fnc.Signature.ParamTypes {
 		if p != "" {
 			p += ","
 		}
-		p += SerializeType(t, false)
+		p += SerializeType(t, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	}
 	for _, t := range fnc.Signature.ReturnTypes {
 		if r != "" {
 			r += ","
 		}
-		r += SerializeType(t, false)
+		r += SerializeType(t, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	}
 	var m string
 	var star string
@@ -2818,8 +2840,9 @@ type ITabEntry struct {
 
 // "**[1][]*int" => ".dtype.8"
 func RegisterDtype(dtype *types.Type, itype *types.Type) {
-	ds := SerializeType(dtype, true)
-	is := SerializeType(itype, true)
+	ds := SerializeType(dtype, true, false, "")
+	is := SerializeType(itype, true, false, "")
+
 	key := ds + "-" + is
 	_, ok := ITab[key]
 	if ok {
@@ -2840,8 +2863,8 @@ func RegisterDtype(dtype *types.Type, itype *types.Type) {
 }
 
 func GetITabEntry(t *types.Type, it *types.Type) *ITabEntry {
-	ds := SerializeType(t, true)
-	is := SerializeType(it, true)
+	ds := SerializeType(t, true, false, "")
+	is := SerializeType(it, true, false, "")
 	key := ds + "-" + is
 	ent, ok := ITab[key]
 	if !ok {
