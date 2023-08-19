@@ -443,8 +443,8 @@ func emitFalse() {
 }
 
 func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
-	rtypes := TypesToGoTypes(sig.ReturnTypes)
-	ptypes := TypesToGoTypes(sig.ParamTypes)
+	rtypes := (sig.ReturnTypes)
+	ptypes := (sig.ParamTypes)
 	emitCall(sema.NewFuncValueFromSymbol(symbol), args, ptypes, rtypes)
 }
 
@@ -523,7 +523,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.GoType, r
 }
 
 func emitAllocReturnVarsAreaFF(ff *ir.Func) {
-	rtypes := TypesToGoTypes(ff.Signature.ReturnTypes)
+	rtypes := (ff.Signature.ReturnTypes)
 	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
 }
 
@@ -544,8 +544,8 @@ func getTotalSizeOfType(ts []types.GoType) int {
 }
 
 func emitCallFF(ff *ir.Func) {
-	ptypes := TypesToGoTypes(ff.Signature.ParamTypes)
-	rtypes := TypesToGoTypes(ff.Signature.ReturnTypes)
+	ptypes := (ff.Signature.ParamTypes)
+	rtypes := (ff.Signature.ReturnTypes)
 	totalParamSize := getTotalSizeOfType(ptypes)
 	symbol := ff.PkgName + "." + ff.Name
 	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, rtypes)
@@ -696,7 +696,7 @@ func emitMetaCallPanic(m *ir.MetaCallPanic) {
 func emitMetaCallDelete(m *ir.MetaCallDelete) {
 	funcVal := "runtime.deleteMap"
 	sig := sema.NewDeleteSignature(m.Arg0)
-	mc := sema.CheckIfcConversion(m.Pos(), m.Arg1, sig.ParamTypes[1].GoType)
+	mc := sema.CheckIfcConversion(m.Pos(), m.Arg1, sig.ParamTypes[1])
 	args := []ir.MetaExpr{m.Arg0, mc}
 	emitCallDirect(funcVal, args, sig)
 	return
@@ -1026,7 +1026,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 	// emit addr of map element
 	mp := m.X
 	key := m.Index
-	mc := sema.CheckIfcConversion(m.Pos(), key, ir.RuntimeGetAddrForMapGetSignature.ParamTypes[1].GoType)
+	mc := sema.CheckIfcConversion(m.Pos(), key, ir.RuntimeGetAddrForMapGetSignature.ParamTypes[1])
 	args := []ir.MetaExpr{mp, mc}
 	emitCallDirect("runtime.getAddrForMapGet", args, ir.RuntimeGetAddrForMapGetSignature)
 	// return values = [ptr, bool(stack top)]
@@ -1221,7 +1221,7 @@ func emitAddrForMapSet(indexExpr *ir.MetaIndexExpr) {
 	// alloc heap for map value
 	//size := GetSizeOfType(elmType)
 	emitComment(2, "[emitAddrForMapSet]\n")
-	keyExpr := sema.CheckIfcConversion(indexExpr.Pos(), indexExpr.Index, ir.RuntimeGetAddrForMapSetSignature.ParamTypes[1].GoType)
+	keyExpr := sema.CheckIfcConversion(indexExpr.Pos(), indexExpr.Index, ir.RuntimeGetAddrForMapSetSignature.ParamTypes[1])
 	args := []ir.MetaExpr{indexExpr.X, keyExpr}
 	emitCallDirect("runtime.getAddrForMapSet", args, ir.RuntimeGetAddrForMapSetSignature)
 }

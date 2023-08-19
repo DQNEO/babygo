@@ -299,6 +299,18 @@ func GetTypeOfExpr(meta ir.MetaExpr) *types.Type {
 	return t
 }
 
+func FieldList2GoTypes(fieldList *ast.FieldList) []types.GoType {
+	if fieldList == nil {
+		return nil
+	}
+	var r []types.GoType
+	for _, field := range fieldList.List {
+		t := E2G(field.Type)
+		r = append(r, t)
+	}
+	return r
+}
+
 func FieldList2Types(fieldList *ast.FieldList) []*types.Type {
 	if fieldList == nil {
 		return nil
@@ -2215,12 +2227,12 @@ func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType types.GoType) 
 	if !IsInterface(trgtType) {
 		return expr
 	}
-	fromType := GetTypeOfExpr(expr)
-	if IsInterface(fromType.GoType) {
+	fromType := GetTypeOfExpr2(expr)
+	if IsInterface(fromType) {
 		return expr
 	}
 
-	RegisterDtype(fromType.GoType, trgtType)
+	RegisterDtype(fromType, trgtType)
 
 	return &ir.IfcConversion{
 		Tpos:  pos,
@@ -2701,8 +2713,8 @@ func SerializeType(goType types.GoType, showPkgPrefix bool, showOnlyForeignPrefi
 }
 
 func FuncTypeToSignature(funcType *ast.FuncType) *ir.Signature {
-	p := FieldList2Types(funcType.Params)
-	r := FieldList2Types(funcType.Results)
+	p := FieldList2GoTypes(funcType.Params)
+	r := FieldList2GoTypes(funcType.Results)
 	return &ir.Signature{
 		ParamTypes:  p,
 		ReturnTypes: r,
@@ -2749,13 +2761,13 @@ func RestoreFuncDecl(fnc *ir.Func, showPkgPrefix bool, showOnlyForeignPrefix boo
 		if p != "" {
 			p += ","
 		}
-		p += SerializeType(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		p += SerializeType(t, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	}
 	for _, t := range fnc.Signature.ReturnTypes {
 		if r != "" {
 			r += ","
 		}
-		r += SerializeType(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		r += SerializeType(t, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	}
 	var m string
 	var star string
@@ -2771,21 +2783,21 @@ func RestoreFuncDecl(fnc *ir.Func, showPkgPrefix bool, showOnlyForeignPrefix boo
 
 func NewLenMapSignature(arg0 ir.MetaExpr) *ir.Signature {
 	return &ir.Signature{
-		ParamTypes:  []*types.Type{types.Int},
-		ReturnTypes: []*types.Type{GetTypeOfExpr(arg0)},
+		ParamTypes:  []types.GoType{types.Int.GoType},
+		ReturnTypes: []types.GoType{GetTypeOfExpr2(arg0)},
 	}
 }
 
 func NewAppendSignature(elmType *types.Type) *ir.Signature {
 	return &ir.Signature{
-		ParamTypes:  []*types.Type{types.GeneralSliceType, elmType},
-		ReturnTypes: []*types.Type{types.GeneralSliceType},
+		ParamTypes:  []types.GoType{types.GeneralSliceType.GoType, elmType.GoType},
+		ReturnTypes: []types.GoType{types.GeneralSliceType.GoType},
 	}
 }
 
 func NewDeleteSignature(arg0 ir.MetaExpr) *ir.Signature {
 	return &ir.Signature{
-		ParamTypes:  []*types.Type{GetTypeOfExpr(arg0), types.Eface},
+		ParamTypes:  []types.GoType{GetTypeOfExpr2(arg0), types.Eface.GoType},
 		ReturnTypes: nil,
 	}
 }

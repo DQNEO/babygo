@@ -393,8 +393,8 @@ func (e *Variable) Pos() token.Pos                 { return e.Tpos }
 func (e *Const) Pos() token.Pos                    { return e.Tpos }
 
 type Signature struct {
-	ParamTypes  []*types.Type
-	ReturnTypes []*types.Type
+	ParamTypes  []types.GoType
+	ReturnTypes []types.GoType
 }
 
 type Func struct {
@@ -477,36 +477,36 @@ type AnalyzedPackage struct {
 }
 
 var RuntimeCmpStringFuncSignature = &Signature{
-	ParamTypes:  []*types.Type{types.String, types.String},
-	ReturnTypes: []*types.Type{types.Bool},
+	ParamTypes:  []types.GoType{types.String.GoType, types.String.GoType},
+	ReturnTypes: []types.GoType{types.Bool.GoType},
 }
 
 var RuntimeCatStringsSignature = &Signature{
-	ParamTypes:  []*types.Type{types.String, types.String},
-	ReturnTypes: []*types.Type{types.String},
+	ParamTypes:  []types.GoType{types.String.GoType, types.String.GoType},
+	ReturnTypes: []types.GoType{types.String.GoType},
 }
 
 var RuntimeMakeMapSignature = &Signature{
-	ParamTypes:  []*types.Type{types.Uintptr, types.Uintptr},
-	ReturnTypes: []*types.Type{types.Uintptr},
+	ParamTypes:  []types.GoType{types.Uintptr.GoType, types.Uintptr.GoType},
+	ReturnTypes: []types.GoType{types.Uintptr.GoType},
 }
 
 var RuntimeMakeSliceSignature = &Signature{
-	ParamTypes:  []*types.Type{types.Int, types.Int, types.Int},
-	ReturnTypes: []*types.Type{types.GeneralSliceType},
+	ParamTypes:  []types.GoType{types.Int.GoType, types.Int.GoType, types.Int.GoType},
+	ReturnTypes: []types.GoType{types.GeneralSliceType.GoType},
 }
 
 var RuntimeGetAddrForMapGetSignature = &Signature{
-	ParamTypes:  []*types.Type{types.Uintptr, types.Eface},
-	ReturnTypes: []*types.Type{types.Bool, types.Uintptr},
+	ParamTypes:  []types.GoType{types.Uintptr.GoType, types.Eface.GoType},
+	ReturnTypes: []types.GoType{types.Bool.GoType, types.Uintptr.GoType},
 }
 
 var RuntimeGetAddrForMapSetSignature = &Signature{
-	ParamTypes:  []*types.Type{types.Uintptr, types.Eface},
-	ReturnTypes: []*types.Type{types.Uintptr},
+	ParamTypes:  []types.GoType{types.Uintptr.GoType, types.Eface.GoType},
+	ReturnTypes: []types.GoType{types.Uintptr.GoType},
 }
 
 var BuiltinPanicSignature = &Signature{
-	ParamTypes:  []*types.Type{types.Eface},
+	ParamTypes:  []types.GoType{types.Eface.GoType},
 	ReturnTypes: nil,
 }
