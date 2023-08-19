@@ -6,10 +6,8 @@ import (
 )
 
 type Type struct {
-	E       ast.Expr // original
-	PkgName string
-	Name    string
-	GoType  GoType
+	E      ast.Expr // original
+	GoType GoType
 }
 
 type TypeKind string

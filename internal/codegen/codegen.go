@@ -6,6 +6,7 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
+	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
@@ -2094,7 +2095,8 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 	// Type, Con, Var, Func
 	for _, typ := range pkg.Types {
 		ut := sema.GetUnderlyingType(typ)
-		fmt.Fprintf(fout, "type %s %s\n", typ.Name, sema.SerializeType(ut, false))
+		ident := typ.E.(*ast.Ident)
+		fmt.Fprintf(fout, "type %s %s\n", ident.Name, sema.SerializeType(ut, false))
 	}
 	for _, vr := range pkg.Vars {
 		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, false))

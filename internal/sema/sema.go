@@ -591,7 +591,7 @@ func Kind(t *types.Type) types.TypeKind {
 		panicPos("nil type is not expected", t.E.Pos())
 	}
 	if t.GoType == nil {
-		panic(fmt.Sprintf("[Kind] Unexpected GoType nil: %T %s\n", t.E, t.Name))
+		panic(fmt.Sprintf("[Kind] Unexpected GoType nil: %T\n", t.E))
 	}
 	return Kind2(t.GoType)
 }
@@ -2280,6 +2280,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		//@TODO check serializeType()'s *ast.Ident case
 		typeSpec.Name.Obj.Data = pkg.Name // package the type belongs to
 		eType := &ast.Ident{
+			Name:    typeSpec.Name.Name,
 			NamePos: typeSpec.Pos(),
 			Obj: &ast.Object{
 				Kind: ast.Typ,
@@ -2287,8 +2288,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			},
 		}
 		t := E2T(eType)
-		t.PkgName = pkg.Name
-		t.Name = typeSpec.Name.Name
 		gt := t.GoType.(*types.Named)
 		gt.PkgName = pkg.Name
 		typs = append(typs, t)
@@ -2630,13 +2629,6 @@ func SerializeType(t *types.Type, showPkgPrefix bool) string {
 	switch t.GoType.(type) {
 	case *types.Basic:
 		return SerializeType2(t.GoType, showPkgPrefix)
-	}
-	if t.Name != "" {
-		if showPkgPrefix {
-			return t.PkgName + "." + t.Name
-		} else {
-			return t.Name
-		}
 	}
 	switch e := t.E.(type) {
 	case *ast.Ident:
