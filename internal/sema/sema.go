@@ -1324,7 +1324,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 			var typ *types.Type
 			if !isNilIdent(e) {
 				typ = E2T(e)
-				RegisterDtype(typ, GetTypeOfExpr(typeSwitch.Subject))
+				RegisterDtype(typ.GoType, GetGoTypeOfExpr(typeSwitch.Subject))
 			}
 			typs = append(typs, typ) // universe nil can be appended
 		}
@@ -1624,11 +1624,11 @@ func walkConversion(pos token.Pos, toType *types.Type, arg0 ir.MetaExpr) ir.Meta
 		Type: toType,
 		Arg0: arg0,
 	}
-	fromType := GetTypeOfExpr(arg0)
-	fromKind := Kind(fromType)
+	fromType := GetGoTypeOfExpr(arg0)
+	fromKind := Kind2(fromType)
 	toKind := Kind(toType)
 	if toKind == types.T_INTERFACE && fromKind != types.T_INTERFACE {
-		RegisterDtype(fromType, toType)
+		RegisterDtype(fromType, toType.GoType)
 	}
 	return meta
 }
@@ -2124,7 +2124,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *ir.EvalContext) *ir.MetaType
 		panic(fmt.Sprintf("[walkTypeAssertExpr] GoType is not set:%T\n", e.Type))
 	}
 
-	RegisterDtype(meta.Type, GetTypeOfExpr(meta.X))
+	RegisterDtype(meta.Type.GoType, GetGoTypeOfExpr(meta.X))
 	return meta
 }
 
@@ -2195,7 +2195,7 @@ func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) i
 		return expr
 	}
 
-	RegisterDtype(fromType, trgtType)
+	RegisterDtype(fromType.GoType, trgtType.GoType)
 
 	return &ir.IfcConversion{
 		Tpos:  pos,
@@ -2789,9 +2789,9 @@ type ITabEntry struct {
 }
 
 // "**[1][]*int" => ".dtype.8"
-func RegisterDtype(dtype *types.Type, itype *types.Type) {
-	ds := SerializeType(dtype.GoType, true, false, "")
-	is := SerializeType(itype.GoType, true, false, "")
+func RegisterDtype(dtype types.GoType, itype types.GoType) {
+	ds := SerializeType(dtype, true, false, "")
+	is := SerializeType(itype, true, false, "")
 
 	key := ds + "-" + is
 	_, ok := ITab[key]
@@ -2804,8 +2804,8 @@ func RegisterDtype(dtype *types.Type, itype *types.Type) {
 		Id:          id,
 		DSerialized: ds,
 		ISeralized:  is,
-		Itype:       itype.GoType,
-		Dtype:       dtype.GoType,
+		Itype:       itype,
+		Dtype:       dtype,
 		Label:       "." + "itab_" + strconv.Itoa(id),
 	}
 	ITab[key] = e
