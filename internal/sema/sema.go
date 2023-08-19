@@ -146,7 +146,7 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 		if !ok {
 			panicPos("Should be Ellipsis", param.Type.Pos())
 		}
-		paramType := E2T(elp)
+		paramType := E2G(elp)
 		iNil := &ast.Ident{
 			Obj:     universe.Nil,
 			Name:    "nil",
@@ -155,7 +155,7 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 		//		exprTypeMeta[unsafe.Pointer(iNil)] = E2T(elp)
 		args = append(args, &astArgAndParam{
 			e:         iNil,
-			paramType: paramType.GoType,
+			paramType: paramType,
 		})
 	}
 
