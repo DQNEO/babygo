@@ -2821,9 +2821,9 @@ func RegisterDtype(dtype *types.Type, itype *types.Type) {
 	ITabID++
 }
 
-func GetITabEntry(t *types.Type, it *types.Type) *ITabEntry {
-	ds := SerializeType(t.GoType, true, false, "")
-	is := SerializeType(it.GoType, true, false, "")
+func GetITabEntry(d types.GoType, i types.GoType) *ITabEntry {
+	ds := SerializeType(d, true, false, "")
+	is := SerializeType(i, true, false, "")
 	key := ds + "-" + is
 	ent, ok := ITab[key]
 	if !ok {

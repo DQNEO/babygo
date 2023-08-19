@@ -1046,7 +1046,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 // 1 or 2 values
 func emitTypeAssertExpr(meta *ir.MetaTypeAssertExpr) {
 	emitExpr(meta.X)
-	emitDtypeLabelAddr(meta.Type, sema.GetTypeOfExpr(meta.X))
+	emitDtypeLabelAddr(meta.Type.GoType, sema.GetGoTypeOfExpr(meta.X))
 	emitCompareDtypes()
 
 	emitPopBool("type assertion ok value")
@@ -1141,7 +1141,7 @@ func emitConvertToInterface(fromType *types.Type, toType *types.Type) {
 	emitCallMalloc(memSize)
 	emitStore(fromType.GoType, false, true) // heap addr pushed
 	// push dtype label's address
-	emitDtypeLabelAddr(fromType, toType)
+	emitDtypeLabelAddr(fromType.GoType, toType.GoType)
 }
 
 // Check type identity by comparing its serialization, not id or address of dtype label.
@@ -1194,8 +1194,8 @@ func emitCompareDtypes() {
 	printf("  %s:\n", labelEnd)
 }
 
-func emitDtypeLabelAddr(t *types.Type, it *types.Type) {
-	de := sema.GetITabEntry(t, it)
+func emitDtypeLabelAddr(d types.GoType, i types.GoType) {
+	de := sema.GetITabEntry(d, i)
 	dtypeLabel := de.Label
 	sr := de.DSerialized
 	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, sr)
@@ -1812,7 +1812,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 			if t == nil { // case nil:
 				printf("  pushq $0 # nil\n")
 			} else { // case T:s
-				emitDtypeLabelAddr(t, sema.GetTypeOfExpr(meta.Subject))
+				emitDtypeLabelAddr(t.GoType, sema.GetGoTypeOfExpr(meta.Subject))
 			}
 			emitCompareDtypes()
 			emitPopBool(" of switch-case comparison")
