@@ -345,6 +345,12 @@ func GetTupleTypes(rhsMeta ir.MetaExpr) []*types.Type {
 var inNamed string
 var inNamedType *types.Named
 
+func G2T(g types.GoType) *types.Type {
+	t := &types.Type{
+		GoType: g,
+	}
+	return t
+}
 func E2G(typeExpr ast.Expr) types.GoType {
 	switch t := typeExpr.(type) {
 	case *ast.Ident:
@@ -878,7 +884,7 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
-				rhsMeta = CheckIfcConversion(rhs.Pos(), rhsMeta, t)
+				rhsMeta = CheckIfcConversion(rhs.Pos(), rhsMeta, t.GoType)
 			}
 		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {
@@ -950,7 +956,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			if t == nil {
 				t = GetTypeOfExpr(rhsMeta)
 			}
-			mc := CheckIfcConversion(rhsMeta.Pos(), rhsMeta, t)
+			mc := CheckIfcConversion(rhsMeta.Pos(), rhsMeta, t.GoType)
 			//checkIfcConversion(mc)
 			return &ir.MetaSingleAssign{
 				Tpos: pos,
@@ -1101,7 +1107,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			Type: retTyp,
 		}
 		m := walkExpr(expr, ctx)
-		mc := CheckIfcConversion(expr.Pos(), m, retTyp)
+		mc := CheckIfcConversion(expr.Pos(), m, retTyp.GoType)
 		as := &ir.MetaSingleAssign{
 			Tpos: s.Pos(),
 			Lhs:  funcDef.Retvars[i],
@@ -1877,7 +1883,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
 		paramTypes = append(paramTypes, a.ParamType)
-		arg := CheckIfcConversion(a.Meta.Pos(), a.Meta, a.ParamType)
+		arg := CheckIfcConversion(a.Meta.Pos(), a.Meta, a.ParamType.GoType)
 		args = append(args, arg)
 	}
 
@@ -1962,7 +1968,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 			ctx := &ir.EvalContext{Type: fieldType}
 			// attach type to nil : STRUCT{Key:nil}
 			valueMeta := walkExpr(kvExpr.Value, ctx)
-			mc := CheckIfcConversion(kvExpr.Pos(), valueMeta, fieldType)
+			mc := CheckIfcConversion(kvExpr.Pos(), valueMeta, fieldType.GoType)
 			metaElm := &ir.MetaStructLiteralElement{
 				Tpos:      kvExpr.Pos(),
 				Field:     field,
@@ -1981,7 +1987,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
-			mc := CheckIfcConversion(v.Pos(), m, meta.ElmType)
+			mc := CheckIfcConversion(v.Pos(), m, meta.ElmType.GoType)
 			ms = append(ms, mc)
 		}
 		meta.Elms = ms
@@ -1993,7 +1999,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
 			m := walkExpr(v, ctx)
-			mc := CheckIfcConversion(v.Pos(), m, meta.ElmType)
+			mc := CheckIfcConversion(v.Pos(), m, meta.ElmType.GoType)
 			ms = append(ms, mc)
 		}
 		meta.Elms = ms
@@ -2199,14 +2205,14 @@ func walkExpr(expr ast.Expr, ctx *ir.EvalContext) ir.MetaExpr {
 	}
 }
 
-func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) ir.MetaExpr {
+func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType types.GoType) ir.MetaExpr {
 	if IsNil(expr) {
 		return expr
 	}
 	if trgtType == nil {
 		return expr
 	}
-	if !IsInterface(trgtType.GoType) {
+	if !IsInterface(trgtType) {
 		return expr
 	}
 	fromType := GetTypeOfExpr(expr)
@@ -2214,12 +2220,12 @@ func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType *types.Type) i
 		return expr
 	}
 
-	RegisterDtype(fromType.GoType, trgtType.GoType)
+	RegisterDtype(fromType.GoType, trgtType)
 
 	return &ir.IfcConversion{
 		Tpos:  pos,
 		Value: expr,
-		Type:  trgtType,
+		Type:  G2T(trgtType),
 	}
 }
 
@@ -2410,7 +2416,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 				rhs := spec.Values[0]
 				ctx := &ir.EvalContext{Type: t}
 				rhsMeta = walkExpr(rhs, ctx)
-				rhsMeta = CheckIfcConversion(rhs.Pos(), rhsMeta, t)
+				rhsMeta = CheckIfcConversion(rhs.Pos(), rhsMeta, t.GoType)
 			}
 		} else { // var x = e  infer lhs type from rhs
 			if len(spec.Values) == 0 {

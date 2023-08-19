@@ -676,10 +676,10 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
-	elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
+	elmType := sema.GetElementTypeOfCollectionType2(sema.GetTypeOfExpr2(sliceArg))
 	arg1 := sema.CheckIfcConversion(m.Pos(), elemArg, elmType)
 	args := []ir.MetaExpr{sliceArg, arg1}
-	sig := sema.NewAppendSignature(elmType)
+	sig := sema.NewAppendSignature(sema.G2T(elmType))
 	emitCallDirect(symbol, args, sig)
 	return
 
@@ -687,7 +687,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 
 func emitMetaCallPanic(m *ir.MetaCallPanic) {
 	funcVal := "runtime.panic"
-	arg0 := sema.CheckIfcConversion(m.Pos(), m.Arg0, types.Eface)
+	arg0 := sema.CheckIfcConversion(m.Pos(), m.Arg0, types.Eface.GoType)
 	args := []ir.MetaExpr{arg0}
 	emitCallDirect(funcVal, args, ir.BuiltinPanicSignature)
 	return
@@ -696,7 +696,7 @@ func emitMetaCallPanic(m *ir.MetaCallPanic) {
 func emitMetaCallDelete(m *ir.MetaCallDelete) {
 	funcVal := "runtime.deleteMap"
 	sig := sema.NewDeleteSignature(m.Arg0)
-	mc := sema.CheckIfcConversion(m.Pos(), m.Arg1, sig.ParamTypes[1])
+	mc := sema.CheckIfcConversion(m.Pos(), m.Arg1, sig.ParamTypes[1].GoType)
 	args := []ir.MetaExpr{m.Arg0, mc}
 	emitCallDirect(funcVal, args, sig)
 	return
@@ -1026,7 +1026,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 	// emit addr of map element
 	mp := m.X
 	key := m.Index
-	mc := sema.CheckIfcConversion(m.Pos(), key, ir.RuntimeGetAddrForMapGetSignature.ParamTypes[1])
+	mc := sema.CheckIfcConversion(m.Pos(), key, ir.RuntimeGetAddrForMapGetSignature.ParamTypes[1].GoType)
 	args := []ir.MetaExpr{mp, mc}
 	emitCallDirect("runtime.getAddrForMapGet", args, ir.RuntimeGetAddrForMapGetSignature)
 	// return values = [ptr, bool(stack top)]
@@ -1221,7 +1221,7 @@ func emitAddrForMapSet(indexExpr *ir.MetaIndexExpr) {
 	// alloc heap for map value
 	//size := GetSizeOfType(elmType)
 	emitComment(2, "[emitAddrForMapSet]\n")
-	keyExpr := sema.CheckIfcConversion(indexExpr.Pos(), indexExpr.Index, ir.RuntimeGetAddrForMapSetSignature.ParamTypes[1])
+	keyExpr := sema.CheckIfcConversion(indexExpr.Pos(), indexExpr.Index, ir.RuntimeGetAddrForMapSetSignature.ParamTypes[1].GoType)
 	args := []ir.MetaExpr{indexExpr.X, keyExpr}
 	emitCallDirect("runtime.getAddrForMapSet", args, ir.RuntimeGetAddrForMapSetSignature)
 }
