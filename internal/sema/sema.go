@@ -796,18 +796,16 @@ func registerMethod(pkgName string, method *ir.Method) {
 }
 
 // @TODO: enable to lookup ifc method
-func LookupMethod(rcvT *types.Type, methodName string) *ir.Method {
-	rcvType := rcvT.E
-	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
+func LookupMethod(rcvT types.GoType, methodName string) *ir.Method {
+	rcvPointerType, isPtr := rcvT.(*types.Pointer)
 	if isPtr {
-		rcvType = rcvPointerType.X
+		rcvT = rcvPointerType.Elem()
 	}
 	var namedTypeId string
-	var typeObj *ast.Object
-	switch typ := rcvType.(type) {
-	case *ast.Ident:
-		typeObj = typ.Obj
-		if typeObj == universe.Error {
+
+	switch typ := rcvT.(type) {
+	case *types.Named:
+		if typ.PkgName == "" && typ.String() == "error" {
 			namedTypeId = "error"
 			return &ir.Method{
 				PkgName: "",
@@ -819,16 +817,12 @@ func LookupMethod(rcvT *types.Type, methodName string) *ir.Method {
 				FuncType:    universe.ErrorMethodFuncType,
 			}
 		} else {
-			pkgName := typeObj.Data.(string)
-			namedTypeId = pkgName + "." + typ.Name
+			pkgName := typ.PkgName
+			namedTypeId = pkgName + "." + typ.String()
 			//util.Logf("[LookupMethod] ident: namedTypeId=%s\n", namedTypeId)
 		}
-	case *ast.SelectorExpr:
-		qi := Selector2QI(typ)
-		namedTypeId = string(qi)
-		//util.Logf("[LookupMethod] selector: namedTypeId=%s\n", namedTypeId)
 	default:
-		panic(rcvType)
+		panic("Unexpected type")
 	}
 
 	namedType, ok := namedTypes[namedTypeId]
@@ -1583,7 +1577,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 			_, isIdent := typ.X.(*ast.Ident)
 			if isIdent {
 				typeOfLeft = origType
-				method := LookupMethod(typeOfLeft, e.Sel.Name)
+				method := LookupMethod(typeOfLeft.GoType, e.Sel.Name)
 				funcType := method.FuncType
 				if funcType.Results == nil || len(funcType.Results.List) == 0 {
 					return nil, nil, 0, needDeref
@@ -1593,7 +1587,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 			}
 		}
 	default: // obj.method
-		method := LookupMethod(typeOfLeft, e.Sel.Name)
+		method := LookupMethod(typeOfLeft.GoType, e.Sel.Name)
 		funcType := method.FuncType
 		if funcType == nil {
 			panic("funcType should not be nil:" + method.Name)
@@ -1611,7 +1605,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 		return E2T(field.Type), field, offset, needDeref
 	}
 	if field == nil { // try to find method
-		method := LookupMethod(typeOfLeft, e.Sel.Name)
+		method := LookupMethod(typeOfLeft.GoType, e.Sel.Name)
 		funcType := method.FuncType
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, needDeref
@@ -1812,7 +1806,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			receiver = fn.X
 			receiverMeta = walkExpr(fn.X, nil)
 			receiverType := GetTypeOfExpr(receiverMeta)
-			method := LookupMethod(receiverType, fn.Sel.Name)
+			method := LookupMethod(receiverType.GoType, fn.Sel.Name)
 			funcType = method.FuncType
 			funcVal = NewFuncValueFromSymbol(GetMethodSymbol(method))
 			funcVal.MethodName = fn.Sel.Name
