@@ -81,7 +81,7 @@ func isType(expr ast.Expr) bool {
 
 type astArgAndParam struct {
 	e         ast.Expr
-	paramType *types.Type // expected type
+	paramType types.GoType // expected type
 }
 
 type argAndParamType struct {
@@ -118,7 +118,7 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 		paramType := E2T(param.Type)
 		arg := &astArgAndParam{
 			e:         eArg,
-			paramType: paramType,
+			paramType: paramType.GoType,
 		}
 		args = append(args, arg)
 	}
@@ -137,7 +137,7 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 		}
 		args = append(args, &astArgAndParam{
 			e:         vargsSliceWrapper,
-			paramType: E2T(sliceType),
+			paramType: E2T(sliceType).GoType,
 		})
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
@@ -155,17 +155,17 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 		//		exprTypeMeta[unsafe.Pointer(iNil)] = E2T(elp)
 		args = append(args, &astArgAndParam{
 			e:         iNil,
-			paramType: paramType,
+			paramType: paramType.GoType,
 		})
 	}
 
 	var metaArgs []*argAndParamType
 	for _, arg := range args {
-		ctx := &ir.EvalContext{Type: arg.paramType.GoType}
+		ctx := &ir.EvalContext{Type: arg.paramType}
 		m := walkExpr(arg.e, ctx)
 		a := &argAndParamType{
 			Meta:      m,
-			ParamType: arg.paramType.GoType,
+			ParamType: arg.paramType,
 		}
 		metaArgs = append(metaArgs, a)
 	}
