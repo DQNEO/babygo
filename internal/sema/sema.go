@@ -350,6 +350,18 @@ func TypesToGoTypes(ts []*types.Type) []types.GoType {
 	return r
 }
 
+func GetTupleTypes2(rhsMeta ir.MetaExpr) []types.GoType {
+	if IsOkSyntax(rhsMeta) {
+		return []types.GoType{GetTypeOfExpr2(rhsMeta), types.Bool.GoType}
+	} else {
+		rhs, ok := rhsMeta.(*ir.MetaCallExpr)
+		if !ok {
+			panic("is not *MetaCallExpr")
+		}
+		return TypesToGoTypes(rhs.Types)
+	}
+}
+
 func GetTupleTypes(rhsMeta ir.MetaExpr) []*types.Type {
 	if IsOkSyntax(rhsMeta) {
 		return []*types.Type{GetTypeOfExpr(rhsMeta), types.Bool}
@@ -737,7 +749,7 @@ func registerReturnVariable(fnc *ir.Func, name string, t *types.Type) *ir.Variab
 }
 
 func registerLocalVariable(fnc *ir.Func, name string, t *types.Type) *ir.Variable {
-	assert(t != nil && t.E != nil, "type of local var should not be nil", __func__)
+	assert(t != nil, "type of local var should not be nil", __func__)
 	fnc.Localarea -= GetSizeOfType2(t.GoType)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
 	fnc.LocalVars = append(fnc.LocalVars, vr)
@@ -990,7 +1002,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &ir.EvalContext{MaybeOK: maybeOkContext})
 			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
-			rhsTypes := GetTupleTypes(rhsMeta)
+			rhsTypes := GetTupleTypes2(rhsMeta)
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
 			var lhsMetas []ir.MetaExpr
@@ -1003,7 +1015,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				IsOK:     isOK,
 				Lhss:     lhsMetas,
 				Rhs:      rhsMeta,
-				RhsTypes: TypesToGoTypes(rhsTypes),
+				RhsTypes: rhsTypes,
 			}
 		} else {
 			panic("Bad syntax")
@@ -1097,7 +1109,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			panic("syntax error in return statement")
 		}
 		m := walkExpr(funcall, nil)
-		tupleTypes := GetTupleTypes(m)
+		tupleTypes := GetTupleTypes2(m)
 		assert(len(funcDef.Retvars) == len(tupleTypes), "number of return exprs should match", __func__)
 		var lhss []ir.MetaExpr
 		for _, v := range funcDef.Retvars {
@@ -1109,7 +1121,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			IsOK:     false,
 			Lhss:     lhss,
 			Rhs:      m,
-			RhsTypes: TypesToGoTypes(tupleTypes),
+			RhsTypes: tupleTypes,
 		}
 		return &ir.MetaReturnStmt{
 			Tpos:        s.Pos(),
