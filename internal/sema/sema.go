@@ -2618,25 +2618,10 @@ func EvalInt(expr ast.Expr) int {
 	panic(fmt.Sprintf("Unknown type:%T", expr))
 }
 
-func SerializeType2(goType types.GoType, showPkgPrefix bool) string {
+func SerializeType2(goType types.GoType, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
 	switch g := goType.(type) {
 	case *types.Basic:
 		return g.Name()
-	}
-	return ""
-}
-
-func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
-	if t == nil {
-		panic("nil type is not expected")
-	}
-	if t == types.GeneralSliceType {
-		panic("TBD: GeneralSlice")
-	}
-	if t.GoType == nil {
-		panic("t.Gotype should not be nil")
-	}
-	switch g := t.GoType.(type) {
 	case *types.Named:
 		if g.PkgName == "" && g.String() == "error" {
 			return "error"
@@ -2654,20 +2639,29 @@ func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool
 		} else {
 			return g.String()
 		}
-	case *types.Basic:
-		return SerializeType2(t.GoType, showPkgPrefix)
 	}
+	return ""
+}
+
+func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
+	if t == nil {
+		panic("nil type is not expected")
+	}
+	if t == types.GeneralSliceType {
+		panic("TBD: GeneralSlice")
+	}
+	if t.GoType == nil {
+		panic("t.Gotype should not be nil")
+	}
+	switch t.GoType.(type) {
+	case *types.Named:
+		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+	case *types.Basic:
+		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+	}
+
 	switch e := t.E.(type) {
 	case *ast.Ident:
-		if e.Obj == nil {
-			panic("Unresolved identifier:" + e.Name)
-		}
-		if e.Obj.Kind == ast.Var {
-			panic(e.Obj)
-		}
-		if e.Obj.Kind == ast.Typ && e.Obj == universe.Error {
-			return "error"
-		}
 		panic("should not reach here")
 	case *ast.StructType:
 		r := "struct{"
