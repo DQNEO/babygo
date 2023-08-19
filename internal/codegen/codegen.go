@@ -623,7 +623,7 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 	switch sema.Kind2(typeArg.GoType) {
 	case types.T_MAP:
 		mapValueType := sema.GetElementTypeOfCollectionType(typeArg)
-		valueSize := sema.NewNumberLiteral(sema.GetSizeOfType(mapValueType), m.Pos())
+		valueSize := sema.NewNumberLiteral(sema.GetSizeOfType2(mapValueType.GoType), m.Pos())
 		// A new, empty map value is made using the built-in function make,
 		// which takes the map type and an optional capacity hint as arguments:
 		length := sema.NewNumberLiteral(0, m.Pos())
@@ -632,7 +632,7 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 	case types.T_SLICE:
 		// make([]T, ...)
 		elmType := sema.GetElementTypeOfCollectionType(typeArg)
-		elmSize := sema.GetSizeOfType(elmType)
+		elmSize := sema.GetSizeOfType2(elmType.GoType)
 		numlit := sema.NewNumberLiteral(elmSize, m.Pos())
 		args := []ir.MetaExpr{numlit, m.Arg1, m.Arg2}
 		emitCallDirect("runtime.makeSlice", args, ir.RuntimeMakeSliceSignature)
@@ -647,7 +647,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	sliceArg := m.Arg0
 	elemArg := m.Arg1
 	elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
-	elmSize := sema.GetSizeOfType(elmType)
+	elmSize := sema.GetSizeOfType2(elmType.GoType)
 
 	var symbol string
 	switch elmSize {
@@ -1134,7 +1134,7 @@ func emitConvertToInterface(fromType *types.Type, toType *types.Type) {
 	if sema.HasIfcMethod(toType) {
 		emitComment(2, "@@@ toType has methods\n")
 	}
-	memSize := sema.GetSizeOfType(fromType)
+	memSize := sema.GetSizeOfType2(fromType.GoType)
 	// copy data to heap
 	emitCallMalloc(memSize)
 	emitStore(fromType.GoType, false, true) // heap addr pushed
