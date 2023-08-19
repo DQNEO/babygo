@@ -445,7 +445,8 @@ func emitFalse() {
 
 func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
 	rtypes := TypesToGoTypes(sig.ReturnTypes)
-	emitCall(sema.NewFuncValueFromSymbol(symbol), args, sig.ParamTypes, rtypes)
+	ptypes := TypesToGoTypes(sig.ParamTypes)
+	emitCall(sema.NewFuncValueFromSymbol(symbol), args, ptypes, rtypes)
 }
 
 // ABI of stack layout in function call
@@ -482,7 +483,7 @@ func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
 //	slc.cap
 //	r
 //	--
-func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, returnTypes []types.GoType) {
+func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.GoType, returnTypes []types.GoType) {
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 	var totalParamSize int
 	var offsets []int
@@ -492,7 +493,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 		if fv.IfcMethodCal && i == 0 {
 			size = sema.GetSizeOfType2(types.Uintptr.GoType) // @FIXME
 		} else {
-			size = sema.GetSizeOfType2(paramType.GoType)
+			size = sema.GetSizeOfType2(paramType)
 		}
 		totalParamSize += size
 	}
@@ -504,7 +505,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 			// tweak recevier
 			paramType := paramTypes[i]
 			emitExpr(arg)
-			emitPop(sema.Kind(paramType))
+			emitPop(sema.Kind2(paramType))
 			printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 			printf("  movq 0(%%rcx), %%rcx # load eface.data\n", 0)
 			printf("  movq %%rcx, %d(%%rsi) # store eface.data\n", 0)
@@ -512,10 +513,10 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 		} else {
 			paramType := paramTypes[i]
 			emitExpr(arg)
-			emitPop(sema.Kind(paramType))
+			emitPop(sema.Kind2(paramType))
 			printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 			printf("  pushq %%rsi # place to save\n")
-			emitRegiToMem(paramType.GoType)
+			emitRegiToMem(paramType)
 		}
 	}
 
@@ -545,9 +546,10 @@ func getTotalSizeOfType(ts []types.GoType) int {
 
 func emitCallFF(ff *ir.Func) {
 	ptypes := TypesToGoTypes(ff.Signature.ParamTypes)
+	rtypes := TypesToGoTypes(ff.Signature.ReturnTypes)
 	totalParamSize := getTotalSizeOfType(ptypes)
 	symbol := ff.PkgName + "." + ff.Name
-	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, ff.Signature.ReturnTypes)
+	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, rtypes)
 }
 
 func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []types.GoType) {
@@ -1122,7 +1124,8 @@ func emitExpr(meta ir.MetaExpr) {
 		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:
 		rtypes := TypesToGoTypes(m.Types)
-		emitCall(m.FuncVal, m.Args, m.ParamTypes, rtypes) // can be Tuple
+		mtypes := TypesToGoTypes(m.ParamTypes)
+		emitCall(m.FuncVal, m.Args, mtypes, rtypes) // can be Tuple
 	case *ir.MetaIndexExpr:
 		emitIndexExpr(m) // can be Tuple
 	case *ir.MetaSliceExpr:
