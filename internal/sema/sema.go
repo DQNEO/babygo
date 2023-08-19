@@ -115,10 +115,10 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 			continue
 		}
 
-		paramType := E2T(param.Type)
+		paramType := E2G(param.Type)
 		arg := &astArgAndParam{
 			e:         eArg,
-			paramType: paramType.GoType,
+			paramType: paramType,
 		}
 		args = append(args, arg)
 	}
