@@ -88,7 +88,7 @@ type MetaTupleAssign struct {
 	IsOK     bool // OK or funcall
 	Lhss     []MetaExpr
 	Rhs      MetaExpr
-	RhsTypes []*types.Type
+	RhsTypes []types.GoType
 }
 
 type MetaReturnStmt struct {
@@ -264,10 +264,10 @@ type MetaSelectorExpr struct {
 // general funcall
 type MetaCallExpr struct {
 	Tpos        token.Pos
-	Type        *types.Type   // result type
-	Types       []*types.Type // result types when tuple
-	ParamTypes  []*types.Type // param types to accept
-	Args        []MetaExpr    // args sent from caller
+	Type        *types.Type    // result type
+	Types       []*types.Type  // result types when tuple
+	ParamTypes  []types.GoType // param types to accept
+	Args        []MetaExpr     // args sent from caller
 	HasEllipsis bool
 	FuncVal     *FuncValue
 }

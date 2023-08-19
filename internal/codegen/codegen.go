@@ -527,14 +527,6 @@ func emitAllocReturnVarsAreaFF(ff *ir.Func) {
 	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
 }
 
-func TypesToGoTypes(ts []*types.Type) []types.GoType {
-	var r []types.GoType
-	for _, t := range ts {
-		r = append(r, t.GoType)
-	}
-	return r
-}
-
 func getTotalSizeOfType(ts []types.GoType) int {
 	var r int
 	for _, t := range ts {
@@ -1123,8 +1115,8 @@ func emitExpr(meta ir.MetaExpr) {
 	case *ir.MetaConversionExpr:
 		emitConversion(m.Type.GoType, m.Arg0)
 	case *ir.MetaCallExpr:
-		rtypes := TypesToGoTypes(m.Types)
-		mtypes := TypesToGoTypes(m.ParamTypes)
+		rtypes := sema.TypesToGoTypes(m.Types)
+		mtypes := (m.ParamTypes)
 		emitCall(m.FuncVal, m.Args, mtypes, rtypes) // can be Tuple
 	case *ir.MetaIndexExpr:
 		emitIndexExpr(m) // can be Tuple
@@ -1434,7 +1426,7 @@ func emitOkAssignment(meta *ir.MetaTupleAssign) {
 		lhsMeta := meta.Lhss[i]
 		rhsType := rhsTypes[i]
 		if sema.IsBlankIdentifierMeta(lhsMeta) {
-			emitPop(sema.Kind(rhsType))
+			emitPop(sema.Kind2(rhsType))
 		} else {
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
@@ -1455,9 +1447,9 @@ func emitFuncallAssignment(meta *ir.MetaTupleAssign) {
 		lhsMeta := meta.Lhss[i]
 		rhsType := rhsTypes[i]
 		if sema.IsBlankIdentifierMeta(lhsMeta) {
-			emitPop(sema.Kind(rhsType))
+			emitPop(sema.Kind2(rhsType))
 		} else {
-			switch sema.Kind(rhsType) {
+			switch sema.Kind2(rhsType) {
 			case types.T_UINT8:
 				// repush stack top
 				printf("  movzbq (%%rsp), %%rax # load uint8\n")

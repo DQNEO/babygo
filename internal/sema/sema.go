@@ -86,7 +86,7 @@ type astArgAndParam struct {
 
 type argAndParamType struct {
 	Meta      ir.MetaExpr
-	ParamType *types.Type // expected type
+	ParamType types.GoType // expected type
 }
 
 func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool) []*argAndParamType {
@@ -165,13 +165,13 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 		m := walkExpr(arg.e, ctx)
 		a := &argAndParamType{
 			Meta:      m,
-			ParamType: arg.paramType,
+			ParamType: arg.paramType.GoType,
 		}
 		metaArgs = append(metaArgs, a)
 	}
 
 	if receiver != nil { // method call
-		paramType := GetTypeOfExpr(receiver)
+		paramType := GetTypeOfExpr2(receiver)
 		if paramType == nil {
 			panic("[prepaareArgs] param type must not be nil")
 		}
@@ -338,6 +338,14 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 		}
 
 		r.Types = append(r.Types, t)
+	}
+	return r
+}
+
+func TypesToGoTypes(ts []*types.Type) []types.GoType {
+	var r []types.GoType
+	for _, t := range ts {
+		r = append(r, t.GoType)
 	}
 	return r
 }
@@ -995,7 +1003,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				IsOK:     isOK,
 				Lhss:     lhsMetas,
 				Rhs:      rhsMeta,
-				RhsTypes: rhsTypes,
+				RhsTypes: TypesToGoTypes(rhsTypes),
 			}
 		} else {
 			panic("Bad syntax")
@@ -1047,7 +1055,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				IsOK:     isOK,
 				Lhss:     lhsMetas,
 				Rhs:      rhsMeta,
-				RhsTypes: rhsTypes,
+				RhsTypes: TypesToGoTypes(rhsTypes),
 			}
 		} else {
 			panic("Bad syntax")
@@ -1101,7 +1109,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			IsOK:     false,
 			Lhss:     lhss,
 			Rhs:      m,
-			RhsTypes: tupleTypes,
+			RhsTypes: TypesToGoTypes(tupleTypes),
 		}
 		return &ir.MetaReturnStmt{
 			Tpos:        s.Pos(),
@@ -1891,11 +1899,11 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	}
 	meta.FuncVal = funcVal
 	argsAndParams := prepareArgsAndParams(funcType, receiverMeta, e.Args, meta.HasEllipsis)
-	var paramTypes []*types.Type
+	var paramTypes []types.GoType
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
 		paramTypes = append(paramTypes, a.ParamType)
-		arg := CheckIfcConversion(a.Meta.Pos(), a.Meta, a.ParamType.GoType)
+		arg := CheckIfcConversion(a.Meta.Pos(), a.Meta, a.ParamType)
 		args = append(args, arg)
 	}
 
