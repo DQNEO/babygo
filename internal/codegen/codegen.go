@@ -482,6 +482,7 @@ func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
 //	r
 //	--
 func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, returnTypes []*types.Type) {
+	rtypes := TypesToGoTypes(returnTypes)
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 	var totalParamSize int
 	var offsets []int
@@ -496,7 +497,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 		totalParamSize += size
 	}
 
-	emitAllocReturnVarsArea(getTotalSizeOfType(returnTypes))
+	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for i, arg := range args {
 		if i == 0 && fv.IfcMethodCal {
@@ -522,24 +523,35 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 }
 
 func emitAllocReturnVarsAreaFF(ff *ir.Func) {
-	emitAllocReturnVarsArea(getTotalSizeOfType(ff.Signature.ReturnTypes))
+	rtypes := TypesToGoTypes(ff.Signature.ReturnTypes)
+	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
 }
 
-func getTotalSizeOfType(types []*types.Type) int {
+func TypesToGoTypes(ts []*types.Type) []types.GoType {
+	var r []types.GoType
+	for _, t := range ts {
+		r = append(r, t.GoType)
+	}
+	return r
+}
+
+func getTotalSizeOfType(ts []types.GoType) int {
 	var r int
-	for _, t := range types {
-		r += sema.GetSizeOfType2(t.GoType)
+	for _, t := range ts {
+		r += sema.GetSizeOfType2(t)
 	}
 	return r
 }
 
 func emitCallFF(ff *ir.Func) {
-	totalParamSize := getTotalSizeOfType(ff.Signature.ParamTypes)
+	ptypes := TypesToGoTypes(ff.Signature.ParamTypes)
+	totalParamSize := getTotalSizeOfType(ptypes)
 	symbol := ff.PkgName + "." + ff.Name
 	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, ff.Signature.ReturnTypes)
 }
 
 func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) {
+	rtypes := TypesToGoTypes(returnTypes)
 	if fv.IsDirect {
 		if fv.Symbol == "" {
 			panic("callq target must not be empty")
@@ -573,7 +585,7 @@ func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) 
 	}
 
 	emitFreeParametersArea(totalParamSize)
-	printf("  #  totalReturnSize=%d\n", getTotalSizeOfType(returnTypes))
+	printf("  #  totalReturnSize=%d\n", getTotalSizeOfType(rtypes))
 	emitFreeAndPushReturnedValue(returnTypes)
 }
 
