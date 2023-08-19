@@ -552,9 +552,9 @@ func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) 
 			printf("  addq $24, %%rax # addr(eface.dtype)  8*3 \n")
 
 			var methodId int
-			methods := sema.GetInterfaceMethods(fv.IfcType)
+			methods := sema.GetInterfaceMethods(fv.IfcType.GoType)
 			for i, m := range methods {
-				if m.Names[0].Name == fv.MethodName {
+				if m.Name == fv.MethodName {
 					methodId = i
 				}
 			}
@@ -2195,22 +2195,22 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 		printf("  .quad .string_dtype_%d\n", id)
 		printf("  .quad %d\n", len(ent.DSerialized))
 
-		methods := sema.GetInterfaceMethods(ent.Itype)
+		methods := sema.GetInterfaceMethods(ent.Itype.GoType)
 		if len(methods) == 0 {
 			printf("  # no methods\n")
 		}
 		for mi, m := range methods {
-			dmethod := sema.LookupMethod(ent.Dtype, m.Names[0])
+			dmethod := sema.LookupMethod(ent.Dtype, m.Name)
 			sym := sema.GetMethodSymbol(dmethod)
-			printf("  .quad .method_name_%d_%d # %s \n", id, mi, m.Names[0].Name)
-			printf("  .quad %d # method name len\n", len(m.Names[0].Name))
-			printf("  .quad %s # method ref %s\n", sym, m.Names[0].Name)
+			printf("  .quad .method_name_%d_%d # %s \n", id, mi, m.Name)
+			printf("  .quad %d # method name len\n", len(m.Name))
+			printf("  .quad %s # method ref %s\n", sym, m.Name)
 		}
 		printf("  .quad 0 # End of methods\n")
 
 		for mi, m := range methods {
 			printf(".method_name_%d_%d:\n", id, mi)
-			printf("  .string \"%s\"\n", m.Names[0].Name)
+			printf("  .string \"%s\"\n", m.Name)
 		}
 	}
 	printf("\n")

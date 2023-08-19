@@ -799,7 +799,7 @@ func registerMethod(pkgName string, method *ir.Method) {
 }
 
 // @TODO: enable to lookup ifc method
-func LookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
+func LookupMethod(rcvT *types.Type, methodName string) *ir.Method {
 	rcvType := rcvT.E
 	rcvPointerType, isPtr := rcvType.(*ast.StarExpr)
 	if isPtr {
@@ -836,11 +836,11 @@ func LookupMethod(rcvT *types.Type, methodName *ast.Ident) *ir.Method {
 
 	namedType, ok := namedTypes[namedTypeId]
 	if !ok {
-		panicPos(namedTypeId+" has no methodSet", methodName.Pos())
+		panic(namedTypeId + " has no methodSet")
 	}
-	method, ok := namedType.MethodSet[methodName.Name]
+	method, ok := namedType.MethodSet[methodName]
 	if !ok {
-		panicPos("method not found: "+methodName.Name, methodName.Pos())
+		panic("method not found: " + methodName)
 	}
 	return method
 }
@@ -1586,7 +1586,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 			_, isIdent := typ.X.(*ast.Ident)
 			if isIdent {
 				typeOfLeft = origType
-				method := LookupMethod(typeOfLeft, e.Sel)
+				method := LookupMethod(typeOfLeft, e.Sel.Name)
 				funcType := method.FuncType
 				if funcType.Results == nil || len(funcType.Results.List) == 0 {
 					return nil, nil, 0, needDeref
@@ -1596,7 +1596,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 			}
 		}
 	default: // obj.method
-		method := LookupMethod(typeOfLeft, e.Sel)
+		method := LookupMethod(typeOfLeft, e.Sel.Name)
 		funcType := method.FuncType
 		if funcType == nil {
 			panic("funcType should not be nil:" + method.Name)
@@ -1614,7 +1614,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 		return E2T(field.Type), field, offset, needDeref
 	}
 	if field == nil { // try to find method
-		method := LookupMethod(typeOfLeft, e.Sel)
+		method := LookupMethod(typeOfLeft, e.Sel.Name)
 		funcType := method.FuncType
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, needDeref
@@ -1815,7 +1815,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			receiver = fn.X
 			receiverMeta = walkExpr(fn.X, nil)
 			receiverType := GetTypeOfExpr(receiverMeta)
-			method := LookupMethod(receiverType, fn.Sel)
+			method := LookupMethod(receiverType, fn.Sel.Name)
 			funcType = method.FuncType
 			funcVal = NewFuncValueFromSymbol(GetMethodSymbol(method))
 			funcVal.MethodName = fn.Sel.Name
@@ -2832,14 +2832,14 @@ func GetITabEntry(d types.GoType, i types.GoType) *ITabEntry {
 	return ent
 }
 
-func GetInterfaceMethods(iType *types.Type) []*ast.Field {
-	ut := GetUnderlyingType(iType)
-	it, ok := ut.E.(*ast.InterfaceType)
+func GetInterfaceMethods(iType types.GoType) []*types.Func {
+	ut := iType.Underlying()
+	it, ok := ut.(*types.Interface)
 	if !ok {
 		panic("not interface type")
 	}
-	if it.Methods == nil {
+	if len(it.Methods) == 0 {
 		return nil
 	}
-	return it.Methods.List
+	return it.Methods
 }
