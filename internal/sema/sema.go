@@ -238,7 +238,7 @@ func GetPackageSymbol(pkgName string, subsymbol string) string {
 	return pkgName + "." + subsymbol
 }
 
-func GetGoTypeOfExpr(meta ir.MetaExpr) types.GoType {
+func GetTypeOfExpr2(meta ir.MetaExpr) types.GoType {
 	t := GetTypeOfExpr(meta)
 	return t.GoType
 }
@@ -1324,7 +1324,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 			var typ *types.Type
 			if !isNilIdent(e) {
 				typ = E2T(e)
-				RegisterDtype(typ.GoType, GetGoTypeOfExpr(typeSwitch.Subject))
+				RegisterDtype(typ.GoType, GetTypeOfExpr2(typeSwitch.Subject))
 			}
 			typs = append(typs, typ) // universe nil can be appended
 		}
@@ -1624,7 +1624,7 @@ func walkConversion(pos token.Pos, toType *types.Type, arg0 ir.MetaExpr) ir.Meta
 		Type: toType,
 		Arg0: arg0,
 	}
-	fromType := GetGoTypeOfExpr(arg0)
+	fromType := GetTypeOfExpr2(arg0)
 	fromKind := Kind2(fromType)
 	toKind := Kind(toType)
 	if toKind == types.T_INTERFACE && fromKind != types.T_INTERFACE {
@@ -2124,7 +2124,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *ir.EvalContext) *ir.MetaType
 		panic(fmt.Sprintf("[walkTypeAssertExpr] GoType is not set:%T\n", e.Type))
 	}
 
-	RegisterDtype(meta.Type.GoType, GetGoTypeOfExpr(meta.X))
+	RegisterDtype(meta.Type.GoType, GetTypeOfExpr2(meta.X))
 	return meta
 }
 
