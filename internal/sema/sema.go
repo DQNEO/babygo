@@ -366,7 +366,9 @@ func E2G(typeExpr ast.Expr) types.GoType {
 			return types.Bool.GoType
 		case universe.Error:
 			dcl := universe.Error.Decl.(*ast.TypeSpec)
-			return E2G(dcl.Type)
+			ut := E2G(dcl.Type)
+			named := types.NewNamed(universe.Error.Name, ut)
+			return named
 		default:
 			switch dcl := t.Obj.Decl.(type) {
 			case *ast.TypeSpec:
@@ -2636,7 +2638,9 @@ func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool
 	}
 	switch g := t.GoType.(type) {
 	case *types.Named:
-		_ = g
+		if g.PkgName == "" && g.String() == "error" {
+			return "error"
+		}
 		if showPkgPrefix {
 			if showOnlyForeignPrefix {
 				if g.PkgName == currentPkgName {
@@ -2660,23 +2664,11 @@ func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool
 		}
 		if e.Obj.Kind == ast.Var {
 			panic(e.Obj)
-		} else if e.Obj.Kind == ast.Typ {
-			switch e.Obj {
-			case universe.Error:
-				return "error"
-			default:
-				// named type
-				decl := e.Obj.Decl
-				typeSpec := decl.(*ast.TypeSpec)
-				typeName := typeSpec.Name.Name
-				if showPkgPrefix {
-					pkgName := typeSpec.Name.Obj.Data.(string)
-					return pkgName + "." + typeName
-				} else {
-					return typeName
-				}
-			}
 		}
+		if e.Obj.Kind == ast.Typ && e.Obj == universe.Error {
+			return "error"
+		}
+		panic("should not reach here")
 	case *ast.StructType:
 		r := "struct{"
 		if e.Fields != nil {
