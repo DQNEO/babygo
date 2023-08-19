@@ -2783,8 +2783,8 @@ type ITabEntry struct {
 	Id          int
 	DSerialized string
 	ISeralized  string
-	Itype       *types.Type
-	Dtype       *types.Type
+	Itype       types.GoType
+	Dtype       types.GoType
 	Label       string
 }
 
@@ -2804,8 +2804,8 @@ func RegisterDtype(dtype *types.Type, itype *types.Type) {
 		Id:          id,
 		DSerialized: ds,
 		ISeralized:  is,
-		Itype:       itype,
-		Dtype:       dtype,
+		Itype:       itype.GoType,
+		Dtype:       dtype.GoType,
 		Label:       "." + "itab_" + strconv.Itoa(id),
 	}
 	ITab[key] = e
