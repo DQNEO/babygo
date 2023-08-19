@@ -2096,15 +2096,15 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 	// Type, Con, Var, Func
 	for _, typ := range pkg.Types {
 		ut := sema.GetUnderlyingType(typ)
+		utAsString := sema.SerializeType(ut.GoType, true, true, pkg.Name)
 		ident := typ.E.(*ast.Ident)
-		utAsString := sema.SerializeType(ut, true, true, pkg.Name)
 		fmt.Fprintf(fout, "type %s %s\n", ident.Name, utAsString)
 	}
 	for _, vr := range pkg.Vars {
-		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, true, true, pkg.Name))
+		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type.GoType, true, true, pkg.Name))
 	}
 	for _, cnst := range pkg.Consts {
-		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type, true, true, pkg.Name), sema.GetConstRawValue(cnst.MetaVal))
+		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type.GoType, true, true, pkg.Name), sema.GetConstRawValue(cnst.MetaVal))
 	}
 	for _, fnc := range pkg.Funcs {
 		fmt.Fprintf(fout, "%s\n", sema.RestoreFuncDecl(fnc, true, true, pkg.Name))
