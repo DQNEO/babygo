@@ -264,11 +264,11 @@ func emitAddr(meta ir.MetaExpr) {
 }
 
 // explicit conversion T(e)
-func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
+func emitConversion(toType types.GoType, arg0 ir.MetaExpr) {
 	emitComment(2, "[emitConversion]\n")
-	fromType := sema.GetTypeOfExpr(arg0)
-	fromKind := sema.Kind(fromType)
-	toKind := sema.Kind(toType)
+	fromType := sema.GetTypeOfExpr2(arg0)
+	fromKind := sema.Kind2(fromType)
+	toKind := sema.Kind2(toType)
 	switch toKind {
 	case types.T_STRING:
 		if fromKind == types.T_SLICE {
@@ -293,11 +293,11 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 		return
 	case types.T_INTERFACE:
 		emitExpr(arg0)
-		if sema.IsInterface(fromType.GoType) {
+		if sema.IsInterface(fromType) {
 			return // do nothing
 		} else {
 			// Convert dynamic value to interface
-			emitConvertToInterface(fromType.GoType, toType.GoType)
+			emitConvertToInterface(fromType, toType)
 			return
 		}
 	default:
@@ -1121,7 +1121,7 @@ func emitExpr(meta ir.MetaExpr) {
 	case *ir.MetaCallDelete:
 		emitMetaCallDelete(m)
 	case *ir.MetaConversionExpr:
-		emitConversion(m.Type, m.Arg0)
+		emitConversion(m.Type.GoType, m.Arg0)
 	case *ir.MetaCallExpr:
 		rtypes := TypesToGoTypes(m.Types)
 		mtypes := TypesToGoTypes(m.ParamTypes)
