@@ -297,7 +297,7 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 			return // do nothing
 		} else {
 			// Convert dynamic value to interface
-			emitConvertToInterface(fromType, toType)
+			emitConvertToInterface(fromType.GoType, toType.GoType)
 			return
 		}
 	default:
@@ -309,7 +309,7 @@ func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
 func emitIfcConversion(ic *ir.IfcConversion) {
 	emitExpr(ic.Value)
 	emitComment(2, "emitIfcConversion\n")
-	emitConvertToInterface(sema.GetTypeOfExpr(ic.Value), ic.Type)
+	emitConvertToInterface(sema.GetGoTypeOfExpr(ic.Value), ic.Type.GoType)
 }
 
 func emitZeroValue(t types.GoType) {
@@ -1146,17 +1146,17 @@ func emitExpr(meta ir.MetaExpr) {
 }
 
 // convert stack top value to interface
-func emitConvertToInterface(fromType *types.Type, toType *types.Type) {
+func emitConvertToInterface(fromType types.GoType, toType types.GoType) {
 	emitComment(2, "ConversionToInterface\n")
 	if sema.HasIfcMethod(toType) {
 		emitComment(2, "@@@ toType has methods\n")
 	}
-	memSize := sema.GetSizeOfType2(fromType.GoType)
+	memSize := sema.GetSizeOfType2(fromType)
 	// copy data to heap
 	emitCallMalloc(memSize)
-	emitStore(fromType.GoType, false, true) // heap addr pushed
+	emitStore(fromType, false, true) // heap addr pushed
 	// push dtype label's address
-	emitDtypeLabelAddr(fromType.GoType, toType.GoType)
+	emitDtypeLabelAddr(fromType, toType)
 }
 
 // Check type identity by comparing its serialization, not id or address of dtype label.

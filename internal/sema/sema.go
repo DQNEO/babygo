@@ -612,20 +612,17 @@ func IsInterface(t types.GoType) bool {
 	return Kind2(t) == types.T_INTERFACE
 }
 
-func HasIfcMethod(t *types.Type) bool {
-	if !IsInterface(t.GoType) {
-		panic("type should be an interface")
-	}
-	ut := GetUnderlyingType(t)
-	astIfc, ok := ut.E.(*ast.InterfaceType)
-	if !ok {
+func HasIfcMethod(t types.GoType) bool {
+	if !IsInterface(t) {
 		panic("type should be an interface")
 	}
 
-	if astIfc.Methods == nil {
-		return false
+	ut := t.Underlying()
+	ifc, ok := ut.(*types.Interface)
+	if !ok {
+		panic("type should be an interface")
 	}
-	if len(astIfc.Methods.List) > 0 {
+	if len(ifc.Methods) > 0 {
 		return true
 	}
 	return false
