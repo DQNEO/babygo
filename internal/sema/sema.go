@@ -2658,6 +2658,16 @@ func SerializeType2(goType types.GoType, showPkgPrefix bool, showOnlyForeignPref
 		return "map[" + SerializeType2(g.Key(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName) + "]" + SerializeType2(g.Elem(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	case *types.Func:
 		return "func()"
+	case *types.Struct:
+		r := "struct{"
+		if len(g.Fields) > 0 {
+			for _, field := range g.Fields {
+				name := field.Name
+				typ := field.Typ
+				r += fmt.Sprintf("%s %s; ", name, SerializeType2(typ, showPkgPrefix, showOnlyForeignPrefix, currentPkgName))
+			}
+		}
+		return r + "}"
 	case *types.Interface:
 		if len(g.Methods) == 0 {
 			return "interface{}"
@@ -2702,12 +2712,15 @@ func SerializeType(t *types.Type, showPkgPrefix bool, showOnlyForeignPrefix bool
 		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	case *types.Map:
 		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+	case *types.Struct:
+		return SerializeType2(t.GoType, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
 	}
 
 	switch e := t.E.(type) {
 	case *ast.Ident:
 		panic("should not reach here")
 	case *ast.StructType:
+		panic("should not reach here")
 		r := "struct{"
 		if e.Fields != nil {
 			for _, field := range e.Fields.List {
