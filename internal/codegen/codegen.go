@@ -444,7 +444,8 @@ func emitFalse() {
 }
 
 func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
-	emitCall(sema.NewFuncValueFromSymbol(symbol), args, sig.ParamTypes, sig.ReturnTypes)
+	rtypes := TypesToGoTypes(sig.ReturnTypes)
+	emitCall(sema.NewFuncValueFromSymbol(symbol), args, sig.ParamTypes, rtypes)
 }
 
 // ABI of stack layout in function call
@@ -481,8 +482,7 @@ func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
 //	slc.cap
 //	r
 //	--
-func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, returnTypes []*types.Type) {
-	rtypes := TypesToGoTypes(returnTypes)
+func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, returnTypes []types.GoType) {
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 	var totalParamSize int
 	var offsets []int
@@ -497,7 +497,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 		totalParamSize += size
 	}
 
-	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
+	emitAllocReturnVarsArea(getTotalSizeOfType(returnTypes))
 	printf("  subq $%d, %%rsp # alloc parameters area\n", totalParamSize)
 	for i, arg := range args {
 		if i == 0 && fv.IfcMethodCal {
@@ -550,8 +550,7 @@ func emitCallFF(ff *ir.Func) {
 	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, ff.Signature.ReturnTypes)
 }
 
-func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) {
-	rtypes := TypesToGoTypes(returnTypes)
+func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []types.GoType) {
 	if fv.IsDirect {
 		if fv.Symbol == "" {
 			panic("callq target must not be empty")
@@ -585,7 +584,7 @@ func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) 
 	}
 
 	emitFreeParametersArea(totalParamSize)
-	printf("  #  totalReturnSize=%d\n", getTotalSizeOfType(rtypes))
+	printf("  #  totalReturnSize=%d\n", getTotalSizeOfType(returnTypes))
 	emitFreeAndPushReturnedValue(returnTypes)
 }
 
@@ -604,12 +603,12 @@ func emitReturnStmt(meta *ir.MetaReturnStmt) {
 }
 
 // caller
-func emitFreeAndPushReturnedValue(returnTypes []*types.Type) {
+func emitFreeAndPushReturnedValue(returnTypes []types.GoType) {
 	switch len(returnTypes) {
 	case 0:
 		// do nothing
 	case 1:
-		knd := sema.Kind(returnTypes[0])
+		knd := sema.Kind2(returnTypes[0])
 		switch knd {
 		case types.T_STRING, types.T_INTERFACE:
 		case types.T_UINT8:
@@ -1122,7 +1121,8 @@ func emitExpr(meta ir.MetaExpr) {
 	case *ir.MetaConversionExpr:
 		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:
-		emitCall(m.FuncVal, m.Args, m.ParamTypes, m.Types) // can be Tuple
+		rtypes := TypesToGoTypes(m.Types)
+		emitCall(m.FuncVal, m.Args, m.ParamTypes, rtypes) // can be Tuple
 	case *ir.MetaIndexExpr:
 		emitIndexExpr(m) // can be Tuple
 	case *ir.MetaSliceExpr:
