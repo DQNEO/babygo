@@ -733,16 +733,6 @@ func LookupStructField2(structType *types.Struct, selName string) *ast.Field {
 	return nil
 }
 
-func LookupStructField(structType *ast.StructType, selName string) *ast.Field {
-	for _, field := range structType.Fields.List {
-		if field.Names[0].Name == selName {
-			return field
-		}
-	}
-	//	panicPos("Unexpected flow: struct field not found:  "+selName, structType.Pos())
-	return nil
-}
-
 func registerParamVariable(fnc *ir.Func, name string, t *types.Type) *ir.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := GetSizeOfType2(t.GoType)
@@ -2018,7 +2008,9 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		for _, elm := range e.Elts {
 			kvExpr := elm.(*ast.KeyValueExpr)
 			fieldName := kvExpr.Key.(*ast.Ident)
-			field := LookupStructField(GetUnderlyingStructType(structType), fieldName.Name)
+
+			strcctT := structType.GoType.Underlying().(*types.Struct)
+			field := LookupStructField2(strcctT, fieldName.Name)
 			fieldType := E2T(field.Type)
 			ctx := &ir.EvalContext{Type: fieldType.GoType}
 			// attach type to nil : STRUCT{Key:nil}
