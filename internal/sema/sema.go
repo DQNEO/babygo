@@ -80,9 +80,9 @@ func isType(expr ast.Expr) bool {
 	return false
 }
 
-type astArgAndParam struct {
-	e         ir.MetaExpr
-	paramType types.GoType // expected type
+type AP struct {
+	Meta      ir.MetaExpr
+	ParamType types.GoType // expected type
 }
 
 type argAndParamType struct {
@@ -91,7 +91,7 @@ type argAndParamType struct {
 }
 
 func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
-	var args []*astArgAndParam
+	var metaArgs []*argAndParamType
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
 	var variadicElmType types.GoType
 	var param *ast.Field
@@ -115,11 +115,11 @@ func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast
 		paramType := E2G(param.Type)
 		ctx := &ir.EvalContext{Type: paramType}
 		m := walkExpr(eArg, ctx)
-		arg := &astArgAndParam{
-			e:         m,
-			paramType: paramType,
+		arg := &argAndParamType{
+			Meta:      m,
+			ParamType: paramType,
 		}
-		args = append(args, arg)
+		metaArgs = append(metaArgs, arg)
 	}
 
 	if variadicElmType != nil && !expandElipsis {
@@ -143,13 +143,13 @@ func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast
 			Elms:           ms,
 		}
 
-		args = append(args, &astArgAndParam{
-			e:         mc,
-			paramType: sliceType,
+		metaArgs = append(metaArgs, &argAndParamType{
+			Meta:      mc,
+			ParamType: sliceType,
 		})
-	} else if len(args) < len(params) {
+	} else if len(metaArgs) < len(params) {
 		// Add nil as a variadic arg
-		param := params[len(args)]
+		param := params[len(metaArgs)]
 		elp := param.Type.(*ast.Ellipsis)
 		paramType := types.NewSlice(E2G(elp.Elt))
 		iNil := &ast.Ident{
@@ -159,20 +159,10 @@ func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast
 		}
 		ctx := &ir.EvalContext{Type: paramType}
 		m := WalkIdent(iNil, ctx)
-		//		exprTypeMeta[unsafe.Pointer(iNil)] = E2T(elp)
-		args = append(args, &astArgAndParam{
-			e:         m,
-			paramType: paramType,
+		metaArgs = append(metaArgs, &argAndParamType{
+			Meta:      m,
+			ParamType: paramType,
 		})
-	}
-
-	var metaArgs []*argAndParamType
-	for _, arg := range args {
-		a := &argAndParamType{
-			Meta:      arg.e,
-			ParamType: arg.paramType,
-		}
-		metaArgs = append(metaArgs, a)
 	}
 
 	if receiver != nil { // method call
