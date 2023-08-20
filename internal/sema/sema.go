@@ -85,18 +85,18 @@ type argAndParamType struct {
 	ParamType types.GoType // expected type
 }
 
-func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
+func prepareArgsAndParams(params []types.GoType, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
 	var metaArgs []*argAndParamType
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
 	var variadicElmType types.GoType
-	var param *ast.Field
+	var param types.GoType
 	lenParams := len(params)
 	for argIndex, eArg := range eArgs {
 		if argIndex < lenParams {
 			param = params[argIndex]
-			elp, isEllpsis := param.Type.(*ast.Ellipsis)
-			if isEllpsis {
-				variadicElmType = E2G(elp.Elt)
+			slc, isSlice := param.(*types.Slice)
+			if isSlice && slc.Elp {
+				variadicElmType = slc.Elem()
 				variadicArgs = make([]ast.Expr, 0, 20)
 			}
 		}
@@ -107,7 +107,7 @@ func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast
 			continue
 		}
 
-		paramType := E2G(param.Type)
+		paramType := param
 		ctx := &ir.EvalContext{Type: paramType}
 		m := walkExpr(eArg, ctx)
 		arg := &argAndParamType{
@@ -144,9 +144,10 @@ func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast
 		})
 	} else if len(metaArgs) < len(params) {
 		// Add nil as a variadic arg
-		param := params[len(metaArgs)]
-		elp := param.Type.(*ast.Ellipsis)
-		paramType := types.NewSlice(E2G(elp.Elt))
+		p := params[len(metaArgs)]
+		elp := p.(*types.Slice)
+		assert(elp.Elp, "should be Ellipsis", __func__)
+		paramType := types.NewSlice(elp.Elem())
 		iNil := &ast.Ident{
 			Obj:     universe.Nil,
 			Name:    "nil",
@@ -501,7 +502,6 @@ func E2T(typeExpr ast.Expr) *types.Type {
 	}
 	g := E2G(typeExpr)
 	return &types.Type{
-		E:      typeExpr,
 		GoType: g,
 	}
 }
@@ -825,7 +825,6 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 			rhs := spec.Values[0]
 			rhsMeta = walkExpr(rhs, nil)
 			t = GetTypeOfExpr(rhsMeta)
-			spec.Type = t.E // set lhs type
 		}
 
 		obj := lhsIdent.Obj
@@ -1482,6 +1481,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		meta.IsQI = true
 		// pkg.ident
 		qi := Selector2QI(e)
+		util.Logf("qi=%s\n", string(qi))
 		meta.QI = qi
 		ei := LookupForeignIdent(qi, e.Pos())
 		if ei.Func != nil { // fun
@@ -1497,8 +1497,14 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		}
 	} else {
 		// expr.field
+		util.Logf("  selector: (%T).%s\n", e.X, e.Sel.Name)
 		meta.X = walkExpr(e.X, ctx)
-		typ, field, offset, needDeref := getTypeOfSelector(meta.X, e)
+		util.Logf("  selector: (%T).%s\n", meta.X, e.Sel.Name)
+		typ, field, offset, needDeref := getTypeOfSelector(meta.X, e.Sel.Name)
+		if typ == nil {
+			panicPos("Selector type should not be nil", e.Pos())
+		}
+		util.Logf("  selector type is %T\n", typ)
 		meta.Type = G2T(typ)
 		if field != nil {
 			// struct.field
@@ -1512,51 +1518,61 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 	return meta
 }
 
-func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (types.GoType, *ast.Field, int, bool) {
+func getTypeOfSelector(x ir.MetaExpr, selName string) (types.GoType, *ast.Field, int, bool) {
 	// (strct).field | (ptr).field | (obj).method
 	var needDeref bool
 	typeOfLeft := GetTypeOfExpr2(x)
 	utLeft := typeOfLeft.Underlying().Underlying()
 	var structTypeLiteral *types.Struct
+	util.Logf("  X type =%T\n", utLeft)
 	switch typ := utLeft.(type) {
-	case *types.Struct: // strct.field
+	case *types.Struct: // strct.field | strct.method
 		structTypeLiteral = typ
-	case *types.Pointer: // ptr.field
+
+	case *types.Pointer: // ptr.field | ptr.method
 		needDeref = true
 		origType := typ.Elem()
-		_, isNamed := origType.(*types.Named)
+		util.Logf("    Pointer of %T\n", origType)
+		namedType, isNamed := origType.(*types.Named)
 		if !isNamed {
 			structTypeLiteral = origType.Underlying().(*types.Struct)
 		} else {
-			if isNamed {
-				ut := origType.Underlying()
-				util.Logf("type = %s ut = %T\n", origType.String(), ut)
-				var isStruct bool
-				structTypeLiteral, isStruct = ut.(*types.Struct)
-				if isStruct {
-					field := LookupStructField2(structTypeLiteral, e.Sel.Name)
-					if field != nil {
-						offset := GetStructFieldOffset(field)
-						return E2G(field.Type), field, offset, needDeref
-					}
+			util.Logf("    Pointer of named type %s\n", namedType.String())
+			ut := namedType.Underlying()
+			util.Logf("      underlying type is %T\n", ut)
+			var isStruct bool
+			structTypeLiteral, isStruct = ut.(*types.Struct)
+			if isStruct {
+				util.Logf("    Looking up field '%s' from named struct '%s'\n", selName, namedType.String())
+				field := LookupStructField2(structTypeLiteral, selName)
+				if field != nil {
+					util.Logf("    Found field '%s'\n", field.Names[0].Name)
+					offset := GetStructFieldOffset(field)
+					return E2G(field.Type), field, offset, needDeref
 				} else {
-					typeOfLeft = origType
-					method := LookupMethod(typeOfLeft, e.Sel.Name)
+					util.Logf("    Field not Found\n")
+					util.Logf("    Lookup method '%s' from named struct '%s'\n", selName, namedType.String())
+					method := LookupMethod(typeOfLeft, selName)
+					util.Logf("    Found method '%s'\n", method.Name)
 					funcType := method.FuncType
-					if funcType.Results == nil || len(funcType.Results.List) == 0 {
-						return nil, nil, 0, needDeref
-					}
-					types := FieldList2GoTypes(funcType.Results)
-					return types[0], nil, 0, needDeref
+					return E2G(funcType), nil, 0, needDeref
 				}
+			} else {
+				typeOfLeft = origType
+				util.Logf("    Lookup method '%s' from named type '%s'\n", selName, namedType.String())
+				method := LookupMethod(namedType, selName)
+				funcType := method.FuncType
+				return E2G(funcType), nil, 0, needDeref
 			}
 		}
 	default: // obj.method
-		method := LookupMethod(typeOfLeft, e.Sel.Name)
+		method := LookupMethod(typeOfLeft, selName)
 		funcType := method.FuncType
 		if funcType == nil {
 			panic("funcType should not be nil:" + method.Name)
 		}
+		gt := E2G(funcType)
+		return gt, nil, 0, false
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, false
 		}
@@ -1564,19 +1580,18 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (types.GoType, *ast.F
 		return types[0], nil, 0, false
 	}
 
-	field := LookupStructField2(structTypeLiteral, e.Sel.Name)
+	field := LookupStructField2(structTypeLiteral, selName)
 	if field != nil {
 		offset := GetStructFieldOffset(field)
 		return E2G(field.Type), field, offset, needDeref
-	}
-	if field == nil { // try to find method
-		method := LookupMethod(typeOfLeft, e.Sel.Name)
+	} else {
+		util.Logf("    Field not Found\n")
+		util.Logf("    Lookup method '%s' from named type '%s'\n", selName, typeOfLeft.String())
+		// try to find method
+		method := LookupMethod(typeOfLeft, selName)
+		util.Logf("    Found method '%s'\n", method.Name)
 		funcType := method.FuncType
-		if funcType.Results == nil || len(funcType.Results.List) == 0 {
-			return nil, nil, 0, needDeref
-		}
-		types := FieldList2GoTypes(funcType.Results)
-		return types[0], field, 0, needDeref
+		return E2G(funcType), nil, 0, needDeref
 	}
 
 	panic("Bad type")
@@ -1616,7 +1631,9 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	meta.HasEllipsis = e.Ellipsis != token.NoPos
 
 	// function call
+	util.Logf("%s:---------\n", Fset.Position(e.Pos()).String())
 	metaFun := walkExpr(e.Fun, nil)
+	util.Logf("metaFun=%T\n", metaFun)
 
 	// Replace __func__ ident by a string literal
 	//for i, arg := range meta.args {
@@ -1711,7 +1728,6 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		}
 	}
 
-	var funcType *ast.FuncType
 	var funcVal *ir.FuncValue
 
 	var receiverMeta ir.MetaExpr
@@ -1734,9 +1750,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		funcVal = NewFuncValueFromSymbol(symbol)
 		switch dcl := fn.Obj.Decl.(type) {
 		case *ast.FuncDecl:
-			funcType = dcl.Type
 		case *ast.ValueSpec: // var f func()
-			funcType = dcl.Type.(*ast.FuncType)
 			funcVal = &ir.FuncValue{
 				Expr: metaFun,
 			}
@@ -1747,8 +1761,6 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			case *ast.SelectorExpr:
 				assert(isQI(r), "expect QI", __func__)
 				qi := Selector2QI(r)
-				ff := LookupForeignFunc(qi)
-				funcType = ff.Decl.Type
 				funcVal = NewFuncValueFromSymbol(string(qi))
 			default:
 				throw(r)
@@ -1761,14 +1773,11 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			// pkg.Sel()
 			qi := Selector2QI(fn)
 			funcVal = NewFuncValueFromSymbol(string(qi))
-			ff := LookupForeignFunc(qi)
-			funcType = ff.Decl.Type
 		} else {
 			// method call
 			receiverMeta = walkExpr(fn.X, nil)
 			receiverType := GetTypeOfExpr2(receiverMeta)
 			method := LookupMethod(receiverType, fn.Sel.Name)
-			funcType = method.FuncType
 			funcVal = NewFuncValueFromSymbol(GetMethodSymbol(method))
 			funcVal.MethodName = fn.Sel.Name
 			if Kind2(receiverType) == types.T_POINTER {
@@ -1800,12 +1809,22 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		throw(e.Fun)
 	}
 
-	meta.Types = FieldList2GoTypes(funcType.Results)
+	funcType := GetTypeOfExpr2(metaFun)
+	util.Logf("funcType=%T\n", funcType)
+	ft, ok := funcType.(*types.Func)
+	if !ok {
+		panicPos("Unexpected type:"+funcType.String(), metaFun.Pos())
+	}
+	sig := ft.Underlying().(*types.Signature)
+	if sig.Results != nil {
+		meta.Types = sig.Results.Types
+	}
 	if len(meta.Types) > 0 {
 		meta.Type = G2T(meta.Types[0])
 	}
+
 	meta.FuncVal = funcVal
-	argsAndParams := prepareArgsAndParams(funcType.Params.List, receiverMeta, e.Args, meta.HasEllipsis, e.Pos())
+	argsAndParams := prepareArgsAndParams(sig.Params.Types, receiverMeta, e.Args, meta.HasEllipsis, e.Pos())
 	var paramTypes []types.GoType
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
@@ -2286,7 +2305,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		} else { // const x = e
 			rhsMeta = walkExpr(rhs, nil)
 			t = GetTypeOfExpr(rhsMeta)
-			spec.Type = t.E
 		}
 		// treat package const as global var for now
 
@@ -2350,7 +2368,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			if t == nil {
 				panic("variable type is not determined : " + lhsIdent.Name)
 			}
-			spec.Type = t.E
 		}
 
 		variable := newGlobalVariable(pkg.Name, lhsIdent.Obj.Name, t)

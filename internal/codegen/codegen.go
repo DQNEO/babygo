@@ -6,7 +6,6 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
-	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
@@ -2095,7 +2094,6 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 	}
 
 	fmt.Fprintf(fout, "package %s\n", pkg.Name)
-	util.Logf("package %s\n", pkg.Name)
 	// list import
 	for _, im := range pkg.Imports {
 		fmt.Fprintf(fout, "import \"%s\"\n", im)
