@@ -1719,7 +1719,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 
 	var funcType *ast.FuncType
 	var funcVal *ir.FuncValue
-	var receiver ast.Expr
+
 	var receiverMeta ir.MetaExpr
 	switch fn := e.Fun.(type) {
 	case *ast.Ident:
@@ -1771,7 +1771,6 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			funcType = ff.Decl.Type
 		} else {
 			// method call
-			receiver = fn.X
 			receiverMeta = walkExpr(fn.X, nil)
 			receiverType := GetTypeOfExpr2(receiverMeta)
 			method := LookupMethod(receiverType, fn.Sel.Name)
@@ -1792,17 +1791,11 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			} else {
 				if method.IsPtrMethod {
 					// v.mp() => (&v).mp()
-					// @TODO we should check addressable
-					rcvr := &ast.UnaryExpr{
-						Op:    token.AND,
-						X:     receiver,
-						OpPos: 1,
-					}
 					pt := types.NewPointer(receiverType)
 					receiverMeta = &ir.MetaUnaryExpr{
 						X:    receiverMeta,
 						Type: G2T(pt),
-						Op:   rcvr.Op.String(),
+						Op:   "&",
 					}
 				} else {
 					// v.mv() => as it is
