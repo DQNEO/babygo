@@ -194,7 +194,7 @@ func emitVariableAddr(variable *ir.Variable) {
 }
 
 func emitListHeadAddr(list ir.MetaExpr) {
-	t := sema.GetTypeOf(list)
+	t := sema.GetTypeOfExpr(list)
 	switch sema.Kind(t) {
 	case types.T_ARRAY:
 		emitAddr(list) // array head
@@ -227,10 +227,10 @@ func emitAddr(meta ir.MetaExpr) {
 			panic("Unexpected kind")
 		}
 	case *ir.MetaIndexExpr:
-		if sema.Kind(sema.GetTypeOf(m.X)) == types.T_MAP {
+		if sema.Kind(sema.GetTypeOfExpr(m.X)) == types.T_MAP {
 			emitAddrForMapSet(m)
 		} else {
-			elmType := sema.GetTypeOf(m)
+			elmType := sema.GetTypeOfExpr(m)
 			emitExpr(m.Index) // index number
 			emitListElementAddr(m.X, elmType)
 		}
@@ -248,7 +248,7 @@ func emitAddr(meta ir.MetaExpr) {
 			emitAddConst(m.Offset, "struct head address + struct.field offset")
 		}
 	case *ir.MetaCompositLit:
-		knd := sema.Kind(sema.GetTypeOf(m))
+		knd := sema.Kind(sema.GetTypeOfExpr(m))
 		switch knd {
 		case types.T_STRUCT:
 			// result of evaluation of a struct literal is its address
@@ -264,7 +264,7 @@ func emitAddr(meta ir.MetaExpr) {
 // explicit conversion T(e)
 func emitConversion(toType types.Type, arg0 ir.MetaExpr) {
 	emitComment(2, "[emitConversion]\n")
-	fromType := sema.GetTypeOf(arg0)
+	fromType := sema.GetTypeOfExpr(arg0)
 	fromKind := sema.Kind(fromType)
 	toKind := sema.Kind(toType)
 	switch toKind {
@@ -307,7 +307,7 @@ func emitConversion(toType types.Type, arg0 ir.MetaExpr) {
 func emitIfcConversion(ic *ir.IfcConversion) {
 	emitExpr(ic.Value)
 	emitComment(2, "emitIfcConversion\n")
-	emitConvertToInterface(sema.GetTypeOf(ic.Value), ic.Type)
+	emitConvertToInterface(sema.GetTypeOfExpr(ic.Value), ic.Type)
 }
 
 func emitZeroValue(t types.Type) {
@@ -340,7 +340,7 @@ func emitZeroValue(t types.Type) {
 }
 
 func emitLen(arg ir.MetaExpr) {
-	t := sema.GetTypeOf(arg)
+	t := sema.GetTypeOfExpr(arg)
 	switch sema.Kind(t) {
 	case types.T_ARRAY:
 		arrayLen := sema.GetArrayLen(t)
@@ -363,7 +363,7 @@ func emitLen(arg ir.MetaExpr) {
 }
 
 func emitCap(arg ir.MetaExpr) {
-	t := sema.GetTypeOf(arg)
+	t := sema.GetTypeOfExpr(arg)
 	knd := sema.Kind(t)
 	switch knd {
 	case types.T_ARRAY:
@@ -405,7 +405,7 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 		emitExpr(metaElm.Value)
 
 		// assign
-		emitStore(metaElm.FieldType, true, false)
+		emitStore(metaElm.Type, true, false)
 	}
 }
 
@@ -651,7 +651,7 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	sliceArg := m.Arg0
 	elemArg := m.Arg1
-	elmTypeG := sema.GetElementTypeOfCollectionType(sema.GetTypeOf(sliceArg))
+	elmTypeG := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
 	elmSize := sema.GetSizeOfType(elmTypeG)
 
 	var symbol string
@@ -667,7 +667,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
-	elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOf(sliceArg))
+	elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
 	arg1 := sema.CheckIfcConversion(m.Pos(), elemArg, elmType)
 	args := []ir.MetaExpr{sliceArg, arg1}
 	sig := sema.NewAppendSignature(elmType)
@@ -715,7 +715,7 @@ func emitIdent(meta *ir.MetaIdent) {
 		}
 	case "var":
 		emitAddr(meta)
-		emitLoadAndPush(sema.GetTypeOf(meta))
+		emitLoadAndPush(sema.GetTypeOfExpr(meta))
 	case "con":
 		if meta.Const.IsGlobal && sema.Kind(meta.Type) == types.T_STRING {
 			// Treat like a global variable.
@@ -742,14 +742,14 @@ func emitIndexExpr(meta *ir.MetaIndexExpr) {
 		emitMapGet(meta, meta.NeedsOK)
 	} else {
 		emitAddr(meta)
-		emitLoadAndPush(sema.GetTypeOf(meta))
+		emitLoadAndPush(sema.GetTypeOfExpr(meta))
 	}
 }
 
 // 1 value
 func emitStarExpr(meta *ir.MetaStarExpr) {
 	emitAddr(meta)
-	emitLoadAndPush(sema.GetTypeOf(meta))
+	emitLoadAndPush(sema.GetTypeOfExpr(meta))
 }
 
 // 1 value X.Sel
@@ -760,7 +760,7 @@ func emitSelectorExpr(meta *ir.MetaSelectorExpr) {
 	} else {
 		// strct.field
 		emitAddr(meta)
-		emitLoadAndPush(sema.GetTypeOf(meta))
+		emitLoadAndPush(sema.GetTypeOfExpr(meta))
 	}
 }
 
@@ -848,7 +848,7 @@ func emitBinaryExpr(meta *ir.MetaBinaryExpr) {
 		emitTrue()
 		printf("  %s:\n", labelExit)
 	case "+":
-		if sema.Kind(sema.GetTypeOf(meta.X)) == types.T_STRING {
+		if sema.Kind(sema.GetTypeOfExpr(meta.X)) == types.T_STRING {
 			emitCatStrings(meta.X, meta.Y)
 		} else {
 			emitExpr(meta.X) // left
@@ -945,7 +945,7 @@ func emitCompositeLit(meta *ir.MetaCompositLit) {
 // 1 value list[low:high]
 func emitSliceExpr(meta *ir.MetaSliceExpr) {
 	list := meta.X
-	listType := sema.GetTypeOf(list)
+	listType := sema.GetTypeOfExpr(list)
 
 	switch sema.Kind(listType) {
 	case types.T_SLICE, types.T_ARRAY:
@@ -1011,7 +1011,7 @@ func emitSliceExpr(meta *ir.MetaSliceExpr) {
 
 // 1 or 2 values
 func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
-	valueType := sema.GetTypeOf(m)
+	valueType := sema.GetTypeOfExpr(m)
 
 	emitComment(2, "MAP GET for map[string]string\n")
 	// emit addr of map element
@@ -1050,7 +1050,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 // 1 or 2 values
 func emitTypeAssertExpr(meta *ir.MetaTypeAssertExpr) {
 	emitExpr(meta.X)
-	emitDtypeLabelAddr(meta.Type, sema.GetTypeOf(meta.X))
+	emitDtypeLabelAddr(meta.Type, sema.GetTypeOfExpr(meta.X))
 	emitCompareDtypes()
 
 	emitPopBool("type assertion ok value")
@@ -1238,9 +1238,9 @@ func emitCompStrings(left ir.MetaExpr, right ir.MetaExpr) {
 }
 
 func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
-	if sema.Kind(sema.GetTypeOf(left)) == types.T_STRING {
+	if sema.Kind(sema.GetTypeOfExpr(left)) == types.T_STRING {
 		emitCompStrings(left, right)
-	} else if sema.Kind(sema.GetTypeOf(left)) == types.T_INTERFACE {
+	} else if sema.Kind(sema.GetTypeOfExpr(left)) == types.T_INTERFACE {
 		//var t = GetTypeOfExpr(left)
 		ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)
@@ -1377,7 +1377,7 @@ func _emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 	//	rhs := metaSingle.rhs
 	if sema.IsBlankIdentifierMeta(lhs) {
 		emitExpr(rhs)
-		rhsType := sema.GetTypeOf(rhs)
+		rhsType := sema.GetTypeOfExpr(rhs)
 		if rhsType == nil {
 			panicPos("rhs type should not be nil", rhs.Pos())
 		}
@@ -1388,7 +1388,7 @@ func _emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs)
-	emitStore(sema.GetTypeOf(lhs), true, false)
+	emitStore(sema.GetTypeOfExpr(lhs), true, false)
 }
 
 func emitBlockStmt(s *ir.MetaBlockStmt) {
@@ -1429,7 +1429,7 @@ func emitOkAssignment(meta *ir.MetaTupleAssign) {
 		} else {
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
-			emitStore(sema.GetTypeOf(lhsMeta), false, false)
+			emitStore(sema.GetTypeOfExpr(lhsMeta), false, false)
 		}
 
 	}
@@ -1457,7 +1457,7 @@ func emitFuncallAssignment(meta *ir.MetaTupleAssign) {
 			}
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
-			emitStore(sema.GetTypeOf(lhsMeta), false, false)
+			emitStore(sema.GetTypeOfExpr(lhsMeta), false, false)
 		}
 	}
 }
@@ -1579,8 +1579,8 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 16(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(sema.GetTypeOf(keyMeta)) // load dynamic data
-			emitStore(sema.GetTypeOf(keyMeta), true, false)
+			emitLoadAndPush(sema.GetTypeOfExpr(keyMeta)) // load dynamic data
+			emitStore(sema.GetTypeOfExpr(keyMeta), true, false)
 		}
 	}
 
@@ -1600,8 +1600,8 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 24(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(sema.GetTypeOf(valueMeta)) // load dynamic data
-			emitStore(sema.GetTypeOf(valueMeta), true, false)
+			emitLoadAndPush(sema.GetTypeOfExpr(valueMeta)) // load dynamic data
+			emitStore(sema.GetTypeOfExpr(valueMeta), true, false)
 		}
 	}
 
@@ -1673,7 +1673,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	printf("  jne %s # jmp if false\n", labelExit)
 
 	emitComment(2, "assign list[indexvar] value variables\n")
-	elemType := sema.GetTypeOf(meta.ForRangeStmt.Value)
+	elemType := sema.GetTypeOfExpr(meta.ForRangeStmt.Value)
 	emitAddr(meta.ForRangeStmt.Value) // lhs
 
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
@@ -1721,7 +1721,7 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 		panic("Omitted tag is not supported yet")
 	}
 	emitExpr(s.Tag)
-	condType := sema.GetTypeOf(s.Tag)
+	condType := sema.GetTypeOfExpr(s.Tag)
 	cases := s.Cases
 	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
@@ -1818,7 +1818,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 			if t == nil { // case nil:
 				printf("  pushq $0 # nil\n")
 			} else { // case T:s
-				emitDtypeLabelAddr(t, sema.GetTypeOf(meta.Subject))
+				emitDtypeLabelAddr(t, sema.GetTypeOfExpr(meta.Subject))
 			}
 			emitCompareDtypes()
 			emitPopBool(" of switch-case comparison")

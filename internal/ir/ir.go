@@ -13,10 +13,10 @@ type IfcConversion struct {
 }
 
 type MetaStructLiteralElement struct {
-	Tpos      token.Pos
-	Field     *ast.Field
-	FieldType types.Type
-	Value     MetaExpr
+	Tpos  token.Pos
+	Field *ast.Field
+	Type  types.Type
+	Value MetaExpr
 }
 
 type FuncValue struct {
@@ -203,7 +203,7 @@ func (s *MetaDeferStmt) Pos() token.Pos           { return s.Tpos }
 
 type MetaExpr interface {
 	Pos() token.Pos
-	//	GetType() types.Type
+	GetType() types.Type
 }
 
 type MetaBasicLit struct {
@@ -391,6 +391,31 @@ func (e *IfcConversion) Pos() token.Pos            { return e.Tpos }
 func (e *MetaStructLiteralElement) Pos() token.Pos { return e.Tpos }
 func (e *Variable) Pos() token.Pos                 { return e.Tpos }
 func (e *Const) Pos() token.Pos                    { return e.Tpos }
+
+func (e *MetaBasicLit) GetType() types.Type             { return e.Type }
+func (e *MetaCompositLit) GetType() types.Type          { return e.Type }
+func (e *MetaIdent) GetType() types.Type                { return e.Type }
+func (e *MetaForeignFuncWrapper) GetType() types.Type   { return nil }
+func (e *MetaSelectorExpr) GetType() types.Type         { return e.Type }
+func (e *MetaCallExpr) GetType() types.Type             { return e.Type }
+func (e *MetaCallLen) GetType() types.Type              { return e.Type }
+func (e *MetaCallCap) GetType() types.Type              { return e.Type }
+func (e *MetaCallNew) GetType() types.Type              { return e.Type }
+func (e *MetaCallMake) GetType() types.Type             { return e.Type }
+func (e *MetaCallAppend) GetType() types.Type           { return e.Type }
+func (e *MetaCallPanic) GetType() types.Type            { return e.Type }
+func (e *MetaCallDelete) GetType() types.Type           { return e.Type }
+func (e *MetaConversionExpr) GetType() types.Type       { return e.Type }
+func (e *MetaIndexExpr) GetType() types.Type            { return e.Type }
+func (e *MetaSliceExpr) GetType() types.Type            { return e.Type }
+func (e *MetaStarExpr) GetType() types.Type             { return e.Type }
+func (e *MetaUnaryExpr) GetType() types.Type            { return e.Type }
+func (e *MetaBinaryExpr) GetType() types.Type           { return e.Type }
+func (e *MetaTypeAssertExpr) GetType() types.Type       { return e.Type }
+func (e *IfcConversion) GetType() types.Type            { return e.Type }
+func (e *MetaStructLiteralElement) GetType() types.Type { return e.Type }
+func (e *Variable) GetType() types.Type                 { return e.Type }
+func (e *Const) GetType() types.Type                    { return e.Type }
 
 type Signature struct {
 	ParamTypes  []types.Type
