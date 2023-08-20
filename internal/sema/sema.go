@@ -2000,11 +2000,8 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *ir.EvalContext) *ir.MetaBinaryExpr {
 	} else {
 		// X should be typed
 		meta.X = walkExpr(e.X, nil) // left
-		xTyp := GetTypeOfExpr(meta.X)
-		if xTyp == nil {
-			panicPos("xTyp should not be nil", e.Pos())
-		}
-		yCtx := &ir.EvalContext{Type: xTyp.GoType}
+		xTyp := GetTypeOfExpr2(meta.X)
+		yCtx := &ir.EvalContext{Type: xTyp}
 		meta.Y = walkExpr(e.Y, yCtx) // right
 	}
 	switch meta.Op {
@@ -2013,9 +2010,11 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *ir.EvalContext) *ir.MetaBinaryExpr {
 	default:
 		// @TODO type of (1 + x) should be type of x
 		if isNilIdent(e.X) {
-			meta.Type = GetTypeOfExpr(meta.Y)
+			t := GetTypeOfExpr2(meta.Y)
+			meta.Type = G2T(t)
 		} else {
-			meta.Type = GetTypeOfExpr(meta.X)
+			t := GetTypeOfExpr2(meta.X)
+			meta.Type = G2T(t)
 		}
 	}
 	return meta
