@@ -2621,17 +2621,16 @@ func FuncTypeToSignature(funcType *ast.FuncType) *ir.Signature {
 }
 
 func RestoreMethodDecl(m *types.Func, showOnlyForeignPrefix bool, currentPkgName string) string {
-	var p string
-	var r string
 	name := m.Name
 	fun, ok := m.Typ.(*types.Func)
 	if !ok {
 		panic(fmt.Sprintf("[SerializeType] Invalid type:%T\n", m.Typ))
 	}
 	sig := fun.Typ.(*types.Signature)
+	var p string
+	var r string
 	if sig.Params != nil && len(sig.Params.Types) > 0 {
 		for _, t := range sig.Params.Types {
-			//name := field.Names[0].Name
 			if p != "" {
 				p += ","
 			}
@@ -2641,7 +2640,6 @@ func RestoreMethodDecl(m *types.Func, showOnlyForeignPrefix bool, currentPkgName
 
 	if sig.Results != nil && len(sig.Results.Types) > 0 {
 		for _, t := range sig.Results.Types {
-			//name := field.Names[0].Name
 			if r != "" {
 				r += ","
 			}
@@ -2649,8 +2647,8 @@ func RestoreMethodDecl(m *types.Func, showOnlyForeignPrefix bool, currentPkgName
 		}
 	}
 
-	decl := fmt.Sprintf("%s(%s) (%s)", name, p, r)
-	return decl
+	sigString := fmt.Sprintf("%s(%s) (%s)", name, p, r)
+	return sigString
 }
 
 func RestoreFuncDecl(fnc *ir.Func, showOnlyForeignPrefix bool, currentPkgName string) string {
