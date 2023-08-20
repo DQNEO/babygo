@@ -1229,7 +1229,7 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 
 	collectionType := GetUnderlyingType(GetTypeOfExpr(metaX))
 	keyType := getKeyTypeOfCollectionType2(collectionType.GoType)
-	elmType := GetElementTypeOfCollectionType(collectionType)
+	elmType := GetElementTypeOfCollectionType2(collectionType.GoType)
 	walkExpr(types.Int.E, nil)
 	switch Kind(collectionType) {
 	case types.T_SLICE, types.T_ARRAY:
@@ -1263,7 +1263,7 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 		SetVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, G2T(keyType)))
 
 		valueIdent := s.Value.(*ast.Ident)
-		SetVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
+		SetVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, G2T(elmType)))
 	}
 	if s.Key != nil {
 		meta.ForRangeStmt.Key = walkExpr(s.Key, nil)
