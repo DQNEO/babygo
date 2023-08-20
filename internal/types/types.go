@@ -1,12 +1,10 @@
 package types
 
 import (
-	"github.com/DQNEO/babygo/internal/universe"
 	"github.com/DQNEO/babygo/lib/ast"
 )
 
 type Type struct {
-	E      ast.Expr // original
 	GoType GoType
 }
 
@@ -29,11 +27,6 @@ const T_MAP TypeKind = "T_MAP"
 
 // --- universal types ---
 var Bool *Type = &Type{
-	E: &ast.Ident{
-		Name:    "bool",
-		Obj:     universe.Bool,
-		NamePos: 1,
-	},
 	GoType: &Basic{
 		Knd:  GBool,
 		name: "bool",
@@ -41,11 +34,6 @@ var Bool *Type = &Type{
 }
 
 var Int *Type = &Type{
-	E: &ast.Ident{
-		Name:    "int",
-		Obj:     universe.Int,
-		NamePos: 1,
-	},
 	GoType: &Basic{
 		Knd:  GInt,
 		name: "int",
@@ -54,11 +42,6 @@ var Int *Type = &Type{
 
 // Rune
 var Int32 *Type = &Type{
-	E: &ast.Ident{
-		Name:    "int32",
-		Obj:     universe.Int32,
-		NamePos: 1,
-	},
 	GoType: &Basic{
 		Knd:  GInt32,
 		name: "int32",
@@ -66,11 +49,6 @@ var Int32 *Type = &Type{
 }
 
 var Uintptr *Type = &Type{
-	E: &ast.Ident{
-		Name:    "uintptr",
-		Obj:     universe.Uintptr,
-		NamePos: 1,
-	},
 	GoType: &Basic{
 		Knd:  GUintptr,
 		name: "uintptr",
@@ -78,11 +56,6 @@ var Uintptr *Type = &Type{
 }
 
 var Uint8 *Type = &Type{
-	E: &ast.Ident{
-		Name:    "uint8",
-		Obj:     universe.Uint8,
-		NamePos: 1,
-	},
 	GoType: &Basic{
 		Knd:  GUint8,
 		name: "uint8",
@@ -90,22 +63,12 @@ var Uint8 *Type = &Type{
 }
 
 var Uint16 *Type = &Type{
-	E: &ast.Ident{
-		Name:    "uint16",
-		Obj:     universe.Uint16,
-		NamePos: 1,
-	},
 	GoType: &Basic{
 		Knd:  GUint16,
 		name: "uint16",
 	},
 }
 var String *Type = &Type{
-	E: &ast.Ident{
-		Name:    "string",
-		Obj:     universe.String,
-		NamePos: 1,
-	},
 	GoType: &Basic{
 		Knd:  GString,
 		name: "string",
@@ -116,9 +79,6 @@ var EmptyInterface = &Interface{}
 
 // Eface means the empty interface type
 var Eface *Type = &Type{
-	E: &ast.InterfaceType{
-		Interface: 1,
-	},
 	GoType: EmptyInterface,
 }
 
