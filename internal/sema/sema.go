@@ -671,7 +671,7 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 					Name: "",
 				},
 				IsPtrMethod: false,
-				Name:        "error",
+				Name:        "Error",
 				FuncType:    universe.ErrorMethodFuncType,
 			}
 		} else {
