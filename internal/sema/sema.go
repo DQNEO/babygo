@@ -232,25 +232,13 @@ func GetTypeOfExpr(meta ir.MetaExpr) types.Type {
 	return t
 }
 
-func FieldList2GoTypes(fieldList *ast.FieldList) []types.Type {
+func FieldList2Types(fieldList *ast.FieldList) []types.Type {
 	if fieldList == nil {
 		return nil
 	}
 	var r []types.Type
 	for _, field := range fieldList.List {
 		t := E2T(field.Type)
-		r = append(r, t)
-	}
-	return r
-}
-
-func FieldList2Types(fieldList *ast.FieldList) []types.Type {
-	if fieldList == nil {
-		return nil
-	}
-	var r []types.Type
-	for _, e2 := range fieldList.List {
-		t := E2T(e2.Type)
 		r = append(r, t)
 	}
 	return r
@@ -2494,8 +2482,8 @@ func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName
 }
 
 func FuncTypeToSignature(funcType *ast.FuncType) *ir.Signature {
-	p := FieldList2GoTypes(funcType.Params)
-	r := FieldList2GoTypes(funcType.Results)
+	p := FieldList2Types(funcType.Params)
+	r := FieldList2Types(funcType.Results)
 	return &ir.Signature{
 		ParamTypes:  p,
 		ReturnTypes: r,
