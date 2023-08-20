@@ -442,9 +442,7 @@ func emitFalse() {
 }
 
 func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
-	rtypes := (sig.ReturnTypes)
-	ptypes := (sig.ParamTypes)
-	emitCall(sema.NewFuncValueFromSymbol(symbol), args, ptypes, rtypes)
+	emitCall(sema.NewFuncValueFromSymbol(symbol), args, sig.ParamTypes, sig.ReturnTypes)
 }
 
 // ABI of stack layout in function call
