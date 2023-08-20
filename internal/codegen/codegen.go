@@ -556,7 +556,7 @@ func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []types.GoType)
 			printf("  addq $24, %%rax # addr(eface.dtype)  8*3 \n")
 
 			var methodId int
-			methods := sema.GetInterfaceMethods(fv.IfcType.GoType)
+			methods := sema.GetInterfaceMethods(fv.IfcType)
 			for i, m := range methods {
 				if m.Name == fv.MethodName {
 					methodId = i
@@ -620,7 +620,7 @@ func emitFreeAndPushReturnedValue(returnTypes []types.GoType) {
 
 func emitMetaCallNew(m *ir.MetaCallNew) {
 	// size to malloc
-	size := sema.GetSizeOfType2(m.TypeArg0.GoType)
+	size := sema.GetSizeOfType2(m.TypeArg0)
 	emitCallMalloc(size)
 }
 
@@ -2026,7 +2026,7 @@ func emitData(dotSize string, val ir.MetaExpr) {
 func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 	name := vr.Name.Name
 	t := vr.Type
-	typeKind := sema.Kind(vr.Type)
+	typeKind := sema.Kind2(vr.Type.GoType)
 	val := vr.Val
 	printf(".global %s.%s\n", pkgName, name)
 	printf("%s.%s: # T %s\n", pkgName, name, string(typeKind))
@@ -2157,7 +2157,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 			continue
 		}
 		printf("  \n")
-		typeKind := sema.Kind(vr.Type)
+		typeKind := sema.Kind2(vr.Type.GoType)
 		switch typeKind {
 		case types.T_POINTER, types.T_MAP, types.T_INTERFACE:
 			printf("  # init global %s:\n", vr.Name.Name)

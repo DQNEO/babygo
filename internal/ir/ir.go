@@ -25,7 +25,7 @@ type FuncValue struct {
 	Expr         MetaExpr // for indirect call
 	IfcMethodCal bool
 	MethodName   string
-	IfcType      *types.Type
+	IfcType      types.GoType
 }
 
 type EvalContext struct {
@@ -287,7 +287,7 @@ type MetaCallCap struct {
 type MetaCallNew struct {
 	Tpos     token.Pos
 	Type     *types.Type // result type
-	TypeArg0 *types.Type
+	TypeArg0 types.GoType
 }
 
 type MetaCallMake struct {

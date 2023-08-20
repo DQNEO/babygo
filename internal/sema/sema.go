@@ -454,11 +454,21 @@ func E2G(typeExpr ast.Expr) types.GoType {
 		}
 		return types.NewStruct(fields, astFields)
 	case *ast.StarExpr:
+		if t.X == nil {
+			panicPos("X should not be nil", t.Pos())
+		}
+
 		if inNamedType != nil {
 			ident, ok := t.X.(*ast.Ident)
-			if ok && ident.Name == inNamed {
-				p := types.NewPointer(inNamedType)
-				return p
+			if ok {
+				if ident.Name == inNamed {
+					p := types.NewPointer(inNamedType)
+					return p
+				} else {
+					return types.NewPointer(E2G(t.X))
+				}
+			} else {
+				return types.NewPointer(E2G(t.X))
 			}
 		}
 		return types.NewPointer(E2G(t.X))
@@ -632,16 +642,6 @@ func Kind2(gType types.GoType) types.TypeKind {
 	return "UNKNOWN_KIND"
 }
 
-func Kind(t *types.Type) types.TypeKind {
-	if t == nil {
-		panicPos("nil type is not expected", t.E.Pos())
-	}
-	if t.GoType == nil {
-		panic(fmt.Sprintf("[Kind] Unexpected GoType nil: %T\n", t.E))
-	}
-	return Kind2(t.GoType)
-}
-
 func IsInterface(t types.GoType) bool {
 	return Kind2(t) == types.T_INTERFACE
 }
@@ -681,29 +681,6 @@ func GetElementTypeOfCollectionType2(t types.GoType) types.GoType {
 	panic("Unexpected type")
 }
 
-func GetElementTypeOfCollectionType(t *types.Type) *types.Type {
-	ut := GetUnderlyingType(t)
-	switch Kind(ut) {
-	case types.T_SLICE, types.T_ARRAY:
-		switch e := ut.E.(type) {
-		case *ast.ArrayType:
-			return E2T(e.Elt)
-		case *ast.Ellipsis:
-			return E2T(e.Elt)
-		default:
-			throw(t.E)
-		}
-	case types.T_STRING:
-		return types.Uint8
-	case types.T_MAP:
-		mapType := ut.E.(*ast.MapType)
-		return E2T(mapType.Value)
-	default:
-		unexpectedKind(Kind(t))
-	}
-	return nil
-}
-
 func getKeyTypeOfCollectionType2(t types.GoType) types.GoType {
 	ut := t.Underlying().Underlying()
 	switch Kind2(ut) {
@@ -714,20 +691,6 @@ func getKeyTypeOfCollectionType2(t types.GoType) types.GoType {
 		return mapType.Key()
 	default:
 		unexpectedKind(Kind2(ut))
-	}
-	return nil
-}
-
-func getKeyTypeOfCollectionType(t *types.Type) *types.Type {
-	ut := GetUnderlyingType(t)
-	switch Kind(ut) {
-	case types.T_SLICE, types.T_ARRAY, types.T_STRING:
-		return types.Int
-	case types.T_MAP:
-		mapType := ut.E.(*ast.MapType)
-		return E2T(mapType.Key)
-	default:
-		unexpectedKind(Kind(t))
 	}
 	return nil
 }
@@ -1230,7 +1193,7 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 	collectionType := GetTypeOfExpr2(metaX).Underlying()
 	keyType := getKeyTypeOfCollectionType2(collectionType)
 	elmType := GetElementTypeOfCollectionType2(collectionType)
-	walkExpr(types.Int.E, nil)
+	//walkExpr(types.Int.E, nil)
 	switch Kind2(collectionType) {
 	case types.T_SLICE, types.T_ARRAY:
 		meta.ForRangeStmt = &ir.MetaForRangeStmt{
@@ -1705,7 +1668,7 @@ func walkConversion(pos token.Pos, toType *types.Type, arg0 ir.MetaExpr) ir.Meta
 	}
 	fromType := GetTypeOfExpr2(arg0)
 	fromKind := Kind2(fromType)
-	toKind := Kind(toType)
+	toKind := Kind2(toType.GoType)
 	if toKind == types.T_INTERFACE && fromKind != types.T_INTERFACE {
 		RegisterDtype(fromType, toType.GoType)
 	}
@@ -1767,12 +1730,9 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			}
 		case universe.New:
 			walkExpr(e.Args[0], nil) // Do we need this ?
-			typeArg0 := E2T(e.Args[0])
-			ptrType := &ast.StarExpr{
-				X:    e.Args[0],
-				Star: 1,
-			}
-			typ := E2T(ptrType)
+			typeArg0 := E2G(e.Args[0])
+			ptrType := types.NewPointer(typeArg0)
+			typ := G2T(ptrType)
 			return &ir.MetaCallNew{
 				Tpos:     e.Pos(),
 				Type:     typ,
@@ -1884,19 +1844,19 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			// method call
 			receiver = fn.X
 			receiverMeta = walkExpr(fn.X, nil)
-			receiverType := GetTypeOfExpr(receiverMeta)
-			method := LookupMethod(receiverType.GoType, fn.Sel.Name)
+			receiverType := GetTypeOfExpr2(receiverMeta)
+			method := LookupMethod(receiverType, fn.Sel.Name)
 			funcType = method.FuncType
 			funcVal = NewFuncValueFromSymbol(GetMethodSymbol(method))
 			funcVal.MethodName = fn.Sel.Name
-			if Kind(receiverType) == types.T_POINTER {
+			if Kind2(receiverType) == types.T_POINTER {
 				if method.IsPtrMethod {
 					// p.mp() => as it is
 				} else {
 					// p.mv()
 					panic("TBI 4190")
 				}
-			} else if Kind(receiverType) == types.T_INTERFACE {
+			} else if Kind2(receiverType) == types.T_INTERFACE {
 				funcVal.IfcMethodCal = true
 				funcVal.IfcType = receiverType
 				funcVal.IsDirect = false
@@ -1909,13 +1869,10 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 						X:     receiver,
 						OpPos: 1,
 					}
-					eTyp := &ast.StarExpr{
-						X:    receiverType.E,
-						Star: 1,
-					}
+					pt := types.NewPointer(receiverType)
 					receiverMeta = &ir.MetaUnaryExpr{
 						X:    receiverMeta,
-						Type: E2T(eTyp),
+						Type: G2T(pt),
 						Op:   rcvr.Op.String(),
 					}
 				} else {
@@ -1991,10 +1948,10 @@ func walkBasicLit(e *ast.BasicLit, ctx *ir.EvalContext) *ir.MetaBasicLit {
 
 func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaCompositLit {
 	//walkExpr(e.Type, nil) // a[len("foo")]{...} // "foo" should be walked
-	typ := E2T(e.Type)
-	ut := GetUnderlyingType(typ)
+	typ := E2G(e.Type)
+	ut := typ.Underlying()
 	var knd string
-	switch Kind(ut) {
+	switch Kind2(ut) {
 	case types.T_STRUCT:
 		knd = "struct"
 	case types.T_ARRAY:
@@ -2002,15 +1959,15 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 	case types.T_SLICE:
 		knd = "slice"
 	default:
-		unexpectedKind(Kind(typ))
+		unexpectedKind(Kind2(typ))
 	}
 	meta := &ir.MetaCompositLit{
 		Tpos: e.Pos(),
 		Kind: knd,
-		Type: typ,
+		Type: G2T(typ),
 	}
 
-	switch Kind(ut) {
+	switch Kind2(ut) {
 	case types.T_STRUCT:
 		structType := meta.Type
 		var metaElms []*ir.MetaStructLiteralElement
@@ -2036,9 +1993,9 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		}
 		meta.StructElements = metaElms
 	case types.T_ARRAY:
-		arrayType := ut.E.(*ast.ArrayType)
-		meta.Len = EvalInt(arrayType.Len)
-		meta.ElmType = E2T(arrayType.Elt)
+		arrayType := ut.(*types.Array)
+		meta.Len = arrayType.Len()
+		meta.ElmType = G2T(arrayType.Elem())
 		ctx := &ir.EvalContext{Type: meta.ElmType.GoType}
 		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
@@ -2048,9 +2005,9 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		}
 		meta.Elms = ms
 	case types.T_SLICE:
-		arrayType := ut.E.(*ast.ArrayType)
+		arrayType := ut.(*types.Slice)
 		meta.Len = len(e.Elts)
-		meta.ElmType = E2T(arrayType.Elt)
+		meta.ElmType = G2T(arrayType.Elem())
 		ctx := &ir.EvalContext{Type: meta.ElmType.GoType}
 		var ms []ir.MetaExpr
 		for _, v := range e.Elts {
@@ -2071,16 +2028,13 @@ func walkUnaryExpr(e *ast.UnaryExpr, ctx *ir.EvalContext) *ir.MetaUnaryExpr {
 	meta.X = walkExpr(e.X, nil)
 	switch meta.Op {
 	case "+", "-":
-		meta.Type = GetTypeOfExpr(meta.X)
+		meta.Type = G2T(GetTypeOfExpr2(meta.X))
 	case "!":
 		meta.Type = types.Bool
 	case "&":
-		xTyp := GetTypeOfExpr(meta.X)
-		ptrType := &ast.StarExpr{
-			Star: e.Pos(),
-			X:    xTyp.E,
-		}
-		meta.Type = E2T(ptrType)
+		xTyp := GetTypeOfExpr2(meta.X)
+		ptrType := types.NewPointer(xTyp)
+		meta.Type = G2T(ptrType)
 	}
 
 	return meta
@@ -2127,15 +2081,15 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *ir.EvalContext) *ir.MetaIndexExpr {
 	}
 	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	meta.X = walkExpr(e.X, nil)
-	collectionTyp := GetTypeOfExpr(meta.X)
-	if Kind(collectionTyp) == types.T_MAP {
+	collectionTyp := GetTypeOfExpr2(meta.X)
+	if Kind2(collectionTyp) == types.T_MAP {
 		meta.IsMap = true
 		if ctx != nil && ctx.MaybeOK {
 			meta.NeedsOK = true
 		}
 	}
 
-	meta.Type = GetElementTypeOfCollectionType(collectionTyp)
+	meta.Type = G2T(GetElementTypeOfCollectionType2(collectionTyp))
 	return meta
 }
 
@@ -2165,18 +2119,14 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *ir.EvalContext) *ir.MetaSliceExpr {
 		meta.Max = walkExpr(e.Max, nil)
 	}
 	meta.X = walkExpr(e.X, nil)
-	listType := GetTypeOfExpr(meta.X)
-	if Kind(listType) == types.T_STRING {
+	listType := GetTypeOfExpr2(meta.X)
+	if Kind2(listType) == types.T_STRING {
 		// str2 = str1[n:m]
 		meta.Type = types.String
 	} else {
-		elmType := GetElementTypeOfCollectionType(listType)
-		r := &ast.ArrayType{
-			Len:    nil, // slice
-			Elt:    elmType.E,
-			Lbrack: e.Pos(),
-		}
-		meta.Type = E2T(r)
+		elmType := GetElementTypeOfCollectionType2(listType)
+		slc := types.NewSlice(elmType)
+		meta.Type = G2T(slc)
 	}
 	return meta
 }
@@ -2374,7 +2324,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		gt := t.GoType.(*types.Named)
 		gt.PkgName = pkg.Name
 		typs = append(typs, gt)
-		switch Kind(t) {
+		switch Kind2(t.GoType) {
 		case types.T_STRUCT:
 			//structType := GetUnderlyingType(t)
 			st := t.GoType.Underlying().Underlying()
