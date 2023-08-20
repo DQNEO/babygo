@@ -943,13 +943,13 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 		if len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 			// Single assignment
 			rhsMeta := walkExpr(s.Rhs[0], nil) // FIXME
-			rhsType := GetTypeOfExpr(rhsMeta)
-			lhsTypes := []*types.Type{rhsType}
+			rhsType := GetTypeOfExpr2(rhsMeta)
+			lhsTypes := []types.GoType{rhsType}
 			var lhsMetas []ir.MetaExpr
 			for i, lhs := range s.Lhs {
 				typ := lhsTypes[i]
 				obj := lhs.(*ast.Ident).Obj
-				SetVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				SetVariable(obj, registerLocalVariable(currentFunc, obj.Name, G2T(typ)))
 				lm := walkExpr(lhs, nil)
 				lhsMetas = append(lhsMetas, lm)
 			}
@@ -1270,21 +1270,21 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 
 		if assignIdent != nil {
 			if len(cc.List) > 0 {
-				var varType *types.Type
+				var varType types.GoType
 				if isNilIdent(cc.List[0]) {
-					varType = GetTypeOfExpr(typeSwitch.Subject)
+					varType = GetTypeOfExpr2(typeSwitch.Subject)
 				} else {
-					varType = E2T(cc.List[0])
+					varType = E2G(cc.List[0])
 				}
 				// inject a variable of that type
-				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
+				vr := registerLocalVariable(currentFunc, assignIdent.Name, G2T(varType))
 				tscc.Variable = vr
 				SetVariable(assignIdent.Obj, vr)
 			} else {
 				// default clause
 				// inject a variable of subject type
-				varType := GetTypeOfExpr(typeSwitch.Subject)
-				vr := registerLocalVariable(currentFunc, assignIdent.Name, varType)
+				varType := GetTypeOfExpr2(typeSwitch.Subject)
+				vr := registerLocalVariable(currentFunc, assignIdent.Name, G2T(varType))
 				tscc.Variable = vr
 				SetVariable(assignIdent.Obj, vr)
 			}
@@ -1708,10 +1708,10 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		case universe.Append:
 			a0 := walkExpr(e.Args[0], nil)
 			a1 := walkExpr(e.Args[1], nil)
-			typ := GetTypeOfExpr(a0)
+			typ := GetTypeOfExpr2(a0)
 			return &ir.MetaCallAppend{
 				Tpos: e.Pos(),
-				Type: typ,
+				Type: G2T(typ),
 				Arg0: a0,
 				Arg1: a1,
 			}
