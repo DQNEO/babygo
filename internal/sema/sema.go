@@ -160,20 +160,16 @@ func prepareArgsAndParams(paramTypes []types.Type, receiver ir.MetaExpr, eArgs [
 	}
 
 	if receiver != nil { // method call
-		paramType := GetTypeOfExpr(receiver)
-		if paramType == nil {
-			panic("[prepaareArgs] paramType type must not be nil")
-		}
-		var receiverAndArgs []*argAndParamType = []*argAndParamType{
+		aps := []*argAndParamType{
 			&argAndParamType{
-				ParamType: paramType,
+				ParamType: receiver.GetType(),
 				Meta:      receiver,
 			},
 		}
 		for _, arg := range metaArgs {
-			receiverAndArgs = append(receiverAndArgs, arg)
+			aps = append(aps, arg)
 		}
-		return receiverAndArgs
+		return aps
 	}
 
 	return metaArgs
