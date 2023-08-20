@@ -841,15 +841,11 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 			if len(spec.Values) == 0 {
 				panic("invalid syntax")
 			}
-
 			rhs := spec.Values[0]
 			rhsMeta = walkExpr(rhs, nil)
 			t = GetTypeOfExpr(rhsMeta)
-			if t == nil {
-				panic("rhs should have a type")
-			}
+			spec.Type = t.E // set lhs type
 		}
-		spec.Type = t.E // set lhs type
 
 		obj := lhsIdent.Obj
 		SetVariable(obj, registerLocalVariable(currentFunc, obj.Name, t))
@@ -2380,8 +2376,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			if t == nil {
 				panic("variable type is not determined : " + lhsIdent.Name)
 			}
+			spec.Type = t.E
 		}
-		spec.Type = t.E
 
 		variable := newGlobalVariable(pkg.Name, lhsIdent.Obj.Name, t)
 		SetVariable(lhsIdent.Obj, variable)
