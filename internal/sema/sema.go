@@ -84,16 +84,16 @@ type argAndParamType struct {
 	ParamType types.Type // expected type
 }
 
-func prepareArgsAndParams(params []types.Type, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
+func prepareArgsAndParams(paramTypes []types.Type, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
 	var metaArgs []*argAndParamType
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
 	var variadicElmType types.Type
-	var param types.Type
-	lenParams := len(params)
+	var paramType types.Type
+	lenParams := len(paramTypes)
 	for argIndex, eArg := range eArgs {
 		if argIndex < lenParams {
-			param = params[argIndex]
-			slc, isSlice := param.(*types.Slice)
+			paramType = paramTypes[argIndex]
+			slc, isSlice := paramType.(*types.Slice)
 			if isSlice && slc.IsEllip {
 				variadicElmType = slc.Elem()
 				variadicArgs = make([]ast.Expr, 0, 20)
@@ -106,7 +106,6 @@ func prepareArgsAndParams(params []types.Type, receiver ir.MetaExpr, eArgs []ast
 			continue
 		}
 
-		paramType := param
 		ctx := &ir.EvalContext{Type: paramType}
 		m := walkExpr(eArg, ctx)
 		arg := &argAndParamType{
@@ -141,9 +140,9 @@ func prepareArgsAndParams(params []types.Type, receiver ir.MetaExpr, eArgs []ast
 			Meta:      mc,
 			ParamType: sliceType,
 		})
-	} else if len(metaArgs) < len(params) {
+	} else if len(metaArgs) < len(paramTypes) {
 		// Add nil as a variadic arg
-		p := params[len(metaArgs)]
+		p := paramTypes[len(metaArgs)]
 		elp := p.(*types.Slice)
 		assert(elp.IsEllip, "should be Ellipsis", __func__)
 		paramType := types.NewSlice(elp.Elem())
@@ -163,7 +162,7 @@ func prepareArgsAndParams(params []types.Type, receiver ir.MetaExpr, eArgs []ast
 	if receiver != nil { // method call
 		paramType := GetTypeOfExpr(receiver)
 		if paramType == nil {
-			panic("[prepaareArgs] param type must not be nil")
+			panic("[prepaareArgs] paramType type must not be nil")
 		}
 		var receiverAndArgs []*argAndParamType = []*argAndParamType{
 			&argAndParamType{
