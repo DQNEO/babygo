@@ -896,18 +896,18 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 			var ctx *ir.EvalContext
-			var t *types.Type
+			var t types.GoType
 			if !IsBlankIdentifierMeta(lhsMetas[0]) {
-				t = GetTypeOfExpr(lhsMetas[0])
+				t = GetTypeOfExpr2(lhsMetas[0])
 				ctx = &ir.EvalContext{
-					Type: t.GoType,
+					Type: t,
 				}
 			}
 			rhsMeta := walkExpr(s.Rhs[0], ctx)
 			if t == nil {
-				t = GetTypeOfExpr(rhsMeta)
+				t = GetTypeOfExpr2(rhsMeta)
 			}
-			mc := CheckIfcConversion(rhsMeta.Pos(), rhsMeta, t.GoType)
+			mc := CheckIfcConversion(rhsMeta.Pos(), rhsMeta, t)
 			//checkIfcConversion(mc)
 			return &ir.MetaSingleAssign{
 				Tpos: pos,
