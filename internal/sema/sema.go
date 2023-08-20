@@ -363,18 +363,6 @@ func GetTupleTypes2(rhsMeta ir.MetaExpr) []types.GoType {
 	}
 }
 
-func GetTupleTypes(rhsMeta ir.MetaExpr) []*types.Type {
-	if IsOkSyntax(rhsMeta) {
-		return []*types.Type{GetTypeOfExpr(rhsMeta), types.Bool}
-	} else {
-		rhs, ok := rhsMeta.(*ir.MetaCallExpr)
-		if !ok {
-			panic("is not *MetaCallExpr")
-		}
-		return rhs.Types
-	}
-}
-
 var inNamed string
 var inNamedType *types.Named
 
@@ -541,48 +529,6 @@ func GetArrayLen(t types.GoType) int {
 	t = t.Underlying()
 	arrayType := t.(*types.Array)
 	return arrayType.Len()
-}
-
-func GetUnderlyingType(t *types.Type) *types.Type {
-	if t == nil {
-		panic("nil type is not expected")
-	}
-	if t == types.GeneralSliceType {
-		return t
-	}
-
-	switch e := t.E.(type) {
-	case *ast.StructType, *ast.ArrayType, *ast.StarExpr, *ast.Ellipsis, *ast.MapType, *ast.InterfaceType:
-		// type literal
-		return t
-	case *ast.Ident:
-		assert(e.Obj != nil, "should not be nil : "+e.Name, __func__)
-		assert(e.Obj.Kind == ast.Typ, "should be ast.Typ : "+e.Name, __func__)
-		switch e.Obj {
-		case universe.Uintptr, universe.Int, universe.Int32, universe.String, universe.Uint8, universe.Uint16, universe.Bool:
-			return t
-		}
-		if e.Obj.Decl == nil {
-			panic("e.Obj.Decl should not be nil: Obj.Name=" + e.Obj.Name)
-		}
-
-		// defined type or alias
-		typeSpec := e.Obj.Decl.(*ast.TypeSpec)
-		specType := typeSpec.Type
-		t := E2T(specType)
-		// get RHS in its type definition recursively
-		return GetUnderlyingType(t)
-	case *ast.SelectorExpr:
-		ei := LookupForeignIdent(Selector2QI(e), e.Pos())
-		assert(ei.IsType, "should be a type", __func__)
-		return GetUnderlyingType(ei.Type)
-	case *ast.ParenExpr:
-		return GetUnderlyingType(E2T(e.X))
-	case *ast.FuncType:
-		return t
-	}
-	throw(t.E)
-	return nil
 }
 
 func Kind2(gType types.GoType) types.TypeKind {
@@ -1020,14 +966,14 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &ir.EvalContext{MaybeOK: maybeOkContext})
 			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
-			rhsTypes := GetTupleTypes(rhsMeta)
+			rhsTypes := GetTupleTypes2(rhsMeta)
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
 			lhsTypes := rhsTypes
 			for i, lhs := range s.Lhs {
 				typ := lhsTypes[i]
 				obj := lhs.(*ast.Ident).Obj
-				SetVariable(obj, registerLocalVariable(currentFunc, obj.Name, typ))
+				SetVariable(obj, registerLocalVariable(currentFunc, obj.Name, G2T(typ)))
 			}
 
 			var lhsMetas []ir.MetaExpr
@@ -1040,7 +986,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				IsOK:     isOK,
 				Lhss:     lhsMetas,
 				Rhs:      rhsMeta,
-				RhsTypes: TypesToGoTypes(rhsTypes),
+				RhsTypes: rhsTypes,
 			}
 		} else {
 			panic("Bad syntax")
