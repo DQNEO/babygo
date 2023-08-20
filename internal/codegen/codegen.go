@@ -173,7 +173,7 @@ func emitLoadAndPush(t types.GoType) {
 
 func emitVariable(variable *ir.Variable) {
 	emitVariableAddr(variable)
-	emitLoadAndPush(variable.Type.GoType)
+	emitLoadAndPush(variable.Type)
 }
 
 func emitFuncAddr(funcQI ir.QualifiedIdent) {
@@ -194,7 +194,7 @@ func emitVariableAddr(variable *ir.Variable) {
 }
 
 func emitListHeadAddr(list ir.MetaExpr) {
-	t := sema.GetTypeOfExpr2(list)
+	t := sema.GetTypeOf(list)
 	switch sema.Kind2(t) {
 	case types.T_ARRAY:
 		emitAddr(list) // array head
@@ -227,10 +227,10 @@ func emitAddr(meta ir.MetaExpr) {
 			panic("Unexpected kind")
 		}
 	case *ir.MetaIndexExpr:
-		if sema.Kind2(sema.GetTypeOfExpr2(m.X)) == types.T_MAP {
+		if sema.Kind2(sema.GetTypeOf(m.X)) == types.T_MAP {
 			emitAddrForMapSet(m)
 		} else {
-			elmType := sema.GetTypeOfExpr2(m)
+			elmType := sema.GetTypeOf(m)
 			emitExpr(m.Index) // index number
 			emitListElementAddr(m.X, elmType)
 		}
@@ -248,7 +248,7 @@ func emitAddr(meta ir.MetaExpr) {
 			emitAddConst(m.Offset, "struct head address + struct.field offset")
 		}
 	case *ir.MetaCompositLit:
-		knd := sema.Kind2(sema.GetTypeOfExpr2(m))
+		knd := sema.Kind2(sema.GetTypeOf(m))
 		switch knd {
 		case types.T_STRUCT:
 			// result of evaluation of a struct literal is its address
@@ -264,7 +264,7 @@ func emitAddr(meta ir.MetaExpr) {
 // explicit conversion T(e)
 func emitConversion(toType types.GoType, arg0 ir.MetaExpr) {
 	emitComment(2, "[emitConversion]\n")
-	fromType := sema.GetTypeOfExpr2(arg0)
+	fromType := sema.GetTypeOf(arg0)
 	fromKind := sema.Kind2(fromType)
 	toKind := sema.Kind2(toType)
 	switch toKind {
@@ -307,7 +307,7 @@ func emitConversion(toType types.GoType, arg0 ir.MetaExpr) {
 func emitIfcConversion(ic *ir.IfcConversion) {
 	emitExpr(ic.Value)
 	emitComment(2, "emitIfcConversion\n")
-	emitConvertToInterface(sema.GetTypeOfExpr2(ic.Value), ic.Type.GoType)
+	emitConvertToInterface(sema.GetTypeOf(ic.Value), ic.Type)
 }
 
 func emitZeroValue(t types.GoType) {
@@ -340,7 +340,7 @@ func emitZeroValue(t types.GoType) {
 }
 
 func emitLen(arg ir.MetaExpr) {
-	t := sema.GetTypeOfExpr2(arg)
+	t := sema.GetTypeOf(arg)
 	switch sema.Kind2(t) {
 	case types.T_ARRAY:
 		arrayLen := sema.GetArrayLen(t)
@@ -363,7 +363,7 @@ func emitLen(arg ir.MetaExpr) {
 }
 
 func emitCap(arg ir.MetaExpr) {
-	t := sema.GetTypeOfExpr2(arg)
+	t := sema.GetTypeOf(arg)
 	knd := sema.Kind2(t)
 	switch knd {
 	case types.T_ARRAY:
@@ -392,11 +392,11 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 	// allocate heap area with zero value
 	emitComment(2, "emitStructLiteral\n")
 	structType := meta.Type
-	emitZeroValue(structType.GoType) // push address of the new storage
+	emitZeroValue(structType) // push address of the new storage
 	metaElms := meta.StructElements
 	for _, metaElm := range metaElms {
 		// push lhs address
-		emitPushStackTop(types.Uintptr.GoType, 0, "address of struct heaad")
+		emitPushStackTop(types.Uintptr, 0, "address of struct heaad")
 
 		fieldOffset := sema.GetStructFieldOffset(metaElm.Field)
 		emitAddConst(fieldOffset, "address of struct field")
@@ -405,25 +405,25 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 		emitExpr(metaElm.Value)
 
 		// assign
-		emitStore(metaElm.FieldType.GoType, true, false)
+		emitStore(metaElm.FieldType, true, false)
 	}
 }
 
 func emitArrayLiteral(meta *ir.MetaCompositLit) {
 	elmType := meta.ElmType
-	elmSize := sema.GetSizeOfType2(elmType.GoType)
+	elmSize := sema.GetSizeOfType2(elmType)
 	memSize := elmSize * meta.Len
 
 	emitCallMalloc(memSize) // push
 	for i, elm := range meta.Elms {
 		// push lhs address
-		emitPushStackTop(types.Uintptr.GoType, 0, "malloced address")
+		emitPushStackTop(types.Uintptr, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		// push rhs value
 		emitExpr(elm)
 
 		// assign
-		emitStore(elmType.GoType, true, false)
+		emitStore(elmType, true, false)
 	}
 }
 
@@ -489,7 +489,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.GoType, r
 		offsets = append(offsets, totalParamSize)
 		var size int
 		if fv.IfcMethodCal && i == 0 {
-			size = sema.GetSizeOfType2(types.Uintptr.GoType) // @FIXME
+			size = sema.GetSizeOfType2(types.Uintptr) // @FIXME
 		} else {
 			size = sema.GetSizeOfType2(paramType)
 		}
@@ -625,9 +625,9 @@ func emitMetaCallNew(m *ir.MetaCallNew) {
 
 func emitMetaCallMake(m *ir.MetaCallMake) {
 	typeArg := m.TypeArg0
-	switch sema.Kind2(typeArg.GoType) {
+	switch sema.Kind2(typeArg) {
 	case types.T_MAP:
-		mapValueType := sema.GetElementTypeOfCollectionType2(typeArg.GoType)
+		mapValueType := sema.GetElementTypeOfCollectionType2(typeArg)
 		valueSize := sema.NewNumberLiteral(sema.GetSizeOfType2(mapValueType), m.Pos())
 		// A new, empty map value is made using the built-in function make,
 		// which takes the map type and an optional capacity hint as arguments:
@@ -636,7 +636,7 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 		return
 	case types.T_SLICE:
 		// make([]T, ...)
-		elmType := sema.GetElementTypeOfCollectionType2(typeArg.GoType)
+		elmType := sema.GetElementTypeOfCollectionType2(typeArg)
 		elmSize := sema.GetSizeOfType2(elmType)
 		numlit := sema.NewNumberLiteral(elmSize, m.Pos())
 		args := []ir.MetaExpr{numlit, m.Arg1, m.Arg2}
@@ -651,7 +651,7 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	sliceArg := m.Arg0
 	elemArg := m.Arg1
-	elmTypeG := sema.GetElementTypeOfCollectionType2(sema.GetTypeOfExpr2(sliceArg))
+	elmTypeG := sema.GetElementTypeOfCollectionType2(sema.GetTypeOf(sliceArg))
 	elmSize := sema.GetSizeOfType2(elmTypeG)
 
 	var symbol string
@@ -667,7 +667,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
-	elmType := sema.GetElementTypeOfCollectionType2(sema.GetTypeOfExpr2(sliceArg))
+	elmType := sema.GetElementTypeOfCollectionType2(sema.GetTypeOf(sliceArg))
 	arg1 := sema.CheckIfcConversion(m.Pos(), elemArg, elmType)
 	args := []ir.MetaExpr{sliceArg, arg1}
 	sig := sema.NewAppendSignature(sema.G2T(elmType))
@@ -678,7 +678,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 
 func emitMetaCallPanic(m *ir.MetaCallPanic) {
 	funcVal := "runtime.panic"
-	arg0 := sema.CheckIfcConversion(m.Pos(), m.Arg0, types.Eface.GoType)
+	arg0 := sema.CheckIfcConversion(m.Pos(), m.Arg0, types.EmptyInterface)
 	args := []ir.MetaExpr{arg0}
 	emitCallDirect(funcVal, args, ir.BuiltinPanicSignature)
 	return
@@ -707,24 +707,24 @@ func emitIdent(meta *ir.MetaIdent) {
 			panic("untyped nil is not allowed. Probably the type is not set in walk phase. pkg=" + sema.CurrentPkg.Name)
 		}
 		// emit zero value of the type
-		switch sema.Kind2(metaType.GoType) {
+		switch sema.Kind2(metaType) {
 		case types.T_SLICE, types.T_POINTER, types.T_INTERFACE, types.T_MAP:
-			emitZeroValue(metaType.GoType)
+			emitZeroValue(metaType)
 		default:
-			unexpectedKind(sema.Kind2(metaType.GoType))
+			unexpectedKind(sema.Kind2(metaType))
 		}
 	case "var":
 		emitAddr(meta)
-		emitLoadAndPush(sema.GetTypeOfExpr2(meta))
+		emitLoadAndPush(sema.GetTypeOf(meta))
 	case "con":
-		if meta.Const.IsGlobal && sema.Kind2(meta.Type.GoType) == types.T_STRING {
+		if meta.Const.IsGlobal && sema.Kind2(meta.Type) == types.T_STRING {
 			// Treat like a global variable.
 			// emit addr
 			printf("  leaq %s(%%rip), %%rax # global const \"%s\"\n", meta.Const.GlobalSymbol, meta.Const.Name)
 			printf("  pushq %%rax # global const address\n")
 
 			// load and push
-			emitLoadAndPush(meta.Type.GoType)
+			emitLoadAndPush(meta.Type)
 		} else {
 			// emit literal directly
 			emitBasicLit(meta.Const.Literal)
@@ -742,14 +742,14 @@ func emitIndexExpr(meta *ir.MetaIndexExpr) {
 		emitMapGet(meta, meta.NeedsOK)
 	} else {
 		emitAddr(meta)
-		emitLoadAndPush(sema.GetTypeOfExpr2(meta))
+		emitLoadAndPush(sema.GetTypeOf(meta))
 	}
 }
 
 // 1 value
 func emitStarExpr(meta *ir.MetaStarExpr) {
 	emitAddr(meta)
-	emitLoadAndPush(sema.GetTypeOfExpr2(meta))
+	emitLoadAndPush(sema.GetTypeOf(meta))
 }
 
 // 1 value X.Sel
@@ -760,7 +760,7 @@ func emitSelectorExpr(meta *ir.MetaSelectorExpr) {
 	} else {
 		// strct.field
 		emitAddr(meta)
-		emitLoadAndPush(sema.GetTypeOfExpr2(meta))
+		emitLoadAndPush(sema.GetTypeOf(meta))
 	}
 }
 
@@ -779,7 +779,7 @@ func emitBasicLit(mt *ir.MetaBasicLit) {
 		sl := mt.StrVal
 		if sl.Strlen == 0 {
 			// zero value
-			emitZeroValue(types.String.GoType)
+			emitZeroValue(types.String)
 		} else {
 			printf("  pushq $%d # str len\n", sl.Strlen)
 			printf("  leaq %s(%%rip), %%rax # str ptr\n", sl.Label)
@@ -848,7 +848,7 @@ func emitBinaryExpr(meta *ir.MetaBinaryExpr) {
 		emitTrue()
 		printf("  %s:\n", labelExit)
 	case "+":
-		if sema.Kind2(sema.GetTypeOfExpr2(meta.X)) == types.T_STRING {
+		if sema.Kind2(sema.GetTypeOf(meta.X)) == types.T_STRING {
 			emitCatStrings(meta.X, meta.Y)
 		} else {
 			emitExpr(meta.X) // left
@@ -945,7 +945,7 @@ func emitCompositeLit(meta *ir.MetaCompositLit) {
 // 1 value list[low:high]
 func emitSliceExpr(meta *ir.MetaSliceExpr) {
 	list := meta.X
-	listType := sema.GetTypeOfExpr2(list)
+	listType := sema.GetTypeOf(list)
 
 	switch sema.Kind2(listType) {
 	case types.T_SLICE, types.T_ARRAY:
@@ -1011,7 +1011,7 @@ func emitSliceExpr(meta *ir.MetaSliceExpr) {
 
 // 1 or 2 values
 func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
-	valueType := sema.GetTypeOfExpr2(m)
+	valueType := sema.GetTypeOf(m)
 
 	emitComment(2, "MAP GET for map[string]string\n")
 	// emit addr of map element
@@ -1050,7 +1050,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 // 1 or 2 values
 func emitTypeAssertExpr(meta *ir.MetaTypeAssertExpr) {
 	emitExpr(meta.X)
-	emitDtypeLabelAddr(meta.Type.GoType, sema.GetTypeOfExpr2(meta.X))
+	emitDtypeLabelAddr(meta.Type, sema.GetTypeOf(meta.X))
 	emitCompareDtypes()
 
 	emitPopBool("type assertion ok value")
@@ -1062,7 +1062,7 @@ func emitTypeAssertExpr(meta *ir.MetaTypeAssertExpr) {
 	printf("  jne %s # jmp if false\n", labelElse)
 
 	// if matched
-	emitLoadAndPush(meta.Type.GoType) // load dynamic data
+	emitLoadAndPush(meta.Type) // load dynamic data
 	if meta.NeedsOK {
 		printf("  pushq $1 # ok = true\n")
 	}
@@ -1071,7 +1071,7 @@ func emitTypeAssertExpr(meta *ir.MetaTypeAssertExpr) {
 	// if not matched
 	printf("  %s:\n", labelElse)
 	printf("  popq %%rax # drop ifc.data\n")
-	emitZeroValue(meta.Type.GoType)
+	emitZeroValue(meta.Type)
 	if meta.NeedsOK {
 		printf("  pushq $0 # ok = false\n")
 	}
@@ -1112,7 +1112,7 @@ func emitExpr(meta ir.MetaExpr) {
 	case *ir.MetaCallDelete:
 		emitMetaCallDelete(m)
 	case *ir.MetaConversionExpr:
-		emitConversion(m.Type.GoType, m.Arg0)
+		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:
 		rtypes := m.Types
 		mtypes := m.ParamTypes
@@ -1238,9 +1238,9 @@ func emitCompStrings(left ir.MetaExpr, right ir.MetaExpr) {
 }
 
 func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
-	if sema.Kind2(sema.GetTypeOfExpr2(left)) == types.T_STRING {
+	if sema.Kind2(sema.GetTypeOf(left)) == types.T_STRING {
 		emitCompStrings(left, right)
-	} else if sema.Kind2(sema.GetTypeOfExpr2(left)) == types.T_INTERFACE {
+	} else if sema.Kind2(sema.GetTypeOf(left)) == types.T_INTERFACE {
 		//var t = GetTypeOfExpr(left)
 		ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)
@@ -1249,7 +1249,7 @@ func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
 		emitExpr(right) // right
 		emitCallFF(ff)
 	} else {
-		// Assuming 64 bit types (int, pointer, map, etc)
+		// Assuming 64 bit types.GoType (int, pointer, map, etc)
 		//var t = GetTypeOfExpr(left)
 		emitExpr(left)  // left
 		emitExpr(right) // right
@@ -1260,7 +1260,7 @@ func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
 
 }
 
-// @TODO handle larger Types than int
+// @TODO handle larger types.GoType than int
 func emitCompExpr(inst string) {
 	printf("  popq %%rcx # right\n")
 	printf("  popq %%rax # left\n")
@@ -1358,13 +1358,13 @@ func emitRegiToMem(t types.GoType) {
 	}
 }
 
-func emitAssignZeroValue(lhs ir.MetaExpr, lhsType *types.Type) {
+func emitAssignZeroValue(lhs ir.MetaExpr, lhsType types.GoType) {
 	emitComment(2, "emitAssignZeroValue\n")
 	emitComment(2, "lhs addresss\n")
 	emitAddr(lhs)
 	emitComment(2, "emitZeroValue\n")
-	emitZeroValue(lhsType.GoType)
-	emitStore(lhsType.GoType, true, false)
+	emitZeroValue(lhsType)
+	emitStore(lhsType, true, false)
 
 }
 
@@ -1377,7 +1377,7 @@ func _emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 	//	rhs := metaSingle.rhs
 	if sema.IsBlankIdentifierMeta(lhs) {
 		emitExpr(rhs)
-		rhsType := sema.GetTypeOfExpr2(rhs)
+		rhsType := sema.GetTypeOf(rhs)
 		if rhsType == nil {
 			panicPos("rhs type should not be nil", rhs.Pos())
 		}
@@ -1388,7 +1388,7 @@ func _emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 	emitAddr(lhs)
 	emitComment(2, "Assignment: emitExpr(rhs)\n")
 	emitExpr(rhs)
-	emitStore(sema.GetTypeOfExpr2(lhs), true, false)
+	emitStore(sema.GetTypeOf(lhs), true, false)
 }
 
 func emitBlockStmt(s *ir.MetaBlockStmt) {
@@ -1429,7 +1429,7 @@ func emitOkAssignment(meta *ir.MetaTupleAssign) {
 		} else {
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
-			emitStore(sema.GetTypeOfExpr2(lhsMeta), false, false)
+			emitStore(sema.GetTypeOf(lhsMeta), false, false)
 		}
 
 	}
@@ -1457,7 +1457,7 @@ func emitFuncallAssignment(meta *ir.MetaTupleAssign) {
 			}
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
-			emitStore(sema.GetTypeOfExpr2(lhsMeta), false, false)
+			emitStore(sema.GetTypeOf(lhsMeta), false, false)
 		}
 	}
 }
@@ -1544,9 +1544,9 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 
 	// item = mp.first
 	emitVariableAddr(meta.ForRangeStmt.ItemVar)
-	emitVariable(meta.ForRangeStmt.MapVar)       // value of _mp
-	emitLoadAndPush(types.Uintptr.GoType)        // value of _mp.first
-	emitStore(types.Uintptr.GoType, true, false) // assign
+	emitVariable(meta.ForRangeStmt.MapVar) // value of _mp
+	emitLoadAndPush(types.Uintptr)         // value of _mp.first
+	emitStore(types.Uintptr, true, false)  // assign
 
 	// Condition
 	// if item != nil; then
@@ -1579,8 +1579,8 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 16(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(sema.GetTypeOfExpr2(keyMeta)) // load dynamic data
-			emitStore(sema.GetTypeOfExpr2(keyMeta), true, false)
+			emitLoadAndPush(sema.GetTypeOf(keyMeta)) // load dynamic data
+			emitStore(sema.GetTypeOf(keyMeta), true, false)
 		}
 	}
 
@@ -1600,8 +1600,8 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 			printf("  popq %%rax\n")            // &item{....}
 			printf("  movq 24(%%rax), %%rcx\n") // item.key_data
 			printf("  pushq %%rcx\n")
-			emitLoadAndPush(sema.GetTypeOfExpr2(valueMeta)) // load dynamic data
-			emitStore(sema.GetTypeOfExpr2(valueMeta), true, false)
+			emitLoadAndPush(sema.GetTypeOf(valueMeta)) // load dynamic data
+			emitStore(sema.GetTypeOf(valueMeta), true, false)
 		}
 	}
 
@@ -1615,8 +1615,8 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 	printf("  %s:\n", labelPost)                // used for "continue"
 	emitVariableAddr(meta.ForRangeStmt.ItemVar) // lhs
 	emitVariable(meta.ForRangeStmt.ItemVar)     // item
-	emitLoadAndPush(types.Uintptr.GoType)       // item.next
-	emitStore(types.Uintptr.GoType, true, false)
+	emitLoadAndPush(types.Uintptr)              // item.next
+	emitStore(types.Uintptr, true, false)
 
 	printf("  jmp %s\n", labelCond)
 
@@ -1637,21 +1637,21 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	// lenvar = len(s.X)
 	emitVariableAddr(meta.ForRangeStmt.LenVar)
 	emitLen(meta.ForRangeStmt.X)
-	emitStore(types.Int.GoType, true, false)
+	emitStore(types.Int, true, false)
 
 	emitComment(2, "  assign 0 to indexvar\n")
 	// indexvar = 0
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
-	emitZeroValue(types.Int.GoType)
-	emitStore(types.Int.GoType, true, false)
+	emitZeroValue(types.Int)
+	emitStore(types.Int, true, false)
 
 	// init key variable with 0
 	keyMeta := meta.ForRangeStmt.Key
 	if keyMeta != nil {
 		if !sema.IsBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta) // lhs
-			emitZeroValue(types.Int.GoType)
-			emitStore(types.Int.GoType, true, false)
+			emitZeroValue(types.Int)
+			emitStore(types.Int, true, false)
 		}
 	}
 
@@ -1664,20 +1664,20 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	printf("  %s:\n", labelCond)
 
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
-	emitLoadAndPush(types.Int.GoType)
+	emitLoadAndPush(types.Int)
 	emitVariableAddr(meta.ForRangeStmt.LenVar)
-	emitLoadAndPush(types.Int.GoType)
+	emitLoadAndPush(types.Int)
 	emitCompExpr("setl")
 	emitPopBool(" indexvar < lenvar")
 	printf("  cmpq $1, %%rax\n")
 	printf("  jne %s # jmp if false\n", labelExit)
 
 	emitComment(2, "assign list[indexvar] value variables\n")
-	elemType := sema.GetTypeOfExpr2(meta.ForRangeStmt.Value)
+	elemType := sema.GetTypeOf(meta.ForRangeStmt.Value)
 	emitAddr(meta.ForRangeStmt.Value) // lhs
 
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
-	emitLoadAndPush(types.Int.GoType) // index value
+	emitLoadAndPush(types.Int) // index value
 	emitListElementAddr(meta.ForRangeStmt.X, elemType)
 
 	emitLoadAndPush(elemType)
@@ -1692,17 +1692,17 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	printf("  %s:\n", labelPost)                 // used for "continue"
 	emitVariableAddr(meta.ForRangeStmt.Indexvar) // lhs
 	emitVariableAddr(meta.ForRangeStmt.Indexvar) // rhs
-	emitLoadAndPush(types.Int.GoType)
+	emitLoadAndPush(types.Int)
 	emitAddConst(1, "indexvar value ++")
-	emitStore(types.Int.GoType, true, false)
+	emitStore(types.Int, true, false)
 
 	// incr key variable
 	if keyMeta != nil {
 		if !sema.IsBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta)                            // lhs
 			emitVariableAddr(meta.ForRangeStmt.Indexvar) // rhs
-			emitLoadAndPush(types.Int.GoType)
-			emitStore(types.Int.GoType, true, false)
+			emitLoadAndPush(types.Int)
+			emitStore(types.Int, true, false)
 		}
 	}
 
@@ -1721,7 +1721,7 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 		panic("Omitted tag is not supported yet")
 	}
 	emitExpr(s.Tag)
-	condType := sema.GetTypeOfExpr2(s.Tag)
+	condType := sema.GetTypeOf(s.Tag)
 	cases := s.Cases
 	var labels = make([]string, len(cases), len(cases))
 	var defaultLabel string
@@ -1818,7 +1818,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 			if t == nil { // case nil:
 				printf("  pushq $0 # nil\n")
 			} else { // case T:s
-				emitDtypeLabelAddr(t.GoType, sema.GetTypeOfExpr2(meta.Subject))
+				emitDtypeLabelAddr(t, sema.GetTypeOf(meta.Subject))
 			}
 			emitCompareDtypes()
 			emitPopBool(" of switch-case comparison")
@@ -1865,10 +1865,10 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 				printf("  popq %%rax # ifc.dtype\n")
 				printf("  popq %%rcx # ifc.data\n")
 				printf("  pushq %%rcx # ifc.data\n")
-				emitLoadAndPush(c.Variable.Type.GoType)
+				emitLoadAndPush(c.Variable.Type)
 
 				// assign
-				emitStore(c.Variable.Type.GoType, true, false)
+				emitStore(c.Variable.Type, true, false)
 			}
 		}
 
@@ -2002,7 +2002,7 @@ func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	printf("  ret\n")
 }
 
-func emitZeroData(t *types.Type) {
+func emitZeroData(t types.GoType) {
 	for i := 0; i < sema.GetSizeOfType(t); i++ {
 		printf("  .byte 0 # zero value\n")
 	}
@@ -2025,7 +2025,7 @@ func emitData(dotSize string, val ir.MetaExpr) {
 func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 	name := vr.Name.Name
 	t := vr.Type
-	typeKind := sema.Kind2(vr.Type.GoType)
+	typeKind := sema.Kind2(vr.Type)
 	val := vr.Val
 	printf(".global %s.%s\n", pkgName, name)
 	printf("%s.%s: # T %s\n", pkgName, name, string(typeKind))
@@ -2106,10 +2106,10 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 		fmt.Fprintf(fout, "type %s %s\n", named.String(), utAsString)
 	}
 	for _, vr := range pkg.Vars {
-		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type.GoType, true, true, pkg.Name))
+		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, true, true, pkg.Name))
 	}
 	for _, cnst := range pkg.Consts {
-		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type.GoType, true, true, pkg.Name), sema.GetConstRawValue(cnst.MetaVal))
+		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type, true, true, pkg.Name), sema.GetConstRawValue(cnst.MetaVal))
 	}
 	for _, fnc := range pkg.Funcs {
 		fmt.Fprintf(fout, "%s\n", sema.RestoreFuncDecl(fnc, true, true, pkg.Name))
@@ -2155,7 +2155,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 			continue
 		}
 		printf("  \n")
-		typeKind := sema.Kind2(vr.Type.GoType)
+		typeKind := sema.Kind2(vr.Type)
 		switch typeKind {
 		case types.T_POINTER, types.T_MAP, types.T_INTERFACE:
 			printf("  # init global %s:\n", vr.Name.Name)
@@ -2178,7 +2178,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 }
 
 func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
-	printf("# ------- Dynamic Types (len = %d)------\n", len(itab))
+	printf("# ------- Dynamic types.GoType (len = %d)------\n", len(itab))
 	printf(".data\n")
 
 	entries := make([]string, len(itab)+1, len(itab)+1)

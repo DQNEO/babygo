@@ -9,13 +9,13 @@ import (
 type IfcConversion struct {
 	Tpos  token.Pos
 	Value MetaExpr
-	Type  *types.Type // Target Type
+	Type  types.GoType // Target Type
 }
 
 type MetaStructLiteralElement struct {
 	Tpos      token.Pos
 	Field     *ast.Field
-	FieldType *types.Type
+	FieldType types.GoType
 	Value     MetaExpr
 }
 
@@ -48,9 +48,9 @@ type ExportedIdent struct {
 	Obj       *ast.Object // method owner id
 	Pos       token.Pos
 	IsType    bool
-	Type      *types.Type // type of the ident, or type itself if ident is type
-	MetaIdent *MetaIdent  // for expr
-	Func      *Func       // for func
+	Type      types.GoType // type of the ident, or type itself if ident is type
+	MetaIdent *MetaIdent   // for expr
+	Func      *Func        // for func
 }
 
 type NamedType struct {
@@ -74,7 +74,7 @@ type MetaExprStmt struct {
 type MetaVarDecl struct {
 	Tpos    token.Pos
 	Single  *MetaSingleAssign
-	LhsType *types.Type
+	LhsType types.GoType
 }
 
 type MetaSingleAssign struct {
@@ -168,7 +168,7 @@ type MetaTypeSwitchCaseClose struct {
 	Tpos     token.Pos
 	Variable *Variable
 	//VariableType *Type
-	Types []*types.Type
+	Types []types.GoType
 	Body  []MetaStmt
 }
 
@@ -203,11 +203,12 @@ func (s *MetaDeferStmt) Pos() token.Pos           { return s.Tpos }
 
 type MetaExpr interface {
 	Pos() token.Pos
+	//	GetType() types.GoType
 }
 
 type MetaBasicLit struct {
 	Tpos     token.Pos
-	Type     *types.Type
+	Type     types.GoType
 	Kind     string
 	RawValue string // for emitting .data data
 	CharVal  int
@@ -217,21 +218,21 @@ type MetaBasicLit struct {
 
 type MetaCompositLit struct {
 	Tpos token.Pos
-	Type *types.Type // type of the composite
-	Kind string      // "struct", "array", "slice" // @TODO "map"
+	Type types.GoType // type of the composite
+	Kind string       // "struct", "array", "slice" // @TODO "map"
 
 	// for struct
 	StructElements []*MetaStructLiteralElement // for "struct"
 
 	// for array or slice
 	Len     int
-	ElmType *types.Type
+	ElmType types.GoType
 	Elms    []MetaExpr
 }
 
 type MetaIdent struct {
 	Tpos token.Pos
-	Type *types.Type
+	Type types.GoType
 	Kind string // "blank|nil|true|false|var|con|fun|typ"
 	Name string
 
@@ -249,7 +250,7 @@ type MetaSelectorExpr struct {
 	Tpos           token.Pos
 	IsQI           bool
 	QI             QualifiedIdent
-	Type           *types.Type
+	Type           types.GoType
 	X              MetaExpr
 	SelName        string
 	ForeignObjKind string // "var|con|fun"
@@ -264,7 +265,7 @@ type MetaSelectorExpr struct {
 // general funcall
 type MetaCallExpr struct {
 	Tpos        token.Pos
-	Type        *types.Type    // result type
+	Type        types.GoType   // result type
 	Types       []types.GoType // result types when tuple
 	ParamTypes  []types.GoType // param types to accept
 	Args        []MetaExpr     // args sent from caller
@@ -274,53 +275,53 @@ type MetaCallExpr struct {
 
 type MetaCallLen struct {
 	Tpos token.Pos
-	Type *types.Type // result type
+	Type types.GoType // result type
 	Arg0 MetaExpr
 }
 
 type MetaCallCap struct {
 	Tpos token.Pos
-	Type *types.Type // result type
+	Type types.GoType // result type
 	Arg0 MetaExpr
 }
 
 type MetaCallNew struct {
 	Tpos     token.Pos
-	Type     *types.Type // result type
+	Type     types.GoType // result type
 	TypeArg0 types.GoType
 }
 
 type MetaCallMake struct {
 	Tpos     token.Pos
-	Type     *types.Type // result type
-	TypeArg0 *types.Type
+	Type     types.GoType // result type
+	TypeArg0 types.GoType
 	Arg1     MetaExpr
 	Arg2     MetaExpr
 }
 
 type MetaCallAppend struct {
 	Tpos token.Pos
-	Type *types.Type // result type
+	Type types.GoType // result type
 	Arg0 MetaExpr
 	Arg1 MetaExpr
 }
 
 type MetaCallPanic struct {
 	Tpos token.Pos
-	Type *types.Type // result type
+	Type types.GoType // result type
 	Arg0 MetaExpr
 }
 
 type MetaCallDelete struct {
 	Tpos token.Pos
-	Type *types.Type // result type
+	Type types.GoType // result type
 	Arg0 MetaExpr
 	Arg1 MetaExpr
 }
 
 type MetaConversionExpr struct {
 	Tpos token.Pos
-	Type *types.Type // To type
+	Type types.GoType // To type
 	Arg0 MetaExpr
 }
 
@@ -330,12 +331,12 @@ type MetaIndexExpr struct {
 	NeedsOK bool // when map, is it ok syntax ?
 	Index   MetaExpr
 	X       MetaExpr
-	Type    *types.Type
+	Type    types.GoType
 }
 
 type MetaSliceExpr struct {
 	Tpos token.Pos
-	Type *types.Type
+	Type types.GoType
 	Low  MetaExpr
 	High MetaExpr
 	Max  MetaExpr
@@ -343,18 +344,18 @@ type MetaSliceExpr struct {
 }
 type MetaStarExpr struct {
 	Tpos token.Pos
-	Type *types.Type
+	Type types.GoType
 	X    MetaExpr
 }
 type MetaUnaryExpr struct {
 	Tpos token.Pos
 	X    MetaExpr
-	Type *types.Type
+	Type types.GoType
 	Op   string
 }
 type MetaBinaryExpr struct {
 	Tpos token.Pos
-	Type *types.Type
+	Type types.GoType
 	Op   string
 	X    MetaExpr
 	Y    MetaExpr
@@ -364,7 +365,7 @@ type MetaTypeAssertExpr struct {
 	Tpos    token.Pos
 	NeedsOK bool
 	X       MetaExpr
-	Type    *types.Type
+	Type    types.GoType
 }
 
 func (e *MetaBasicLit) Pos() token.Pos             { return e.Tpos }
@@ -428,7 +429,7 @@ type Variable struct {
 	IsGlobal     bool
 	GlobalSymbol string
 	LocalOffset  int
-	Type         *types.Type
+	Type         types.GoType
 }
 
 type Const struct {
@@ -437,17 +438,17 @@ type Const struct {
 	IsGlobal     bool
 	GlobalSymbol string // "pkg.Foo"
 	Literal      *MetaBasicLit
-	Type         *types.Type
+	Type         types.GoType
 }
 
 // Package vars or consts
 type PackageVarConst struct {
 	Spec    *ast.ValueSpec
 	Name    *ast.Ident
-	Val     ast.Expr    // can be nil
-	MetaVal MetaExpr    // can be nil
-	Type    *types.Type // cannot be nil
-	MetaVar *MetaIdent  // only for var
+	Val     ast.Expr     // can be nil
+	MetaVal MetaExpr     // can be nil
+	Type    types.GoType // cannot be nil
+	MetaVar *MetaIdent   // only for var
 }
 
 type PkgContainer struct {
@@ -477,36 +478,36 @@ type AnalyzedPackage struct {
 }
 
 var RuntimeCmpStringFuncSignature = &Signature{
-	ParamTypes:  []types.GoType{types.String.GoType, types.String.GoType},
-	ReturnTypes: []types.GoType{types.Bool.GoType},
+	ParamTypes:  []types.GoType{types.String, types.String},
+	ReturnTypes: []types.GoType{types.Bool},
 }
 
 var RuntimeCatStringsSignature = &Signature{
-	ParamTypes:  []types.GoType{types.String.GoType, types.String.GoType},
-	ReturnTypes: []types.GoType{types.String.GoType},
+	ParamTypes:  []types.GoType{types.String, types.String},
+	ReturnTypes: []types.GoType{types.String},
 }
 
 var RuntimeMakeMapSignature = &Signature{
-	ParamTypes:  []types.GoType{types.Uintptr.GoType, types.Uintptr.GoType},
-	ReturnTypes: []types.GoType{types.Uintptr.GoType},
+	ParamTypes:  []types.GoType{types.Uintptr, types.Uintptr},
+	ReturnTypes: []types.GoType{types.Uintptr},
 }
 
 var RuntimeMakeSliceSignature = &Signature{
-	ParamTypes:  []types.GoType{types.Int.GoType, types.Int.GoType, types.Int.GoType},
-	ReturnTypes: []types.GoType{types.GeneralSliceType.GoType},
+	ParamTypes:  []types.GoType{types.Int, types.Int, types.Int},
+	ReturnTypes: []types.GoType{types.GGeneralSliceType},
 }
 
 var RuntimeGetAddrForMapGetSignature = &Signature{
-	ParamTypes:  []types.GoType{types.Uintptr.GoType, types.Eface.GoType},
-	ReturnTypes: []types.GoType{types.Bool.GoType, types.Uintptr.GoType},
+	ParamTypes:  []types.GoType{types.Uintptr, types.EmptyInterface},
+	ReturnTypes: []types.GoType{types.Bool, types.Uintptr},
 }
 
 var RuntimeGetAddrForMapSetSignature = &Signature{
-	ParamTypes:  []types.GoType{types.Uintptr.GoType, types.Eface.GoType},
-	ReturnTypes: []types.GoType{types.Uintptr.GoType},
+	ParamTypes:  []types.GoType{types.Uintptr, types.EmptyInterface},
+	ReturnTypes: []types.GoType{types.Uintptr},
 }
 
 var BuiltinPanicSignature = &Signature{
-	ParamTypes:  []types.GoType{types.Eface.GoType},
+	ParamTypes:  []types.GoType{types.EmptyInterface},
 	ReturnTypes: nil,
 }

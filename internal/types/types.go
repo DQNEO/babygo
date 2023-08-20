@@ -4,10 +4,6 @@ import (
 	"github.com/DQNEO/babygo/lib/ast"
 )
 
-type Type struct {
-	GoType GoType
-}
-
 type TypeKind string
 
 const T_STRING TypeKind = "T_STRING"
@@ -26,66 +22,43 @@ const T_POINTER TypeKind = "T_POINTER"
 const T_MAP TypeKind = "T_MAP"
 
 // --- universal types ---
-var Bool *Type = &Type{
-	GoType: &Basic{
-		Knd:  GBool,
-		name: "bool",
-	},
+var Bool GoType = &Basic{
+	Knd:  GBool,
+	name: "bool",
 }
 
-var Int *Type = &Type{
-	GoType: &Basic{
-		Knd:  GInt,
-		name: "int",
-	},
+var Int GoType = &Basic{
+	Knd:  GInt,
+	name: "int",
 }
 
 // Rune
-var Int32 *Type = &Type{
-	GoType: &Basic{
-		Knd:  GInt32,
-		name: "int32",
-	},
+var Int32 GoType = &Basic{
+	Knd:  GInt32,
+	name: "int32",
 }
 
-var Uintptr *Type = &Type{
-	GoType: &Basic{
-		Knd:  GUintptr,
-		name: "uintptr",
-	},
+var Uintptr GoType = &Basic{
+	Knd:  GUintptr,
+	name: "uintptr",
 }
 
-var Uint8 *Type = &Type{
-	GoType: &Basic{
-		Knd:  GUint8,
-		name: "uint8",
-	},
+var Uint8 GoType = &Basic{
+	Knd:  GUint8,
+	name: "uint8",
 }
 
-var Uint16 *Type = &Type{
-	GoType: &Basic{
-		Knd:  GUint16,
-		name: "uint16",
-	},
+var Uint16 GoType = &Basic{
+	Knd:  GUint16,
+	name: "uint16",
 }
-var String *Type = &Type{
-	GoType: &Basic{
-		Knd:  GString,
-		name: "string",
-	},
+var String GoType = &Basic{
+	Knd:  GString,
+	name: "string",
 }
 
-var EmptyInterface = &Interface{}
-
-// Eface means the empty interface type
-var Eface *Type = &Type{
-	GoType: EmptyInterface,
-}
-
-var GGeneralSliceType = &Slice{}
-var GeneralSliceType *Type = &Type{
-	GoType: GGeneralSliceType,
-}
+var EmptyInterface GoType = &Interface{}
+var GGeneralSliceType GoType = &Slice{}
 
 const GBool = 1
 const GInt = 2
