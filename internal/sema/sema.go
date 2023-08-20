@@ -80,11 +80,6 @@ func isType(expr ast.Expr) bool {
 	return false
 }
 
-type AP struct {
-	Meta      ir.MetaExpr
-	ParamType types.GoType // expected type
-}
-
 type argAndParamType struct {
 	Meta      ir.MetaExpr
 	ParamType types.GoType // expected type
