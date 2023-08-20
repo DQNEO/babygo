@@ -138,7 +138,7 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 		}
 		args = append(args, &astArgAndParam{
 			e:         vargsSliceWrapper,
-			paramType: E2T(sliceType).GoType,
+			paramType: E2G(sliceType),
 		})
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
@@ -1556,7 +1556,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 					field := LookupStructField2(structTypeLiteral, e.Sel.Name)
 					if field != nil {
 						offset := GetStructFieldOffset(field)
-						return E2T(field.Type), field, offset, needDeref
+						return G2T(E2G(field.Type)), field, offset, needDeref
 					}
 				} else {
 					typeOfLeft = origType
@@ -1565,8 +1565,8 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 					if funcType.Results == nil || len(funcType.Results.List) == 0 {
 						return nil, nil, 0, needDeref
 					}
-					types := FieldList2Types(funcType.Results)
-					return types[0], nil, 0, needDeref
+					types := FieldList2GoTypes(funcType.Results)
+					return G2T(types[0]), nil, 0, needDeref
 				}
 			}
 		}
@@ -1579,8 +1579,8 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, false
 		}
-		types := FieldList2Types(funcType.Results)
-		return types[0], nil, 0, false
+		types := FieldList2GoTypes(funcType.Results)
+		return G2T(types[0]), nil, 0, false
 	}
 
 	field := LookupStructField2(structTypeLiteral, e.Sel.Name)
@@ -1594,8 +1594,8 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, needDeref
 		}
-		types := FieldList2Types(funcType.Results)
-		return types[0], field, 0, needDeref
+		types := FieldList2GoTypes(funcType.Results)
+		return G2T(types[0]), field, 0, needDeref
 	}
 
 	panic("Bad type")
