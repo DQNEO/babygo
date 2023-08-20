@@ -2082,9 +2082,9 @@ func walkStarExpr(e *ast.StarExpr, ctx *ir.EvalContext) *ir.MetaStarExpr {
 		Tpos: e.Pos(),
 	}
 	meta.X = walkExpr(e.X, nil)
-	xType := GetTypeOfExpr(meta.X)
-	origType := xType.E.(*ast.StarExpr)
-	meta.Type = E2T(origType.X)
+	xType := GetTypeOfExpr2(meta.X)
+	origType := xType.Underlying().(*types.Pointer)
+	meta.Type = G2T(origType.Elem())
 	return meta
 }
 
