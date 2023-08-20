@@ -82,14 +82,14 @@ func isType(expr ast.Expr) bool {
 
 type argAndParamType struct {
 	Meta      ir.MetaExpr
-	ParamType types.GoType // expected type
+	ParamType types.Type // expected type
 }
 
-func prepareArgsAndParams(params []types.GoType, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
+func prepareArgsAndParams(params []types.Type, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
 	var metaArgs []*argAndParamType
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
-	var variadicElmType types.GoType
-	var param types.GoType
+	var variadicElmType types.Type
+	var param types.Type
 	lenParams := len(params)
 	for argIndex, eArg := range eArgs {
 		if argIndex < lenParams {
@@ -230,8 +230,8 @@ func GetPackageSymbol(pkgName string, subsymbol string) string {
 }
 
 // Types of an expr in Single value context
-func GetTypeOf(meta ir.MetaExpr) types.GoType {
-	var t types.GoType
+func GetTypeOf(meta ir.MetaExpr) types.Type {
+	var t types.Type
 	switch m := meta.(type) {
 	case *ir.MetaBasicLit:
 		t = m.Type
@@ -283,11 +283,11 @@ func GetTypeOf(meta ir.MetaExpr) types.GoType {
 	return t
 }
 
-func FieldList2GoTypes(fieldList *ast.FieldList) []types.GoType {
+func FieldList2GoTypes(fieldList *ast.FieldList) []types.Type {
 	if fieldList == nil {
 		return nil
 	}
-	var r []types.GoType
+	var r []types.Type
 	for _, field := range fieldList.List {
 		t := E2G(field.Type)
 		r = append(r, t)
@@ -295,11 +295,11 @@ func FieldList2GoTypes(fieldList *ast.FieldList) []types.GoType {
 	return r
 }
 
-func FieldList2Types(fieldList *ast.FieldList) []types.GoType {
+func FieldList2Types(fieldList *ast.FieldList) []types.Type {
 	if fieldList == nil {
 		return nil
 	}
-	var r []types.GoType
+	var r []types.Type
 	for _, e2 := range fieldList.List {
 		t := E2T(e2.Type)
 		r = append(r, t)
@@ -314,7 +314,7 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 	var r = &types.Tuple{}
 	for _, e2 := range fieldList.List {
 		ident, isIdent := e2.Type.(*ast.Ident)
-		var t types.GoType
+		var t types.Type
 		if isIdent && ident.Name == inNamed {
 			t = inNamedType
 		} else {
@@ -326,9 +326,9 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 	return r
 }
 
-func GetTupleTypes2(rhsMeta ir.MetaExpr) []types.GoType {
+func GetTupleTypes2(rhsMeta ir.MetaExpr) []types.Type {
 	if IsOkSyntax(rhsMeta) {
-		return []types.GoType{GetTypeOf(rhsMeta), types.Bool}
+		return []types.Type{GetTypeOf(rhsMeta), types.Bool}
 	} else {
 		rhs, ok := rhsMeta.(*ir.MetaCallExpr)
 		if !ok {
@@ -341,10 +341,10 @@ func GetTupleTypes2(rhsMeta ir.MetaExpr) []types.GoType {
 var inNamed string
 var inNamedType *types.Named
 
-func G2T(g types.GoType) types.GoType {
+func G2T(g types.Type) types.Type {
 	return g
 }
-func E2G(typeExpr ast.Expr) types.GoType {
+func E2G(typeExpr ast.Expr) types.Type {
 	switch t := typeExpr.(type) {
 	case *ast.Ident:
 		obj := t.Obj
@@ -479,17 +479,17 @@ func E2G(typeExpr ast.Expr) types.GoType {
 	return nil
 }
 
-func E2T(typeExpr ast.Expr) types.GoType {
+func E2T(typeExpr ast.Expr) types.Type {
 	return E2G(typeExpr)
 }
 
-func GetArrayLen(t types.GoType) int {
+func GetArrayLen(t types.Type) int {
 	t = t.Underlying()
 	arrayType := t.(*types.Array)
 	return arrayType.Len()
 }
 
-func Kind2(gType types.GoType) types.TypeKind {
+func Kind2(gType types.Type) types.TypeKind {
 	if gType == nil {
 		panic(fmt.Sprintf("[Kind2] Unexpected nil:\n"))
 	}
@@ -546,11 +546,11 @@ func Kind2(gType types.GoType) types.TypeKind {
 	return "UNKNOWN_KIND"
 }
 
-func IsInterface(t types.GoType) bool {
+func IsInterface(t types.Type) bool {
 	return Kind2(t) == types.T_INTERFACE
 }
 
-func HasIfcMethod(t types.GoType) bool {
+func HasIfcMethod(t types.Type) bool {
 	if !IsInterface(t) {
 		panic("type should be an interface")
 	}
@@ -566,7 +566,7 @@ func HasIfcMethod(t types.GoType) bool {
 	return false
 }
 
-func GetElementTypeOfCollectionType2(t types.GoType) types.GoType {
+func GetElementTypeOfCollectionType2(t types.Type) types.Type {
 	ut := t.Underlying()
 	switch gt := ut.(type) {
 	case *types.Array:
@@ -585,7 +585,7 @@ func GetElementTypeOfCollectionType2(t types.GoType) types.GoType {
 	panic("Unexpected type")
 }
 
-func getKeyTypeOfCollectionType2(t types.GoType) types.GoType {
+func getKeyTypeOfCollectionType2(t types.Type) types.Type {
 	ut := t.Underlying().Underlying()
 	switch Kind2(ut) {
 	case types.T_SLICE, types.T_ARRAY, types.T_STRING:
@@ -609,7 +609,7 @@ func LookupStructField2(structType *types.Struct, selName string) *ast.Field {
 	return nil
 }
 
-func registerParamVariable(fnc *ir.Func, name string, t types.GoType) *ir.Variable {
+func registerParamVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := GetSizeOfType2(t)
 	fnc.Argsarea += size
@@ -617,7 +617,7 @@ func registerParamVariable(fnc *ir.Func, name string, t types.GoType) *ir.Variab
 	return vr
 }
 
-func registerReturnVariable(fnc *ir.Func, name string, t types.GoType) *ir.Variable {
+func registerReturnVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := GetSizeOfType2(t)
 	fnc.Argsarea += size
@@ -625,7 +625,7 @@ func registerReturnVariable(fnc *ir.Func, name string, t types.GoType) *ir.Varia
 	return vr
 }
 
-func registerLocalVariable(fnc *ir.Func, name string, t types.GoType) *ir.Variable {
+func registerLocalVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable {
 	assert(t != nil, "type of local var should not be nil", __func__)
 	fnc.Localarea -= GetSizeOfType2(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
@@ -656,7 +656,7 @@ func registerStringLiteral(lit *ast.BasicLit) *ir.SLiteral {
 	return sl
 }
 
-func newGlobalVariable(pkgName string, name string, t types.GoType) *ir.Variable {
+func newGlobalVariable(pkgName string, name string, t types.Type) *ir.Variable {
 	return &ir.Variable{
 		Name:         name,
 		IsGlobal:     true,
@@ -665,7 +665,7 @@ func newGlobalVariable(pkgName string, name string, t types.GoType) *ir.Variable
 	}
 }
 
-func newLocalVariable(name string, localoffset int, t types.GoType) *ir.Variable {
+func newLocalVariable(name string, localoffset int, t types.Type) *ir.Variable {
 	return &ir.Variable{
 		Name:        name,
 		IsGlobal:    false,
@@ -730,7 +730,7 @@ func registerMethod(pkgName string, method *ir.Method) {
 }
 
 // @TODO: enable to lookup ifc method
-func LookupMethod(rcvT types.GoType, methodName string) *ir.Method {
+func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 	rcvPointerType, isPtr := rcvT.(*types.Pointer)
 	if isPtr {
 		rcvT = rcvPointerType.Elem()
@@ -785,7 +785,7 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 	case *ast.ValueSpec:
 		lhsIdent := spec.Names[0]
 		var rhsMeta ir.MetaExpr
-		var t types.GoType
+		var t types.Type
 		if spec.Type != nil { // var x T = e
 			// walkExpr(spec.Type, nil) // Do we need to walk type ?
 			t = E2T(spec.Type)
@@ -850,7 +850,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 			var ctx *ir.EvalContext
-			var t types.GoType
+			var t types.Type
 			if !IsBlankIdentifierMeta(lhsMetas[0]) {
 				t = GetTypeOf(lhsMetas[0])
 				ctx = &ir.EvalContext{
@@ -898,7 +898,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			// Single assignment
 			rhsMeta := walkExpr(s.Rhs[0], nil) // FIXME
 			rhsType := GetTypeOf(rhsMeta)
-			lhsTypes := []types.GoType{rhsType}
+			lhsTypes := []types.Type{rhsType}
 			var lhsMetas []ir.MetaExpr
 			for i, lhs := range s.Lhs {
 				typ := lhsTypes[i]
@@ -1224,7 +1224,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 
 		if assignIdent != nil {
 			if len(cc.List) > 0 {
-				var varType types.GoType
+				var varType types.Type
 				if isNilIdent(cc.List[0]) {
 					varType = GetTypeOf(typeSwitch.Subject)
 				} else {
@@ -1249,9 +1249,9 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 			body = append(body, m)
 		}
 		tscc.Body = body
-		var typs []types.GoType
+		var typs []types.Type
 		for _, e := range cc.List {
-			var typ types.GoType
+			var typ types.Type
 			if !isNilIdent(e) {
 				typ = E2T(e)
 				RegisterDtype(typ, GetTypeOf(typeSwitch.Subject))
@@ -1496,7 +1496,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 	return meta
 }
 
-func getTypeOfSelector(x ir.MetaExpr, selName string) (types.GoType, *ast.Field, int, bool) {
+func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, *ast.Field, int, bool) {
 	// (strct).field | (ptr).field | (obj).method
 	var needDeref bool
 	typeOfLeft := GetTypeOf(x)
@@ -1575,7 +1575,7 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.GoType, *ast.Field,
 	panic("Bad type")
 }
 
-func walkConversion(pos token.Pos, toType types.GoType, arg0 ir.MetaExpr) ir.MetaExpr {
+func walkConversion(pos token.Pos, toType types.Type, arg0 ir.MetaExpr) ir.MetaExpr {
 
 	meta := &ir.MetaConversionExpr{
 		Tpos: pos,
@@ -1803,7 +1803,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 
 	meta.FuncVal = funcVal
 	argsAndParams := prepareArgsAndParams(sig.Params.Types, receiverMeta, e.Args, meta.HasEllipsis, e.Pos())
-	var paramTypes []types.GoType
+	var paramTypes []types.Type
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
 		paramTypes = append(paramTypes, a.ParamType)
@@ -2064,7 +2064,7 @@ func walkTypeAssertExpr(e *ast.TypeAssertExpr, ctx *ir.EvalContext) *ir.MetaType
 	meta.X = walkExpr(e.X, nil)
 	meta.Type = E2T(e.Type)
 	if meta.Type == nil {
-		panic(fmt.Sprintf("[walkTypeAssertExpr] GoType is not set:%T\n", e.Type))
+		panic(fmt.Sprintf("[walkTypeAssertExpr] Type is not set:%T\n", e.Type))
 	}
 
 	RegisterDtype(meta.Type, GetTypeOf(meta.X))
@@ -2123,7 +2123,7 @@ func walkExpr(expr ast.Expr, ctx *ir.EvalContext) ir.MetaExpr {
 	}
 }
 
-func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType types.GoType) ir.MetaExpr {
+func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType types.Type) ir.MetaExpr {
 	if IsNil(expr) {
 		return expr
 	}
@@ -2189,7 +2189,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	ITabID = 1
 
 	var hasInitFunc bool
-	var typs []types.GoType
+	var typs []types.Type
 	var funcs []*ir.Func
 	var consts []*ir.PackageVarConst
 	var vars []*ir.PackageVarConst
@@ -2275,7 +2275,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		lhsIdent := spec.Names[0]
 		rhs := spec.Values[0]
 		var rhsMeta ir.MetaExpr
-		var t types.GoType
+		var t types.Type
 		if spec.Type != nil { // const x T = e
 			t = E2T(spec.Type)
 			ctx := &ir.EvalContext{Type: t}
@@ -2326,7 +2326,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		lhsIdent := spec.Names[0]
 		assert(lhsIdent.Obj.Kind == ast.Var, "should be Var", __func__)
 		var rhsMeta ir.MetaExpr
-		var t types.GoType
+		var t types.Type
 		if spec.Type != nil { // var x T = e
 			// walkExpr(spec.Type, nil) // Do we need walk type ?s
 			t = E2T(spec.Type)
@@ -2483,7 +2483,7 @@ const SizeOfUint16 int = 2
 const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
-func GetSizeOfType2(t types.GoType) int {
+func GetSizeOfType2(t types.Type) int {
 	t = t.Underlying()
 	t = t.Underlying()
 	switch Kind2(t) {
@@ -2517,7 +2517,7 @@ func GetSizeOfType2(t types.GoType) int {
 	return 0
 }
 
-func GetSizeOfType(t types.GoType) int {
+func GetSizeOfType(t types.Type) int {
 	return GetSizeOfType2(t)
 }
 
@@ -2550,7 +2550,7 @@ func EvalInt(expr ast.Expr) int {
 	panic(fmt.Sprintf("Unknown type:%T", expr))
 }
 
-func SerializeType(goType types.GoType, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
+func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName string) string {
 	switch g := goType.(type) {
 	case *types.Basic:
 		return g.Name()
@@ -2558,35 +2558,31 @@ func SerializeType(goType types.GoType, showPkgPrefix bool, showOnlyForeignPrefi
 		if g.PkgName == "" && g.String() == "error" {
 			return "error"
 		}
-		if showPkgPrefix {
-			if showOnlyForeignPrefix {
-				if g.PkgName == currentPkgName {
-					return g.String()
-				} else {
-					if g.PkgName != "" {
-						return g.PkgName + "." + g.String()
-					} else {
-						return g.String()
-					}
-				}
+		if showOnlyForeignPrefix {
+			if g.PkgName == currentPkgName {
+				return g.String()
 			} else {
-				return g.PkgName + "." + g.String()
+				if g.PkgName != "" {
+					return g.PkgName + "." + g.String()
+				} else {
+					return g.String()
+				}
 			}
 		} else {
-			return g.String()
+			return g.PkgName + "." + g.String()
 		}
 	case *types.Pointer:
-		return "*" + SerializeType(g.Elem(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		return "*" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 	case *types.Array:
-		return "[" + strconv.Itoa(g.Len()) + "]" + SerializeType(g.Elem(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		return "[" + strconv.Itoa(g.Len()) + "]" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 	case *types.Slice:
 		if g.Elp {
-			return "..." + SerializeType(g.Elem(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+			return "..." + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 		} else {
-			return "[]" + SerializeType(g.Elem(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+			return "[]" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 		}
 	case *types.Map:
-		return "map[" + SerializeType(g.Key(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName) + "]" + SerializeType(g.Elem(), showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		return "map[" + SerializeType(g.Key(), showOnlyForeignPrefix, currentPkgName) + "]" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 	case *types.Func:
 		return "func()"
 	case *types.Struct:
@@ -2595,7 +2591,7 @@ func SerializeType(goType types.GoType, showPkgPrefix bool, showOnlyForeignPrefi
 			for _, field := range g.Fields {
 				name := field.Name
 				typ := field.Typ
-				r += fmt.Sprintf("%s %s; ", name, SerializeType(typ, showPkgPrefix, showOnlyForeignPrefix, currentPkgName))
+				r += fmt.Sprintf("%s %s; ", name, SerializeType(typ, showOnlyForeignPrefix, currentPkgName))
 			}
 		}
 		return r + "}"
@@ -2605,13 +2601,13 @@ func SerializeType(goType types.GoType, showPkgPrefix bool, showOnlyForeignPrefi
 		}
 		r := "interface{ "
 		for _, m := range g.Methods {
-			mdcl := RestoreMethodDecl(m, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+			mdcl := RestoreMethodDecl(m, showOnlyForeignPrefix, currentPkgName)
 			r += mdcl + "; "
 		}
 		r += " }"
 		return r
 	}
-	panic(fmt.Sprintf("@TBI: GoType=%T", goType))
+	panic(fmt.Sprintf("@TBI: Type=%T", goType))
 	return ""
 }
 
@@ -2624,7 +2620,7 @@ func FuncTypeToSignature(funcType *ast.FuncType) *ir.Signature {
 	}
 }
 
-func RestoreMethodDecl(m *types.Func, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
+func RestoreMethodDecl(m *types.Func, showOnlyForeignPrefix bool, currentPkgName string) string {
 	var p string
 	var r string
 	name := m.Name
@@ -2639,7 +2635,7 @@ func RestoreMethodDecl(m *types.Func, showPkgPrefix bool, showOnlyForeignPrefix 
 			if p != "" {
 				p += ","
 			}
-			p += SerializeType(t, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+			p += SerializeType(t, showOnlyForeignPrefix, currentPkgName)
 		}
 	}
 
@@ -2649,7 +2645,7 @@ func RestoreMethodDecl(m *types.Func, showPkgPrefix bool, showOnlyForeignPrefix 
 			if r != "" {
 				r += ","
 			}
-			r += SerializeType(t, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+			r += SerializeType(t, showOnlyForeignPrefix, currentPkgName)
 		}
 	}
 
@@ -2657,20 +2653,20 @@ func RestoreMethodDecl(m *types.Func, showPkgPrefix bool, showOnlyForeignPrefix 
 	return decl
 }
 
-func RestoreFuncDecl(fnc *ir.Func, showPkgPrefix bool, showOnlyForeignPrefix bool, currentPkgName string) string {
+func RestoreFuncDecl(fnc *ir.Func, showOnlyForeignPrefix bool, currentPkgName string) string {
 	var p string
 	var r string
 	for _, t := range fnc.Signature.ParamTypes {
 		if p != "" {
 			p += ","
 		}
-		p += SerializeType(t, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		p += SerializeType(t, showOnlyForeignPrefix, currentPkgName)
 	}
 	for _, t := range fnc.Signature.ReturnTypes {
 		if r != "" {
 			r += ","
 		}
-		r += SerializeType(t, showPkgPrefix, showOnlyForeignPrefix, currentPkgName)
+		r += SerializeType(t, showOnlyForeignPrefix, currentPkgName)
 	}
 	var m string
 	var star string
@@ -2686,21 +2682,21 @@ func RestoreFuncDecl(fnc *ir.Func, showPkgPrefix bool, showOnlyForeignPrefix boo
 
 func NewLenMapSignature(arg0 ir.MetaExpr) *ir.Signature {
 	return &ir.Signature{
-		ParamTypes:  []types.GoType{types.Int},
-		ReturnTypes: []types.GoType{GetTypeOf(arg0)},
+		ParamTypes:  []types.Type{types.Int},
+		ReturnTypes: []types.Type{GetTypeOf(arg0)},
 	}
 }
 
-func NewAppendSignature(elmType types.GoType) *ir.Signature {
+func NewAppendSignature(elmType types.Type) *ir.Signature {
 	return &ir.Signature{
-		ParamTypes:  []types.GoType{types.GGeneralSliceType, elmType},
-		ReturnTypes: []types.GoType{types.GGeneralSliceType},
+		ParamTypes:  []types.Type{types.GGeneralSliceType, elmType},
+		ReturnTypes: []types.Type{types.GGeneralSliceType},
 	}
 }
 
 func NewDeleteSignature(arg0 ir.MetaExpr) *ir.Signature {
 	return &ir.Signature{
-		ParamTypes:  []types.GoType{GetTypeOf(arg0), types.EmptyInterface},
+		ParamTypes:  []types.Type{GetTypeOf(arg0), types.EmptyInterface},
 		ReturnTypes: nil,
 	}
 }
@@ -2723,15 +2719,15 @@ type ITabEntry struct {
 	Id          int
 	DSerialized string
 	ISeralized  string
-	Itype       types.GoType
-	Dtype       types.GoType
+	Itype       types.Type
+	Dtype       types.Type
 	Label       string
 }
 
 // "**[1][]*int" => ".dtype.8"
-func RegisterDtype(dtype types.GoType, itype types.GoType) {
-	ds := SerializeType(dtype, true, false, "")
-	is := SerializeType(itype, true, false, "")
+func RegisterDtype(dtype types.Type, itype types.Type) {
+	ds := SerializeType(dtype, false, "")
+	is := SerializeType(itype, false, "")
 
 	key := ds + "-" + is
 	_, ok := ITab[key]
@@ -2752,9 +2748,9 @@ func RegisterDtype(dtype types.GoType, itype types.GoType) {
 	ITabID++
 }
 
-func GetITabEntry(d types.GoType, i types.GoType) *ITabEntry {
-	ds := SerializeType(d, true, false, "")
-	is := SerializeType(i, true, false, "")
+func GetITabEntry(d types.Type, i types.Type) *ITabEntry {
+	ds := SerializeType(d, false, "")
+	is := SerializeType(i, false, "")
 	key := ds + "-" + is
 	ent, ok := ITab[key]
 	if !ok {
@@ -2763,7 +2759,7 @@ func GetITabEntry(d types.GoType, i types.GoType) *ITabEntry {
 	return ent
 }
 
-func GetInterfaceMethods(iType types.GoType) []*types.Func {
+func GetInterfaceMethods(iType types.Type) []*types.Func {
 	ut := iType.Underlying()
 	it, ok := ut.(*types.Interface)
 	if !ok {

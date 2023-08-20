@@ -92,7 +92,7 @@ func emitPopSlice() {
 	printf("  popq %%rdx # slice.cap\n")
 }
 
-func emitPushStackTop(t types.GoType, offset int, comment string) {
+func emitPushStackTop(t types.Type, offset int, comment string) {
 	knd := sema.Kind2(t)
 	switch knd {
 	case types.T_STRING:
@@ -130,7 +130,7 @@ func emitAddConst(addValue int, comment string) {
 }
 
 // "Load" means copy data from memory to registers
-func emitLoadAndPush(t types.GoType) {
+func emitLoadAndPush(t types.Type) {
 	assert(t != nil, "type should not be nil", __func__)
 	emitPopAddress(string(sema.Kind2(t)))
 	switch sema.Kind2(t) {
@@ -262,7 +262,7 @@ func emitAddr(meta ir.MetaExpr) {
 }
 
 // explicit conversion T(e)
-func emitConversion(toType types.GoType, arg0 ir.MetaExpr) {
+func emitConversion(toType types.Type, arg0 ir.MetaExpr) {
 	emitComment(2, "[emitConversion]\n")
 	fromType := sema.GetTypeOf(arg0)
 	fromKind := sema.Kind2(fromType)
@@ -310,7 +310,7 @@ func emitIfcConversion(ic *ir.IfcConversion) {
 	emitConvertToInterface(sema.GetTypeOf(ic.Value), ic.Type)
 }
 
-func emitZeroValue(t types.GoType) {
+func emitZeroValue(t types.Type) {
 	switch sema.Kind2(t) {
 	case types.T_SLICE:
 		printf("  pushq $0 # slice cap\n")
@@ -481,7 +481,7 @@ func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
 //	slc.cap
 //	r
 //	--
-func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.GoType, returnTypes []types.GoType) {
+func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.Type, returnTypes []types.Type) {
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 	var totalParamSize int
 	var offsets []int
@@ -526,7 +526,7 @@ func emitAllocReturnVarsAreaFF(ff *ir.Func) {
 	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
 }
 
-func getTotalSizeOfType(ts []types.GoType) int {
+func getTotalSizeOfType(ts []types.Type) int {
 	var r int
 	for _, t := range ts {
 		r += sema.GetSizeOfType2(t)
@@ -542,7 +542,7 @@ func emitCallFF(ff *ir.Func) {
 	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, rtypes)
 }
 
-func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []types.GoType) {
+func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []types.Type) {
 	if fv.IsDirect {
 		if fv.Symbol == "" {
 			panic("callq target must not be empty")
@@ -595,7 +595,7 @@ func emitReturnStmt(meta *ir.MetaReturnStmt) {
 }
 
 // caller
-func emitFreeAndPushReturnedValue(returnTypes []types.GoType) {
+func emitFreeAndPushReturnedValue(returnTypes []types.Type) {
 	switch len(returnTypes) {
 	case 0:
 		// do nothing
@@ -1137,7 +1137,7 @@ func emitExpr(meta ir.MetaExpr) {
 }
 
 // convert stack top value to interface
-func emitConvertToInterface(fromType types.GoType, toType types.GoType) {
+func emitConvertToInterface(fromType types.Type, toType types.Type) {
 	emitComment(2, "ConversionToInterface\n")
 	if sema.HasIfcMethod(toType) {
 		emitComment(2, "@@@ toType has methods\n")
@@ -1200,7 +1200,7 @@ func emitCompareDtypes() {
 	printf("  %s:\n", labelEnd)
 }
 
-func emitDtypeLabelAddr(d types.GoType, i types.GoType) {
+func emitDtypeLabelAddr(d types.Type, i types.Type) {
 	de := sema.GetITabEntry(d, i)
 	dtypeLabel := de.Label
 	sr := de.DSerialized
@@ -1217,7 +1217,7 @@ func emitAddrForMapSet(indexExpr *ir.MetaIndexExpr) {
 	emitCallDirect("runtime.getAddrForMapSet", args, ir.RuntimeGetAddrForMapSetSignature)
 }
 
-func emitListElementAddr(list ir.MetaExpr, elmType types.GoType) {
+func emitListElementAddr(list ir.MetaExpr, elmType types.Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
 	printf("  popq %%rcx # index id\n")
@@ -1249,7 +1249,7 @@ func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
 		emitExpr(right) // right
 		emitCallFF(ff)
 	} else {
-		// Assuming 64 bit types.GoType (int, pointer, map, etc)
+		// Assuming 64 bit types.Type (int, pointer, map, etc)
 		//var t = GetTypeOfExpr(left)
 		emitExpr(left)  // left
 		emitExpr(right) // right
@@ -1260,7 +1260,7 @@ func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
 
 }
 
-// @TODO handle larger types.GoType than int
+// @TODO handle larger types.Type than int
 func emitCompExpr(inst string) {
 	printf("  popq %%rcx # right\n")
 	printf("  popq %%rax # left\n")
@@ -1307,7 +1307,7 @@ func emitPop(knd types.TypeKind) {
 	}
 }
 
-func emitStore(t types.GoType, rhsTop bool, pushLhs bool) {
+func emitStore(t types.Type, rhsTop bool, pushLhs bool) {
 	knd := sema.Kind2(t)
 	emitComment(2, "emitStore(%s)\n", knd)
 	if rhsTop {
@@ -1325,7 +1325,7 @@ func emitStore(t types.GoType, rhsTop bool, pushLhs bool) {
 	emitRegiToMem(t)
 }
 
-func emitRegiToMem(t types.GoType) {
+func emitRegiToMem(t types.Type) {
 	printf("  popq %%rsi # place to save\n")
 	k := sema.Kind2(t)
 	switch k {
@@ -1358,7 +1358,7 @@ func emitRegiToMem(t types.GoType) {
 	}
 }
 
-func emitAssignZeroValue(lhs ir.MetaExpr, lhsType types.GoType) {
+func emitAssignZeroValue(lhs ir.MetaExpr, lhsType types.Type) {
 	emitComment(2, "emitAssignZeroValue\n")
 	emitComment(2, "lhs addresss\n")
 	emitAddr(lhs)
@@ -1961,7 +1961,7 @@ func emitStmt(meta ir.MetaStmt) {
 	}
 }
 
-func emitRevertStackTop(t types.GoType) {
+func emitRevertStackTop(t types.Type) {
 	printf("  addq $%d, %%rsp # revert stack top\n", sema.GetSizeOfType2(t))
 }
 
@@ -2002,7 +2002,7 @@ func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	printf("  ret\n")
 }
 
-func emitZeroData(t types.GoType) {
+func emitZeroData(t types.Type) {
 	for i := 0; i < sema.GetSizeOfType(t); i++ {
 		printf("  .byte 0 # zero value\n")
 	}
@@ -2101,18 +2101,18 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 	// Type, Con, Var, Func
 	for _, typ := range pkg.Types {
 		ut := typ.Underlying()
-		utAsString := sema.SerializeType(ut, true, true, pkg.Name)
+		utAsString := sema.SerializeType(ut, true, pkg.Name)
 		named := typ.(*types.Named)
 		fmt.Fprintf(fout, "type %s %s\n", named.String(), utAsString)
 	}
 	for _, vr := range pkg.Vars {
-		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, true, true, pkg.Name))
+		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, true, pkg.Name))
 	}
 	for _, cnst := range pkg.Consts {
-		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type, true, true, pkg.Name), sema.GetConstRawValue(cnst.MetaVal))
+		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type, true, pkg.Name), sema.GetConstRawValue(cnst.MetaVal))
 	}
 	for _, fnc := range pkg.Funcs {
-		fmt.Fprintf(fout, "%s\n", sema.RestoreFuncDecl(fnc, true, true, pkg.Name))
+		fmt.Fprintf(fout, "%s\n", sema.RestoreFuncDecl(fnc, true, pkg.Name))
 	}
 
 	fout.Close()
@@ -2178,7 +2178,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 }
 
 func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
-	printf("# ------- Dynamic types.GoType (len = %d)------\n", len(itab))
+	printf("# ------- Dynamic types.Type (len = %d)------\n", len(itab))
 	printf(".data\n")
 
 	entries := make([]string, len(itab)+1, len(itab)+1)

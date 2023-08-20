@@ -22,43 +22,43 @@ const T_POINTER TypeKind = "T_POINTER"
 const T_MAP TypeKind = "T_MAP"
 
 // --- universal types ---
-var Bool GoType = &Basic{
+var Bool Type = &Basic{
 	Knd:  GBool,
 	name: "bool",
 }
 
-var Int GoType = &Basic{
+var Int Type = &Basic{
 	Knd:  GInt,
 	name: "int",
 }
 
 // Rune
-var Int32 GoType = &Basic{
+var Int32 Type = &Basic{
 	Knd:  GInt32,
 	name: "int32",
 }
 
-var Uintptr GoType = &Basic{
+var Uintptr Type = &Basic{
 	Knd:  GUintptr,
 	name: "uintptr",
 }
 
-var Uint8 GoType = &Basic{
+var Uint8 Type = &Basic{
 	Knd:  GUint8,
 	name: "uint8",
 }
 
-var Uint16 GoType = &Basic{
+var Uint16 Type = &Basic{
 	Knd:  GUint16,
 	name: "uint16",
 }
-var String GoType = &Basic{
+var String Type = &Basic{
 	Knd:  GString,
 	name: "string",
 }
 
-var EmptyInterface GoType = &Interface{}
-var GGeneralSliceType GoType = &Slice{}
+var EmptyInterface Type = &Interface{}
+var GGeneralSliceType Type = &Slice{}
 
 const GBool = 1
 const GInt = 2
@@ -79,10 +79,10 @@ const GComplex128 = 16
 const GString = 17
 const GUnsafePointer = 18
 
-// GoType emulates go/types.Type
-type GoType interface {
+// Type emulates go/types.Type
+type Type interface {
 	// Underlying returns the underlying type of a type.
-	Underlying() GoType
+	Underlying() Type
 
 	// String returns a string representation of a type.
 	String() string
@@ -99,76 +99,76 @@ func (b *Basic) Kind() int { return b.Knd }
 // Name returns the Name of basic type b.
 func (b *Basic) Name() string { return b.name }
 
-func (t *Basic) Underlying() GoType { return t }
-func (b *Basic) String() string     { return b.name }
+func (t *Basic) Underlying() Type { return t }
+func (b *Basic) String() string   { return b.name }
 
 // An Array represents an array type.
 type Array struct {
 	len  int
-	elem GoType
+	elem Type
 }
 
 // NewArray returns a new array type for the given element type and length.
 // A negative length indicates an unknown length.
-func NewArray(elem GoType, len int) *Array { return &Array{len: len, elem: elem} }
+func NewArray(elem Type, len int) *Array { return &Array{len: len, elem: elem} }
 
 // Len returns the length of array a.
 // A negative result indicates an unknown length.
 func (a *Array) Len() int { return a.len }
 
 // Elem returns element type of array a.
-func (a *Array) Elem() GoType { return a.elem }
+func (a *Array) Elem() Type { return a.elem }
 
-func (t *Array) Underlying() GoType { return t }
-func (t *Array) String() string     { return "@TBI" }
+func (t *Array) Underlying() Type { return t }
+func (t *Array) String() string   { return "@TBI" }
 
 type Slice struct {
-	elem GoType
+	elem Type
 	Elp  bool
 }
 
 // NewSlice returns a new slice type for the given element type.
-func NewSlice(elem GoType) *Slice { return &Slice{elem: elem} }
+func NewSlice(elem Type) *Slice { return &Slice{elem: elem} }
 
-// Elem returns the element GoType of slice s.
-func (s *Slice) Elem() GoType { return s.elem }
+// Elem returns the element Type of slice s.
+func (s *Slice) Elem() Type { return s.elem }
 
-func (t *Slice) Underlying() GoType { return t }
-func (t *Slice) String() string     { return "@TBI" }
+func (t *Slice) Underlying() Type { return t }
+func (t *Slice) String() string   { return "@TBI" }
 
 // A Pointer represents a pointer type.
 type Pointer struct {
-	base GoType // element GoType
+	base Type // element Type
 }
 
-// NewPointer returns a new pointer GoType for the given element (base) GoType.
-func NewPointer(elem GoType) *Pointer { return &Pointer{base: elem} }
+// NewPointer returns a new pointer Type for the given element (base) Type.
+func NewPointer(elem Type) *Pointer { return &Pointer{base: elem} }
 
-// Elem returns the element GoType for the given pointer p.
-func (p *Pointer) Elem() GoType { return p.base }
+// Elem returns the element Type for the given pointer p.
+func (p *Pointer) Elem() Type { return p.base }
 
-func (t *Pointer) Underlying() GoType { return t }
-func (t *Pointer) String() string     { return "@TBI" }
+func (t *Pointer) Underlying() Type { return t }
+func (t *Pointer) String() string   { return "@TBI" }
 
 // A Map represents a map type.
 type Map struct {
-	key  GoType
-	elem GoType
+	key  Type
+	elem Type
 }
 
 // NewMap returns a new map for the given key and element types.
-func NewMap(key GoType, elem GoType) *Map {
+func NewMap(key Type, elem Type) *Map {
 	return &Map{key: key, elem: elem}
 }
 
 // Key returns the key type of map m.
-func (m *Map) Key() GoType { return m.key }
+func (m *Map) Key() Type { return m.key }
 
 // Elem returns the element type of map m.
-func (m *Map) Elem() GoType { return m.elem }
+func (m *Map) Elem() Type { return m.elem }
 
-func (t *Map) Underlying() GoType { return t }
-func (t *Map) String() string     { return "@TBI" }
+func (t *Map) Underlying() Type { return t }
+func (t *Map) String() string   { return "@TBI" }
 
 type Interface struct {
 	Methods []*Func
@@ -182,11 +182,11 @@ func NewInterfaceType(methods []*Func) *Interface {
 	return i
 }
 
-func (t *Interface) Underlying() GoType { return t }
-func (t *Interface) String() string     { return "@TBI" }
+func (t *Interface) Underlying() Type { return t }
+func (t *Interface) String() string   { return "@TBI" }
 
 type Func struct {
-	Typ  GoType
+	Typ  Type
 	Name string
 }
 
@@ -196,27 +196,27 @@ func NewFunc(sig *Signature) *Func {
 	}
 }
 
-func (t *Func) Underlying() GoType { return t.Typ }
-func (t *Func) String() string     { return t.Typ.String() }
+func (t *Func) Underlying() Type { return t.Typ }
+func (t *Func) String() string   { return t.Typ.String() }
 
 type Tuple struct {
-	Types []GoType
+	Types []Type
 }
 
-func (t *Tuple) Underlying() GoType { return t }
-func (t *Tuple) String() string     { return "@TBI" }
+func (t *Tuple) Underlying() Type { return t }
+func (t *Tuple) String() string   { return "@TBI" }
 
 type Signature struct {
 	Params  *Tuple
 	Results *Tuple
 }
 
-func (t *Signature) Underlying() GoType { return t }
-func (t *Signature) String() string     { return "@TBI" }
+func (t *Signature) Underlying() Type { return t }
+func (t *Signature) String() string   { return "@TBI" }
 
 type Var struct {
 	Name string
-	Typ  GoType
+	Typ  Type
 }
 
 type Struct struct {
@@ -231,21 +231,21 @@ func NewStruct(fields []*Var, astFields []*ast.Field) *Struct {
 	}
 }
 
-func (t *Struct) Underlying() GoType { return t }
-func (t *Struct) String() string     { return "@TBI" }
+func (t *Struct) Underlying() Type { return t }
+func (t *Struct) String() string   { return "@TBI" }
 
 type Named struct {
 	name        string
-	Uunderlying GoType
+	Uunderlying Type
 	PkgName     string
 }
 
-func NewNamed(name string, typ GoType) *Named {
+func NewNamed(name string, typ Type) *Named {
 	return &Named{
 		name:        name,
 		Uunderlying: typ,
 	}
 }
 
-func (t *Named) Underlying() GoType { return t.Uunderlying }
-func (t *Named) String() string     { return t.name }
+func (t *Named) Underlying() Type { return t.Uunderlying }
+func (t *Named) String() string   { return t.name }
