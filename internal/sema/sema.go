@@ -326,7 +326,7 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 	return r
 }
 
-func GetTupleTypes2(rhsMeta ir.MetaExpr) []types.Type {
+func GetTupleTypes(rhsMeta ir.MetaExpr) []types.Type {
 	if IsOkSyntax(rhsMeta) {
 		return []types.Type{GetTypeOf(rhsMeta), types.Bool}
 	} else {
@@ -482,9 +482,9 @@ func GetArrayLen(t types.Type) int {
 	return arrayType.Len()
 }
 
-func Kind2(gType types.Type) types.TypeKind {
+func Kind(gType types.Type) types.TypeKind {
 	if gType == nil {
-		panic(fmt.Sprintf("[Kind2] Unexpected nil:\n"))
+		panic(fmt.Sprintf("[Kind] Unexpected nil:\n"))
 	}
 
 	switch gt := gType.(type) {
@@ -531,16 +531,16 @@ func Kind2(gType types.Type) types.TypeKind {
 			panic(fmt.Sprintf("nil is not expected: NamedType %s\n", gt.String()))
 		}
 		//t := &types.Type: ut}
-		return Kind2(ut)
+		return Kind(ut)
 	default:
-		panic(fmt.Sprintf("[Kind2] Unexpected type: %T\n", gType))
+		panic(fmt.Sprintf("[Kind] Unexpected type: %T\n", gType))
 		//panicPos(fmt.Sprintf("Unexpected type %T\n", gType), t.E.Pos())
 	}
 	return "UNKNOWN_KIND"
 }
 
 func IsInterface(t types.Type) bool {
-	return Kind2(t) == types.T_INTERFACE
+	return Kind(t) == types.T_INTERFACE
 }
 
 func HasIfcMethod(t types.Type) bool {
@@ -559,7 +559,7 @@ func HasIfcMethod(t types.Type) bool {
 	return false
 }
 
-func GetElementTypeOfCollectionType2(t types.Type) types.Type {
+func GetElementTypeOfCollectionType(t types.Type) types.Type {
 	ut := t.Underlying()
 	switch gt := ut.(type) {
 	case *types.Array:
@@ -578,21 +578,21 @@ func GetElementTypeOfCollectionType2(t types.Type) types.Type {
 	panic("Unexpected type")
 }
 
-func getKeyTypeOfCollectionType2(t types.Type) types.Type {
+func getKeyTypeOfCollectionType(t types.Type) types.Type {
 	ut := t.Underlying().Underlying()
-	switch Kind2(ut) {
+	switch Kind(ut) {
 	case types.T_SLICE, types.T_ARRAY, types.T_STRING:
 		return types.Int
 	case types.T_MAP:
 		mapType := ut.(*types.Map)
 		return mapType.Key()
 	default:
-		unexpectedKind(Kind2(ut))
+		unexpectedKind(Kind(ut))
 	}
 	return nil
 }
 
-func LookupStructField2(structType *types.Struct, selName string) *ast.Field {
+func LookupStructField(structType *types.Struct, selName string) *ast.Field {
 	for i, field := range structType.Fields {
 		if field.Name == selName {
 			return structType.AstFields[i]
@@ -604,7 +604,7 @@ func LookupStructField2(structType *types.Struct, selName string) *ast.Field {
 
 func registerParamVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
-	size := GetSizeOfType2(t)
+	size := GetSizeOfType(t)
 	fnc.Argsarea += size
 	fnc.Params = append(fnc.Params, vr)
 	return vr
@@ -612,7 +612,7 @@ func registerParamVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable
 
 func registerReturnVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
-	size := GetSizeOfType2(t)
+	size := GetSizeOfType(t)
 	fnc.Argsarea += size
 	fnc.Retvars = append(fnc.Retvars, vr)
 	return vr
@@ -620,7 +620,7 @@ func registerReturnVariable(fnc *ir.Func, name string, t types.Type) *ir.Variabl
 
 func registerLocalVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable {
 	assert(t != nil, "type of local var should not be nil", __func__)
-	fnc.Localarea -= GetSizeOfType2(t)
+	fnc.Localarea -= GetSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
 	fnc.LocalVars = append(fnc.LocalVars, vr)
 	return vr
@@ -868,7 +868,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &ir.EvalContext{MaybeOK: maybeOkContext})
 			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
-			rhsTypes := GetTupleTypes2(rhsMeta)
+			rhsTypes := GetTupleTypes(rhsMeta)
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
 			var lhsMetas []ir.MetaExpr
@@ -913,7 +913,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &ir.EvalContext{MaybeOK: maybeOkContext})
 			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
-			rhsTypes := GetTupleTypes2(rhsMeta)
+			rhsTypes := GetTupleTypes(rhsMeta)
 			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
 
 			lhsTypes := rhsTypes
@@ -975,7 +975,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			panic("syntax error in return statement")
 		}
 		m := walkExpr(funcall, nil)
-		tupleTypes := GetTupleTypes2(m)
+		tupleTypes := GetTupleTypes(m)
 		assert(len(funcDef.Retvars) == len(tupleTypes), "number of return exprs should match", __func__)
 		var lhss []ir.MetaExpr
 		for _, v := range funcDef.Retvars {
@@ -1084,10 +1084,10 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 	metaX := walkExpr(s.X, nil)
 
 	collectionType := GetTypeOf(metaX).Underlying()
-	keyType := getKeyTypeOfCollectionType2(collectionType)
-	elmType := GetElementTypeOfCollectionType2(collectionType)
+	keyType := getKeyTypeOfCollectionType(collectionType)
+	elmType := GetElementTypeOfCollectionType(collectionType)
 	//walkExpr(types.Int.E, nil)
-	switch Kind2(collectionType) {
+	switch Kind(collectionType) {
 	case types.T_SLICE, types.T_ARRAY:
 		meta.ForRangeStmt = &ir.MetaForRangeStmt{
 			Tpos:     s.Pos(),
@@ -1515,7 +1515,7 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, *ast.Field, i
 			structTypeLiteral, isStruct = ut.(*types.Struct)
 			if isStruct {
 				util.Logf("    Looking up field '%s' from named struct '%s'\n", selName, namedType.String())
-				field := LookupStructField2(structTypeLiteral, selName)
+				field := LookupStructField(structTypeLiteral, selName)
 				if field != nil {
 					util.Logf("    Found field '%s'\n", field.Names[0].Name)
 					offset := GetStructFieldOffset(field)
@@ -1551,7 +1551,7 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, *ast.Field, i
 		return types[0], nil, 0, false
 	}
 
-	field := LookupStructField2(structTypeLiteral, selName)
+	field := LookupStructField(structTypeLiteral, selName)
 	if field != nil {
 		offset := GetStructFieldOffset(field)
 		return E2T(field.Type), field, offset, needDeref
@@ -1576,8 +1576,8 @@ func walkConversion(pos token.Pos, toType types.Type, arg0 ir.MetaExpr) ir.MetaE
 		Arg0: arg0,
 	}
 	fromType := GetTypeOf(arg0)
-	fromKind := Kind2(fromType)
-	toKind := Kind2(toType)
+	fromKind := Kind(fromType)
+	toKind := Kind(toType)
 	if toKind == types.T_INTERFACE && fromKind != types.T_INTERFACE {
 		RegisterDtype(fromType, toType)
 	}
@@ -1751,14 +1751,14 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			method := LookupMethod(receiverType, fn.Sel.Name)
 			funcVal = NewFuncValueFromSymbol(GetMethodSymbol(method))
 			funcVal.MethodName = fn.Sel.Name
-			if Kind2(receiverType) == types.T_POINTER {
+			if Kind(receiverType) == types.T_POINTER {
 				if method.IsPtrMethod {
 					// p.mp() => as it is
 				} else {
 					// p.mv()
 					panic("TBI 4190")
 				}
-			} else if Kind2(receiverType) == types.T_INTERFACE {
+			} else if Kind(receiverType) == types.T_INTERFACE {
 				funcVal.IfcMethodCal = true
 				funcVal.IfcType = receiverType
 				funcVal.IsDirect = false
@@ -1857,7 +1857,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 	typ := E2T(e.Type)
 	ut := typ.Underlying()
 	var knd string
-	switch Kind2(ut) {
+	switch Kind(ut) {
 	case types.T_STRUCT:
 		knd = "struct"
 	case types.T_ARRAY:
@@ -1865,7 +1865,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 	case types.T_SLICE:
 		knd = "slice"
 	default:
-		unexpectedKind(Kind2(typ))
+		unexpectedKind(Kind(typ))
 	}
 	meta := &ir.MetaCompositLit{
 		Tpos: e.Pos(),
@@ -1873,7 +1873,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		Type: typ,
 	}
 
-	switch Kind2(ut) {
+	switch Kind(ut) {
 	case types.T_STRUCT:
 		structType := meta.Type
 		var metaElms []*ir.MetaStructLiteralElement
@@ -1882,7 +1882,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 			fieldName := kvExpr.Key.(*ast.Ident)
 
 			strcctT := structType.Underlying().(*types.Struct)
-			field := LookupStructField2(strcctT, fieldName.Name)
+			field := LookupStructField(strcctT, fieldName.Name)
 			fieldType := E2T(field.Type)
 			ctx := &ir.EvalContext{Type: fieldType}
 			// attach type to nil : STRUCT{Key:nil}
@@ -1987,14 +1987,14 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *ir.EvalContext) *ir.MetaIndexExpr {
 	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	meta.X = walkExpr(e.X, nil)
 	collectionTyp := GetTypeOf(meta.X)
-	if Kind2(collectionTyp) == types.T_MAP {
+	if Kind(collectionTyp) == types.T_MAP {
 		meta.IsMap = true
 		if ctx != nil && ctx.MaybeOK {
 			meta.NeedsOK = true
 		}
 	}
 
-	meta.Type = GetElementTypeOfCollectionType2(collectionTyp)
+	meta.Type = GetElementTypeOfCollectionType(collectionTyp)
 	return meta
 }
 
@@ -2025,11 +2025,11 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *ir.EvalContext) *ir.MetaSliceExpr {
 	}
 	meta.X = walkExpr(e.X, nil)
 	listType := GetTypeOf(meta.X)
-	if Kind2(listType) == types.T_STRING {
+	if Kind(listType) == types.T_STRING {
 		// str2 = str1[n:m]
 		meta.Type = types.String
 	} else {
-		elmType := GetElementTypeOfCollectionType2(listType)
+		elmType := GetElementTypeOfCollectionType(listType)
 		slc := types.NewSlice(elmType)
 		meta.Type = slc
 	}
@@ -2229,11 +2229,11 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		gt := t.(*types.Named)
 		gt.PkgName = pkg.Name
 		typs = append(typs, gt)
-		switch Kind2(t) {
+		switch Kind(t) {
 		case types.T_STRUCT:
 			//structType := GetUnderlyingType(t)
 			st := t.Underlying().Underlying()
-			calcStructSizeAndSetFieldOffset2(st.(*types.Struct))
+			calcStructSizeAndSetFieldOffset(st.(*types.Struct))
 			//			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		case types.T_INTERFACE:
 			// register ifc method
@@ -2476,10 +2476,10 @@ const SizeOfUint16 int = 2
 const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
-func GetSizeOfType2(t types.Type) int {
+func GetSizeOfType(t types.Type) int {
 	t = t.Underlying()
 	t = t.Underlying()
-	switch Kind2(t) {
+	switch Kind(t) {
 	case types.T_SLICE:
 		return SizeOfSlice
 	case types.T_STRING:
@@ -2498,27 +2498,23 @@ func GetSizeOfType2(t types.Type) int {
 		return SizeOfInterface
 	case types.T_ARRAY:
 		arrayType := t.(*types.Array)
-		elmSize := GetSizeOfType2(arrayType.Elem())
+		elmSize := GetSizeOfType(arrayType.Elem())
 		return elmSize * arrayType.Len()
 	case types.T_STRUCT:
-		return calcStructSizeAndSetFieldOffset2(t.(*types.Struct))
+		return calcStructSizeAndSetFieldOffset(t.(*types.Struct))
 	case types.T_FUNC:
 		return SizeOfPtr
 	default:
-		unexpectedKind(Kind2(t))
+		unexpectedKind(Kind(t))
 	}
 	return 0
 }
 
-func GetSizeOfType(t types.Type) int {
-	return GetSizeOfType2(t)
-}
-
-func calcStructSizeAndSetFieldOffset2(structType *types.Struct) int {
+func calcStructSizeAndSetFieldOffset(structType *types.Struct) int {
 	var offset int = 0
 	for i, field := range structType.Fields {
 		setStructFieldOffset(structType.AstFields[i], offset)
-		size := GetSizeOfType2(field.Typ)
+		size := GetSizeOfType(field.Typ)
 		offset += size
 	}
 	return offset
