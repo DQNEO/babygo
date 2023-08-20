@@ -90,12 +90,8 @@ type argAndParamType struct {
 	ParamType types.GoType // expected type
 }
 
-func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool) []*argAndParamType {
-	if funcType == nil {
-		panic("no funcType")
-	}
+func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
 	var args []*astArgAndParam
-	params := funcType.Params.List
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
 	var variadicElmType ast.Expr
 	var param *ast.Field
@@ -126,7 +122,6 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 
 	if variadicElmType != nil && !expandElipsis {
 		// collect args as a slice
-		pos := funcType.Pos()
 		sliceType := &ast.ArrayType{
 			Elt:    variadicElmType,
 			Lbrack: pos,
@@ -151,7 +146,7 @@ func prepareArgsAndParams(funcType *ast.FuncType, receiver ir.MetaExpr, eArgs []
 		iNil := &ast.Ident{
 			Obj:     universe.Nil,
 			Name:    "nil",
-			NamePos: funcType.Pos(),
+			NamePos: pos,
 		}
 		//		exprTypeMeta[unsafe.Pointer(iNil)] = E2T(elp)
 		args = append(args, &astArgAndParam{
@@ -1823,7 +1818,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		meta.Type = G2T(meta.Types[0])
 	}
 	meta.FuncVal = funcVal
-	argsAndParams := prepareArgsAndParams(funcType, receiverMeta, e.Args, meta.HasEllipsis)
+	argsAndParams := prepareArgsAndParams(funcType.Params.List, receiverMeta, e.Args, meta.HasEllipsis, e.Pos())
 	var paramTypes []types.GoType
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
