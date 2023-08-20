@@ -127,13 +127,12 @@ func prepareArgsAndParams(paramTypes []types.Type, receiver ir.MetaExpr, eArgs [
 			ms = append(ms, mc)
 		}
 		mc := &ir.MetaCompositLit{
-			Tpos:           pos,
-			Type:           sliceType,
-			Kind:           "slice",
-			StructElements: nil,
-			Len:            len(variadicArgs),
-			ElmType:        sliceType.Elem(),
-			Elms:           ms,
+			Tpos:    pos,
+			Type:    sliceType,
+			Kind:    "slice",
+			Len:     len(variadicArgs),
+			ElmType: sliceType.Elem(),
+			Elms:    ms,
 		}
 
 		metaArgs = append(metaArgs, &argAndParamType{
