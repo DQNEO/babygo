@@ -9,7 +9,7 @@ import (
 	"github.com/DQNEO/babygo/lib/strconv"
 )
 
-const Version string = "0.3.0"
+const Version string = "0.4.0"
 
 const ProgName string = "babygo"
 
