@@ -6,7 +6,6 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
-	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -372,7 +371,6 @@ func E2T(typeExpr ast.Expr) types.Type {
 			switch dcl := t.Obj.Decl.(type) {
 			case *ast.TypeSpec:
 				typeSpec := dcl
-				//util.Logf("[E2T] type %s\n", typeSpec.Name.Name)
 				gt := types.NewNamed(typeSpec.Name.Name, nil)
 				if typeSpec.Name.Obj.Data != nil {
 					gt.PkgName = typeSpec.Name.Obj.Data.(string)
@@ -457,7 +455,6 @@ func E2T(typeExpr ast.Expr) types.Type {
 		if t.Results != nil {
 			sig.Results = FieldList2Tuple(t.Results)
 		}
-		//util.Logf("%s:[E2T] handling *ast.FuncType\n", Fset.Position(t.Pos()).String())
 		return types.NewFunc(sig)
 	case *ast.ParenExpr:
 		typeExpr = t.X
@@ -718,7 +715,6 @@ func registerMethod(pkgName string, method *ir.Method) {
 		}
 		namedTypes[namedTypeId] = namedType
 	}
-	//util.Logf("registerMethod: pkg=%s namedTypeId=%s namedType=%s\n", pkgName, namedTypeId, method.RcvNamedType.Obj.Name)
 	namedType.MethodSet[method.Name] = method
 }
 
@@ -746,7 +742,6 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 		} else {
 			pkgName := typ.PkgName
 			namedTypeId = pkgName + "." + typ.String()
-			//util.Logf("[LookupMethod] ident: namedTypeId=%s\n", namedTypeId)
 		}
 	default:
 		panic("Unexpected type")
@@ -1452,7 +1447,6 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		meta.IsQI = true
 		// pkg.ident
 		qi := Selector2QI(e)
-		util.Logf("qi=%s\n", string(qi))
 		meta.QI = qi
 		ei := LookupForeignIdent(qi, e.Pos())
 		if ei.Func != nil { // fun
@@ -1468,14 +1462,11 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		}
 	} else {
 		// expr.field
-		util.Logf("  selector: (%T).%s\n", e.X, e.Sel.Name)
 		meta.X = walkExpr(e.X, ctx)
-		util.Logf("  selector: (%T).%s\n", meta.X, e.Sel.Name)
 		typ, isField, offset, needDeref := getTypeOfSelector(meta.X, e.Sel.Name)
 		if typ == nil {
 			panicPos("Selector type should not be nil", e.Pos())
 		}
-		util.Logf("  selector type is %T\n", typ)
 		meta.Type = typ
 		if isField {
 			// struct.field
@@ -1558,9 +1549,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	meta.HasEllipsis = e.Ellipsis != token.NoPos
 
 	// function call
-	util.Logf("%s:---------\n", Fset.Position(e.Pos()).String())
 	metaFun := walkExpr(e.Fun, nil)
-	util.Logf("metaFun=%T\n", metaFun)
 
 	// Replace __func__ ident by a string literal
 	//for i, arg := range meta.args {
@@ -1737,7 +1726,6 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	}
 
 	funcType := GetTypeOf(metaFun)
-	util.Logf("funcType=%T\n", funcType)
 	ft, ok := funcType.(*types.Func)
 	if !ok {
 		panicPos("Unexpected type:"+funcType.String(), metaFun.Pos())
