@@ -1544,11 +1544,6 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, *ast.Field, i
 		}
 		gt := E2T(funcType)
 		return gt, nil, 0, false
-		if funcType.Results == nil || len(funcType.Results.List) == 0 {
-			return nil, nil, 0, false
-		}
-		types := FieldList2GoTypes(funcType.Results)
-		return types[0], nil, 0, false
 	}
 
 	field := LookupStructField(structTypeLiteral, selName)
