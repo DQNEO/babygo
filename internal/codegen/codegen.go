@@ -92,8 +92,9 @@ func emitPopSlice() {
 	printf("  popq %%rdx # slice.cap\n")
 }
 
-func emitPushStackTop(condType *types.Type, offset int, comment string) {
-	switch sema.Kind(condType) {
+func emitPushStackTop(t types.Type, offset int, comment string) {
+	knd := sema.Kind(t)
+	switch knd {
 	case types.T_STRING:
 		printf("  movq %d+8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", offset, comment)
 		printf("  movq %d+0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", offset, comment)
@@ -103,7 +104,7 @@ func emitPushStackTop(condType *types.Type, offset int, comment string) {
 		printf("  movq %d(%%rsp), %%rax # copy stack top value (%s) \n", offset, comment)
 		printf("  pushq %%rax\n")
 	default:
-		unexpectedKind(sema.Kind(condType))
+		unexpectedKind(knd)
 	}
 }
 
@@ -129,7 +130,7 @@ func emitAddConst(addValue int, comment string) {
 }
 
 // "Load" means copy data from memory to registers
-func emitLoadAndPush(t *types.Type) {
+func emitLoadAndPush(t types.Type) {
 	assert(t != nil, "type should not be nil", __func__)
 	emitPopAddress(string(sema.Kind(t)))
 	switch sema.Kind(t) {
@@ -261,7 +262,7 @@ func emitAddr(meta ir.MetaExpr) {
 }
 
 // explicit conversion T(e)
-func emitConversion(toType *types.Type, arg0 ir.MetaExpr) {
+func emitConversion(toType types.Type, arg0 ir.MetaExpr) {
 	emitComment(2, "[emitConversion]\n")
 	fromType := sema.GetTypeOfExpr(arg0)
 	fromKind := sema.Kind(fromType)
@@ -309,7 +310,7 @@ func emitIfcConversion(ic *ir.IfcConversion) {
 	emitConvertToInterface(sema.GetTypeOfExpr(ic.Value), ic.Type)
 }
 
-func emitZeroValue(t *types.Type) {
+func emitZeroValue(t types.Type) {
 	switch sema.Kind(t) {
 	case types.T_SLICE:
 		printf("  pushq $0 # slice cap\n")
@@ -357,13 +358,14 @@ func emitLen(arg ir.MetaExpr) {
 		emitCallDirect("runtime.lenMap", []ir.MetaExpr{arg}, sig)
 
 	default:
-		unexpectedKind(sema.Kind(sema.GetTypeOfExpr(arg)))
+		unexpectedKind(sema.Kind(t))
 	}
 }
 
 func emitCap(arg ir.MetaExpr) {
 	t := sema.GetTypeOfExpr(arg)
-	switch sema.Kind(t) {
+	knd := sema.Kind(t)
+	switch knd {
 	case types.T_ARRAY:
 		arrayLen := sema.GetArrayLen(t)
 		printf("  pushq $%d # array len\n", arrayLen)
@@ -374,7 +376,7 @@ func emitCap(arg ir.MetaExpr) {
 	case types.T_STRING:
 		panic("cap() cannot accept string type")
 	default:
-		unexpectedKind(sema.Kind(sema.GetTypeOfExpr(arg)))
+		unexpectedKind(knd)
 	}
 }
 
@@ -403,7 +405,7 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 		emitExpr(metaElm.Value)
 
 		// assign
-		emitStore(metaElm.FieldType, true, false)
+		emitStore(metaElm.Type, true, false)
 	}
 }
 
@@ -477,7 +479,7 @@ func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
 //	slc.cap
 //	r
 //	--
-func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, returnTypes []*types.Type) {
+func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.Type, returnTypes []types.Type) {
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 	var totalParamSize int
 	var offsets []int
@@ -518,24 +520,27 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []*types.Type, re
 }
 
 func emitAllocReturnVarsAreaFF(ff *ir.Func) {
-	emitAllocReturnVarsArea(getTotalSizeOfType(ff.Signature.ReturnTypes))
+	rtypes := (ff.Signature.ReturnTypes)
+	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
 }
 
-func getTotalSizeOfType(types []*types.Type) int {
+func getTotalSizeOfType(ts []types.Type) int {
 	var r int
-	for _, t := range types {
+	for _, t := range ts {
 		r += sema.GetSizeOfType(t)
 	}
 	return r
 }
 
 func emitCallFF(ff *ir.Func) {
-	totalParamSize := getTotalSizeOfType(ff.Signature.ParamTypes)
+	ptypes := (ff.Signature.ParamTypes)
+	rtypes := (ff.Signature.ReturnTypes)
+	totalParamSize := getTotalSizeOfType(ptypes)
 	symbol := ff.PkgName + "." + ff.Name
-	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, ff.Signature.ReturnTypes)
+	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, rtypes)
 }
 
-func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) {
+func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []types.Type) {
 	if fv.IsDirect {
 		if fv.Symbol == "" {
 			panic("callq target must not be empty")
@@ -550,7 +555,7 @@ func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []*types.Type) 
 			var methodId int
 			methods := sema.GetInterfaceMethods(fv.IfcType)
 			for i, m := range methods {
-				if m.Names[0].Name == fv.MethodName {
+				if m.Name == fv.MethodName {
 					methodId = i
 				}
 			}
@@ -588,7 +593,7 @@ func emitReturnStmt(meta *ir.MetaReturnStmt) {
 }
 
 // caller
-func emitFreeAndPushReturnedValue(returnTypes []*types.Type) {
+func emitFreeAndPushReturnedValue(returnTypes []types.Type) {
 	switch len(returnTypes) {
 	case 0:
 		// do nothing
@@ -644,8 +649,8 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	sliceArg := m.Arg0
 	elemArg := m.Arg1
-	elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
-	elmSize := sema.GetSizeOfType(elmType)
+	elmTypeG := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
+	elmSize := sema.GetSizeOfType(elmTypeG)
 
 	var symbol string
 	switch elmSize {
@@ -660,6 +665,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	default:
 		throw(elmSize)
 	}
+	elmType := sema.GetElementTypeOfCollectionType(sema.GetTypeOfExpr(sliceArg))
 	arg1 := sema.CheckIfcConversion(m.Pos(), elemArg, elmType)
 	args := []ir.MetaExpr{sliceArg, arg1}
 	sig := sema.NewAppendSignature(elmType)
@@ -670,7 +676,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 
 func emitMetaCallPanic(m *ir.MetaCallPanic) {
 	funcVal := "runtime.panic"
-	arg0 := sema.CheckIfcConversion(m.Pos(), m.Arg0, types.Eface)
+	arg0 := sema.CheckIfcConversion(m.Pos(), m.Arg0, types.EmptyInterface)
 	args := []ir.MetaExpr{arg0}
 	emitCallDirect(funcVal, args, ir.BuiltinPanicSignature)
 	return
@@ -1106,7 +1112,9 @@ func emitExpr(meta ir.MetaExpr) {
 	case *ir.MetaConversionExpr:
 		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:
-		emitCall(m.FuncVal, m.Args, m.ParamTypes, m.Types) // can be Tuple
+		rtypes := m.Types
+		mtypes := m.ParamTypes
+		emitCall(m.FuncVal, m.Args, mtypes, rtypes) // can be Tuple
 	case *ir.MetaIndexExpr:
 		emitIndexExpr(m) // can be Tuple
 	case *ir.MetaSliceExpr:
@@ -1127,7 +1135,7 @@ func emitExpr(meta ir.MetaExpr) {
 }
 
 // convert stack top value to interface
-func emitConvertToInterface(fromType *types.Type, toType *types.Type) {
+func emitConvertToInterface(fromType types.Type, toType types.Type) {
 	emitComment(2, "ConversionToInterface\n")
 	if sema.HasIfcMethod(toType) {
 		emitComment(2, "@@@ toType has methods\n")
@@ -1190,8 +1198,8 @@ func emitCompareDtypes() {
 	printf("  %s:\n", labelEnd)
 }
 
-func emitDtypeLabelAddr(t *types.Type, it *types.Type) {
-	de := sema.GetITabEntry(t, it)
+func emitDtypeLabelAddr(d types.Type, i types.Type) {
+	de := sema.GetITabEntry(d, i)
 	dtypeLabel := de.Label
 	sr := de.DSerialized
 	printf("  leaq %s(%%rip), %%rax # dtype label address \"%s\"\n", dtypeLabel, sr)
@@ -1207,7 +1215,7 @@ func emitAddrForMapSet(indexExpr *ir.MetaIndexExpr) {
 	emitCallDirect("runtime.getAddrForMapSet", args, ir.RuntimeGetAddrForMapSetSignature)
 }
 
-func emitListElementAddr(list ir.MetaExpr, elmType *types.Type) {
+func emitListElementAddr(list ir.MetaExpr, elmType types.Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
 	printf("  popq %%rcx # index id\n")
@@ -1239,7 +1247,7 @@ func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
 		emitExpr(right) // right
 		emitCallFF(ff)
 	} else {
-		// Assuming 64 bit types (int, pointer, map, etc)
+		// Assuming 64 bit types.Type (int, pointer, map, etc)
 		//var t = GetTypeOfExpr(left)
 		emitExpr(left)  // left
 		emitExpr(right) // right
@@ -1250,7 +1258,7 @@ func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
 
 }
 
-// @TODO handle larger Types than int
+// @TODO handle larger types.Type than int
 func emitCompExpr(inst string) {
 	printf("  popq %%rcx # right\n")
 	printf("  popq %%rax # left\n")
@@ -1297,7 +1305,7 @@ func emitPop(knd types.TypeKind) {
 	}
 }
 
-func emitStore(t *types.Type, rhsTop bool, pushLhs bool) {
+func emitStore(t types.Type, rhsTop bool, pushLhs bool) {
 	knd := sema.Kind(t)
 	emitComment(2, "emitStore(%s)\n", knd)
 	if rhsTop {
@@ -1315,7 +1323,7 @@ func emitStore(t *types.Type, rhsTop bool, pushLhs bool) {
 	emitRegiToMem(t)
 }
 
-func emitRegiToMem(t *types.Type) {
+func emitRegiToMem(t types.Type) {
 	printf("  popq %%rsi # place to save\n")
 	k := sema.Kind(t)
 	switch k {
@@ -1348,7 +1356,7 @@ func emitRegiToMem(t *types.Type) {
 	}
 }
 
-func emitAssignZeroValue(lhs ir.MetaExpr, lhsType *types.Type) {
+func emitAssignZeroValue(lhs ir.MetaExpr, lhsType types.Type) {
 	emitComment(2, "emitAssignZeroValue\n")
 	emitComment(2, "lhs addresss\n")
 	emitAddr(lhs)
@@ -1785,7 +1793,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 	// subjectVariable = subject
 	emitVariableAddr(meta.SubjectVariable)
 	emitExpr(meta.Subject)
-	emitStore(types.Eface, true, false)
+	emitStore(types.EmptyInterface, true, false)
 
 	cases := meta.Cases
 	var labels = make([]string, len(cases), len(cases))
@@ -1851,7 +1859,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 
 				// push rhs
 				emitVariableAddr(meta.SubjectVariable)
-				emitLoadAndPush(types.Eface)
+				emitLoadAndPush(types.EmptyInterface)
 				printf("  popq %%rax # ifc.dtype\n")
 				printf("  popq %%rcx # ifc.data\n")
 				printf("  pushq %%rcx # ifc.data\n")
@@ -1951,7 +1959,7 @@ func emitStmt(meta ir.MetaStmt) {
 	}
 }
 
-func emitRevertStackTop(t *types.Type) {
+func emitRevertStackTop(t types.Type) {
 	printf("  addq $%d, %%rsp # revert stack top\n", sema.GetSizeOfType(t))
 }
 
@@ -1992,7 +2000,7 @@ func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	printf("  ret\n")
 }
 
-func emitZeroData(t *types.Type) {
+func emitZeroData(t types.Type) {
 	for i := 0; i < sema.GetSizeOfType(t); i++ {
 		printf("  .byte 0 # zero value\n")
 	}
@@ -2084,24 +2092,25 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 	}
 
 	fmt.Fprintf(fout, "package %s\n", pkg.Name)
-
 	// list import
 	for _, im := range pkg.Imports {
 		fmt.Fprintf(fout, "import \"%s\"\n", im)
 	}
 	// Type, Con, Var, Func
 	for _, typ := range pkg.Types {
-		ut := sema.GetUnderlyingType(typ)
-		fmt.Fprintf(fout, "type %s %s\n", typ.Name, sema.SerializeType(ut, false))
+		ut := typ.Underlying()
+		utAsString := sema.SerializeType(ut, true, pkg.Name)
+		named := typ.(*types.Named)
+		fmt.Fprintf(fout, "type %s %s\n", named.String(), utAsString)
 	}
 	for _, vr := range pkg.Vars {
-		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, false))
+		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, true, pkg.Name))
 	}
 	for _, cnst := range pkg.Consts {
-		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type, false), sema.GetConstRawValue(cnst.MetaVal))
+		fmt.Fprintf(fout, "const %s %s = %s\n", cnst.Name.Name, sema.SerializeType(cnst.Type, true, pkg.Name), sema.GetConstRawValue(cnst.MetaVal))
 	}
 	for _, fnc := range pkg.Funcs {
-		fmt.Fprintf(fout, "%s\n", sema.RestoreFuncDecl(fnc))
+		fmt.Fprintf(fout, "%s\n", sema.RestoreFuncDecl(fnc, true, pkg.Name))
 	}
 
 	fout.Close()
@@ -2191,20 +2200,20 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 
 		methods := sema.GetInterfaceMethods(ent.Itype)
 		if len(methods) == 0 {
-			printf("  # no methods for %s\n", sema.SerializeType(ent.Itype, true))
+			printf("  # no methods\n")
 		}
 		for mi, m := range methods {
-			dmethod := sema.LookupMethod(ent.Dtype, m.Names[0])
+			dmethod := sema.LookupMethod(ent.Dtype, m.Name)
 			sym := sema.GetMethodSymbol(dmethod)
-			printf("  .quad .method_name_%d_%d # %s \n", id, mi, m.Names[0].Name)
-			printf("  .quad %d # method name len\n", len(m.Names[0].Name))
-			printf("  .quad %s # method ref %s\n", sym, m.Names[0].Name)
+			printf("  .quad .method_name_%d_%d # %s \n", id, mi, m.Name)
+			printf("  .quad %d # method name len\n", len(m.Name))
+			printf("  .quad %s # method ref %s\n", sym, m.Name)
 		}
 		printf("  .quad 0 # End of methods\n")
 
 		for mi, m := range methods {
 			printf(".method_name_%d_%d:\n", id, mi)
-			printf("  .string \"%s\"\n", m.Names[0].Name)
+			printf("  .string \"%s\"\n", m.Name)
 		}
 	}
 	printf("\n")

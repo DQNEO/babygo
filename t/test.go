@@ -19,6 +19,14 @@ import (
 	"github.com/DQNEO/babygo/lib/strings"
 )
 
+type MyIfc interface {
+	M() MyIfc
+}
+
+type MySelfRefStruct struct {
+	M *MySelfRefStruct
+}
+
 func hello_defer() {
 	writeln("hello defer")
 }
@@ -517,10 +525,10 @@ func testAssignIncDec() {
 	fmt.Printf("i=%d\n", i)
 }
 
-type Type = mylib.Type
+//type Type = mylib.Type
 
 func testTypeAlias() {
-	var mt *Type = &Type{
+	var mt *mylib.Type = &mylib.Type{
 		Field: 216,
 	}
 	fmt.Printf("mt.field=%d\n", mt.Field)
