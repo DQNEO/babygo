@@ -1491,67 +1491,37 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bool) {
 	// (strct).field | (ptr).field | (obj).method
 	var needDeref bool
-	typeOfLeft := GetTypeOf(x)
-	utLeft := typeOfLeft.Underlying().Underlying()
+	typeOfX := GetTypeOf(x)
+	utX := typeOfX.Underlying().Underlying()
 	var structTypeLiteral *types.Struct
-	util.Logf("  X type =%T\n", utLeft)
-	switch typ := utLeft.(type) {
+	switch typ := utX.(type) {
 	case *types.Struct: // strct.field | strct.method
 		structTypeLiteral = typ
-
 	case *types.Pointer: // ptr.field | ptr.method
 		needDeref = true
 		origType := typ.Elem()
-		util.Logf("    Pointer of %T\n", origType)
 		namedType, isNamed := origType.(*types.Named)
-		if !isNamed {
-			structTypeLiteral = origType.Underlying().(*types.Struct)
-		} else {
-			util.Logf("    Pointer of named type %s\n", namedType.String())
+		if isNamed {
 			ut := namedType.Underlying()
-			util.Logf("      underlying type is %T\n", ut)
 			var isStruct bool
 			structTypeLiteral, isStruct = ut.(*types.Struct)
-			if isStruct {
-				util.Logf("    Looking up field '%s' from named struct '%s'\n", selName, namedType.String())
-				field := LookupStructField(structTypeLiteral, selName)
-				if field != nil {
-					util.Logf("    Found field '%s'\n", field.Names[0].Name)
-					offset := GetStructFieldOffset(field)
-					return E2T(field.Type), true, offset, needDeref
-				} else {
-					util.Logf("    Field not Found\n")
-					util.Logf("    Lookup method '%s' from named struct '%s'\n", selName, namedType.String())
-					method := LookupMethod(typeOfLeft, selName)
-					util.Logf("    Found method '%s'\n", method.Name)
-					funcType := method.FuncType
-					return E2T(funcType), false, 0, needDeref
-				}
-			} else {
-				typeOfLeft = origType
-				util.Logf("    Lookup method '%s' from named type '%s'\n", selName, namedType.String())
-				method := LookupMethod(namedType, selName)
-				return E2T(method.FuncType), false, 0, needDeref
+			if !isStruct {
+				typeOfX = origType
 			}
+		} else {
+			structTypeLiteral = origType.Underlying().(*types.Struct)
 		}
-	default: // obj.method
-		method := LookupMethod(typeOfLeft, selName)
-		return E2T(method.FuncType), false, 0, needDeref
 	}
 
-	field := LookupStructField(structTypeLiteral, selName)
-	if field != nil {
-		offset := GetStructFieldOffset(field)
-		return E2T(field.Type), true, offset, needDeref
-	} else {
-		util.Logf("    Field not Found\n")
-		util.Logf("    Lookup method '%s' from named type '%s'\n", selName, typeOfLeft.String())
-		// try to find method
-		method := LookupMethod(typeOfLeft, selName)
-		return E2T(method.FuncType), false, 0, needDeref
+	if structTypeLiteral != nil {
+		field := LookupStructField(structTypeLiteral, selName)
+		if field != nil {
+			offset := GetStructFieldOffset(field)
+			return E2T(field.Type), true, offset, needDeref
+		}
 	}
-
-	panic("Bad type")
+	method := LookupMethod(typeOfX, selName)
+	return E2T(method.FuncType), false, 0, needDeref
 }
 
 func walkConversion(pos token.Pos, toType types.Type, arg0 ir.MetaExpr) ir.MetaExpr {
