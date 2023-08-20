@@ -58,7 +58,7 @@ var String Type = &Basic{
 }
 
 var EmptyInterface Type = &Interface{}
-var GGeneralSliceType Type = &Slice{}
+var GeneralSliceType Type = &Slice{}
 
 const GBool = 1
 const GInt = 2
@@ -123,8 +123,8 @@ func (t *Array) Underlying() Type { return t }
 func (t *Array) String() string   { return "@TBI" }
 
 type Slice struct {
-	elem Type
-	Elp  bool
+	elem    Type
+	IsEllip bool
 }
 
 // NewSlice returns a new slice type for the given element type.
@@ -172,7 +172,6 @@ func (t *Map) String() string   { return "@TBI" }
 
 type Interface struct {
 	Methods []*Func
-	//EMethods *ast.FieldList
 }
 
 func NewInterfaceType(methods []*Func) *Interface {
@@ -235,17 +234,17 @@ func (t *Struct) Underlying() Type { return t }
 func (t *Struct) String() string   { return "@TBI" }
 
 type Named struct {
-	name        string
-	Uunderlying Type
-	PkgName     string
+	name    string
+	UT      Type
+	PkgName string
 }
 
 func NewNamed(name string, typ Type) *Named {
 	return &Named{
-		name:        name,
-		Uunderlying: typ,
+		name: name,
+		UT:   typ,
 	}
 }
 
-func (t *Named) Underlying() Type { return t.Uunderlying }
+func (t *Named) Underlying() Type { return t.UT }
 func (t *Named) String() string   { return t.name }

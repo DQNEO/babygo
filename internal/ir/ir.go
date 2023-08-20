@@ -494,7 +494,7 @@ var RuntimeMakeMapSignature = &Signature{
 
 var RuntimeMakeSliceSignature = &Signature{
 	ParamTypes:  []types.Type{types.Int, types.Int, types.Int},
-	ReturnTypes: []types.Type{types.GGeneralSliceType},
+	ReturnTypes: []types.Type{types.GeneralSliceType},
 }
 
 var RuntimeGetAddrForMapGetSignature = &Signature{

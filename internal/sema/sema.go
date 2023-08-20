@@ -95,7 +95,7 @@ func prepareArgsAndParams(params []types.Type, receiver ir.MetaExpr, eArgs []ast
 		if argIndex < lenParams {
 			param = params[argIndex]
 			slc, isSlice := param.(*types.Slice)
-			if isSlice && slc.Elp {
+			if isSlice && slc.IsEllip {
 				variadicElmType = slc.Elem()
 				variadicArgs = make([]ast.Expr, 0, 20)
 			}
@@ -146,7 +146,7 @@ func prepareArgsAndParams(params []types.Type, receiver ir.MetaExpr, eArgs []ast
 		// Add nil as a variadic arg
 		p := params[len(metaArgs)]
 		elp := p.(*types.Slice)
-		assert(elp.Elp, "should be Ellipsis", __func__)
+		assert(elp.IsEllip, "should be Ellipsis", __func__)
 		paramType := types.NewSlice(elp.Elem())
 		iNil := &ast.Ident{
 			Obj:     universe.Nil,
@@ -380,7 +380,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 				inNamed = typeSpec.Name.Name
 				inNamedType = gt
 				ut := E2T(typeSpec.Type)
-				gt.Uunderlying = ut
+				gt.UT = ut
 				inNamedType = nil
 				inNamed = ""
 				return gt
@@ -431,7 +431,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 		return types.NewPointer(E2T(t.X))
 	case *ast.Ellipsis:
 		slc := types.NewSlice(E2T(t.Elt))
-		slc.Elp = true
+		slc.IsEllip = true
 		return slc
 	case *ast.MapType:
 		return types.NewMap(E2T(t.Key), E2T(t.Value))
@@ -2565,7 +2565,7 @@ func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName
 	case *types.Array:
 		return "[" + strconv.Itoa(g.Len()) + "]" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 	case *types.Slice:
-		if g.Elp {
+		if g.IsEllip {
 			return "..." + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 		} else {
 			return "[]" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
@@ -2676,8 +2676,8 @@ func NewLenMapSignature(arg0 ir.MetaExpr) *ir.Signature {
 
 func NewAppendSignature(elmType types.Type) *ir.Signature {
 	return &ir.Signature{
-		ParamTypes:  []types.Type{types.GGeneralSliceType, elmType},
-		ReturnTypes: []types.Type{types.GGeneralSliceType},
+		ParamTypes:  []types.Type{types.GeneralSliceType, elmType},
+		ReturnTypes: []types.Type{types.GeneralSliceType},
 	}
 }
 
