@@ -642,7 +642,6 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ir.Method {
 // https://golang.org/ref/spec#Method_sets
 var namedTypes = make(map[string]*ir.NamedType)
 
-// @TODO: enable to register ifc method
 func registerMethod(pkgName string, method *ir.Method) {
 	namedTypeId := pkgName + "." + method.RcvNamedType.Name
 	namedType, ok := namedTypes[namedTypeId]
@@ -655,7 +654,6 @@ func registerMethod(pkgName string, method *ir.Method) {
 	namedType.MethodSet[method.Name] = method
 }
 
-// @TODO: enable to lookup ifc method
 func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 	rcvPointerType, isPtr := rcvT.(*types.Pointer)
 	if isPtr {
