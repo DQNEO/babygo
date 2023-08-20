@@ -257,7 +257,6 @@ type MetaSelectorExpr struct {
 	ForeignValue   MetaExpr
 
 	// for struct field
-	Field     *ast.Field
 	Offset    int
 	NeedDeref bool
 }

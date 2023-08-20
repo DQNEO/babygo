@@ -1471,15 +1471,14 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		util.Logf("  selector: (%T).%s\n", e.X, e.Sel.Name)
 		meta.X = walkExpr(e.X, ctx)
 		util.Logf("  selector: (%T).%s\n", meta.X, e.Sel.Name)
-		typ, field, offset, needDeref := getTypeOfSelector(meta.X, e.Sel.Name)
+		typ, isField, offset, needDeref := getTypeOfSelector(meta.X, e.Sel.Name)
 		if typ == nil {
 			panicPos("Selector type should not be nil", e.Pos())
 		}
 		util.Logf("  selector type is %T\n", typ)
 		meta.Type = typ
-		if field != nil {
+		if isField {
 			// struct.field
-			meta.Field = field
 			meta.Offset = offset
 			meta.NeedDeref = needDeref
 		}
@@ -1489,7 +1488,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 	return meta
 }
 
-func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, *ast.Field, int, bool) {
+func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bool) {
 	// (strct).field | (ptr).field | (obj).method
 	var needDeref bool
 	typeOfLeft := GetTypeOf(x)
@@ -1519,21 +1518,21 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, *ast.Field, i
 				if field != nil {
 					util.Logf("    Found field '%s'\n", field.Names[0].Name)
 					offset := GetStructFieldOffset(field)
-					return E2T(field.Type), field, offset, needDeref
+					return E2T(field.Type), true, offset, needDeref
 				} else {
 					util.Logf("    Field not Found\n")
 					util.Logf("    Lookup method '%s' from named struct '%s'\n", selName, namedType.String())
 					method := LookupMethod(typeOfLeft, selName)
 					util.Logf("    Found method '%s'\n", method.Name)
 					funcType := method.FuncType
-					return E2T(funcType), nil, 0, needDeref
+					return E2T(funcType), false, 0, needDeref
 				}
 			} else {
 				typeOfLeft = origType
 				util.Logf("    Lookup method '%s' from named type '%s'\n", selName, namedType.String())
 				method := LookupMethod(namedType, selName)
 				funcType := method.FuncType
-				return E2T(funcType), nil, 0, needDeref
+				return E2T(funcType), false, 0, needDeref
 			}
 		}
 	default: // obj.method
@@ -1543,13 +1542,13 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, *ast.Field, i
 			panic("funcType should not be nil:" + method.Name)
 		}
 		gt := E2T(funcType)
-		return gt, nil, 0, false
+		return gt, false, 0, false
 	}
 
 	field := LookupStructField(structTypeLiteral, selName)
 	if field != nil {
 		offset := GetStructFieldOffset(field)
-		return E2T(field.Type), field, offset, needDeref
+		return E2T(field.Type), true, offset, needDeref
 	} else {
 		util.Logf("    Field not Found\n")
 		util.Logf("    Lookup method '%s' from named type '%s'\n", selName, typeOfLeft.String())
@@ -1557,7 +1556,7 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, *ast.Field, i
 		method := LookupMethod(typeOfLeft, selName)
 		util.Logf("    Found method '%s'\n", method.Name)
 		funcType := method.FuncType
-		return E2T(funcType), nil, 0, needDeref
+		return E2T(funcType), false, 0, needDeref
 	}
 
 	panic("Bad type")
