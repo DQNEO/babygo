@@ -824,7 +824,8 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 			}
 			rhs := spec.Values[0]
 			rhsMeta = walkExpr(rhs, nil)
-			t = GetTypeOfExpr(rhsMeta)
+			gt := GetTypeOfExpr2(rhsMeta)
+			t = G2T(gt)
 		}
 
 		obj := lhsIdent.Obj
@@ -2304,7 +2305,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			rhsMeta = walkExpr(rhs, ctx)
 		} else { // const x = e
 			rhsMeta = walkExpr(rhs, nil)
-			t = GetTypeOfExpr(rhsMeta)
+			gt := GetTypeOfExpr2(rhsMeta)
+			t = G2T(gt)
 		}
 		// treat package const as global var for now
 
@@ -2364,10 +2366,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 
 			rhs := spec.Values[0]
 			rhsMeta = walkExpr(rhs, nil)
-			t = GetTypeOfExpr(rhsMeta)
-			if t == nil {
-				panic("variable type is not determined : " + lhsIdent.Name)
-			}
+			gt := GetTypeOfExpr2(rhsMeta)
+			t = G2T(gt)
 		}
 
 		variable := newGlobalVariable(pkg.Name, lhsIdent.Obj.Name, t)
