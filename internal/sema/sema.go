@@ -704,6 +704,20 @@ func GetElementTypeOfCollectionType(t *types.Type) *types.Type {
 	return nil
 }
 
+func getKeyTypeOfCollectionType2(t types.GoType) types.GoType {
+	ut := t.Underlying().Underlying()
+	switch Kind2(ut) {
+	case types.T_SLICE, types.T_ARRAY, types.T_STRING:
+		return types.Int.GoType
+	case types.T_MAP:
+		mapType := ut.(*types.Map)
+		return mapType.Key()
+	default:
+		unexpectedKind(Kind2(ut))
+	}
+	return nil
+}
+
 func getKeyTypeOfCollectionType(t *types.Type) *types.Type {
 	ut := GetUnderlyingType(t)
 	switch Kind(ut) {
@@ -1214,7 +1228,7 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 	metaX := walkExpr(s.X, nil)
 
 	collectionType := GetUnderlyingType(GetTypeOfExpr(metaX))
-	keyType := getKeyTypeOfCollectionType(collectionType)
+	keyType := getKeyTypeOfCollectionType2(collectionType.GoType)
 	elmType := GetElementTypeOfCollectionType(collectionType)
 	walkExpr(types.Int.E, nil)
 	switch Kind(collectionType) {
@@ -1246,7 +1260,7 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 	if s.Tok.String() == ":=" {
 		// declare local variables
 		keyIdent := s.Key.(*ast.Ident)
-		SetVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, keyType))
+		SetVariable(keyIdent.Obj, registerLocalVariable(currentFunc, keyIdent.Name, G2T(keyType)))
 
 		valueIdent := s.Value.(*ast.Ident)
 		SetVariable(valueIdent.Obj, registerLocalVariable(currentFunc, valueIdent.Name, elmType))
