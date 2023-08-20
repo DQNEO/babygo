@@ -81,7 +81,7 @@ func isType(expr ast.Expr) bool {
 }
 
 type astArgAndParam struct {
-	e         ast.Expr
+	e         ir.MetaExpr
 	paramType types.GoType // expected type
 }
 
@@ -93,7 +93,7 @@ type argAndParamType struct {
 func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
 	var args []*astArgAndParam
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
-	var variadicElmType ast.Expr
+	var variadicElmType types.GoType
 	var param *ast.Field
 	lenParams := len(params)
 	for argIndex, eArg := range eArgs {
@@ -101,7 +101,7 @@ func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast
 			param = params[argIndex]
 			elp, isEllpsis := param.Type.(*ast.Ellipsis)
 			if isEllpsis {
-				variadicElmType = elp.Elt
+				variadicElmType = E2G(elp.Elt)
 				variadicArgs = make([]ast.Expr, 0, 20)
 			}
 		}
@@ -113,8 +113,10 @@ func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast
 		}
 
 		paramType := E2G(param.Type)
+		ctx := &ir.EvalContext{Type: paramType}
+		m := walkExpr(eArg, ctx)
 		arg := &astArgAndParam{
-			e:         eArg,
+			e:         m,
 			paramType: paramType,
 		}
 		args = append(args, arg)
@@ -122,45 +124,52 @@ func prepareArgsAndParams(params []*ast.Field, receiver ir.MetaExpr, eArgs []ast
 
 	if variadicElmType != nil && !expandElipsis {
 		// collect args as a slice
-		sliceType := &ast.ArrayType{
-			Elt:    variadicElmType,
-			Lbrack: pos,
+		sliceType := types.NewSlice(variadicElmType)
+
+		var ms []ir.MetaExpr
+		ctx := &ir.EvalContext{Type: variadicElmType}
+		for _, v := range variadicArgs {
+			m := walkExpr(v, ctx)
+			mc := CheckIfcConversion(v.Pos(), m, variadicElmType)
+			ms = append(ms, mc)
 		}
-		vargsSliceWrapper := &ast.CompositeLit{
-			Type:   sliceType,
-			Elts:   variadicArgs,
-			Lbrace: pos,
+		mc := &ir.MetaCompositLit{
+			Tpos:           pos,
+			Type:           G2T(sliceType),
+			Kind:           "slice",
+			StructElements: nil,
+			Len:            len(variadicArgs),
+			ElmType:        G2T(sliceType.Elem()),
+			Elms:           ms,
 		}
+
 		args = append(args, &astArgAndParam{
-			e:         vargsSliceWrapper,
-			paramType: E2G(sliceType),
+			e:         mc,
+			paramType: sliceType,
 		})
 	} else if len(args) < len(params) {
 		// Add nil as a variadic arg
 		param := params[len(args)]
-		elp, ok := param.Type.(*ast.Ellipsis)
-		if !ok {
-			panicPos("Should be Ellipsis", param.Type.Pos())
-		}
-		paramType := E2G(elp)
+		elp := param.Type.(*ast.Ellipsis)
+		paramType := types.NewSlice(E2G(elp.Elt))
 		iNil := &ast.Ident{
 			Obj:     universe.Nil,
 			Name:    "nil",
 			NamePos: pos,
 		}
+		ctx := &ir.EvalContext{Type: paramType}
+		m := WalkIdent(iNil, ctx)
 		//		exprTypeMeta[unsafe.Pointer(iNil)] = E2T(elp)
 		args = append(args, &astArgAndParam{
-			e:         iNil,
+			e:         m,
 			paramType: paramType,
 		})
 	}
 
 	var metaArgs []*argAndParamType
 	for _, arg := range args {
-		ctx := &ir.EvalContext{Type: arg.paramType}
-		m := walkExpr(arg.e, ctx)
 		a := &argAndParamType{
-			Meta:      m,
+			Meta:      arg.e,
 			ParamType: arg.paramType,
 		}
 		metaArgs = append(metaArgs, a)
