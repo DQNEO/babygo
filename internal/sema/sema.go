@@ -402,7 +402,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 				ft := E2T(fld.Type)
 				v := &types.Var{
 					Name: fld.Names[0].Name,
-					Typ:  ft,
+					Type: ft,
 				}
 				fields = append(fields, v)
 			}
@@ -2458,7 +2458,7 @@ func calcStructSizeAndSetFieldOffset(structType *types.Struct) int {
 	var offset int = 0
 	for i, field := range structType.Fields {
 		setStructFieldOffset(structType.AstFields[i], offset)
-		size := GetSizeOfType(field.Typ)
+		size := GetSizeOfType(field.Type)
 		offset += size
 	}
 	return offset
@@ -2523,7 +2523,7 @@ func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName
 		if len(g.Fields) > 0 {
 			for _, field := range g.Fields {
 				name := field.Name
-				typ := field.Typ
+				typ := field.Type
 				r += fmt.Sprintf("%s %s; ", name, SerializeType(typ, showOnlyForeignPrefix, currentPkgName))
 			}
 		}

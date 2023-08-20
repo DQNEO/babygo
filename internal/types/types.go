@@ -215,7 +215,7 @@ func (t *Signature) String() string   { return "@TBI" }
 
 type Var struct {
 	Name string
-	Typ  Type
+	Type Type
 }
 
 type Struct struct {
