@@ -525,10 +525,10 @@ func testAssignIncDec() {
 	fmt.Printf("i=%d\n", i)
 }
 
-type Type = mylib.Type
+//type Type = mylib.Type
 
 func testTypeAlias() {
-	var mt *Type = &Type{
+	var mt *mylib.Type = &mylib.Type{
 		Field: 216,
 	}
 	fmt.Printf("mt.field=%d\n", mt.Field)

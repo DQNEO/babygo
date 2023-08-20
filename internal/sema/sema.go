@@ -6,6 +6,7 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
+	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -722,6 +723,16 @@ func getKeyTypeOfCollectionType(t *types.Type) *types.Type {
 	return nil
 }
 
+func LookupStructField2(structType *types.Struct, selName string) *ast.Field {
+	for i, field := range structType.Fields {
+		if field.Name == selName {
+			return structType.AstFields[i]
+		}
+	}
+	//	panicPos("Unexpected flow: struct field not found:  "+selName, structType.Pos())
+	return nil
+}
+
 func LookupStructField(structType *ast.StructType, selName string) *ast.Field {
 	for _, field := range structType.Fields.List {
 		if field.Names[0].Name == selName {
@@ -884,11 +895,11 @@ func LookupMethod(rcvT types.GoType, methodName string) *ir.Method {
 
 	namedType, ok := namedTypes[namedTypeId]
 	if !ok {
-		panic(namedTypeId + " has no methodSet")
+		panic("method not found: " + methodName + " in " + namedTypeId + " (no method set)")
 	}
 	method, ok := namedType.MethodSet[methodName]
 	if !ok {
-		panic("method not found: " + methodName)
+		panic("method not found: " + methodName + " in " + namedTypeId)
 	}
 	return method
 }
@@ -1619,32 +1630,44 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Field, int, bool) {
 	// (strct).field | (ptr).field | (obj).method
 	var needDeref bool
-	typeOfLeft := GetTypeOfExpr(x)
-	utLeft := GetUnderlyingType(typeOfLeft)
-	var structTypeLiteral *ast.StructType
-	switch typ := utLeft.E.(type) {
-	case *ast.StructType: // strct.field
+	typeOfLeft := GetTypeOfExpr2(x)
+	utLeft := typeOfLeft.Underlying().Underlying()
+	var structTypeLiteral *types.Struct
+	switch typ := utLeft.(type) {
+	case *types.Struct: // strct.field
 		structTypeLiteral = typ
-	case *ast.StarExpr: // ptr.field
+	case *types.Pointer: // ptr.field
 		needDeref = true
-		origType := E2T(typ.X)
-		if Kind(origType) == types.T_STRUCT {
-			structTypeLiteral = GetUnderlyingStructType(origType)
+		origType := typ.Elem()
+		_, isNamed := origType.(*types.Named)
+		if !isNamed {
+			structTypeLiteral = origType.Underlying().(*types.Struct)
 		} else {
-			_, isIdent := typ.X.(*ast.Ident)
-			if isIdent {
-				typeOfLeft = origType
-				method := LookupMethod(typeOfLeft.GoType, e.Sel.Name)
-				funcType := method.FuncType
-				if funcType.Results == nil || len(funcType.Results.List) == 0 {
-					return nil, nil, 0, needDeref
+			if isNamed {
+				ut := origType.Underlying()
+				util.Logf("type = %s ut = %T\n", origType.String(), ut)
+				var isStruct bool
+				structTypeLiteral, isStruct = ut.(*types.Struct)
+				if isStruct {
+					field := LookupStructField2(structTypeLiteral, e.Sel.Name)
+					if field != nil {
+						offset := GetStructFieldOffset(field)
+						return E2T(field.Type), field, offset, needDeref
+					}
+				} else {
+					typeOfLeft = origType
+					method := LookupMethod(typeOfLeft, e.Sel.Name)
+					funcType := method.FuncType
+					if funcType.Results == nil || len(funcType.Results.List) == 0 {
+						return nil, nil, 0, needDeref
+					}
+					types := FieldList2Types(funcType.Results)
+					return types[0], nil, 0, needDeref
 				}
-				types := FieldList2Types(funcType.Results)
-				return types[0], nil, 0, needDeref
 			}
 		}
 	default: // obj.method
-		method := LookupMethod(typeOfLeft.GoType, e.Sel.Name)
+		method := LookupMethod(typeOfLeft, e.Sel.Name)
 		funcType := method.FuncType
 		if funcType == nil {
 			panic("funcType should not be nil:" + method.Name)
@@ -1656,13 +1679,13 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 		return types[0], nil, 0, false
 	}
 
-	field := LookupStructField(structTypeLiteral, e.Sel.Name)
+	field := LookupStructField2(structTypeLiteral, e.Sel.Name)
 	if field != nil {
 		offset := GetStructFieldOffset(field)
 		return E2T(field.Type), field, offset, needDeref
 	}
 	if field == nil { // try to find method
-		method := LookupMethod(typeOfLeft.GoType, e.Sel.Name)
+		method := LookupMethod(typeOfLeft, e.Sel.Name)
 		funcType := method.FuncType
 		if funcType.Results == nil || len(funcType.Results.List) == 0 {
 			return nil, nil, 0, needDeref
