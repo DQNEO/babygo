@@ -219,8 +219,8 @@ type Var struct {
 }
 
 type Struct struct {
-	Fields    []*Var // Fields != nil indicates the struct is set up (possibly with len(Fields) == 0)
-	AstFields []*ast.Field
+	Fields    []*Var       // Fields != nil indicates the struct is set up (possibly with len(Fields) == 0)
+	AstFields []*ast.Field // @TODO: Replace this by Fields
 }
 
 func NewStruct(fields []*Var, astFields []*ast.Field) *Struct {
