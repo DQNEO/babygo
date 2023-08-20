@@ -94,7 +94,7 @@ func prepareArgsAndParams(paramTypes []types.Type, receiver ir.MetaExpr, eArgs [
 		if argIndex < lenParams {
 			paramType = paramTypes[argIndex]
 			slc, isSlice := paramType.(*types.Slice)
-			if isSlice && slc.IsEllip {
+			if isSlice && slc.IsElps {
 				variadicElmType = slc.Elem()
 				variadicArgs = make([]ast.Expr, 0, 20)
 			}
@@ -144,7 +144,7 @@ func prepareArgsAndParams(paramTypes []types.Type, receiver ir.MetaExpr, eArgs [
 		// Add nil as a variadic arg
 		p := paramTypes[len(metaArgs)]
 		elp := p.(*types.Slice)
-		assert(elp.IsEllip, "should be Ellipsis", __func__)
+		assert(elp.IsElps, "should be Ellipsis", __func__)
 		paramType := types.NewSlice(elp.Elem())
 		iNil := &ast.Ident{
 			Obj:     universe.Nil,
@@ -385,7 +385,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 		return types.NewPointer(E2T(t.X))
 	case *ast.Ellipsis:
 		slc := types.NewSlice(E2T(t.Elt))
-		slc.IsEllip = true
+		slc.IsElps = true
 		return slc
 	case *ast.MapType:
 		return types.NewMap(E2T(t.Key), E2T(t.Value))
@@ -2464,7 +2464,7 @@ func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName
 	case *types.Array:
 		return "[" + strconv.Itoa(g.Len()) + "]" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 	case *types.Slice:
-		if g.IsEllip {
+		if g.IsElps {
 			return "..." + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 		} else {
 			return "[]" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)

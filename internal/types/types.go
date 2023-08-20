@@ -123,8 +123,8 @@ func (t *Array) Underlying() Type { return t }
 func (t *Array) String() string   { return "@TBI" }
 
 type Slice struct {
-	elem    Type
-	IsEllip bool
+	elem   Type
+	IsElps bool
 }
 
 // NewSlice returns a new slice type for the given element type.
