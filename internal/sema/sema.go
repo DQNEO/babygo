@@ -145,17 +145,16 @@ func prepareArgsAndParams(paramTypes []types.Type, receiver ir.MetaExpr, eArgs [
 		p := paramTypes[len(metaArgs)]
 		elp := p.(*types.Slice)
 		assert(elp.IsElps, "should be Ellipsis", __func__)
-		paramType := types.NewSlice(elp.Elem())
-		iNil := &ast.Ident{
-			Obj:     universe.Nil,
-			Name:    "nil",
-			NamePos: pos,
+		typ := types.NewSlice(elp.Elem())
+		mNil := &ir.MetaIdent{
+			Tpos: pos,
+			Type: typ,
+			Kind: "nil",
+			Name: "nil",
 		}
-		ctx := &ir.EvalContext{Type: paramType}
-		m := WalkIdent(iNil, ctx)
 		metaArgs = append(metaArgs, &argAndParamType{
-			Meta:      m,
-			ParamType: paramType,
+			Meta:      mNil,
+			ParamType: typ,
 		})
 	}
 
