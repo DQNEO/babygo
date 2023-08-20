@@ -1531,18 +1531,12 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bo
 				typeOfLeft = origType
 				util.Logf("    Lookup method '%s' from named type '%s'\n", selName, namedType.String())
 				method := LookupMethod(namedType, selName)
-				funcType := method.FuncType
-				return E2T(funcType), false, 0, needDeref
+				return E2T(method.FuncType), false, 0, needDeref
 			}
 		}
 	default: // obj.method
 		method := LookupMethod(typeOfLeft, selName)
-		funcType := method.FuncType
-		if funcType == nil {
-			panic("funcType should not be nil:" + method.Name)
-		}
-		gt := E2T(funcType)
-		return gt, false, 0, false
+		return E2T(method.FuncType), false, 0, needDeref
 	}
 
 	field := LookupStructField(structTypeLiteral, selName)
@@ -1554,9 +1548,7 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bo
 		util.Logf("    Lookup method '%s' from named type '%s'\n", selName, typeOfLeft.String())
 		// try to find method
 		method := LookupMethod(typeOfLeft, selName)
-		util.Logf("    Found method '%s'\n", method.Name)
-		funcType := method.FuncType
-		return E2T(funcType), false, 0, needDeref
+		return E2T(method.FuncType), false, 0, needDeref
 	}
 
 	panic("Bad type")
