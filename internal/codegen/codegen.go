@@ -670,7 +670,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 	elmType := sema.GetElementTypeOfCollectionType2(sema.GetTypeOf(sliceArg))
 	arg1 := sema.CheckIfcConversion(m.Pos(), elemArg, elmType)
 	args := []ir.MetaExpr{sliceArg, arg1}
-	sig := sema.NewAppendSignature(sema.G2T(elmType))
+	sig := sema.NewAppendSignature(elmType)
 	emitCallDirect(symbol, args, sig)
 	return
 
