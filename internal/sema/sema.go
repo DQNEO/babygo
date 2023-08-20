@@ -595,8 +595,7 @@ func LookupStructField(structType *types.Struct, selName string) *ast.Field {
 			return structType.AstFields[i]
 		}
 	}
-	//	panicPos("Unexpected flow: struct field not found:  "+selName, structType.Pos())
-	return nil
+	return nil // not found is OK. This indicates selName is a method name.
 }
 
 func registerParamVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable {
