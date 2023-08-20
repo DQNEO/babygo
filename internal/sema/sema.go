@@ -1518,7 +1518,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
 		typ, field, offset, needDeref := getTypeOfSelector(meta.X, e)
-		meta.Type = typ
+		meta.Type = G2T(typ)
 		if field != nil {
 			// struct.field
 			meta.Field = field
@@ -1531,7 +1531,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 	return meta
 }
 
-func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Field, int, bool) {
+func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (types.GoType, *ast.Field, int, bool) {
 	// (strct).field | (ptr).field | (obj).method
 	var needDeref bool
 	typeOfLeft := GetTypeOfExpr2(x)
@@ -1556,7 +1556,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 					field := LookupStructField2(structTypeLiteral, e.Sel.Name)
 					if field != nil {
 						offset := GetStructFieldOffset(field)
-						return G2T(E2G(field.Type)), field, offset, needDeref
+						return E2G(field.Type), field, offset, needDeref
 					}
 				} else {
 					typeOfLeft = origType
@@ -1566,7 +1566,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 						return nil, nil, 0, needDeref
 					}
 					types := FieldList2GoTypes(funcType.Results)
-					return G2T(types[0]), nil, 0, needDeref
+					return types[0], nil, 0, needDeref
 				}
 			}
 		}
@@ -1580,13 +1580,13 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 			return nil, nil, 0, false
 		}
 		types := FieldList2GoTypes(funcType.Results)
-		return G2T(types[0]), nil, 0, false
+		return types[0], nil, 0, false
 	}
 
 	field := LookupStructField2(structTypeLiteral, e.Sel.Name)
 	if field != nil {
 		offset := GetStructFieldOffset(field)
-		return E2T(field.Type), field, offset, needDeref
+		return E2G(field.Type), field, offset, needDeref
 	}
 	if field == nil { // try to find method
 		method := LookupMethod(typeOfLeft, e.Sel.Name)
@@ -1595,7 +1595,7 @@ func getTypeOfSelector(x ir.MetaExpr, e *ast.SelectorExpr) (*types.Type, *ast.Fi
 			return nil, nil, 0, needDeref
 		}
 		types := FieldList2GoTypes(funcType.Results)
-		return G2T(types[0]), field, 0, needDeref
+		return types[0], field, 0, needDeref
 	}
 
 	panic("Bad type")
