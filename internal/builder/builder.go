@@ -6,7 +6,6 @@ import (
 
 	"github.com/DQNEO/babygo/internal/compiler"
 	"github.com/DQNEO/babygo/internal/sema"
-	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
 	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
@@ -20,10 +19,10 @@ import (
 
 func init() {
 	// Check object addresses
-	tIdent := types.Int.E.(*ast.Ident)
-	if tIdent.Obj != universe.Int {
-		panic("object mismatch")
-	}
+	//tIdent := types.Int.E.(*ast.Ident)
+	//if tIdent.Obj != universe.Int {
+	//	panic("object mismatch")
+	//}
 
 }
 

@@ -533,11 +533,6 @@ func GetArrayLen(t types.GoType) int {
 	return arrayType.Len()
 }
 
-func GetUnderlyingStructType(t *types.Type) *ast.StructType {
-	ut := GetUnderlyingType(t)
-	return ut.E.(*ast.StructType)
-}
-
 func GetUnderlyingType(t *types.Type) *types.Type {
 	if t == nil {
 		panic("nil type is not expected")
