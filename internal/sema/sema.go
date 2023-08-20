@@ -343,14 +343,6 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 	return r
 }
 
-func TypesToGoTypes(ts []*types.Type) []types.GoType {
-	var r []types.GoType
-	for _, t := range ts {
-		r = append(r, t.GoType)
-	}
-	return r
-}
-
 func GetTupleTypes2(rhsMeta ir.MetaExpr) []types.GoType {
 	if IsOkSyntax(rhsMeta) {
 		return []types.GoType{GetTypeOfExpr2(rhsMeta), types.Bool.GoType}
@@ -359,7 +351,7 @@ func GetTupleTypes2(rhsMeta ir.MetaExpr) []types.GoType {
 		if !ok {
 			panic("is not *MetaCallExpr")
 		}
-		return TypesToGoTypes(rhs.Types)
+		return rhs.Types
 	}
 }
 
@@ -1826,9 +1818,9 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 		throw(e.Fun)
 	}
 
-	meta.Types = FieldList2Types(funcType.Results)
+	meta.Types = FieldList2GoTypes(funcType.Results)
 	if len(meta.Types) > 0 {
-		meta.Type = meta.Types[0]
+		meta.Type = G2T(meta.Types[0])
 	}
 	meta.FuncVal = funcVal
 	argsAndParams := prepareArgsAndParams(funcType, receiverMeta, e.Args, meta.HasEllipsis)

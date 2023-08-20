@@ -265,7 +265,7 @@ type MetaSelectorExpr struct {
 type MetaCallExpr struct {
 	Tpos        token.Pos
 	Type        *types.Type    // result type
-	Types       []*types.Type  // result types when tuple
+	Types       []types.GoType // result types when tuple
 	ParamTypes  []types.GoType // param types to accept
 	Args        []MetaExpr     // args sent from caller
 	HasEllipsis bool

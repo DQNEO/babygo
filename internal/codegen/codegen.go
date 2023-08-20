@@ -1115,8 +1115,8 @@ func emitExpr(meta ir.MetaExpr) {
 	case *ir.MetaConversionExpr:
 		emitConversion(m.Type.GoType, m.Arg0)
 	case *ir.MetaCallExpr:
-		rtypes := sema.TypesToGoTypes(m.Types)
-		mtypes := (m.ParamTypes)
+		rtypes := m.Types
+		mtypes := m.ParamTypes
 		emitCall(m.FuncVal, m.Args, mtypes, rtypes) // can be Tuple
 	case *ir.MetaIndexExpr:
 		emitIndexExpr(m) // can be Tuple
