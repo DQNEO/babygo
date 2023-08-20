@@ -2176,7 +2176,7 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 }
 
 func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
-	printf("# ------- Dynamic types.Type (len = %d)------\n", len(itab))
+	printf("# ------- Dynamic Types (len = %d)------\n", len(itab))
 	printf(".data\n")
 
 	entries := make([]string, len(itab)+1, len(itab)+1)
