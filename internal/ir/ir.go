@@ -441,7 +441,7 @@ type Func struct {
 	Retvars   []*Variable
 	Method    *Method
 	Decl      *ast.FuncDecl
-	Signature *Signature
+	FuncType  *types.Func
 	HasDefer  bool
 	DeferVar  *Variable
 }

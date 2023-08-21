@@ -521,7 +521,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.Type, ret
 }
 
 func emitAllocReturnVarsAreaFF(ff *ir.Func) {
-	rtypes := (ff.Signature.ReturnTypes)
+	rtypes := (ff.FuncType.Typ.Results.Types)
 	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
 }
 
@@ -534,8 +534,8 @@ func getTotalSizeOfType(ts []types.Type) int {
 }
 
 func emitCallFF(ff *ir.Func) {
-	ptypes := (ff.Signature.ParamTypes)
-	rtypes := (ff.Signature.ReturnTypes)
+	ptypes := ff.FuncType.Typ.Params.Types
+	rtypes := ff.FuncType.Typ.Results.Types
 	totalParamSize := getTotalSizeOfType(ptypes)
 	symbol := ff.PkgName + "." + ff.Name
 	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, rtypes)

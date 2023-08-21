@@ -251,13 +251,15 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 	}
 	var r = &types.Tuple{}
 	for _, e2 := range fieldList.List {
-		ident, isIdent := e2.Type.(*ast.Ident)
-		var t types.Type
-		if isIdent && ident.Name == inNamed {
-			t = inNamedType
-		} else {
-			t = E2T(e2.Type)
-		}
+		util.Logf("[FieldList2Tuple]  %T  \n", e2)
+		t := E2T(e2.Type)
+		//ident, isIdent := e2.Type.(*ast.Ident)
+		//var t types.Type
+		//if isIdent && ident.Name == inNamed {
+		//	util.Logf("[FieldList2Tuple]  %s  \n", ident.Name)
+		//	t = inNamedType
+		//} else {
+		//}
 
 		r.Types = append(r.Types, t)
 	}
@@ -279,13 +281,13 @@ func GetTuple(rhsMeta ir.MetaExpr) *types.Tuple {
 	}
 }
 
-var inNamed string
-var inNamedType *types.Named
+// var inNamed string
+// var inNamedType *types.Named
 var spaces string = ""
 
 func E2T(typeExpr ast.Expr) types.Type {
-	spaces += "  "
-	util.Logf(spaces+"E2T for %T\n", typeExpr)
+	//spaces += "  "
+	util.Logf("[%s]  E2T for %T\n", Fset.Position(typeExpr.Pos()).String(), typeExpr)
 	switch t := typeExpr.(type) {
 	case *ast.Ident:
 		//util.Logf("    ident %s\n", t.Name)
@@ -317,11 +319,12 @@ func E2T(typeExpr ast.Expr) types.Type {
 		}
 
 		for _, pkgType := range pkgTypes {
+			util.Logf("  ident %s <=>  pkgType %s.%s\n", ident.Name, pkgType.PkgName, pkgType.String())
 			if pkgType.String() == ident.Name {
 				return pkgType
 			}
 		}
-		panicPos(fmt.Sprintf(" Cannot attach type : %T \n", ident.Name, ident.Obj), ident.Pos())
+		panicPos(fmt.Sprintf("  Cannot attach type : %s \n", ident.Name), ident.Pos())
 	case *ast.ArrayType:
 		if t.Len == nil {
 			return types.NewSlice(E2T(t.Elt))
@@ -360,7 +363,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 				methodName := m.Names[0].Name
 				t := E2T(m.Type)
 				f := &types.Func{
-					Typ:  t,
+					Typ:  t.(*types.Func).Typ,
 					Name: methodName,
 				}
 				methods = append(methods, f)
@@ -368,6 +371,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 		}
 		return types.NewInterfaceType(methods)
 	case *ast.FuncType:
+
 		sig := &types.Signature{}
 		if t.Params != nil {
 			sig.Params = FieldList2Tuple(t.Params)
@@ -381,7 +385,9 @@ func E2T(typeExpr ast.Expr) types.Type {
 		return E2T(typeExpr)
 	case *ast.SelectorExpr:
 		if isQI(t) { // e.g. unsafe.Pointer
+			util.Logf("  type of selector %s\n", string(Selector2QI(t)))
 			ei := LookupForeignIdent(Selector2QI(t), t.Pos())
+			util.Logf("    type %T\n", ei.Type)
 			return ei.Type
 		} else {
 			panic("@TBI")
@@ -1384,7 +1390,7 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 				QI:   qi,
 			}
 			meta.ForeignValue = foreignMeta
-			meta.Type = E2T(ei.Func.Decl.Type)
+			meta.Type = ei.Func.FuncType
 		} else { // var|con
 			meta.ForeignValue = ei.MetaIdent
 			meta.Type = ei.Type
@@ -1403,7 +1409,6 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 			panicPos("No PkgName in Variable", e.Pos())
 		}
 
-		util.Logf("trying getTypeOfSelector (%T).%s\n", meta.X, e.Sel.Name)
 		typ, isField, offset, needDeref := getTypeOfSelector(meta.X, e.Sel.Name)
 		if typ == nil {
 			panicPos("Selector type should not be nil", e.Pos())
@@ -1422,10 +1427,11 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 
 func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bool) {
 	// (strct).field | (ptr).field | (obj).method
+	util.Logf("%s: trying getTypeOfSelector (%T).%s\n", Fset.Position(x.Pos()).String(), x, selName)
 	var needDeref bool
 	typeOfX := GetTypeOfExpr(x)
 	utX := typeOfX.Underlying().Underlying()
-	util.Logf("utX = %T\n", utX)
+	//util.Logf("utX = %T\n", utX)
 
 	var structTypeLiteral *types.Struct
 	switch typ := utX.(type) {
@@ -1450,21 +1456,21 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bo
 			structTypeLiteral = origType.Underlying().(*types.Struct)
 		}
 
-		util.Logf("structTypeLiteral %T\n", structTypeLiteral)
+		//util.Logf("structTypeLiteral %T\n", structTypeLiteral)
 	}
 
 	if structTypeLiteral != nil {
 		if !structTypeLiteral.IsCalculated {
 			calcStructSizeAndSetFieldOffset(structTypeLiteral)
 		}
-		util.Logf("Looking up struct field %T.%s\n", structTypeLiteral, selName)
+		//util.Logf("Looking up struct field %T.%s\n", structTypeLiteral, selName)
 		field := LookupStructField(structTypeLiteral, selName)
 		if field != nil {
 			offset := GetStructFieldOffset(field)
 			return field.Type, true, offset, needDeref
 		}
 	} else {
-		util.Logf("Not structTypeLiteral %T\n", x)
+		//util.Logf("Not structTypeLiteral %T\n", x)
 	}
 	method := LookupMethod(typeOfX, selName)
 	return E2T(method.FuncType), false, 0, needDeref
@@ -2134,6 +2140,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		exportedIdents[string(NewQI(pkg.Name, typeSpec.Name.Name))] = ei
 	}
 
+	var structTypes []*types.Struct
 	for _, typeSpec := range typeSpecs {
 		util.Logf("typeSpec: %s\n", typeSpec.Name.Name)
 		spaces = ""
@@ -2159,8 +2166,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		switch Kind(ut) {
 		case types.T_STRUCT:
 			//structType := GetUnderlyingType(t)
-			st := ut.Underlying().Underlying()
-			calcStructSizeAndSetFieldOffset(st.(*types.Struct))
+			st := ut.Underlying().Underlying().(*types.Struct)
+			structTypes = append(structTypes, st)
 			//			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
 		case types.T_INTERFACE:
 			// register ifc method
@@ -2180,6 +2187,15 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		}
 	}
 
+	for _, st := range structTypes {
+		calcStructSizeAndSetFieldOffset(st)
+	}
+
+	for _, namedT := range pkgTypes {
+		if namedT.Underlying() == nil {
+			panic("named type " + namedT.String() + " Underlying() is nil")
+		}
+	}
 	for _, spec := range constSpecs {
 		assert(len(spec.Values) == 1, "only 1 value is supported", __func__)
 		lhsIdent := spec.Names[0]
@@ -2299,7 +2315,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			PkgName:   CurrentPkg.Name,
 			Name:      funcDecl.Name.Name,
 			Decl:      funcDecl,
-			Signature: FuncTypeToSignature(funcDecl.Type),
+			FuncType:  E2T(funcDecl.Type).(*types.Func),
 			Localarea: 0,
 			Argsarea:  16, // return address + previous rbp
 		}
@@ -2395,9 +2411,11 @@ const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
 func GetSizeOfType(t types.Type) int {
-	t = t.Underlying()
-	t = t.Underlying()
-	switch Kind(t) {
+	ut := t.Underlying()
+	if ut == nil {
+		panic(fmt.Sprintf("ut should not be nil: %T %s", t, t.(*types.Named).String()))
+	}
+	switch Kind(ut) {
 	case types.T_SLICE:
 		return SizeOfSlice
 	case types.T_STRING:
@@ -2415,11 +2433,11 @@ func GetSizeOfType(t types.Type) int {
 	case types.T_INTERFACE:
 		return SizeOfInterface
 	case types.T_ARRAY:
-		arrayType := t.(*types.Array)
+		arrayType := ut.(*types.Array)
 		elmSize := GetSizeOfType(arrayType.Elem())
 		return elmSize * arrayType.Len()
 	case types.T_STRUCT:
-		return calcStructSizeAndSetFieldOffset(t.(*types.Struct))
+		return calcStructSizeAndSetFieldOffset(ut.(*types.Struct))
 	case types.T_FUNC:
 		return SizeOfPtr
 	default:
@@ -2530,11 +2548,11 @@ func FuncTypeToSignature(funcType *ast.FuncType) *ir.Signature {
 
 func RestoreMethodDecl(m *types.Func, showOnlyForeignPrefix bool, currentPkgName string) string {
 	name := m.Name
-	fun, ok := m.Typ.(*types.Func)
-	if !ok {
-		panic(fmt.Sprintf("[SerializeType] Invalid type:%T\n", m.Typ))
-	}
-	sig := fun.Typ.(*types.Signature)
+	//sig, ok := m.Typ.(*types.Signature)
+	//if !ok {
+	//	panic(fmt.Sprintf("[SerializeType] Invalid type:%T\n", m.Typ))
+	//}
+	sig := m.Typ
 	var p string
 	var r string
 	if sig.Params != nil && len(sig.Params.Types) > 0 {
@@ -2562,17 +2580,19 @@ func RestoreMethodDecl(m *types.Func, showOnlyForeignPrefix bool, currentPkgName
 func RestoreFuncDecl(fnc *ir.Func, showOnlyForeignPrefix bool, currentPkgName string) string {
 	var p string
 	var r string
-	for _, t := range fnc.Signature.ParamTypes {
+	for _, t := range fnc.FuncType.Typ.Params.Types {
 		if p != "" {
 			p += ","
 		}
 		p += SerializeType(t, showOnlyForeignPrefix, currentPkgName)
 	}
-	for _, t := range fnc.Signature.ReturnTypes {
-		if r != "" {
-			r += ","
+	if fnc.FuncType.Typ.Results != nil {
+		for _, t := range fnc.FuncType.Typ.Results.Types {
+			if r != "" {
+				r += ","
+			}
+			r += SerializeType(t, showOnlyForeignPrefix, currentPkgName)
 		}
-		r += SerializeType(t, showOnlyForeignPrefix, currentPkgName)
 	}
 	var m string
 	var star string

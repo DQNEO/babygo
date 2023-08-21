@@ -181,7 +181,7 @@ func (t *Interface) Underlying() Type { return t }
 func (t *Interface) String() string   { return "@TBI" }
 
 type Func struct {
-	Typ  Type
+	Typ  *Signature
 	Name string
 }
 
@@ -242,5 +242,10 @@ func NewNamed(name string, typ Type) *Named {
 	}
 }
 
-func (t *Named) Underlying() Type { return t.UT }
-func (t *Named) String() string   { return t.name }
+func (t *Named) Underlying() Type {
+	if t.UT == nil {
+		panic("Named type " + t.PkgName + "." + t.name + ": Underlying is nil")
+	}
+	return t.UT
+}
+func (t *Named) String() string { return t.name }

@@ -124,7 +124,7 @@ func CreateUniverse() *ast.Scope {
 		True, False,
 		// types
 		String, Uintptr, Bool, Int, Uint8, Uint16, Int32, Error,
-		// funcs
+		// funcs^
 		New, Make, Append, Len, Cap, Panic, Delete,
 	}
 
