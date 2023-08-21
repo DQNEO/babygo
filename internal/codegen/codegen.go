@@ -523,7 +523,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.Type, ret
 }
 
 func emitAllocReturnVarsAreaFF(ff *ir.Func) {
-	rtypes := (ff.FuncType.Typ.Results.Types)
+	rtypes := ff.FuncType.Typ.Results.Types
 	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
 }
 
