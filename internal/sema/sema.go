@@ -267,6 +267,17 @@ func GetTuple(rhsMeta ir.MetaExpr) *types.Tuple {
 	}
 }
 
+func CompileFuncType(e *ast.FuncType) *types.Func {
+	sig := &types.Signature{}
+	if e.Params != nil {
+		sig.Params = FieldList2Tuple(e.Params)
+	}
+	if e.Results != nil {
+		sig.Results = FieldList2Tuple(e.Results)
+	}
+	return types.NewFunc(sig)
+}
+
 func E2T(typeExpr ast.Expr) types.Type {
 	switch t := typeExpr.(type) {
 	case *ast.Ident:
@@ -349,14 +360,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 		}
 		return types.NewInterfaceType(methods)
 	case *ast.FuncType:
-		sig := &types.Signature{}
-		if t.Params != nil {
-			sig.Params = FieldList2Tuple(t.Params)
-		}
-		if t.Results != nil {
-			sig.Results = FieldList2Tuple(t.Results)
-		}
-		return types.NewFunc(sig)
+		return CompileFuncType(t)
 	case *ast.ParenExpr:
 		typeExpr = t.X
 		return E2T(typeExpr)
@@ -597,7 +601,7 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ir.Method {
 		RcvNamedType: rcvNamedType,
 		IsPtrMethod:  isPtr,
 		Name:         funcDecl.Name.Name,
-		FuncType:     E2T(funcDecl.Type),
+		FuncType:     CompileFuncType(funcDecl.Type),
 	}
 	return method
 }
@@ -638,7 +642,7 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 				},
 				IsPtrMethod: false,
 				Name:        "Error",
-				FuncType:    E2T(universe.ErrorMethodFuncType),
+				FuncType:    CompileFuncType(universe.ErrorMethodFuncType),
 			}
 		} else {
 			pkgName := typ.PkgName
@@ -2116,7 +2120,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			it := typeSpec.Type.(*ast.InterfaceType)
 			if it.Methods != nil {
 				for _, m := range it.Methods.List {
-					funcType := E2T(m.Type)
+					funcType := CompileFuncType(m.Type.(*ast.FuncType))
 					method := &ir.Method{
 						PkgName:      pkg.Name,
 						RcvNamedType: typeSpec.Name,

@@ -451,7 +451,7 @@ type Method struct {
 	RcvNamedType *ast.Ident
 	IsPtrMethod  bool
 	Name         string
-	FuncType     types.Type
+	FuncType     *types.Func
 }
 
 type Variable struct {
