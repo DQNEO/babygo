@@ -350,12 +350,9 @@ func E2T(typeExpr ast.Expr) types.Type {
 		if t.Methods != nil {
 			for _, m := range t.Methods.List {
 				methodName := m.Names[0].Name
-				t := E2T(m.Type)
-				f := &types.Func{
-					Typ:  t.(*types.Func).Typ,
-					Name: methodName,
-				}
-				methods = append(methods, f)
+				ft := CompileFuncType(m.Type.(*ast.FuncType))
+				ft.Name = methodName
+				methods = append(methods, ft)
 			}
 		}
 		return types.NewInterfaceType(methods)
