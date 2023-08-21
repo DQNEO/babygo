@@ -1413,7 +1413,7 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bo
 		if !structTypeLiteral.IsCalculated {
 			calcStructSizeAndSetFieldOffset(structTypeLiteral)
 		}
-		//util.Logf("Looking up struct field %T.%s\n", structTypeLiteral, selName)
+
 		field := LookupStructField(structTypeLiteral, selName)
 		if field != nil {
 			if field.Offset < 0 {
