@@ -2103,8 +2103,7 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 	for _, typ := range pkg.Types {
 		ut := typ.Underlying()
 		utAsString := sema.SerializeType(ut, true, pkg.Name)
-		named := typ.(*types.Named)
-		fmt.Fprintf(fout, "type %s %s\n", named.String(), utAsString)
+		fmt.Fprintf(fout, "type %s %s\n", typ.String(), utAsString)
 	}
 	for _, vr := range pkg.Vars {
 		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, true, pkg.Name))
