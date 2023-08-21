@@ -6,7 +6,6 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
 	"github.com/DQNEO/babygo/internal/types"
-	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
@@ -2219,7 +2218,6 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 			if namedRcvT.String() == "Variable" && namedRcvT.PkgName == "" {
 				panic("No PkgName in Variable")
 			}
-			util.Logf("  # Dtype %s.%s \n", namedRcvT.PkgName, namedRcvT.String())
 			printf("  # Dtype %s.%s \n", namedRcvT.PkgName, namedRcvT.String())
 			dmethod := sema.LookupMethod(ent.Dtype, m.Name)
 			sym := sema.GetMethodSymbol(dmethod)

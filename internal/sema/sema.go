@@ -4,7 +4,6 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
-	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -247,16 +246,7 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 	}
 	var r = &types.Tuple{}
 	for _, e2 := range fieldList.List {
-		util.Logf("[FieldList2Tuple]  %T  \n", e2)
 		t := E2T(e2.Type)
-		//ident, isIdent := e2.Type.(*ast.Ident)
-		//var t types.Type
-		//if isIdent && ident.Name == inNamed {
-		//	util.Logf("[FieldList2Tuple]  %s  \n", ident.Name)
-		//	t = inNamedType
-		//} else {
-		//}
-
 		r.Types = append(r.Types, t)
 	}
 	return r
@@ -277,14 +267,9 @@ func GetTuple(rhsMeta ir.MetaExpr) *types.Tuple {
 	}
 }
 
-var spaces string = ""
-
 func E2T(typeExpr ast.Expr) types.Type {
-	//spaces += "  "
-	util.Logf("[%s]  E2T for %T\n", Fset.Position(typeExpr.Pos()).String(), typeExpr)
 	switch t := typeExpr.(type) {
 	case *ast.Ident:
-		//util.Logf("    ident %s\n", t.Name)
 		ident := t
 		obj := t.Obj
 		if obj == nil {
@@ -377,9 +362,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 		return E2T(typeExpr)
 	case *ast.SelectorExpr:
 		if isQI(t) { // e.g. unsafe.Pointer
-			util.Logf("  type of selector %s\n", string(Selector2QI(t)))
 			ei := LookupForeignIdent(Selector2QI(t), t.Pos())
-			util.Logf("    type %T\n", ei.Type)
 			return ei.Type
 		} else {
 			panic("@TBI")
@@ -670,16 +653,10 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 
 	namedType, ok := namedTypes[namedTypeId]
 	if !ok {
-		for nid, _ := range namedTypes {
-			util.Logf("namedTypeId = %s\n", nid)
-		}
 		panic("NamedTypeId is not registered: " + methodName + " in " + namedTypeId + " (no method set)")
 	}
 	method, ok := namedType.MethodSet[methodName]
 	if !ok {
-		for mname, _ := range namedType.MethodSet {
-			util.Logf(" %s method = %s\n", namedTypeId, mname)
-		}
 		panic("method not found: '" + methodName + "' in " + namedTypeId)
 	}
 	return method
@@ -1419,11 +1396,9 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 
 func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bool) {
 	// (strct).field | (ptr).field | (obj).method
-	util.Logf("%s: trying getTypeOfSelector (%T).%s\n", Fset.Position(x.Pos()).String(), x, selName)
 	var needDeref bool
 	typeOfX := GetTypeOfExpr(x)
 	utX := typeOfX.Underlying().Underlying()
-	//util.Logf("utX = %T\n", utX)
 
 	var structTypeLiteral *types.Struct
 	switch typ := utX.(type) {
@@ -2113,9 +2088,9 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 
 	for _, typeSpec := range typeSpecs {
 		// Register package types
+		// Underlying type will be attached later
 		t := types.NewNamed(typeSpec.Name.Name, nil)
 		t.PkgName = pkg.Name
-		util.Logf("NewNamed Pkg type: %s.%s\n", t.PkgName, t.String())
 		pkgNamedTypes = append(pkgNamedTypes, t)
 		pkgNamedTypesMap[typeSpec.Name.Name] = t
 		// named type
@@ -2132,19 +2107,15 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 
 	var structTypes []*types.Struct
 	for _, typeSpec := range typeSpecs {
-		util.Logf("typeSpec: %s\n", typeSpec.Name.Name)
-		spaces = ""
 		ut := E2T(typeSpec.Type)
 		if ut == nil {
 			panic("ut should not be nil")
 		}
 		namedType := pkgNamedTypesMap[typeSpec.Name.Name]
 		namedType.UT = ut
-
 		if ut.Underlying() == nil {
 			panic(ut.String() + "  Underlying  should not be nil")
 		}
-		spaces = ""
 		switch Kind(ut) {
 		case types.T_STRUCT:
 			//structType := GetUnderlyingType(t)
@@ -2357,7 +2328,6 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			fnc.HasBody = true
 			var ms []ir.MetaStmt
 			for _, stmt := range funcDecl.Body.List {
-				spaces = ""
 				m := walkStmt(stmt)
 				ms = append(ms, m)
 			}
