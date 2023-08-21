@@ -281,8 +281,6 @@ func GetTuple(rhsMeta ir.MetaExpr) *types.Tuple {
 	}
 }
 
-// var inNamed string
-// var inNamedType *types.Named
 var spaces string = ""
 
 func E2T(typeExpr ast.Expr) types.Type {
@@ -318,11 +316,9 @@ func E2T(typeExpr ast.Expr) types.Type {
 			return named
 		}
 
-		for _, pkgType := range pkgTypes {
-			util.Logf("  ident %s <=>  pkgType %s.%s\n", ident.Name, pkgType.PkgName, pkgType.String())
-			if pkgType.String() == ident.Name {
-				return pkgType
-			}
+		namedType, ok := pkgNamedTypesMap[ident.Name]
+		if ok {
+			return namedType
 		}
 		panicPos(fmt.Sprintf("  Cannot attach type : %s \n", ident.Name), ident.Pos())
 	case *ast.ArrayType:
@@ -2072,13 +2068,14 @@ func SetVariable(obj *ast.Object, vr *ir.Variable) {
 // - (hope) attach type to untyped constants
 // - (hope) transmit the need of interface conversion
 
-var pkgTypes []*types.Named
+var pkgNamedTypesMap map[string]*types.Named
 
 func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	pkg.StringIndex = 0
 	pkg.StringLiterals = nil
 	CurrentPkg = pkg
-	pkgTypes = nil
+	var pkgNamedTypes []*types.Named
+	pkgNamedTypesMap = make(map[string]*types.Named)
 	ITab = make(map[string]*ITabEntry)
 	ITabID = 1
 
@@ -2122,8 +2119,8 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		t := types.NewNamed(typeSpec.Name.Name, nil)
 		t.PkgName = pkg.Name
 		util.Logf("NewNamed Pkg type: %s.%s\n", t.PkgName, t.String())
-		pkgTypes = append(pkgTypes, t)
-
+		pkgNamedTypes = append(pkgNamedTypes, t)
+		pkgNamedTypesMap[typeSpec.Name.Name] = t
 		// named type
 		ei := &ir.ExportedIdent{
 			Name:    typeSpec.Name.Name,
@@ -2144,17 +2141,9 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		if ut == nil {
 			panic("ut should not be nil")
 		}
-		var t *types.Named
-		for _, t = range pkgTypes {
-			if t.String() == typeSpec.Name.Name {
-				util.Logf("  attach t = %s\n", t.String())
-				t.UT = ut
-			}
-		}
-		t = nil
-		if ut == nil {
-			panic("t should not be nil")
-		}
+		namedType := pkgNamedTypesMap[typeSpec.Name.Name]
+		namedType.UT = ut
+
 		if ut.Underlying() == nil {
 			panic(ut.String() + "  Underlying  should not be nil")
 		}
@@ -2183,15 +2172,16 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		}
 	}
 
-	for _, st := range structTypes {
-		calcStructSizeAndSetFieldOffset(st)
-	}
-
-	for _, namedT := range pkgTypes {
+	for _, namedT := range pkgNamedTypes {
 		if namedT.Underlying() == nil {
 			panic("named type " + namedT.String() + " Underlying() is nil")
 		}
 	}
+
+	for _, st := range structTypes {
+		calcStructSizeAndSetFieldOffset(st)
+	}
+
 	for _, spec := range constSpecs {
 		assert(len(spec.Values) == 1, "only 1 value is supported", __func__)
 		lhsIdent := spec.Names[0]
@@ -2387,7 +2377,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		Path:           pkg.Path,
 		Name:           pkg.Name,
 		Imports:        pkg.Imports,
-		Types:          pkgTypes,
+		Types:          pkgNamedTypes,
 		Funcs:          funcs,
 		Consts:         consts,
 		Vars:           vars,
