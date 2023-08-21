@@ -1367,17 +1367,6 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 	} else {
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
-
-		rcvT := meta.X.GetType()
-		rcvPointerType, isPtr := rcvT.(*types.Pointer)
-		if isPtr {
-			rcvT = rcvPointerType.Elem()
-		}
-		namedRcvT, isNamed := rcvT.(*types.Named)
-		if isNamed && namedRcvT.String() == "Variable" && namedRcvT.PkgName == "" {
-			panicPos("No PkgName in Variable", e.Pos())
-		}
-
 		typ, isField, offset, needDeref := getTypeOfSelector(meta.X, e.Sel.Name)
 		if typ == nil {
 			panicPos("Selector type should not be nil", e.Pos())

@@ -2215,9 +2215,6 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 				rcvT = rcvPointerType.Elem()
 			}
 			namedRcvT := rcvT.(*types.Named)
-			if namedRcvT.String() == "Variable" && namedRcvT.PkgName == "" {
-				panic("No PkgName in Variable")
-			}
 			printf("  # Dtype %s.%s \n", namedRcvT.PkgName, namedRcvT.String())
 			dmethod := sema.LookupMethod(ent.Dtype, m.Name)
 			sym := sema.GetMethodSymbol(dmethod)
