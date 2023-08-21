@@ -2469,21 +2469,8 @@ func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName
 	return ""
 }
 
-func FuncTypeToSignature(funcType *ast.FuncType) *ir.Signature {
-	p := FieldList2Types(funcType.Params)
-	r := FieldList2Types(funcType.Results)
-	return &ir.Signature{
-		ParamTypes:  p,
-		ReturnTypes: r,
-	}
-}
-
 func RestoreMethodDecl(m *types.Func, showOnlyForeignPrefix bool, currentPkgName string) string {
 	name := m.Name
-	//sig, ok := m.Typ.(*types.Signature)
-	//if !ok {
-	//	panic(fmt.Sprintf("[SerializeType] Invalid type:%T\n", m.Typ))
-	//}
 	sig := m.Typ
 	var p string
 	var r string
