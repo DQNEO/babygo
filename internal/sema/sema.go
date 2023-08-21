@@ -627,9 +627,6 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 
 	switch typ := rcvT.(type) {
 	case *types.Named:
-		if typ.PkgName == "fmt" && typ.String() == "Type" {
-			panic("fmt.Type should not exist")
-		}
 		if typ.PkgName == "" && typ.String() == "error" {
 			namedTypeId = "error"
 			return &ir.Method{
