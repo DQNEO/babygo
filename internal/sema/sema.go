@@ -2256,7 +2256,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			PkgName:   CurrentPkg.Name,
 			Name:      funcDecl.Name.Name,
 			Decl:      funcDecl,
-			FuncType:  E2T(funcDecl.Type).(*types.Func),
+			FuncType:  CompileFuncType(funcDecl.Type),
 			Localarea: 0,
 			Argsarea:  16, // return address + previous rbp
 		}
