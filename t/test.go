@@ -2570,7 +2570,6 @@ func main() {
 	testIfcMethod2()
 	testIfcMethod()
 	testHexDigit()
-	//testOSExec()
 	testOSReturnError()
 	testForeignConst()
 	testForeignVar()
@@ -2699,4 +2698,5 @@ func main() {
 	testGlobalCharArray()
 
 	testMisc()
+	testOSExec()
 }
