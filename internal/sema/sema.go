@@ -371,7 +371,6 @@ func E2T(typeExpr ast.Expr) types.Type {
 		}
 		return types.NewInterfaceType(methods)
 	case *ast.FuncType:
-
 		sig := &types.Signature{}
 		if t.Params != nil {
 			sig.Params = FieldList2Tuple(t.Params)
@@ -622,7 +621,7 @@ func newMethod(pkgName string, funcDecl *ast.FuncDecl) *ir.Method {
 		RcvNamedType: rcvNamedType,
 		IsPtrMethod:  isPtr,
 		Name:         funcDecl.Name.Name,
-		FuncType:     funcDecl.Type,
+		FuncType:     E2T(funcDecl.Type),
 	}
 	return method
 }
@@ -663,7 +662,7 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 				},
 				IsPtrMethod: false,
 				Name:        "Error",
-				FuncType:    universe.ErrorMethodFuncType,
+				FuncType:    E2T(universe.ErrorMethodFuncType),
 			}
 		} else {
 			pkgName := typ.PkgName
@@ -1446,17 +1445,13 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bo
 			var isStruct bool
 			structTypeLiteral, isStruct = ut.(*types.Struct)
 			if !isStruct {
-				typeOfX = origType
-				util.Logf("ut %T\n", ut)
-				panic("Bad type")
-			} else {
-
+				structTypeLiteral = nil // not a field, but method
+				typeOfX = origType      // var p *T ; p.method();  func(p *T) method() {...}
 			}
 		} else {
 			structTypeLiteral = origType.Underlying().(*types.Struct)
 		}
 
-		//util.Logf("structTypeLiteral %T\n", structTypeLiteral)
 	}
 
 	if structTypeLiteral != nil {
@@ -1472,8 +1467,9 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bo
 	} else {
 		//util.Logf("Not structTypeLiteral %T\n", x)
 	}
+
 	method := LookupMethod(typeOfX, selName)
-	return E2T(method.FuncType), false, 0, needDeref
+	return method.FuncType, false, 0, needDeref
 }
 
 func walkConversion(pos token.Pos, toType types.Type, arg0 ir.MetaExpr) ir.MetaExpr {
@@ -2174,7 +2170,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 			it := typeSpec.Type.(*ast.InterfaceType)
 			if it.Methods != nil {
 				for _, m := range it.Methods.List {
-					funcType := m.Type.(*ast.FuncType)
+					funcType := E2T(m.Type)
 					method := &ir.Method{
 						PkgName:      pkg.Name,
 						RcvNamedType: typeSpec.Name,
