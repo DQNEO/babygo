@@ -264,8 +264,7 @@ type MetaSelectorExpr struct {
 // general funcall
 type MetaCallExpr struct {
 	Tpos        token.Pos
-	Type        types.Type   // result type
-	Tuple       *types.Tuple // result types
+	ResultTuple *types.Tuple // result types
 	ParamTypes  []types.Type // param types to accept
 	Args        []MetaExpr   // args sent from caller
 	HasEllipsis bool
@@ -392,12 +391,20 @@ func (e *MetaStructLiteralElement) Pos() token.Pos { return e.Tpos }
 func (e *Variable) Pos() token.Pos                 { return e.Tpos }
 func (e *Const) Pos() token.Pos                    { return e.Tpos }
 
-func (e *MetaBasicLit) GetType() types.Type             { return e.Type }
-func (e *MetaCompositLit) GetType() types.Type          { return e.Type }
-func (e *MetaIdent) GetType() types.Type                { return e.Type }
-func (e *MetaForeignFuncWrapper) GetType() types.Type   { return nil }
-func (e *MetaSelectorExpr) GetType() types.Type         { return e.Type }
-func (e *MetaCallExpr) GetType() types.Type             { return e.Type }
+func (e *MetaBasicLit) GetType() types.Type           { return e.Type }
+func (e *MetaCompositLit) GetType() types.Type        { return e.Type }
+func (e *MetaIdent) GetType() types.Type              { return e.Type }
+func (e *MetaForeignFuncWrapper) GetType() types.Type { return nil }
+func (e *MetaSelectorExpr) GetType() types.Type       { return e.Type }
+
+func (e *MetaCallExpr) GetType() types.Type {
+	if e.ResultTuple != nil && len(e.ResultTuple.Types) > 0 {
+		return e.ResultTuple.Types[0]
+	} else {
+		return nil
+	}
+}
+
 func (e *MetaCallLen) GetType() types.Type              { return e.Type }
 func (e *MetaCallCap) GetType() types.Type              { return e.Type }
 func (e *MetaCallNew) GetType() types.Type              { return e.Type }

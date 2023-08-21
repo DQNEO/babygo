@@ -274,7 +274,7 @@ func GetTuple(rhsMeta ir.MetaExpr) *types.Tuple {
 		if !ok {
 			panic("is not *MetaCallExpr")
 		}
-		return rhs.Tuple
+		return rhs.ResultTuple
 	}
 }
 
@@ -1670,10 +1670,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	}
 	sig := ft.Underlying().(*types.Signature)
 	if sig.Results != nil {
-		meta.Tuple = sig.Results
-		if len(meta.Tuple.Types) > 0 {
-			meta.Type = meta.Tuple.Types[0]
-		}
+		meta.ResultTuple = sig.Results
 	}
 
 	meta.FuncVal = funcVal

@@ -1113,10 +1113,10 @@ func emitExpr(meta ir.MetaExpr) {
 		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:
 		var rtypes []types.Type
-		if m.Tuple != nil {
-			rtypes = m.Tuple.Types
+		if m.ResultTuple != nil {
+			rtypes = m.ResultTuple.Types
 		}
-		emitCall(m.FuncVal, m.Args, m.ParamTypes, rtypes) // can be Tuple
+		emitCall(m.FuncVal, m.Args, m.ParamTypes, rtypes) // can be ResultTuple
 	case *ir.MetaIndexExpr:
 		emitIndexExpr(m) // can be Tuple
 	case *ir.MetaSliceExpr:
