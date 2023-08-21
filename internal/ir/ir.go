@@ -14,7 +14,7 @@ type IfcConversion struct {
 
 type MetaStructLiteralElement struct {
 	Tpos  token.Pos
-	Field *ast.Field
+	Field *types.Var
 	Type  types.Type
 	Value MetaExpr
 }

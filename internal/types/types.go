@@ -1,9 +1,5 @@
 package types
 
-import (
-	"github.com/DQNEO/babygo/lib/ast"
-)
-
 type TypeKind string
 
 const T_STRING TypeKind = "T_STRING"
@@ -219,14 +215,14 @@ type Var struct {
 }
 
 type Struct struct {
-	Fields    []*Var       // Fields != nil indicates the struct is set up (possibly with len(Fields) == 0)
-	AstFields []*ast.Field // @TODO: Replace this by Fields
+	Fields []*Var // Fields != nil indicates the struct is set up (possibly with len(Fields) == 0)
+	//AstFields    []*ast.Field // @TODO: Replace this by Fields
+	IsCalculated bool // the offsets are calculated ?
 }
 
-func NewStruct(fields []*Var, astFields []*ast.Field) *Struct {
+func NewStruct(fields []*Var) *Struct {
 	return &Struct{
-		Fields:    fields,
-		AstFields: astFields,
+		Fields: fields,
 	}
 }
 

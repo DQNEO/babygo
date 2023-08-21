@@ -6,6 +6,7 @@ import (
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
+	"github.com/DQNEO/babygo/internal/util"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
@@ -282,8 +283,10 @@ var inNamed string
 var inNamedType *types.Named
 
 func E2T(typeExpr ast.Expr) types.Type {
+	//util.Logf("  Compiling ast type %T\n", typeExpr)
 	switch t := typeExpr.(type) {
 	case *ast.Ident:
+		//util.Logf("    ident %s\n", t.Name)
 		obj := t.Obj
 		if obj == nil {
 			panicPos("t.Obj should not be nil", typeExpr.Pos())
@@ -308,26 +311,23 @@ func E2T(typeExpr ast.Expr) types.Type {
 			ut := E2T(dcl.Type)
 			named := types.NewNamed(universe.Error.Name, ut)
 			return named
-		default:
-			switch dcl := t.Obj.Decl.(type) {
-			case *ast.TypeSpec:
-				typeSpec := dcl
-				gt := types.NewNamed(typeSpec.Name.Name, nil)
-				if typeSpec.Name.Obj.Data != nil {
-					gt.PkgName = typeSpec.Name.Obj.Data.(string)
-				}
-				inNamed = typeSpec.Name.Name
-				inNamedType = gt
-				ut := E2T(typeSpec.Type)
-				gt.UT = ut
-				inNamedType = nil
-				inNamed = ""
-				return gt
-			default:
-				panicPos(fmt.Sprintf("Unexpeced:%T ident=%s", t.Obj.Decl, t.Name), t.Pos())
-			}
-			panic("Unexpected flow")
 		}
+		ident := t
+		if ident.Name == inNamed {
+			return inNamedType
+		}
+		switch dcl := ident.Obj.Decl.(type) {
+		case *ast.TypeSpec:
+			typeSpec := dcl
+			ut := E2T(typeSpec.Type)
+			t2 := types.NewNamed(ident.Name, ut)
+			t2.PkgName = ident.Obj.Data.(string)
+			return t2
+		default:
+			panicPos(fmt.Sprintf("Unexpeced:%T ident=%s", t.Obj.Decl, t.Name), t.Pos())
+		}
+		panic("Unexpected flow")
+
 	case *ast.ArrayType:
 		if t.Len == nil {
 			return types.NewSlice(E2T(t.Elt))
@@ -336,10 +336,8 @@ func E2T(typeExpr ast.Expr) types.Type {
 		}
 	case *ast.StructType:
 		var fields []*types.Var
-		var astFields []*ast.Field
 		if t.Fields != nil {
 			for _, fld := range t.Fields.List {
-				astFields = append(astFields, fld)
 				ft := E2T(fld.Type)
 				v := &types.Var{
 					Name: fld.Names[0].Name,
@@ -348,7 +346,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 				fields = append(fields, v)
 			}
 		}
-		return types.NewStruct(fields, astFields)
+		return types.NewStruct(fields)
 	case *ast.StarExpr:
 		if t.X == nil {
 			panicPos("X should not be nil", t.Pos())
@@ -530,10 +528,10 @@ func getKeyTypeOfCollectionType(t types.Type) types.Type {
 	return nil
 }
 
-func LookupStructField(structType *types.Struct, selName string) *ast.Field {
-	for i, field := range structType.Fields {
+func LookupStructField(structType *types.Struct, selName string) *types.Var {
+	for _, field := range structType.Fields {
 		if field.Name == selName {
-			return structType.AstFields[i]
+			return field
 		}
 	}
 	return nil // not found is OK. This indicates selName is a method name.
@@ -666,6 +664,9 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 
 	switch typ := rcvT.(type) {
 	case *types.Named:
+		if typ.PkgName == "fmt" && typ.String() == "Type" {
+			panic("fmt.Type should not exist")
+		}
 		if typ.PkgName == "" && typ.String() == "error" {
 			namedTypeId = "error"
 			return &ir.Method{
@@ -679,6 +680,9 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 			}
 		} else {
 			pkgName := typ.PkgName
+			if pkgName == "" {
+				panic("No package name: " + typ.String())
+			}
 			namedTypeId = pkgName + "." + typ.String()
 		}
 	default:
@@ -687,7 +691,10 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 
 	namedType, ok := namedTypes[namedTypeId]
 	if !ok {
-		panic("method not found: " + methodName + " in " + namedTypeId + " (no method set)")
+		for nid, _ := range namedTypes {
+			util.Logf("namedTypeId = %s\n", nid)
+		}
+		panic("NamedTypeId is not registered: " + methodName + " in " + namedTypeId + " (no method set)")
 	}
 	method, ok := namedType.MethodSet[methodName]
 	if !ok {
@@ -1401,6 +1408,17 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 	} else {
 		// expr.field
 		meta.X = walkExpr(e.X, ctx)
+
+		rcvT := meta.X.GetType()
+		rcvPointerType, isPtr := rcvT.(*types.Pointer)
+		if isPtr {
+			rcvT = rcvPointerType.Elem()
+		}
+		namedRcvT, isNamed := rcvT.(*types.Named)
+		if isNamed && namedRcvT.String() == "Variable" && namedRcvT.PkgName == "" {
+			panicPos("No PkgName in Variable", e.Pos())
+		}
+
 		typ, isField, offset, needDeref := getTypeOfSelector(meta.X, e.Sel.Name)
 		if typ == nil {
 			panicPos("Selector type should not be nil", e.Pos())
@@ -1443,10 +1461,13 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bo
 	}
 
 	if structTypeLiteral != nil {
+		if !structTypeLiteral.IsCalculated {
+			calcStructSizeAndSetFieldOffset(structTypeLiteral)
+		}
 		field := LookupStructField(structTypeLiteral, selName)
 		if field != nil {
 			offset := GetStructFieldOffset(field)
-			return E2T(field.Type), true, offset, needDeref
+			return field.Type, true, offset, needDeref
 		}
 	}
 	method := LookupMethod(typeOfX, selName)
@@ -1762,7 +1783,7 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 
 			strcctT := structType.Underlying().(*types.Struct)
 			field := LookupStructField(strcctT, fieldName.Name)
-			fieldType := E2T(field.Type)
+			fieldType := field.Type
 			ctx := &ir.EvalContext{Type: fieldType}
 			// attach type to nil : STRUCT{Key:nil}
 			valueMeta := walkExpr(kvExpr.Value, ctx)
@@ -2097,17 +2118,18 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	}
 
 	for _, typeSpec := range typeSpecs {
-		//@TODO check serializeType()'s *ast.Ident case
 		typeSpec.Name.Obj.Data = pkg.Name // package the type belongs to
-		eType := &ast.Ident{
-			Name:    typeSpec.Name.Name,
-			NamePos: typeSpec.Pos(),
-			Obj:     typeSpec.Name.Obj,
-		}
-		t := E2T(eType)
-		gt := t.(*types.Named)
-		gt.PkgName = pkg.Name
-		typs = append(typs, gt)
+		t := types.NewNamed(typeSpec.Name.Name, nil)
+		t.PkgName = pkg.Name
+		util.Logf("Created Pkg type: %s.%s\n", t.PkgName, t.String())
+		inNamed = typeSpec.Name.Name
+		inNamedType = t
+		ut := E2T(typeSpec.Type)
+		inNamedType = nil
+		inNamed = ""
+		t.UT = ut
+
+		typs = append(typs, t)
 		switch Kind(t) {
 		case types.T_STRUCT:
 			//structType := GetUnderlyingType(t)
@@ -2391,19 +2413,20 @@ func GetSizeOfType(t types.Type) int {
 
 func calcStructSizeAndSetFieldOffset(structType *types.Struct) int {
 	var offset int = 0
-	for i, field := range structType.Fields {
-		setStructFieldOffset(structType.AstFields[i], offset)
+	for _, field := range structType.Fields {
+		setStructFieldOffset(field, offset)
 		size := GetSizeOfType(field.Type)
 		offset += size
 	}
+	structType.IsCalculated = true
 	return offset
 }
 
-func GetStructFieldOffset(field *ast.Field) int {
+func GetStructFieldOffset(field *types.Var) int {
 	return mapFieldOffset[unsafe.Pointer(field)]
 }
 
-func setStructFieldOffset(field *ast.Field, offset int) {
+func setStructFieldOffset(field *types.Var, offset int) {
 	mapFieldOffset[unsafe.Pointer(field)] = offset
 }
 
@@ -2592,6 +2615,7 @@ type ITabEntry struct {
 
 // "**[1][]*int" => ".dtype.8"
 func RegisterDtype(dtype types.Type, itype types.Type) {
+
 	ds := SerializeType(dtype, false, "")
 	is := SerializeType(itype, false, "")
 
@@ -2610,6 +2634,7 @@ func RegisterDtype(dtype types.Type, itype types.Type) {
 		Dtype:       dtype,
 		Label:       "." + "itab_" + strconv.Itoa(id),
 	}
+
 	ITab[key] = e
 	ITabID++
 }
