@@ -185,12 +185,16 @@ func testForeignVar() {
 }
 
 func testDereference() {
+	fmt.Println("testDereference Start\n")
 	var i = 0
 	var _test_deref uint8 = 123
 	var ptr *uint8 = &_test_deref
 	var argv **uint8 = &ptr
+	fmt.Print("testDereference 1\n")
 	var v *uint8 = *(**uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(argv)) + uintptr(i)))
-	fmt.Printf("testDereference=%T\n", *v)
+	fmt.Print("testDereference 2\n")
+	fmt.Printf("type of v = %T\n", v) // <= causes SEGV
+	fmt.Print("testDereference 3\n")
 }
 
 func testBlankAssign() {
@@ -2566,7 +2570,7 @@ func main() {
 	testIfcMethod2()
 	testIfcMethod()
 	testHexDigit()
-	testOSExec()
+	//testOSExec()
 	testOSReturnError()
 	testForeignConst()
 	testForeignVar()

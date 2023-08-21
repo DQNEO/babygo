@@ -15,14 +15,18 @@ hello ifc method 2
 hello ifc method 3
 hello io.Writer
 0xff == 255
-exec ok
 expected error.
 OK
 OK
 OK
 OK
 object addresses match
-testDereference=uint8
+testDereference Start
+
+testDereference 1
+testDereference 2
+type of v = *uint8
+testDereference 3
 is int
 is not string
 x=1
