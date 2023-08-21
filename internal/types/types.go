@@ -216,9 +216,8 @@ type Var struct {
 }
 
 type Struct struct {
-	Fields []*Var // Fields != nil indicates the struct is set up (possibly with len(Fields) == 0)
-	//AstFields    []*ast.Field // @TODO: Replace this by Fields
-	IsCalculated bool // the offsets are calculated ?
+	Fields       []*Var // Fields != nil indicates the struct is set up (possibly with len(Fields) == 0)
+	IsCalculated bool   // the offsets of fields are calculated or not
 }
 
 func NewStruct(fields []*Var) *Struct {
