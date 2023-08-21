@@ -17,7 +17,8 @@ func (b *buffer) write(p []byte) {
 }
 
 func (b *buffer) writeString(s string) {
-	for _, c := range []byte(s) {
+	bt := []byte(s)
+	for _, c := range bt {
 		*b = append(*b, c)
 	}
 }
