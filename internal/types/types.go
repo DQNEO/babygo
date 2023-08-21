@@ -210,8 +210,9 @@ func (t *Signature) Underlying() Type { return t }
 func (t *Signature) String() string   { return "@TBI" }
 
 type Var struct {
-	Name string
-	Type Type
+	Name   string
+	Type   Type
+	Offset int
 }
 
 type Struct struct {

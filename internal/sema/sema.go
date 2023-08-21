@@ -1,8 +1,6 @@
 package sema
 
 import (
-	"unsafe"
-
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/types"
 	"github.com/DQNEO/babygo/internal/universe"
@@ -20,7 +18,6 @@ var CurrentPkg *ir.PkgContainer
 var exportedIdents = make(map[string]*ir.ExportedIdent)
 var currentFor *ir.MetaForContainer
 var currentFunc *ir.Func
-var mapFieldOffset = make(map[unsafe.Pointer]int)
 
 func Clear() {
 	Fset = nil
@@ -28,7 +25,6 @@ func Clear() {
 	exportedIdents = nil
 	currentFor = nil
 	currentFunc = nil
-	mapFieldOffset = nil
 }
 
 func assert(bol bool, msg string, caller string) {
@@ -333,8 +329,9 @@ func E2T(typeExpr ast.Expr) types.Type {
 			for _, fld := range t.Fields.List {
 				ft := E2T(fld.Type)
 				v := &types.Var{
-					Name: fld.Names[0].Name,
-					Type: ft,
+					Name:   fld.Names[0].Name,
+					Type:   ft,
+					Offset: -1,
 				}
 				fields = append(fields, v)
 			}
@@ -1457,11 +1454,11 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bo
 		//util.Logf("Looking up struct field %T.%s\n", structTypeLiteral, selName)
 		field := LookupStructField(structTypeLiteral, selName)
 		if field != nil {
-			offset := GetStructFieldOffset(field)
-			return field.Type, true, offset, needDeref
+			if field.Offset < 0 {
+				panic("field.Offset is not set")
+			}
+			return field.Type, true, field.Offset, needDeref
 		}
-	} else {
-		//util.Logf("Not structTypeLiteral %T\n", x)
 	}
 
 	method := LookupMethod(typeOfX, selName)
@@ -2435,20 +2432,12 @@ func GetSizeOfType(t types.Type) int {
 func calcStructSizeAndSetFieldOffset(structType *types.Struct) int {
 	var offset int = 0
 	for _, field := range structType.Fields {
-		setStructFieldOffset(field, offset)
+		field.Offset = offset
 		size := GetSizeOfType(field.Type)
 		offset += size
 	}
 	structType.IsCalculated = true
 	return offset
-}
-
-func GetStructFieldOffset(field *types.Var) int {
-	return mapFieldOffset[unsafe.Pointer(field)]
-}
-
-func setStructFieldOffset(field *types.Var, offset int) {
-	mapFieldOffset[unsafe.Pointer(field)] = offset
 }
 
 func EvalInt(expr ast.Expr) int {

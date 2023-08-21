@@ -399,7 +399,10 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 		// push lhs address
 		emitPushStackTop(types.Uintptr, 0, "address of struct heaad")
 
-		fieldOffset := sema.GetStructFieldOffset(metaElm.Field)
+		fieldOffset := metaElm.Field.Offset
+		if fieldOffset < 0 {
+			panic("field offset ist not set")
+		}
 		emitAddConst(fieldOffset, "address of struct field")
 
 		// push rhs value
