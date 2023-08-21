@@ -1112,9 +1112,11 @@ func emitExpr(meta ir.MetaExpr) {
 	case *ir.MetaConversionExpr:
 		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:
-		rtypes := m.Types
-		mtypes := m.ParamTypes
-		emitCall(m.FuncVal, m.Args, mtypes, rtypes) // can be Tuple
+		var rtypes []types.Type
+		if m.Tuple != nil {
+			rtypes = m.Tuple.Types
+		}
+		emitCall(m.FuncVal, m.Args, m.ParamTypes, rtypes) // can be Tuple
 	case *ir.MetaIndexExpr:
 		emitIndexExpr(m) // can be Tuple
 	case *ir.MetaSliceExpr:
@@ -1412,7 +1414,7 @@ func emitDeclStmt(meta *ir.MetaVarDecl) {
 // a, b = OkExpr
 func emitOkAssignment(meta *ir.MetaTupleAssign) {
 	rhs0 := meta.Rhs
-	rhsTypes := meta.RhsTypes
+	rhsTuple := meta.RhsTuple
 
 	// ABI of stack layout after evaluating rhs0
 	//	-- stack top
@@ -1421,7 +1423,7 @@ func emitOkAssignment(meta *ir.MetaTupleAssign) {
 	emitExpr(rhs0)
 	for i := 1; i >= 0; i-- {
 		lhsMeta := meta.Lhss[i]
-		rhsType := rhsTypes[i]
+		rhsType := rhsTuple.Types[i]
 		if sema.IsBlankIdentifierMeta(lhsMeta) {
 			emitPop(sema.Kind(rhsType))
 		} else {
@@ -1437,12 +1439,12 @@ func emitOkAssignment(meta *ir.MetaTupleAssign) {
 // a, b (, c...) = f()
 func emitFuncallAssignment(meta *ir.MetaTupleAssign) {
 	rhs0 := meta.Rhs
-	rhsTypes := meta.RhsTypes
+	rhsTuple := meta.RhsTuple
 
 	emitExpr(rhs0)
-	for i := 0; i < len(rhsTypes); i++ {
+	for i := 0; i < len(rhsTuple.Types); i++ {
 		lhsMeta := meta.Lhss[i]
-		rhsType := rhsTypes[i]
+		rhsType := rhsTuple.Types[i]
 		if sema.IsBlankIdentifierMeta(lhsMeta) {
 			emitPop(sema.Kind(rhsType))
 		} else {

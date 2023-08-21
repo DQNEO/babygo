@@ -14,6 +14,7 @@ const Version string = "0.4.0"
 const ProgName string = "babygo"
 
 func showHelp() {
+
 	fmt.Printf("Usage:\n")
 	fmt.Printf("    version:  show version\n")
 	fmt.Printf("    build -o <outfile> <pkgpath> e.g. build -o hello ./example/hello\n")

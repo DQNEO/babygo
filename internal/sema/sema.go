@@ -263,15 +263,18 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 	return r
 }
 
-func GetTupleTypes(rhsMeta ir.MetaExpr) []types.Type {
+func GetTuple(rhsMeta ir.MetaExpr) *types.Tuple {
 	if IsOkSyntax(rhsMeta) {
-		return []types.Type{GetTypeOfExpr(rhsMeta), types.Bool}
+		typs := []types.Type{GetTypeOfExpr(rhsMeta), types.Bool}
+		return &types.Tuple{
+			Types: typs,
+		}
 	} else {
 		rhs, ok := rhsMeta.(*ir.MetaCallExpr)
 		if !ok {
 			panic("is not *MetaCallExpr")
 		}
-		return rhs.Types
+		return rhs.Tuple
 	}
 }
 
@@ -798,8 +801,8 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &ir.EvalContext{MaybeOK: maybeOkContext})
 			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
-			rhsTypes := GetTupleTypes(rhsMeta)
-			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
+			rhsTuple := GetTuple(rhsMeta)
+			assert(len(s.Lhs) == len(rhsTuple.Types), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTuple.Types)), __func__)
 
 			var lhsMetas []ir.MetaExpr
 			for _, lhs := range s.Lhs {
@@ -811,7 +814,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				IsOK:     isOK,
 				Lhss:     lhsMetas,
 				Rhs:      rhsMeta,
-				RhsTypes: rhsTypes,
+				RhsTuple: rhsTuple,
 			}
 		} else {
 			panic("Bad syntax")
@@ -843,10 +846,10 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			maybeOkContext := len(s.Lhs) == 2
 			rhsMeta := walkExpr(s.Rhs[0], &ir.EvalContext{MaybeOK: maybeOkContext})
 			isOK := len(s.Lhs) == 2 && IsOkSyntax(rhsMeta)
-			rhsTypes := GetTupleTypes(rhsMeta)
-			assert(len(s.Lhs) == len(rhsTypes), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTypes)), __func__)
+			rhsTuple := GetTuple(rhsMeta)
+			assert(len(s.Lhs) == len(rhsTuple.Types), fmt.Sprintf("length unmatches %d <=> %d", len(s.Lhs), len(rhsTuple.Types)), __func__)
 
-			lhsTypes := rhsTypes
+			lhsTypes := rhsTuple.Types
 			for i, lhs := range s.Lhs {
 				typ := lhsTypes[i]
 				obj := lhs.(*ast.Ident).Obj
@@ -863,7 +866,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				IsOK:     isOK,
 				Lhss:     lhsMetas,
 				Rhs:      rhsMeta,
-				RhsTypes: rhsTypes,
+				RhsTuple: rhsTuple,
 			}
 		} else {
 			panic("Bad syntax")
@@ -905,8 +908,8 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			panic("syntax error in return statement")
 		}
 		m := walkExpr(funcall, nil)
-		tupleTypes := GetTupleTypes(m)
-		assert(len(funcDef.Retvars) == len(tupleTypes), "number of return exprs should match", __func__)
+		tuple := GetTuple(m)
+		assert(len(funcDef.Retvars) == len(tuple.Types), "number of return exprs should match", __func__)
 		var lhss []ir.MetaExpr
 		for _, v := range funcDef.Retvars {
 			lhss = append(lhss, v)
@@ -917,7 +920,7 @@ func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
 			IsOK:     false,
 			Lhss:     lhss,
 			Rhs:      m,
-			RhsTypes: tupleTypes,
+			RhsTuple: tuple,
 		}
 		return &ir.MetaReturnStmt{
 			Tpos:        s.Pos(),
@@ -1667,10 +1670,10 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	}
 	sig := ft.Underlying().(*types.Signature)
 	if sig.Results != nil {
-		meta.Types = sig.Results.Types
-	}
-	if len(meta.Types) > 0 {
-		meta.Type = meta.Types[0]
+		meta.Tuple = sig.Results
+		if len(meta.Tuple.Types) > 0 {
+			meta.Type = meta.Tuple.Types[0]
+		}
 	}
 
 	meta.FuncVal = funcVal
