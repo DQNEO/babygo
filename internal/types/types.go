@@ -1,9 +1,5 @@
 package types
 
-import (
-	"github.com/DQNEO/babygo/lib/ast"
-)
-
 type TypeKind string
 
 const T_STRING TypeKind = "T_STRING"
@@ -185,7 +181,7 @@ func (t *Interface) Underlying() Type { return t }
 func (t *Interface) String() string   { return "@TBI" }
 
 type Func struct {
-	Typ  Type
+	Typ  *Signature
 	Name string
 }
 
@@ -214,19 +210,19 @@ func (t *Signature) Underlying() Type { return t }
 func (t *Signature) String() string   { return "@TBI" }
 
 type Var struct {
-	Name string
-	Type Type
+	Name   string
+	Type   Type
+	Offset int
 }
 
 type Struct struct {
-	Fields    []*Var       // Fields != nil indicates the struct is set up (possibly with len(Fields) == 0)
-	AstFields []*ast.Field // @TODO: Replace this by Fields
+	Fields       []*Var // Fields != nil indicates the struct is set up (possibly with len(Fields) == 0)
+	IsCalculated bool   // the offsets of fields are calculated or not
 }
 
-func NewStruct(fields []*Var, astFields []*ast.Field) *Struct {
+func NewStruct(fields []*Var) *Struct {
 	return &Struct{
-		Fields:    fields,
-		AstFields: astFields,
+		Fields: fields,
 	}
 }
 
@@ -246,5 +242,10 @@ func NewNamed(name string, typ Type) *Named {
 	}
 }
 
-func (t *Named) Underlying() Type { return t.UT }
-func (t *Named) String() string   { return t.name }
+func (t *Named) Underlying() Type {
+	if t.UT == nil {
+		panic("Named type " + t.PkgName + "." + t.name + ": Underlying is nil")
+	}
+	return t.UT
+}
+func (t *Named) String() string { return t.name }

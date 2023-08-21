@@ -398,7 +398,10 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 		// push lhs address
 		emitPushStackTop(types.Uintptr, 0, "address of struct heaad")
 
-		fieldOffset := sema.GetStructFieldOffset(metaElm.Field)
+		fieldOffset := metaElm.Field.Offset
+		if fieldOffset < 0 {
+			panic("field offset ist not set")
+		}
 		emitAddConst(fieldOffset, "address of struct field")
 
 		// push rhs value
@@ -520,7 +523,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.Type, ret
 }
 
 func emitAllocReturnVarsAreaFF(ff *ir.Func) {
-	rtypes := (ff.Signature.ReturnTypes)
+	rtypes := ff.FuncType.Typ.Results.Types
 	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
 }
 
@@ -533,8 +536,8 @@ func getTotalSizeOfType(ts []types.Type) int {
 }
 
 func emitCallFF(ff *ir.Func) {
-	ptypes := (ff.Signature.ParamTypes)
-	rtypes := (ff.Signature.ReturnTypes)
+	ptypes := ff.FuncType.Typ.Params.Types
+	rtypes := ff.FuncType.Typ.Results.Types
 	totalParamSize := getTotalSizeOfType(ptypes)
 	symbol := ff.PkgName + "." + ff.Name
 	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, rtypes)
@@ -2102,8 +2105,7 @@ func GenerateDecls(pkg *ir.AnalyzedPackage, declFilePath string) {
 	for _, typ := range pkg.Types {
 		ut := typ.Underlying()
 		utAsString := sema.SerializeType(ut, true, pkg.Name)
-		named := typ.(*types.Named)
-		fmt.Fprintf(fout, "type %s %s\n", named.String(), utAsString)
+		fmt.Fprintf(fout, "type %s %s\n", typ.String(), utAsString)
 	}
 	for _, vr := range pkg.Vars {
 		fmt.Fprintf(fout, "var %s %s\n", vr.Name.Name, sema.SerializeType(vr.Type, true, pkg.Name))
@@ -2186,6 +2188,7 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 	// sort map in order to assure the deterministic results
 	for key, ent := range itab {
 		entries[ent.Id] = key
+
 	}
 
 	// skip id=0
@@ -2204,7 +2207,15 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 		if len(methods) == 0 {
 			printf("  # no methods\n")
 		}
+
 		for mi, m := range methods {
+			rcvT := ent.Dtype
+			rcvPointerType, isPtr := rcvT.(*types.Pointer)
+			if isPtr {
+				rcvT = rcvPointerType.Elem()
+			}
+			namedRcvT := rcvT.(*types.Named)
+			printf("  # Dtype %s.%s \n", namedRcvT.PkgName, namedRcvT.String())
 			dmethod := sema.LookupMethod(ent.Dtype, m.Name)
 			sym := sema.GetMethodSymbol(dmethod)
 			printf("  .quad .method_name_%d_%d # %s \n", id, mi, m.Name)

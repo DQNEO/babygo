@@ -14,7 +14,7 @@ type IfcConversion struct {
 
 type MetaStructLiteralElement struct {
 	Tpos  token.Pos
-	Field *ast.Field
+	Field *types.Var
 	Type  types.Type
 	Value MetaExpr
 }
@@ -441,7 +441,7 @@ type Func struct {
 	Retvars   []*Variable
 	Method    *Method
 	Decl      *ast.FuncDecl
-	Signature *Signature
+	FuncType  *types.Func
 	HasDefer  bool
 	DeferVar  *Variable
 }
@@ -451,7 +451,7 @@ type Method struct {
 	RcvNamedType *ast.Ident
 	IsPtrMethod  bool
 	Name         string
-	FuncType     *ast.FuncType
+	FuncType     *types.Func
 }
 
 type Variable struct {
@@ -498,7 +498,7 @@ type AnalyzedPackage struct {
 	Path           string
 	Name           string
 	Imports        []string
-	Types          []types.Type
+	Types          []*types.Named
 	Consts         []*PackageVarConst
 	Funcs          []*Func
 	Vars           []*PackageVarConst
