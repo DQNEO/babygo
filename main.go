@@ -11,8 +11,6 @@ import (
 
 const Version string = "0.4.1"
 
-const ProgName string = "babygo"
-
 func showHelp() {
 
 	fmt.Printf("Usage:\n")
