@@ -134,7 +134,7 @@ func NewSlice(elem Type) *Slice { return &Slice{elem: elem} }
 func (s *Slice) Elem() Type { return s.elem }
 
 func (t *Slice) Underlying() Type { return t }
-func (t *Slice) String() string   { return "@TBI" }
+func (t *Slice) String() string   { return "[]" + t.Elem().String() }
 
 // A Pointer represents a pointer type.
 type Pointer struct {
@@ -148,7 +148,7 @@ func NewPointer(elem Type) *Pointer { return &Pointer{base: elem} }
 func (p *Pointer) Elem() Type { return p.base }
 
 func (t *Pointer) Underlying() Type { return t }
-func (t *Pointer) String() string   { return "@TBI" }
+func (t *Pointer) String() string   { return "*" + t.Elem().String() }
 
 // A Map represents a map type.
 type Map struct {
@@ -168,7 +168,7 @@ func (m *Map) Key() Type { return m.key }
 func (m *Map) Elem() Type { return m.elem }
 
 func (t *Map) Underlying() Type { return t }
-func (t *Map) String() string   { return "@TBI" }
+func (t *Map) String() string   { return "map[" + t.key.String() + "]" + t.Elem().String() }
 
 type Interface struct {
 	Methods []*Func
@@ -182,7 +182,7 @@ func NewInterfaceType(methods []*Func) *Interface {
 }
 
 func (t *Interface) Underlying() Type { return t }
-func (t *Interface) String() string   { return "@TBI" }
+func (t *Interface) String() string   { return "interface{" + "@TODO: list methods" + "}" }
 
 type Func struct {
 	Typ  *Signature
@@ -196,7 +196,7 @@ func NewFunc(sig *Signature) *Func {
 }
 
 func (t *Func) Underlying() Type { return t.Typ }
-func (t *Func) String() string   { return t.Typ.String() }
+func (t *Func) String() string   { return "func " + t.Typ.String() }
 
 type Tuple struct {
 	Types []Type
@@ -231,7 +231,7 @@ func NewStruct(fields []*Var) *Struct {
 }
 
 func (t *Struct) Underlying() Type { return t }
-func (t *Struct) String() string   { return "@TBI" }
+func (t *Struct) String() string   { return "struct{" + "@TODO:list fields" + "}" }
 
 type Named struct {
 	name    string
