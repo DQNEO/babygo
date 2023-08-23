@@ -2,7 +2,6 @@ package universe
 
 import (
 	"github.com/DQNEO/babygo/lib/ast"
-	"github.com/DQNEO/babygo/lib/token"
 )
 
 var Nil = &ast.Object{
@@ -52,36 +51,9 @@ var Uint16 = &ast.Object{
 	Name: "uint16",
 }
 
-var ErrorMethodFuncType = &ast.FuncType{
-	Params: &ast.FieldList{},
-	Results: &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{Type: &ast.Ident{
-				Name: "string",
-				Obj:  String,
-			}}},
-	},
-}
-
 var Error = &ast.Object{
 	Kind: ast.Typ,
 	Name: "error",
-	Decl: &ast.TypeSpec{
-		Type: &ast.InterfaceType{
-			Methods: &ast.FieldList{
-				Opening: token.NoPos,
-				List: []*ast.Field{
-					&ast.Field{
-						Names: []*ast.Ident{
-							&ast.Ident{Name: "Error"},
-						},
-						Type: ErrorMethodFuncType,
-					},
-				},
-			},
-			Interface: token.NoPos,
-		},
-	},
 }
 
 var New = &ast.Object{
