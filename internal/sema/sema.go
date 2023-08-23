@@ -576,7 +576,7 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 				},
 				IsPtrMethod: false,
 				Name:        "Error",
-				FuncType:    CompileFuncType(universe.ErrorMethodFuncType),
+				FuncType:    types.Error.UT.(*types.Interface).Methods[0],
 			}
 		} else {
 			pkgName := typ.PkgName
@@ -1588,7 +1588,11 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	}
 
 	meta.FuncVal = funcVal
-	argsAndParams := prepareArgsAndParams(sig.Params.Types, receiverMeta, e.Args, meta.HasEllipsis, e.Pos())
+	var sigParamTypes []types.Type
+	if sig.Params != nil {
+		sigParamTypes = sig.Params.Types
+	}
+	argsAndParams := prepareArgsAndParams(sigParamTypes, receiverMeta, e.Args, meta.HasEllipsis, e.Pos())
 	var paramTypes []types.Type
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
