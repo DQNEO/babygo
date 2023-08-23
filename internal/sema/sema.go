@@ -567,8 +567,7 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 
 	switch typ := rcvT.(type) {
 	case *types.Named:
-		if typ.PkgName == "" && typ.String() == "error" {
-			namedTypeId = "error"
+		if typ == types.Error {
 			return &ir.Method{
 				PkgName: "",
 				RcvNamedType: &ast.Ident{
