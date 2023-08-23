@@ -302,10 +302,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 		case universe.Bool:
 			return types.Bool
 		case universe.Error:
-			dcl := universe.Error.Decl.(*ast.TypeSpec)
-			ut := E2T(dcl.Type)
-			named := types.NewNamed(universe.Error.Name, ut)
-			return named
+			return types.Error
 		}
 
 		namedType, ok := pkgNamedTypesMap[ident.Name]

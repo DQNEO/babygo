@@ -57,6 +57,22 @@ var String Type = &Basic{
 	name: "string",
 }
 
+var Error = &Named{
+	name: "error",
+	UT: &Interface{
+		Methods: []*Func{
+			&Func{
+				Name: "Error",
+				Typ: &Signature{
+					Results: &Tuple{
+						Types: []Type{String},
+					},
+				},
+			},
+		},
+	},
+}
+
 var EmptyInterface Type = &Interface{}
 var GeneralSliceType Type = &Slice{}
 
