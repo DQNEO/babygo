@@ -22,37 +22,37 @@ const T_POINTER TypeKind = "T_POINTER"
 const T_MAP TypeKind = "T_MAP"
 
 // --- universal types ---
-var Bool Type = &Basic{
+var Bool = &Basic{
 	Knd:  GBool,
 	name: "bool",
 }
 
-var Int Type = &Basic{
+var Int = &Basic{
 	Knd:  GInt,
 	name: "int",
 }
 
 // Rune
-var Int32 Type = &Basic{
+var Int32 = &Basic{
 	Knd:  GInt32,
 	name: "int32",
 }
 
-var Uintptr Type = &Basic{
+var Uintptr = &Basic{
 	Knd:  GUintptr,
 	name: "uintptr",
 }
 
-var Uint8 Type = &Basic{
+var Uint8 = &Basic{
 	Knd:  GUint8,
 	name: "uint8",
 }
 
-var Uint16 Type = &Basic{
+var Uint16 = &Basic{
 	Knd:  GUint16,
 	name: "uint16",
 }
-var String Type = &Basic{
+var String = &Basic{
 	Knd:  GString,
 	name: "string",
 }
@@ -73,8 +73,8 @@ var Error = &Named{
 	},
 }
 
-var EmptyInterface Type = &Interface{}
-var GeneralSliceType Type = &Slice{}
+var EmptyInterface = &Interface{}
+var GeneralSliceType = &Slice{}
 
 const GBool = 1
 const GInt = 2
