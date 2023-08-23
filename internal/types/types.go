@@ -21,7 +21,6 @@ const T_STRUCT TypeKind = "T_STRUCT"
 const T_POINTER TypeKind = "T_POINTER"
 const T_MAP TypeKind = "T_MAP"
 
-// --- universal types ---
 var Bool = &Basic{
 	Knd:  GBool,
 	name: "bool",
