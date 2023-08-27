@@ -2215,7 +2215,7 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 				rcvT = rcvPointerType.Elem()
 			}
 			namedRcvT := rcvT.(*types.Named)
-			printf("  # Dtype %s.%s \n", namedRcvT.PkgName, namedRcvT.String())
+			printf("  # Dtype %s.%s \n", namedRcvT.GetPackageName(), namedRcvT.String())
 			dmethod := sema.LookupMethod(ent.Dtype, m.Name)
 			sym := sema.GetMethodSymbol(dmethod)
 			printf("  .quad .method_name_%d_%d # %s \n", id, mi, m.Name)

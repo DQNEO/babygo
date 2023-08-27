@@ -578,7 +578,7 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 				FuncType:    types.Error.UT.(*types.Interface).Methods[0],
 			}
 		} else {
-			pkgName := typ.PkgName
+			pkgName := typ.GetPackageName()
 			if pkgName == "" {
 				panic("No package name: " + typ.String())
 			}
@@ -2019,8 +2019,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	for _, typeSpec := range typeSpecs {
 		// Register package types
 		// Underlying type will be attached later
-		t := types.NewNamed(typeSpec.Name.Name, nil)
-		t.PkgName = pkg.Name
+		t := types.NewNamed(typeSpec.Name.Name, pkg.Name, nil)
 		pkgNamedTypes = append(pkgNamedTypes, t)
 		pkgNamedTypesMap[typeSpec.Name.Name] = t
 		// named type
@@ -2356,21 +2355,21 @@ func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName
 	case *types.Basic:
 		return g.Name()
 	case *types.Named:
-		if g.PkgName == "" && g.String() == "error" {
+		if g.GetPackageName() == "" && g.String() == "error" {
 			return "error"
 		}
 		if showOnlyForeignPrefix {
-			if g.PkgName == currentPkgName {
+			if g.GetPackageName() == currentPkgName {
 				return g.String()
 			} else {
-				if g.PkgName != "" {
-					return g.PkgName + "." + g.String()
+				if g.GetPackageName() != "" {
+					return g.GetPackageName() + "." + g.String()
 				} else {
 					return g.String()
 				}
 			}
 		} else {
-			return g.PkgName + "." + g.String()
+			return g.GetPackageName() + "." + g.String()
 		}
 	case *types.Pointer:
 		return "*" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
