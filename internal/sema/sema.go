@@ -2,7 +2,7 @@ package sema
 
 import (
 	"github.com/DQNEO/babygo/internal/ir"
-	"github.com/DQNEO/babygo/internal/types"
+	"github.com/DQNEO/babygo/internal/types2"
 	"github.com/DQNEO/babygo/internal/universe"
 	"github.com/DQNEO/babygo/lib/ast"
 	"github.com/DQNEO/babygo/lib/fmt"
@@ -38,7 +38,7 @@ func throw(x interface{}) {
 	panic(fmt.Sprintf(ThrowFormat, x))
 }
 
-func unexpectedKind(knd types.TypeKind) {
+func unexpectedKind(knd types2.TypeKind) {
 	panic("Unexpected Kind: " + string(knd))
 }
 
@@ -77,19 +77,19 @@ func isType(expr ast.Expr) bool {
 
 type argAndParamType struct {
 	Meta      ir.MetaExpr
-	ParamType types.Type // expected type
+	ParamType types2.Type // expected type
 }
 
-func prepareArgsAndParams(paramTypes []types.Type, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
+func prepareArgsAndParams(paramTypes []types2.Type, receiver ir.MetaExpr, eArgs []ast.Expr, expandElipsis bool, pos token.Pos) []*argAndParamType {
 	var metaArgs []*argAndParamType
 	var variadicArgs []ast.Expr // nil means there is no variadic in func params
-	var variadicElmType types.Type
-	var paramType types.Type
+	var variadicElmType types2.Type
+	var paramType types2.Type
 	lenParams := len(paramTypes)
 	for argIndex, eArg := range eArgs {
 		if argIndex < lenParams {
 			paramType = paramTypes[argIndex]
-			slc, isSlice := paramType.(*types.Slice)
+			slc, isSlice := paramType.(*types2.Slice)
 			if isSlice && slc.IsElps {
 				variadicElmType = slc.Elem()
 				variadicArgs = make([]ast.Expr, 0, 20)
@@ -113,7 +113,7 @@ func prepareArgsAndParams(paramTypes []types.Type, receiver ir.MetaExpr, eArgs [
 
 	if variadicElmType != nil && !expandElipsis {
 		// collect args as a slice
-		sliceType := types.NewSlice(variadicElmType)
+		sliceType := types2.NewSlice(variadicElmType)
 
 		var ms []ir.MetaExpr
 		ctx := &ir.EvalContext{Type: variadicElmType}
@@ -138,9 +138,9 @@ func prepareArgsAndParams(paramTypes []types.Type, receiver ir.MetaExpr, eArgs [
 	} else if len(metaArgs) < len(paramTypes) {
 		// Add nil as a variadic arg
 		p := paramTypes[len(metaArgs)]
-		elp := p.(*types.Slice)
+		elp := p.(*types2.Slice)
 		assert(elp.IsElps, "should be Ellipsis", __func__)
-		typ := types.NewSlice(elp.Elem())
+		typ := types2.NewSlice(elp.Elem())
 		mNil := &ir.MetaIdent{
 			Tpos: pos,
 			Type: typ,
@@ -187,7 +187,7 @@ func IsNil(meta ir.MetaExpr) bool {
 func NewNumberLiteral(x int, pos token.Pos) *ir.MetaBasicLit {
 	return &ir.MetaBasicLit{
 		Tpos:   pos,
-		Type:   types.Int,
+		Type:   types2.Int,
 		Kind:   "INT",
 		IntVal: x,
 	}
@@ -218,7 +218,7 @@ func GetPackageSymbol(pkgName string, subsymbol string) string {
 }
 
 // Types of an expr in Single value context
-func GetTypeOfExpr(meta ir.MetaExpr) types.Type {
+func GetTypeOfExpr(meta ir.MetaExpr) types2.Type {
 	t := meta.GetType()
 
 	if t == nil {
@@ -228,11 +228,11 @@ func GetTypeOfExpr(meta ir.MetaExpr) types.Type {
 	return t
 }
 
-func FieldList2Types(fieldList *ast.FieldList) []types.Type {
+func FieldList2Types(fieldList *ast.FieldList) []types2.Type {
 	if fieldList == nil {
 		return nil
 	}
-	var r []types.Type
+	var r []types2.Type
 	for _, field := range fieldList.List {
 		t := E2T(field.Type)
 		r = append(r, t)
@@ -240,11 +240,11 @@ func FieldList2Types(fieldList *ast.FieldList) []types.Type {
 	return r
 }
 
-func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
+func FieldList2Tuple(fieldList *ast.FieldList) *types2.Tuple {
 	if fieldList == nil {
 		return nil
 	}
-	var r = &types.Tuple{}
+	var r = &types2.Tuple{}
 	for _, e2 := range fieldList.List {
 		t := E2T(e2.Type)
 		r.Types = append(r.Types, t)
@@ -252,10 +252,10 @@ func FieldList2Tuple(fieldList *ast.FieldList) *types.Tuple {
 	return r
 }
 
-func GetTuple(rhsMeta ir.MetaExpr) *types.Tuple {
+func GetTuple(rhsMeta ir.MetaExpr) *types2.Tuple {
 	if IsOkSyntax(rhsMeta) {
-		typs := []types.Type{GetTypeOfExpr(rhsMeta), types.Bool}
-		return &types.Tuple{
+		typs := []types2.Type{GetTypeOfExpr(rhsMeta), types2.Bool}
+		return &types2.Tuple{
 			Types: typs,
 		}
 	} else {
@@ -267,18 +267,18 @@ func GetTuple(rhsMeta ir.MetaExpr) *types.Tuple {
 	}
 }
 
-func CompileFuncType(e *ast.FuncType) *types.Func {
-	sig := &types.Signature{}
+func CompileFuncType(e *ast.FuncType) *types2.Func {
+	sig := &types2.Signature{}
 	if e.Params != nil {
 		sig.Params = FieldList2Tuple(e.Params)
 	}
 	if e.Results != nil {
 		sig.Results = FieldList2Tuple(e.Results)
 	}
-	return types.NewFunc(sig)
+	return types2.NewFunc(sig)
 }
 
-func E2T(typeExpr ast.Expr) types.Type {
+func E2T(typeExpr ast.Expr) types2.Type {
 	switch t := typeExpr.(type) {
 	case *ast.Ident:
 		ident := t
@@ -288,21 +288,21 @@ func E2T(typeExpr ast.Expr) types.Type {
 		}
 		switch obj {
 		case universe.Uintptr:
-			return types.Uintptr
+			return types2.Uintptr
 		case universe.Int:
-			return types.Int
+			return types2.Int
 		case universe.Int32:
-			return types.Int32
+			return types2.Int32
 		case universe.String:
-			return types.String
+			return types2.String
 		case universe.Uint8:
-			return types.Uint8
+			return types2.Uint8
 		case universe.Uint16:
-			return types.Uint16
+			return types2.Uint16
 		case universe.Bool:
-			return types.Bool
+			return types2.Bool
 		case universe.Error:
-			return types.Error
+			return types2.Error
 		}
 
 		namedType, ok := pkgNamedTypesMap[ident.Name]
@@ -312,16 +312,16 @@ func E2T(typeExpr ast.Expr) types.Type {
 		panicPos(fmt.Sprintf("  Cannot attach type : %s \n", ident.Name), ident.Pos())
 	case *ast.ArrayType:
 		if t.Len == nil {
-			return types.NewSlice(E2T(t.Elt))
+			return types2.NewSlice(E2T(t.Elt))
 		} else {
-			return types.NewArray(E2T(t.Elt), EvalInt(t.Len))
+			return types2.NewArray(E2T(t.Elt), EvalInt(t.Len))
 		}
 	case *ast.StructType:
-		var fields []*types.Var
+		var fields []*types2.Var
 		if t.Fields != nil {
 			for _, fld := range t.Fields.List {
 				ft := E2T(fld.Type)
-				v := &types.Var{
+				v := &types2.Var{
 					Name:   fld.Names[0].Name,
 					Type:   ft,
 					Offset: -1,
@@ -329,21 +329,21 @@ func E2T(typeExpr ast.Expr) types.Type {
 				fields = append(fields, v)
 			}
 		}
-		return types.NewStruct(fields)
+		return types2.NewStruct(fields)
 	case *ast.StarExpr:
 		if t.X == nil {
 			panicPos("X should not be nil", t.Pos())
 		}
 		origT := E2T(t.X)
-		return types.NewPointer(origT)
+		return types2.NewPointer(origT)
 	case *ast.Ellipsis:
-		slc := types.NewSlice(E2T(t.Elt))
+		slc := types2.NewSlice(E2T(t.Elt))
 		slc.IsElps = true
 		return slc
 	case *ast.MapType:
-		return types.NewMap(E2T(t.Key), E2T(t.Value))
+		return types2.NewMap(E2T(t.Key), E2T(t.Value))
 	case *ast.InterfaceType:
-		var methods []*types.Func
+		var methods []*types2.Func
 		if t.Methods != nil {
 			for _, m := range t.Methods.List {
 				methodName := m.Names[0].Name
@@ -352,7 +352,7 @@ func E2T(typeExpr ast.Expr) types.Type {
 				methods = append(methods, ft)
 			}
 		}
-		return types.NewInterfaceType(methods)
+		return types2.NewInterfaceType(methods)
 	case *ast.FuncType:
 		return CompileFuncType(t)
 	case *ast.ParenExpr:
@@ -372,23 +372,23 @@ func E2T(typeExpr ast.Expr) types.Type {
 	return nil
 }
 
-func GetArrayLen(t types.Type) int {
+func GetArrayLen(t types2.Type) int {
 	t = t.Underlying()
-	arrayType := t.(*types.Array)
+	arrayType := t.(*types2.Array)
 	return arrayType.Len()
 }
 
-func IsInterface(t types.Type) bool {
-	return types.Kind(t) == types.T_INTERFACE
+func IsInterface(t types2.Type) bool {
+	return types2.Kind(t) == types2.T_INTERFACE
 }
 
-func HasIfcMethod(t types.Type) bool {
+func HasIfcMethod(t types2.Type) bool {
 	if !IsInterface(t) {
 		panic("type should be an interface")
 	}
 
 	ut := t.Underlying()
-	ifc, ok := ut.(*types.Interface)
+	ifc, ok := ut.(*types2.Interface)
 	if !ok {
 		panic("type should be an interface")
 	}
@@ -398,40 +398,40 @@ func HasIfcMethod(t types.Type) bool {
 	return false
 }
 
-func GetElementTypeOfCollectionType(t types.Type) types.Type {
+func GetElementTypeOfCollectionType(t types2.Type) types2.Type {
 	ut := t.Underlying()
 	switch gt := ut.(type) {
-	case *types.Array:
+	case *types2.Array:
 		return gt.Elem()
-	case *types.Slice:
+	case *types2.Slice:
 		return gt.Elem()
-	case *types.Basic:
+	case *types2.Basic:
 		if gt.String() != "string" {
 			panic("only string is allowed here")
 		}
-		return types.Uint8
-	case *types.Map:
+		return types2.Uint8
+	case *types2.Map:
 		return gt.Elem()
 	}
 
 	panic("Unexpected type")
 }
 
-func getKeyTypeOfCollectionType(t types.Type) types.Type {
+func getKeyTypeOfCollectionType(t types2.Type) types2.Type {
 	ut := t.Underlying().Underlying()
-	switch types.Kind(ut) {
-	case types.T_SLICE, types.T_ARRAY, types.T_STRING:
-		return types.Int
-	case types.T_MAP:
-		mapType := ut.(*types.Map)
+	switch types2.Kind(ut) {
+	case types2.T_SLICE, types2.T_ARRAY, types2.T_STRING:
+		return types2.Int
+	case types2.T_MAP:
+		mapType := ut.(*types2.Map)
 		return mapType.Key()
 	default:
-		unexpectedKind(types.Kind(ut))
+		unexpectedKind(types2.Kind(ut))
 	}
 	return nil
 }
 
-func LookupStructField(structType *types.Struct, selName string) *types.Var {
+func LookupStructField(structType *types2.Struct, selName string) *types2.Var {
 	for _, field := range structType.Fields {
 		if field.Name == selName {
 			return field
@@ -440,7 +440,7 @@ func LookupStructField(structType *types.Struct, selName string) *types.Var {
 	return nil // not found is OK. This indicates selName is a method name.
 }
 
-func registerParamVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable {
+func registerParamVariable(fnc *ir.Func, name string, t types2.Type) *ir.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := GetSizeOfType(t)
 	fnc.Argsarea += size
@@ -448,7 +448,7 @@ func registerParamVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable
 	return vr
 }
 
-func registerReturnVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable {
+func registerReturnVariable(fnc *ir.Func, name string, t types2.Type) *ir.Variable {
 	vr := newLocalVariable(name, fnc.Argsarea, t)
 	size := GetSizeOfType(t)
 	fnc.Argsarea += size
@@ -456,7 +456,7 @@ func registerReturnVariable(fnc *ir.Func, name string, t types.Type) *ir.Variabl
 	return vr
 }
 
-func registerLocalVariable(fnc *ir.Func, name string, t types.Type) *ir.Variable {
+func registerLocalVariable(fnc *ir.Func, name string, t types2.Type) *ir.Variable {
 	assert(t != nil, "type of local var should not be nil", __func__)
 	fnc.Localarea -= GetSizeOfType(t)
 	vr := newLocalVariable(name, currentFunc.Localarea, t)
@@ -487,7 +487,7 @@ func registerStringLiteral(lit *ast.BasicLit) *ir.SLiteral {
 	return sl
 }
 
-func newGlobalVariable(pkgName string, name string, t types.Type) *ir.Variable {
+func newGlobalVariable(pkgName string, name string, t types2.Type) *ir.Variable {
 	return &ir.Variable{
 		Name:         name,
 		IsGlobal:     true,
@@ -496,7 +496,7 @@ func newGlobalVariable(pkgName string, name string, t types.Type) *ir.Variable {
 	}
 }
 
-func newLocalVariable(name string, localoffset int, t types.Type) *ir.Variable {
+func newLocalVariable(name string, localoffset int, t types2.Type) *ir.Variable {
 	return &ir.Variable{
 		Name:        name,
 		IsGlobal:    false,
@@ -558,16 +558,16 @@ func registerMethod(pkgName string, method *ir.Method) {
 	namedType.MethodSet[method.Name] = method
 }
 
-func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
-	rcvPointerType, isPtr := rcvT.(*types.Pointer)
+func LookupMethod(rcvT types2.Type, methodName string) *ir.Method {
+	rcvPointerType, isPtr := rcvT.(*types2.Pointer)
 	if isPtr {
 		rcvT = rcvPointerType.Elem()
 	}
 	var namedTypeId string
 
 	switch typ := rcvT.(type) {
-	case *types.Named:
-		if typ == types.Error {
+	case *types2.Named:
+		if typ == types2.Error {
 			return &ir.Method{
 				PkgName: "",
 				RcvNamedType: &ast.Ident{
@@ -575,7 +575,7 @@ func LookupMethod(rcvT types.Type, methodName string) *ir.Method {
 				},
 				IsPtrMethod: false,
 				Name:        "Error",
-				FuncType:    types.Error.UT.(*types.Interface).Methods[0],
+				FuncType:    types2.Error.UT.(*types2.Interface).Methods[0],
 			}
 		} else {
 			pkgName := typ.GetPackageName()
@@ -614,7 +614,7 @@ func walkDeclStmt(s *ast.DeclStmt) *ir.MetaVarDecl {
 	case *ast.ValueSpec:
 		lhsIdent := spec.Names[0]
 		var rhsMeta ir.MetaExpr
-		var t types.Type
+		var t types2.Type
 		if spec.Type != nil { // var x T = e
 			// walkExpr(spec.Type, nil) // Do we need to walk type ?
 			t = E2T(spec.Type)
@@ -679,7 +679,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 				lhsMetas = append(lhsMetas, lm)
 			}
 			var ctx *ir.EvalContext
-			var t types.Type
+			var t types2.Type
 			if !IsBlankIdentifierMeta(lhsMetas[0]) {
 				t = GetTypeOfExpr(lhsMetas[0])
 				ctx = &ir.EvalContext{
@@ -727,7 +727,7 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 			// Single assignment
 			rhsMeta := walkExpr(s.Rhs[0], nil) // FIXME
 			rhsType := GetTypeOfExpr(rhsMeta)
-			lhsTypes := []types.Type{rhsType}
+			lhsTypes := []types2.Type{rhsType}
 			var lhsMetas []ir.MetaExpr
 			for i, lhs := range s.Lhs {
 				typ := lhsTypes[i]
@@ -923,17 +923,17 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 	keyType := getKeyTypeOfCollectionType(collectionType)
 	elmType := GetElementTypeOfCollectionType(collectionType)
 	//walkExpr(types.Int.E, nil)
-	switch types.Kind(collectionType) {
-	case types.T_SLICE, types.T_ARRAY:
+	switch types2.Kind(collectionType) {
+	case types2.T_SLICE, types2.T_ARRAY:
 		meta.ForRangeStmt = &ir.MetaForRangeStmt{
 			Tpos:     s.Pos(),
 			IsMap:    false,
-			LenVar:   registerLocalVariable(currentFunc, ".range.len", types.Int),
-			Indexvar: registerLocalVariable(currentFunc, ".range.index", types.Int),
+			LenVar:   registerLocalVariable(currentFunc, ".range.len", types2.Int),
+			Indexvar: registerLocalVariable(currentFunc, ".range.index", types2.Int),
 			X:        metaX,
 		}
-	case types.T_MAP:
-		mapVar := registerLocalVariable(currentFunc, ".range.map", types.Uintptr)
+	case types2.T_MAP:
+		mapVar := registerLocalVariable(currentFunc, ".range.map", types2.Uintptr)
 		mapVarAssign := &ir.MetaSingleAssign{
 			Tpos: s.Pos(),
 			Lhs:  mapVar,
@@ -943,7 +943,7 @@ func walkRangeStmt(s *ast.RangeStmt) *ir.MetaForContainer {
 			Tpos:         s.Pos(),
 			IsMap:        true,
 			MapVar:       mapVar,
-			ItemVar:      registerLocalVariable(currentFunc, ".range.item", types.Uintptr),
+			ItemVar:      registerLocalVariable(currentFunc, ".range.item", types2.Uintptr),
 			MapVarAssign: mapVarAssign,
 		}
 	default:
@@ -1041,7 +1041,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 		throw(e.Assign)
 	}
 
-	typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", types.EmptyInterface)
+	typeSwitch.SubjectVariable = registerLocalVariable(currentFunc, ".switch_expr", types2.EmptyInterface)
 
 	var cases []*ir.MetaTypeSwitchCaseClose
 	for _, _case := range e.Body.List {
@@ -1053,7 +1053,7 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 
 		if assignIdent != nil {
 			if len(cc.List) > 0 {
-				var varType types.Type
+				var varType types2.Type
 				if isNilIdent(cc.List[0]) {
 					varType = GetTypeOfExpr(typeSwitch.Subject)
 				} else {
@@ -1078,9 +1078,9 @@ func walkTypeSwitchStmt(e *ast.TypeSwitchStmt) *ir.MetaTypeSwitchStmt {
 			body = append(body, m)
 		}
 		tscc.Body = body
-		var typs []types.Type
+		var typs []types2.Type
 		for _, e := range cc.List {
-			var typ types.Type
+			var typ types2.Type
 			if !isNilIdent(e) {
 				typ = E2T(e)
 				RegisterDtype(typ, GetTypeOfExpr(typeSwitch.Subject))
@@ -1152,7 +1152,7 @@ func walkGoStmt(s *ast.GoStmt) *ir.MetaGoStmt {
 func walkDeferStmt(s *ast.DeferStmt) *ir.MetaDeferStmt {
 	funcDef := currentFunc
 	fun := walkExpr(s.Call.Fun, nil)
-	deferVar := registerLocalVariable(funcDef, ".defer.var", types.Uintptr)
+	deferVar := registerLocalVariable(funcDef, ".defer.var", types2.Uintptr)
 	funcDef.HasDefer = true
 	funcDef.DeferVar = deferVar
 	singleAssing := &ir.MetaSingleAssign{
@@ -1239,10 +1239,10 @@ func WalkIdent(e *ast.Ident, ctx *ir.EvalContext) *ir.MetaIdent {
 		meta.Kind = "nil"
 	case universe.True:
 		meta.Kind = "true"
-		meta.Type = types.Bool
+		meta.Type = types2.Bool
 	case universe.False:
 		meta.Kind = "false"
-		meta.Type = types.Bool
+		meta.Type = types2.Bool
 	default:
 		switch e.Obj.Kind {
 		case ast.Var:
@@ -1320,30 +1320,30 @@ func walkSelectorExpr(e *ast.SelectorExpr, ctx *ir.EvalContext) *ir.MetaSelector
 	return meta
 }
 
-func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bool) {
+func getTypeOfSelector(x ir.MetaExpr, selName string) (types2.Type, bool, int, bool) {
 	// (strct).field | (ptr).field | (obj).method
 	var needDeref bool
 	typeOfX := GetTypeOfExpr(x)
 	utX := typeOfX.Underlying().Underlying()
 
-	var structTypeLiteral *types.Struct
+	var structTypeLiteral *types2.Struct
 	switch typ := utX.(type) {
-	case *types.Struct: // strct.field | strct.method
+	case *types2.Struct: // strct.field | strct.method
 		structTypeLiteral = typ
-	case *types.Pointer: // ptr.field | ptr.method
+	case *types2.Pointer: // ptr.field | ptr.method
 		needDeref = true
 		origType := typ.Elem()
-		namedType, isNamed := origType.(*types.Named)
+		namedType, isNamed := origType.(*types2.Named)
 		if isNamed {
 			ut := namedType.Underlying()
 			var isStruct bool
-			structTypeLiteral, isStruct = ut.(*types.Struct)
+			structTypeLiteral, isStruct = ut.(*types2.Struct)
 			if !isStruct {
 				structTypeLiteral = nil // not a field, but method
 				typeOfX = origType      // var p *T ; p.method();  func(p *T) method() {...}
 			}
 		} else {
-			structTypeLiteral = origType.Underlying().(*types.Struct)
+			structTypeLiteral = origType.Underlying().(*types2.Struct)
 		}
 
 	}
@@ -1366,7 +1366,7 @@ func getTypeOfSelector(x ir.MetaExpr, selName string) (types.Type, bool, int, bo
 	return method.FuncType, false, 0, needDeref
 }
 
-func walkConversion(pos token.Pos, toType types.Type, arg0 ir.MetaExpr) ir.MetaExpr {
+func walkConversion(pos token.Pos, toType types2.Type, arg0 ir.MetaExpr) ir.MetaExpr {
 
 	meta := &ir.MetaConversionExpr{
 		Tpos: pos,
@@ -1374,9 +1374,9 @@ func walkConversion(pos token.Pos, toType types.Type, arg0 ir.MetaExpr) ir.MetaE
 		Arg0: arg0,
 	}
 	fromType := GetTypeOfExpr(arg0)
-	fromKind := types.Kind(fromType)
-	toKind := types.Kind(toType)
-	if toKind == types.T_INTERFACE && fromKind != types.T_INTERFACE {
+	fromKind := types2.Kind(fromType)
+	toKind := types2.Kind(toType)
+	if toKind == types2.T_INTERFACE && fromKind != types2.T_INTERFACE {
 		RegisterDtype(fromType, toType)
 	}
 	return meta
@@ -1425,20 +1425,20 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			a0 := walkExpr(e.Args[0], nil)
 			return &ir.MetaCallLen{
 				Tpos: e.Pos(),
-				Type: types.Int,
+				Type: types2.Int,
 				Arg0: a0,
 			}
 		case universe.Cap:
 			a0 := walkExpr(e.Args[0], nil)
 			return &ir.MetaCallCap{
 				Tpos: e.Pos(),
-				Type: types.Int,
+				Type: types2.Int,
 				Arg0: a0,
 			}
 		case universe.New:
 			walkExpr(e.Args[0], nil) // Do we need this ?
 			typeArg0 := E2T(e.Args[0])
-			ptrType := types.NewPointer(typeArg0)
+			ptrType := types2.NewPointer(typeArg0)
 			typ := ptrType
 			return &ir.MetaCallNew{
 				Tpos:     e.Pos(),
@@ -1449,7 +1449,7 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			walkExpr(e.Args[0], nil) // Do we need this ?
 			typeArg0 := E2T(e.Args[0])
 			typ := typeArg0
-			ctx := &ir.EvalContext{Type: types.Int}
+			ctx := &ir.EvalContext{Type: types2.Int}
 			var a1 ir.MetaExpr
 			var a2 ir.MetaExpr
 			if len(e.Args) > 1 {
@@ -1547,21 +1547,21 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 			method := LookupMethod(receiverType, fn.Sel.Name)
 			funcVal = NewFuncValueFromSymbol(GetMethodSymbol(method))
 			funcVal.MethodName = fn.Sel.Name
-			if types.Kind(receiverType) == types.T_POINTER {
+			if types2.Kind(receiverType) == types2.T_POINTER {
 				if method.IsPtrMethod {
 					// p.mp() => as it is
 				} else {
 					// p.mv()
 					panic("TBI 4190")
 				}
-			} else if types.Kind(receiverType) == types.T_INTERFACE {
+			} else if types2.Kind(receiverType) == types2.T_INTERFACE {
 				funcVal.IfcMethodCal = true
 				funcVal.IfcType = receiverType
 				funcVal.IsDirect = false
 			} else {
 				if method.IsPtrMethod {
 					// v.mp() => (&v).mp()
-					pt := types.NewPointer(receiverType)
+					pt := types2.NewPointer(receiverType)
 					receiverMeta = &ir.MetaUnaryExpr{
 						X:    receiverMeta,
 						Type: pt,
@@ -1577,22 +1577,22 @@ func walkCallExpr(e *ast.CallExpr, ctx *ir.EvalContext) ir.MetaExpr {
 	}
 
 	funcType := GetTypeOfExpr(metaFun)
-	ft, ok := funcType.(*types.Func)
+	ft, ok := funcType.(*types2.Func)
 	if !ok {
 		panicPos("Unexpected type:"+funcType.String(), metaFun.Pos())
 	}
-	sig := ft.Underlying().(*types.Signature)
+	sig := ft.Underlying().(*types2.Signature)
 	if sig.Results != nil {
 		meta.ResultTuple = sig.Results
 	}
 
 	meta.FuncVal = funcVal
-	var sigParamTypes []types.Type
+	var sigParamTypes []types2.Type
 	if sig.Params != nil {
 		sigParamTypes = sig.Params.Types
 	}
 	argsAndParams := prepareArgsAndParams(sigParamTypes, receiverMeta, e.Args, meta.HasEllipsis, e.Pos())
-	var paramTypes []types.Type
+	var paramTypes []types2.Type
 	var args []ir.MetaExpr
 	for _, a := range argsAndParams {
 		paramTypes = append(paramTypes, a.ParamType)
@@ -1631,17 +1631,17 @@ func walkBasicLit(e *ast.BasicLit, ctx *ir.EvalContext) *ir.MetaBasicLit {
 			}
 		}
 		m.CharVal = int(char)
-		m.Type = types.Int32 // @TODO: This is not correct
+		m.Type = types2.Int32 // @TODO: This is not correct
 	case "INT":
 		ival, err := strconv.ParseInt(m.RawValue, 0, 64)
 		if err != nil {
 			panic("strconv.ParseInt failed")
 		}
 		m.IntVal = int(ival)
-		m.Type = types.Int // @TODO: This is not correct
+		m.Type = types2.Int // @TODO: This is not correct
 	case "STRING":
 		m.StrVal = registerStringLiteral(e)
-		m.Type = types.String // @TODO: This is not correct
+		m.Type = types2.String // @TODO: This is not correct
 	default:
 		panic("Unexpected literal Kind:" + e.Kind.String())
 	}
@@ -1653,15 +1653,15 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 	typ := E2T(e.Type)
 	ut := typ.Underlying()
 	var knd string
-	switch types.Kind(ut) {
-	case types.T_STRUCT:
+	switch types2.Kind(ut) {
+	case types2.T_STRUCT:
 		knd = "struct"
-	case types.T_ARRAY:
+	case types2.T_ARRAY:
 		knd = "array"
-	case types.T_SLICE:
+	case types2.T_SLICE:
 		knd = "slice"
 	default:
-		unexpectedKind(types.Kind(typ))
+		unexpectedKind(types2.Kind(typ))
 	}
 	meta := &ir.MetaCompositLit{
 		Tpos: e.Pos(),
@@ -1669,15 +1669,15 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 		Type: typ,
 	}
 
-	switch types.Kind(ut) {
-	case types.T_STRUCT:
+	switch types2.Kind(ut) {
+	case types2.T_STRUCT:
 		structType := meta.Type
 		var metaElms []*ir.MetaStructLiteralElement
 		for _, elm := range e.Elts {
 			kvExpr := elm.(*ast.KeyValueExpr)
 			fieldName := kvExpr.Key.(*ast.Ident)
 
-			strcctT := structType.Underlying().(*types.Struct)
+			strcctT := structType.Underlying().(*types2.Struct)
 			field := LookupStructField(strcctT, fieldName.Name)
 			fieldType := field.Type
 			ctx := &ir.EvalContext{Type: fieldType}
@@ -1694,8 +1694,8 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 			metaElms = append(metaElms, metaElm)
 		}
 		meta.StructElements = metaElms
-	case types.T_ARRAY:
-		arrayType := ut.(*types.Array)
+	case types2.T_ARRAY:
+		arrayType := ut.(*types2.Array)
 		meta.Len = arrayType.Len()
 		meta.ElmType = arrayType.Elem()
 		ctx := &ir.EvalContext{Type: meta.ElmType}
@@ -1706,8 +1706,8 @@ func walkCompositeLit(e *ast.CompositeLit, ctx *ir.EvalContext) *ir.MetaComposit
 			ms = append(ms, mc)
 		}
 		meta.Elms = ms
-	case types.T_SLICE:
-		arrayType := ut.(*types.Slice)
+	case types2.T_SLICE:
+		arrayType := ut.(*types2.Slice)
 		meta.Len = len(e.Elts)
 		meta.ElmType = arrayType.Elem()
 		ctx := &ir.EvalContext{Type: meta.ElmType}
@@ -1732,10 +1732,10 @@ func walkUnaryExpr(e *ast.UnaryExpr, ctx *ir.EvalContext) *ir.MetaUnaryExpr {
 	case "+", "-":
 		meta.Type = GetTypeOfExpr(meta.X)
 	case "!":
-		meta.Type = types.Bool
+		meta.Type = types2.Bool
 	case "&":
 		xTyp := GetTypeOfExpr(meta.X)
-		ptrType := types.NewPointer(xTyp)
+		ptrType := types2.NewPointer(xTyp)
 		meta.Type = ptrType
 	}
 
@@ -1762,7 +1762,7 @@ func walkBinaryExpr(e *ast.BinaryExpr, ctx *ir.EvalContext) *ir.MetaBinaryExpr {
 	}
 	switch meta.Op {
 	case "==", "!=", "<", ">", "<=", ">=":
-		meta.Type = types.Bool
+		meta.Type = types2.Bool
 	default:
 		// @TODO type of (1 + x) should be type of x
 		if isNilIdent(e.X) {
@@ -1783,7 +1783,7 @@ func walkIndexExpr(e *ast.IndexExpr, ctx *ir.EvalContext) *ir.MetaIndexExpr {
 	meta.Index = walkExpr(e.Index, nil) // @TODO pass context for map,slice,array
 	meta.X = walkExpr(e.X, nil)
 	collectionTyp := GetTypeOfExpr(meta.X)
-	if types.Kind(collectionTyp) == types.T_MAP {
+	if types2.Kind(collectionTyp) == types2.T_MAP {
 		meta.IsMap = true
 		if ctx != nil && ctx.MaybeOK {
 			meta.NeedsOK = true
@@ -1821,12 +1821,12 @@ func walkSliceExpr(e *ast.SliceExpr, ctx *ir.EvalContext) *ir.MetaSliceExpr {
 	}
 	meta.X = walkExpr(e.X, nil)
 	listType := GetTypeOfExpr(meta.X)
-	if types.Kind(listType) == types.T_STRING {
+	if types2.Kind(listType) == types2.T_STRING {
 		// str2 = str1[n:m]
-		meta.Type = types.String
+		meta.Type = types2.String
 	} else {
 		elmType := GetElementTypeOfCollectionType(listType)
-		slc := types.NewSlice(elmType)
+		slc := types2.NewSlice(elmType)
 		meta.Type = slc
 	}
 	return meta
@@ -1838,7 +1838,7 @@ func walkStarExpr(e *ast.StarExpr, ctx *ir.EvalContext) *ir.MetaStarExpr {
 	}
 	meta.X = walkExpr(e.X, nil)
 	xType := GetTypeOfExpr(meta.X)
-	origType := xType.Underlying().(*types.Pointer)
+	origType := xType.Underlying().(*types2.Pointer)
 	meta.Type = origType.Elem()
 	return meta
 }
@@ -1912,7 +1912,7 @@ func walkExpr(expr ast.Expr, ctx *ir.EvalContext) ir.MetaExpr {
 	}
 }
 
-func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType types.Type) ir.MetaExpr {
+func CheckIfcConversion(pos token.Pos, expr ir.MetaExpr, trgtType types2.Type) ir.MetaExpr {
 	if IsNil(expr) {
 		return expr
 	}
@@ -1970,14 +1970,14 @@ func SetVariable(obj *ast.Object, vr *ir.Variable) {
 // - (hope) attach type to untyped constants
 // - (hope) transmit the need of interface conversion
 
-var pkgNamedTypesMap map[string]*types.Named
+var pkgNamedTypesMap map[string]*types2.Named
 
 func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	pkg.StringIndex = 0
 	pkg.StringLiterals = nil
 	CurrentPkg = pkg
-	var pkgNamedTypes []*types.Named
-	pkgNamedTypesMap = make(map[string]*types.Named)
+	var pkgNamedTypes []*types2.Named
+	pkgNamedTypesMap = make(map[string]*types2.Named)
 	ITab = make(map[string]*ITabEntry)
 	ITabID = 1
 
@@ -2019,7 +2019,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 	for _, typeSpec := range typeSpecs {
 		// Register package types
 		// Underlying type will be attached later
-		t := types.NewNamed(typeSpec.Name.Name, pkg.Name, nil)
+		t := types2.NewNamed(typeSpec.Name.Name, pkg.Name, nil)
 		pkgNamedTypes = append(pkgNamedTypes, t)
 		pkgNamedTypesMap[typeSpec.Name.Name] = t
 		// named type
@@ -2034,7 +2034,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		exportedIdents[string(NewQI(pkg.Name, typeSpec.Name.Name))] = ei
 	}
 
-	var structTypes []*types.Struct
+	var structTypes []*types2.Struct
 	for _, typeSpec := range typeSpecs {
 		ut := E2T(typeSpec.Type)
 		if ut == nil {
@@ -2045,13 +2045,13 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		if ut.Underlying() == nil {
 			panic(ut.String() + "  Underlying  should not be nil")
 		}
-		switch types.Kind(ut) {
-		case types.T_STRUCT:
+		switch types2.Kind(ut) {
+		case types2.T_STRUCT:
 			//structType := GetUnderlyingType(t)
-			st := ut.Underlying().Underlying().(*types.Struct)
+			st := ut.Underlying().Underlying().(*types2.Struct)
 			structTypes = append(structTypes, st)
 			//			calcStructSizeAndSetFieldOffset(structType.E.(*ast.StructType))
-		case types.T_INTERFACE:
+		case types2.T_INTERFACE:
 			// register ifc method
 			it := typeSpec.Type.(*ast.InterfaceType)
 			if it.Methods != nil {
@@ -2084,7 +2084,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		lhsIdent := spec.Names[0]
 		rhs := spec.Values[0]
 		var rhsMeta ir.MetaExpr
-		var t types.Type
+		var t types2.Type
 		if spec.Type != nil { // const x T = e
 			t = E2T(spec.Type)
 			ctx := &ir.EvalContext{Type: t}
@@ -2135,7 +2135,7 @@ func Walk(pkg *ir.PkgContainer) *ir.AnalyzedPackage {
 		lhsIdent := spec.Names[0]
 		assert(lhsIdent.Obj.Kind == ast.Var, "should be Var", __func__)
 		var rhsMeta ir.MetaExpr
-		var t types.Type
+		var t types2.Type
 		if spec.Type != nil { // var x T = e
 			// walkExpr(spec.Type, nil) // Do we need walk type ?s
 			t = E2T(spec.Type)
@@ -2292,43 +2292,43 @@ const SizeOfUint16 int = 2
 const SizeOfPtr int = 8
 const SizeOfInterface int = 16
 
-func GetSizeOfType(t types.Type) int {
+func GetSizeOfType(t types2.Type) int {
 	ut := t.Underlying()
 	if ut == nil {
-		panic(fmt.Sprintf("ut should not be nil: %T %s", t, t.(*types.Named).String()))
+		panic(fmt.Sprintf("ut should not be nil: %T %s", t, t.(*types2.Named).String()))
 	}
-	switch types.Kind(ut) {
-	case types.T_SLICE:
+	switch types2.Kind(ut) {
+	case types2.T_SLICE:
 		return SizeOfSlice
-	case types.T_STRING:
+	case types2.T_STRING:
 		return SizeOfString
-	case types.T_INT:
+	case types2.T_INT:
 		return SizeOfInt
-	case types.T_UINTPTR, types.T_POINTER, types.T_MAP:
+	case types2.T_UINTPTR, types2.T_POINTER, types2.T_MAP:
 		return SizeOfPtr
-	case types.T_UINT8:
+	case types2.T_UINT8:
 		return SizeOfUint8
-	case types.T_UINT16:
+	case types2.T_UINT16:
 		return SizeOfUint16
-	case types.T_BOOL:
+	case types2.T_BOOL:
 		return SizeOfInt
-	case types.T_INTERFACE:
+	case types2.T_INTERFACE:
 		return SizeOfInterface
-	case types.T_ARRAY:
-		arrayType := ut.(*types.Array)
+	case types2.T_ARRAY:
+		arrayType := ut.(*types2.Array)
 		elmSize := GetSizeOfType(arrayType.Elem())
 		return elmSize * arrayType.Len()
-	case types.T_STRUCT:
-		return calcStructSizeAndSetFieldOffset(ut.(*types.Struct))
-	case types.T_FUNC:
+	case types2.T_STRUCT:
+		return calcStructSizeAndSetFieldOffset(ut.(*types2.Struct))
+	case types2.T_FUNC:
 		return SizeOfPtr
 	default:
-		unexpectedKind(types.Kind(t))
+		unexpectedKind(types2.Kind(t))
 	}
 	return 0
 }
 
-func calcStructSizeAndSetFieldOffset(structType *types.Struct) int {
+func calcStructSizeAndSetFieldOffset(structType *types2.Struct) int {
 	var offset int = 0
 	for _, field := range structType.Fields {
 		field.Offset = offset
@@ -2350,11 +2350,11 @@ func EvalInt(expr ast.Expr) int {
 	panic(fmt.Sprintf("Unknown type:%T", expr))
 }
 
-func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName string) string {
+func SerializeType(goType types2.Type, showOnlyForeignPrefix bool, currentPkgName string) string {
 	switch g := goType.(type) {
-	case *types.Basic:
+	case *types2.Basic:
 		return g.Name()
-	case *types.Named:
+	case *types2.Named:
 		if g.GetPackageName() == "" && g.String() == "error" {
 			return "error"
 		}
@@ -2371,21 +2371,21 @@ func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName
 		} else {
 			return g.GetPackageName() + "." + g.String()
 		}
-	case *types.Pointer:
+	case *types2.Pointer:
 		return "*" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
-	case *types.Array:
+	case *types2.Array:
 		return "[" + strconv.Itoa(g.Len()) + "]" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
-	case *types.Slice:
+	case *types2.Slice:
 		if g.IsElps {
 			return "..." + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 		} else {
 			return "[]" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
 		}
-	case *types.Map:
+	case *types2.Map:
 		return "map[" + SerializeType(g.Key(), showOnlyForeignPrefix, currentPkgName) + "]" + SerializeType(g.Elem(), showOnlyForeignPrefix, currentPkgName)
-	case *types.Func:
+	case *types2.Func:
 		return "func()"
-	case *types.Struct:
+	case *types2.Struct:
 		r := "struct{"
 		if len(g.Fields) > 0 {
 			for _, field := range g.Fields {
@@ -2395,7 +2395,7 @@ func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName
 			}
 		}
 		return r + "}"
-	case *types.Interface:
+	case *types2.Interface:
 		if len(g.Methods) == 0 {
 			return "interface{}"
 		}
@@ -2411,7 +2411,7 @@ func SerializeType(goType types.Type, showOnlyForeignPrefix bool, currentPkgName
 	return ""
 }
 
-func RestoreMethodDecl(m *types.Func, showOnlyForeignPrefix bool, currentPkgName string) string {
+func RestoreMethodDecl(m *types2.Func, showOnlyForeignPrefix bool, currentPkgName string) string {
 	name := m.Name
 	sig := m.Typ
 	var p string
@@ -2469,21 +2469,21 @@ func RestoreFuncDecl(fnc *ir.Func, showOnlyForeignPrefix bool, currentPkgName st
 
 func NewLenMapSignature(arg0 ir.MetaExpr) *ir.Signature {
 	return &ir.Signature{
-		ParamTypes:  []types.Type{types.Int},
-		ReturnTypes: []types.Type{GetTypeOfExpr(arg0)},
+		ParamTypes:  []types2.Type{types2.Int},
+		ReturnTypes: []types2.Type{GetTypeOfExpr(arg0)},
 	}
 }
 
-func NewAppendSignature(elmType types.Type) *ir.Signature {
+func NewAppendSignature(elmType types2.Type) *ir.Signature {
 	return &ir.Signature{
-		ParamTypes:  []types.Type{types.GeneralSliceType, elmType},
-		ReturnTypes: []types.Type{types.GeneralSliceType},
+		ParamTypes:  []types2.Type{types2.GeneralSliceType, elmType},
+		ReturnTypes: []types2.Type{types2.GeneralSliceType},
 	}
 }
 
 func NewDeleteSignature(arg0 ir.MetaExpr) *ir.Signature {
 	return &ir.Signature{
-		ParamTypes:  []types.Type{GetTypeOfExpr(arg0), types.EmptyInterface},
+		ParamTypes:  []types2.Type{GetTypeOfExpr(arg0), types2.EmptyInterface},
 		ReturnTypes: nil,
 	}
 }
@@ -2506,13 +2506,13 @@ type ITabEntry struct {
 	Id          int
 	DSerialized string
 	ISeralized  string
-	Itype       types.Type
-	Dtype       types.Type
+	Itype       types2.Type
+	Dtype       types2.Type
 	Label       string
 }
 
 // "**[1][]*int" => ".dtype.8"
-func RegisterDtype(dtype types.Type, itype types.Type) {
+func RegisterDtype(dtype types2.Type, itype types2.Type) {
 
 	ds := SerializeType(dtype, false, "")
 	is := SerializeType(itype, false, "")
@@ -2537,7 +2537,7 @@ func RegisterDtype(dtype types.Type, itype types.Type) {
 	ITabID++
 }
 
-func GetITabEntry(d types.Type, i types.Type) *ITabEntry {
+func GetITabEntry(d types2.Type, i types2.Type) *ITabEntry {
 	ds := SerializeType(d, false, "")
 	is := SerializeType(i, false, "")
 	key := ds + "-" + is
@@ -2548,9 +2548,9 @@ func GetITabEntry(d types.Type, i types.Type) *ITabEntry {
 	return ent
 }
 
-func GetInterfaceMethods(iType types.Type) []*types.Func {
+func GetInterfaceMethods(iType types2.Type) []*types2.Func {
 	ut := iType.Underlying()
-	it, ok := ut.(*types.Interface)
+	it, ok := ut.(*types2.Interface)
 	if !ok {
 		panic("not interface type")
 	}

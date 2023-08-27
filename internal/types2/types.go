@@ -1,4 +1,4 @@
-package types
+package types2
 
 import (
 	"github.com/DQNEO/babygo/lib/fmt"

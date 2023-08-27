@@ -5,7 +5,7 @@ import (
 
 	"github.com/DQNEO/babygo/internal/ir"
 	"github.com/DQNEO/babygo/internal/sema"
-	"github.com/DQNEO/babygo/internal/types"
+	"github.com/DQNEO/babygo/internal/types2"
 	"github.com/DQNEO/babygo/lib/fmt"
 	"github.com/DQNEO/babygo/lib/strconv"
 	"github.com/DQNEO/babygo/lib/token"
@@ -48,7 +48,7 @@ func printf(format string, a ...interface{}) {
 	fmt.Fprintf(Fout, format, a...)
 }
 
-func unexpectedKind(knd types.TypeKind) {
+func unexpectedKind(knd types2.TypeKind) {
 	panic("Unexpected Kind: " + string(knd))
 }
 
@@ -92,15 +92,15 @@ func emitPopSlice() {
 	printf("  popq %%rdx # slice.cap\n")
 }
 
-func emitPushStackTop(t types.Type, offset int, comment string) {
-	knd := types.Kind(t)
+func emitPushStackTop(t types2.Type, offset int, comment string) {
+	knd := types2.Kind(t)
 	switch knd {
-	case types.T_STRING:
+	case types2.T_STRING:
 		printf("  movq %d+8(%%rsp), %%rcx # copy str.len from stack top (%s)\n", offset, comment)
 		printf("  movq %d+0(%%rsp), %%rax # copy str.ptr from stack top (%s)\n", offset, comment)
 		printf("  pushq %%rcx # str.len\n")
 		printf("  pushq %%rax # str.ptr\n")
-	case types.T_POINTER, types.T_UINTPTR, types.T_BOOL, types.T_INT, types.T_UINT8, types.T_UINT16:
+	case types2.T_POINTER, types2.T_UINTPTR, types2.T_BOOL, types2.T_INT, types2.T_UINT8, types2.T_UINT16:
 		printf("  movq %d(%%rsp), %%rax # copy stack top value (%s) \n", offset, comment)
 		printf("  pushq %%rax\n")
 	default:
@@ -130,44 +130,44 @@ func emitAddConst(addValue int, comment string) {
 }
 
 // "Load" means copy data from memory to registers
-func emitLoadAndPush(t types.Type) {
+func emitLoadAndPush(t types2.Type) {
 	assert(t != nil, "type should not be nil", __func__)
-	emitPopAddress(string(types.Kind(t)))
-	switch types.Kind(t) {
-	case types.T_SLICE:
+	emitPopAddress(string(types2.Kind(t)))
+	switch types2.Kind(t) {
+	case types2.T_SLICE:
 		printf("  movq %d(%%rax), %%rdx\n", 16)
 		printf("  movq %d(%%rax), %%rcx\n", 8)
 		printf("  movq %d(%%rax), %%rax\n", 0)
 		printf("  pushq %%rdx # cap\n")
 		printf("  pushq %%rcx # len\n")
 		printf("  pushq %%rax # ptr\n")
-	case types.T_STRING:
+	case types2.T_STRING:
 		printf("  movq %d(%%rax), %%rdx # len\n", 8)
 		printf("  movq %d(%%rax), %%rax # ptr\n", 0)
 		printf("  pushq %%rdx # len\n")
 		printf("  pushq %%rax # ptr\n")
-	case types.T_INTERFACE:
+	case types2.T_INTERFACE:
 		printf("  movq %d(%%rax), %%rdx # data\n", 8)
 		printf("  movq %d(%%rax), %%rax # dtype\n", 0)
 		printf("  pushq %%rdx # data\n")
 		printf("  pushq %%rax # dtype\n")
-	case types.T_UINT8:
+	case types2.T_UINT8:
 		printf("  movzbq %d(%%rax), %%rax # load uint8\n", 0)
 		printf("  pushq %%rax\n")
-	case types.T_UINT16:
+	case types2.T_UINT16:
 		printf("  movzwq %d(%%rax), %%rax # load uint16\n", 0)
 		printf("  pushq %%rax\n")
-	case types.T_INT, types.T_BOOL:
+	case types2.T_INT, types2.T_BOOL:
 		printf("  movq %d(%%rax), %%rax # load 64 bit\n", 0)
 		printf("  pushq %%rax\n")
-	case types.T_UINTPTR, types.T_POINTER, types.T_MAP, types.T_FUNC:
+	case types2.T_UINTPTR, types2.T_POINTER, types2.T_MAP, types2.T_FUNC:
 		printf("  movq %d(%%rax), %%rax # load 64 bit pointer\n", 0)
 		printf("  pushq %%rax\n")
-	case types.T_ARRAY, types.T_STRUCT:
+	case types2.T_ARRAY, types2.T_STRUCT:
 		// pure proxy
 		printf("  pushq %%rax\n")
 	default:
-		unexpectedKind(types.Kind(t))
+		unexpectedKind(types2.Kind(t))
 	}
 }
 
@@ -195,19 +195,19 @@ func emitVariableAddr(variable *ir.Variable) {
 
 func emitListHeadAddr(list ir.MetaExpr) {
 	t := sema.GetTypeOfExpr(list)
-	switch types.Kind(t) {
-	case types.T_ARRAY:
+	switch types2.Kind(t) {
+	case types2.T_ARRAY:
 		emitAddr(list) // array head
-	case types.T_SLICE:
+	case types2.T_SLICE:
 		emitExpr(list)
 		emitPopSlice()
 		printf("  pushq %%rax # slice.ptr\n")
-	case types.T_STRING:
+	case types2.T_STRING:
 		emitExpr(list)
 		emitPopString()
 		printf("  pushq %%rax # string.ptr\n")
 	default:
-		unexpectedKind(types.Kind(t))
+		unexpectedKind(types2.Kind(t))
 	}
 }
 
@@ -227,7 +227,7 @@ func emitAddr(meta ir.MetaExpr) {
 			panic("Unexpected kind")
 		}
 	case *ir.MetaIndexExpr:
-		if types.Kind(sema.GetTypeOfExpr(m.X)) == types.T_MAP {
+		if types2.Kind(sema.GetTypeOfExpr(m.X)) == types2.T_MAP {
 			emitAddrForMapSet(m)
 		} else {
 			elmType := sema.GetTypeOfExpr(m)
@@ -248,9 +248,9 @@ func emitAddr(meta ir.MetaExpr) {
 			emitAddConst(m.Offset, "struct head address + struct.field offset")
 		}
 	case *ir.MetaCompositLit:
-		knd := types.Kind(sema.GetTypeOfExpr(m))
+		knd := types2.Kind(sema.GetTypeOfExpr(m))
 		switch knd {
-		case types.T_STRUCT:
+		case types2.T_STRUCT:
 			// result of evaluation of a struct literal is its address
 			emitExpr(m)
 		default:
@@ -262,14 +262,14 @@ func emitAddr(meta ir.MetaExpr) {
 }
 
 // explicit conversion T(e)
-func emitConversion(toType types.Type, arg0 ir.MetaExpr) {
+func emitConversion(toType types2.Type, arg0 ir.MetaExpr) {
 	emitComment(2, "[emitConversion]\n")
 	fromType := sema.GetTypeOfExpr(arg0)
-	fromKind := types.Kind(fromType)
-	toKind := types.Kind(toType)
+	fromKind := types2.Kind(fromType)
+	toKind := types2.Kind(toType)
 	switch toKind {
-	case types.T_STRING:
-		if fromKind == types.T_SLICE {
+	case types2.T_STRING:
+		if fromKind == types2.T_SLICE {
 			emitExpr(arg0) // slice
 			emitPopSlice()
 			printf("  pushq %%rcx # str len\n")
@@ -279,8 +279,8 @@ func emitConversion(toType types.Type, arg0 ir.MetaExpr) {
 			emitExpr(arg0)
 			return
 		}
-	case types.T_SLICE:
-		assert(fromKind == types.T_STRING, "source type should be slice", __func__)
+	case types2.T_SLICE:
+		assert(fromKind == types2.T_STRING, "source type should be slice", __func__)
 		emitComment(2, "Conversion of string => slice \n")
 		// @FIXME: As string should be immutable, we must copy data.
 		emitExpr(arg0)
@@ -289,7 +289,7 @@ func emitConversion(toType types.Type, arg0 ir.MetaExpr) {
 		printf("  pushq %%rcx # len\n")
 		printf("  pushq %%rax # ptr\n")
 		return
-	case types.T_INTERFACE:
+	case types2.T_INTERFACE:
 		emitExpr(arg0)
 		if sema.IsInterface(fromType) {
 			return // do nothing
@@ -310,70 +310,70 @@ func emitIfcConversion(ic *ir.IfcConversion) {
 	emitConvertToInterface(sema.GetTypeOfExpr(ic.Value), ic.Type)
 }
 
-func emitZeroValue(t types.Type) {
-	switch types.Kind(t) {
-	case types.T_SLICE:
+func emitZeroValue(t types2.Type) {
+	switch types2.Kind(t) {
+	case types2.T_SLICE:
 		printf("  pushq $0 # slice cap\n")
 		printf("  pushq $0 # slice len\n")
 		printf("  pushq $0 # slice ptr\n")
-	case types.T_STRING:
+	case types2.T_STRING:
 		printf("  pushq $0 # string len\n")
 		printf("  pushq $0 # string ptr\n")
-	case types.T_INTERFACE:
+	case types2.T_INTERFACE:
 		printf("  pushq $0 # interface data\n")
 		printf("  pushq $0 # interface dtype\n")
-	case types.T_INT, types.T_UINT8, types.T_BOOL:
-		printf("  pushq $0 # %s zero value (number)\n", string(types.Kind(t)))
-	case types.T_UINTPTR, types.T_POINTER, types.T_MAP, types.T_FUNC:
-		printf("  pushq $0 # %s zero value (nil pointer)\n", string(types.Kind(t)))
-	case types.T_ARRAY:
+	case types2.T_INT, types2.T_UINT8, types2.T_BOOL:
+		printf("  pushq $0 # %s zero value (number)\n", string(types2.Kind(t)))
+	case types2.T_UINTPTR, types2.T_POINTER, types2.T_MAP, types2.T_FUNC:
+		printf("  pushq $0 # %s zero value (nil pointer)\n", string(types2.Kind(t)))
+	case types2.T_ARRAY:
 		size := sema.GetSizeOfType(t)
 		emitComment(2, "zero value of an array. size=%d (allocating on heap)\n", size)
 		emitCallMalloc(size)
-	case types.T_STRUCT:
+	case types2.T_STRUCT:
 		structSize := sema.GetSizeOfType(t)
 		emitComment(2, "zero value of a struct. size=%d (allocating on heap)\n", structSize)
 		emitCallMalloc(structSize)
 	default:
-		unexpectedKind(types.Kind(t))
+		unexpectedKind(types2.Kind(t))
 	}
 }
 
 func emitLen(arg ir.MetaExpr) {
 	t := sema.GetTypeOfExpr(arg)
-	switch types.Kind(t) {
-	case types.T_ARRAY:
+	switch types2.Kind(t) {
+	case types2.T_ARRAY:
 		arrayLen := sema.GetArrayLen(t)
 		printf("  pushq $%d # array len\n", arrayLen)
-	case types.T_SLICE:
+	case types2.T_SLICE:
 		emitExpr(arg)
 		emitPopSlice()
 		printf("  pushq %%rcx # len\n")
-	case types.T_STRING:
+	case types2.T_STRING:
 		emitExpr(arg)
 		emitPopString()
 		printf("  pushq %%rcx # len\n")
-	case types.T_MAP:
+	case types2.T_MAP:
 		sig := sema.NewLenMapSignature(arg)
 		emitCallDirect("runtime.lenMap", []ir.MetaExpr{arg}, sig)
 
 	default:
-		unexpectedKind(types.Kind(t))
+		unexpectedKind(types2.Kind(t))
 	}
 }
 
 func emitCap(arg ir.MetaExpr) {
 	t := sema.GetTypeOfExpr(arg)
-	knd := types.Kind(t)
+	knd := types2.Kind(t)
 	switch knd {
-	case types.T_ARRAY:
+	case types2.T_ARRAY:
 		arrayLen := sema.GetArrayLen(t)
 		printf("  pushq $%d # array len\n", arrayLen)
-	case types.T_SLICE:
+	case types2.T_SLICE:
 		emitExpr(arg)
 		emitPopSlice()
 		printf("  pushq %%rdx # cap\n")
-	case types.T_STRING:
+	case types2.T_STRING:
 		panic("cap() cannot accept string type")
 	default:
 		unexpectedKind(knd)
@@ -396,7 +396,7 @@ func emitStructLiteral(meta *ir.MetaCompositLit) {
 	metaElms := meta.StructElements
 	for _, metaElm := range metaElms {
 		// push lhs address
-		emitPushStackTop(types.Uintptr, 0, "address of struct heaad")
+		emitPushStackTop(types2.Uintptr, 0, "address of struct heaad")
 
 		fieldOffset := metaElm.Field.Offset
 		if fieldOffset < 0 {
@@ -420,7 +420,7 @@ func emitArrayLiteral(meta *ir.MetaCompositLit) {
 	emitCallMalloc(memSize) // push
 	for i, elm := range meta.Elms {
 		// push lhs address
-		emitPushStackTop(types.Uintptr, 0, "malloced address")
+		emitPushStackTop(types2.Uintptr, 0, "malloced address")
 		emitAddConst(elmSize*i, "malloced address + elmSize * index")
 		// push rhs value
 		emitExpr(elm)
@@ -482,7 +482,7 @@ func emitCallDirect(symbol string, args []ir.MetaExpr, sig *ir.Signature) {
 //	slc.cap
 //	r
 //	--
-func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.Type, returnTypes []types.Type) {
+func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types2.Type, returnTypes []types2.Type) {
 	emitComment(2, "emitCall len(args)=%d\n", len(args))
 	var totalParamSize int
 	var offsets []int
@@ -490,7 +490,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.Type, ret
 		offsets = append(offsets, totalParamSize)
 		var size int
 		if fv.IfcMethodCal && i == 0 {
-			size = sema.GetSizeOfType(types.Uintptr) // @FIXME
+			size = sema.GetSizeOfType(types2.Uintptr) // @FIXME
 		} else {
 			size = sema.GetSizeOfType(paramType)
 		}
@@ -504,7 +504,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.Type, ret
 			// tweak recevier
 			paramType := paramTypes[i]
 			emitExpr(arg)
-			emitPop(types.Kind(paramType))
+			emitPop(types2.Kind(paramType))
 			printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 			printf("  movq 0(%%rcx), %%rcx # load eface.data\n", 0)
 			printf("  movq %%rcx, %d(%%rsi) # store eface.data\n", 0)
@@ -512,7 +512,7 @@ func emitCall(fv *ir.FuncValue, args []ir.MetaExpr, paramTypes []types.Type, ret
 		} else {
 			paramType := paramTypes[i]
 			emitExpr(arg)
-			emitPop(types.Kind(paramType))
+			emitPop(types2.Kind(paramType))
 			printf("  leaq %d(%%rsp), %%rsi # place to save\n", offsets[i])
 			printf("  pushq %%rsi # place to save\n")
 			emitRegiToMem(paramType)
@@ -527,7 +527,7 @@ func emitAllocReturnVarsAreaFF(ff *ir.Func) {
 	emitAllocReturnVarsArea(getTotalSizeOfType(rtypes))
 }
 
-func getTotalSizeOfType(ts []types.Type) int {
+func getTotalSizeOfType(ts []types2.Type) int {
 	var r int
 	for _, t := range ts {
 		r += sema.GetSizeOfType(t)
@@ -543,7 +543,7 @@ func emitCallFF(ff *ir.Func) {
 	emitCallQ(sema.NewFuncValueFromSymbol(symbol), totalParamSize, rtypes)
 }
 
-func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []types.Type) {
+func emitCallQ(fv *ir.FuncValue, totalParamSize int, returnTypes []types2.Type) {
 	if fv.IsDirect {
 		if fv.Symbol == "" {
 			panic("callq target must not be empty")
@@ -596,20 +596,20 @@ func emitReturnStmt(meta *ir.MetaReturnStmt) {
 }
 
 // caller
-func emitFreeAndPushReturnedValue(returnTypes []types.Type) {
+func emitFreeAndPushReturnedValue(returnTypes []types2.Type) {
 	switch len(returnTypes) {
 	case 0:
 		// do nothing
 	case 1:
-		knd := types.Kind(returnTypes[0])
+		knd := types2.Kind(returnTypes[0])
 		switch knd {
-		case types.T_STRING, types.T_INTERFACE:
-		case types.T_UINT8:
+		case types2.T_STRING, types2.T_INTERFACE:
+		case types2.T_UINT8:
 			printf("  movzbq (%%rsp), %%rax # load uint8\n")
 			printf("  addq $%d, %%rsp # free returnvars area\n", 1)
 			printf("  pushq %%rax\n")
-		case types.T_BOOL, types.T_INT, types.T_UINTPTR, types.T_POINTER, types.T_MAP:
-		case types.T_SLICE:
+		case types2.T_BOOL, types2.T_INT, types2.T_UINTPTR, types2.T_POINTER, types2.T_MAP:
+		case types2.T_SLICE:
 		default:
 			unexpectedKind(knd)
 		}
@@ -626,8 +626,8 @@ func emitMetaCallNew(m *ir.MetaCallNew) {
 
 func emitMetaCallMake(m *ir.MetaCallMake) {
 	typeArg := m.TypeArg0
-	switch types.Kind(typeArg) {
-	case types.T_MAP:
+	switch types2.Kind(typeArg) {
+	case types2.T_MAP:
 		mapValueType := sema.GetElementTypeOfCollectionType(typeArg)
 		valueSize := sema.NewNumberLiteral(sema.GetSizeOfType(mapValueType), m.Pos())
 		// A new, empty map value is made using the built-in function make,
@@ -635,7 +635,7 @@ func emitMetaCallMake(m *ir.MetaCallMake) {
 		length := sema.NewNumberLiteral(0, m.Pos())
 		emitCallDirect("runtime.makeMap", []ir.MetaExpr{length, valueSize}, ir.RuntimeMakeMapSignature)
 		return
-	case types.T_SLICE:
+	case types2.T_SLICE:
 		// make([]T, ...)
 		elmType := sema.GetElementTypeOfCollectionType(typeArg)
 		elmSize := sema.GetSizeOfType(elmType)
@@ -679,7 +679,7 @@ func emitMetaCallAppend(m *ir.MetaCallAppend) {
 
 func emitMetaCallPanic(m *ir.MetaCallPanic) {
 	funcVal := "runtime.panic"
-	arg0 := sema.CheckIfcConversion(m.Pos(), m.Arg0, types.EmptyInterface)
+	arg0 := sema.CheckIfcConversion(m.Pos(), m.Arg0, types2.EmptyInterface)
 	args := []ir.MetaExpr{arg0}
 	emitCallDirect(funcVal, args, ir.BuiltinPanicSignature)
 	return
@@ -708,17 +708,17 @@ func emitIdent(meta *ir.MetaIdent) {
 			panic("untyped nil is not allowed. Probably the type is not set in walk phase. pkg=" + sema.CurrentPkg.Name)
 		}
 		// emit zero value of the type
-		switch types.Kind(metaType) {
-		case types.T_SLICE, types.T_POINTER, types.T_INTERFACE, types.T_MAP:
+		switch types2.Kind(metaType) {
+		case types2.T_SLICE, types2.T_POINTER, types2.T_INTERFACE, types2.T_MAP:
 			emitZeroValue(metaType)
 		default:
-			unexpectedKind(types.Kind(metaType))
+			unexpectedKind(types2.Kind(metaType))
 		}
 	case "var":
 		emitAddr(meta)
 		emitLoadAndPush(sema.GetTypeOfExpr(meta))
 	case "con":
-		if meta.Const.IsGlobal && types.Kind(meta.Type) == types.T_STRING {
+		if meta.Const.IsGlobal && types2.Kind(meta.Type) == types2.T_STRING {
 			// Treat like a global variable.
 			// emit addr
 			printf("  leaq %s(%%rip), %%rax # global const \"%s\"\n", meta.Const.GlobalSymbol, meta.Const.Name)
@@ -780,7 +780,7 @@ func emitBasicLit(mt *ir.MetaBasicLit) {
 		sl := mt.StrVal
 		if sl.Strlen == 0 {
 			// zero value
-			emitZeroValue(types.String)
+			emitZeroValue(types2.String)
 		} else {
 			printf("  pushq $%d # str len\n", sl.Strlen)
 			printf("  leaq %s(%%rip), %%rax # str ptr\n", sl.Label)
@@ -849,7 +849,7 @@ func emitBinaryExpr(meta *ir.MetaBinaryExpr) {
 		emitTrue()
 		printf("  %s:\n", labelExit)
 	case "+":
-		if types.Kind(sema.GetTypeOfExpr(meta.X)) == types.T_STRING {
+		if types2.Kind(sema.GetTypeOfExpr(meta.X)) == types2.T_STRING {
 			emitCatStrings(meta.X, meta.Y)
 		} else {
 			emitExpr(meta.X) // left
@@ -948,8 +948,8 @@ func emitSliceExpr(meta *ir.MetaSliceExpr) {
 	list := meta.X
 	listType := sema.GetTypeOfExpr(list)
 
-	switch types.Kind(listType) {
-	case types.T_SLICE, types.T_ARRAY:
+	switch types2.Kind(listType) {
+	case types2.T_SLICE, types2.T_ARRAY:
 		if meta.Max == nil {
 			// new cap = cap(operand) - low
 			emitCap(meta.X)
@@ -987,7 +987,7 @@ func emitSliceExpr(meta *ir.MetaSliceExpr) {
 			printf("  subq %%rcx, %%rax # new len = high - low\n")
 			printf("  pushq %%rax # new len\n")
 		}
-	case types.T_STRING:
+	case types2.T_STRING:
 		// new len = high - low
 		if meta.High != nil {
 			emitExpr(meta.High)
@@ -1002,7 +1002,7 @@ func emitSliceExpr(meta *ir.MetaSliceExpr) {
 		printf("  pushq %%rax # len\n")
 		// no cap
 	default:
-		unexpectedKind(types.Kind(listType))
+		unexpectedKind(types2.Kind(listType))
 	}
 
 	emitExpr(meta.Low) // index number
@@ -1039,7 +1039,7 @@ func emitMapGet(m *ir.MetaIndexExpr, okContext bool) {
 
 	// if not matched
 	printf("  %s:\n", labelElse)
-	emitPop(types.T_POINTER) // destroy nil
+	emitPop(types2.T_POINTER) // destroy nil
 	emitZeroValue(valueType)
 	if okContext {
 		printf("  pushq $0 # ok = false\n")
@@ -1115,7 +1115,7 @@ func emitExpr(meta ir.MetaExpr) {
 	case *ir.MetaConversionExpr:
 		emitConversion(m.Type, m.Arg0)
 	case *ir.MetaCallExpr:
-		var rtypes []types.Type
+		var rtypes []types2.Type
 		if m.ResultTuple != nil {
 			rtypes = m.ResultTuple.Types
 		}
@@ -1140,7 +1140,7 @@ func emitExpr(meta ir.MetaExpr) {
 }
 
 // convert stack top value to interface
-func emitConvertToInterface(fromType types.Type, toType types.Type) {
+func emitConvertToInterface(fromType types2.Type, toType types2.Type) {
 	emitComment(2, "ConversionToInterface\n")
 	if sema.HasIfcMethod(toType) {
 		emitComment(2, "@@@ toType has methods\n")
@@ -1203,7 +1203,7 @@ func emitCompareDtypes() {
 	printf("  %s:\n", labelEnd)
 }
 
-func emitDtypeLabelAddr(d types.Type, i types.Type) {
+func emitDtypeLabelAddr(d types2.Type, i types2.Type) {
 	de := sema.GetITabEntry(d, i)
 	dtypeLabel := de.Label
 	sr := de.DSerialized
@@ -1220,7 +1220,7 @@ func emitAddrForMapSet(indexExpr *ir.MetaIndexExpr) {
 	emitCallDirect("runtime.getAddrForMapSet", args, ir.RuntimeGetAddrForMapSetSignature)
 }
 
-func emitListElementAddr(list ir.MetaExpr, elmType types.Type) {
+func emitListElementAddr(list ir.MetaExpr, elmType types2.Type) {
 	emitListHeadAddr(list)
 	emitPopAddress("list head")
 	printf("  popq %%rcx # index id\n")
@@ -1241,9 +1241,9 @@ func emitCompStrings(left ir.MetaExpr, right ir.MetaExpr) {
 }
 
 func emitBinaryExprComparison(left ir.MetaExpr, right ir.MetaExpr) {
-	if types.Kind(sema.GetTypeOfExpr(left)) == types.T_STRING {
+	if types2.Kind(sema.GetTypeOfExpr(left)) == types2.T_STRING {
 		emitCompStrings(left, right)
-	} else if types.Kind(sema.GetTypeOfExpr(left)) == types.T_INTERFACE {
+	} else if types2.Kind(sema.GetTypeOfExpr(left)) == types2.T_INTERFACE {
 		//var t = GetTypeOfExpr(left)
 		ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpinterface"))
 		emitAllocReturnVarsAreaFF(ff)
@@ -1287,31 +1287,31 @@ func emitBitWiseAnd() {
 	printf("  pushq %%rax\n")
 }
 
-func emitPop(knd types.TypeKind) {
+func emitPop(knd types2.TypeKind) {
 	switch knd {
-	case types.T_SLICE:
+	case types2.T_SLICE:
 		emitPopSlice()
-	case types.T_STRING:
+	case types2.T_STRING:
 		emitPopString()
-	case types.T_INTERFACE:
+	case types2.T_INTERFACE:
 		emitPopInterFace()
-	case types.T_INT, types.T_BOOL:
+	case types2.T_INT, types2.T_BOOL:
 		emitPopPrimitive(string(knd))
-	case types.T_UINTPTR, types.T_POINTER, types.T_MAP, types.T_FUNC:
+	case types2.T_UINTPTR, types2.T_POINTER, types2.T_MAP, types2.T_FUNC:
 		emitPopPrimitive(string(knd))
-	case types.T_UINT16:
+	case types2.T_UINT16:
 		emitPopPrimitive(string(knd))
-	case types.T_UINT8:
+	case types2.T_UINT8:
 		emitPopPrimitive(string(knd))
-	case types.T_STRUCT, types.T_ARRAY:
+	case types2.T_STRUCT, types2.T_ARRAY:
 		emitPopPrimitive(string(knd))
 	default:
 		unexpectedKind(knd)
 	}
 }
 
-func emitStore(t types.Type, rhsTop bool, pushLhs bool) {
-	knd := types.Kind(t)
+func emitStore(t types2.Type, rhsTop bool, pushLhs bool) {
+	knd := types2.Kind(t)
 	emitComment(2, "emitStore(%s)\n", knd)
 	if rhsTop {
 		emitPop(knd) // rhs
@@ -1328,29 +1328,29 @@ func emitStore(t types.Type, rhsTop bool, pushLhs bool) {
 	emitRegiToMem(t)
 }
 
-func emitRegiToMem(t types.Type) {
+func emitRegiToMem(t types2.Type) {
 	printf("  popq %%rsi # place to save\n")
-	k := types.Kind(t)
+	k := types2.Kind(t)
 	switch k {
-	case types.T_SLICE:
+	case types2.T_SLICE:
 		printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
 		printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
 		printf("  movq %%rdx, %d(%%rsi) # cap to cap\n", 16)
-	case types.T_STRING:
+	case types2.T_STRING:
 		printf("  movq %%rax, %d(%%rsi) # ptr to ptr\n", 0)
 		printf("  movq %%rcx, %d(%%rsi) # len to len\n", 8)
-	case types.T_INTERFACE:
+	case types2.T_INTERFACE:
 		printf("  movq %%rax, %d(%%rsi) # store dtype\n", 0)
 		printf("  movq %%rcx, %d(%%rsi) # store data\n", 8)
-	case types.T_INT, types.T_BOOL:
+	case types2.T_INT, types2.T_BOOL:
 		printf("  movq %%rax, %d(%%rsi) # assign quad\n", 0)
-	case types.T_UINTPTR, types.T_POINTER, types.T_MAP, types.T_FUNC:
+	case types2.T_UINTPTR, types2.T_POINTER, types2.T_MAP, types2.T_FUNC:
 		printf("  movq %%rax, %d(%%rsi) # assign ptr\n", 0)
-	case types.T_UINT16:
+	case types2.T_UINT16:
 		printf("  movw %%ax, %d(%%rsi) # assign word\n", 0)
-	case types.T_UINT8:
+	case types2.T_UINT8:
 		printf("  movb %%al, %d(%%rsi) # assign byte\n", 0)
-	case types.T_STRUCT, types.T_ARRAY:
+	case types2.T_STRUCT, types2.T_ARRAY:
 		printf("  pushq $%d # size\n", sema.GetSizeOfType(t))
 		printf("  pushq %%rsi # dst lhs\n")
 		printf("  pushq %%rax # src rhs\n")
@@ -1361,7 +1361,7 @@ func emitRegiToMem(t types.Type) {
 	}
 }
 
-func emitAssignZeroValue(lhs ir.MetaExpr, lhsType types.Type) {
+func emitAssignZeroValue(lhs ir.MetaExpr, lhsType types2.Type) {
 	emitComment(2, "emitAssignZeroValue\n")
 	emitComment(2, "lhs addresss\n")
 	emitAddr(lhs)
@@ -1384,7 +1384,7 @@ func _emitSingleAssign(lhs ir.MetaExpr, rhs ir.MetaExpr) {
 		if rhsType == nil {
 			panicPos("rhs type should not be nil", rhs.Pos())
 		}
-		emitPop(types.Kind(rhsType))
+		emitPop(types2.Kind(rhsType))
 		return
 	}
 	emitComment(2, "Assignment: emitAddr(lhs)\n")
@@ -1428,7 +1428,7 @@ func emitOkAssignment(meta *ir.MetaTupleAssign) {
 		lhsMeta := meta.Lhss[i]
 		rhsType := rhsTuple.Types[i]
 		if sema.IsBlankIdentifierMeta(lhsMeta) {
-			emitPop(types.Kind(rhsType))
+			emitPop(types2.Kind(rhsType))
 		} else {
 			// @TODO interface conversion
 			emitAddr(lhsMeta)
@@ -1449,10 +1449,10 @@ func emitFuncallAssignment(meta *ir.MetaTupleAssign) {
 		lhsMeta := meta.Lhss[i]
 		rhsType := rhsTuple.Types[i]
 		if sema.IsBlankIdentifierMeta(lhsMeta) {
-			emitPop(types.Kind(rhsType))
+			emitPop(types2.Kind(rhsType))
 		} else {
-			switch types.Kind(rhsType) {
-			case types.T_UINT8:
+			switch types2.Kind(rhsType) {
+			case types2.T_UINT8:
 				// repush stack top
 				printf("  movzbq (%%rsp), %%rax # load uint8\n")
 				printf("  addq $%d, %%rsp # free returnvars area\n", 1)
@@ -1548,8 +1548,8 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 	// item = mp.first
 	emitVariableAddr(meta.ForRangeStmt.ItemVar)
 	emitVariable(meta.ForRangeStmt.MapVar) // value of _mp
-	emitLoadAndPush(types.Uintptr)         // value of _mp.first
-	emitStore(types.Uintptr, true, false)  // assign
+	emitLoadAndPush(types2.Uintptr)        // value of _mp.first
+	emitStore(types2.Uintptr, true, false) // assign
 
 	// Condition
 	// if item != nil; then
@@ -1618,8 +1618,8 @@ func emitRangeMap(meta *ir.MetaForContainer) {
 	printf("  %s:\n", labelPost)                // used for "continue"
 	emitVariableAddr(meta.ForRangeStmt.ItemVar) // lhs
 	emitVariable(meta.ForRangeStmt.ItemVar)     // item
-	emitLoadAndPush(types.Uintptr)              // item.next
-	emitStore(types.Uintptr, true, false)
+	emitLoadAndPush(types2.Uintptr)             // item.next
+	emitStore(types2.Uintptr, true, false)
 
 	printf("  jmp %s\n", labelCond)
 
@@ -1640,21 +1640,21 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	// lenvar = len(s.X)
 	emitVariableAddr(meta.ForRangeStmt.LenVar)
 	emitLen(meta.ForRangeStmt.X)
-	emitStore(types.Int, true, false)
+	emitStore(types2.Int, true, false)
 
 	emitComment(2, "  assign 0 to indexvar\n")
 	// indexvar = 0
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
-	emitZeroValue(types.Int)
-	emitStore(types.Int, true, false)
+	emitZeroValue(types2.Int)
+	emitStore(types2.Int, true, false)
 
 	// init key variable with 0
 	keyMeta := meta.ForRangeStmt.Key
 	if keyMeta != nil {
 		if !sema.IsBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta) // lhs
-			emitZeroValue(types.Int)
-			emitStore(types.Int, true, false)
+			emitZeroValue(types2.Int)
+			emitStore(types2.Int, true, false)
 		}
 	}
 
@@ -1667,9 +1667,9 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	printf("  %s:\n", labelCond)
 
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
-	emitLoadAndPush(types.Int)
+	emitLoadAndPush(types2.Int)
 	emitVariableAddr(meta.ForRangeStmt.LenVar)
-	emitLoadAndPush(types.Int)
+	emitLoadAndPush(types2.Int)
 	emitCompExpr("setl")
 	emitPopBool(" indexvar < lenvar")
 	printf("  cmpq $1, %%rax\n")
@@ -1680,7 +1680,7 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	emitAddr(meta.ForRangeStmt.Value) // lhs
 
 	emitVariableAddr(meta.ForRangeStmt.Indexvar)
-	emitLoadAndPush(types.Int) // index value
+	emitLoadAndPush(types2.Int) // index value
 	emitListElementAddr(meta.ForRangeStmt.X, elemType)
 
 	emitLoadAndPush(elemType)
@@ -1695,17 +1695,17 @@ func emitRangeStmt(meta *ir.MetaForContainer) {
 	printf("  %s:\n", labelPost)                 // used for "continue"
 	emitVariableAddr(meta.ForRangeStmt.Indexvar) // lhs
 	emitVariableAddr(meta.ForRangeStmt.Indexvar) // rhs
-	emitLoadAndPush(types.Int)
+	emitLoadAndPush(types2.Int)
 	emitAddConst(1, "indexvar value ++")
-	emitStore(types.Int, true, false)
+	emitStore(types2.Int, true, false)
 
 	// incr key variable
 	if keyMeta != nil {
 		if !sema.IsBlankIdentifierMeta(keyMeta) {
 			emitAddr(keyMeta)                            // lhs
 			emitVariableAddr(meta.ForRangeStmt.Indexvar) // rhs
-			emitLoadAndPush(types.Int)
-			emitStore(types.Int, true, false)
+			emitLoadAndPush(types2.Int)
+			emitStore(types2.Int, true, false)
 		}
 	}
 
@@ -1738,9 +1738,9 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 			continue
 		}
 		for _, m := range cc.ListMeta {
-			assert(sema.GetSizeOfType(condType) <= 8 || types.Kind(condType) == types.T_STRING, "should be one register size or string", __func__)
-			switch types.Kind(condType) {
-			case types.T_STRING:
+			assert(sema.GetSizeOfType(condType) <= 8 || types2.Kind(condType) == types2.T_STRING, "should be one register size or string", __func__)
+			switch types2.Kind(condType) {
+			case types2.T_STRING:
 				ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpstrings"))
 				emitAllocReturnVarsAreaFF(ff)
 
@@ -1748,7 +1748,7 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 				emitExpr(m)
 
 				emitCallFF(ff)
-			case types.T_INTERFACE:
+			case types2.T_INTERFACE:
 				ff := sema.LookupForeignFunc(sema.NewQI("runtime", "cmpinterface"))
 
 				emitAllocReturnVarsAreaFF(ff)
@@ -1757,12 +1757,12 @@ func emitSwitchStmt(s *ir.MetaSwitchStmt) {
 				emitExpr(m)
 
 				emitCallFF(ff)
-			case types.T_INT, types.T_UINT8, types.T_UINT16, types.T_UINTPTR, types.T_POINTER:
+			case types2.T_INT, types2.T_UINT8, types2.T_UINT16, types2.T_UINTPTR, types2.T_POINTER:
 				emitPushStackTop(condType, 0, "switch expr")
 				emitExpr(m)
 				emitCompExpr("sete")
 			default:
-				unexpectedKind(types.Kind(condType))
+				unexpectedKind(types2.Kind(condType))
 			}
 
 			emitPopBool(" of switch-case comparison")
@@ -1798,7 +1798,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 	// subjectVariable = subject
 	emitVariableAddr(meta.SubjectVariable)
 	emitExpr(meta.Subject)
-	emitStore(types.EmptyInterface, true, false)
+	emitStore(types2.EmptyInterface, true, false)
 
 	cases := meta.Cases
 	var labels = make([]string, len(cases), len(cases))
@@ -1864,7 +1864,7 @@ func emitTypeSwitchStmt(meta *ir.MetaTypeSwitchStmt) {
 
 				// push rhs
 				emitVariableAddr(meta.SubjectVariable)
-				emitLoadAndPush(types.EmptyInterface)
+				emitLoadAndPush(types2.EmptyInterface)
 				printf("  popq %%rax # ifc.dtype\n")
 				printf("  popq %%rcx # ifc.data\n")
 				printf("  pushq %%rcx # ifc.data\n")
@@ -1964,7 +1964,7 @@ func emitStmt(meta ir.MetaStmt) {
 	}
 }
 
-func emitRevertStackTop(t types.Type) {
+func emitRevertStackTop(t types2.Type) {
 	printf("  addq $%d, %%rsp # revert stack top\n", sema.GetSizeOfType(t))
 }
 
@@ -2005,7 +2005,7 @@ func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	printf("  ret\n")
 }
 
-func emitZeroData(t types.Type) {
+func emitZeroData(t types2.Type) {
 	for i := 0; i < sema.GetSizeOfType(t); i++ {
 		printf("  .byte 0 # zero value\n")
 	}
@@ -2028,14 +2028,14 @@ func emitData(dotSize string, val ir.MetaExpr) {
 func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 	name := vr.Name.Name
 	t := vr.Type
-	typeKind := types.Kind(vr.Type)
+	typeKind := types2.Kind(vr.Type)
 	val := vr.Val
 	printf(".global %s.%s\n", pkgName, name)
 	printf("%s.%s: # T %s\n", pkgName, name, string(typeKind))
 
 	metaVal := vr.MetaVal
 	switch typeKind {
-	case types.T_STRING:
+	case types2.T_STRING:
 		if metaVal == nil {
 			// no value
 			emitZeroData(t)
@@ -2049,7 +2049,7 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 			printf("  .quad %s\n", sl.Label)
 			printf("  .quad %d\n", sl.Strlen)
 		}
-	case types.T_BOOL:
+	case types2.T_BOOL:
 		if metaVal == nil {
 			printf("  .quad 0 # bool zero value\n")
 		} else {
@@ -2068,21 +2068,21 @@ func emitGlobalVarConst(pkgName string, vr *ir.PackageVarConst) {
 				panic("Unexpected bool value")
 			}
 		}
-	case types.T_UINT8:
+	case types2.T_UINT8:
 		emitData(".byte", metaVal)
-	case types.T_UINT16:
+	case types2.T_UINT16:
 		emitData(".word", metaVal)
-	case types.T_INT32:
+	case types2.T_INT32:
 		emitData(".long", metaVal)
-	case types.T_INT, types.T_UINTPTR:
+	case types2.T_INT, types2.T_UINTPTR:
 		emitData(".quad", metaVal)
-	case types.T_STRUCT, types.T_ARRAY, types.T_SLICE:
+	case types2.T_STRUCT, types2.T_ARRAY, types2.T_SLICE:
 		// only zero value
 		if val != nil {
 			panic("Unsupported global value:" + typeKind)
 		}
 		emitZeroData(t)
-	case types.T_POINTER, types.T_FUNC, types.T_MAP, types.T_INTERFACE:
+	case types2.T_POINTER, types2.T_FUNC, types2.T_MAP, types2.T_INTERFACE:
 		// will be set in the initGlobal func
 		emitZeroData(t)
 	default:
@@ -2157,9 +2157,9 @@ func GenerateCode(pkg *ir.AnalyzedPackage, fout *os.File) {
 			continue
 		}
 		printf("  \n")
-		typeKind := types.Kind(vr.Type)
+		typeKind := types2.Kind(vr.Type)
 		switch typeKind {
-		case types.T_POINTER, types.T_MAP, types.T_INTERFACE:
+		case types2.T_POINTER, types2.T_MAP, types2.T_INTERFACE:
 			printf("  # init global %s:\n", vr.Name.Name)
 			_emitSingleAssign(vr.MetaVar, vr.MetaVal)
 		}
@@ -2210,11 +2210,11 @@ func emitInterfaceTables(itab map[string]*sema.ITabEntry) {
 
 		for mi, m := range methods {
 			rcvT := ent.Dtype
-			rcvPointerType, isPtr := rcvT.(*types.Pointer)
+			rcvPointerType, isPtr := rcvT.(*types2.Pointer)
 			if isPtr {
 				rcvT = rcvPointerType.Elem()
 			}
-			namedRcvT := rcvT.(*types.Named)
+			namedRcvT := rcvT.(*types2.Named)
 			printf("  # Dtype %s.%s \n", namedRcvT.GetPackageName(), namedRcvT.String())
 			dmethod := sema.LookupMethod(ent.Dtype, m.Name)
 			sym := sema.GetMethodSymbol(dmethod)
