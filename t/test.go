@@ -1463,14 +1463,14 @@ func funcVaarg1(f string, a ...interface{}) {
 func funcVaarg2(a int, b ...int) {
 	if b == nil {
 		write(strconv.Itoa(a))
-		writeln(" nil vaargs ok")
+		writeln(" nil vaargs2 ok")
 	} else {
 		writeln("ERROR")
 	}
 }
 
 func testVaargs() {
-	funcVaarg1("pass nil slice\n")
+	funcVaarg1("vaargs1: pass nil slice\n")
 	funcVaarg1("%s %s %s\n", "a", "bc", "def")
 	funcVaarg2(777)
 }
@@ -1479,9 +1479,10 @@ const O_READONLY_ int = 0
 const O_CREATE_WRITE int = 524866 // O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC
 
 func testOpenRead() {
+	writeln("testOpenRead")
 	var fd int
 	fd, _ = syscall.Open("t/text.txt", O_READONLY_, 0)
-	writeln(fd) // should be 4
+	writeln("Open ok")
 	var buf []uint8 = make([]uint8, 300, 300)
 	var n int
 	n, _ = syscall.Read(fd, buf)
@@ -1500,12 +1501,12 @@ func testOpenWrite() {
 	//var fd int
 	var fd int
 	fd, _ = syscall.Open("/tmp/bbgwrite.txt", O_CREATE_WRITE, 438)
+	writeln("Open ok")
 	//println(os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_CLOEXEC)
 	//	println(0666)
 	//	if err != nil {
 	//		panic(err)
 	//	}
-	writeln(fd) // should be 5
 	var buf []uint8 = []uint8{'a', 'b', 'c', 'd', 'e', 'f', 'g', '\n'}
 	var n int
 	n, _ = syscall.Write(fd, buf)
