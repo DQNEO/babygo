@@ -368,8 +368,6 @@ func E2T(typeExpr ast.Expr) types2.Type {
 	}
 
 	panic(fmt.Sprintf("should not reach here: %T\n", typeExpr))
-
-	return nil
 }
 
 func GetArrayLen(t types2.Type) int {
@@ -797,7 +795,6 @@ func walkAssignStmt(s *ast.AssignStmt) ir.MetaStmt {
 	default:
 		panic("TBI 3497 ")
 	}
-	return nil
 }
 
 func walkReturnStmt(s *ast.ReturnStmt) *ir.MetaReturnStmt {
@@ -1151,8 +1148,87 @@ func walkGoStmt(s *ast.GoStmt) *ir.MetaGoStmt {
 
 func walkDeferStmt(s *ast.DeferStmt) *ir.MetaDeferStmt {
 	funcDef := currentFunc
+	selectorExpr, isSelector := s.Call.Fun.(*ast.SelectorExpr)
+	if isSelector && !isQI(selectorExpr) {
+		receiverMeta := walkExpr(selectorExpr.X, nil)
+		receiverType := GetTypeOfExpr(receiverMeta)
+		receiverVarName := ".defer.receiver." + strconv.Itoa(len(funcDef.Defers))
+		receiverVar := registerLocalVariable(funcDef, receiverVarName, receiverType)
+		receiverAssign := &ir.MetaSingleAssign{
+			Tpos: s.Pos(),
+			Lhs:  receiverVar,
+			Rhs:  receiverMeta,
+		}
+
+		method := LookupMethod(receiverType, selectorExpr.Sel.Name)
+		funcVal := NewFuncValueFromSymbol(GetMethodSymbol(method))
+		funcVal.MethodName = selectorExpr.Sel.Name
+
+		var receiverForCall ir.MetaExpr = receiverVar
+		if types2.Kind(receiverType) == types2.T_POINTER {
+			if method.IsPtrMethod {
+				receiverForCall = receiverVar
+			} else {
+				panic("TBI 4190")
+			}
+		} else if types2.Kind(receiverType) == types2.T_INTERFACE {
+			funcVal.IfcMethodCal = true
+			funcVal.IfcType = receiverType
+			funcVal.IsDirect = false
+			receiverForCall = receiverVar
+		} else {
+			if method.IsPtrMethod {
+				pt := types2.NewPointer(receiverType)
+				receiverForCall = &ir.MetaUnaryExpr{
+					Tpos: s.Pos(),
+					X:    receiverVar,
+					Type: pt,
+					Op:   "&",
+				}
+			} else {
+				receiverForCall = receiverVar
+			}
+		}
+
+		sig := method.FuncType.Underlying().(*types2.Signature)
+		var sigParamTypes []types2.Type
+		if sig.Params != nil {
+			sigParamTypes = sig.Params.Types
+		}
+		argsAndParams := prepareArgsAndParams(sigParamTypes, receiverForCall, s.Call.Args, false, s.Pos())
+		var paramTypes []types2.Type
+		var args []ir.MetaExpr
+		for _, a := range argsAndParams {
+			paramTypes = append(paramTypes, a.ParamType)
+			arg := CheckIfcConversion(a.Meta.Pos(), a.Meta, a.ParamType)
+			args = append(args, arg)
+		}
+
+		deferCall := &ir.MetaCallExpr{
+			Tpos:       s.Pos(),
+			FuncVal:    funcVal,
+			Args:       args,
+			ParamTypes: paramTypes,
+		}
+		if sig.Results != nil {
+			deferCall.ResultTuple = sig.Results
+		}
+
+		metaDefer := &ir.MetaDeferStmt{
+			Tpos:           s.Pos(),
+			ReceiverAssign: receiverAssign,
+			DeferCall:      deferCall,
+		}
+
+		funcDef.HasDefer = true
+		funcDef.Defers = append(funcDef.Defers, metaDefer)
+
+		return metaDefer
+	}
+
 	fun := walkExpr(s.Call.Fun, nil)
-	deferVar := registerLocalVariable(funcDef, ".defer.var", types2.Uintptr)
+	deferVarName := ".defer.var." + strconv.Itoa(len(funcDef.Defers))
+	deferVar := registerLocalVariable(funcDef, deferVarName, types2.Uintptr)
 	funcDef.HasDefer = true
 	funcDef.DeferVar = deferVar
 	singleAssing := &ir.MetaSingleAssign{
@@ -1160,11 +1236,14 @@ func walkDeferStmt(s *ast.DeferStmt) *ir.MetaDeferStmt {
 		Lhs:  deferVar,
 		Rhs:  fun,
 	}
-	return &ir.MetaDeferStmt{
+	metaDefer := &ir.MetaDeferStmt{
 		Tpos:       s.Pos(),
 		Fun:        fun,
 		FuncAssign: singleAssing,
+		DeferVar:   deferVar,
 	}
+	funcDef.Defers = append(funcDef.Defers, metaDefer)
+	return metaDefer
 }
 
 func walkStmt(stmt ast.Stmt) ir.MetaStmt {
@@ -2408,7 +2487,6 @@ func SerializeType(goType types2.Type, showOnlyForeignPrefix bool, currentPkgNam
 		return r
 	}
 	panic(fmt.Sprintf("@TBI: Type=%T", goType))
-	return ""
 }
 
 func RestoreMethodDecl(m *types2.Func, showOnlyForeignPrefix bool, currentPkgName string) string {

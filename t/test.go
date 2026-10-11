@@ -36,6 +36,39 @@ func testDefer() {
 	writeln("testDefer start")
 }
 
+type DeferGreeter struct {
+	msg string
+}
+
+func (g *DeferGreeter) Greet() {
+	writeln(g.msg)
+}
+
+func (g DeferGreeter) GreetValue() {
+	writeln(g.msg)
+}
+
+func testDeferMethodPointer() {
+	var g = &DeferGreeter{msg: "defer method pointer ok"}
+	defer g.Greet()
+	g = &DeferGreeter{msg: "ERROR: pointer overwritten"}
+	writeln("testDeferMethodPointer start")
+}
+
+func testDeferMethodValue() {
+	var g = DeferGreeter{msg: "defer method value ok"}
+	defer g.GreetValue()
+	g.msg = "ERROR: value mutated"
+	writeln("testDeferMethodValue start")
+}
+
+func testDeferMethodInterface() {
+	var c WriteCloser = &MyFile{i: 42}
+	defer c.Close()
+	c = nil
+	writeln("testDeferMethodInterface start")
+}
+
 func testFmtPrint() {
 	defer hello_defer()
 	n, err := fmt.Print("I am fmt.Print\n") // n=15
@@ -2567,6 +2600,9 @@ func testMisc() {
 
 func main() {
 	testDefer()
+	testDeferMethodPointer()
+	testDeferMethodValue()
+	testDeferMethodInterface()
 	testFmtPrint()
 	testIfcMethod2()
 	testIfcMethod()

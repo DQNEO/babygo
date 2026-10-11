@@ -178,9 +178,12 @@ type MetaGoStmt struct {
 }
 
 type MetaDeferStmt struct {
-	Tpos       token.Pos
-	Fun        MetaExpr
-	FuncAssign *MetaSingleAssign
+	Tpos           token.Pos
+	Fun            MetaExpr
+	FuncAssign     *MetaSingleAssign
+	ReceiverAssign *MetaSingleAssign
+	DeferVar       *Variable
+	DeferCall      *MetaCallExpr
 }
 
 func (s *MetaBlockStmt) Pos() token.Pos           { return s.Tpos }
@@ -444,6 +447,7 @@ type Func struct {
 	FuncType  *types2.Func
 	HasDefer  bool
 	DeferVar  *Variable
+	Defers    []*MetaDeferStmt
 }
 
 type Method struct {

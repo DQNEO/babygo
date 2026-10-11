@@ -1,5 +1,11 @@
 testDefer start
 hello defer
+testDeferMethodPointer start
+defer method pointer ok
+testDeferMethodValue start
+defer method value ok
+testDeferMethodInterface start
+MyFile:Close
 I am fmt.Print
 bytes written=15
 I am fmt.Println

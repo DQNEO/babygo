@@ -1094,6 +1094,8 @@ func emitExpr(meta ir.MetaExpr) {
 		emitCompositeLit(m)
 	case *ir.MetaIdent:
 		emitIdent(m)
+	case *ir.Variable:
+		emitVariable(m)
 	case *ir.MetaSelectorExpr:
 		emitSelectorExpr(m)
 	case *ir.MetaForeignFuncWrapper:
@@ -1910,7 +1912,12 @@ func emitGoStmt(m *ir.MetaGoStmt) {
 }
 
 func emitDeferStmt(m *ir.MetaDeferStmt) {
-	emitSingleAssign(m.FuncAssign)
+	if m.ReceiverAssign != nil {
+		emitSingleAssign(m.ReceiverAssign)
+	}
+	if m.FuncAssign != nil {
+		emitSingleAssign(m.FuncAssign)
+	}
 }
 
 func emitStmt(meta ir.MetaStmt) {
@@ -1994,11 +2001,30 @@ func emitFuncDecl(pkgName string, fnc *ir.Func) {
 	}
 
 	if fnc.HasDefer {
-		printf(".L.defer.%d:\n", deferLabelId)
-		deferLabelId++
-		emitVariable(fnc.DeferVar) // defer func addr
-		printf("  popq %%rax # defer func addr\n")
-		printf("  callq *%%rax # defer func addr\n")
+		if len(fnc.Defers) > 0 {
+			for i := len(fnc.Defers) - 1; i >= 0; i-- {
+				d := fnc.Defers[i]
+				printf(".L.defer.%d:\n", deferLabelId)
+				deferLabelId++
+				if d.DeferCall != nil {
+					var rtypes []types2.Type
+					if d.DeferCall.ResultTuple != nil {
+						rtypes = d.DeferCall.ResultTuple.Types
+					}
+					emitCall(d.DeferCall.FuncVal, d.DeferCall.Args, d.DeferCall.ParamTypes, rtypes)
+				} else if d.DeferVar != nil {
+					emitVariable(d.DeferVar) // defer func addr
+					printf("  popq %%rax # defer func addr\n")
+					printf("  callq *%%rax # defer func addr\n")
+				}
+			}
+		} else if fnc.DeferVar != nil {
+			printf(".L.defer.%d:\n", deferLabelId)
+			deferLabelId++
+			emitVariable(fnc.DeferVar) // defer func addr
+			printf("  popq %%rax # defer func addr\n")
+			printf("  callq *%%rax # defer func addr\n")
+		}
 	}
 
 	printf("  leave\n")
